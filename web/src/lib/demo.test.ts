@@ -1,0 +1,35 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { runPartnerDemo } from "./demo";
+import { resetStore, readStore } from "./store";
+
+describe("runPartnerDemo", () => {
+  beforeEach(async () => {
+    await resetStore();
+  });
+
+  it("resets fixtures and ingests Intercom + WhatsApp samples", async () => {
+    const before = await readStore();
+    const fixtureConvos = before.conversations.length;
+    const fixtureSignals = before.signals.length;
+
+    const result = await runPartnerDemo();
+
+    expect(result.samples).toEqual([
+      "sample-intercom.json",
+      "sample-whatsapp.txt",
+    ]);
+    expect(result.importedConversations).toBeGreaterThan(0);
+    expect(result.newSignals).toBeGreaterThan(0);
+    expect(result.store.conversations.length).toBeGreaterThan(fixtureConvos);
+    expect(result.store.signals.length).toBeGreaterThan(fixtureSignals);
+    expect(
+      result.store.conversations.some((c) => c.channel === "intercom")
+    ).toBe(true);
+    expect(
+      result.store.conversations.some((c) => c.channel === "whatsapp")
+    ).toBe(true);
+    expect(result.baselineOpportunities).toBe(4);
+    expect(result.store.pilot?.baselineOpportunities).toBe(4);
+    expect(result.opportunityLift).toBeGreaterThan(0);
+  });
+});

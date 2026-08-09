@@ -1,0 +1,41 @@
+---
+description: Sioona repo map, stack honesty, and where to edit
+alwaysApply: true
+---
+
+# Sioona Architecture
+
+Single Next.js app in `web/` — **not** a monorepo. No `packages/`. Do not apply parent Expo RN rules.
+
+## Stack (current ≠ target)
+
+| Layer | Current (code) | Do not assume until asked |
+|-------|----------------|---------------------------|
+| App | Next.js 15 App Router, React 19, Tailwind, Geist | — |
+| Detect | Keyword heuristics + store taxonomy overrides (`detect.ts`) | LLM / vLLM / LangGraph |
+| Data | JSON file `web/data/store.json` via `store.ts` | Neon + pgvector |
+| Auth | None | Auth0 |
+
+## Layout
+
+- `web/src/app/` — routes + `api/`
+- `web/src/components/` — UI (`"use client"` only when interactive)
+- `web/src/lib/` — domain logic (prefer edits here)
+- `web/src/data/fixtures/` — seed demo data
+- `web/data/` — runtime store + samples (do **not** commit `store.json`)
+
+Path alias: `@/*` → `./src/*`.
+
+## Canonical files
+
+- Types: `web/src/lib/types.ts`
+- Taxonomy SoT: `web/src/lib/taxonomy.ts` (not `taxonomy.json`)
+- Detect / ingest / eval / format / store: matching files in `web/src/lib/`
+- Tokens + utilities: `web/src/app/globals.css`
+- Chrome: `web/src/components/AppShell.tsx`
+
+## Patterns
+
+- RSC pages read the store directly; mutations via `fetch` to `/api/*` then `router.refresh()`
+- Data pages: `export const dynamic = "force-dynamic"`
+- Extend `web/src/lib/*` first; do not scaffold Phase-2 infra unless asked

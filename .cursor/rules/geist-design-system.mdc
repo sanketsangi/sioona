@@ -1,0 +1,77 @@
+---
+description: Geist Design System + Vercel Web Interface Guidelines for Sioona UI
+alwaysApply: true
+---
+
+# Geist / Vercel Design System
+
+Sources of truth:
+- [Geist Introduction](https://vercel.com/geist/introduction)
+- [Geist Colors](https://vercel.com/geist/colors)
+- [Geist Typography](https://vercel.com/geist/typography)
+- [Geist Materials](https://vercel.com/geist/materials)
+- [Brand guidelines](https://vercel.com/geist/brands) — do not misuse Vercel/Next marks; Sioona stays its own brand
+- [Web Interface Guidelines](https://vercel.com/design/guidelines)
+
+Product SoT (what we build): Phase 1 Shadow Mode Insights. Visual SoT (how it looks): Vercel/Geist principles — not Vercel branding, not navy+cyan.
+
+## Typography
+
+- **UI/body**: Geist Sans
+- **Code/data/tabular**: Geist Mono (`font-variant-numeric: tabular-nums` for comparable numbers)
+- Prefer typography roles: `heading-*`, `label-*`, `copy-*` (see Geist typography)
+- Default body: copy-14 / label-14. Headings: tight tracking, weight 600
+
+## Color (light theme — product default)
+
+Use `--ds-*` tokens. Step meaning: `100` bg → `200` hover → `300` active → `400` border → `500`/`600` border hover/active → `900` secondary text → `1000` primary text.
+
+Page: `background-100` (#fff). `color-scheme: light` on `<html>`. `theme-color` matches page background.
+
+Accent color signals **state**, not decoration (lead=blue, retention=amber, upsell=teal). Pair color with text/icon.
+
+## Density & spacing
+
+- Rhythm: 4 / 8 / 12 / 16 / 24 (`--space-*`)
+- Prefer `gap-4` / `gap-6` between page sections; avoid stacked bordered boxes
+- Controls default height **36px** (`h-9`); filters/nav chrome **32px** (`h-8`)
+
+## Surface ladder
+
+1. **Flush** — no border (page chrome, dividers only)
+2. **Quiet** — `.surface-quiet` / `.metric-strip` (border, transparent)
+3. **Panel** — `.panel` (`rounded-sm` + border; near-zero shadow)
+4. **Group** — `.panel-group` (`rounded-md`) only for large grouped regions
+
+Borders + tonal fills first; avoid card-on-card nesting.
+
+## Shell / sidebar
+
+- Desktop (`md+`): fixed left sidebar (~240px), logo, icon+label nav, quiet Sign In footer
+- Mobile: top bar + slide-over drawer (focus trap, Escape, `overscroll-behavior: contain`)
+- Selected nav: `gray-alpha-200` fill + primary text (not colored pills)
+
+## Components
+
+- **Primary**: `gray-1000` fill, `background-100` text, 6px, medium weight
+- **Secondary**: border `gray-alpha-400`; hover border `500`
+- **Tertiary**: text only; hover `gray-alpha` tint
+- **Focus**: `0 0 0 2px #fff, 0 0 0 4px` blue-700
+- Icons: Lucide, `strokeWidth={1.5}`, 16px, gray-900 at rest
+- Loading labels end with `…`
+
+## Web interface rules (must follow)
+
+- Keyboard operable; links are real `<a>`/`Link`
+- Hit targets ≥24px (44px mobile); `touch-action: manipulation`
+- Honor `prefers-reduced-motion`; never `transition: all`
+- Title Case for buttons/nav/titles; sentence case for body/helpers
+- Action labels: verb + noun; empty/error states offer a next step
+
+## Do not
+
+- Dark mode as product default; atmospheric glows, orbit/grid/star backdrops, luminous pill chrome
+- Use Slash gold/Inter/Instrument Serif stacks
+- Use Vercel logo/marks in a way that implies endorsement
+- Navy+cyan or purple glows / non-token neon accents
+- Import Vercel brand CSS or invent a parallel token system

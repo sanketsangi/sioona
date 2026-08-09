@@ -1,0 +1,27 @@
+---
+description: Sioona Next.js UI patterns (AppShell, CSS utilities, App Router)
+globs: web/src/app/**/*.tsx,web/src/components/**/*.tsx
+alwaysApply: false
+---
+
+# Sioona UI / App Router
+
+Tokens, typography, Title Case / verb+noun labels, empty states, and focus rings live in `geist-design-system.mdc` — follow that; do not invent a parallel system.
+
+## Structure
+
+- Wrap pages in `AppShell` with a Title Case title + sentence-case subtitle
+- Reuse signal chrome via `format.ts` / `SignalBadge` (lead=blue, retention=amber, upsell=teal)
+
+## Reuse before inventing
+
+From `globals.css`: `.panel`, `.btn-primary`, `.btn-secondary`, `.btn-tertiary`, `.input-field`, `.link-accent`, typography role classes.
+
+- `"use client"` only for interactive controls (forms, feedback, buttons that mutate)
+- Icons: `lucide-react`, `strokeWidth={1.5}`
+
+## Next.js 15
+
+- `params` and `searchParams` are Promises — `await` them
+- Server Components read store; client components `fetch` APIs then `router.refresh()`
+- Keep data routes `dynamic = "force-dynamic"` when reading the file store

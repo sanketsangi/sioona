@@ -1,0 +1,43 @@
+---
+description: Sioona domain types, taxonomy, detect/ingest/eval invariants
+globs: web/src/lib/**/*,web/src/data/**/*,web/src/app/api/**/*
+alwaysApply: false
+---
+
+# Sioona Domain
+
+## Vocabulary
+
+- `SignalType`: `lead` | `retention` | `upsell`
+- `FeedbackLabel`: `accept` | `reject` | `wrong_reason`
+- `SignalStatus`: `new` | `reviewed` | `acted`
+- Message `role`: `customer` | `agent` | `system`
+- IDs: `tenant_*`, `conv_*`, `msg_*`, `sig_*`
+
+Taxonomy SoT: `web/src/lib/taxonomy.ts`. Types: `web/src/lib/types.ts`.
+
+## Detection (`detect.ts`)
+
+- Score **customer** messages only (ignore agent/system for matching)
+- Keyword/phrase heuristics; threshold ~0.35; top-1 (+ near-tie)
+- Phrases weigh more than keywords; weak/ambiguous keywords weigh less
+- Short tokens use word boundaries; `negativePhrases` in taxonomy zero that type’s score
+- Today `confidence === score` — do not invent a separate model score
+- Suggested actions are **Shadow Mode display-only** — never execute them
+- Unit tests: `src/lib/detect.test.ts`, `ingest.test.ts`, `eval.test.ts` (`npm test`)
+
+## Ingest / store / eval
+
+- Ingest **appends** conversations/messages
+- Formats: Sioona CSV/JSON, Intercom JSON (`conversation_parts`), WhatsApp Business `.txt` (`ingest-platforms.ts`)
+- Detect **replaces** signals but **preserves SignalScore feedback** when the same `conversationId` + `type` is still emitted (`mergeSignalsPreservingFeedback`)
+- Detection uses `getEffectiveTaxonomy(store.taxonomyOverrides)` — base [`taxonomy.ts`](web/src/lib/taxonomy.ts) ⊕ store overrides
+- Reset reseeds fixtures from `src/data/fixtures/sample-store.ts`
+- Optional `groundTruth` on conversations/signals for labeled eval
+- `store.pilot.baselineOpportunities` feeds lift in `computePilotMetrics`
+- Pilot pack: opportunity lift, ≥80% review precision target, go/no-go
+- Demo tenant is hard-coded (`tenant_demo`) — no real multi-tenant isolation yet
+
+## Display helpers
+
+Signal badge colors in `format.ts`: lead=blue, retention=amber, upsell=teal. Pair color with label (never color alone).

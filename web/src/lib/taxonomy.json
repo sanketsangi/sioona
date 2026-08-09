@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "signals": ["lead", "retention", "upsell"],
+  "note": "Canonical taxonomy lives in src/lib/taxonomy.ts — this file documents the MVP set for tooling."
+}

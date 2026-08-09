@@ -1,0 +1,128 @@
+{
+  "conversations": [
+    {
+      "type": "conversation",
+      "id": "ic_9001",
+      "created_at": 1754121600,
+      "updated_at": 1754121720,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hi, I want to open a demat account this week. What are your brokerage charges? You can reach me on 9876543210 or asha.mehta@example.com — my PAN is ABCDE1234F.</p>",
+        "created_at": 1754121600,
+        "author": { "type": "user", "name": "Asha Mehta" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Happy to help! Are you a new investor?</p>",
+            "created_at": 1754121660,
+            "author": { "type": "admin", "name": "Support" }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>New investor. Looking to start investing in equity and complete my KYC today.</p>",
+            "created_at": 1754121720,
+            "author": { "type": "user", "name": "Asha Mehta" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9002",
+      "created_at": 1754208000,
+      "source": {
+        "type": "conversation",
+        "body": "This is unacceptable. Settlement is delayed again — if funds aren't credited today I'm going to switch brokers.",
+        "created_at": 1754208000,
+        "author": { "type": "user", "name": "Farhan Ali" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "Escalating to a senior specialist now.",
+            "created_at": 1754208060,
+            "author": { "type": "admin", "name": "Support" }
+          },
+          {
+            "part_type": "comment",
+            "body": "Still waiting for payout. Last time I ask before I raise a closure request.",
+            "created_at": 1754208120,
+            "author": { "type": "user", "name": "Farhan Ali" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9003",
+      "created_at": 1754294400,
+      "source": {
+        "type": "conversation",
+        "body": "Existing customer here — can you enable F&O and margin trading facility on my account?",
+        "created_at": 1754294400,
+        "author": { "type": "user", "name": "Suresh Menon" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "I can share eligibility and risk disclosures.",
+            "created_at": 1754294460,
+            "author": { "type": "admin", "name": "Support" }
+          },
+          {
+            "part_type": "comment",
+            "body": "Also interested in adding a dedicated relationship manager if you offer premium advisory.",
+            "created_at": 1754294520,
+            "author": { "type": "user", "name": "Suresh Menon" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9004",
+      "created_at": 1754380800,
+      "source": {
+        "type": "conversation",
+        "body": "Your brokerage is too high compared to others. Reduce my brokerage or I'll shift to another broker and transfer my holdings out.",
+        "created_at": 1754380800,
+        "author": { "type": "user", "name": "Sneha Pillai" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "Let me pull up the rebate options I can offer.",
+            "created_at": 1754380860,
+            "author": { "type": "admin", "name": "Support" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9005",
+      "created_at": 1754467200,
+      "source": {
+        "type": "conversation",
+        "body": "Existing customer here — can you activate options trading and add a family account for my wife?",
+        "created_at": 1754467200,
+        "author": { "type": "user", "name": "Aditya Ghosh" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "I'll share the F&O activation and family account steps.",
+            "created_at": 1754467260,
+            "author": { "type": "admin", "name": "Support" }
+          }
+        ]
+      }
+    }
+  ]
+}

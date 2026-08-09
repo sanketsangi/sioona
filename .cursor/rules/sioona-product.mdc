@@ -1,0 +1,43 @@
+---
+description: Sioona product phase, scope, and non-goals (Phase 1 Shadow Mode)
+alwaysApply: true
+---
+
+# Sioona Product
+
+**Sioona.ai** — “Signals into Revenue”. Overlay conversation intelligence for finance / high-volume chat. Internal engine name **SignalC1** (do not surface in UI).
+
+Sits on top of existing chat tools (Intercom, Zendesk, WhatsApp, etc.). **Not** a chatbot replacement.
+
+## Phase 1 MVP loop (build this)
+
+Ingest export → detect → Shadow Mode Insights → SignalScore feedback → pragmatic adapt (taxonomy overrides) → eval / lift vs baseline.
+
+Prove domain signal detection beats the customer’s current process with enough precision to earn trust.
+
+**Domain adaptation in Phase 1** = merge partner SignalScore feedback into store taxonomy overrides used by `detect.ts`. Not QLoRA / vLLM / LangGraph.
+
+## In scope
+
+- Chat ingest (Sioona CSV/JSON, Intercom JSON export, WhatsApp Business `.txt`)
+- Core signals: `lead`, `retention`, `upsell`
+- Scoring, summaries, suggested actions (**display-only**)
+- Insights dashboard + Shadow Mode review queue
+- SignalScore feedback (`accept` / `reject` / `wrong_reason`)
+- Taxonomy overrides from rejects / wrong_reason; partner baseline + lift
+- Conversation `groundTruth` labeling for partner eval
+- Basic eval (labeled + human-review precision, ≥80% go/no-go)
+
+## Out of scope unless explicitly asked
+
+- Autonomous actions, computer-use, agent swarm
+- Auth0 / Neon / pgvector / vLLM / LangGraph / QLoRA scaffolds
+- Live Intercom/WhatsApp webhooks
+- Outcome-based billing, on-prem, chatbot replacement
+- Navy+cyan or Slash/gold branding (UI SoT is Geist rule)
+
+## Agent sources of truth
+
+- Code: `web/`
+- Locked brief: `.cursor/plans/sioona_product_context_6028d8b1.plan.md`
+- `Grok NLP Report.pdf` is image-only — do not rely on grepping it

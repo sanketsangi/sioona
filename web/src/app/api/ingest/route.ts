@@ -1,0 +1,71 @@
+import { NextResponse } from "next/server";
+import { runDetection } from "@/lib/detect";
+import {
+  parseIngestDocument,
+  toStoreRecords,
+  ZERO_SIGNAL_HINT,
+} from "@/lib/ingest";
+import { readStore, writeStore } from "@/lib/store";
+import { sortSignals } from "@/lib/eval";
+
+export async function POST(request: Request) {
+  try {
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "file is required" }, { status: 400 });
+    }
+
+    const content = await file.text();
+    const { format, conversations: parsed } = parseIngestDocument(
+      file.name,
+      content
+    );
+    if (parsed.length === 0) {
+      return NextResponse.json(
+        { error: "No conversations found in file" },
+        { status: 400 }
+      );
+    }
+
+    const store = await readStore();
+    const { conversations, messages } = toStoreRecords(
+      parsed,
+      store.tenant.id
+    );
+
+    if (conversations.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "No usable conversations found. Each conversation needs at least one message with content.",
+        },
+        { status: 400 }
+      );
+    }
+
+    store.conversations.push(...conversations);
+    store.messages.push(...messages);
+
+    const newSignals = runDetection(
+      conversations,
+      messages,
+      store.tenant.id,
+      store.taxonomyOverrides
+    );
+    store.signals.push(...newSignals);
+    await writeStore(store);
+
+    return NextResponse.json({
+      format,
+      importedConversations: conversations.length,
+      importedMessages: messages.length,
+      newSignals: newSignals.length,
+      hint: newSignals.length === 0 ? ZERO_SIGNAL_HINT : undefined,
+      signals: sortSignals(store.signals),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Ingest failed";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
