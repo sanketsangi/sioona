@@ -1,4 +1,5 @@
 import { promises as fs } from "fs";
+import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
 import { sampleStore } from "@/data/fixtures/sample-store";
@@ -13,11 +14,42 @@ import type {
   TaxonomyTypeOverride,
 } from "./types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const STORE_PATH = path.join(DATA_DIR, "store.json");
+// Local dev writes the bundled data dir; serverless (Vercel) filesystems are
+// read-only except for the OS temp dir, so we fall back there when the bundled
+// dir can't be written. On serverless the store therefore lives in tmp and is
+// per-instance ephemeral (reseeded from fixtures on a cold start) — acceptable
+// for the Phase-1 demo, and the data model is unchanged.
+const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
+const BUNDLED_STORE_PATH = path.join(BUNDLED_DATA_DIR, "store.json");
+const TMP_DATA_DIR = path.join(os.tmpdir(), "sioona-store");
+const TMP_STORE_PATH = path.join(TMP_DATA_DIR, "store.json");
 
-async function ensureDir() {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+// Resolved once to the first writable store path; `null` means no writable
+// filesystem, in which case we keep an in-memory seed so reads never throw.
+let resolvedStorePath: string | null | undefined;
+let memoryStore: StoreData | null = null;
+
+/** Pick (and cache) the first writable location for the JSON store. */
+async function resolveStorePath(): Promise<string | null> {
+  if (resolvedStorePath !== undefined) return resolvedStorePath;
+  const candidates: Array<[string, string]> = [
+    [BUNDLED_DATA_DIR, BUNDLED_STORE_PATH],
+    [TMP_DATA_DIR, TMP_STORE_PATH],
+  ];
+  for (const [dir, file] of candidates) {
+    try {
+      await fs.mkdir(dir, { recursive: true });
+      const probe = path.join(dir, ".write-probe");
+      await fs.writeFile(probe, "ok", "utf8");
+      await fs.rm(probe, { force: true });
+      resolvedStorePath = file;
+      return file;
+    } catch {
+      // Not writable (e.g. EROFS/EACCES on serverless) — try the next one.
+    }
+  }
+  resolvedStorePath = null;
+  return null;
 }
 
 export function normalizeStore(data: StoreData): StoreData {
@@ -49,24 +81,43 @@ export function appendAuditEvent(
 }
 
 export async function readStore(): Promise<StoreData> {
-  await ensureDir();
-  try {
-    const raw = await fs.readFile(STORE_PATH, "utf8");
-    return normalizeStore(JSON.parse(raw) as StoreData);
-  } catch {
-    const seeded = normalizeStore(structuredClone(sampleStore));
-    await writeStore(seeded);
-    return seeded;
+  const storePath = await resolveStorePath();
+  if (storePath) {
+    try {
+      const raw = await fs.readFile(storePath, "utf8");
+      return normalizeStore(JSON.parse(raw) as StoreData);
+    } catch {
+      // No persisted file yet — fall through to seed from bundled fixtures.
+    }
+  } else if (memoryStore) {
+    return normalizeStore(structuredClone(memoryStore));
   }
+  const seeded = normalizeStore(structuredClone(sampleStore));
+  await writeStore(seeded);
+  return seeded;
 }
 
 export async function writeStore(data: StoreData): Promise<void> {
-  await ensureDir();
-  await fs.writeFile(
-    STORE_PATH,
-    JSON.stringify(normalizeStore(data), null, 2),
-    "utf8"
-  );
+  const normalized = normalizeStore(data);
+  const storePath = await resolveStorePath();
+  if (!storePath) {
+    // Fully read-only filesystem: keep the store in memory so a GET before any
+    // write still returns seeded fixtures without throwing (per-instance only).
+    memoryStore = normalized;
+    return;
+  }
+  try {
+    await fs.mkdir(path.dirname(storePath), { recursive: true });
+    await fs.writeFile(
+      storePath,
+      JSON.stringify(normalized, null, 2),
+      "utf8"
+    );
+  } catch {
+    // Became unwritable at runtime — degrade to in-memory rather than throwing.
+    resolvedStorePath = null;
+    memoryStore = normalized;
+  }
 }
 
 export async function resetStore(): Promise<StoreData> {
