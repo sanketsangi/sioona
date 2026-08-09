@@ -61,8 +61,9 @@
   --background: var(--ds-background-100);
   --foreground: var(--ds-gray-1000);
   --focus-ring: 0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-blue-700);
-  --page-max: 1200px;
+  --page-max: 1360px;
   --sidebar-width: 240px;
+  --mobile-bar-height: 56px;
   --radius-control: 6px;
   --radius-panel: 12px;
   --radius-group: 16px;
@@ -71,8 +72,15 @@
 @layer base {
   html {
     color-scheme: light;
-    height: 100%;
-    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+    /* Sticky mobile bar must not cover anchored headings */
+    scroll-padding-top: calc(var(--mobile-bar-height) + 1rem);
+  }
+
+  @media (min-width: 768px) {
+    html {
+      scroll-padding-top: 1rem;
+    }
   }
 
   body {
@@ -81,12 +89,14 @@
     font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
     font-size: 14px;
     line-height: 20px;
-    height: 100%;
-    max-height: 100dvh;
-    overflow: hidden;
-    overscroll-behavior: none;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Set while the mobile navigation drawer is open */
+  body[data-scroll-locked="true"] {
+    overflow: hidden;
   }
 
   /* touch-action is not inherited — set on interactive targets */
@@ -160,24 +170,24 @@
   }
 
   .page-main {
-    @apply relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
+    @apply relative flex min-w-0 flex-1 flex-col;
     background: var(--ds-background-100);
   }
 
   .page-header {
-    @apply mb-6 max-w-3xl shrink-0 scroll-mt-4;
+    @apply mb-5 max-w-3xl sm:mb-6;
   }
 
   .page-header-title {
-    @apply text-balance text-heading-24 tracking-tight text-ds-gray-1000;
+    @apply text-balance text-heading-24 tracking-tight text-ds-gray-1000 lg:text-heading-32;
   }
 
   .page-header-subtitle {
-    @apply mt-2 max-w-2xl text-copy-14 text-ds-gray-900 text-pretty;
+    @apply mt-2 max-w-2xl text-pretty text-copy-14 text-ds-gray-900 sm:text-copy-16;
   }
 
   .page-body {
-    @apply flex min-h-0 flex-1 flex-col;
+    @apply flex flex-col;
   }
 
   /* Surface ladder: flush → quiet border → panel */
@@ -213,7 +223,28 @@
     overflow: hidden;
     border-radius: var(--radius-panel);
     border: 1px solid var(--ds-gray-400);
-    background: transparent;
+    background: var(--ds-background-100);
+  }
+
+  /*
+   * Each cell draws its own top/left rule and the grid is nudged 1px up and
+   * left so the outer ones fall outside the clip. Dividers then stay correct
+   * at any column count, and a short final row leaves no dangling rule.
+   */
+  .metric-grid {
+    @apply grid;
+    margin-top: -1px;
+    margin-left: -1px;
+  }
+
+  .metric-grid > * {
+    border-top: 1px solid var(--ds-gray-400);
+    border-left: 1px solid var(--ds-gray-400);
+  }
+
+  .metric-bar {
+    @apply flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-4 py-3;
+    background: var(--ds-background-100);
   }
 
   .metric-cell {
@@ -255,24 +286,36 @@
     background-color: var(--ds-blue-100);
   }
 
+  /* Controls run 44px on touch-sized screens, 36px from md up */
   .btn-primary {
-    @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap bg-ds-gray-1000 px-3.5 text-sm font-medium leading-5 text-ds-background-100 transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-ds-gray-200 disabled:text-ds-gray-700;
+    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap bg-ds-gray-1000 px-4 text-sm font-medium leading-5 text-ds-background-100 transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-ds-gray-200 disabled:text-ds-gray-700 md:h-9 md:px-3.5;
     border-radius: var(--radius-control);
   }
 
   .btn-secondary {
-    @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap border border-ds-gray-alpha-400 bg-transparent px-3.5 text-sm font-medium leading-5 text-ds-gray-1000 transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-alpha-100 disabled:cursor-not-allowed disabled:text-ds-gray-700;
+    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap border border-ds-gray-alpha-400 bg-transparent px-4 text-sm font-medium leading-5 text-ds-gray-1000 transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-alpha-100 disabled:cursor-not-allowed disabled:border-ds-gray-alpha-300 disabled:text-ds-gray-700 md:h-9 md:px-3.5;
     border-radius: var(--radius-control);
   }
 
   .btn-tertiary {
-    @apply inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium leading-5 text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 disabled:cursor-not-allowed disabled:text-ds-gray-700;
+    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium leading-5 text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 disabled:cursor-not-allowed disabled:text-ds-gray-700 md:h-9;
     border-radius: var(--radius-control);
   }
 
   .input-field {
-    @apply w-full border border-ds-gray-alpha-400 bg-ds-background-100 px-3 py-2.5 text-base leading-5 text-ds-gray-1000 placeholder:text-ds-gray-700 transition-colors duration-150 focus:border-ds-gray-500 focus:outline-none sm:text-sm;
+    @apply w-full border border-ds-gray-alpha-400 bg-ds-background-100 px-3 py-2.5 text-base leading-5 text-ds-gray-1000 transition-colors duration-150 placeholder:text-ds-gray-700 focus:border-ds-gray-500 focus:outline-none sm:text-sm;
     border-radius: var(--radius-control);
+    min-height: 44px;
+  }
+
+  @media (min-width: 768px) {
+    .input-field {
+      min-height: 36px;
+    }
+  }
+
+  textarea.input-field {
+    min-height: 72px;
   }
 
   .input-field:focus-visible {
@@ -313,7 +356,7 @@
   }
 
   .sidebar-nav-link {
-    @apply flex h-9 items-center gap-2.5 px-3 text-[13px] leading-4 font-medium tracking-[-0.01em] text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000;
+    @apply flex h-11 items-center gap-2.5 px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 md:h-9 md:text-[13px];
     border-radius: var(--radius-control);
   }
 
@@ -327,7 +370,7 @@
   }
 
   .sidebar-sign-in {
-    @apply inline-flex h-9 w-full items-center justify-start gap-2.5 border border-ds-gray-alpha-400 bg-transparent px-3 text-[13px] leading-4 font-medium tracking-[-0.01em] text-ds-gray-1000 transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-alpha-100 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex h-11 w-full items-center justify-start gap-2.5 border border-ds-gray-alpha-400 bg-transparent px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-ds-gray-1000 transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-alpha-100 disabled:cursor-not-allowed disabled:text-ds-gray-700 md:h-9 md:text-[13px];
     border-radius: var(--radius-control);
   }
 
@@ -359,6 +402,30 @@
     box-shadow:
       inset 0 0 0 1px var(--ds-blue-700),
       inset 0 0 0 3px color-mix(in srgb, var(--ds-blue-700) 35%, transparent);
+  }
+
+  /* Tables keep their columns readable and scroll sideways when space runs out */
+  .table-scroll {
+    @apply w-full overflow-x-auto;
+    overscroll-behavior-x: contain;
+  }
+
+  .table-scroll:focus-visible {
+    outline: none;
+    box-shadow: inset var(--focus-ring);
+  }
+
+  .data-table {
+    @apply w-full text-left text-copy-14;
+    min-width: 640px;
+  }
+
+  .data-table th {
+    @apply whitespace-nowrap px-4 py-2 text-label-12 font-medium text-ds-gray-900;
+  }
+
+  .data-table td {
+    @apply px-4 py-2.5 align-top;
   }
 
   .signal-score {
@@ -401,16 +468,21 @@
   }
 
   .sidebar-rail {
+    @apply sticky top-0 h-dvh;
     border-right: 1px solid var(--ds-gray-400);
     background: var(--ds-background-100);
+    padding-left: env(safe-area-inset-left);
   }
 
   .sidebar-mobile-bar {
+    @apply sticky top-0 z-30;
+    min-height: var(--mobile-bar-height);
     border-bottom: 1px solid var(--ds-gray-400);
-    background: var(--ds-background-100);
+    background: color-mix(in srgb, var(--ds-background-100) 88%, transparent);
+    backdrop-filter: saturate(180%) blur(12px);
     padding-top: env(safe-area-inset-top);
-    padding-left: max(0.75rem, env(safe-area-inset-left));
-    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
   }
 
   .text-heading-32 {

@@ -51,9 +51,11 @@ export function GroundTruthControl({
   }
 
   return (
-    <div className="panel p-4 sm:p-5">
-      <h2 className="text-heading-16 text-ds-gray-1000">Set Ground Truth</h2>
-      <p className="mt-1 text-copy-14 text-ds-gray-900">
+    <section className="panel p-4 sm:p-5" aria-labelledby="ground-truth-heading">
+      <h2 id="ground-truth-heading" className="text-heading-16 text-ds-gray-1000">
+        Set Ground Truth
+      </h2>
+      <p className="mt-1 max-w-prose text-pretty text-copy-14 text-ds-gray-900">
         Label this conversation for labeled precision/recall on partner chats.
       </p>
       <label className="mt-4 block">
@@ -83,6 +85,6 @@ export function GroundTruthControl({
           <p className="mt-2 text-copy-14 text-ds-gray-900">Saving…</p>
         ) : null}
       </div>
-    </div>
+    </section>
   );
 }

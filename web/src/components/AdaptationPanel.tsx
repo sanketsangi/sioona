@@ -11,7 +11,7 @@ import type { Signal, SignalType, TaxonomyOverrides } from "@/lib/types";
 
 type OverrideField = "phrases" | "negativePhrases";
 
-const PAGE_SIZE = 2;
+const PAGE_SIZE = 5;
 
 function suggestTerm(signal: Signal): string {
   if (signal.feedback?.note?.trim()) {
@@ -158,14 +158,12 @@ export function AdaptationPanel({
   );
 
   return (
-    <div
-      className={`panel flex min-h-0 flex-col overflow-hidden ${compact ? "h-full" : "mt-6"}`}
-    >
-      <div className="shrink-0 border-b border-ds-gray-400 px-4 py-2.5">
+    <div className={`panel overflow-hidden ${compact ? "" : "mt-6"}`}>
+      <div className="border-b border-ds-gray-400 px-4 py-3">
         <h2 className="text-balance text-heading-16 text-ds-gray-1000">
           Adapt From Reviews
         </h2>
-        <p className="mt-1 text-label-13 text-ds-gray-900">
+        <p className="mt-1 max-w-2xl text-pretty text-label-13 text-ds-gray-900">
           Reject → Add Negative (stop false positives). Wrong reason / miss →
           Add Phrase. Each change re-detects immediately.
         </p>
@@ -173,7 +171,7 @@ export function AdaptationPanel({
 
       <div aria-live="polite">
         {success ? (
-          <p className="shrink-0 border-b border-ds-gray-400 px-4 py-2 text-copy-14 text-ds-green-900">
+          <p className="border-b border-ds-gray-400 bg-ds-green-100 px-4 py-2.5 text-pretty text-copy-14 text-ds-green-900">
             {success}
           </p>
         ) : null}
@@ -181,7 +179,7 @@ export function AdaptationPanel({
 
       {error ? (
         <p
-          className="shrink-0 border-b border-ds-gray-400 px-4 py-2 text-copy-14 text-ds-red-900"
+          className="border-b border-ds-gray-400 bg-ds-red-100 px-4 py-2.5 text-pretty text-copy-14 text-ds-red-900"
           role="alert"
         >
           {error} Fix the term and try again.
@@ -189,17 +187,20 @@ export function AdaptationPanel({
       ) : null}
 
       {overrideRows.length > 0 ? (
-        <div className="shrink-0 border-b border-ds-gray-400 px-4 py-2">
+        <div className="border-b border-ds-gray-400 px-4 py-3">
           <h3 className="text-label-12 text-ds-gray-900">Active Overrides</h3>
-          <ul className="mt-1 space-y-0.5 text-copy-14 text-ds-gray-1000">
-            {overrideRows.slice(0, 3).map((row) => (
-              <li key={`${row.type}-${row.field}-${row.value}`} className="truncate">
+          <ul className="mt-1.5 flex flex-wrap gap-1.5">
+            {overrideRows.slice(0, 6).map((row) => (
+              <li
+                key={`${row.type}-${row.field}-${row.value}`}
+                className="max-w-full truncate rounded-sm border border-ds-gray-400 bg-ds-gray-100 px-2 py-1 text-label-12 text-ds-gray-1000"
+              >
                 {signalTypeLabel(row.type)} · {row.field}: “{row.value}”
               </li>
             ))}
-            {overrideRows.length > 3 ? (
-              <li className="text-label-13 text-ds-gray-900">
-                +{overrideRows.length - 3} more
+            {overrideRows.length > 6 ? (
+              <li className="self-center text-label-13 text-ds-gray-900">
+                +{overrideRows.length - 6} more
               </li>
             ) : null}
           </ul>
@@ -207,119 +208,113 @@ export function AdaptationPanel({
       ) : null}
 
       {reviewSignals.length === 0 ? (
-        <p className="px-4 py-4 text-copy-14 text-ds-gray-900">
-          No reject or wrong_reason feedback yet. Review signals in{" "}
-          <Link href={viewHref("insights")} className="link-accent">
-            Insights
+        <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+          <p className="text-heading-16 text-ds-gray-1000">
+            No reviews to adapt from
+          </p>
+          <p className="mt-1 max-w-sm text-pretty text-copy-14 text-ds-gray-900">
+            Reject a signal or mark it as the wrong reason, then return here to
+            tune detection.
+          </p>
+          <Link href={viewHref("insights")} className="btn-primary mt-4">
+            Review Signals
           </Link>
-          , then return here to tune detection.
-        </p>
+        </div>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <table className="w-full text-left text-copy-14">
-              <thead className="border-b border-ds-gray-400">
-                <tr>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Signal
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Feedback
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Term
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ds-gray-400">
-                {pageItems.map((signal) => (
-                  <tr key={signal.id}>
-                    <td className="min-w-0 px-4 py-2.5 align-top text-ds-gray-1000">
+          <ul className="divide-y divide-ds-gray-400">
+            {pageItems.map((signal) => {
+              const termId = `override-term-${signal.id}`;
+              return (
+                <li
+                  key={signal.id}
+                  className="grid gap-3 px-4 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-start lg:gap-6"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <Link
                         href={viewHref("insights", { signal: signal.id })}
                         className="link-accent"
                       >
                         {signalTypeLabel(signal.type)}
                       </Link>
-                      <div className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
-                        {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 align-top text-ds-gray-900">
-                      {signal.feedback?.label.replace("_", " ")}
-                    </td>
-                    <td className="min-w-0 px-4 py-2.5 align-top">
-                      <label className="block min-w-0">
-                        <span className="sr-only">
-                          Override term for {signalTypeLabel(signal.type)}
-                        </span>
-                        <input
-                          ref={(el) => {
-                            termRefs.current[signal.id] = el;
-                          }}
-                          type="text"
-                          name={`override-${signal.id}`}
-                          autoComplete="off"
-                          spellCheck={false}
-                          value={drafts[signal.id] ?? ""}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [signal.id]: e.target.value,
-                            }))
-                          }
-                          className="input-field w-full min-w-[8rem]"
-                          disabled={pending || busyId !== null}
-                          placeholder="e.g. cancel my account…"
-                        />
-                      </label>
-                    </td>
-                    <td className="px-4 py-2.5 align-top">
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={pending || busyId !== null}
-                          aria-busy={busyId === `${signal.id}:phrases`}
-                          onClick={() =>
-                            applyOverride(signal, "phrases", signal.type)
-                          }
-                        >
-                          {busyId === `${signal.id}:phrases` ? (
-                            <ButtonSpinner />
-                          ) : null}
-                          Add Phrase
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={pending || busyId !== null}
-                          aria-busy={
-                            busyId === `${signal.id}:negativePhrases`
-                          }
-                          onClick={() =>
-                            applyOverride(signal, "negativePhrases", signal.type)
-                          }
-                        >
-                          {busyId === `${signal.id}:negativePhrases` ? (
-                            <ButtonSpinner />
-                          ) : null}
-                          Add Negative
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="shrink-0 border-t border-ds-gray-400 px-4 py-2">
+                      <span className="text-label-12 capitalize text-ds-gray-900">
+                        · {signal.feedback?.label.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-pretty text-label-13 text-ds-gray-900">
+                      {signal.evidence.slice(0, 1).join(" · ") ||
+                        "No evidence"}
+                    </p>
+                  </div>
+
+                  <div className="min-w-0">
+                    <label
+                      htmlFor={termId}
+                      className="block text-label-12 text-ds-gray-900"
+                    >
+                      Override term for {signalTypeLabel(signal.type)}
+                    </label>
+                    <input
+                      ref={(el) => {
+                        termRefs.current[signal.id] = el;
+                      }}
+                      id={termId}
+                      type="text"
+                      name={`override-${signal.id}`}
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={drafts[signal.id] ?? ""}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [signal.id]: e.target.value,
+                        }))
+                      }
+                      className="input-field mt-1"
+                      disabled={pending || busyId !== null}
+                      placeholder="e.g. cancel my account…"
+                    />
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={pending || busyId !== null}
+                        aria-busy={busyId === `${signal.id}:phrases`}
+                        onClick={() =>
+                          applyOverride(signal, "phrases", signal.type)
+                        }
+                      >
+                        {busyId === `${signal.id}:phrases` ? (
+                          <ButtonSpinner />
+                        ) : null}
+                        Add Phrase
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={pending || busyId !== null}
+                        aria-busy={busyId === `${signal.id}:negativePhrases`}
+                        onClick={() =>
+                          applyOverride(signal, "negativePhrases", signal.type)
+                        }
+                      >
+                        {busyId === `${signal.id}:negativePhrases` ? (
+                          <ButtonSpinner />
+                        ) : null}
+                        Add Negative
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="border-t border-ds-gray-400 px-4 py-3">
             <Pager
               page={page}
               pageCount={pageCount}
+              label="Reviews"
               prevHref={
                 page > 1
                   ? viewHref("eval", {

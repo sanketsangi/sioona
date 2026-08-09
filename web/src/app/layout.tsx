@@ -23,13 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`h-full overflow-hidden ${GeistSans.variable} ${GeistMono.variable}`}
-    >
-      <body className="h-full overflow-hidden font-sans antialiased">
-        {children}
-      </body>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <body className="min-h-dvh font-sans antialiased">{children}</body>
     </html>
   );
 }

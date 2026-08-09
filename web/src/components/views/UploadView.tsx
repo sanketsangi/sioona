@@ -24,25 +24,23 @@ const samples = [
 
 export function UploadView() {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-      <div className="min-h-0">
-        <UploadForm compact />
-      </div>
+    <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start">
+      <UploadForm compact />
 
-      <aside className="flex min-h-0 flex-col gap-4">
-        <section className="panel flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-          <p className="eyebrow shrink-0">Partner Sample Pack</p>
-          <h2 className="mt-1 shrink-0 text-heading-16 text-ds-gray-1000">
+      <aside className="flex flex-col gap-4">
+        <section className="panel p-4 sm:p-5">
+          <p className="eyebrow">Partner Sample Pack</p>
+          <h2 className="mt-1 text-heading-16 text-ds-gray-1000">
             No export yet?
           </h2>
-          <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
+          <p className="mt-2 text-pretty text-copy-14 text-ds-gray-900">
             Use files in{" "}
             <code className="font-mono text-ds-blue-900" translate="no">
               web/data/samples/
             </code>{" "}
             or run the one-click demo.
           </p>
-          <ul className="mt-4 min-h-0 flex-1 divide-y divide-ds-gray-400 border-t border-ds-gray-400">
+          <ul className="mt-4 divide-y divide-ds-gray-400 border-y border-ds-gray-400">
             {samples.map((sample) => (
               <li key={sample.file} className="py-3">
                 <div className="flex flex-wrap items-baseline gap-x-2">
@@ -50,25 +48,25 @@ export function UploadView() {
                     {sample.label}
                   </span>
                   <code
-                    className="font-mono text-label-13 text-ds-gray-900"
+                    className="min-w-0 break-all font-mono text-label-13 text-ds-gray-900"
                     translate="no"
                   >
                     {sample.file}
                   </code>
                 </div>
-                <p className="mt-0.5 text-label-13 text-ds-gray-900">
+                <p className="mt-0.5 text-pretty text-label-13 text-ds-gray-900">
                   {sample.use}
                 </p>
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex shrink-0 flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <PartnerDemoButton label="Run Partner Demo" />
             <ResetDemoButton />
           </div>
         </section>
 
-        <p className="shrink-0 text-label-13 text-ds-gray-900">
+        <p className="text-pretty text-label-13 text-ds-gray-900">
           After import, open{" "}
           <Link href={viewHref("insights")} className="link-accent">
             Insights

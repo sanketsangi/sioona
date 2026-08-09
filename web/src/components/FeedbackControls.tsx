@@ -79,9 +79,11 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
   }
 
   return (
-    <div className="panel p-4 sm:p-5">
-      <h2 className="text-heading-16 text-ds-gray-1000">SignalScore Feedback</h2>
-      <p className="mt-1 text-label-13 text-ds-gray-900">
+    <section className="panel p-4 sm:p-5" aria-labelledby="feedback-heading">
+      <h2 id="feedback-heading" className="text-heading-16 text-ds-gray-1000">
+        SignalScore Feedback
+      </h2>
+      <p className="mt-1 max-w-prose text-pretty text-label-13 text-ds-gray-900">
         Accept / reject / wrong reason — used for precision tracking and
         taxonomy adaptation.
       </p>
@@ -103,7 +105,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={onNoteKeyDown}
           placeholder="Optional note — e.g. ops language, not churn…"
-          className="input-field min-h-[64px] text-base sm:text-sm"
+          className="input-field text-base sm:text-sm"
           rows={2}
         />
       </label>
@@ -118,13 +120,13 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
             disabled={pending !== null}
             aria-busy={pending === option.label}
             onClick={() => submit(option.label)}
-            className="rounded-sm border border-ds-gray-400 bg-ds-background-100 px-3 py-2.5 text-left transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-11 rounded-sm border border-ds-gray-400 bg-ds-background-100 px-3 py-2.5 text-left transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <div className="flex items-center gap-1.5 text-label-14 font-medium text-ds-gray-1000">
               {pending === option.label ? <ButtonSpinner /> : null}
               {option.title}
             </div>
-            <div className="mt-0.5 text-label-12 text-ds-gray-900">
+            <div className="mt-0.5 text-pretty text-label-12 text-ds-gray-900">
               {option.hint}
             </div>
           </button>
@@ -150,10 +152,10 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
         </div>
       ) : null}
       {error ? (
-        <p className="mt-3 text-copy-14 text-ds-red-900" role="alert">
+        <p className="mt-3 text-pretty text-copy-14 text-ds-red-900" role="alert">
           {error}. Try again or refresh the page.
         </p>
       ) : null}
-    </div>
+    </section>
   );
 }

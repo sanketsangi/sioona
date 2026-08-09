@@ -59,67 +59,23 @@ export function InsightsView({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-5 sm:gap-6">
       {demo ? (
         <div
-          className="status-banner status-banner-accent shrink-0"
+          className="status-banner status-banner-accent"
           role="status"
           aria-live="polite"
         >
-          <p className="text-copy-14 text-ds-gray-1000">
+          <p className="text-pretty text-copy-14 text-ds-gray-1000">
             Partner demo ready — review pending signals below, then open Eval
             for precision and lift.
           </p>
         </div>
       ) : null}
 
-      {pilot.baselineOpportunities > 0 || demo ? (
-        <section
-          className="metric-strip shrink-0"
-          aria-label="Opportunity lift comparison"
-        >
-          <div className="grid grid-cols-3 divide-x divide-ds-gray-400">
-            <div className="metric-cell">
-              <div className="metric-label">Their Process</div>
-              <div className="metric-value">
-                {pilot.baselineOpportunities}
-              </div>
-              <p className="mt-1 line-clamp-2 text-label-12 text-ds-gray-900">
-                {store.pilot?.baselineNote?.trim()
-                  ? store.pilot.baselineNote
-                  : "Baseline opportunities flagged today"}
-              </p>
-            </div>
-            <div className="metric-cell">
-              <div className="metric-label">Sioona Found</div>
-              <div className="metric-value">{pilot.sioonaOpportunities}</div>
-              <p className="mt-1 text-label-12 text-ds-gray-900">
-                Conversations with ≥1 revenue signal
-              </p>
-            </div>
-            <div className="metric-cell">
-              <div className="metric-label">Missed / Lift</div>
-              <div
-                className={`metric-value ${
-                  pilot.opportunityLift > 0
-                    ? "text-ds-green-900"
-                    : "text-ds-gray-1000"
-                }`}
-              >
-                {pilot.opportunityLift >= 0 ? "+" : ""}
-                {pilot.opportunityLift}
-              </div>
-              <p className="mt-1 text-label-12 text-ds-gray-900">
-                Opportunities your desk would likely miss
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
       {showImportBanner ? (
         <div
-          className={`status-banner shrink-0 ${
+          className={`status-banner ${
             zeroSignalsImport
               ? "status-banner-warning"
               : "status-banner-success"
@@ -127,7 +83,7 @@ export function InsightsView({
           role="status"
           aria-live="polite"
         >
-          <p className="text-copy-14 text-ds-gray-1000">
+          <p className="text-pretty text-copy-14 text-ds-gray-1000">
             Imported {importedCount} conversations · {newSignalCount} new
             signals.
             {zeroSignalsImport
@@ -145,10 +101,13 @@ export function InsightsView({
         </div>
       ) : null}
 
-      <section className="metric-strip shrink-0">
-        <div className="flex flex-wrap items-end justify-between gap-4 border-b border-ds-gray-400 px-4 py-3">
+      <section className="metric-strip" aria-labelledby="insights-overview">
+        <div className="metric-bar">
           <div className="min-w-0">
-            <p className="tabular text-heading-20 text-ds-gray-1000">
+            <h2 id="insights-overview" className="sr-only">
+              Signal overview
+            </h2>
+            <p className="tabular text-heading-24 text-ds-gray-1000">
               {pilot.sioonaOpportunities}
               <span className="ml-2 text-copy-14 font-normal text-ds-gray-900">
                 opportunities
@@ -157,7 +116,9 @@ export function InsightsView({
             <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-label-13 text-ds-gray-900">
               {byType.map(({ type, count }) => (
                 <p key={type}>
-                  <span className="tabular text-ds-gray-1000">{count}</span>{" "}
+                  <span className="tabular font-medium text-ds-gray-1000">
+                    {count}
+                  </span>{" "}
                   {signalTypeLabel(type)}
                 </p>
               ))}
@@ -167,7 +128,8 @@ export function InsightsView({
             Open Eval
           </Link>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 sm:grid-cols-5 sm:divide-y-0">
+        {/* Odd final cell stretches so the row never ends mid-grid */}
+        <div className="metric-grid grid-cols-2 [&>*:last-child]:col-span-2 sm:grid-cols-3 sm:[&>*:last-child]:col-span-2 lg:grid-cols-5 lg:[&>*:last-child]:col-span-1">
           <Stat label="Signals" value={String(store.signals.length)} />
           <Stat label="Pending" value={String(pendingCount)} />
           <Stat label="Chats" value={String(store.conversations.length)} />
@@ -182,23 +144,67 @@ export function InsightsView({
         </div>
       </section>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <p className="text-label-13 text-ds-gray-900">
-          Queue ·{" "}
-          <span className="text-ds-gray-1000" translate="no">
-            {store.tenant.name}
-          </span>
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <PartnerDemoButton
-            className="btn-secondary"
-            label="Run Partner Demo"
-          />
-          <ReDetectButton />
-        </div>
-      </div>
+      {pilot.baselineOpportunities > 0 || demo ? (
+        <section
+          className="metric-strip"
+          aria-label="Opportunity lift comparison"
+        >
+          <div className="metric-grid grid-cols-1 sm:grid-cols-3">
+            <div className="metric-cell">
+              <div className="metric-label">Their Process</div>
+              <div className="metric-value">
+                {pilot.baselineOpportunities}
+              </div>
+              <p className="mt-1 text-pretty text-label-12 text-ds-gray-900">
+                {store.pilot?.baselineNote?.trim()
+                  ? store.pilot.baselineNote
+                  : "Baseline opportunities flagged today"}
+              </p>
+            </div>
+            <div className="metric-cell">
+              <div className="metric-label">Sioona Found</div>
+              <div className="metric-value">{pilot.sioonaOpportunities}</div>
+              <p className="mt-1 text-pretty text-label-12 text-ds-gray-900">
+                Conversations with ≥1 revenue signal
+              </p>
+            </div>
+            <div className="metric-cell">
+              <div className="metric-label">Missed / Lift</div>
+              <div
+                className={`metric-value ${
+                  pilot.opportunityLift > 0
+                    ? "text-ds-green-900"
+                    : "text-ds-gray-1000"
+                }`}
+              >
+                {pilot.opportunityLift >= 0 ? "+" : ""}
+                {pilot.opportunityLift}
+              </div>
+              <p className="mt-1 text-pretty text-label-12 text-ds-gray-900">
+                Opportunities your desk would likely miss
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col">
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-heading-16 text-ds-gray-1000">
+            Review Queue
+            <span className="ml-2 text-copy-14 font-normal text-ds-gray-900">
+              <span translate="no">{store.tenant.name}</span>
+            </span>
+          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <PartnerDemoButton
+              className="btn-secondary"
+              label="Run Partner Demo"
+            />
+            <ReDetectButton />
+          </div>
+        </div>
+
         <SignalQueue
           signals={signals}
           statusFilter={statusFilter}
@@ -206,7 +212,7 @@ export function InsightsView({
           page={page}
           queryExtras={queryExtras}
         />
-      </div>
+      </section>
     </div>
   );
 }

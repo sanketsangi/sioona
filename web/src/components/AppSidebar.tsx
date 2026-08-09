@@ -46,7 +46,7 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-2.5 py-1">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-1">
       <nav aria-label="Primary" className="sidebar-nav">
         {nav.map((item) => {
           const active = activeView === item.view && !detailOpen;
@@ -97,7 +97,7 @@ function SidebarBody({
 }) {
   return (
     <>
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3">
+      <div className="flex h-14 shrink-0 items-center gap-2 px-3 md:h-16">
         <div className="min-w-0 flex-1">
           <LogoLockup onNavigate={onNavigate} />
         </div>
@@ -164,6 +164,7 @@ export function AppSidebar({
     main?.setAttribute("inert", "");
     rail?.setAttribute("inert", "");
     bar?.setAttribute("inert", "");
+    document.body.dataset.scrollLocked = "true";
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
@@ -171,6 +172,7 @@ export function AppSidebar({
       main?.removeAttribute("inert");
       rail?.removeAttribute("inert");
       bar?.removeAttribute("inert");
+      delete document.body.dataset.scrollLocked;
       trigger?.focus();
     };
   }, [open, close]);
@@ -195,16 +197,16 @@ export function AppSidebar({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sidebar-mobile-bar flex min-h-12 shrink-0 items-center gap-2 md:hidden">
+      <div className="sidebar-mobile-bar flex shrink-0 items-center gap-1 md:hidden">
         <button
           ref={triggerRef}
           type="button"
-          className="btn-tertiary size-11 shrink-0 px-0 md:size-9"
+          className="btn-tertiary size-11 shrink-0 px-0"
           aria-expanded={open}
           aria-controls="app-sidebar-drawer"
           onClick={() => setOpen(true)}
         >
-          <Menu className="size-4" strokeWidth={1.5} aria-hidden />
+          <Menu className="size-5" strokeWidth={1.5} aria-hidden />
           <span className="sr-only">Open navigation</span>
         </button>
         <LogoLockup />
@@ -237,10 +239,10 @@ export function AppSidebar({
               headerEnd={
                 <button
                   type="button"
-                  className="btn-tertiary size-11 shrink-0 px-0 md:size-9"
+                  className="btn-tertiary size-11 shrink-0 px-0"
                   onClick={close}
                 >
-                  <X className="size-4" strokeWidth={1.5} aria-hidden />
+                  <X className="size-5" strokeWidth={1.5} aria-hidden />
                   <span className="sr-only">Close navigation</span>
                 </button>
               }

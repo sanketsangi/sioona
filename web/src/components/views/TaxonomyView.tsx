@@ -9,7 +9,7 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
   const entry = SIGNAL_TAXONOMY[page - 1] ?? SIGNAL_TAXONOMY[0];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <Pager
         page={page}
         pageCount={pageCount}
@@ -28,40 +28,40 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
         }
       />
 
-      <section className="panel flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-        <div className="flex shrink-0 flex-wrap items-center gap-3">
+      <section className="panel p-4 sm:p-5 lg:p-6">
+        <div className="flex flex-wrap items-center gap-3">
           <SignalBadge type={entry.type} />
           <h2 className="text-balance text-heading-20 text-ds-gray-1000">
             {entry.label}
           </h2>
         </div>
-        <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
+        <p className="mt-2 max-w-2xl text-pretty text-copy-14 text-ds-gray-900">
           {entry.description}
         </p>
 
-        <div className="mt-5 grid min-h-0 flex-1 gap-6 md:grid-cols-2">
-          <div className="flex min-h-0 flex-col">
-            <h3 className="eyebrow shrink-0">Example Utterances</h3>
-            <ul className="mt-2 divide-y divide-ds-gray-400 border-t border-ds-gray-400">
-              {entry.examples.slice(0, 4).map((example) => (
+        <div className="mt-5 grid gap-6 md:grid-cols-2 md:gap-8">
+          <div>
+            <h3 className="eyebrow">Example Utterances</h3>
+            <ul className="mt-2 divide-y divide-ds-gray-400 border-y border-ds-gray-400">
+              {entry.examples.map((example) => (
                 <li
                   key={example}
-                  className="break-words py-2.5 text-copy-14 text-ds-gray-1000"
+                  className="text-pretty break-words py-2.5 text-copy-14 text-ds-gray-1000"
                 >
                   “{example}”
                 </li>
               ))}
             </ul>
           </div>
-          <div className="flex min-h-0 flex-col">
-            <h3 className="eyebrow shrink-0">Suggested Actions</h3>
-            <ul className="mt-2 space-y-2 border-t border-ds-gray-400 pt-2.5 text-copy-14 text-ds-gray-900">
-              {entry.suggestedActions.slice(0, 5).map((action) => (
+          <div>
+            <h3 className="eyebrow">Suggested Actions</h3>
+            <ul className="mt-2 space-y-2 border-t border-ds-gray-400 pt-3 text-copy-14 text-ds-gray-900">
+              {entry.suggestedActions.map((action) => (
                 <li key={action} className="flex gap-2">
                   <span className="text-ds-gray-700" aria-hidden>
                     ·
                   </span>
-                  <span>{action}</span>
+                  <span className="text-pretty">{action}</span>
                 </li>
               ))}
             </ul>

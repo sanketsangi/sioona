@@ -57,9 +57,9 @@ export function EvalView({
   const pilot = computePilotMetrics(store);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex flex-col gap-5 sm:gap-6">
       <div
-        className="flex shrink-0 gap-0.5 rounded-md border border-ds-gray-400 p-1"
+        className="flex w-full flex-wrap gap-0.5 rounded-md border border-ds-gray-400 p-1 sm:w-fit"
         role="group"
         aria-label="Eval panels"
       >
@@ -71,7 +71,7 @@ export function EvalView({
               href={viewHref("eval", { panel: item.id })}
               scroll={false}
               aria-current={active ? "page" : undefined}
-              className={`nav-link inline-flex h-9 items-center ${active ? "nav-link-active" : ""}`}
+              className={`nav-link flex-1 sm:flex-none sm:px-4 ${active ? "nav-link-active" : ""}`}
             >
               {item.label}
             </Link>
@@ -79,34 +79,30 @@ export function EvalView({
         })}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        {panel === "metrics" ? (
-          <MetricsPanel
-            metrics={metrics}
-            pilot={pilot}
-            baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
-            baselineNote={store.pilot?.baselineNote}
-          />
-        ) : null}
-        {panel === "adapt" ? (
-          <div className="min-h-0 flex-1">
-            <AdaptationPanel
-              signals={store.signals}
-              taxonomyOverrides={store.taxonomyOverrides ?? {}}
-              compact
-              adaptPageRaw={adaptPageRaw}
-            />
-          </div>
-        ) : null}
-        {panel === "labeled" ? (
-          <LabeledTables
-            store={store}
-            metrics={metrics}
-            labeledRaw={labeledRaw}
-            convPageRaw={convPageRaw}
-          />
-        ) : null}
-      </div>
+      {panel === "metrics" ? (
+        <MetricsPanel
+          metrics={metrics}
+          pilot={pilot}
+          baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
+          baselineNote={store.pilot?.baselineNote}
+        />
+      ) : null}
+      {panel === "adapt" ? (
+        <AdaptationPanel
+          signals={store.signals}
+          taxonomyOverrides={store.taxonomyOverrides ?? {}}
+          compact
+          adaptPageRaw={adaptPageRaw}
+        />
+      ) : null}
+      {panel === "labeled" ? (
+        <LabeledTables
+          store={store}
+          metrics={metrics}
+          labeledRaw={labeledRaw}
+          convPageRaw={convPageRaw}
+        />
+      ) : null}
     </div>
   );
 }
@@ -123,12 +119,12 @@ function MetricsPanel({
   baselineNote?: string;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <section className="metric-strip shrink-0">
+    <div className="flex flex-col gap-5 sm:gap-6">
+      <section className="metric-strip" aria-label="Review and labeled metrics">
         <div className="border-b border-ds-gray-400 px-4 py-2.5">
           <p className="eyebrow">Review &amp; Labeled</p>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 lg:grid-cols-4 lg:divide-y-0">
+        <div className="metric-grid grid-cols-2 lg:grid-cols-4">
           <Metric
             label="Labeled P"
             value={formatPercent(metrics.labeledPrecision)}
@@ -152,14 +148,16 @@ function MetricsPanel({
         </div>
       </section>
 
-      <section className="metric-strip shrink-0">
+      <section className="metric-strip" aria-label="Pilot metrics">
         <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-ds-gray-400 px-4 py-2.5">
           <p className="eyebrow">Pilot</p>
-          <p className={`tabular text-label-14 font-medium ${goNoGoClass(pilot.goNoGo)}`}>
-            {goNoGoLabel(pilot.goNoGo)}
+          <p
+            className={`tabular text-label-14 font-medium ${goNoGoClass(pilot.goNoGo)}`}
+          >
+            Go/No-Go: {goNoGoLabel(pilot.goNoGo)}
           </p>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 lg:grid-cols-3 lg:divide-y-0">
+        <div className="metric-grid grid-cols-1 sm:grid-cols-3">
           <Metric
             label="Opportunities"
             value={String(pilot.sioonaOpportunities)}
@@ -184,10 +182,12 @@ function MetricsPanel({
         </div>
       </section>
 
-      <div className="surface-quiet shrink-0 px-4 py-3">
-        <p className="text-copy-14 text-ds-gray-900">{pilot.offerSummary}</p>
+      <div className="surface-quiet px-4 py-3">
+        <p className="text-pretty text-copy-14 text-ds-gray-900">
+          {pilot.offerSummary}
+        </p>
         {pilot.reviewedCount < 5 ? (
-          <p className="mt-2 text-copy-14 text-ds-gray-900">
+          <p className="mt-2 text-pretty text-copy-14 text-ds-gray-900">
             Need ≥5 SignalScore reviews. Open{" "}
             <Link href={viewHref("insights")} className="link-accent">
               Insights
@@ -195,7 +195,7 @@ function MetricsPanel({
             , then return here.
           </p>
         ) : pilot.goNoGo === "go" ? (
-          <p className="mt-2 text-copy-14 text-ds-gray-900">
+          <p className="mt-2 text-pretty text-copy-14 text-ds-gray-900">
             Share{" "}
             <span className="text-ds-gray-1000">
               {formatPercent(pilot.reviewPrecision)} review precision
@@ -203,20 +203,18 @@ function MetricsPanel({
             · ask for a 2-week Shadow Mode pilot.
           </p>
         ) : (
-          <p className="mt-2 text-copy-14 text-ds-gray-900">
+          <p className="mt-2 text-pretty text-copy-14 text-ds-gray-900">
             Hold expansion until review precision hits ≥80%. Use Adapt, then
             re-review.
           </p>
         )}
       </div>
 
-      <div className="min-h-0 flex-1">
-        <BaselineForm
-          baselineOpportunities={baselineOpportunities}
-          baselineNote={baselineNote}
-          compact
-        />
-      </div>
+      <BaselineForm
+        baselineOpportunities={baselineOpportunities}
+        baselineNote={baselineNote}
+        compact
+      />
     </div>
   );
 }

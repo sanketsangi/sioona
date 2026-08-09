@@ -71,16 +71,16 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
   return (
     <form
       onSubmit={onSubmit}
-      className={`panel flex h-full flex-col ${compact ? "p-4 sm:p-5" : "p-6 sm:p-8"}`}
+      className={`panel flex flex-col ${compact ? "p-4 sm:p-5" : "p-6 sm:p-8"}`}
     >
-      <p className="eyebrow shrink-0">Import</p>
+      <p className="eyebrow">Import</p>
       <label
         htmlFor="chat-export"
-        className="mt-1 block shrink-0 text-heading-16 text-ds-gray-1000"
+        className="mt-1 block text-heading-16 text-ds-gray-1000"
       >
         Chat Export
       </label>
-      <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
+      <p className="mt-2 max-w-prose text-pretty text-copy-14 text-ds-gray-900">
         CSV, JSON, or WhatsApp .txt. Best results: support chats with lead,
         churn, or upgrade language.
       </p>
@@ -91,13 +91,13 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         type="file"
         accept=".csv,.json,.txt,text/csv,application/json,text/plain"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
+        className="mt-4 block w-full rounded-sm border border-dashed border-ds-gray-500 px-3 py-3 text-base text-ds-gray-900 transition-colors duration-150 hover:border-ds-gray-600 file:mr-3 file:h-9 file:cursor-pointer file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:text-sm file:font-medium file:text-ds-gray-1000 sm:text-sm"
       />
       <button
         type="submit"
         disabled={loading}
         aria-busy={loading}
-        className="btn-primary mt-4 shrink-0"
+        className="btn-primary mt-4 w-full sm:w-fit"
       >
         {loading ? <ButtonSpinner /> : <Upload className="size-3.5" strokeWidth={1.5} aria-hidden />}
         Upload & Detect
@@ -106,15 +106,14 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         {loading ? "Uploading…" : status ?? ""}
       </div>
       {status ? (
-        <p className="mt-3 shrink-0 text-copy-14 text-ds-green-900">{status}</p>
+        <p className="mt-3 text-pretty text-copy-14 text-ds-green-900">
+          {status}
+        </p>
       ) : null}
       {hint ? (
-        <div
-          className="status-banner status-banner-warning mt-3 shrink-0"
-          role="status"
-        >
-          <p className="text-copy-14 text-ds-gray-1000">{hint}</p>
-          <p className="mt-2 text-label-13 text-ds-gray-900">
+        <div className="status-banner status-banner-warning mt-3" role="status">
+          <p className="text-pretty text-copy-14 text-ds-gray-1000">{hint}</p>
+          <p className="mt-2 text-pretty text-label-13 text-ds-gray-900">
             <Link href={viewHref("insights")} className="link-accent">
               Start Partner Demo
             </Link>{" "}
@@ -123,7 +122,10 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         </div>
       ) : null}
       {error ? (
-        <p className="mt-3 shrink-0 text-copy-14 text-ds-red-900" role="alert">
+        <p
+          className="mt-3 text-pretty text-copy-14 text-ds-red-900"
+          role="alert"
+        >
           {error}. Check the file format and try again.
         </p>
       ) : null}
