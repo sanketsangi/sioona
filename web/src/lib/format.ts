@@ -1,8 +1,13 @@
 import type { SignalType } from "./types";
 
+const percentFormatter = new Intl.NumberFormat("en-US", {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
+
 export function formatPercent(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "—";
-  return `${Math.round(value * 100)}%`;
+  return percentFormatter.format(value);
 }
 
 export function formatScore(score: number): string {
