@@ -197,12 +197,12 @@ function buildSummary(
 
   // upsell
   if (score >= 0.75) {
-    return `${who}${via} is asking for premium / adjacent products — sales opportunity.${quoteHint}`;
+    return `${who}${via} is asking about an adjacent product — sales opportunity.${quoteHint}`;
   }
   if (score >= 0.5) {
-    return `${who}${via} may be open to an upgrade — soft pitch.${quoteHint}`;
+    return `${who}${via} may be open to a cross-sell — soft pitch.${quoteHint}`;
   }
-  return `${who}${via} hinted at more products — watch for upsell.${quoteHint}`;
+  return `${who}${via} hinted at another product — watch for upsell.${quoteHint}`;
 }
 
 export function detectSignalsForConversation(

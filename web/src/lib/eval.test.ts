@@ -30,7 +30,15 @@ describe("computeEvalMetrics", () => {
     expect(metrics.labeledPrecision).toBe(1);
     expect(metrics.labeledRecall).toBe(1);
     expect(metrics.byType).toHaveLength(3);
-    expect(metrics.byType.every((row) => row.labeledCount === 5)).toBe(true);
+    expect(metrics.byType.find((row) => row.type === "lead")?.labeledCount).toBe(
+      7
+    );
+    expect(
+      metrics.byType.find((row) => row.type === "retention")?.labeledCount
+    ).toBe(5);
+    expect(
+      metrics.byType.find((row) => row.type === "upsell")?.labeledCount
+    ).toBe(3);
     expect(metrics.byType.every((row) => row.precision === 1)).toBe(true);
     expect(metrics.byType.every((row) => row.recall === 1)).toBe(true);
   });

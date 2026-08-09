@@ -87,7 +87,8 @@ const conversations = [
     customerName: "Suresh Menon",
     startedAt: "2026-08-01T15:10:00.000Z",
     messageIds: ["msg_upsell_02_0", "msg_upsell_02_1"],
-    groundTruth: "upsell" as const,
+    // Same-product expansion / upgrade — product badges as lead
+    groundTruth: "lead" as const,
   },
   {
     id: "conv_upsell_03",
@@ -220,7 +221,8 @@ const conversations = [
     customerName: "Divya Menon",
     startedAt: "2026-08-04T11:30:00.000Z",
     messageIds: ["msg_fintech_upsell_01_0", "msg_fintech_upsell_01_1"],
-    groundTruth: "upsell" as const,
+    // Existing-relationship expansion / upgrade — product badges as lead
+    groundTruth: "lead" as const,
   },
   {
     id: "conv_none_07",
@@ -318,7 +320,7 @@ const messages = [
     conversationId: "conv_upsell_01",
     role: "customer" as const,
     content:
-      "Need higher limits and a portfolio review. Interested in adding mutual funds too.",
+      "Also want a portfolio review. Interested in adding mutual funds and loan against shares.",
     timestamp: "2026-07-30T11:07:10.000Z",
   },
   {
@@ -406,7 +408,7 @@ const messages = [
     conversationId: "conv_upsell_03",
     role: "customer" as const,
     content:
-      "Do you offer loan against shares? Looking for more features on my existing account.",
+      "Do you offer loan against shares? Also interested in insurance alongside my account.",
     timestamp: "2026-08-02T09:00:00.000Z",
   },
   {
@@ -586,7 +588,7 @@ const messages = [
     content: "I'm really sorry — let me escalate the refund and see how we can keep you.",
     timestamp: "2026-08-04T10:21:00.000Z",
   },
-  // Fintech CS upsell — premium plus tier + credit limit + add-on card
+  // Fintech CS expansion / upgrade — product badges as lead (limit + tier + add-on card)
   {
     id: "msg_fintech_upsell_01_0",
     conversationId: "conv_fintech_upsell_01",
