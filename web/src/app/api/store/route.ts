@@ -7,9 +7,11 @@ import {
   replaceSignalsPreservingFeedback,
   resetStore,
   setPilotBaseline,
+  writeStore,
   type TaxonomyOverrideField,
 } from "@/lib/store";
 import { runPartnerDemo } from "@/lib/demo";
+import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 import type { SignalType } from "@/lib/types";
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
         importedConversations: result.importedConversations,
         newSignals: result.newSignals,
         samples: result.samples,
+        predictionSync: result.predictionSync,
       });
     } catch (error) {
       const message =
@@ -119,6 +122,12 @@ export async function POST(request: Request) {
           store.taxonomyOverrides
         );
         store = await replaceSignalsPreservingFeedback(detected);
+        const synced = await syncPredictionsToBackend(
+          store.signals,
+          store.tenant.id
+        );
+        store.signals = synced.signals;
+        await writeStore(store);
         redetectCount = store.signals.length;
       }
       return NextResponse.json({

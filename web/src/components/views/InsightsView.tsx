@@ -2,9 +2,18 @@ import Link from "next/link";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { SignalQueue } from "@/components/SignalQueue";
-import { computeEvalMetrics, computePilotMetrics, sortSignals } from "@/lib/eval";
+import { SignalScoreSummary } from "@/components/SignalScoreSummary";
+import { Week1PilotStrip } from "@/components/Week1PilotStrip";
+import type { BackendSignalScore } from "@/lib/backend-client";
+import { applyBackendSignalScoreToPilot } from "@/lib/eval";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
+import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
+import {
+  joinNeedsReviewPredictions,
+  reviewedSignalsFromStore,
+} from "@/lib/join-needs-review";
+import { hasMidWeekExport, hasPilotBaseline } from "@/lib/pilot-cadence";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { SignalType, StoreData } from "@/lib/types";
 
@@ -18,6 +27,10 @@ export function InsightsView({
   statusFilter,
   typeFilter,
   page,
+  backendScore = null,
+  needsReview,
+  syncFailed = 0,
+  syncCreated = 0,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -26,17 +39,24 @@ export function InsightsView({
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
   page: number;
+  backendScore?: BackendSignalScore | null;
+  needsReview: NeedsReviewResult;
+  syncFailed?: number;
+  syncCreated?: number;
 }) {
-  const signals = sortSignals(store.signals);
-  const metrics = computeEvalMetrics(store);
-  const pilot = computePilotMetrics(store);
-  const pendingCount = signals.filter(
-    (s) => s.status === "new" || !s.feedback
-  ).length;
+  const pilot = applyBackendSignalScoreToPilot(store, backendScore);
+  const queueError = needsReview.ok ? null : needsReview.error;
+  const pendingSignals = needsReview.ok
+    ? joinNeedsReviewPredictions(needsReview.predictions, store.signals)
+    : [];
+  const reviewedSignals = reviewedSignalsFromStore(store.signals);
+  const pendingCount = needsReview.ok ? pendingSignals.length : null;
+  const reviewedCount =
+    backendScore?.reviewed_count ?? reviewedSignals.length;
 
   const byType = TYPE_ORDER.map((type) => ({
     type,
-    count: signals.filter((s) => s.type === type).length,
+    count: store.signals.filter((s) => s.type === type).length,
   }));
 
   const showImportBanner =
@@ -45,6 +65,19 @@ export function InsightsView({
     newSignalCount != null &&
     !Number.isNaN(newSignalCount);
   const zeroSignalsImport = showImportBanner && newSignalCount === 0;
+  const hasSyncFailure = syncFailed > 0;
+  const hasDay1 =
+    Boolean(demo) ||
+    (showImportBanner && !zeroSignalsImport) ||
+    store.signals.length > 0;
+  // Cold demo alone is Day 1; partner file ingest increments weeklyExportCount.
+  const hasMidWeekUpload =
+    hasMidWeekExport(store.pilot?.weeklyExportCount) ||
+    Boolean(showImportBanner && !zeroSignalsImport && !demo);
+  const hasBaseline = hasPilotBaseline(
+    store.pilot?.baselineOpportunities ?? 0,
+    store.pilot?.baselineNote
+  );
 
   const queryExtras: Record<string, string | undefined | null> = {
     demo: demo ? "1" : null,
@@ -56,6 +89,8 @@ export function InsightsView({
       newSignalCount != null && !Number.isNaN(newSignalCount)
         ? String(newSignalCount)
         : null,
+    syncFailed: hasSyncFailure ? String(syncFailed) : null,
+    syncCreated: hasSyncFailure ? String(syncCreated) : null,
   };
 
   return (
@@ -67,9 +102,27 @@ export function InsightsView({
           aria-live="polite"
         >
           <p className="text-copy-14 text-ds-gray-1000">
-            Partner demo ready — review pending signals below, then open Eval
-            for precision and lift.
+            Partner demo ready — review Neon pending below, then open Eval for
+            precision and lift.
           </p>
+        </div>
+      ) : null}
+
+      {hasSyncFailure ? (
+        <div
+          className="status-banner status-banner-warning shrink-0"
+          role="alert"
+        >
+          <p className="text-copy-14 text-ds-gray-1000">
+            Neon dual-write incomplete — {syncFailed} prediction
+            {syncFailed === 1 ? "" : "s"} not written
+            {syncCreated > 0 ? ` (${syncCreated} succeeded)` : ""}. Local import
+            does not mean the pending queue is ready. Start FastAPI (
+            <span translate="no">BACKEND_URL</span>), then Re-run Detection.
+          </p>
+          <div className="mt-3">
+            <ReDetectButton />
+          </div>
         </div>
       ) : null}
 
@@ -120,7 +173,7 @@ export function InsightsView({
       {showImportBanner ? (
         <div
           className={`status-banner shrink-0 ${
-            zeroSignalsImport
+            zeroSignalsImport || hasSyncFailure
               ? "status-banner-warning"
               : "status-banner-success"
           }`}
@@ -128,11 +181,13 @@ export function InsightsView({
           aria-live="polite"
         >
           <p className="text-copy-14 text-ds-gray-1000">
-            Imported {importedCount} conversations · {newSignalCount} new
+            Imported {importedCount} conversations · {newSignalCount} local
             signals.
             {zeroSignalsImport
               ? ` ${ZERO_SIGNAL_HINT}`
-              : " Review the queue below."}
+              : hasSyncFailure
+                ? " Neon sync failed for some predictions — pending queue may be incomplete."
+                : " Neon pending queue is ready to review below."}
           </p>
           {zeroSignalsImport ? (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -144,6 +199,16 @@ export function InsightsView({
           ) : null}
         </div>
       ) : null}
+
+      <Week1PilotStrip
+        surface="insights"
+        reviewedCount={reviewedCount}
+        hasDay1={hasDay1}
+        hasMidWeekUpload={hasMidWeekUpload}
+        hasBaseline={hasBaseline}
+      />
+
+      <SignalScoreSummary score={backendScore} />
 
       <section className="metric-strip shrink-0">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-ds-gray-400 px-4 py-3">
@@ -167,24 +232,23 @@ export function InsightsView({
             Open Eval
           </Link>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 sm:grid-cols-5 sm:divide-y-0">
+        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 sm:grid-cols-4 sm:divide-y-0">
           <Stat label="Signals" value={String(store.signals.length)} />
-          <Stat label="Pending" value={String(pendingCount)} />
+          <Stat
+            label="Pending"
+            value={pendingCount === null ? "—" : String(pendingCount)}
+          />
           <Stat label="Chats" value={String(store.conversations.length)} />
           <Stat
-            label="Review P"
-            value={formatPercent(metrics.reviewPrecision)}
-          />
-          <Stat
             label="Labeled P"
-            value={formatPercent(metrics.labeledPrecision)}
+            value={formatPercent(pilot.labeledPrecision)}
           />
         </div>
       </section>
 
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <p className="text-label-13 text-ds-gray-900">
-          Queue ·{" "}
+          Queue · Neon needs-review ·{" "}
           <span className="text-ds-gray-1000" translate="no">
             {store.tenant.name}
           </span>
@@ -200,7 +264,9 @@ export function InsightsView({
 
       <div className="flex min-h-0 flex-1 flex-col">
         <SignalQueue
-          signals={signals}
+          pendingSignals={pendingSignals}
+          reviewedSignals={reviewedSignals}
+          queueError={queueError}
           statusFilter={statusFilter}
           typeFilter={typeFilter}
           page={page}

@@ -1,6 +1,5 @@
 ---
-description: Accessible, fast UI guidelines from AGENTS.md (MUST/SHOULD/NEVER)
-alwaysApply: true
+alwaysApply: false
 ---
 
 # UI Generation Guidelines

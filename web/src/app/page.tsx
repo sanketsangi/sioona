@@ -6,6 +6,15 @@ import { InsightsView } from "@/components/views/InsightsView";
 import { SignalDetailView } from "@/components/views/SignalDetailView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { UploadView } from "@/components/views/UploadView";
+import { fetchNeedsReview } from "@/lib/fetch-needs-review";
+import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
+import { predictionToStubSignal } from "@/lib/join-needs-review";
+import { hasMidWeekExport, hasPilotBaseline } from "@/lib/pilot-cadence";
+import {
+  neonPredictionIdFromStubSignalId,
+  parseSyncCreatedParam,
+  parseSyncFailedParam,
+} from "@/lib/prediction-sync";
 import { readStore } from "@/lib/store";
 import {
   parsePage,
@@ -71,6 +80,8 @@ export default async function PlatformPage({
     labeled?: string;
     convPage?: string;
     adaptPage?: string;
+    syncFailed?: string;
+    syncCreated?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -87,6 +98,7 @@ export default async function PlatformPage({
       const messages = store.messages
         .filter((m) => m.conversationId === signal.conversationId)
         .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+      const backendScore = await fetchSignalScoreSafe(store.tenant.id);
 
       return (
         <AppShell
@@ -100,6 +112,47 @@ export default async function PlatformPage({
             conversation={conversation}
             messages={messages}
             msgPageRaw={sp.msgPage}
+            backendScore={backendScore}
+          />
+        </AppShell>
+      );
+    }
+
+    const neonId = neonPredictionIdFromStubSignalId(signalId);
+    if (neonId) {
+      const needsReview = await fetchNeedsReview(store.tenant.id, 100);
+      const prediction = needsReview.ok
+        ? needsReview.predictions.find((p) => p.id === neonId)
+        : undefined;
+      const stub = prediction
+        ? predictionToStubSignal(prediction)
+        : {
+            ...predictionToStubSignal({
+              id: neonId,
+              tenant_id: store.tenant.id,
+              conversation_id: "",
+              signal_type: "lead",
+              confidence: 0,
+              summary: "Neon prediction (details unavailable)",
+              created_at: new Date().toISOString(),
+            }),
+            id: signalId,
+          };
+      const backendScore = await fetchSignalScoreSafe(store.tenant.id);
+
+      return (
+        <AppShell
+          activeView="insights"
+          detailOpen
+          title="Signal Detail"
+          subtitle="Neon stub — local conversation not joined."
+        >
+          <SignalDetailView
+            signal={stub}
+            messages={[]}
+            msgPageRaw={sp.msgPage}
+            backendScore={backendScore}
+            isNeonStub
           />
         </AppShell>
       );
@@ -133,15 +186,34 @@ export default async function PlatformPage({
   const meta = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
-  const statusFilter = parseStatusFilter(
-    sp.status ?? (sp.demo === "1" ? "new" : "all"),
-  );
+  const syncFailed = parseSyncFailedParam(sp.syncFailed);
+  const syncCreated = parseSyncCreatedParam(sp.syncCreated);
+  // Insights default: Neon pending (needs-review) list
+  const statusFilter = parseStatusFilter(sp.status ?? "new");
   const typeFilter = parseTypeFilter(sp.type);
   const page = parsePage(sp.page);
+  const backendScore =
+    view === "insights" || view === "eval" || view === "upload"
+      ? await fetchSignalScoreSafe(store.tenant.id)
+      : null;
+  const needsReview =
+    view === "insights"
+      ? await fetchNeedsReview(store.tenant.id, 20)
+      : null;
+  const reviewedFromJson = store.signals.filter((s) => s.feedback).length;
+  const uploadCadence = {
+    reviewedCount: backendScore?.reviewed_count ?? reviewedFromJson,
+    hasDay1: store.signals.length > 0,
+    hasMidWeekUpload: hasMidWeekExport(store.pilot?.weeklyExportCount),
+    hasBaseline: hasPilotBaseline(
+      store.pilot?.baselineOpportunities ?? 0,
+      store.pilot?.baselineNote
+    ),
+  };
 
   return (
     <AppShell activeView={view} title={meta.title} subtitle={meta.subtitle}>
-      {view === "insights" ? (
+      {view === "insights" && needsReview ? (
         <InsightsView
           store={store}
           demo={sp.demo === "1"}
@@ -150,9 +222,13 @@ export default async function PlatformPage({
           statusFilter={statusFilter}
           typeFilter={typeFilter}
           page={page}
+          backendScore={backendScore}
+          needsReview={needsReview}
+          syncFailed={syncFailed}
+          syncCreated={syncCreated}
         />
       ) : null}
-      {view === "upload" ? <UploadView /> : null}
+      {view === "upload" ? <UploadView {...uploadCadence} /> : null}
       {view === "eval" ? (
         <EvalView
           store={store}
@@ -160,6 +236,7 @@ export default async function PlatformPage({
           labeledRaw={sp.labeled}
           convPageRaw={sp.convPage}
           adaptPageRaw={sp.adaptPage}
+          backendScore={backendScore}
         />
       ) : null}
       {view === "taxonomy" ? <TaxonomyView typePageRaw={sp.taxPage} /> : null}

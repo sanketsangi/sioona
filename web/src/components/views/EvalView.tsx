@@ -1,9 +1,19 @@
 import Link from "next/link";
 import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
+import { SignalScoreSummary } from "@/components/SignalScoreSummary";
+import { Week1PilotStrip } from "@/components/Week1PilotStrip";
 import { LabeledTables } from "@/components/views/LabeledTables";
-import { computeEvalMetrics, computePilotMetrics } from "@/lib/eval";
+import type { BackendSignalScore } from "@/lib/backend-client";
+import {
+  applyBackendSignalScore,
+  applyBackendSignalScoreToPilot,
+  computeEvalMetrics,
+  type EvalMetrics,
+  type PilotMetrics,
+} from "@/lib/eval";
 import { formatPercent } from "@/lib/format";
+import { hasMidWeekExport, hasPilotBaseline } from "@/lib/pilot-cadence";
 import {
   parseEvalPanel,
   viewHref,
@@ -45,19 +55,38 @@ export function EvalView({
   labeledRaw,
   convPageRaw,
   adaptPageRaw,
+  backendScore = null,
 }: {
   store: StoreData;
   panelRaw?: string | null;
   labeledRaw?: string | null;
   convPageRaw?: string | null;
   adaptPageRaw?: string | null;
+  backendScore?: BackendSignalScore | null;
 }) {
   const panel = parseEvalPanel(panelRaw);
-  const metrics = computeEvalMetrics(store);
-  const pilot = computePilotMetrics(store);
+  const metrics = applyBackendSignalScore(
+    computeEvalMetrics(store),
+    backendScore
+  );
+  const pilot = applyBackendSignalScoreToPilot(store, backendScore);
+  const hasDay1 = store.signals.length > 0;
+  const hasBaseline = hasPilotBaseline(
+    store.pilot?.baselineOpportunities ?? 0,
+    store.pilot?.baselineNote
+  );
+  const hasMidWeekUpload = hasMidWeekExport(store.pilot?.weeklyExportCount);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <Week1PilotStrip
+        surface="eval"
+        reviewedCount={pilot.reviewedCount}
+        hasDay1={hasDay1}
+        hasMidWeekUpload={hasMidWeekUpload}
+        hasBaseline={hasBaseline}
+      />
+
       <div
         className="flex shrink-0 gap-0.5 rounded-md border border-ds-gray-400 p-1"
         role="group"
@@ -84,6 +113,7 @@ export function EvalView({
           <MetricsPanel
             metrics={metrics}
             pilot={pilot}
+            backendScore={backendScore}
             baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
             baselineNote={store.pilot?.baselineNote}
           />
@@ -114,21 +144,25 @@ export function EvalView({
 function MetricsPanel({
   metrics,
   pilot,
+  backendScore,
   baselineOpportunities,
   baselineNote,
 }: {
-  metrics: ReturnType<typeof computeEvalMetrics>;
-  pilot: ReturnType<typeof computePilotMetrics>;
+  metrics: EvalMetrics;
+  pilot: PilotMetrics;
+  backendScore: BackendSignalScore | null;
   baselineOpportunities: number;
   baselineNote?: string;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
+      <SignalScoreSummary score={backendScore} />
+
       <section className="metric-strip shrink-0">
         <div className="border-b border-ds-gray-400 px-4 py-2.5">
-          <p className="eyebrow">Review &amp; Labeled</p>
+          <p className="eyebrow">Labeled Eval</p>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 lg:grid-cols-4 lg:divide-y-0">
+        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 lg:grid-cols-3 lg:divide-y-0">
           <Metric
             label="Labeled P"
             value={formatPercent(metrics.labeledPrecision)}
@@ -138,11 +172,6 @@ function MetricsPanel({
             label="Labeled R"
             value={formatPercent(metrics.labeledRecall)}
             hint={`${metrics.falseNegatives} FN`}
-          />
-          <Metric
-            label="Review P"
-            value={formatPercent(metrics.reviewPrecision)}
-            hint={`${metrics.acceptedCount} / ${metrics.reviewedCount}`}
           />
           <Metric
             label="Labeled Chats"
@@ -198,7 +227,7 @@ function MetricsPanel({
           <p className="mt-2 text-copy-14 text-ds-gray-900">
             Share{" "}
             <span className="text-ds-gray-1000">
-              {formatPercent(pilot.reviewPrecision)} review precision
+              {formatPercent(pilot.reviewPrecision)} Signal Score
             </span>{" "}
             · ask for a 2-week Shadow Mode pilot.
           </p>
