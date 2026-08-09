@@ -1,0 +1,1 @@
+"""Sioona FastAPI backend — Signal Score / evaluation metrics."""

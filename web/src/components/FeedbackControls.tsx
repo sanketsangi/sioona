@@ -9,18 +9,18 @@ import type { FeedbackLabel, Signal } from "@/lib/types";
 
 const options: { label: FeedbackLabel; title: string; hint: string }[] = [
   {
-    label: "accept",
-    title: "Accept Signal",
+    label: "correct",
+    title: "Correct",
     hint: "Signal is correct and useful",
   },
   {
-    label: "reject",
-    title: "Reject Signal",
+    label: "incorrect",
+    title: "Incorrect",
     hint: "Not a real opportunity",
   },
   {
-    label: "wrong_reason",
-    title: "Wrong Reason",
+    label: "partially_correct",
+    title: "Partially Correct",
     hint: "Right-ish signal, bad rationale",
   },
 ];
@@ -37,7 +37,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
 
   const feedbackLabel = signal.feedback?.label ?? justSaved;
   const needsAdapt =
-    feedbackLabel === "reject" || feedbackLabel === "wrong_reason";
+    feedbackLabel === "incorrect" || feedbackLabel === "partially_correct";
 
   useEffect(() => {
     if (!dirty) return;
@@ -60,6 +60,12 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
+        if (res.status === 503) {
+          throw new Error(
+            data.error ||
+              "Signal Score backend unavailable — feedback not saved"
+          );
+        }
         throw new Error(data.error || "Failed to save feedback");
       }
       setJustSaved(label);
@@ -74,7 +80,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
   function onNoteKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      void submit("accept");
+      void submit("correct");
     }
   }
 
@@ -82,14 +88,18 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
     <div className="panel p-4 sm:p-5">
       <h2 className="text-heading-16 text-ds-gray-1000">SignalScore Feedback</h2>
       <p className="mt-1 text-label-13 text-ds-gray-900">
-        Accept / reject / wrong reason — used for precision tracking and
-        taxonomy adaptation.
+        Mark correct / incorrect / partially correct. Saves to Neon and
+        refreshes Signal Score above.
       </p>
       <div aria-live="polite">
-        {signal.feedback ? (
+        {signal.feedback || justSaved ? (
           <p className="mt-3 text-copy-14 text-ds-blue-900">
-            Current: {signal.feedback.label.replace("_", " ")}
-            {signal.feedback.note ? ` — ${signal.feedback.note}` : ""}
+            Current:{" "}
+            {(signal.feedback?.label ?? justSaved)!.replaceAll("_", " ")}
+            {signal.feedback?.note ? ` — ${signal.feedback.note}` : ""}
+            {justSaved && !signal.feedback
+              ? " — saved; score refreshing…"
+              : null}
           </p>
         ) : null}
       </div>
@@ -108,7 +118,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
         />
       </label>
       <p className="mt-1 text-label-12 text-ds-gray-900">
-        ⌘&nbsp;Enter or Ctrl&nbsp;Enter accepts with the current note.
+        ⌘&nbsp;Enter or Ctrl&nbsp;Enter marks correct with the current note.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {options.map((option) => (
@@ -137,7 +147,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           aria-live="polite"
         >
           <p className="text-copy-14 text-ds-gray-1000">
-            {feedbackLabel === "reject"
+            {feedbackLabel === "incorrect"
               ? "False positive? Add a negative phrase so this pattern stops firing."
               : "Wrong rationale? Add the phrase that should drive this signal type."}
           </p>

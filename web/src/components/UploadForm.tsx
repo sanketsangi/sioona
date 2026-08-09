@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import {
+  hasSyncFailures,
+  parsePredictionSync,
+  syncQueryExtras,
+} from "@/lib/prediction-sync";
 import { viewHref } from "@/lib/views";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -20,6 +25,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,6 +40,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
     setError(null);
     setStatus(null);
     setHint(null);
+    setSyncWarning(null);
     try {
       const body = new FormData();
       body.append("file", file);
@@ -44,15 +51,28 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         importedConversations?: number;
         newSignals?: number;
         hint?: string;
+        predictionSync?: unknown;
       };
       if (!res.ok) throw new Error(data.error || "Upload failed");
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
       const signals = data.newSignals ?? 0;
-      setStatus(
-        `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals`
-      );
+      const sync = parsePredictionSync(data.predictionSync);
+      const syncFailed = hasSyncFailures(sync);
+
+      if (syncFailed && sync) {
+        setStatus(
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — Neon sync incomplete`
+        );
+        setSyncWarning(
+          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights. 7-day pilot checklist continues there.`
+        );
+      } else {
+        setStatus(
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights for the 7-day pilot checklist…`
+        );
+      }
       if (data.hint) setHint(data.hint);
       router.refresh();
       const query = new URLSearchParams({
@@ -60,6 +80,9 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         imported: String(imported),
         signals: String(signals),
       });
+      const extras = syncQueryExtras(sync);
+      if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
+      if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
       setTimeout(() => router.push(`/?${query.toString()}`), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -106,7 +129,21 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         {loading ? "Uploading…" : status ?? ""}
       </div>
       {status ? (
-        <p className="mt-3 shrink-0 text-copy-14 text-ds-green-900">{status}</p>
+        <p
+          className={`mt-3 shrink-0 text-copy-14 ${
+            syncWarning ? "text-ds-gray-1000" : "text-ds-green-900"
+          }`}
+        >
+          {status}
+        </p>
+      ) : null}
+      {syncWarning ? (
+        <div
+          className="status-banner status-banner-warning mt-3 shrink-0"
+          role="alert"
+        >
+          <p className="text-copy-14 text-ds-gray-1000">{syncWarning}</p>
+        </div>
       ) : null}
       {hint ? (
         <div

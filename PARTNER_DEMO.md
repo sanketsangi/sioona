@@ -8,19 +8,30 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 ## Cold demo (no partner data)
 
-1. Open http://localhost:3000 → **Start Partner Demo**
-2. **Insights** — show the “What You Got” strip (opportunities by type + pending)
+1. Open http://localhost:3000 → **Start Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` and Re-run Detection)
+2. **Insights** — 7-day pilot checklist strip + Neon pending queue (not JSON-only pending)
 3. Open a **retention** or **lead** card: summary, evidence, suggested action (display-only)
-4. **SignalScore** — accept / reject 2–3 signals in ~10 seconds
+4. **SignalScore** — mark ≥5 reviews (`correct` / `incorrect` / `partially_correct`)
 5. **Eval** — labeled P/R + Pilot Metrics (≥80% target, go/no-go) + set partner baseline for lift + Next Step copy
-6. Ask for a **2-week Shadow Mode pilot**: weekly export, joint review vs their current process
+6. Ask for a **7-day Shadow Mode pilot**: weekly export → Neon pending → SignalScore → Eval baseline / go-no-go
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
+
+## Week-1 pilot rhythm (visible in the strip)
+
+| When | What | Where |
+|------|------|--------|
+| Day 1 | Upload or Partner Demo | Upload → Insights |
+| Mid-week | Re-upload weekly export | Upload → Insights (Neon pending) |
+| Ongoing | Mark ≥5 SignalScore reviews | Insights |
+| Before share-out | Set baseline + read go/no-go | Eval |
+
+Same strip on Upload, Insights, and Eval. No autonomous actions — suggested next steps stay display-only.
 
 ## With a partner file
 
 1. **Upload Partner Export** (or drop CSV / Intercom JSON / WhatsApp `.txt`)
-2. Same Insights → SignalScore → Eval path
+2. Same Insights → SignalScore → Eval path (mid-week step completes on partner file ingest)
 3. Set their baseline (“how many opportunities do you find today?”) so lift is credible
 
 ## Sample pack

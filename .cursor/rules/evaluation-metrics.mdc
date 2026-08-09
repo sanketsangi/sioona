@@ -1,0 +1,92 @@
+---
+alwaysApply: false
+---
+
+# ============================================================
+
+# FEATURE: Evaluation Metrics – Signal Score
+
+# Priority: CRITICAL
+
+# ============================================================
+
+## Why this feature is critical
+
+Signal Score is the core trust metric for Sioona.
+It measures how accurate our signal detection is based on human feedback.
+Without reliable Signal Score, we cannot:
+
+- Build trust with design partners
+- Move from Shadow Mode to any autonomous actions
+- Improve the detection system systematically
+- Convert pilots into paying customers
+
+This feature must be treated as high-priority, clean, and production-grade.
+
+## Core Definition
+
+Signal Score = (Number of signals marked "correct" by humans) / (Total signals reviewed by humans)
+
+We also track:
+
+- Per-signal-type breakdown (lead, upsell, retention_risk, churn_risk, fraud, etc.)
+- Basic support for Precision / Recall when labeled evaluation data is available
+
+## Strict Rules for this feature
+
+### Data & Models
+
+- Every prediction must be stored with: tenant_id, conversation_id, signal_type, confidence, summary, created_at
+- Every human feedback must be stored with: signal_id, feedback (correct / incorrect / partially_correct), optional note, reviewed_by, reviewed_at
+- Always keep multi-tenancy (tenant_id) on every table/query
+- Never delete feedback data (it is valuable training signal)
+
+### Calculation Rules
+
+- Signal Score must only be calculated from human-reviewed signals
+- Support filtering by: tenant, date range, signal_type
+- Keep the calculation simple and transparent
+- Avoid over-engineering (no complex weighting in v1)
+
+### API & Service Rules
+
+- Create clean service functions for:
+  - Recording a prediction
+  - Recording human feedback
+  - Calculating Signal Score
+- Expose clear FastAPI endpoints for feedback submission and score retrieval
+- All endpoints must be tenant-aware
+
+### Code Quality
+
+- Keep the code modular and easy to test
+- Prefer simple, readable logic over clever abstractions
+- Add basic docstrings
+- Do not mix UI code with this feature
+- Do not add autonomous actions or complex agent logic here
+
+### What NOT to do in this feature
+
+- Do not build the full dashboard UI yet
+- Do not implement full Precision/Recall pipelines unless explicitly asked
+- Do not add complex ML evaluation frameworks
+- Do not weaken multi-tenancy
+- Do not hardcode signal types in a way that is difficult to extend
+
+## Implementation Preference
+
+When asked to build this feature:
+
+1. First outline the files and data models
+2. Then implement models
+3. Then services (especially Signal Score calculation)
+4. Then API routes
+5. Keep everything focused only on Evaluation Metrics / Signal Score
+
+## Success Criteria for this feature
+
+- We can record model predictions
+- Humans can mark signals as correct / incorrect
+- We can calculate and return Signal Score (overall + per signal type)
+- The system is multi-tenant safe
+- The code is clean enough to extend later with Precision/Recall

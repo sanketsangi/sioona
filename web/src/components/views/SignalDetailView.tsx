@@ -3,7 +3,10 @@ import { ArrowLeft } from "lucide-react";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
 import { Pager } from "@/components/Pager";
+import { ReDetectButton } from "@/components/ReDetectButton";
 import { SignalBadge } from "@/components/SignalBadge";
+import { SignalScoreSummary } from "@/components/SignalScoreSummary";
+import type { BackendSignalScore } from "@/lib/backend-client";
 import { formatEvidenceItem, formatScore } from "@/lib/format";
 import { parsePage, viewHref } from "@/lib/views";
 import type { Conversation, Message, Signal } from "@/lib/types";
@@ -15,11 +18,16 @@ export function SignalDetailView({
   conversation,
   messages,
   msgPageRaw,
+  backendScore = null,
+  isNeonStub = false,
 }: {
   signal: Signal;
   conversation?: Conversation;
   messages: Message[];
   msgPageRaw?: string | null;
+  backendScore?: BackendSignalScore | null;
+  /** Neon needs-review row without a JSON conversation join. */
+  isNeonStub?: boolean;
 }) {
   const pageCount = Math.max(1, Math.ceil(messages.length / MSG_PAGE_SIZE));
   const page = Math.min(parsePage(msgPageRaw), pageCount);
@@ -38,6 +46,27 @@ export function SignalDetailView({
         Back to Queue
       </Link>
 
+      {isNeonStub ? (
+        <div
+          className="status-banner status-banner-warning shrink-0"
+          role="status"
+        >
+          <p className="text-copy-14 text-ds-gray-1000">
+            Prediction is in Neon, but this conversation is not in the local
+            store — no evidence or chat transcript to show. Re-run Detection or
+            re-upload so dual-write can join evidence.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href={viewHref("upload")} className="btn-secondary">
+              Upload Chats
+            </Link>
+            <ReDetectButton />
+          </div>
+        </div>
+      ) : null}
+
+      <SignalScoreSummary score={backendScore} compact />
+
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="flex min-h-0 flex-col gap-4">
           <div className="panel shrink-0 p-4 sm:p-5">
@@ -53,6 +82,10 @@ export function SignalDetailView({
                 <span className="min-w-0 truncate text-label-13 text-ds-gray-900">
                   · {conversation.customerName} · {conversation.channel}
                 </span>
+              ) : isNeonStub ? (
+                <span className="text-label-13 text-ds-gray-900">
+                  · Neon prediction only
+                </span>
               ) : null}
             </div>
             <p className="mt-3 line-clamp-4 text-pretty text-copy-14 text-ds-gray-1000">
@@ -63,18 +96,20 @@ export function SignalDetailView({
                 Suggested Next Action
               </div>
               <p className="mt-1 line-clamp-3 text-pretty text-copy-14 text-ds-gray-1000">
-                {signal.suggestedAction}
+                {isNeonStub || !signal.suggestedAction
+                  ? "Unavailable — local detection join missing."
+                  : signal.suggestedAction}
               </p>
               <p className="mt-1 text-label-12 text-ds-gray-900">
                 Display-only — copy into your CRM or chat tool; Sioona does not
                 send messages.
               </p>
             </div>
-            {signal.evidence.length > 0 ? (
-              <div className="mt-4 border-t border-ds-gray-400 pt-3">
-                <div className="text-label-12 text-ds-gray-900">
-                  Why This Fired
-                </div>
+            <div className="mt-4 border-t border-ds-gray-400 pt-3">
+              <div className="text-label-12 text-ds-gray-900">
+                Why This Fired
+              </div>
+              {signal.evidence.length > 0 ? (
                 <ul className="mt-1.5 space-y-2">
                   {signal.evidence.slice(0, 4).map((item) => {
                     const { kind, text } = formatEvidenceItem(item);
@@ -91,8 +126,15 @@ export function SignalDetailView({
                     );
                   })}
                 </ul>
-              </div>
-            ) : null}
+              ) : (
+                <p className="mt-1.5 text-copy-14 text-ds-gray-900">
+                  No local evidence
+                  {isNeonStub
+                    ? " — this Neon stub has no joined JSON signal."
+                    : "."}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="shrink-0">
@@ -113,15 +155,26 @@ export function SignalDetailView({
           <h2 className="text-balance shrink-0 text-heading-16 text-ds-gray-1000">
             Conversation
           </h2>
-          {messages.length === 0 ? (
+          {isNeonStub || messages.length === 0 ? (
             <div className="mt-4 flex flex-1 flex-col items-center justify-center text-center">
-              <p className="text-copy-14 text-ds-gray-1000">No messages stored</p>
-              <p className="mt-1 text-copy-14 text-ds-gray-900">
-                Re-upload the chat export or open another signal.
+              <p className="text-copy-14 text-ds-gray-1000">
+                {isNeonStub
+                  ? "No local conversation"
+                  : "No messages stored"}
               </p>
-              <Link href={viewHref("insights")} className="btn-secondary mt-4">
-                Back to Queue
-              </Link>
+              <p className="mt-1 text-copy-14 text-ds-gray-900">
+                {isNeonStub
+                  ? "Do not invent a transcript. Re-upload or Re-run Detection to attach chats from the JSON store."
+                  : "Re-upload the chat export or open another signal."}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <Link href={viewHref("upload")} className="btn-secondary">
+                  Upload Chats
+                </Link>
+                <Link href={viewHref("insights")} className="btn-secondary">
+                  Back to Queue
+                </Link>
+              </div>
             </div>
           ) : (
             <>

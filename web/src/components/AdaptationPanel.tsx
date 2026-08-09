@@ -60,7 +60,8 @@ export function AdaptationPanel({
 
   const reviewSignals = signals.filter(
     (s) =>
-      s.feedback?.label === "reject" || s.feedback?.label === "wrong_reason"
+      s.feedback?.label === "incorrect" ||
+      s.feedback?.label === "partially_correct"
   );
 
   const draftsDirty = reviewSignals.some((s) => {
@@ -217,7 +218,7 @@ export function AdaptationPanel({
 
       {reviewSignals.length === 0 ? (
         <p className="px-4 py-4 text-copy-14 text-ds-gray-900">
-          No reject or wrong_reason feedback yet. Review signals in{" "}
+          No incorrect or partially_correct feedback yet. Review signals in{" "}
           <Link href={viewHref("insights")} className="link-accent">
             Insights
           </Link>

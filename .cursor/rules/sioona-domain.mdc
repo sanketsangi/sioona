@@ -9,7 +9,8 @@ alwaysApply: false
 ## Vocabulary
 
 - `SignalType`: `lead` | `retention` | `upsell`
-- `FeedbackLabel`: `accept` | `reject` | `wrong_reason`
+- `FeedbackLabel`: `correct` | `incorrect` | `partially_correct` (legacy JSON `accept`/`reject`/`wrong_reason` normalized on read)
+- `backendSignalId`: optional UUID linking a JSON signal to FastAPI `signal_predictions`
 - `SignalStatus`: `new` | `reviewed` | `acted`
 - Message `role`: `customer` | `agent` | `system`
 - IDs: `tenant_*`, `conv_*`, `msg_*`, `sig_*`

@@ -291,4 +291,69 @@ describe("runDetection", () => {
     expect(score).toBe(0);
   });
 
+  it("does not fire lead/upsell on vague support asks", () => {
+    const hardNegatives = [
+      "Do you offer 24x7 chat support?",
+      "Looking for more help with this ticket.",
+      "Please stop the marketing emails.",
+    ];
+    for (const text of hardNegatives) {
+      const { conversation, messages } = conv("c_hard_neg", "none", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals).toEqual([]);
+    }
+  });
+
+  it("does not fire retention on soft competitor mention without leave intent", () => {
+    const { conversation, messages } = conv(
+      "c_soft_comp",
+      "none",
+      "I saw your competitor has a nicer UI, just FYI."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals).toEqual([]);
+  });
+
+  it("fires retention on refund frustration phrases", () => {
+    const { conversation, messages } = conv(
+      "c_refund_ret",
+      "retention",
+      "Still waiting for my refund, very frustrated."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals.some((s) => s.type === "retention")).toBe(true);
+  });
+
+  it("treats outbound holdings transfer as retention, not lead", () => {
+    const { conversation, messages } = conv(
+      "c_holdings_out",
+      "retention",
+      "I want to close my demat and transfer my holdings out."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals.some((s) => s.type === "retention")).toBe(true);
+    expect(signals.some((s) => s.type === "lead")).toBe(false);
+  });
+
+  it("requires keyword co-evidence when no phrase matched", () => {
+    expect(scoreType("My wallet balance looks fine.", "lead").score).toBe(0);
+    expect(scoreType("UPI is working again.", "lead").score).toBe(0);
+  });
+
 });

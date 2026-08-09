@@ -3,6 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import {
+  hasSyncFailures,
+  parsePredictionSync,
+  syncQueryExtras,
+} from "@/lib/prediction-sync";
 
 export function PartnerDemoButton({
   className = "btn-primary",
@@ -14,19 +19,37 @@ export function PartnerDemoButton({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
 
   async function run() {
     setLoading(true);
     setError(null);
+    setSyncWarning(null);
     try {
       const res = await fetch("/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "partner_demo" }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        predictionSync?: unknown;
+      };
       if (!res.ok) throw new Error(data.error || "Demo failed");
-      router.push("/?view=insights&demo=1");
+
+      const sync = parsePredictionSync(data.predictionSync);
+      const query = new URLSearchParams({ view: "insights", demo: "1" });
+      const extras = syncQueryExtras(sync);
+      if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
+      if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
+
+      if (hasSyncFailures(sync) && sync) {
+        setSyncWarning(
+          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon — pending queue may be empty until FastAPI is up. Opening Insights…`
+        );
+      }
+
+      router.push(`/?${query.toString()}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Demo failed");
@@ -51,6 +74,11 @@ export function PartnerDemoButton({
         {error ? (
           <span className="text-label-13 text-ds-red-900" role="alert">
             {error}
+          </span>
+        ) : null}
+        {syncWarning ? (
+          <span className="text-label-13 text-ds-gray-900" role="status">
+            {syncWarning}
           </span>
         ) : null}
       </div>
