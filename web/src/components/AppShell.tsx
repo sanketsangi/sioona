@@ -18,15 +18,15 @@ export function AppShell({
     <div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-ds-background-100 text-ds-gray-1000 md:flex-row">
       <a
         href="#main"
-        className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:m-0 focus:h-auto focus:w-auto focus:overflow-visible focus:rounded-sm focus:bg-ds-gray-1000 focus:px-3 focus:py-2 focus:text-sm focus:text-ds-background-100 focus:[clip:auto]"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:inline-flex focus:h-11 focus:items-center focus:rounded-sm focus:bg-ds-gray-1000 focus:px-3.5 focus:text-sm focus:font-medium focus:text-ds-background-100 md:focus:h-9"
       >
         Skip to content
       </a>
 
       <AppSidebar activeView={activeView} detailOpen={detailOpen} />
 
-      <main id="main" tabIndex={-1} className="page-main outline-none">
-        <div className="page-frame flex min-h-0 flex-1 flex-col overflow-y-auto py-5 sm:py-6 lg:py-8">
+      <main id="main" tabIndex={-1} className="page-main">
+        <div className="page-frame flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-clip py-5 sm:py-6 lg:py-8">
           {(title || subtitle) && (
             <header className="page-header">
               {title ? <h1 className="page-header-title">{title}</h1> : null}

@@ -76,10 +76,15 @@ function SignInFooter() {
         type="button"
         className="sidebar-sign-in"
         disabled
+        title="Sign-in arrives in a later phase"
+        aria-label="Sign In — unavailable in this demo"
       >
         <LogIn className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
         Sign In
       </button>
+      <p className="mt-2 px-0.5 text-label-12 text-ds-gray-900">
+        Auth comes later — demo runs without an account.
+      </p>
     </div>
   );
 }

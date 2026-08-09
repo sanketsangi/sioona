@@ -25,7 +25,7 @@ export function ReDetectButton() {
       onClick={run}
       disabled={loading}
       aria-busy={loading}
-      className="btn-secondary"
+      className="btn-secondary w-full sm:w-auto"
     >
       {loading ? (
         <ButtonSpinner />

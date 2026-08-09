@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { viewHref } from "@/lib/views";
@@ -17,11 +17,26 @@ const FORMAT_LABELS: Record<string, string> = {
 export function UploadForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!file || loading || status) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [file, loading, status]);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,6 +87,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
     <form
       onSubmit={onSubmit}
       className={`panel flex h-full flex-col ${compact ? "p-4 sm:p-5" : "p-6 sm:p-8"}`}
+      noValidate
     >
       <p className="eyebrow shrink-0">Import</p>
       <label
@@ -80,7 +96,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
       >
         Chat Export
       </label>
-      <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
+      <p id="chat-export-help" className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
         CSV, JSON, or WhatsApp .txt. Best results: support chats with lead,
         churn, or upgrade language.
       </p>
@@ -90,23 +106,38 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         name="file"
         type="file"
         accept=".csv,.json,.txt,text/csv,application/json,text/plain"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
+        aria-describedby="chat-export-help"
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null);
+          setError(null);
+        }}
+        className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2.5 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
       />
+      {file ? (
+        <p className="mt-2 truncate text-label-13 text-ds-gray-900" translate="no">
+          {file.name}
+        </p>
+      ) : null}
       <button
         type="submit"
         disabled={loading}
         aria-busy={loading}
-        className="btn-primary mt-4 shrink-0"
+        className="btn-primary mt-4 shrink-0 self-start"
       >
-        {loading ? <ButtonSpinner /> : <Upload className="size-3.5" strokeWidth={1.5} aria-hidden />}
+        {loading ? (
+          <ButtonSpinner />
+        ) : (
+          <Upload className="size-3.5" strokeWidth={1.5} aria-hidden />
+        )}
         Upload & Detect
       </button>
       <div className="sr-only" aria-live="polite">
         {loading ? "Uploading…" : status ?? ""}
       </div>
       {status ? (
-        <p className="mt-3 shrink-0 text-copy-14 text-ds-green-900">{status}</p>
+        <p className="mt-3 shrink-0 text-copy-14 text-ds-green-900" role="status">
+          {status}
+        </p>
       ) : null}
       {hint ? (
         <div
@@ -123,7 +154,12 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         </div>
       ) : null}
       {error ? (
-        <p className="mt-3 shrink-0 text-copy-14 text-ds-red-900" role="alert">
+        <p
+          ref={errorRef}
+          tabIndex={-1}
+          className="mt-3 shrink-0 text-copy-14 text-ds-red-900 outline-none"
+          role="alert"
+        >
           {error}. Check the file format and try again.
         </p>
       ) : null}

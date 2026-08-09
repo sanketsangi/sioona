@@ -36,7 +36,7 @@ export function PartnerDemoButton({
   }
 
   return (
-    <span className="inline-flex flex-col items-start gap-1">
+    <span className="inline-flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-start">
       <button
         type="button"
         onClick={run}

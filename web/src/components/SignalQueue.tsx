@@ -108,7 +108,7 @@ export function SignalQueue({
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <div className="chrome-scroll min-w-0 flex-1 items-center">
           <FilterRow label="Status">
             {STATUS_OPTIONS.map((option) => (
               <FilterChip
@@ -127,6 +127,10 @@ export function SignalQueue({
               </FilterChip>
             ))}
           </FilterRow>
+          <span
+            className="mx-1 hidden h-4 w-px shrink-0 bg-ds-gray-400 sm:block"
+            aria-hidden
+          />
           <FilterRow label="Type">
             {TYPE_OPTIONS.map((option) => (
               <FilterChip
@@ -202,19 +206,19 @@ export function SignalQueue({
                           {statusText}
                         </span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-pretty text-copy-14 text-ds-gray-1000">
+                      <p className="mt-1 line-clamp-3 text-pretty text-copy-14 text-ds-gray-1000 sm:line-clamp-2">
                         {signal.summary || "No summary available"}
                       </p>
                       {(() => {
                         const quote = primaryQuote(signal.evidence);
                         return quote ? (
-                          <p className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
+                          <p className="mt-1 line-clamp-2 text-label-13 text-ds-gray-900 sm:line-clamp-1">
                             “{quote}”
                           </p>
                         ) : null;
                       })()}
                       {signal.suggestedAction ? (
-                        <p className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
+                        <p className="mt-1 line-clamp-2 text-label-13 text-ds-gray-900 sm:line-clamp-1">
                           Next · {signal.suggestedAction}
                         </p>
                       ) : null}
@@ -257,9 +261,9 @@ function FilterRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-label-12 text-ds-gray-900">{label}</span>
-      <div className="flex flex-wrap gap-0.5" role="group" aria-label={label}>
+    <div className="flex shrink-0 items-center gap-1.5">
+      <span className="shrink-0 text-label-12 text-ds-gray-900">{label}</span>
+      <div className="flex shrink-0 gap-0.5" role="group" aria-label={label}>
         {children}
       </div>
     </div>

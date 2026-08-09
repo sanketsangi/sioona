@@ -20,38 +20,49 @@ export function Pager({
   const safePage = Math.min(Math.max(1, page), pageCount);
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+    <nav
+      className="flex shrink-0 flex-wrap items-center justify-between gap-2"
+      aria-label={`${label} navigation`}
+    >
       <p className="tabular text-label-13 text-ds-gray-900">
         {label} {safePage} of {pageCount}
       </p>
       <div className="flex gap-2">
         {prevHref == null ? (
-          <span className="btn-secondary min-w-9 px-3 opacity-40 pointer-events-none">
+          <span
+            className="btn-secondary min-w-11 px-3 opacity-40"
+            aria-disabled="true"
+          >
             Previous
           </span>
         ) : (
           <Link
             href={prevHref}
-            className="btn-secondary min-w-9 px-3"
+            className="btn-secondary min-w-11 px-3"
             scroll={false}
+            rel="prev"
           >
             Previous
           </Link>
         )}
         {nextHref == null ? (
-          <span className="btn-secondary min-w-9 px-3 opacity-40 pointer-events-none">
+          <span
+            className="btn-secondary min-w-11 px-3 opacity-40"
+            aria-disabled="true"
+          >
             Next
           </span>
         ) : (
           <Link
             href={nextHref}
-            className="btn-secondary min-w-9 px-3"
+            className="btn-secondary min-w-11 px-3"
             scroll={false}
+            rel="next"
           >
             Next
           </Link>
         )}
       </div>
-    </div>
+    </nav>
   );
 }

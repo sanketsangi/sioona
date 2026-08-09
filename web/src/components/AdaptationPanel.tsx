@@ -157,6 +157,62 @@ export function AdaptationPanel({
     }
   );
 
+  function TermField({ signal }: { signal: Signal }) {
+    return (
+      <label className="block min-w-0">
+        <span className="sr-only">
+          Override term for {signalTypeLabel(signal.type)}
+        </span>
+        <input
+          ref={(el) => {
+            termRefs.current[signal.id] = el;
+          }}
+          type="text"
+          name={`override-${signal.id}`}
+          autoComplete="off"
+          spellCheck={false}
+          value={drafts[signal.id] ?? ""}
+          onChange={(e) =>
+            setDrafts((prev) => ({
+              ...prev,
+              [signal.id]: e.target.value,
+            }))
+          }
+          className="input-field w-full min-w-0"
+          disabled={pending || busyId !== null}
+          placeholder="e.g. cancel my account…"
+        />
+      </label>
+    );
+  }
+
+  function ActionButtons({ signal }: { signal: Signal }) {
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={pending || busyId !== null}
+          aria-busy={busyId === `${signal.id}:phrases`}
+          onClick={() => applyOverride(signal, "phrases", signal.type)}
+        >
+          {busyId === `${signal.id}:phrases` ? <ButtonSpinner /> : null}
+          Add Phrase
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={pending || busyId !== null}
+          aria-busy={busyId === `${signal.id}:negativePhrases`}
+          onClick={() => applyOverride(signal, "negativePhrases", signal.type)}
+        >
+          {busyId === `${signal.id}:negativePhrases` ? <ButtonSpinner /> : null}
+          Add Negative
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`panel flex min-h-0 flex-col overflow-hidden ${compact ? "h-full" : "mt-6"}`}
@@ -193,7 +249,10 @@ export function AdaptationPanel({
           <h3 className="text-label-12 text-ds-gray-900">Active Overrides</h3>
           <ul className="mt-1 space-y-0.5 text-copy-14 text-ds-gray-1000">
             {overrideRows.slice(0, 3).map((row) => (
-              <li key={`${row.type}-${row.field}-${row.value}`} className="truncate">
+              <li
+                key={`${row.type}-${row.field}-${row.value}`}
+                className="truncate"
+              >
                 {signalTypeLabel(row.type)} · {row.field}: “{row.value}”
               </li>
             ))}
@@ -216,106 +275,40 @@ export function AdaptationPanel({
         </p>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <table className="w-full text-left text-copy-14">
-              <thead className="border-b border-ds-gray-400">
-                <tr>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Signal
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Feedback
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Term
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ds-gray-400">
-                {pageItems.map((signal) => (
-                  <tr key={signal.id}>
-                    <td className="min-w-0 px-4 py-2.5 align-top text-ds-gray-1000">
-                      <Link
-                        href={viewHref("insights", { signal: signal.id })}
-                        className="link-accent"
-                      >
-                        {signalTypeLabel(signal.type)}
-                      </Link>
-                      <div className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
-                        {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5 align-top text-ds-gray-900">
-                      {signal.feedback?.label.replace("_", " ")}
-                    </td>
-                    <td className="min-w-0 px-4 py-2.5 align-top">
-                      <label className="block min-w-0">
-                        <span className="sr-only">
-                          Override term for {signalTypeLabel(signal.type)}
-                        </span>
-                        <input
-                          ref={(el) => {
-                            termRefs.current[signal.id] = el;
-                          }}
-                          type="text"
-                          name={`override-${signal.id}`}
-                          autoComplete="off"
-                          spellCheck={false}
-                          value={drafts[signal.id] ?? ""}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [signal.id]: e.target.value,
-                            }))
-                          }
-                          className="input-field w-full min-w-[8rem]"
-                          disabled={pending || busyId !== null}
-                          placeholder="e.g. cancel my account…"
-                        />
-                      </label>
-                    </td>
-                    <td className="px-4 py-2.5 align-top">
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={pending || busyId !== null}
-                          aria-busy={busyId === `${signal.id}:phrases`}
-                          onClick={() =>
-                            applyOverride(signal, "phrases", signal.type)
-                          }
-                        >
-                          {busyId === `${signal.id}:phrases` ? (
-                            <ButtonSpinner />
-                          ) : null}
-                          Add Phrase
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={pending || busyId !== null}
-                          aria-busy={
-                            busyId === `${signal.id}:negativePhrases`
-                          }
-                          onClick={() =>
-                            applyOverride(signal, "negativePhrases", signal.type)
-                          }
-                        >
-                          {busyId === `${signal.id}:negativePhrases` ? (
-                            <ButtonSpinner />
-                          ) : null}
-                          Add Negative
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="min-h-0 flex-1 divide-y divide-ds-gray-400 overflow-y-auto">
+            {pageItems.map((signal) => (
+              <li
+                key={signal.id}
+                className="flex flex-col gap-3 px-4 py-3 lg:grid lg:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1.2fr)_auto] lg:items-start lg:gap-4"
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <Link
+                      href={viewHref("insights", { signal: signal.id })}
+                      className="link-accent"
+                    >
+                      {signalTypeLabel(signal.type)}
+                    </Link>
+                    <span className="text-label-13 text-ds-gray-900 lg:hidden">
+                      · {signal.feedback?.label.replace("_", " ")}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-label-13 text-ds-gray-900">
+                    {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
+                  </p>
+                </div>
+                <div className="hidden text-label-13 text-ds-gray-900 lg:block">
+                  {signal.feedback?.label.replace("_", " ")}
+                </div>
+                <div className="min-w-0">
+                  <TermField signal={signal} />
+                </div>
+                <div className="min-w-0">
+                  <ActionButtons signal={signal} />
+                </div>
+              </li>
+            ))}
+          </ul>
           <div className="shrink-0 border-t border-ds-gray-400 px-4 py-2">
             <Pager
               page={page}

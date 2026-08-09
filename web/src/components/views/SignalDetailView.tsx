@@ -38,7 +38,7 @@ export function SignalDetailView({
         Back to Queue
       </Link>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div className="flex min-h-0 flex-col gap-4">
           <div className="panel shrink-0 p-4 sm:p-5">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -50,19 +50,19 @@ export function SignalDetailView({
                 </span>
               </span>
               {conversation?.customerName ? (
-                <span className="min-w-0 truncate text-label-13 text-ds-gray-900">
+                <span className="min-w-0 break-words text-label-13 text-ds-gray-900">
                   · {conversation.customerName} · {conversation.channel}
                 </span>
               ) : null}
             </div>
-            <p className="mt-3 line-clamp-4 text-pretty text-copy-14 text-ds-gray-1000">
+            <p className="mt-3 text-pretty text-copy-14 text-ds-gray-1000 sm:line-clamp-4">
               {signal.summary}
             </p>
             <div className="mt-4 border-t border-ds-gray-400 pt-3">
               <div className="text-label-12 text-ds-gray-900">
                 Suggested Next Action
               </div>
-              <p className="mt-1 line-clamp-3 text-pretty text-copy-14 text-ds-gray-1000">
+              <p className="mt-1 text-pretty text-copy-14 text-ds-gray-1000 sm:line-clamp-3">
                 {signal.suggestedAction}
               </p>
               <p className="mt-1 text-label-12 text-ds-gray-900">

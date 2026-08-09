@@ -78,7 +78,7 @@ export function InsightsView({
           className="metric-strip shrink-0"
           aria-label="Opportunity lift comparison"
         >
-          <div className="grid grid-cols-3 divide-x divide-ds-gray-400">
+          <div className="metric-grid-3">
             <div className="metric-cell">
               <div className="metric-label">Their Process</div>
               <div className="metric-value">
@@ -91,7 +91,9 @@ export function InsightsView({
               </p>
             </div>
             <div className="metric-cell">
-              <div className="metric-label">Sioona Found</div>
+              <div className="metric-label">
+                <span translate="no">Sioona</span> Found
+              </div>
               <div className="metric-value">{pilot.sioonaOpportunities}</div>
               <p className="mt-1 text-label-12 text-ds-gray-900">
                 Conversations with ≥1 revenue signal
@@ -167,7 +169,7 @@ export function InsightsView({
             Open Eval
           </Link>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 sm:grid-cols-5 sm:divide-y-0">
+        <div className="metric-grid-stats">
           <Stat label="Signals" value={String(store.signals.length)} />
           <Stat label="Pending" value={String(pendingCount)} />
           <Stat label="Chats" value={String(store.conversations.length)} />
@@ -182,16 +184,16 @@ export function InsightsView({
         </div>
       </section>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <p className="text-label-13 text-ds-gray-900">
           Queue ·{" "}
           <span className="text-ds-gray-1000" translate="no">
             {store.tenant.name}
           </span>
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <PartnerDemoButton
-            className="btn-secondary"
+            className="btn-secondary w-full sm:w-auto"
             label="Run Partner Demo"
           />
           <ReDetectButton />

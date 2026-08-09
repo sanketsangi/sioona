@@ -24,7 +24,7 @@ const samples = [
 
 export function UploadView() {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+    <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
       <div className="min-h-0">
         <UploadForm compact />
       </div>
@@ -37,7 +37,7 @@ export function UploadView() {
           </h2>
           <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
             Use files in{" "}
-            <code className="font-mono text-ds-blue-900" translate="no">
+            <code className="break-all font-mono text-ds-blue-900" translate="no">
               web/data/samples/
             </code>{" "}
             or run the one-click demo.
@@ -45,12 +45,12 @@ export function UploadView() {
           <ul className="mt-4 min-h-0 flex-1 divide-y divide-ds-gray-400 border-t border-ds-gray-400">
             {samples.map((sample) => (
               <li key={sample.file} className="py-3">
-                <div className="flex flex-wrap items-baseline gap-x-2">
+                <div className="flex min-w-0 flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2">
                   <span className="text-label-14 font-medium text-ds-gray-1000">
                     {sample.label}
                   </span>
                   <code
-                    className="font-mono text-label-13 text-ds-gray-900"
+                    className="break-all font-mono text-label-13 text-ds-gray-900"
                     translate="no"
                   >
                     {sample.file}
@@ -62,7 +62,7 @@ export function UploadView() {
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex shrink-0 flex-wrap gap-2">
+          <div className="mt-4 flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
             <PartnerDemoButton label="Run Partner Demo" />
             <ResetDemoButton />
           </div>
