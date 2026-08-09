@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { viewHref } from "@/lib/views";
 
@@ -9,6 +9,12 @@ export function ResetDemoButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus();
+  }, [confirming]);
 
   async function reset() {
     setLoading(true);
@@ -33,6 +39,7 @@ export function ResetDemoButton() {
           Reset demo data?
         </span>
         <button
+          ref={confirmRef}
           type="button"
           onClick={reset}
           disabled={loading}
@@ -44,7 +51,10 @@ export function ResetDemoButton() {
         </button>
         <button
           type="button"
-          onClick={() => setConfirming(false)}
+          onClick={() => {
+            setConfirming(false);
+            triggerRef.current?.focus();
+          }}
           disabled={loading}
           className="btn-secondary"
         >
@@ -56,12 +66,13 @@ export function ResetDemoButton() {
 
   return (
     <button
+      ref={triggerRef}
       type="button"
       onClick={() => setConfirming(true)}
       disabled={loading}
       className="btn-secondary"
     >
-      Reset Demo Data
+      Reset Demo Data…
     </button>
   );
 }

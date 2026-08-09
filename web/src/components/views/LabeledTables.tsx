@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Pager } from "@/components/Pager";
-import { SignalBadge } from "@/components/SignalBadge";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import {
   parseLabeledTab,
@@ -9,9 +8,9 @@ import {
   type LabeledTab,
 } from "@/lib/views";
 import type { computeEvalMetrics } from "@/lib/eval";
-import type { StoreData } from "@/lib/types";
+import type { Conversation, StoreData } from "@/lib/types";
 
-const CONV_PAGE_SIZE = 5;
+const CONV_PAGE_SIZE = 10;
 
 export function LabeledTables({
   store,
@@ -43,14 +42,38 @@ export function LabeledTables({
     });
   }
 
+  function predictionText(conversation: Conversation): string {
+    const preds = store.signals.filter(
+      (s) => s.conversationId === conversation.id
+    );
+    if (preds.length === 0) return "none";
+    return preds
+      .map((p) => `${p.type} (${Math.round(p.score * 100)})`)
+      .join(", ");
+  }
+
+  function feedbackText(conversation: Conversation): string {
+    return (
+      store.signals
+        .filter((s) => s.conversationId === conversation.id)
+        .map((p) => p.feedback?.label)
+        .filter(Boolean)
+        .join(", ") || "—"
+    );
+  }
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex shrink-0 gap-0.5" role="group" aria-label="Labeled tables">
+    <div className="flex flex-col gap-4">
+      <div
+        className="flex flex-wrap gap-0.5"
+        role="group"
+        aria-label="Labeled tables"
+      >
         <Link
           href={tabHref("byType")}
           scroll={false}
           aria-current={table === "byType" ? "page" : undefined}
-          className={`nav-link inline-flex items-center ${table === "byType" ? "nav-link-active" : ""}`}
+          className={`nav-link ${table === "byType" ? "nav-link-active" : ""}`}
         >
           By Type
         </Link>
@@ -58,254 +81,174 @@ export function LabeledTables({
           href={tabHref("conversations")}
           scroll={false}
           aria-current={table === "conversations" ? "page" : undefined}
-          className={`nav-link inline-flex items-center ${table === "conversations" ? "nav-link-active" : ""}`}
+          className={`nav-link ${table === "conversations" ? "nav-link-active" : ""}`}
         >
           Conversations
         </Link>
       </div>
 
       {table === "byType" ? (
-        <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-ds-gray-400 px-4 py-2.5">
+        <section className="panel overflow-hidden">
+          <div className="border-b border-ds-gray-400 px-4 py-3">
             <h2 className="text-balance text-heading-16 text-ds-gray-1000">
               Precision By Signal Type
             </h2>
           </div>
-
-          {/* Card list below md — table columns clip/truncate on narrow viewports */}
-          <ul className="min-h-0 flex-1 divide-y divide-ds-gray-400 overflow-y-auto md:hidden">
-            {metrics.byType.map((row) => (
-              <li key={row.type} className="px-4 py-3">
-                <SignalBadge type={row.type} />
-                <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2">
-                  <div className="min-w-0">
-                    <dt className="text-label-12 text-ds-gray-900">Labeled</dt>
-                    <dd className="tabular font-mono text-label-13 text-ds-gray-1000">
+          <div className="table-scroll" tabIndex={0} role="region" aria-label="Precision by signal type, scrollable">
+            <table className="data-table">
+              <caption className="sr-only">
+                Labeled precision, recall, and confusion counts for each signal
+                type.
+              </caption>
+              <thead className="border-b border-ds-gray-400">
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Labeled</th>
+                  <th scope="col">Precision</th>
+                  <th scope="col">Recall</th>
+                  <th scope="col">TP / FP / FN</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ds-gray-400">
+                {metrics.byType.map((row) => (
+                  <tr key={row.type}>
+                    <th
+                      scope="row"
+                      className="whitespace-nowrap px-4 py-2.5 text-left text-copy-14 font-normal text-ds-gray-1000"
+                    >
+                      {signalTypeLabel(row.type)}
+                    </th>
+                    <td className="tabular font-mono text-label-13 text-ds-gray-900">
                       {row.labeledCount}
-                    </dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-label-12 text-ds-gray-900">
-                      TP / FP / FN
-                    </dt>
-                    <dd className="tabular font-mono text-label-13 text-ds-gray-1000">
+                    </td>
+                    <td className="tabular text-ds-gray-1000">
+                      {formatPercent(row.precision)}
+                    </td>
+                    <td className="tabular text-ds-gray-1000">
+                      {formatPercent(row.recall)}
+                    </td>
+                    <td className="tabular whitespace-nowrap font-mono text-label-13 text-ds-gray-900">
                       {row.truePositives} / {row.falsePositives} /{" "}
                       {row.falseNegatives}
-                    </dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-label-12 text-ds-gray-900">
-                      Precision
-                    </dt>
-                    <dd className="tabular text-copy-14 text-ds-gray-1000">
-                      {formatPercent(row.precision)}
-                    </dd>
-                  </div>
-                  <div className="min-w-0">
-                    <dt className="text-label-12 text-ds-gray-900">Recall</dt>
-                    <dd className="tabular text-copy-14 text-ds-gray-1000">
-                      {formatPercent(row.recall)}
-                    </dd>
-                  </div>
-                </dl>
-              </li>
-            ))}
-          </ul>
-
-          {/* Table at md+ — columns have room to breathe */}
-          <table className="hidden w-full text-left text-copy-14 md:table">
-            <thead className="border-b border-ds-gray-400">
-              <tr>
-                <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                  Type
-                </th>
-                <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                  Labeled
-                </th>
-                <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                  Precision
-                </th>
-                <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                  Recall
-                </th>
-                <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                  TP / FP / FN
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ds-gray-400">
-              {metrics.byType.map((row) => (
-                <tr key={row.type}>
-                  <td className="px-4 py-2.5 text-ds-gray-1000">
-                    {signalTypeLabel(row.type)}
-                  </td>
-                  <td className="tabular px-4 py-2.5 font-mono text-label-13 text-ds-gray-900">
-                    {row.labeledCount}
-                  </td>
-                  <td className="tabular px-4 py-2.5 text-ds-gray-1000">
-                    {formatPercent(row.precision)}
-                  </td>
-                  <td className="tabular px-4 py-2.5 text-ds-gray-1000">
-                    {formatPercent(row.recall)}
-                  </td>
-                  <td className="tabular px-4 py-2.5 font-mono text-label-13 text-ds-gray-900">
-                    {row.truePositives} / {row.falsePositives} /{" "}
-                    {row.falseNegatives}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : (
-        <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <section className="panel overflow-hidden">
           {pageConvs.length === 0 ? (
-            <div className="px-4 py-8 text-center">
-              <p className="text-copy-14 text-ds-gray-1000">
+            <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+              <p className="text-heading-16 text-ds-gray-1000">
                 No conversations yet
               </p>
-              <p className="mt-1 text-label-13 text-ds-gray-900">
-                Upload a chat export or start the partner demo to populate
-                this table.
+              <p className="mt-1 max-w-sm text-pretty text-copy-14 text-ds-gray-900">
+                Upload a chat export or start the partner demo to populate this
+                table.
               </p>
-              <p className="mt-3">
-                <Link href={viewHref("upload")} className="link-accent">
-                  Upload Chats
-                </Link>
-              </p>
+              <Link href={viewHref("upload")} className="btn-primary mt-4">
+                Upload Chats
+              </Link>
             </div>
           ) : (
             <>
-              {/* Card list below md — table columns truncate on narrow viewports */}
-              <ul className="min-h-0 flex-1 divide-y divide-ds-gray-400 overflow-y-auto md:hidden">
-                {pageConvs.map((conversation) => {
-                  const preds = store.signals.filter(
-                    (s) => s.conversationId === conversation.id
-                  );
-                  return (
-                    <li key={conversation.id} className="px-4 py-3">
-                      <p className="truncate text-label-14 font-medium text-ds-gray-1000">
-                        {conversation.customerName ?? conversation.id}
-                      </p>
-                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
-                        <div className="min-w-0">
-                          <dt className="text-label-12 text-ds-gray-900">
-                            Ground Truth
-                          </dt>
-                          <dd className="text-copy-14 text-ds-gray-1000">
-                            {conversation.groundTruth ?? "—"}
-                          </dd>
-                        </div>
-                        <div className="min-w-0">
-                          <dt className="text-label-12 text-ds-gray-900">
-                            Feedback
-                          </dt>
-                          <dd className="break-words text-copy-14 text-ds-gray-1000">
-                            {preds
-                              .map((p) => p.feedback?.label)
-                              .filter(Boolean)
-                              .join(", ") || "—"}
-                          </dd>
-                        </div>
-                        <div className="col-span-2 min-w-0">
-                          <dt className="text-label-12 text-ds-gray-900">
-                            Predicted
-                          </dt>
-                          <dd className="break-words font-mono text-label-13 text-ds-gray-1000">
-                            {preds.length
-                              ? preds
-                                  .map(
-                                    (p) =>
-                                      `${p.type} (${Math.round(p.score * 100)})`
-                                  )
-                                  .join(", ")
-                              : "none"}
-                          </dd>
-                        </div>
-                      </dl>
-                    </li>
-                  );
-                })}
+              {/* Cards below md — four squeezed columns are unreadable on a phone */}
+              <ul className="divide-y divide-ds-gray-400 md:hidden">
+                {pageConvs.map((conversation) => (
+                  <li key={conversation.id} className="px-4 py-3">
+                    <p className="text-pretty text-copy-14 font-medium text-ds-gray-1000">
+                      {conversation.customerName ?? conversation.id}
+                    </p>
+                    <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-label-13">
+                      <dt className="text-ds-gray-900">Ground truth</dt>
+                      <dd className="min-w-0 break-words text-ds-gray-1000">
+                        {conversation.groundTruth ?? "—"}
+                      </dd>
+                      <dt className="text-ds-gray-900">Predicted</dt>
+                      <dd className="min-w-0 break-words font-mono text-ds-gray-1000">
+                        {predictionText(conversation)}
+                      </dd>
+                      <dt className="text-ds-gray-900">Feedback</dt>
+                      <dd className="min-w-0 break-words text-ds-gray-1000">
+                        {feedbackText(conversation)}
+                      </dd>
+                    </dl>
+                  </li>
+                ))}
               </ul>
 
-              {/* Table at md+ — columns have room to breathe */}
-              <table className="hidden w-full table-fixed text-left text-copy-14 md:table">
-                <thead className="border-b border-ds-gray-400">
-                  <tr>
-                    <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                      Conversation
-                    </th>
-                    <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                      Ground Truth
-                    </th>
-                    <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                      Predicted
-                    </th>
-                    <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                      Feedback
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ds-gray-400">
-                  {pageConvs.map((conversation) => {
-                    const preds = store.signals.filter(
-                      (s) => s.conversationId === conversation.id
-                    );
-                    return (
+              <div
+                className="table-scroll hidden md:block"
+                tabIndex={0}
+                role="region"
+                aria-label="Labeled conversations, scrollable"
+              >
+                <table className="data-table">
+                  <caption className="sr-only">
+                    Ground truth labels, predicted signals, and reviewer
+                    feedback per conversation.
+                  </caption>
+                  <thead className="border-b border-ds-gray-400">
+                    <tr>
+                      <th scope="col">Conversation</th>
+                      <th scope="col">Ground Truth</th>
+                      <th scope="col">Predicted</th>
+                      <th scope="col">Feedback</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ds-gray-400">
+                    {pageConvs.map((conversation) => (
                       <tr key={conversation.id}>
-                        <td className="min-w-0 truncate px-4 py-2.5 text-ds-gray-1000">
+                        <th
+                          scope="row"
+                          className="max-w-[16rem] truncate px-4 py-2.5 text-left text-copy-14 font-normal text-ds-gray-1000"
+                        >
                           {conversation.customerName ?? conversation.id}
-                        </td>
-                        <td className="px-4 py-2.5 text-ds-gray-900">
+                        </th>
+                        <td className="whitespace-nowrap text-ds-gray-900">
                           {conversation.groundTruth ?? "—"}
                         </td>
-                        <td className="min-w-0 truncate px-4 py-2.5 font-mono text-label-13 text-ds-gray-900">
-                          {preds.length
-                            ? preds
-                                .map(
-                                  (p) =>
-                                    `${p.type} (${Math.round(p.score * 100)})`
-                                )
-                                .join(", ")
-                            : "none"}
+                        <td className="font-mono text-label-13 text-ds-gray-900">
+                          {predictionText(conversation)}
                         </td>
-                        <td className="px-4 py-2.5 text-ds-gray-900">
-                          {preds
-                            .map((p) => p.feedback?.label)
-                            .filter(Boolean)
-                            .join(", ") || "—"}
+                        <td className="text-ds-gray-900">
+                          {feedbackText(conversation)}
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-ds-gray-400 px-4 py-3">
+                <Pager
+                  page={page}
+                  pageCount={pageCount}
+                  label="Conversations"
+                  prevHref={
+                    page > 1
+                      ? viewHref("eval", {
+                          panel: "labeled",
+                          labeled: "conversations",
+                          convPage: page - 1 > 1 ? String(page - 1) : null,
+                        })
+                      : null
+                  }
+                  nextHref={
+                    page < pageCount
+                      ? viewHref("eval", {
+                          panel: "labeled",
+                          labeled: "conversations",
+                          convPage: String(page + 1),
+                        })
+                      : null
+                  }
+                />
+              </div>
             </>
           )}
-          <div className="mt-auto border-t border-ds-gray-400 px-4 py-2">
-            <Pager
-              page={page}
-              pageCount={pageCount}
-              prevHref={
-                page > 1
-                  ? viewHref("eval", {
-                      panel: "labeled",
-                      labeled: "conversations",
-                      convPage: page - 1 > 1 ? String(page - 1) : null,
-                    })
-                  : null
-              }
-              nextHref={
-                page < pageCount
-                  ? viewHref("eval", {
-                      panel: "labeled",
-                      labeled: "conversations",
-                      convPage: String(page + 1),
-                    })
-                  : null
-              }
-            />
-          </div>
         </section>
       )}
     </div>

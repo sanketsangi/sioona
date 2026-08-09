@@ -74,16 +74,16 @@ export function BaselineForm({
   return (
     <form
       onSubmit={onSubmit}
-      className={`panel px-4 py-3 ${compact ? "h-full" : "mt-4"}`}
+      className={`panel p-4 sm:p-5 ${compact ? "" : "mt-4"}`}
     >
       <h2 className="text-balance text-heading-16 text-ds-gray-1000">
         Set Partner Baseline
       </h2>
-      <p className="mt-1 text-copy-14 text-ds-gray-900">
+      <p className="mt-1 max-w-2xl text-pretty text-copy-14 text-ds-gray-900">
         Opportunities they find today. Lift = Sioona − baseline.
       </p>
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="block min-w-[8rem]">
+      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_minmax(12rem,2fr)_auto] sm:items-end">
+        <label className="block min-w-0">
           <span className="text-label-12 text-ds-gray-900">Baseline Count</span>
           <input
             ref={countRef}
@@ -99,7 +99,7 @@ export function BaselineForm({
             placeholder="0…"
           />
         </label>
-        <label className="block min-w-[12rem] flex-1">
+        <label className="block min-w-0">
           <span className="text-label-12 text-ds-gray-900">Note (optional)</span>
           <input
             type="text"
@@ -114,7 +114,7 @@ export function BaselineForm({
         </label>
         <button
           type="submit"
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
           disabled={pending}
           aria-busy={pending}
         >

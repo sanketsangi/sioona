@@ -27,7 +27,7 @@ function LogoLockup({ onNavigate }: { onNavigate?: () => void }) {
     <Link
       href={viewHref("insights")}
       onClick={onNavigate}
-      className="group inline-flex min-w-0 items-center rounded-md px-1.5 py-1 transition-opacity duration-150 hover:opacity-90"
+      className="group inline-flex h-11 min-w-0 items-center rounded-md px-1.5 transition-opacity duration-150 hover:opacity-90 md:h-10"
       aria-label="Sioona"
       translate="no"
     >
@@ -46,7 +46,7 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-2.5 py-1">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-1">
       <nav aria-label="Primary" className="sidebar-nav">
         {nav.map((item) => {
           const active = activeView === item.view && !detailOpen;
@@ -97,7 +97,7 @@ function SidebarBody({
 }) {
   return (
     <>
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3">
+      <div className="flex h-14 shrink-0 items-center gap-2 px-3 md:h-16">
         <div className="min-w-0 flex-1">
           <LogoLockup onNavigate={onNavigate} />
         </div>
@@ -123,13 +123,21 @@ export function AppSidebar({
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  /** Read when the drawer opens, before pinning the body shifts the offset */
+  const restoreScrollRef = useRef(0);
   const titleId = useId();
 
   const close = useCallback(() => setOpen(false), []);
 
+  const openDrawer = useCallback(() => {
+    restoreScrollRef.current = window.scrollY;
+    setOpen(true);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
 
+    const scrollY = restoreScrollRef.current;
     const trigger = triggerRef.current;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -140,7 +148,7 @@ export function AppSidebar({
     const focusables = drawer?.querySelectorAll<HTMLElement>(
       'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
     );
-    focusables?.[0]?.focus();
+    focusables?.[0]?.focus({ preventScroll: true });
 
     const onTab = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !focusables?.length) return;
@@ -165,13 +173,21 @@ export function AppSidebar({
     rail?.setAttribute("inert", "");
     bar?.setAttribute("inert", "");
 
+    document.body.style.top = `-${scrollY}px`;
+    document.body.dataset.scrollLocked = "true";
+
     return () => {
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("keydown", onTab);
       main?.removeAttribute("inert");
       rail?.removeAttribute("inert");
       bar?.removeAttribute("inert");
-      trigger?.focus();
+      delete document.body.dataset.scrollLocked;
+      document.body.style.top = "";
+      // Flush layout so the document is scrollable again before restoring
+      void document.body.offsetHeight;
+      window.scrollTo({ top: scrollY, behavior: "instant" });
+      trigger?.focus({ preventScroll: true });
     };
   }, [open, close]);
 
@@ -195,16 +211,16 @@ export function AppSidebar({
       </aside>
 
       {/* Mobile top bar */}
-      <div className="sidebar-mobile-bar flex min-h-12 shrink-0 items-center gap-2 md:hidden">
+      <div className="sidebar-mobile-bar flex shrink-0 items-center gap-1 md:hidden">
         <button
           ref={triggerRef}
           type="button"
-          className="btn-tertiary size-11 shrink-0 px-0 md:size-9"
+          className="btn-tertiary size-11 shrink-0 px-0"
           aria-expanded={open}
           aria-controls="app-sidebar-drawer"
-          onClick={() => setOpen(true)}
+          onClick={openDrawer}
         >
-          <Menu className="size-4" strokeWidth={1.5} aria-hidden />
+          <Menu className="size-5" strokeWidth={1.5} aria-hidden />
           <span className="sr-only">Open navigation</span>
         </button>
         <LogoLockup />
@@ -237,10 +253,10 @@ export function AppSidebar({
               headerEnd={
                 <button
                   type="button"
-                  className="btn-tertiary size-11 shrink-0 px-0 md:size-9"
+                  className="btn-tertiary size-11 shrink-0 px-0"
                   onClick={close}
                 >
-                  <X className="size-4" strokeWidth={1.5} aria-hidden />
+                  <X className="size-5" strokeWidth={1.5} aria-hidden />
                   <span className="sr-only">Close navigation</span>
                 </button>
               }
