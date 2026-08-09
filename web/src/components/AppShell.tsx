@@ -25,7 +25,7 @@ export function AppShell({
 
       <AppSidebar activeView={activeView} detailOpen={detailOpen} />
 
-      <main id="main" tabIndex={-1} className="page-main outline-none">
+      <main id="main" tabIndex={-1} className="page-main">
         <div className="page-frame flex flex-1 flex-col py-6 sm:py-8 lg:py-10">
           {(title || subtitle) && (
             <header className="page-header">

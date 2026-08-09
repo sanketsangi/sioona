@@ -27,7 +27,7 @@ function LogoLockup({ onNavigate }: { onNavigate?: () => void }) {
     <Link
       href={viewHref("insights")}
       onClick={onNavigate}
-      className="group inline-flex min-w-0 items-center rounded-md px-1.5 py-1 transition-opacity duration-150 hover:opacity-90"
+      className="group inline-flex h-11 min-w-0 items-center rounded-md px-1.5 transition-opacity duration-150 hover:opacity-90 md:h-10"
       aria-label="Sioona"
       translate="no"
     >
@@ -123,13 +123,21 @@ export function AppSidebar({
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  /** Read when the drawer opens, before pinning the body shifts the offset */
+  const restoreScrollRef = useRef(0);
   const titleId = useId();
 
   const close = useCallback(() => setOpen(false), []);
 
+  const openDrawer = useCallback(() => {
+    restoreScrollRef.current = window.scrollY;
+    setOpen(true);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
 
+    const scrollY = restoreScrollRef.current;
     const trigger = triggerRef.current;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
@@ -140,7 +148,7 @@ export function AppSidebar({
     const focusables = drawer?.querySelectorAll<HTMLElement>(
       'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
     );
-    focusables?.[0]?.focus();
+    focusables?.[0]?.focus({ preventScroll: true });
 
     const onTab = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !focusables?.length) return;
@@ -164,6 +172,8 @@ export function AppSidebar({
     main?.setAttribute("inert", "");
     rail?.setAttribute("inert", "");
     bar?.setAttribute("inert", "");
+
+    document.body.style.top = `-${scrollY}px`;
     document.body.dataset.scrollLocked = "true";
 
     return () => {
@@ -173,7 +183,11 @@ export function AppSidebar({
       rail?.removeAttribute("inert");
       bar?.removeAttribute("inert");
       delete document.body.dataset.scrollLocked;
-      trigger?.focus();
+      document.body.style.top = "";
+      // Flush layout so the document is scrollable again before restoring
+      void document.body.offsetHeight;
+      window.scrollTo({ top: scrollY, behavior: "instant" });
+      trigger?.focus({ preventScroll: true });
     };
   }, [open, close]);
 
@@ -204,7 +218,7 @@ export function AppSidebar({
           className="btn-tertiary size-11 shrink-0 px-0"
           aria-expanded={open}
           aria-controls="app-sidebar-drawer"
-          onClick={() => setOpen(true)}
+          onClick={openDrawer}
         >
           <Menu className="size-5" strokeWidth={1.5} aria-hidden />
           <span className="sr-only">Open navigation</span>

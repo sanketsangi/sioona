@@ -94,8 +94,16 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Set while the mobile navigation drawer is open */
+  /*
+   * Set while the mobile navigation drawer is open. Pinning the body rather
+   * than hiding its overflow keeps the page from collapsing to scroll 0; the
+   * drawer restores the offset on close.
+   */
   body[data-scroll-locked="true"] {
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
     overflow: hidden;
   }
 
@@ -172,6 +180,12 @@
   .page-main {
     @apply relative flex min-w-0 flex-1 flex-col;
     background: var(--ds-background-100);
+  }
+
+  /* Skip-link landing needs a visible target, but only for keyboard users */
+  .page-main:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--ds-blue-700);
   }
 
   .page-header {
