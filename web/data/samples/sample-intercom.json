@@ -123,6 +123,117 @@
           }
         ]
       }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9006",
+      "created_at": 1754553600,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hi, I run a small business and I'm interested in your business account. What are your card and loan options for a new business?</p>",
+        "created_at": 1754553600,
+        "author": { "type": "user", "name": "Meera Reddy" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Happy to help set that up — are you opening for a registered company?</p>",
+            "created_at": 1754553660,
+            "author": { "type": "admin", "name": "Support" }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Yes. I also want to open a current account and apply for a business account this month.</p>",
+            "created_at": 1754553720,
+            "author": { "type": "user", "name": "Meera Reddy" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9007",
+      "created_at": 1754640000,
+      "source": {
+        "type": "conversation",
+        "body": "I'm new to your app. How do I apply for a credit card and open a savings account? I want to complete KYC to add money and start using UPI.",
+        "created_at": 1754640000,
+        "author": { "type": "user", "name": "Arjun Sethi" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "Welcome! I'll walk you through KYC, the savings account, and card eligibility.",
+            "created_at": 1754640060,
+            "author": { "type": "admin", "name": "Support" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9008",
+      "created_at": 1754726400,
+      "source": {
+        "type": "conversation",
+        "body": "I want to apply for a loan. Am I eligible for a personal loan? What are your loan options and what are your card options?",
+        "created_at": 1754726400,
+        "author": { "type": "user", "name": "Fatima Sheikh" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "I can check eligibility and share loan and card options right away.",
+            "created_at": 1754726460,
+            "author": { "type": "admin", "name": "Support" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9009",
+      "created_at": 1754812800,
+      "source": {
+        "type": "conversation",
+        "body": "Interested in a fixed deposit and want to open a savings account. What plans do you offer for new customers, and how much to open an account?",
+        "created_at": 1754812800,
+        "author": { "type": "user", "name": "Rohit Nair" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "Sure — I'll send our FD rates and the new-customer plan comparison.",
+            "created_at": 1754812860,
+            "author": { "type": "admin", "name": "Support" }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "ic_9010",
+      "created_at": 1754899200,
+      "source": {
+        "type": "conversation",
+        "body": "My card was declined and my refund status still shows pending. Where is my refund? Please help.",
+        "created_at": 1754899200,
+        "author": { "type": "user", "name": "Vikas Kumar" }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "Sorry about that — checking the declined transaction and refund status now.",
+            "created_at": 1754899260,
+            "author": { "type": "admin", "name": "Support" }
+          }
+        ]
+      }
     }
   ]
 }
