@@ -26,9 +26,13 @@ export function Pager({
       </p>
       <div className="flex gap-2">
         {prevHref == null ? (
-          <span className="btn-secondary min-w-9 px-3 opacity-40 pointer-events-none">
+          <button
+            type="button"
+            disabled
+            className="btn-secondary min-w-9 px-3"
+          >
             Previous
-          </span>
+          </button>
         ) : (
           <Link
             href={prevHref}
@@ -39,9 +43,13 @@ export function Pager({
           </Link>
         )}
         {nextHref == null ? (
-          <span className="btn-secondary min-w-9 px-3 opacity-40 pointer-events-none">
+          <button
+            type="button"
+            disabled
+            className="btn-secondary min-w-9 px-3"
+          >
             Next
-          </span>
+          </button>
         ) : (
           <Link
             href={nextHref}
