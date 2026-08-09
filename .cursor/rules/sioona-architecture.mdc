@@ -5,32 +5,38 @@ alwaysApply: true
 
 # Sioona Architecture
 
-Single Next.js app in `web/` — **not** a monorepo. No `packages/`. Do not apply parent Expo RN rules.
+Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages/`. Do not apply parent Expo RN rules.
 
 ## Stack (current ≠ target)
 
 | Layer | Current (code) | Do not assume until asked |
 |-------|----------------|---------------------------|
-| App | Next.js 15 App Router, React 19, Tailwind, Geist | — |
+| App | Next.js 15 App Router, React 19, Tailwind, Geist (`web/`) | — |
+| API | FastAPI Signal Score (`backend/`) | Auth0-gated multi-tenant API |
 | Detect | Keyword heuristics + store taxonomy overrides (`detect.ts`) | LLM / vLLM / LangGraph |
-| Data | JSON file `web/data/store.json` via `store.ts` | Neon + pgvector |
-| Auth | None | Auth0 |
+| Data | JSON file store for chats/messages/taxonomy (`store.ts`) + **Neon** for SignalScore + Shadow Mode needs-review queue | Full Neon chat migration / pgvector |
+| Auth | None (`X-Tenant-Id` header to backend) | Auth0 |
+
+**Signal Score + pending queue SoT:** FastAPI + Neon (`backend/`). Insights pending list uses `GET …/needs-review` joined to JSON signals for evidence. JSON `reviewPrecision` is a legacy mirror when the backend is unreachable.
 
 ## Layout
 
-- `web/src/app/` — routes + `api/`
+- `web/src/app/` — routes + `api/` (BFF to FastAPI for feedback/score)
 - `web/src/components/` — UI (`"use client"` only when interactive)
-- `web/src/lib/` — domain logic (prefer edits here)
+- `web/src/lib/` — domain logic (prefer edits here); `backend-client.ts` talks to FastAPI
 - `web/src/data/fixtures/` — seed demo data
 - `web/data/` — runtime store + samples (do **not** commit `store.json`)
+- `backend/` — FastAPI + Alembic + Signal Score services
 
-Path alias: `@/*` → `./src/*`.
+Path alias: `@/*` → `./src/*` (web).
 
 ## Canonical files
 
 - Types: `web/src/lib/types.ts`
 - Taxonomy SoT: `web/src/lib/taxonomy.ts` (not `taxonomy.json`)
 - Detect / ingest / eval / format / store: matching files in `web/src/lib/`
+- Signal Score client: `web/src/lib/backend-client.ts`
+- Backend models/services: `backend/app/`
 - Tokens + utilities: `web/src/app/globals.css`
 - Chrome: `web/src/components/AppShell.tsx`
 
@@ -38,4 +44,6 @@ Path alias: `@/*` → `./src/*`.
 
 - RSC pages read the store directly; mutations via `fetch` to `/api/*` then `router.refresh()`
 - Data pages: `export const dynamic = "force-dynamic"`
-- Extend `web/src/lib/*` first; do not scaffold Phase-2 infra unless asked
+- Detect/ingest dual-write predictions to FastAPI (`backendSignalId` on signals; retry once + `predictionSync` stats)
+- Insights pending queue: `fetchNeedsReview` → join via `join-needs-review.ts` (not JSON `status===new` as SoT)
+- Feedback proxies to FastAPI (`correct` / `incorrect` / `partially_correct`) and mirrors into JSON for reviewed filter / detail

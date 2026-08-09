@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { sampleStore } from "@/data/fixtures/sample-store";
 import { runDetection } from "./detect";
 import {
+  applyBackendSignalScore,
   computeEvalMetrics,
   computePilotMetrics,
   REVIEW_PRECISION_TARGET,
@@ -26,7 +27,7 @@ describe("computeEvalMetrics", () => {
     );
     const metrics = computeEvalMetrics(withSignals(signals));
 
-    expect(metrics.labeledConversations).toBe(23);
+    expect(metrics.labeledConversations).toBe(27);
     expect(metrics.labeledPrecision).toBe(1);
     expect(metrics.labeledRecall).toBe(1);
     expect(metrics.byType).toHaveLength(3);
@@ -35,7 +36,7 @@ describe("computeEvalMetrics", () => {
     );
     expect(
       metrics.byType.find((row) => row.type === "retention")?.labeledCount
-    ).toBe(5);
+    ).toBe(6);
     expect(
       metrics.byType.find((row) => row.type === "upsell")?.labeledCount
     ).toBe(3);
@@ -81,7 +82,7 @@ describe("computeEvalMetrics", () => {
             ...signal,
             status: "reviewed" as const,
             feedback: {
-              label: index === 0 ? ("accept" as const) : ("reject" as const),
+              label: index === 0 ? ("correct" as const) : ("incorrect" as const),
               reviewedAt: "2026-08-01T00:00:00.000Z",
             },
           }
@@ -89,9 +90,28 @@ describe("computeEvalMetrics", () => {
     );
     const metrics = computeEvalMetrics(withSignals(signals));
     expect(metrics.reviewedCount).toBe(2);
-    expect(metrics.acceptedCount).toBe(1);
-    expect(metrics.rejectedCount).toBe(1);
+    expect(metrics.correctCount).toBe(1);
+    expect(metrics.incorrectCount).toBe(1);
     expect(metrics.reviewPrecision).toBe(0.5);
+  });
+});
+
+describe("applyBackendSignalScore", () => {
+  it("overlays Neon SignalScore onto review metrics", () => {
+    const local = computeEvalMetrics(withSignals([]));
+    const overlaid = applyBackendSignalScore(local, {
+      tenant_id: "tenant_demo",
+      signal_score: 0.8,
+      reviewed_count: 10,
+      correct_count: 8,
+      incorrect_count: 1,
+      partially_correct_count: 1,
+      by_signal_type: [],
+    });
+    expect(overlaid.reviewPrecision).toBe(0.8);
+    expect(overlaid.correctCount).toBe(8);
+    expect(overlaid.signalScoreFromBackend).toBe(true);
+    expect(overlaid.labeledPrecision).toBe(local.labeledPrecision);
   });
 });
 
@@ -105,7 +125,7 @@ describe("computePilotMetrics", () => {
     const pilot = computePilotMetrics(withSignals(signals));
     expect(pilot.reviewPrecisionTarget).toBe(REVIEW_PRECISION_TARGET);
     expect(pilot.sioonaOpportunities).toBeGreaterThan(0);
-    expect(pilot.labeledOpportunities).toBe(15);
+    expect(pilot.labeledOpportunities).toBe(16);
     expect(pilot.baselineOpportunities).toBe(0);
     expect(pilot.opportunityLift).toBe(pilot.sioonaOpportunities);
     expect(pilot.labeledPrecision).toBe(1);
@@ -176,8 +196,9 @@ describe("mergeSignalsPreservingFeedback", () => {
         evidence: ["e1"],
         status: "reviewed",
         createdAt: "2026-01-01T00:00:00.000Z",
+        backendSignalId: "11111111-1111-1111-1111-111111111111",
         feedback: {
-          label: "accept",
+          label: "correct",
           note: "keep",
           reviewedAt: "2026-01-02T00:00:00.000Z",
         },
@@ -201,7 +222,10 @@ describe("mergeSignalsPreservingFeedback", () => {
     const merged = mergeSignalsPreservingFeedback(previous, next)[0];
     expect(merged.id).toBe("sig_old");
     expect(merged.score).toBe(0.95);
-    expect(merged.feedback?.label).toBe("accept");
+    expect(merged.feedback?.label).toBe("correct");
+    expect(merged.backendSignalId).toBe(
+      "11111111-1111-1111-1111-111111111111"
+    );
     expect(merged.status).toBe("reviewed");
   });
 });

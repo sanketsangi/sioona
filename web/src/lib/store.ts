@@ -52,12 +52,34 @@ async function resolveStorePath(): Promise<string | null> {
   return null;
 }
 
+/** Map legacy JSON feedback labels to canonical SignalScore labels. */
+function normalizeFeedbackLabel(label: string): FeedbackLabel {
+  if (label === "accept") return "correct";
+  if (label === "reject") return "incorrect";
+  if (label === "wrong_reason") return "partially_correct";
+  return label as FeedbackLabel;
+}
+
 export function normalizeStore(data: StoreData): StoreData {
   return {
     ...data,
     pilot: data.pilot ?? { baselineOpportunities: 0 },
     taxonomyOverrides: data.taxonomyOverrides ?? {},
-    auditEvents: data.auditEvents ?? [],
+    auditEvents: (data.auditEvents ?? []).map((event) => ({
+      ...event,
+      label: normalizeFeedbackLabel(event.label),
+    })),
+    signals: data.signals.map((signal) =>
+      signal.feedback
+        ? {
+            ...signal,
+            feedback: {
+              ...signal.feedback,
+              label: normalizeFeedbackLabel(signal.feedback.label),
+            },
+          }
+        : signal
+    ),
   };
 }
 
@@ -142,9 +164,17 @@ export function mergeSignalsPreservingFeedback(
   const priorByKey = new Map(previous.map((s) => [signalKey(s), s]));
   return next.map((signal) => {
     const prior = priorByKey.get(signalKey(signal));
-    if (!prior?.feedback) return signal;
-    return {
+    if (!prior) return signal;
+
+    const withBackendId: Signal = {
       ...signal,
+      backendSignalId: prior.backendSignalId ?? signal.backendSignalId,
+    };
+
+    if (!prior.feedback) return withBackendId;
+
+    return {
+      ...withBackendId,
       id: prior.id,
       createdAt: prior.createdAt,
       feedback: prior.feedback,
@@ -208,6 +238,9 @@ export async function setPilotBaseline(
   };
   if (baselineNote?.trim()) {
     pilot.baselineNote = baselineNote.trim();
+  }
+  if (store.pilot?.weeklyExportCount != null) {
+    pilot.weeklyExportCount = store.pilot.weeklyExportCount;
   }
   store.pilot = pilot;
   await writeStore(store);

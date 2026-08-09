@@ -9,18 +9,18 @@ import type { FeedbackLabel, Signal } from "@/lib/types";
 
 const options: { label: FeedbackLabel; title: string; hint: string }[] = [
   {
-    label: "accept",
-    title: "Accept Signal",
+    label: "correct",
+    title: "Correct",
     hint: "Signal is correct and useful",
   },
   {
-    label: "reject",
-    title: "Reject Signal",
+    label: "incorrect",
+    title: "Incorrect",
     hint: "Not a real opportunity",
   },
   {
-    label: "wrong_reason",
-    title: "Wrong Reason",
+    label: "partially_correct",
+    title: "Partially Correct",
     hint: "Right-ish signal, bad rationale",
   },
 ];
@@ -37,7 +37,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
 
   const feedbackLabel = signal.feedback?.label ?? justSaved;
   const needsAdapt =
-    feedbackLabel === "reject" || feedbackLabel === "wrong_reason";
+    feedbackLabel === "incorrect" || feedbackLabel === "partially_correct";
 
   useEffect(() => {
     if (!dirty) return;
@@ -60,6 +60,12 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
+        if (res.status === 503) {
+          throw new Error(
+            data.error ||
+              "Signal Score backend unavailable — feedback not saved"
+          );
+        }
         throw new Error(data.error || "Failed to save feedback");
       }
       setJustSaved(label);
@@ -74,24 +80,26 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
   function onNoteKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      void submit("accept");
+      void submit("correct");
     }
   }
 
   return (
-    <section className="panel p-4 sm:p-5" aria-labelledby="feedback-heading">
-      <h2 id="feedback-heading" className="text-heading-16 text-ds-gray-1000">
-        SignalScore Feedback
-      </h2>
-      <p className="mt-1 max-w-prose text-pretty text-label-13 text-ds-gray-900">
-        Accept / reject / wrong reason — used for precision tracking and
-        taxonomy adaptation.
+    <div className="panel p-4 sm:p-5">
+      <h2 className="text-heading-16 text-ds-gray-1000">SignalScore Feedback</h2>
+      <p className="mt-1 text-label-13 text-ds-gray-900">
+        Mark correct / incorrect / partially correct. Saves to Neon and
+        refreshes Signal Score above.
       </p>
       <div aria-live="polite">
-        {signal.feedback ? (
+        {signal.feedback || justSaved ? (
           <p className="mt-3 text-copy-14 text-ds-blue-900">
-            Current: {signal.feedback.label.replace("_", " ")}
-            {signal.feedback.note ? ` — ${signal.feedback.note}` : ""}
+            Current:{" "}
+            {(signal.feedback?.label ?? justSaved)!.replaceAll("_", " ")}
+            {signal.feedback?.note ? ` — ${signal.feedback.note}` : ""}
+            {justSaved && !signal.feedback
+              ? " — saved; score refreshing…"
+              : null}
           </p>
         ) : null}
       </div>
@@ -105,12 +113,12 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={onNoteKeyDown}
           placeholder="Optional note — e.g. ops language, not churn…"
-          className="input-field text-base sm:text-sm"
+          className="input-field min-h-[64px] text-base sm:text-sm"
           rows={2}
         />
       </label>
       <p className="mt-1 text-label-12 text-ds-gray-900">
-        ⌘&nbsp;Enter or Ctrl&nbsp;Enter accepts with the current note.
+        ⌘&nbsp;Enter or Ctrl&nbsp;Enter marks correct with the current note.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
         {options.map((option) => (
@@ -120,13 +128,13 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
             disabled={pending !== null}
             aria-busy={pending === option.label}
             onClick={() => submit(option.label)}
-            className="min-h-11 rounded-sm border border-ds-gray-400 bg-ds-background-100 px-3 py-2.5 text-left transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-sm border border-ds-gray-400 bg-ds-background-100 px-3 py-2.5 text-left transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <div className="flex items-center gap-1.5 text-label-14 font-medium text-ds-gray-1000">
               {pending === option.label ? <ButtonSpinner /> : null}
               {option.title}
             </div>
-            <div className="mt-0.5 text-pretty text-label-12 text-ds-gray-900">
+            <div className="mt-0.5 text-label-12 text-ds-gray-900">
               {option.hint}
             </div>
           </button>
@@ -139,7 +147,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           aria-live="polite"
         >
           <p className="text-copy-14 text-ds-gray-1000">
-            {feedbackLabel === "reject"
+            {feedbackLabel === "incorrect"
               ? "False positive? Add a negative phrase so this pattern stops firing."
               : "Wrong rationale? Add the phrase that should drive this signal type."}
           </p>
@@ -152,10 +160,10 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
         </div>
       ) : null}
       {error ? (
-        <p className="mt-3 text-pretty text-copy-14 text-ds-red-900" role="alert">
+        <p className="mt-3 text-copy-14 text-ds-red-900" role="alert">
           {error}. Try again or refresh the page.
         </p>
       ) : null}
-    </section>
+    </div>
   );
 }

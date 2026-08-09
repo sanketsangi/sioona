@@ -1,11 +1,11 @@
 ---
-description: Geist Design System + Vercel Web Interface Guidelines for Sioona UI
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Geist / Vercel Design System
 
 Sources of truth:
+
 - [Geist Introduction](https://vercel.com/geist/introduction)
 - [Geist Colors](https://vercel.com/geist/colors)
 - [Geist Typography](https://vercel.com/geist/typography)

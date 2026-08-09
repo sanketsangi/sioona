@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import {
+  hasSyncFailures,
+  parsePredictionSync,
+  syncQueryExtras,
+} from "@/lib/prediction-sync";
 import { viewHref } from "@/lib/views";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -20,6 +25,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
+  const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,6 +40,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
     setError(null);
     setStatus(null);
     setHint(null);
+    setSyncWarning(null);
     try {
       const body = new FormData();
       body.append("file", file);
@@ -44,15 +51,28 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         importedConversations?: number;
         newSignals?: number;
         hint?: string;
+        predictionSync?: unknown;
       };
       if (!res.ok) throw new Error(data.error || "Upload failed");
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
       const signals = data.newSignals ?? 0;
-      setStatus(
-        `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals`
-      );
+      const sync = parsePredictionSync(data.predictionSync);
+      const syncFailed = hasSyncFailures(sync);
+
+      if (syncFailed && sync) {
+        setStatus(
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — Neon sync incomplete`
+        );
+        setSyncWarning(
+          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights. 7-day pilot checklist continues there.`
+        );
+      } else {
+        setStatus(
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights for the 7-day pilot checklist…`
+        );
+      }
       if (data.hint) setHint(data.hint);
       router.refresh();
       const query = new URLSearchParams({
@@ -60,6 +80,9 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         imported: String(imported),
         signals: String(signals),
       });
+      const extras = syncQueryExtras(sync);
+      if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
+      if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
       setTimeout(() => router.push(`/?${query.toString()}`), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -71,16 +94,16 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
   return (
     <form
       onSubmit={onSubmit}
-      className={`panel flex flex-col ${compact ? "p-4 sm:p-5" : "p-6 sm:p-8"}`}
+      className={`panel flex h-full flex-col ${compact ? "p-4 sm:p-5" : "p-6 sm:p-8"}`}
     >
-      <p className="eyebrow">Import</p>
+      <p className="eyebrow shrink-0">Import</p>
       <label
         htmlFor="chat-export"
-        className="mt-1 block text-heading-16 text-ds-gray-1000"
+        className="mt-1 block shrink-0 text-heading-16 text-ds-gray-1000"
       >
         Chat Export
       </label>
-      <p className="mt-2 max-w-prose text-pretty text-copy-14 text-ds-gray-900">
+      <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
         CSV, JSON, or WhatsApp .txt. Best results: support chats with lead,
         churn, or upgrade language.
       </p>
@@ -91,13 +114,13 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         type="file"
         accept=".csv,.json,.txt,text/csv,application/json,text/plain"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="mt-4 block w-full rounded-sm border border-dashed border-ds-gray-500 px-3 py-3 text-base text-ds-gray-900 transition-colors duration-150 hover:border-ds-gray-600 file:mr-3 file:h-9 file:cursor-pointer file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:text-sm file:font-medium file:text-ds-gray-1000 sm:text-sm"
+        className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
       />
       <button
         type="submit"
         disabled={loading}
         aria-busy={loading}
-        className="btn-primary mt-4 w-full sm:w-fit"
+        className="btn-primary mt-4 shrink-0"
       >
         {loading ? <ButtonSpinner /> : <Upload className="size-3.5" strokeWidth={1.5} aria-hidden />}
         Upload & Detect
@@ -106,14 +129,29 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         {loading ? "Uploading…" : status ?? ""}
       </div>
       {status ? (
-        <p className="mt-3 text-pretty text-copy-14 text-ds-green-900">
+        <p
+          className={`mt-3 shrink-0 text-copy-14 ${
+            syncWarning ? "text-ds-gray-1000" : "text-ds-green-900"
+          }`}
+        >
           {status}
         </p>
       ) : null}
+      {syncWarning ? (
+        <div
+          className="status-banner status-banner-warning mt-3 shrink-0"
+          role="alert"
+        >
+          <p className="text-copy-14 text-ds-gray-1000">{syncWarning}</p>
+        </div>
+      ) : null}
       {hint ? (
-        <div className="status-banner status-banner-warning mt-3" role="status">
-          <p className="text-pretty text-copy-14 text-ds-gray-1000">{hint}</p>
-          <p className="mt-2 text-pretty text-label-13 text-ds-gray-900">
+        <div
+          className="status-banner status-banner-warning mt-3 shrink-0"
+          role="status"
+        >
+          <p className="text-copy-14 text-ds-gray-1000">{hint}</p>
+          <p className="mt-2 text-label-13 text-ds-gray-900">
             <Link href={viewHref("insights")} className="link-accent">
               Start Partner Demo
             </Link>{" "}
@@ -122,10 +160,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         </div>
       ) : null}
       {error ? (
-        <p
-          className="mt-3 text-pretty text-copy-14 text-ds-red-900"
-          role="alert"
-        >
+        <p className="mt-3 shrink-0 text-copy-14 text-ds-red-900" role="alert">
           {error}. Check the file format and try again.
         </p>
       ) : null}

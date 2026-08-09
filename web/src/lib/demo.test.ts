@@ -31,5 +31,16 @@ describe("runPartnerDemo", () => {
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
     expect(result.opportunityLift).toBeGreaterThan(0);
+    expect(result.predictionSync).toEqual(
+      expect.objectContaining({
+        attempted: expect.any(Number),
+        created: expect.any(Number),
+        failed: expect.any(Number),
+        skipped: expect.any(Number),
+      })
+    );
+    expect(
+      result.predictionSync.attempted + result.predictionSync.skipped
+    ).toBeGreaterThan(0);
   });
 });

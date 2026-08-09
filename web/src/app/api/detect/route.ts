@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { runDetection } from "@/lib/detect";
 import { sortSignals } from "@/lib/eval";
-import { readStore, replaceSignalsPreservingFeedback } from "@/lib/store";
+import {
+  readStore,
+  replaceSignalsPreservingFeedback,
+  writeStore,
+} from "@/lib/store";
+import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 
 export async function POST() {
   const store = await readStore();
@@ -12,8 +17,15 @@ export async function POST() {
     store.taxonomyOverrides
   );
   const updated = await replaceSignalsPreservingFeedback(detected);
+  const { signals, sync } = await syncPredictionsToBackend(
+    updated.signals,
+    store.tenant.id
+  );
+  updated.signals = signals;
+  await writeStore(updated);
   return NextResponse.json({
     count: updated.signals.length,
     signals: sortSignals(updated.signals),
+    predictionSync: sync,
   });
 }

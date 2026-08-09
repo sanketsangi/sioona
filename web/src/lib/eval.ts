@@ -1,3 +1,4 @@
+import type { BackendSignalScore } from "./backend-client";
 import type { Signal, SignalType, StoreData } from "./types";
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
@@ -16,9 +17,9 @@ export interface EvalMetrics {
   labeledConversations: number;
   predictedSignals: number;
   reviewedCount: number;
-  acceptedCount: number;
-  rejectedCount: number;
-  wrongReasonCount: number;
+  correctCount: number;
+  incorrectCount: number;
+  partiallyCorrectCount: number;
   reviewPrecision: number | null;
   labeledPrecision: number | null;
   labeledRecall: number | null;
@@ -26,6 +27,8 @@ export interface EvalMetrics {
   falsePositives: number;
   falseNegatives: number;
   byType: TypeEvalMetrics[];
+  /** True when reviewPrecision came from FastAPI SignalScore */
+  signalScoreFromBackend?: boolean;
 }
 
 function emptyTypeBuckets(): Record<
@@ -111,10 +114,10 @@ export function computeEvalMetrics(store: StoreData): EvalMetrics {
   }
 
   const reviewed = store.signals.filter((s) => s.feedback);
-  const accepted = reviewed.filter((s) => s.feedback?.label === "accept");
-  const rejected = reviewed.filter((s) => s.feedback?.label === "reject");
-  const wrongReason = reviewed.filter(
-    (s) => s.feedback?.label === "wrong_reason"
+  const correct = reviewed.filter((s) => s.feedback?.label === "correct");
+  const incorrect = reviewed.filter((s) => s.feedback?.label === "incorrect");
+  const partiallyCorrect = reviewed.filter(
+    (s) => s.feedback?.label === "partially_correct"
   );
 
   const labeledDenom = truePositives + falsePositives;
@@ -124,11 +127,11 @@ export function computeEvalMetrics(store: StoreData): EvalMetrics {
     labeledConversations: labeled.length,
     predictedSignals: predicted.length,
     reviewedCount: reviewed.length,
-    acceptedCount: accepted.length,
-    rejectedCount: rejected.length,
-    wrongReasonCount: wrongReason.length,
+    correctCount: correct.length,
+    incorrectCount: incorrect.length,
+    partiallyCorrectCount: partiallyCorrect.length,
     reviewPrecision:
-      reviewed.length === 0 ? null : accepted.length / reviewed.length,
+      reviewed.length === 0 ? null : correct.length / reviewed.length,
     labeledPrecision:
       labeledDenom === 0 ? null : truePositives / labeledDenom,
     labeledRecall: recallDenom === 0 ? null : truePositives / recallDenom,
@@ -241,5 +244,61 @@ export function computePilotMetrics(store: StoreData): PilotMetrics {
     goNoGo,
     offerSummary:
       "Insights pilot: Shadow Mode queue + SignalScore reviews. Target ≥80% review precision on partner chats before expanding seats.",
+  };
+}
+
+/**
+ * Overlay FastAPI SignalScore onto local eval metrics.
+ * Labeled P/R stay from JSON groundTruth; review precision uses Neon.
+ */
+export function applyBackendSignalScore(
+  metrics: EvalMetrics,
+  score: BackendSignalScore | null
+): EvalMetrics {
+  if (!score) return metrics;
+  return {
+    ...metrics,
+    reviewedCount: score.reviewed_count,
+    correctCount: score.correct_count,
+    incorrectCount: score.incorrect_count,
+    partiallyCorrectCount: score.partially_correct_count,
+    reviewPrecision: score.signal_score,
+    signalScoreFromBackend: true,
+  };
+}
+
+/** Recompute pilot go/no-go after overlaying backend SignalScore. */
+export function applyBackendSignalScoreToPilot(
+  store: StoreData,
+  score: BackendSignalScore | null
+): PilotMetrics {
+  if (!score) return computePilotMetrics(store);
+  const base = computePilotMetrics(store);
+  const reviewPrecision = score.signal_score;
+  const reviewedCount = score.reviewed_count;
+  const meetsReviewPrecisionTarget =
+    reviewPrecision === null
+      ? null
+      : reviewPrecision >= REVIEW_PRECISION_TARGET;
+
+  let goNoGo: PilotGoNoGo = "insufficient_data";
+  if (reviewedCount >= MIN_REVIEWS_FOR_GO_NO_GO) {
+    goNoGo = meetsReviewPrecisionTarget === true ? "go" : "hold";
+  } else if (
+    base.labeledOpportunities >= 10 &&
+    base.labeledPrecision !== null &&
+    base.labeledPrecision >= REVIEW_PRECISION_TARGET
+  ) {
+    goNoGo = "go";
+  } else if (reviewedCount > 0 && meetsReviewPrecisionTarget === false) {
+    goNoGo = "hold";
+  }
+
+  return {
+    ...base,
+    reviewPrecision,
+    meetsReviewPrecisionTarget,
+    reviewedCount,
+    goNoGo,
   };
 }
