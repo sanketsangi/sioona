@@ -87,7 +87,8 @@ const conversations = [
     customerName: "Suresh Menon",
     startedAt: "2026-08-01T15:10:00.000Z",
     messageIds: ["msg_upsell_02_0", "msg_upsell_02_1"],
-    groundTruth: "upsell" as const,
+    // Same-product expansion / upgrade — product badges as lead
+    groundTruth: "lead" as const,
   },
   {
     id: "conv_upsell_03",
@@ -220,7 +221,8 @@ const conversations = [
     customerName: "Divya Menon",
     startedAt: "2026-08-04T11:30:00.000Z",
     messageIds: ["msg_fintech_upsell_01_0", "msg_fintech_upsell_01_1"],
-    groundTruth: "upsell" as const,
+    // Existing-relationship expansion / upgrade — product badges as lead
+    groundTruth: "lead" as const,
   },
   {
     id: "conv_none_07",
@@ -241,6 +243,48 @@ const conversations = [
     startedAt: "2026-08-04T13:50:00.000Z",
     messageIds: ["msg_none_08_0", "msg_none_08_1"],
     groundTruth: "none" as const,
+  },
+  // Precision hard negatives — vague support / soft competitor without leave intent
+  {
+    id: "conv_none_09",
+    tenantId,
+    externalId: "web-2207",
+    channel: "website_chat",
+    customerName: "Tara Sen",
+    startedAt: "2026-08-05T09:00:00.000Z",
+    messageIds: ["msg_none_09_0", "msg_none_09_1"],
+    groundTruth: "none" as const,
+  },
+  {
+    id: "conv_none_10",
+    tenantId,
+    externalId: "ic-3306",
+    channel: "intercom",
+    customerName: "Omar Sheikh",
+    startedAt: "2026-08-05T09:15:00.000Z",
+    messageIds: ["msg_none_10_0", "msg_none_10_1"],
+    groundTruth: "none" as const,
+  },
+  {
+    id: "conv_none_11",
+    tenantId,
+    externalId: "wa-1008",
+    channel: "whatsapp",
+    customerName: "Leela Banerjee",
+    startedAt: "2026-08-05T09:30:00.000Z",
+    messageIds: ["msg_none_11_0", "msg_none_11_1"],
+    groundTruth: "none" as const,
+  },
+  // Soft retention — refund frustration without close-account threat
+  {
+    id: "conv_retention_05",
+    tenantId,
+    externalId: "app-4406",
+    channel: "in_app_chat",
+    customerName: "Amit Bose",
+    startedAt: "2026-08-05T10:00:00.000Z",
+    messageIds: ["msg_retention_05_0", "msg_retention_05_1"],
+    groundTruth: "retention" as const,
   },
 ];
 
@@ -318,7 +362,7 @@ const messages = [
     conversationId: "conv_upsell_01",
     role: "customer" as const,
     content:
-      "Need higher limits and a portfolio review. Interested in adding mutual funds too.",
+      "Also want a portfolio review. Interested in adding mutual funds and loan against shares.",
     timestamp: "2026-07-30T11:07:10.000Z",
   },
   {
@@ -406,7 +450,7 @@ const messages = [
     conversationId: "conv_upsell_03",
     role: "customer" as const,
     content:
-      "Do you offer loan against shares? Looking for more features on my existing account.",
+      "Do you offer loan against shares? Also interested in insurance alongside my account.",
     timestamp: "2026-08-02T09:00:00.000Z",
   },
   {
@@ -586,7 +630,7 @@ const messages = [
     content: "I'm really sorry — let me escalate the refund and see how we can keep you.",
     timestamp: "2026-08-04T10:21:00.000Z",
   },
-  // Fintech CS upsell — premium plus tier + credit limit + add-on card
+  // Fintech CS expansion / upgrade — product badges as lead (limit + tier + add-on card)
   {
     id: "msg_fintech_upsell_01_0",
     conversationId: "conv_fintech_upsell_01",
@@ -633,6 +677,62 @@ const messages = [
     role: "agent" as const,
     content: "Thanks for flagging — our team is resolving the KYC technical error now.",
     timestamp: "2026-08-04T13:51:00.000Z",
+  },
+  {
+    id: "msg_none_09_0",
+    conversationId: "conv_none_09",
+    role: "customer" as const,
+    content: "Do you offer 24x7 chat support?",
+    timestamp: "2026-08-05T09:00:00.000Z",
+  },
+  {
+    id: "msg_none_09_1",
+    conversationId: "conv_none_09",
+    role: "agent" as const,
+    content: "Yes — chat is available 24x7 from the Help tab.",
+    timestamp: "2026-08-05T09:01:00.000Z",
+  },
+  {
+    id: "msg_none_10_0",
+    conversationId: "conv_none_10",
+    role: "customer" as const,
+    content: "Looking for more help with this ticket.",
+    timestamp: "2026-08-05T09:15:00.000Z",
+  },
+  {
+    id: "msg_none_10_1",
+    conversationId: "conv_none_10",
+    role: "agent" as const,
+    content: "Happy to help — what do you need on this ticket?",
+    timestamp: "2026-08-05T09:16:00.000Z",
+  },
+  {
+    id: "msg_none_11_0",
+    conversationId: "conv_none_11",
+    role: "customer" as const,
+    content: "I saw your competitor has a nicer UI, just FYI.",
+    timestamp: "2026-08-05T09:30:00.000Z",
+  },
+  {
+    id: "msg_none_11_1",
+    conversationId: "conv_none_11",
+    role: "agent" as const,
+    content: "Thanks for the note — I'll share it with product.",
+    timestamp: "2026-08-05T09:31:00.000Z",
+  },
+  {
+    id: "msg_retention_05_0",
+    conversationId: "conv_retention_05",
+    role: "customer" as const,
+    content: "Still waiting for my refund, very frustrated.",
+    timestamp: "2026-08-05T10:00:00.000Z",
+  },
+  {
+    id: "msg_retention_05_1",
+    conversationId: "conv_retention_05",
+    role: "agent" as const,
+    content: "I'm sorry — escalating your refund now.",
+    timestamp: "2026-08-05T10:01:00.000Z",
   },
 ];
 

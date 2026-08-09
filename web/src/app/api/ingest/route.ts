@@ -7,6 +7,7 @@ import {
 } from "@/lib/ingest";
 import { readStore, writeStore } from "@/lib/store";
 import { sortSignals } from "@/lib/eval";
+import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 
 export async function POST(request: Request) {
   try {
@@ -53,7 +54,21 @@ export async function POST(request: Request) {
       store.tenant.id,
       store.taxonomyOverrides
     );
-    store.signals.push(...newSignals);
+    const { signals: syncedNew, sync } = await syncPredictionsToBackend(
+      newSignals,
+      store.tenant.id
+    );
+    store.signals.push(...syncedNew);
+    // Partner file ingest advances week-1 mid-week cadence (cold demo does not).
+    const priorExports = store.pilot?.weeklyExportCount ?? 0;
+    store.pilot = {
+      baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
+      updatedAt: new Date().toISOString(),
+      weeklyExportCount: priorExports + 1,
+      ...(store.pilot?.baselineNote
+        ? { baselineNote: store.pilot.baselineNote }
+        : {}),
+    };
     await writeStore(store);
 
     return NextResponse.json({
@@ -63,6 +78,7 @@ export async function POST(request: Request) {
       newSignals: newSignals.length,
       hint: newSignals.length === 0 ? ZERO_SIGNAL_HINT : undefined,
       signals: sortSignals(store.signals),
+      predictionSync: sync,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ingest failed";

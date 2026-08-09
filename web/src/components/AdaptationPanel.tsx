@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { Pager } from "@/components/Pager";
 import { signalTypeLabel } from "@/lib/format";
@@ -50,7 +50,6 @@ export function AdaptationPanel({
   const [success, setSuccess] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [focusTermId, setFocusTermId] = useState<string | null>(null);
-  const termRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     for (const signal of signals) {
@@ -61,7 +60,8 @@ export function AdaptationPanel({
 
   const reviewSignals = signals.filter(
     (s) =>
-      s.feedback?.label === "reject" || s.feedback?.label === "wrong_reason"
+      s.feedback?.label === "incorrect" ||
+      s.feedback?.label === "partially_correct"
   );
 
   const draftsDirty = reviewSignals.some((s) => {
@@ -82,7 +82,17 @@ export function AdaptationPanel({
 
   useEffect(() => {
     if (!focusTermId) return;
-    termRefs.current[focusTermId]?.focus();
+    // Mobile card + desktop table both render a `override-<id>` input;
+    // only one is visible per breakpoint, so focus whichever isn't hidden.
+    const candidates = document.querySelectorAll<HTMLInputElement>(
+      `input[name="override-${focusTermId}"]`
+    );
+    for (const candidate of candidates) {
+      if (candidate.offsetParent !== null) {
+        candidate.focus();
+        break;
+      }
+    }
     setFocusTermId(null);
   }, [focusTermId]);
 
@@ -208,7 +218,7 @@ export function AdaptationPanel({
 
       {reviewSignals.length === 0 ? (
         <p className="px-4 py-4 text-copy-14 text-ds-gray-900">
-          No reject or wrong_reason feedback yet. Review signals in{" "}
+          No incorrect or partially_correct feedback yet. Review signals in{" "}
           <Link href={viewHref("insights")} className="link-accent">
             Insights
           </Link>
@@ -216,8 +226,80 @@ export function AdaptationPanel({
         </p>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <table className="w-full text-left text-copy-14">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {/* Card list below md — table columns clip inputs/actions on narrow viewports */}
+            <ul className="divide-y divide-ds-gray-400 md:hidden">
+              {pageItems.map((signal) => (
+                <li key={signal.id} className="px-4 py-3">
+                  <Link
+                    href={viewHref("insights", { signal: signal.id })}
+                    className="link-accent"
+                  >
+                    {signalTypeLabel(signal.type)}
+                  </Link>
+                  <span className="ml-2 text-label-13 text-ds-gray-900">
+                    {signal.feedback?.label.replace("_", " ")}
+                  </span>
+                  <div className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
+                    {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
+                  </div>
+                  <label className="mt-2.5 block min-w-0">
+                    <span className="sr-only">
+                      Override term for {signalTypeLabel(signal.type)}
+                    </span>
+                    <input
+                      type="text"
+                      name={`override-${signal.id}`}
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={drafts[signal.id] ?? ""}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [signal.id]: e.target.value,
+                        }))
+                      }
+                      className="input-field w-full"
+                      disabled={pending || busyId !== null}
+                      placeholder="e.g. cancel my account…"
+                    />
+                  </label>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={pending || busyId !== null}
+                      aria-busy={busyId === `${signal.id}:phrases`}
+                      onClick={() =>
+                        applyOverride(signal, "phrases", signal.type)
+                      }
+                    >
+                      {busyId === `${signal.id}:phrases` ? (
+                        <ButtonSpinner />
+                      ) : null}
+                      Add Phrase
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={pending || busyId !== null}
+                      aria-busy={busyId === `${signal.id}:negativePhrases`}
+                      onClick={() =>
+                        applyOverride(signal, "negativePhrases", signal.type)
+                      }
+                    >
+                      {busyId === `${signal.id}:negativePhrases` ? (
+                        <ButtonSpinner />
+                      ) : null}
+                      Add Negative
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Table at md+ — columns have room to breathe */}
+            <table className="hidden w-full text-left text-copy-14 md:table">
               <thead className="border-b border-ds-gray-400">
                 <tr>
                   <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
@@ -257,9 +339,6 @@ export function AdaptationPanel({
                           Override term for {signalTypeLabel(signal.type)}
                         </span>
                         <input
-                          ref={(el) => {
-                            termRefs.current[signal.id] = el;
-                          }}
                           type="text"
                           name={`override-${signal.id}`}
                           autoComplete="off"

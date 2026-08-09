@@ -33,9 +33,14 @@ const WEAK_KEYWORDS = new Set([
   "worst",
   "useless",
   "closure",
+  "wallet",
+  "upi",
+  "competitor",
 ]);
 const WEAK_KEYWORD_WEIGHT = 0.5;
 const HIT_NORMALIZE = 6;
+/** Keyword-only scores need ≥2 distinct keyword hits (phrases may still fire alone). */
+const MIN_KEYWORD_ONLY_HITS = 2;
 const QUOTE_MAX = 140;
 
 function normalize(text: string): string {
@@ -100,10 +105,13 @@ export function scoreType(
 
   const evidence = new Set<string>();
   let hits = 0;
+  let phraseHits = 0;
+  let keywordHits = 0;
 
   for (const phrase of entry.phrases) {
     if (textIncludesTerm(normalized, phrase)) {
       hits += PHRASE_WEIGHT;
+      phraseHits += 1;
       evidence.add(`phrase: "${phrase}"`);
     }
   }
@@ -114,8 +122,14 @@ export function scoreType(
         ? WEAK_KEYWORD_WEIGHT
         : KEYWORD_WEIGHT;
       hits += weight;
+      keywordHits += 1;
       evidence.add(`keyword: "${keyword}"`);
     }
+  }
+
+  // Lone product tokens must not light Shadow Mode without a phrase or co-evidence.
+  if (phraseHits === 0 && keywordHits < MIN_KEYWORD_ONLY_HITS) {
+    return { score: 0, evidence: [...evidence].slice(0, 6), suppressed: false };
   }
 
   const score = Math.min(1, hits / HIT_NORMALIZE);
@@ -197,12 +211,12 @@ function buildSummary(
 
   // upsell
   if (score >= 0.75) {
-    return `${who}${via} is asking for premium / adjacent products — sales opportunity.${quoteHint}`;
+    return `${who}${via} is asking about an adjacent product — sales opportunity.${quoteHint}`;
   }
   if (score >= 0.5) {
-    return `${who}${via} may be open to an upgrade — soft pitch.${quoteHint}`;
+    return `${who}${via} may be open to a cross-sell — soft pitch.${quoteHint}`;
   }
-  return `${who}${via} hinted at more products — watch for upsell.${quoteHint}`;
+  return `${who}${via} hinted at another product — watch for upsell.${quoteHint}`;
 }
 
 export function detectSignalsForConversation(

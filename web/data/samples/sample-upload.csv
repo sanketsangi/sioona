@@ -12,7 +12,7 @@ upload_fintech_lead_1,customer,"New to your app — I want to open a wallet and 
 upload_fintech_lead_1,agent,"Welcome! I'll walk you through wallet setup, KYC, and card eligibility.",,in_app_chat,2026-08-04T09:01:00.000Z,lead
 upload_fintech_churn_1,customer,"Worst app — my refund failed and no one helped. I want to delete my account and I'm switching to another app.",Karan Malhotra,in_app_chat,2026-08-04T10:00:00.000Z,retention
 upload_fintech_churn_1,agent,"I'm sorry — escalating your refund and reviewing what we can offer.",,in_app_chat,2026-08-04T10:01:00.000Z,retention
-upload_fintech_upsell_1,customer,"I already use your wallet — can I upgrade to premium plus and increase my credit limit? Also add an add-on card.",Divya Menon,in_app_chat,2026-08-04T11:00:00.000Z,upsell
-upload_fintech_upsell_1,agent,"Sure — sharing Premium Plus benefits and add-on card steps.",,in_app_chat,2026-08-04T11:01:00.000Z,upsell
+upload_fintech_upsell_1,customer,"I already use your wallet — can I upgrade to premium plus and increase my credit limit? Also add an add-on card.",Divya Menon,in_app_chat,2026-08-04T11:00:00.000Z,lead
+upload_fintech_upsell_1,agent,"Sure — sharing Premium Plus benefits and add-on card steps.",,in_app_chat,2026-08-04T11:01:00.000Z,lead
 upload_fintech_ops_1,customer,"My UPI payment shows transaction pending — has the refund already been processed?",Sahil Gupta,in_app_chat,2026-08-04T12:00:00.000Z,none
 upload_fintech_ops_1,agent,"Yes, the refund has been processed; it will reflect in 24-48 hours.",,in_app_chat,2026-08-04T12:01:00.000Z,none

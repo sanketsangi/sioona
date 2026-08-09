@@ -3,6 +3,10 @@ import path from "path";
 import { runDetection } from "./detect";
 import { parseIngestDocument, toStoreRecords } from "./ingest";
 import { resetStore, writeStore } from "./store";
+import {
+  syncPredictionsToBackend,
+  type PredictionSyncStats,
+} from "./sync-predictions";
 import type { StoreData } from "./types";
 
 const SAMPLES_DIR = path.join(process.cwd(), "data", "samples");
@@ -28,6 +32,7 @@ export interface PartnerDemoResult {
   samples: string[];
   baselineOpportunities: number;
   opportunityLift: number;
+  predictionSync: PredictionSyncStats;
 }
 
 /**
@@ -66,6 +71,12 @@ export async function runPartnerDemo(): Promise<PartnerDemoResult> {
     samples.push(name);
   }
 
+  const synced = await syncPredictionsToBackend(
+    store.signals,
+    store.tenant.id
+  );
+  store.signals = synced.signals;
+
   const sioonaOpportunities = new Set(
     store.signals.map((s) => s.conversationId)
   ).size;
@@ -84,5 +95,6 @@ export async function runPartnerDemo(): Promise<PartnerDemoResult> {
     samples,
     baselineOpportunities: DEMO_BASELINE_OPPORTUNITIES,
     opportunityLift: sioonaOpportunities - DEMO_BASELINE_OPPORTUNITIES,
+    predictionSync: synced.sync,
   };
 }

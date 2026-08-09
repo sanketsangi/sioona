@@ -22,7 +22,7 @@ describe("appendAuditEvent", () => {
       signalId: "sig_x",
       conversationId: "conv_x",
       signalType: "lead",
-      label: "accept",
+      label: "correct",
     });
 
     expect(entry.id).toMatch(/^audit_/);
@@ -43,7 +43,7 @@ describe("setSignalFeedback audit trail", () => {
     const target = before.signals[0];
     expect(target).toBeTruthy();
 
-    await setSignalFeedback(target.id, "accept", "clear buying intent");
+    await setSignalFeedback(target.id, "correct", "clear buying intent");
 
     const after = await readStore();
     expect(after.auditEvents?.length).toBe(1);
@@ -52,6 +52,6 @@ describe("setSignalFeedback audit trail", () => {
     expect(event.signalId).toBe(target.id);
     expect(event.conversationId).toBe(target.conversationId);
     expect(event.signalType).toBe(target.type);
-    expect(event.label).toBe("accept");
+    expect(event.label).toBe("correct");
   });
 });

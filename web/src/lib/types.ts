@@ -1,6 +1,7 @@
 export type SignalType = "lead" | "retention" | "upsell";
 
-export type FeedbackLabel = "accept" | "reject" | "wrong_reason";
+/** Canonical SignalScore feedback labels (FastAPI / Neon SoT). */
+export type FeedbackLabel = "correct" | "incorrect" | "partially_correct";
 
 export type SignalStatus = "new" | "reviewed" | "acted";
 
@@ -42,6 +43,8 @@ export interface Signal {
   evidence: string[];
   status: SignalStatus;
   createdAt: string;
+  /** UUID from FastAPI `signal_predictions` when dual-written */
+  backendSignalId?: string;
   feedback?: {
     label: FeedbackLabel;
     note?: string;
@@ -56,6 +59,8 @@ export interface PilotSettings {
   baselineOpportunities: number;
   baselineNote?: string;
   updatedAt?: string;
+  /** Successful partner file ingests (not cold demo) — mid-week cadence. */
+  weeklyExportCount?: number;
 }
 
 /** Additive terms merged into base taxonomy for pragmatic domain adaptation. */

@@ -143,6 +143,11 @@ describe("runDetection", () => {
         "Can I sign up for a new account? Interested in your pricing."
       ),
       conv(
+        "c_lead_expand",
+        "lead",
+        "Can I upgrade to the pro plan? I need higher limit."
+      ),
+      conv(
         "c_ret",
         "retention",
         "This is unacceptable. I'm going to switch brokers."
@@ -150,7 +155,7 @@ describe("runDetection", () => {
       conv(
         "c_upsell",
         "upsell",
-        "Can I upgrade to the pro plan? I need higher limit."
+        "I already trade equity — do you offer a premium advisory plan and loan against shares?"
       ),
     ];
     for (const { conversation, messages } of cases) {
@@ -200,6 +205,54 @@ describe("runDetection", () => {
     }
   });
 
+  it("badges existing-relationship expansion / upgrade as lead, not upsell", () => {
+    const cases = [
+      "Can I increase my limit on this card?",
+      "Please raise my credit limit this quarter.",
+      "I want to upgrade to premium and move to the premium plan.",
+      "Can I add an add-on card and upgrade my account?",
+    ];
+    for (const text of cases) {
+      const { conversation, messages } = conv("c_expand", "lead", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "lead")).toBe(true);
+      expect(signals.some((s) => s.type === "upsell")).toBe(false);
+    }
+  });
+
+  it("keeps genuine adjacent-product cross-sell as upsell", () => {
+    const { conversation, messages } = conv(
+      "c_cross_sell",
+      "upsell",
+      "I already have an account — also interested in insurance alongside my wallet."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals.some((s) => s.type === "upsell")).toBe(true);
+    expect(signals.some((s) => s.type === "lead")).toBe(false);
+  });
+
+  it("suppresses fintech servicing complaints from becoming leads", () => {
+    const cases = [
+      "I want a refund for the double charge.",
+      "Please block my card — I lost my card.",
+      "Report fraud, unauthorized transaction on my account.",
+      "When is my loan EMI due? Need the loan statement.",
+    ];
+    for (const text of cases) {
+      const { score, suppressed } = scoreType(text, "lead");
+      expect(suppressed).toBe(true);
+      expect(score).toBe(0);
+    }
+  });
+
   it("suppresses SIP cancel ops language as retention", () => {
     const { score, suppressed } = scoreType(
       "Please cancel my SIP for June only — keep the account open.",
@@ -236,6 +289,71 @@ describe("runDetection", () => {
     });
     expect(suppressed).toBe(true);
     expect(score).toBe(0);
+  });
+
+  it("does not fire lead/upsell on vague support asks", () => {
+    const hardNegatives = [
+      "Do you offer 24x7 chat support?",
+      "Looking for more help with this ticket.",
+      "Please stop the marketing emails.",
+    ];
+    for (const text of hardNegatives) {
+      const { conversation, messages } = conv("c_hard_neg", "none", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals).toEqual([]);
+    }
+  });
+
+  it("does not fire retention on soft competitor mention without leave intent", () => {
+    const { conversation, messages } = conv(
+      "c_soft_comp",
+      "none",
+      "I saw your competitor has a nicer UI, just FYI."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals).toEqual([]);
+  });
+
+  it("fires retention on refund frustration phrases", () => {
+    const { conversation, messages } = conv(
+      "c_refund_ret",
+      "retention",
+      "Still waiting for my refund, very frustrated."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals.some((s) => s.type === "retention")).toBe(true);
+  });
+
+  it("treats outbound holdings transfer as retention, not lead", () => {
+    const { conversation, messages } = conv(
+      "c_holdings_out",
+      "retention",
+      "I want to close my demat and transfer my holdings out."
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals.some((s) => s.type === "retention")).toBe(true);
+    expect(signals.some((s) => s.type === "lead")).toBe(false);
+  });
+
+  it("requires keyword co-evidence when no phrase matched", () => {
+    expect(scoreType("My wallet balance looks fine.", "lead").score).toBe(0);
+    expect(scoreType("UPI is working again.", "lead").score).toBe(0);
   });
 
 });

@@ -122,7 +122,7 @@ Phase 0–1 Insights MVP **already exists** in `[web/](./web/)`. Do not rebuild 
 | Data              | JSON file store `web/data/store.json`                                                                     | Neon + pgvector                                                               |
 | Auth              | None (demo tenant)                                                                                        | Auth0 multi-tenant                                                            |
 | Ingest            | File upload: Sioona CSV/JSON, Intercom JSON, WhatsApp `.txt`                                              | Live webhooks                                                                 |
-| Trust loop        | SignalScore (`accept` / `reject` / `wrong_reason`), Eval P/R, pilot baseline + lift, groundTruth labeling | EchoScore-style tracking (same idea; we named it SignalScore)                 |
+| Trust loop        | SignalScore (`accept` / `reject` / `wrong_reason`), Eval P/R, pilot baseline + lift, groundTruth labeling | SignalScore tracking                                                          |
 | Demo / GTM assets | Demo Home, Start Partner Demo, `[PARTNER_DEMO.md](./PARTNER_DEMO.md)`, marketing OS                       |                                                                               |
 
 **Canonical MVP loop in code:**
@@ -202,7 +202,7 @@ Two truths from that thread both still apply:
 | Dark navy + cyan as UI SoT                       | **Geist / Vercel design principles, light product default** (already in rules)                    |
 | Auth0 + Neon in MVP critical path                | **After** real-export precision + first paid pilot intent                                         |
 | Live webhooks as Must Have for MVP               | **Export upload is the MVP ingest**; webhooks are Phase 1.5 / 2                                   |
-| EchoScore suite                                  | **SignalScore** = accept / reject / wrong_reason only                                             |
+| Broad “score suite” beyond trust feedback        | **SignalScore** = accept / reject / wrong_reason only                                             |
 | Hybrid outcome pricing “confirmed” for near-term | **Insights flat/volume pilot fee only** until attribution exists                                  |
 | Broad India finance + D2C                        | **Pick one wedge vertical for first 2–3 pilots**                                                  |
 
