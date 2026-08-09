@@ -58,11 +58,7 @@ export function EvalView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div
-        className="flex shrink-0 gap-0.5 rounded-md border border-ds-gray-400 p-1"
-        role="group"
-        aria-label="Eval panels"
-      >
+      <div className="tab-bar" role="group" aria-label="Eval panels">
         {PANELS.map((item) => {
           const active = panel === item.id;
           return (
@@ -71,7 +67,7 @@ export function EvalView({
               href={viewHref("eval", { panel: item.id })}
               scroll={false}
               aria-current={active ? "page" : undefined}
-              className={`nav-link inline-flex h-9 items-center ${active ? "nav-link-active" : ""}`}
+              className={`tab-link ${active ? "nav-link-active" : ""}`}
             >
               {item.label}
             </Link>
@@ -128,7 +124,7 @@ function MetricsPanel({
         <div className="border-b border-ds-gray-400 px-4 py-2.5">
           <p className="eyebrow">Review &amp; Labeled</p>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 lg:grid-cols-4 lg:divide-y-0">
+        <div className="metric-grid-4">
           <Metric
             label="Labeled P"
             value={formatPercent(metrics.labeledPrecision)}
@@ -159,7 +155,7 @@ function MetricsPanel({
             {goNoGoLabel(pilot.goNoGo)}
           </p>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 lg:grid-cols-3 lg:divide-y-0">
+        <div className="metric-grid-3-pilot">
           <Metric
             label="Opportunities"
             value={String(pilot.sioonaOpportunities)}

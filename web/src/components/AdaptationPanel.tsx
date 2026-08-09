@@ -216,28 +216,101 @@ export function AdaptationPanel({
         </p>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <table className="w-full text-left text-copy-14">
-              <thead className="border-b border-ds-gray-400">
+          <ul className="data-cards">
+            {pageItems.map((signal) => (
+              <li key={signal.id} className="data-card">
+                <div className="data-card-field">
+                  <span className="data-card-label">Signal</span>
+                  <span className="data-card-value">
+                    <Link
+                      href={viewHref("insights", { signal: signal.id })}
+                      className="link-accent"
+                    >
+                      {signalTypeLabel(signal.type)}
+                    </Link>
+                    <span className="mt-1 block line-clamp-2 text-label-13 text-ds-gray-900">
+                      {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
+                    </span>
+                  </span>
+                </div>
+                <div className="data-card-field">
+                  <span className="data-card-label">Feedback</span>
+                  <span className="data-card-value text-ds-gray-900">
+                    {signal.feedback?.label.replace("_", " ")}
+                  </span>
+                </div>
+                <div className="data-card-field">
+                  <label className="block min-w-0">
+                    <span className="data-card-label">Term</span>
+                    <input
+                      ref={(el) => {
+                        termRefs.current[signal.id] = el;
+                      }}
+                      type="text"
+                      name={`override-${signal.id}`}
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={drafts[signal.id] ?? ""}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [signal.id]: e.target.value,
+                        }))
+                      }
+                      className="input-field mt-1 w-full"
+                      disabled={pending || busyId !== null}
+                      placeholder="e.g. cancel my account…"
+                    />
+                  </label>
+                </div>
+                <div className="data-card-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={pending || busyId !== null}
+                    aria-busy={busyId === `${signal.id}:phrases`}
+                    onClick={() =>
+                      applyOverride(signal, "phrases", signal.type)
+                    }
+                  >
+                    {busyId === `${signal.id}:phrases` ? (
+                      <ButtonSpinner />
+                    ) : null}
+                    Add Phrase
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled={pending || busyId !== null}
+                    aria-busy={busyId === `${signal.id}:negativePhrases`}
+                    onClick={() =>
+                      applyOverride(signal, "negativePhrases", signal.type)
+                    }
+                  >
+                    {busyId === `${signal.id}:negativePhrases` ? (
+                      <ButtonSpinner />
+                    ) : null}
+                    Add Negative
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          <div className="table-scroll hidden md:block">
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Signal
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Feedback
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Term
-                  </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
-                    Actions
-                  </th>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Feedback</th>
+                  <th scope="col">Term</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ds-gray-400">
+              <tbody>
                 {pageItems.map((signal) => (
                   <tr key={signal.id}>
-                    <td className="min-w-0 px-4 py-2.5 align-top text-ds-gray-1000">
+                    <td className="min-w-0 text-ds-gray-1000">
                       <Link
                         href={viewHref("insights", { signal: signal.id })}
                         className="link-accent"
@@ -248,10 +321,10 @@ export function AdaptationPanel({
                         {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 align-top text-ds-gray-900">
+                    <td className="text-ds-gray-900">
                       {signal.feedback?.label.replace("_", " ")}
                     </td>
-                    <td className="min-w-0 px-4 py-2.5 align-top">
+                    <td className="min-w-0">
                       <label className="block min-w-0">
                         <span className="sr-only">
                           Override term for {signalTypeLabel(signal.type)}
@@ -261,7 +334,7 @@ export function AdaptationPanel({
                             termRefs.current[signal.id] = el;
                           }}
                           type="text"
-                          name={`override-${signal.id}`}
+                          name={`override-${signal.id}-desktop`}
                           autoComplete="off"
                           spellCheck={false}
                           value={drafts[signal.id] ?? ""}
@@ -277,7 +350,7 @@ export function AdaptationPanel({
                         />
                       </label>
                     </td>
-                    <td className="px-4 py-2.5 align-top">
+                    <td>
                       <div className="flex flex-wrap gap-1.5">
                         <button
                           type="button"

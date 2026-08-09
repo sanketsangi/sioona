@@ -32,7 +32,7 @@ export function SignalDetailView({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <Link
         href={viewHref("insights")}
-        className="link-accent inline-flex h-9 shrink-0 items-center gap-1.5"
+        className="link-back shrink-0"
       >
         <ArrowLeft className="size-3.5" strokeWidth={1.5} aria-hidden />
         Back to Queue
@@ -109,7 +109,7 @@ export function SignalDetailView({
           ) : null}
         </div>
 
-        <div className="panel flex min-h-0 flex-col p-4 sm:p-5">
+        <div className="panel flex min-h-[min(24rem,50vh)] flex-col p-4 sm:min-h-0 sm:p-5 lg:min-h-0">
           <h2 className="text-balance shrink-0 text-heading-16 text-ds-gray-1000">
             Conversation
           </h2>

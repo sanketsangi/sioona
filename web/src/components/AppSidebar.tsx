@@ -27,7 +27,7 @@ function LogoLockup({ onNavigate }: { onNavigate?: () => void }) {
     <Link
       href={viewHref("insights")}
       onClick={onNavigate}
-      className="group inline-flex min-w-0 items-center rounded-md px-1.5 py-1 transition-opacity duration-150 hover:opacity-90"
+      className="group inline-flex min-w-0 items-center rounded-md px-1.5 py-1 transition-opacity duration-150 hover:opacity-90 focus-visible:opacity-100"
       aria-label="Sioona"
       translate="no"
     >

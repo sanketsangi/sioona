@@ -82,8 +82,8 @@ export function BaselineForm({
       <p className="mt-1 text-copy-14 text-ds-gray-900">
         Opportunities they find today. Lift = Sioona − baseline.
       </p>
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="block min-w-[8rem]">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <label className="block min-w-0 sm:min-w-[8rem] sm:flex-1">
           <span className="text-label-12 text-ds-gray-900">Baseline Count</span>
           <input
             ref={countRef}
@@ -99,7 +99,7 @@ export function BaselineForm({
             placeholder="0…"
           />
         </label>
-        <label className="block min-w-[12rem] flex-1">
+        <label className="block min-w-0 sm:min-w-[12rem] sm:flex-[2]">
           <span className="text-label-12 text-ds-gray-900">Note (optional)</span>
           <input
             type="text"
@@ -114,7 +114,7 @@ export function BaselineForm({
         </label>
         <button
           type="submit"
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
           disabled={pending}
           aria-busy={pending}
         >

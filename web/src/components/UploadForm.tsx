@@ -91,7 +91,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         type="file"
         accept=".csv,.json,.txt,text/csv,application/json,text/plain"
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
+        className="file-input mt-4 shrink-0"
       />
       <button
         type="submit"

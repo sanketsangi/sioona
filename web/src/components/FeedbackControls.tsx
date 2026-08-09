@@ -118,7 +118,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
             disabled={pending !== null}
             aria-busy={pending === option.label}
             onClick={() => submit(option.label)}
-            className="rounded-sm border border-ds-gray-400 bg-ds-background-100 px-3 py-2.5 text-left transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="choice-btn"
           >
             <div className="flex items-center gap-1.5 text-label-14 font-medium text-ds-gray-1000">
               {pending === option.label ? <ButtonSpinner /> : null}
@@ -132,7 +132,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
       </div>
       {needsAdapt ? (
         <div
-          className="mt-4 rounded-sm border border-ds-gray-400 bg-ds-gray-100 px-3 py-3"
+          className="surface-quiet mt-4 px-3 py-3"
           role="status"
           aria-live="polite"
         >

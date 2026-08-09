@@ -78,7 +78,7 @@ export function InsightsView({
           className="metric-strip shrink-0"
           aria-label="Opportunity lift comparison"
         >
-          <div className="grid grid-cols-3 divide-x divide-ds-gray-400">
+          <div className="metric-grid-3">
             <div className="metric-cell">
               <div className="metric-label">Their Process</div>
               <div className="metric-value">
@@ -167,7 +167,7 @@ export function InsightsView({
             Open Eval
           </Link>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-y divide-ds-gray-400 sm:grid-cols-5 sm:divide-y-0">
+        <div className="metric-grid-stats">
           <Stat label="Signals" value={String(store.signals.length)} />
           <Stat label="Pending" value={String(pendingCount)} />
           <Stat label="Chats" value={String(store.conversations.length)} />

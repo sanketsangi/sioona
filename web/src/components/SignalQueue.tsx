@@ -281,7 +281,7 @@ function FilterChip({
     <Link
       href={href}
       scroll={false}
-      aria-current={active ? "true" : undefined}
+      aria-current={active ? "page" : undefined}
       className={`filter-chip ${active ? "filter-chip-active" : "filter-chip-idle"}`}
     >
       {children}
