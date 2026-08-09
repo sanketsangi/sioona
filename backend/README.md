@@ -28,8 +28,8 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Set DATABASE_URL to your Neon connection string
-# Use postgresql+psycopg://… for SQLAlchemy + psycopg v3
+# Prefer Neon: postgresql+psycopg://…?sslmode=require
+# Local fallback (default in .env.example): sqlite+pysqlite:///./sioona_local.db
 ```
 
 ## Migrate

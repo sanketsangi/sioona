@@ -2,7 +2,8 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_tenant_id
@@ -20,12 +21,15 @@ def create_prediction(
     db: Annotated[Session, Depends(get_db)],
 ) -> PredictionResponse:
     """Record a model prediction for the tenant in X-Tenant-Id."""
-    prediction = record_prediction(
-        db,
-        tenant_id=tenant_id,
-        conversation_id=body.conversation_id,
-        signal_type=body.signal_type,
-        confidence=body.confidence,
-        summary=body.summary,
-    )
-    return PredictionResponse.model_validate(prediction)
+    try:
+        prediction = record_prediction(
+            db,
+            tenant_id=tenant_id,
+            conversation_id=body.conversation_id,
+            signal_type=body.signal_type,
+            confidence=body.confidence,
+            summary=body.summary,
+        )
+        return PredictionResponse.model_validate(prediction)
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=500, detail="database_unavailable") from exc
