@@ -1,10 +1,19 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runPartnerDemo } from "./demo";
 import { resetStore, readStore } from "./store";
 
 describe("runPartnerDemo", () => {
   beforeEach(async () => {
+    // Avoid hanging when FastAPI is unreachable (no fetch timeout in client).
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
     await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("resets fixtures and ingests Intercom + WhatsApp samples", async () => {

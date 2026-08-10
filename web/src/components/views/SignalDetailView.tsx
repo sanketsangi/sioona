@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
 import { Pager } from "@/components/Pager";
@@ -37,12 +37,12 @@ export function SignalDetailView({
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
       <Link
         href={viewHref("insights")}
-        className="link-accent inline-flex h-9 shrink-0 items-center gap-1.5"
+        className="link-accent inline-flex h-11 shrink-0 items-center gap-1.5 md:h-9"
       >
-        <ArrowLeft className="size-3.5" strokeWidth={1.5} aria-hidden />
+        <ArrowLeft className="size-3.5" weight="regular" aria-hidden />
         Back to Queue
       </Link>
 
@@ -51,7 +51,7 @@ export function SignalDetailView({
           className="status-banner status-banner-warning shrink-0"
           role="status"
         >
-          <p className="text-copy-14 text-ds-gray-1000">
+          <p className="text-copy-14 text-sio-fg-base">
             Prediction is in Neon, but this conversation is not in the local
             store — no evidence or chat transcript to show. Re-run Detection or
             re-upload so dual-write can join evidence.
@@ -65,48 +65,50 @@ export function SignalDetailView({
         </div>
       ) : null}
 
-      <SignalScoreSummary score={backendScore} compact />
+      <div className="shrink-0">
+        <SignalScoreSummary score={backendScore} compact />
+      </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="flex min-h-0 flex-col gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:grid-rows-1 lg:gap-4">
+        <div className="scroll-region flex min-h-0 min-w-0 flex-col gap-4">
           <div className="panel shrink-0 p-4 sm:p-5">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <SignalBadge type={signal.type} />
-              <span className="tabular text-label-13 text-ds-gray-900">
+              <span className="tabular text-label-13 text-sio-fg-subtle">
                 Detection{" "}
-                <span className="font-medium text-ds-gray-1000">
+                <span className="font-medium text-sio-fg-base">
                   {formatScore(signal.score)}
                 </span>
               </span>
               {conversation?.customerName ? (
-                <span className="min-w-0 truncate text-label-13 text-ds-gray-900">
+                <span className="min-w-0 truncate text-label-13 text-sio-fg-subtle">
                   · {conversation.customerName} · {conversation.channel}
                 </span>
               ) : isNeonStub ? (
-                <span className="text-label-13 text-ds-gray-900">
+                <span className="text-label-13 text-sio-fg-subtle">
                   · Neon prediction only
                 </span>
               ) : null}
             </div>
-            <p className="mt-3 line-clamp-4 text-pretty text-copy-14 text-ds-gray-1000">
+            <p className="mt-3 line-clamp-4 break-words text-pretty text-copy-14 text-sio-fg-base">
               {signal.summary}
             </p>
-            <div className="mt-4 border-t border-ds-gray-400 pt-3">
-              <div className="text-label-12 text-ds-gray-900">
+            <div className="mt-4 border-t border-sio-border-base pt-3">
+              <div className="text-label-12 text-sio-fg-subtle">
                 Suggested Next Action
               </div>
-              <p className="mt-1 line-clamp-3 text-pretty text-copy-14 text-ds-gray-1000">
+              <p className="mt-1 line-clamp-3 break-words text-pretty text-copy-14 text-sio-fg-base">
                 {isNeonStub || !signal.suggestedAction
                   ? "Unavailable — local detection join missing."
                   : signal.suggestedAction}
               </p>
-              <p className="mt-1 text-label-12 text-ds-gray-900">
+              <p className="mt-1 text-label-12 text-sio-fg-subtle">
                 Display-only — copy into your CRM or chat tool; Sioona does not
                 send messages.
               </p>
             </div>
-            <div className="mt-4 border-t border-ds-gray-400 pt-3">
-              <div className="text-label-12 text-ds-gray-900">
+            <div className="mt-4 border-t border-sio-border-base pt-3">
+              <div className="text-label-12 text-sio-fg-subtle">
                 Why This Fired
               </div>
               {signal.evidence.length > 0 ? (
@@ -116,18 +118,20 @@ export function SignalDetailView({
                     return (
                       <li key={item} className="min-w-0 text-copy-14">
                         {kind === "quote" ? (
-                          <blockquote className="border-l-2 border-ds-gray-500 pl-3 text-pretty text-ds-gray-1000">
+                          <blockquote className="break-words border-l-2 border-sio-border-strong pl-3 text-pretty text-sio-fg-base">
                             “{text}”
                           </blockquote>
                         ) : (
-                          <span className="text-ds-gray-900">{text}</span>
+                          <span className="break-words text-sio-fg-subtle">
+                            {text}
+                          </span>
                         )}
                       </li>
                     );
                   })}
                 </ul>
               ) : (
-                <p className="mt-1.5 text-copy-14 text-ds-gray-900">
+                <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
                   No local evidence
                   {isNeonStub
                     ? " — this Neon stub has no joined JSON signal."
@@ -142,7 +146,7 @@ export function SignalDetailView({
           </div>
 
           {conversation ? (
-            <div className="shrink-0">
+            <div className="shrink-0 pb-1">
               <GroundTruthControl
                 conversationId={conversation.id}
                 groundTruth={conversation.groundTruth}
@@ -151,18 +155,18 @@ export function SignalDetailView({
           ) : null}
         </div>
 
-        <div className="panel flex min-h-0 flex-col p-4 sm:p-5">
-          <h2 className="text-balance shrink-0 text-heading-16 text-ds-gray-1000">
+        <div className="panel flex min-h-0 min-w-0 flex-col overflow-hidden p-4 sm:p-5">
+          <h2 className="text-balance shrink-0 text-heading-16 text-sio-fg-base">
             Conversation
           </h2>
           {isNeonStub || messages.length === 0 ? (
-            <div className="mt-4 flex flex-1 flex-col items-center justify-center text-center">
-              <p className="text-copy-14 text-ds-gray-1000">
+            <div className="scroll-region mt-4 flex flex-1 flex-col items-center justify-center text-center">
+              <p className="text-copy-14 text-sio-fg-base">
                 {isNeonStub
                   ? "No local conversation"
                   : "No messages stored"}
               </p>
-              <p className="mt-1 text-copy-14 text-ds-gray-900">
+              <p className="mt-1 text-copy-14 text-sio-fg-subtle">
                 {isNeonStub
                   ? "Do not invent a transcript. Re-upload or Re-run Detection to attach chats from the JSON store."
                   : "Re-upload the chat export or open another signal."}
@@ -178,20 +182,20 @@ export function SignalDetailView({
             </div>
           ) : (
             <>
-              <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
+              <ul className="scroll-region mt-4 min-h-0 flex-1 space-y-2">
                 {pageMessages.map((message) => (
                   <li
                     key={message.id}
                     className={`rounded-sm px-3 py-2.5 text-copy-14 ${
                       message.role === "customer"
-                        ? "bg-ds-gray-100 text-ds-gray-1000"
-                        : "bg-transparent text-ds-gray-900 ring-1 ring-inset ring-ds-gray-400"
+                        ? "bg-sio-bg-muted text-sio-fg-base"
+                        : "bg-transparent text-sio-fg-subtle ring-1 ring-inset ring-sio-border-base"
                     }`}
                   >
-                    <div className="mb-1 text-label-12 capitalize text-ds-gray-900">
+                    <div className="mb-1 text-label-12 capitalize text-sio-fg-subtle">
                       {message.role}
                     </div>
-                    <p className="line-clamp-3">{message.content}</p>
+                    <p className="line-clamp-3 break-words">{message.content}</p>
                   </li>
                 ))}
               </ul>

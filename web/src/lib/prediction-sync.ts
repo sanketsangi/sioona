@@ -61,6 +61,26 @@ export function parseSyncCreatedParam(raw?: string | null): number {
   return Math.floor(n);
 }
 
+/** Signals still missing a Neon prediction id (excludes Neon queue stubs). */
+export function countUnsyncedPredictions(
+  signals: { id: string; backendSignalId?: string }[]
+): number {
+  return signals.filter(
+    (s) => !s.backendSignalId && !isNeonStubSignalId(s.id)
+  ).length;
+}
+
+/**
+ * Show the fail-loud banner only when URL reports failures AND the store
+ * still has unsynced rows — ignore stale ?syncFailed= after a successful re-detect.
+ */
+export function shouldShowSyncFailureBanner(
+  syncFailedParam: number,
+  signals: { id: string; backendSignalId?: string }[]
+): boolean {
+  return syncFailedParam > 0 && countUnsyncedPredictions(signals) > 0;
+}
+
 const NEON_STUB_PREFIX = "sig_neon_";
 
 /** Extract Neon prediction UUID from a stub signal id (`sig_neon_{uuid}`). */

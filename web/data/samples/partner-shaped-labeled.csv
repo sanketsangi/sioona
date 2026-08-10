@@ -1,0 +1,36 @@
+conversation_id,role,content,customer_name,channel,timestamp,ground_truth
+ps_lead_demat,customer,"hi — saw your ads. want to open a demat account this week, is onboarding fully online? call me on 9876543210",Ananya Rao,whatsapp,2026-08-05T08:12:00.000Z,lead
+ps_lead_demat,agent,"Yes Ananya, KYC is video + PAN. Sharing the link.",,whatsapp,2026-08-05T08:13:00.000Z,lead
+ps_lead_demat,customer,"ok cool. email is ananya.rao@example.com — send fee schedule too",,whatsapp,2026-08-05T08:14:00.000Z,lead
+ps_lead_pricing,customer,"Just comparing brokers. What's your pricing for a new account if I start SIP + equity? PAN ABCDE1234F",Rohit Shah,intercom,2026-08-05T09:05:00.000Z,lead
+ps_lead_pricing,agent,"Happy to walk through brokerage slabs.",,intercom,2026-08-05T09:06:00.000Z,lead
+ps_lead_pricing,customer,"Also interested in signing up if charges are lower than my current app.",,intercom,2026-08-05T09:08:00.000Z,lead
+ps_lead_limit,customer,"I already have your credit card — can I upgrade my plan and increase my credit limit? Need an add-on card for my spouse too.",Meera Nair,in_app_chat,2026-08-05T10:20:00.000Z,lead
+ps_lead_limit,agent,"Sharing Premium Plus benefits and add-on steps.",,in_app_chat,2026-08-05T10:21:00.000Z,lead
+ps_lead_wallet,customer,"New here. How do I complete KYC to open a wallet and start using UPI? Phone 9123456789",Kabir Das,in_app_chat,2026-08-05T11:00:00.000Z,lead
+ps_lead_wallet,agent,"Welcome — I'll send the KYC checklist.",,in_app_chat,2026-08-05T11:01:00.000Z,lead
+ps_ret_broker,customer,"Support has been useless for 2 weeks. Reduce brokerage or I'll shift to another broker and transfer my holdings out.",Vikram Iyer,whatsapp,2026-08-05T12:10:00.000Z,retention
+ps_ret_broker,agent,"Sorry about the delay — escalating now.",,whatsapp,2026-08-05T12:11:00.000Z,retention
+ps_ret_broker,customer,"If this isn't fixed today I want to close my account.",,whatsapp,2026-08-05T12:15:00.000Z,retention
+ps_ret_refund,customer,"Worst experience — my refund failed again and no one helped. I want to delete my account and I'm switching to another app.",Sneha Patel,in_app_chat,2026-08-05T13:00:00.000Z,retention
+ps_ret_refund,agent,"Escalating the refund to finance.",,in_app_chat,2026-08-05T13:01:00.000Z,retention
+ps_ret_soft,customer,"still waiting on my refund from last month… haven't got refund yet and honestly thinking of leaving if this continues",Farhan Ali,intercom,2026-08-05T14:22:00.000Z,retention
+ps_ret_soft,agent,"Checking status — sorry for the wait.",,intercom,2026-08-05T14:23:00.000Z,retention
+ps_upsell_fo,customer,"Existing customer — already trade equity daily. Can you enable F&O and activate margin trading facility? Also need a family account for my dad.",Priya Menon,whatsapp,2026-08-05T15:00:00.000Z,upsell
+ps_upsell_fo,agent,"Yes — sharing F&O activation and family account docs.",,whatsapp,2026-08-05T15:01:00.000Z,upsell
+ps_upsell_las,customer,"I hold shares with you already. Do you offer loan against shares and a premium advisory / PMS option?",Arjun Bose,intercom,2026-08-05T16:05:00.000Z,upsell
+ps_upsell_las,agent,"We do — sharing LAS eligibility and advisory tiers.",,intercom,2026-08-05T16:06:00.000Z,upsell
+ps_upsell_ins,customer,"I use the wallet for UPI. Looking at insurance and an FD product alongside — how do I add those?",Neha Gupta,in_app_chat,2026-08-05T17:10:00.000Z,upsell
+ps_upsell_ins,agent,"Happy to walk through insurance + FD add-ons.",,in_app_chat,2026-08-05T17:11:00.000Z,upsell
+ps_none_otp,customer,"App keeps crashing on login and I didn't receive OTP. Please reset my password. Email me at help.desk+test@example.com",Nikhil Jain,whatsapp,2026-08-05T18:00:00.000Z,none
+ps_none_otp,agent,"Triggered a password reset and fresh OTP.",,whatsapp,2026-08-05T18:01:00.000Z,none
+ps_none_pending,customer,"My UPI payment shows transaction pending — has the refund already been processed? Ticket #44821",Sahil Gupta,in_app_chat,2026-08-05T18:30:00.000Z,none
+ps_none_pending,agent,"Refund processed; should reflect in 24-48 hours.",,in_app_chat,2026-08-05T18:31:00.000Z,none
+ps_none_support,customer,"Need chat support help with this ticket — marketing emails are still coming after I unsubscribed.",Lata Krishnan,intercom,2026-08-05T19:00:00.000Z,none
+ps_none_support,agent,"I'll stop the marketing emails and update the ticket.",,intercom,2026-08-05T19:01:00.000Z,none
+ps_none_statement,customer,"Can you just send my account statement PDF for last quarter? Nothing else.",Deepak Verma,whatsapp,2026-08-05T19:40:00.000Z,none
+ps_none_statement,agent,"Sending the PDF now.",,whatsapp,2026-08-05T19:41:00.000Z,none
+ps_none_soft_offer,customer,"do you offer weekend chat support for password resets? looking for more help docs only",Ishaan Mehta,in_app_chat,2026-08-05T20:05:00.000Z,none
+ps_none_soft_offer,agent,"Yes — help center link attached.",,in_app_chat,2026-08-05T20:06:00.000Z,none
+ps_none_wallet_word,customer,"My wallet balance looks wrong after a UPI failure — can someone check?",Ritu Saxena,in_app_chat,2026-08-05T20:30:00.000Z,none
+ps_none_wallet_word,agent,"Pulling the ledger now.",,in_app_chat,2026-08-05T20:31:00.000Z,none

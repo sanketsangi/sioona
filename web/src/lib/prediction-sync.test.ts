@@ -6,6 +6,7 @@ import {
   parsePredictionSync,
   parseSyncCreatedParam,
   parseSyncFailedParam,
+  shouldShowSyncFailureBanner,
   syncQueryExtras,
 } from "./prediction-sync";
 
@@ -47,6 +48,26 @@ describe("parse sync URL params", () => {
     expect(parseSyncFailedParam("0")).toBe(0);
     expect(parseSyncFailedParam(undefined)).toBe(0);
     expect(parseSyncCreatedParam("2")).toBe(2);
+  });
+});
+
+describe("shouldShowSyncFailureBanner", () => {
+  it("hides stale URL failures when store is fully dual-written", () => {
+    expect(
+      shouldShowSyncFailureBanner(27, [
+        { id: "sig_1", backendSignalId: "uuid-1" },
+        { id: "sig_2", backendSignalId: "uuid-2" },
+      ])
+    ).toBe(false);
+  });
+
+  it("shows when URL reports failure and unsynced rows remain", () => {
+    expect(
+      shouldShowSyncFailureBanner(2, [
+        { id: "sig_1", backendSignalId: "uuid-1" },
+        { id: "sig_2" },
+      ])
+    ).toBe(true);
   });
 });
 

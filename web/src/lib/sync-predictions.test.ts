@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyBackendSignalScore, computeEvalMetrics } from "./eval";
-import { syncPredictionsToBackend } from "./sync-predictions";
+import {
+  PREDICTION_SYNC_BACKOFF_MS,
+  PREDICTION_SYNC_MAX_ATTEMPTS,
+  syncPredictionsToBackend,
+} from "./sync-predictions";
 import type { Signal, StoreData } from "./types";
 
 const baseSignal: Signal = {
@@ -27,6 +31,14 @@ const createdBody = {
   created_at: "2026-08-01T00:00:00.000Z",
 };
 
+function okResponse() {
+  return {
+    ok: true,
+    status: 201,
+    json: async () => createdBody,
+  };
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -34,11 +46,7 @@ afterEach(() => {
 
 describe("syncPredictionsToBackend", () => {
   it("dual-writes prediction and stores backendSignalId", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => createdBody,
-    });
+    const fetchMock = vi.fn().mockResolvedValue(okResponse());
     vi.stubGlobal("fetch", fetchMock);
 
     const { signals, sync } = await syncPredictionsToBackend(
@@ -55,6 +63,7 @@ describe("syncPredictionsToBackend", () => {
       failed: 0,
       skipped: 0,
     });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/v1/predictions"),
       expect.objectContaining({
@@ -81,44 +90,77 @@ describe("syncPredictionsToBackend", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("retries once then succeeds", async () => {
+  it("retries with backoff after one transient failure then succeeds", async () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error("ECONNRESET"))
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 201,
-        json: async () => createdBody,
-      });
+      .mockResolvedValueOnce(okResponse());
     vi.stubGlobal("fetch", fetchMock);
+    const sleep = vi.fn().mockResolvedValue(undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { signals, sync } = await syncPredictionsToBackend(
       [baseSignal],
-      "tenant_demo"
+      "tenant_demo",
+      { sleep }
     );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(PREDICTION_SYNC_BACKOFF_MS[0]);
     expect(signals[0].backendSignalId).toBe(createdBody.id);
     expect(sync.created).toBe(1);
     expect(sync.failed).toBe(0);
     expect(warn).not.toHaveBeenCalled();
   });
 
-  it("leaves signal unchanged and counts failure when backend stays down", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new Error("ECONNREFUSED"))
+  it("retries twice with backoff and succeeds on the third attempt", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockRejectedValueOnce(new Error("ETIMEDOUT"))
+      .mockResolvedValueOnce(okResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    const sleep = vi.fn().mockResolvedValue(undefined);
+
+    const { signals, sync } = await syncPredictionsToBackend(
+      [baseSignal],
+      "tenant_demo",
+      { sleep }
     );
+
+    expect(fetchMock).toHaveBeenCalledTimes(PREDICTION_SYNC_MAX_ATTEMPTS);
+    expect(sleep.mock.calls.map((c) => c[0])).toEqual([
+      PREDICTION_SYNC_BACKOFF_MS[0],
+      PREDICTION_SYNC_BACKOFF_MS[1],
+    ]);
+    expect(signals[0].backendSignalId).toBe(createdBody.id);
+    expect(sync).toEqual({
+      attempted: 1,
+      created: 1,
+      failed: 0,
+      skipped: 0,
+    });
+  });
+
+  it("leaves signal unchanged and counts one failure after all retries", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+    vi.stubGlobal("fetch", fetchMock);
+    const sleep = vi.fn().mockResolvedValue(undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     const { signals, sync } = await syncPredictionsToBackend(
       [baseSignal],
-      "tenant_demo"
+      "tenant_demo",
+      { sleep }
     );
+
+    expect(fetchMock).toHaveBeenCalledTimes(PREDICTION_SYNC_MAX_ATTEMPTS);
+    expect(sleep).toHaveBeenCalledTimes(PREDICTION_SYNC_MAX_ATTEMPTS - 1);
     expect(signals[0].backendSignalId).toBeUndefined();
     expect(sync.failed).toBe(1);
     expect(sync.created).toBe(0);
+    expect(sync.attempted).toBe(1);
     expect(warn).toHaveBeenCalled();
   });
 });

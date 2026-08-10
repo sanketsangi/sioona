@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { Pager } from "@/components/Pager";
 import { formatScore, primaryQuote, signalTypeLabel } from "@/lib/format";
 import {
@@ -166,7 +166,7 @@ export function SignalQueue({
         </p>
         <Link href={viewHref("upload")} className="btn-primary mt-4">
           Upload Chats
-          <ArrowRight className="size-3.5" strokeWidth={1.5} aria-hidden />
+          <ArrowRight className="size-3.5" weight="bold" aria-hidden />
         </Link>
       </div>
     );
@@ -226,7 +226,7 @@ export function SignalQueue({
         </div>
       ) : (
         <>
-          <ul className="panel min-h-0 flex-1 divide-y divide-sio-border-base overflow-y-auto overflow-x-clip">
+          <ul className="panel scroll-region min-h-0 flex-1 divide-y divide-sio-border-base">
             {pageItems.map((signal) => {
               const pending = isPending(signal);
               const score = formatScore(signal.score);
@@ -243,7 +243,7 @@ export function SignalQueue({
                     scroll={false}
                     aria-current={selected ? "true" : undefined}
                     aria-label={`${typeLabel} signal, score ${score}, ${statusText}. ${signal.summary}`}
-                    className={`list-row group flex min-h-11 items-start gap-3 px-4 py-3 sm:min-h-[52px]`}
+                    className="list-row group flex min-h-11 items-start gap-3 px-3 py-3 sm:min-h-[52px] sm:px-4"
                   >
                     <span className="signal-score" aria-hidden>
                       {score}
@@ -263,19 +263,19 @@ export function SignalQueue({
                           {statusText}
                         </span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-pretty text-copy-14 text-sio-fg-base">
+                      <p className="mt-1 line-clamp-2 break-words text-pretty text-copy-14 text-sio-fg-base">
                         {signal.summary || "No summary available"}
                       </p>
                       {(() => {
                         const quote = primaryQuote(signal.evidence);
                         return quote ? (
-                          <p className="mt-1 line-clamp-1 text-label-13 text-sio-fg-subtle">
+                          <p className="mt-1 line-clamp-1 break-words text-label-13 text-sio-fg-subtle">
                             “{quote}”
                           </p>
                         ) : null;
                       })()}
                       {signal.suggestedAction ? (
-                        <p className="mt-1 line-clamp-1 text-label-13 text-sio-fg-subtle">
+                        <p className="mt-1 line-clamp-1 break-words text-label-13 text-sio-fg-subtle">
                           Next · {signal.suggestedAction}
                         </p>
                       ) : null}
@@ -283,7 +283,7 @@ export function SignalQueue({
 
                     <ArrowRight
                       className="mt-1.5 size-4 shrink-0 text-sio-fg-muted opacity-70 transition-[color,opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-sio-fg-base group-hover:opacity-100 group-focus-visible:translate-x-0.5 group-focus-visible:text-sio-fg-base group-focus-visible:opacity-100"
-                      strokeWidth={1.5}
+                      weight="regular"
                       aria-hidden
                     />
                   </Link>
@@ -292,18 +292,20 @@ export function SignalQueue({
             })}
           </ul>
 
-          <Pager
-            page={safePage}
-            pageCount={pageCount}
-            prevHref={
-              safePage > 1 ? queueHref({ page: safePage - 1 }) : null
-            }
-            nextHref={
-              safePage < pageCount
-                ? queueHref({ page: safePage + 1 })
-                : null
-            }
-          />
+          <div className="shrink-0">
+            <Pager
+              page={safePage}
+              pageCount={pageCount}
+              prevHref={
+                safePage > 1 ? queueHref({ page: safePage - 1 }) : null
+              }
+              nextHref={
+                safePage < pageCount
+                  ? queueHref({ page: safePage + 1 })
+                  : null
+              }
+            />
+          </div>
         </>
       )}
     </div>
@@ -337,8 +339,8 @@ function QueueFilters({
   pendingUnavailable?: boolean;
 }) {
   return (
-    <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="flex shrink-0 flex-col gap-2.5 sm:gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
         <FilterRow label="Status">
           {STATUS_OPTIONS.map((option) => (
             <FilterChip

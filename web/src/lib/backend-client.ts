@@ -5,6 +5,42 @@
 
 const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
+/** Fail hung FastAPI calls so dual-write retries can proceed. */
+export const BACKEND_FETCH_TIMEOUT_MS = 2500;
+
+function combineAbortSignals(
+  ...signals: AbortSignal[]
+): AbortSignal {
+  if (signals.length === 1) return signals[0];
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any(signals);
+  }
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort();
+      return controller.signal;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+  return controller.signal;
+}
+
+function createTimeoutSignal(ms: number): {
+  signal: AbortSignal;
+  clear: () => void;
+} {
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, ms);
+  return {
+    signal: controller.signal,
+    clear: () => clearTimeout(timer),
+  };
+}
+
 export type BackendFeedbackLabel =
   | "correct"
   | "incorrect"
@@ -69,10 +105,17 @@ async function backendFetch<T>(
   init?: RequestInit
 ): Promise<T> {
   const url = `${getBackendUrl()}${path}`;
+  const { signal: timeoutSignal, clear: clearTimeoutSignal } =
+    createTimeoutSignal(BACKEND_FETCH_TIMEOUT_MS);
+  const signal = init?.signal
+    ? combineAbortSignals(init.signal, timeoutSignal)
+    : timeoutSignal;
+
   let response: Response;
   try {
     response = await fetch(url, {
       ...init,
+      signal,
       headers: {
         "Content-Type": "application/json",
         "X-Tenant-Id": tenantId,
@@ -81,8 +124,16 @@ async function backendFetch<T>(
       cache: "no-store",
     });
   } catch (err) {
-    const detail = err instanceof Error ? err.message : "network error";
+    const name = err instanceof Error ? err.name : "";
+    const detail =
+      name === "AbortError"
+        ? `timed out after ${BACKEND_FETCH_TIMEOUT_MS}ms`
+        : err instanceof Error
+          ? err.message
+          : "network error";
     throw new BackendClientError(`Signal Score backend unreachable: ${detail}`);
+  } finally {
+    clearTimeoutSignal();
   }
 
   if (!response.ok) {

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { SignalBadge } from "@/components/SignalBadge";
 import { formatScore, primaryQuote, signalTypeLabel } from "@/lib/format";
 import { viewHref } from "@/lib/views";
@@ -31,7 +31,7 @@ export function SignalPreviewPanel({
   if (!signal) {
     return (
       <div
-        className="panel flex min-h-[12rem] flex-1 flex-col items-center justify-center px-6 py-10 text-center lg:min-h-0"
+        className="panel scroll-region flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
         role="status"
       >
         <p className="text-heading-16 text-sio-fg-base">Select a signal</p>
@@ -58,28 +58,28 @@ export function SignalPreviewPanel({
   const detailHref = viewHref("insights", { signal: signal.id });
 
   return (
-    <div className="panel flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-5">
+    <div className="panel scroll-region flex min-h-0 flex-1 flex-col p-4 sm:p-5">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <SignalBadge type={signal.type} />
         <span className="signal-score" aria-hidden>
           {score}
         </span>
         <span
-          className={`signal-status ${
+          className={`signal-status min-w-0 ${
             pending ? "signal-status-pending" : "signal-status-reviewed"
           }`}
         >
           <span className="signal-status-dot" aria-hidden />
-          {statusText}
+          <span className="truncate">{statusText}</span>
         </span>
       </div>
 
-      <p className="mt-3 line-clamp-4 text-pretty text-copy-16 text-sio-fg-base">
+      <p className="mt-3 line-clamp-4 break-words text-pretty text-copy-16 text-sio-fg-base">
         {signal.summary || "No summary available"}
       </p>
 
       {quote ? (
-        <blockquote className="mt-3 border-l-2 border-sio-border-strong pl-3 text-pretty text-copy-14 text-sio-fg-base">
+        <blockquote className="mt-3 break-words border-l-2 border-sio-border-strong pl-3 text-pretty text-copy-14 text-sio-fg-base">
           “{quote}”
         </blockquote>
       ) : (
@@ -89,7 +89,7 @@ export function SignalPreviewPanel({
       )}
 
       {signal.suggestedAction ? (
-        <p className="mt-3 line-clamp-2 text-label-13 text-sio-fg-subtle">
+        <p className="mt-3 line-clamp-2 break-words text-label-13 text-sio-fg-subtle">
           Next · {signal.suggestedAction}
         </p>
       ) : null}
@@ -97,7 +97,7 @@ export function SignalPreviewPanel({
       <div className="mt-auto flex flex-wrap gap-2 border-t border-sio-border-base pt-4">
         <Link href={detailHref} className="btn-primary">
           Open Full Detail
-          <ArrowRight className="size-3.5" strokeWidth={1.5} aria-hidden />
+          <ArrowRight className="size-3.5" weight="bold" aria-hidden />
         </Link>
         <Link href={detailHref} className="btn-secondary">
           Add Feedback

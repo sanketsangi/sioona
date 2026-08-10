@@ -28,7 +28,7 @@ It works as an **overlay** on existing chat tools (does not replace them).
 | Signal Score Source of Truth | FastAPI + Neon (`reviewPrecision` in JSON is legacy fallback only)                        |
 | Shadow Mode queue SoT        | FastAPI `GET /v1/tenants/{id}/signals/needs-review` (Neon); join to JSON for evidence     |
 | Data split                   | Chats, messages, taxonomy overrides stay in JSON store (`web/data/`)                      |
-| Dual-write                   | Detect/ingest sync predictions to FastAPI (retry once); feedback BFF requires Neon first  |
+| Dual-write                   | Detect/ingest sync predictions to FastAPI (3 attempts, 50/150ms backoff); feedback BFF requires Neon first |
 | AI Approach                  | Open models preferred, start with strong prompting + managed inference, fine-tuning later |
 | Hosting (Phase 1)            | Render + managed inference                                                                |
 | Multi-tenancy                | Required from day one (tenant_id everywhere)                                              |
@@ -44,10 +44,10 @@ It works as an **overlay** on existing chat tools (does not replace them).
 - Domain wedges: broking/wealth + fintech CS taxonomy/demo samples; PII redaction; audit log
 - Detection heuristics improved (qualified-lead / badge-expansion as lead; fintech CS tuning)
 - Signal Score backend: predictions, feedback, score, needs-review APIs + Alembic + tests
-- Next.js client/BFF: `backend-client`, dual-write (`sync-predictions` with retry + stats), soft score fetch
+- Next.js client/BFF: `backend-client`, dual-write (`sync-predictions` with multi-retry + short backoff + stats), soft score fetch
 - Feedback BFF: lazy-creates missing prediction, then requires FastAPI feedback before JSON mirror
 - Feedback labels: `correct` / `incorrect` / `partially_correct`
-- Signal Score UI: `SignalScoreSummary` on Insights, Eval, Signal Detail + eval overlay
+- Signal Score UI: `SignalScoreSummary` on Insights, Eval, Signal Detail — overall %, Reviewed/Correct + Incorrect/Partially correct, per-type breakdown; Neon SoT via `fetchSignalScoreSafe`; detection confidence labeled separately on detail
 - Insights pending queue wired to Neon `needs-review` (join by `backendSignalId` / conversation+type); backend-down shows explicit queue error (no JSON pending SoT fallback)
 - Day-1 pilot packaging: fail-loud `predictionSync` UX (upload / re-detect / partner demo → Insights `syncFailed` banner); partner demo returns `predictionSync`; Neon stub detail honest empty evidence + feedback via prediction UUID
 - 7-day Shadow Mode pilot cadence UI: one `Week1PilotStrip` on Upload / Insights / Eval (Day 1 → mid-week re-upload → ≥5 reviews → baseline → go/no-go); `pilot.weeklyExportCount` advances on partner file ingest only; cross-links Upload ↔ Insights ↔ Eval; display-only actions
@@ -55,8 +55,8 @@ It works as an **overlay** on existing chat tools (does not replace them).
 
 ### In Progress
 
-- Dual-write residual gaps: no multi-retry/backoff beyond one retry; feedback lazy-create remains safety net
-- Residual detection gap: real partner transcripts (not yet in labeled synthetic set)
+- Dual-write: multi-retry + backoff (3 attempts, 50/150ms) + `backendFetch` AbortSignal timeout (2.5s); feedback lazy-create remains safety net
+- Residual detection gap: partner-shaped pack at P/R 1.00/1.00; Day-1 real-export lane ready — drop redacted CSV at `web/data/samples/real-partner-export.local.csv` (from `real-partner-export.template.csv`) and run `npx vitest run src/lib/partner-export.eval.test.ts` (loader `partner-export-eval.ts`); still need real partner exports filled in
 
 ### Not Started / Later
 
@@ -102,7 +102,7 @@ This is a **critical** trust metric for pilots.
 
 ## 6. Current Highest-Leverage Priorities
 
-1. Improve detection on **real partner transcripts** (synthetic labeled P/R already gated at 1.0 after precision pass)
+1. Improve detection on **real partner transcripts** (synthetic + partner-shaped packs gated; Day-1 export lane ready)
 2. Run the 7-day cadence with a real partner export (strip is in-product; prove precision + lift on their chats)
 3. Only then expand Auth0 / full Neon chats / fine-tuning
 

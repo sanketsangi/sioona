@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Upload } from "lucide-react";
+import { UploadSimple } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import {
   hasSyncFailures,
@@ -122,7 +122,11 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         aria-busy={loading}
         className="btn-primary mt-4 shrink-0"
       >
-        {loading ? <ButtonSpinner /> : <Upload className="size-3.5" strokeWidth={1.5} aria-hidden />}
+        {loading ? (
+          <ButtonSpinner />
+        ) : (
+          <UploadSimple className="size-3.5" weight="bold" aria-hidden />
+        )}
         Upload & Detect
       </button>
       <div className="sr-only" aria-live="polite">

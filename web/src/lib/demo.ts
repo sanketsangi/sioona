@@ -71,9 +71,11 @@ export async function runPartnerDemo(): Promise<PartnerDemoResult> {
     samples.push(name);
   }
 
+  // Skip backoff delays under Vitest so demo tests stay fast when backend is stubbed down.
   const synced = await syncPredictionsToBackend(
     store.signals,
-    store.tenant.id
+    store.tenant.id,
+    process.env.VITEST ? { sleep: async () => undefined } : undefined
   );
   store.signals = synced.signals;
 

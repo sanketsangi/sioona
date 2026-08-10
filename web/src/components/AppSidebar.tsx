@@ -1,40 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import {
-  Activity,
-  ClipboardCheck,
-  LogIn,
-  Menu,
-  Tags,
-  Upload,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+  BookOpenText,
+  CaretDoubleLeft,
+  ListChecks,
+  Pulse,
+  Question,
+  Tag,
+  UploadSimple,
+  User,
+} from "@phosphor-icons/react/ssr";
+import type { Icon } from "@phosphor-icons/react";
 import { SioonaLogotype } from "@/components/SioonaLogotype";
 import { viewHref, type PlatformView } from "@/lib/views";
 
-const nav: { view: PlatformView; label: string; icon: LucideIcon }[] = [
-  { view: "insights", label: "Insights", icon: Activity },
-  { view: "upload", label: "Upload", icon: Upload },
-  { view: "eval", label: "Eval", icon: ClipboardCheck },
-  { view: "taxonomy", label: "Taxonomy", icon: Tags },
+const nav: { view: PlatformView; label: string; icon: Icon }[] = [
+  { view: "insights", label: "Insights", icon: Pulse },
+  { view: "upload", label: "Upload", icon: UploadSimple },
+  { view: "eval", label: "Eval", icon: ListChecks },
+  { view: "taxonomy", label: "Taxonomy", icon: Tag },
 ];
 
-function LogoLockup({ onNavigate }: { onNavigate?: () => void }) {
-  return (
-    <Link
-      href={viewHref("insights")}
-      onClick={onNavigate}
-      className="group inline-flex h-11 min-w-0 items-center rounded-md px-1.5 transition-opacity duration-150 hover:opacity-90 md:h-10"
-      aria-label="Sioona"
-      translate="no"
-    >
-      <SioonaLogotype height={32} />
-    </Link>
-  );
-}
+const footerLinks: { label: string; icon: Icon }[] = [
+  { label: "Help", icon: Question },
+  { label: "Guidance", icon: BookOpenText },
+];
 
 function NavLinks({
   activeView,
@@ -45,15 +37,29 @@ function NavLinks({
   detailOpen: boolean;
   onNavigate?: () => void;
 }) {
+  const activeIndex = detailOpen
+    ? -1
+    : nav.findIndex((item) => item.view === activeView);
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-1">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-3">
       <p className="sidebar-nav-section" id="sidebar-nav-heading">
         Workspace
       </p>
       <nav
         aria-labelledby="sidebar-nav-heading"
-        className="sidebar-nav"
+        className="sidebar-nav sidebar-nav-animated"
+        style={
+          {
+            "--sidebar-nav-index": Math.max(0, activeIndex),
+          } as React.CSSProperties
+        }
       >
+        <span
+          className="sidebar-nav-thumb"
+          data-hidden={activeIndex < 0 ? "true" : undefined}
+          aria-hidden
+        />
         {nav.map((item) => {
           const active = activeView === item.view && !detailOpen;
           const Icon = item.icon;
@@ -65,7 +71,7 @@ function NavLinks({
               aria-current={active ? "page" : undefined}
               className={`sidebar-nav-link ${active ? "sidebar-nav-link-active" : ""}`}
             >
-              <Icon className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
+              <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
               <span className="truncate">{item.label}</span>
             </Link>
           );
@@ -75,17 +81,49 @@ function NavLinks({
   );
 }
 
-function SignInFooter() {
+function SidebarFooter() {
   return (
-    <div className="shrink-0 border-t border-ds-gray-400 p-3">
-      <button
-        type="button"
-        className="sidebar-sign-in"
-        disabled
-      >
-        <LogIn className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
-        Sign In
+    <div className="shrink-0 border-t border-sio-border-base p-3">
+      <div className="sidebar-nav mb-1.5">
+        {footerLinks.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.label}
+              type="button"
+              className="sidebar-nav-link w-full"
+              disabled
+            >
+              <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
+              <span className="truncate">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <button type="button" className="sidebar-sign-in" disabled>
+        <span
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-sio-fg-faint text-sio-fg-on-color"
+          aria-hidden
+        >
+          <User className="size-3.5" weight="bold" />
+        </span>
+        Create Account
       </button>
+    </div>
+  );
+}
+
+function SidebarLogo() {
+  return (
+    <div className="sidebar-logo-row">
+      <Link
+        href={viewHref("insights")}
+        className="group inline-flex h-11 min-w-0 items-center rounded-md px-1.5 transition-opacity duration-150 hover:opacity-90 md:h-10"
+        aria-label="Sioona"
+        translate="no"
+      >
+        <SioonaLogotype height={32} />
+      </Link>
     </div>
   );
 }
@@ -94,27 +132,22 @@ function SidebarBody({
   activeView,
   detailOpen,
   onNavigate,
-  headerEnd,
+  showLogo = false,
 }: {
   activeView: PlatformView;
   detailOpen: boolean;
   onNavigate?: () => void;
-  headerEnd?: React.ReactNode;
+  showLogo?: boolean;
 }) {
   return (
     <>
-      <div className="flex h-14 shrink-0 items-center gap-2 px-3 md:h-16">
-        <div className="min-w-0 flex-1">
-          <LogoLockup onNavigate={onNavigate} />
-        </div>
-        {headerEnd}
-      </div>
+      {showLogo ? <SidebarLogo /> : null}
       <NavLinks
         activeView={activeView}
         detailOpen={detailOpen}
         onNavigate={onNavigate}
       />
-      <SignInFooter />
+      <SidebarFooter />
     </>
   );
 }
@@ -122,29 +155,38 @@ function SidebarBody({
 export function AppSidebar({
   activeView,
   detailOpen = false,
+  navOpen,
+  onNavOpenChange,
+  onCloseNav,
+  menuTriggerRef,
 }: {
   activeView: PlatformView;
   detailOpen?: boolean;
+  navOpen: boolean;
+  onNavOpenChange: (open: boolean) => void;
+  onCloseNav: () => void;
+  menuTriggerRef: React.RefObject<HTMLButtonElement | null>;
 }) {
-  const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   /** Read when the drawer opens, before pinning the body shifts the offset */
   const restoreScrollRef = useRef(0);
   const titleId = useId();
+  const wasOpenRef = useRef(false);
 
-  const close = useCallback(() => setOpen(false), []);
-
-  const openDrawer = useCallback(() => {
-    restoreScrollRef.current = window.scrollY;
-    setOpen(true);
-  }, []);
+  const close = onCloseNav;
 
   useEffect(() => {
-    if (!open) return;
+    if (navOpen && !wasOpenRef.current) {
+      restoreScrollRef.current = window.scrollY;
+    }
+    wasOpenRef.current = navOpen;
+  }, [navOpen]);
+
+  useEffect(() => {
+    if (!navOpen) return;
 
     const scrollY = restoreScrollRef.current;
-    const trigger = triggerRef.current;
+    const trigger = menuTriggerRef.current;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
     };
@@ -152,7 +194,7 @@ export function AppSidebar({
 
     const drawer = drawerRef.current;
     const focusables = drawer?.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
     );
     focusables?.[0]?.focus({ preventScroll: true });
 
@@ -171,13 +213,10 @@ export function AppSidebar({
     };
     document.addEventListener("keydown", onTab);
 
-    // Mark background content inert while the drawer is open
     const main = document.getElementById("main");
     const rail = document.querySelector<HTMLElement>(".sidebar-rail");
-    const bar = document.querySelector<HTMLElement>(".sidebar-mobile-bar");
     main?.setAttribute("inert", "");
     rail?.setAttribute("inert", "");
-    bar?.setAttribute("inert", "");
 
     document.body.style.top = `-${scrollY}px`;
     document.body.dataset.scrollLocked = "true";
@@ -187,53 +226,39 @@ export function AppSidebar({
       document.removeEventListener("keydown", onTab);
       main?.removeAttribute("inert");
       rail?.removeAttribute("inert");
-      bar?.removeAttribute("inert");
       delete document.body.dataset.scrollLocked;
       document.body.style.top = "";
-      // Flush layout so the document is scrollable again before restoring
       void document.body.offsetHeight;
       window.scrollTo({ top: scrollY, behavior: "instant" });
       trigger?.focus({ preventScroll: true });
     };
-  }, [open, close]);
+  }, [navOpen, close, menuTriggerRef]);
 
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     const onChange = () => {
-      if (mq.matches) setOpen(false);
+      if (mq.matches) onNavOpenChange(false);
     };
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, []);
+  }, [onNavOpenChange]);
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — logo row parallel to AppHeader; nav + footer below */}
       <aside
         className="sidebar-rail hidden w-[var(--sidebar-width)] shrink-0 flex-col md:flex"
         style={{ width: "var(--sidebar-width)" }}
       >
-        <SidebarBody activeView={activeView} detailOpen={detailOpen} />
+        <SidebarBody
+          activeView={activeView}
+          detailOpen={detailOpen}
+          showLogo
+        />
       </aside>
 
-      {/* Mobile top bar */}
-      <div className="sidebar-mobile-bar flex shrink-0 items-center gap-1 md:hidden">
-        <button
-          ref={triggerRef}
-          type="button"
-          className="btn-tertiary size-11 shrink-0 px-0"
-          aria-expanded={open}
-          aria-controls="app-sidebar-drawer"
-          onClick={openDrawer}
-        >
-          <Menu className="size-5" strokeWidth={1.5} aria-hidden />
-          <span className="sr-only">Open navigation</span>
-        </button>
-        <LogoLockup />
-      </div>
-
       {/* Mobile drawer */}
-      {open ? (
+      {navOpen ? (
         <div className="md:hidden">
           <button
             type="button"
@@ -249,23 +274,24 @@ export function AppSidebar({
             aria-labelledby={titleId}
             className="sidebar-drawer"
           >
-            <span id={titleId} className="sr-only">
-              Navigation
-            </span>
+            <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-sio-border-base px-3">
+              <span id={titleId} className="min-w-0" translate="no">
+                <SioonaLogotype height={28} />
+              </span>
+              <button
+                type="button"
+                className="btn-tertiary size-11 shrink-0 px-0"
+                aria-label="Collapse"
+                title="Collapse"
+                onClick={close}
+              >
+                <CaretDoubleLeft className="size-5" weight="bold" aria-hidden />
+              </button>
+            </div>
             <SidebarBody
               activeView={activeView}
               detailOpen={detailOpen}
               onNavigate={close}
-              headerEnd={
-                <button
-                  type="button"
-                  className="btn-tertiary size-11 shrink-0 px-0"
-                  onClick={close}
-                >
-                  <X className="size-5" strokeWidth={1.5} aria-hidden />
-                  <span className="sr-only">Close navigation</span>
-                </button>
-              }
             />
           </aside>
         </div>

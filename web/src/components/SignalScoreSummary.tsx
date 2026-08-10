@@ -40,10 +40,10 @@ export function SignalScoreSummary({
       </div>
 
       <div
-        className={`grid divide-x divide-sio-border-base ${
+        className={`grid min-w-0 ${
           compact
             ? "grid-cols-1"
-            : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]"
+            : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:divide-x sm:divide-sio-border-base"
         }`}
       >
         <div className="metric-cell">

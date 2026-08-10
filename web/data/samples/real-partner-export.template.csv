@@ -1,0 +1,9 @@
+conversation_id,role,content,customer_name,channel,timestamp,ground_truth
+rp_lead_01,customer,"Want to open a demat account this week — send pricing to [email] or call [phone]",Partner Customer A,whatsapp,2026-08-06T09:00:00.000Z,lead
+rp_lead_01,agent,"Sharing the fee schedule and KYC link.",,whatsapp,2026-08-06T09:01:00.000Z,lead
+rp_ret_01,customer,"Support is too slow. If this continues I will close my account and transfer my holdings out.",Partner Customer B,intercom,2026-08-06T10:00:00.000Z,retention
+rp_ret_01,agent,"Escalating to a senior specialist now.",,intercom,2026-08-06T10:01:00.000Z,retention
+rp_upsell_01,customer,"Existing customer — already trade equity. Can you enable F&O and activate margin trading facility?",Partner Customer C,whatsapp,2026-08-06T11:00:00.000Z,upsell
+rp_upsell_01,agent,"Yes — sharing F&O and MTF activation steps.",,whatsapp,2026-08-06T11:01:00.000Z,upsell
+rp_none_01,customer,"App crashed on login and I did not receive OTP. Please reset my password. PAN on file is [pan].",Partner Customer D,in_app_chat,2026-08-06T12:00:00.000Z,none
+rp_none_01,agent,"Password reset and fresh OTP sent.",,in_app_chat,2026-08-06T12:01:00.000Z,none

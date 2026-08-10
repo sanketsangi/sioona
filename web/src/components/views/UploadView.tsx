@@ -24,41 +24,41 @@ const samples = [
 
 export function UploadView() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div className="min-h-0">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:overflow-hidden">
+      <div className="grid min-h-0 grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-6 lg:overflow-hidden">
+        <div className="min-h-0 min-w-0 lg:scroll-region">
           <UploadForm compact />
         </div>
 
-        <aside className="flex min-h-0 flex-col gap-4">
-          <section className="panel flex min-h-0 flex-1 flex-col p-4 sm:p-5">
+        <aside className="flex min-h-0 min-w-0 flex-col gap-3 lg:overflow-hidden">
+          <section className="panel flex min-h-0 flex-col overflow-hidden p-4 sm:p-5 lg:flex-1">
             <p className="eyebrow shrink-0">Partner Sample Pack</p>
-            <h2 className="mt-1 shrink-0 text-heading-16 text-ds-gray-1000">
+            <h2 className="mt-1 shrink-0 text-heading-16 text-sio-fg-base">
               No export yet?
             </h2>
-            <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
+            <p className="mt-2 shrink-0 text-copy-14 text-sio-fg-subtle">
               Use files in{" "}
-              <code className="font-mono text-ds-blue-900" translate="no">
+              <code className="font-mono text-sio-signal-lead-fg" translate="no">
                 web/data/samples/
               </code>{" "}
               or run the one-click demo. Mid-week: drop the next weekly export
               here.
             </p>
-            <ul className="mt-4 min-h-0 flex-1 divide-y divide-ds-gray-400 border-t border-ds-gray-400">
+            <ul className="mt-4 divide-y divide-sio-border-base border-t border-sio-border-base lg:scroll-region lg:min-h-0 lg:flex-1">
               {samples.map((sample) => (
                 <li key={sample.file} className="py-3">
                   <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-label-14 font-medium text-ds-gray-1000">
+                    <span className="text-label-14 font-medium text-sio-fg-base">
                       {sample.label}
                     </span>
                     <code
-                      className="font-mono text-label-13 text-ds-gray-900"
+                      className="font-mono text-label-13 text-sio-fg-subtle"
                       translate="no"
                     >
                       {sample.file}
                     </code>
                   </div>
-                  <p className="mt-0.5 text-label-13 text-ds-gray-900">
+                  <p className="mt-0.5 text-label-13 text-sio-fg-subtle">
                     {sample.use}
                   </p>
                 </li>
@@ -70,7 +70,7 @@ export function UploadView() {
             </div>
           </section>
 
-          <p className="shrink-0 text-label-13 text-ds-gray-900">
+          <p className="shrink-0 text-label-13 text-sio-fg-subtle">
             Cadence:{" "}
             <Link href={viewHref("upload")} className="link-accent">
               Upload

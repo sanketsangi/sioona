@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { ArrowsClockwise } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import {
   hasSyncFailures,
@@ -67,7 +67,7 @@ export function ReDetectButton() {
         {loading ? (
           <ButtonSpinner />
         ) : (
-          <RefreshCw className="size-3.5" strokeWidth={1.5} aria-hidden />
+          <ArrowsClockwise className="size-3.5" weight="regular" aria-hidden />
         )}
         Re-run Detection
       </button>

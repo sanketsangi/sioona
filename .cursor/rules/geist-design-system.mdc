@@ -15,6 +15,25 @@ Sources of truth:
 
 Product SoT (what we build): Phase 1 Shadow Mode Insights. Visual SoT (how it looks): Vercel/Geist principles — not Vercel branding, not navy+cyan.
 
+Token architecture follows a Harvey-style **primitive → semantic → component** stack (intent naming only — do not copy Harvey UI/brand). Prefix: **`sio-`**.
+
+## Token layers
+
+1. **Primitives** — `--ds-*` in [`web/src/app/globals.css`](web/src/app/globals.css) (Geist steps). Raw neutrals / accents.
+2. **Semantics** — `--sio-*` aliases that map **only** to `--ds-*` (no second palette). Examples: `--sio-bg-base`, `--sio-fg-subtle`, `--sio-border-base`, `--sio-fg-on-color`, signal/status aliases.
+3. **Components** — CSS utilities (`.panel`, `.btn-*`, …) and Tailwind `sio-*` classes bind to **semantics**, not primitives.
+
+| Intent | Token | Tailwind example |
+|--------|--------|------------------|
+| Page / panel fill | `--sio-bg-base` | `bg-sio-bg-base` |
+| Quiet / secondary surface | `--sio-bg-subtle` / `--sio-bg-muted` | `bg-sio-bg-muted` |
+| Primary text | `--sio-fg-base` | `text-sio-fg-base` |
+| Secondary text | `--sio-fg-subtle` | `text-sio-fg-subtle` |
+| Text on inverse fill | `--sio-fg-on-color` | `text-sio-fg-on-color` |
+| Default border | `--sio-border-base` | `border-sio-border-base` |
+
+**Do not** use `--ds-gray-*` / `text-ds-gray-*` in new component CSS or new utilities. Opportunistic TSX cleanup of leftover `ds-*` classes is fine when touching a file; no full-view codemod required.
+
 ## Typography
 
 - **UI/body**: Geist Sans
@@ -24,11 +43,11 @@ Product SoT (what we build): Phase 1 Shadow Mode Insights. Visual SoT (how it lo
 
 ## Color (light theme — product default)
 
-Use `--ds-*` tokens. Step meaning: `100` bg → `200` hover → `300` active → `400` border → `500`/`600` border hover/active → `900` secondary text → `1000` primary text.
+Primitives keep Geist step meaning: `100` bg → hover/highlight → `400` border → `500`/`600` border hover/active → `900` secondary text → `1000` primary text.
 
-Page: `background-100` (#fff). `color-scheme: light` on `<html>`. `theme-color` matches page background.
+Product canvas (light only): page + panels = `#ffffff` (`sio-bg-base` / `background-100`). Borders = `#e5e7eb` 1px (`sio-border-base` ← `gray-400`). Hover / selected / list-row / filter / chrome highlight = `#f2f1f0` (`sio-bg-interactive*` ← `gray-100`). `color-scheme: light` on `<html>`. `theme-color` matches page background.
 
-Accent color signals **state**, not decoration (lead=blue, retention=amber, upsell=teal). Pair color with text/icon.
+Accent color signals **state**, not decoration — use semantic signal tokens (`sio-signal-lead-*`, `sio-signal-retention-*`, `sio-signal-upsell-*`). Pair color with text/icon.
 
 ## Density & spacing
 
@@ -47,17 +66,19 @@ Borders + tonal fills first; avoid card-on-card nesting.
 
 ## Shell / sidebar
 
-- Desktop (`md+`): fixed left sidebar (~240px), logo, icon+label nav, quiet Sign In footer
-- Mobile: top bar + slide-over drawer (focus trap, Escape, `overscroll-behavior: contain`)
-- Selected nav: `gray-alpha-200` fill + primary text (not colored pills)
+- Desktop (`md+`): full-height left sidebar (~240px) with logo row **parallel** to main-column `AppHeader` (matched 4rem height) — do not stack a full-bleed header over the sidebar
+- Keep sidebar and header separate: logo + Workspace nav in sidebar; page title + ModeToggle + actions in header
+- Page title (with view icon) in `AppHeader` for every tab — Insights, Upload, Eval, Taxonomy
+- Mobile: header hamburger + slide-over drawer (focus trap, Escape, `overscroll-behavior: contain`)
+- Selected nav: `sio-bg-interactive-hover` fill + `sio-fg-base` text (not colored pills)
 
 ## Components
 
-- **Primary**: `gray-1000` fill, `background-100` text, 6px, medium weight
-- **Secondary**: border `gray-alpha-400`; hover border `500`
-- **Tertiary**: text only; hover `gray-alpha` tint
-- **Focus**: `0 0 0 2px #fff, 0 0 0 4px` blue-700
-- Icons: Lucide, `strokeWidth={1.5}`, 16px, gray-900 at rest
+- **Primary**: `sio-bg-inverse` fill, `sio-fg-on-color` text, 6px, medium weight
+- **Secondary**: border `sio-border-subtle`; hover border `sio-border-strong`
+- **Tertiary**: text only; hover interactive tint
+- **Focus**: `0 0 0 2px` base bg, `0 0 0 4px` `sio-focus-accent`
+- Icons: `@phosphor-icons/react` (use `/ssr` in App Router) — **Bold** for primary nav / key actions; **Regular** for dense chrome (lists, pagers, spinners). Prefer `weight` over stroke hacks; ~16px; `sio-fg-subtle` at rest
 - Loading labels end with `…`
 
 ## Web interface rules (must follow)
@@ -74,4 +95,6 @@ Borders + tonal fills first; avoid card-on-card nesting.
 - Use Slash gold/Inter/Instrument Serif stacks
 - Use Vercel logo/marks in a way that implies endorsement
 - Navy+cyan or purple glows / non-token neon accents
-- Import Vercel brand CSS or invent a parallel token system
+- Import Vercel brand CSS or invent a **second** hex palette beside `--ds-*`
+- Bind new components to raw `--ds-*` / `ds-*` when a `--sio-*` alias exists
+- Copy Harvey (`hy-`) brand, fonts, or layout — only the semantic-token *pattern*

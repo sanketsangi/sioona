@@ -26,26 +26,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const TITLES: Record<PlatformView, { title: string; subtitle: string }> = {
-  insights: {
-    title: "Signal Insights",
-    subtitle:
-      "Prioritized revenue signals. Review, then act manually — no autonomous actions.",
-  },
-  upload: {
-    title: "Upload Chats",
-    subtitle:
-      "Drop a partner export to run detection. No live webhooks required.",
-  },
-  eval: {
-    title: "Eval & SignalScore",
-    subtitle:
-      "Labeled precision, human review precision, and pilot go/no-go metrics.",
-  },
-  taxonomy: {
-    title: "Signal Taxonomy",
-    subtitle: "Lead, retention, and upsell — keywords, phrases, and examples.",
-  },
+const TITLES: Record<PlatformView, string> = {
+  insights: "Signal Insights",
+  upload: "Upload Chats",
+  eval: "Eval & SignalScore",
+  taxonomy: "Signal Taxonomy",
 };
 
 export async function generateMetadata({
@@ -58,7 +43,7 @@ export async function generateMetadata({
     return { title: "Signal Detail" };
   }
   const view = parseView(sp.view);
-  return { title: TITLES[view].title };
+  return { title: TITLES[view] };
 }
 
 export default async function PlatformPage({
@@ -106,7 +91,6 @@ export default async function PlatformPage({
           activeView="insights"
           detailOpen
           title="Signal Detail"
-          subtitle="Shadow Mode — suggested action is display-only."
         >
           <SignalDetailView
             signal={signal}
@@ -146,7 +130,6 @@ export default async function PlatformPage({
           activeView="insights"
           detailOpen
           title="Signal Detail"
-          subtitle="Neon stub — local conversation not joined."
         >
           <SignalDetailView
             signal={stub}
@@ -164,12 +147,14 @@ export default async function PlatformPage({
         activeView="insights"
         detailOpen
         title="Signal Not Found"
-        subtitle="This signal may have been removed or the link is outdated."
       >
         <div className="panel max-w-lg p-5">
           <p className="text-copy-14 text-ds-gray-900">
             No signal matches{" "}
-            <code className="font-mono text-label-13 text-ds-gray-1000" translate="no">
+            <code
+              className="font-mono text-label-13 text-ds-gray-1000"
+              translate="no"
+            >
               {signalId}
             </code>
             .
@@ -184,7 +169,7 @@ export default async function PlatformPage({
     );
   }
 
-  const meta = TITLES[view];
+  const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
@@ -198,12 +183,10 @@ export default async function PlatformPage({
       ? await fetchSignalScoreSafe(store.tenant.id)
       : null;
   const needsReview =
-    view === "insights"
-      ? await fetchNeedsReview(store.tenant.id, 20)
-      : null;
+    view === "insights" ? await fetchNeedsReview(store.tenant.id, 20) : null;
 
   return (
-    <AppShell activeView={view} title={meta.title} subtitle={meta.subtitle}>
+    <AppShell activeView={view} title={title}>
       {view === "insights" && needsReview ? (
         <InsightsView
           store={store}

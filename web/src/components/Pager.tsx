@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 
 export function Pager({
   page,
@@ -22,13 +22,13 @@ export function Pager({
 
   return (
     <nav
-      className="flex flex-wrap items-center justify-between gap-2"
+      className="flex min-w-0 flex-wrap items-center justify-between gap-2"
       aria-label={`${label} navigation`}
     >
-      <p className="tabular text-label-13 text-ds-gray-900">
+      <p className="tabular min-w-0 text-label-13 text-sio-fg-subtle">
         {label} {safePage} of {pageCount}
       </p>
-      <div className="flex gap-2">
+      <div className="flex shrink-0 gap-2">
         <PagerButton href={prevHref} direction="prev" />
         <PagerButton href={nextHref} direction="next" />
       </div>
@@ -46,25 +46,32 @@ function PagerButton({
   const isPrev = direction === "prev";
   const text = isPrev ? "Previous" : "Next";
   const icon = isPrev ? (
-    <ChevronLeft className="size-4" strokeWidth={1.5} aria-hidden />
+    <CaretLeft className="size-4" weight="regular" aria-hidden />
   ) : (
-    <ChevronRight className="size-4" strokeWidth={1.5} aria-hidden />
+    <CaretRight className="size-4" weight="regular" aria-hidden />
   );
+
+  const className = "btn-secondary min-w-11 px-3";
 
   if (href == null) {
     return (
-      <button type="button" className="btn-secondary px-3" disabled>
+      <button type="button" className={className} disabled aria-label={text}>
         {isPrev ? icon : null}
-        {text}
+        <span className="hidden min-[380px]:inline">{text}</span>
         {isPrev ? null : icon}
       </button>
     );
   }
 
   return (
-    <Link href={href} className="btn-secondary px-3" scroll={false}>
+    <Link
+      href={href}
+      className={className}
+      scroll={false}
+      aria-label={text}
+    >
       {isPrev ? icon : null}
-      {text}
+      <span className="hidden min-[380px]:inline">{text}</span>
       {isPrev ? null : icon}
     </Link>
   );

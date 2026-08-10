@@ -225,18 +225,20 @@ describe("runDetection", () => {
   });
 
   it("keeps genuine adjacent-product cross-sell as upsell", () => {
-    const { conversation, messages } = conv(
-      "c_cross_sell",
-      "upsell",
-      "I already have an account — also interested in insurance alongside my wallet."
-    );
-    const signals = detectSignalsForConversation(
-      conversation,
-      messages,
-      "tenant_demo"
-    );
-    expect(signals.some((s) => s.type === "upsell")).toBe(true);
-    expect(signals.some((s) => s.type === "lead")).toBe(false);
+    const cases = [
+      "I already have an account — also interested in insurance alongside my wallet.",
+      "I use the wallet for UPI. Looking at insurance and an FD product alongside — how do I add those?",
+    ];
+    for (const text of cases) {
+      const { conversation, messages } = conv("c_cross_sell", "upsell", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "upsell")).toBe(true);
+      expect(signals.some((s) => s.type === "lead")).toBe(false);
+    }
   });
 
   it("suppresses fintech servicing complaints from becoming leads", () => {

@@ -169,7 +169,7 @@ export function AdaptationPanel({
 
   return (
     <div
-      className={`panel flex min-h-0 flex-col overflow-hidden ${compact ? "h-full" : "mt-6"}`}
+      className={`panel flex min-h-0 flex-1 flex-col overflow-hidden ${compact ? "" : "mt-6"}`}
     >
       <div className="shrink-0 border-b border-ds-gray-400 px-4 py-2.5">
         <h2 className="text-balance text-heading-16 text-ds-gray-1000">
@@ -226,7 +226,7 @@ export function AdaptationPanel({
         </p>
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="scroll-region min-h-0 flex-1">
             {/* Card list below md — table columns clip inputs/actions on narrow viewports */}
             <ul className="divide-y divide-ds-gray-400 md:hidden">
               {pageItems.map((signal) => (
