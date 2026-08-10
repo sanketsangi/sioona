@@ -32,4 +32,6 @@ npm run dev
 
 Open http://localhost:3000
 
-SignalScore feedback and review precision use the FastAPI backend when it is reachable. Conversations and the Shadow Mode queue still live in the JSON store under `web/data/`.
+SignalScore feedback and review precision use the FastAPI backend when it is reachable. Conversations live in the JSON store under `web/data/`; the Shadow Mode pending queue and Signal Score SoT are FastAPI + Neon.
+
+**Hosted demo** (https://sioona-demo.vercel.app): deploy FastAPI + Neon, then set Vercel Production `BACKEND_URL` — see [web/DEPLOY.md](./web/DEPLOY.md) and [backend/README.md](./backend/README.md#hosted-deploy-demo).

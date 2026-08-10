@@ -48,6 +48,27 @@ Open docs: http://localhost:8000/docs
 
 All `/v1/*` endpoints require header `X-Tenant-Id`.
 
+## Hosted deploy (demo)
+
+For Shadow Mode demos against [sioona-demo.vercel.app](https://sioona-demo.vercel.app), FastAPI must be reachable on a **public HTTPS URL**. The Next.js app calls this service **server-side** (`web/src/lib/backend-client.ts`) with header `X-Tenant-Id` — no Auth0.
+
+Recommended host: **Render** Web Service (Phase 1 hosting). Equivalent platforms work if they expose a public base URL.
+
+1. Create a Web Service with **Root Directory** `backend/`.
+2. **Build:** `pip install -r requirements.txt`
+3. **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. **Env (dashboard only — never commit secrets):**
+   - `DATABASE_URL` — Neon connection string using `postgresql+psycopg://…?sslmode=require` (reuse the existing Neon project `sioona` for demos).
+5. **Migrate** once (Render release command or a one-shot shell): `alembic upgrade head`
+6. **Verify:**
+   ```bash
+   curl -sS "$BACKEND_URL/health"
+   # → {"status":"ok"}
+   ```
+   Optional: open `$BACKEND_URL/docs`.
+
+Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPLOY.md`](../web/DEPLOY.md)).
+
 ## Endpoints
 
 | Method | Path | Purpose |

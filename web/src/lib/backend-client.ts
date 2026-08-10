@@ -8,6 +8,18 @@ const DEFAULT_BACKEND_URL = "http://localhost:8000";
 /** Fail hung FastAPI calls so dual-write retries can proceed. */
 export const BACKEND_FETCH_TIMEOUT_MS = 2500;
 
+export const VERCEL_BACKEND_MISCONFIG_MESSAGE =
+  "BACKEND_URL unset or localhost on Vercel — set Production BACKEND_URL to the public FastAPI base URL";
+
+function isLoopbackBackendUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return /localhost|127\.0\.0\.1/i.test(url);
+  }
+}
+
 function combineAbortSignals(
   ...signals: AbortSignal[]
 ): AbortSignal {
@@ -96,7 +108,21 @@ export class BackendClientError extends Error {
 }
 
 export function getBackendUrl(): string {
-  return (process.env.BACKEND_URL ?? DEFAULT_BACKEND_URL).replace(/\/$/, "");
+  const fromEnv = process.env.BACKEND_URL?.trim();
+  return (fromEnv || DEFAULT_BACKEND_URL).replace(/\/$/, "");
+}
+
+/**
+ * On Vercel, refuse unset/localhost BACKEND_URL so demos fail loudly
+ * instead of timing out against the laptop default.
+ */
+export function assertBackendUrlConfigured(): string {
+  const fromEnv = process.env.BACKEND_URL?.trim();
+  const url = getBackendUrl();
+  if (process.env.VERCEL && (!fromEnv || isLoopbackBackendUrl(url))) {
+    throw new BackendClientError(VERCEL_BACKEND_MISCONFIG_MESSAGE);
+  }
+  return url;
 }
 
 async function backendFetch<T>(
@@ -104,7 +130,7 @@ async function backendFetch<T>(
   path: string,
   init?: RequestInit
 ): Promise<T> {
-  const url = `${getBackendUrl()}${path}`;
+  const url = `${assertBackendUrlConfigured()}${path}`;
   const { signal: timeoutSignal, clear: clearTimeoutSignal } =
     createTimeoutSignal(BACKEND_FETCH_TIMEOUT_MS);
   const signal = init?.signal

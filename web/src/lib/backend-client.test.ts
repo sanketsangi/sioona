@@ -2,14 +2,47 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BACKEND_FETCH_TIMEOUT_MS,
   BackendClientError,
+  VERCEL_BACKEND_MISCONFIG_MESSAGE,
+  assertBackendUrlConfigured,
   createPrediction,
   getSignalScore,
 } from "./backend-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
   vi.useRealTimers();
+});
+
+describe("assertBackendUrlConfigured", () => {
+  it("allows localhost default off Vercel", () => {
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv("BACKEND_URL", "");
+    expect(assertBackendUrlConfigured()).toBe("http://localhost:8000");
+  });
+
+  it("fails loud when Vercel has unset BACKEND_URL", () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("BACKEND_URL", "");
+    expect(() => assertBackendUrlConfigured()).toThrow(
+      VERCEL_BACKEND_MISCONFIG_MESSAGE
+    );
+  });
+
+  it("fails loud when Vercel BACKEND_URL is localhost", () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("BACKEND_URL", "http://localhost:8000");
+    expect(() => assertBackendUrlConfigured()).toThrow(
+      VERCEL_BACKEND_MISCONFIG_MESSAGE
+    );
+  });
+
+  it("accepts a public BACKEND_URL on Vercel", () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("BACKEND_URL", "https://sioona-api.example.com/");
+    expect(assertBackendUrlConfigured()).toBe("https://sioona-api.example.com");
+  });
 });
 
 describe("backendFetch timeout", () => {
@@ -102,5 +135,18 @@ describe("backendFetch timeout", () => {
       name: "BackendClientError",
       message: expect.stringContaining("ECONNREFUSED"),
     });
+  });
+
+  it("surfaces Vercel BACKEND_URL misconfig before fetch", async () => {
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("BACKEND_URL", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getSignalScore("tenant_demo")).rejects.toMatchObject({
+      name: "BackendClientError",
+      message: VERCEL_BACKEND_MISCONFIG_MESSAGE,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
