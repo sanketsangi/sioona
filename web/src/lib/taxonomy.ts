@@ -109,6 +109,7 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
       "start investing",
       "wealth plan",
       "first-time",
+      "first time",
       "kyc",
       "account opening",
       "trading account",
@@ -267,6 +268,8 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
       "add a supplementary card",
       "want an add-on card",
       "looking for more features",
+      // First-card apply (soft phrasing)
+      "don't have any credit card",
     ],
     negativePhrases: [
       ...SHARED_OPS_NEGATIVES,
@@ -412,11 +415,18 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
       "deducting too many charges",
       // Fintech CS churn intents
       "delete my account",
+      "deleting my account",
       "delete my wallet",
       "delete my data",
       "close my wallet",
       "close my card",
+      "cancel this card",
       "block and close my card",
+      // Soft churn / shift without hard "close my account"
+      "thinking of shifting",
+      "shifting everything",
+      "moving my portfolio",
+      "account closure process",
       "switching to another app",
       "switch to another app",
       "moving to another app",
@@ -541,6 +551,13 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
       "add a joint account",
       "alongside my account",
       "alongside my wallet",
+      // Existing-customer invest-more / top-up loan
+      "want to invest more",
+      "invest more",
+      "get a top-up",
+      "top-up or new loan",
+      "top up loan",
+      "top-up loan",
     ],
     negativePhrases: [
       ...SHARED_OPS_NEGATIVES,

@@ -52,6 +52,14 @@ Synthetic fixture gate (still must stay at 1.0):
 npx vitest run src/lib/eval.test.ts src/lib/detect.test.ts
 ```
 
+Root corpus `testing.json` (41 labeled finance chats; measurement, not a 1.0 gate):
+
+```bash
+npx vitest run src/lib/testing-json.eval.test.ts
+```
+
+Loader: [`src/lib/testing-json-eval.ts`](../../src/lib/testing-json-eval.ts) — maps corpus `labels[]` → product `groundTruth`, then ingest → detect → metrics.
+
 ### Baseline metrics (keyword detect, 2026-08-10)
 
 | Scope | Precision | Recall | Notes |

@@ -1,0 +1,1465 @@
+{
+  "conversations": [
+    {
+      "externalId": "rahul_mehta_29",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I have been doing a SIP of ₹5,000 per month in a large cap fund for 2 years now. I recently got a salary hike, so I want to invest more. What are my options?"
+        },
+        {
+          "role": "agent",
+          "content": "Congratulations on the hike, Rahul! That's a great time to step up your investments. You could increase your existing SIP amount, or diversify into a mid cap or flexi cap fund. May I know how much extra you're looking to invest monthly?"
+        },
+        {
+          "role": "customer",
+          "content": "I can do around ₹10,000 more per month. Also thinking about tax saving, my CA said I should look at ELSS."
+        },
+        {
+          "role": "agent",
+          "content": "Perfect. You could split it as ₹5,000 in an ELSS fund for 80C tax benefits and ₹5,000 in a flexi cap fund for growth. ELSS has a 3-year lock-in but historically good returns. Shall I share a shortlist of top-rated funds for both categories?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes please, share the list. I want to start from next month itself."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "upsell",
+          "confidence": "high",
+          "reason": "Existing SIP customer with salary hike explicitly wants to invest ₹10,000 more per month and start ELSS"
+        }
+      ]
+    },
+    {
+      "externalId": "priya_sharma_22",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hello, I saw your ad on Instagram about the zero-fee credit card. I don't have any credit card right now, first time. Can I apply?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Priya! Yes, absolutely. Our LifetimeFree card has no joining or annual fees. Since it would be your first card, we just need your PAN, Aadhaar and income details. Are you salaried or self-employed?"
+        },
+        {
+          "role": "customer",
+          "content": "Salaried, I work at an IT company in Pune. Salary is around ₹45,000 per month. Will I get approved? I don't have CIBIL score I think."
+        },
+        {
+          "role": "agent",
+          "content": "With a ₹45,000 monthly salary you have a good chance. New-to-credit applicants are eligible for our starter variant with a limit of ₹50,000 to ₹1 lakh. I can send you the application link right now, approval usually takes 24-48 hours. Shall I proceed?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes, please send the link. Thank you so much!"
+        },
+        {
+          "role": "agent",
+          "content": "Link sent to your registered mobile number. Do complete the video KYC step at the end. Feel free to reach out if you face any issues!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "high",
+          "reason": "New-to-credit salaried customer actively applying for their first credit card after seeing an ad"
+        }
+      ]
+    },
+    {
+      "externalId": "amit_verma_87",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I want to prepay ₹50,000 towards my personal loan this month. Is there any charge for that? And does prepayment reduce my EMI or the tenure?"
+        },
+        {
+          "role": "agent",
+          "content": "Hello Amit! Good decision. Part-prepayment up to 25% of principal per year carries no charge on your loan. You can choose either a lower EMI or a shorter tenure at the time of payment — most customers pick shorter tenure since it saves more interest overall. Shall I raise the request?"
+        },
+        {
+          "role": "customer",
+          "content": "Shorter tenure please. Actually we have started flat hunting on weekends, so I want to clean up this loan before taking on anything bigger. Noida prices are crazy right now."
+        },
+        {
+          "role": "agent",
+          "content": "Done, request raised — the ₹50,000 will be debited along with your next EMI and your tenure comes down by roughly 4 months. And all the best with the flat hunt! Whenever you get serious about a property, do check with us first, existing loan customers get preferential home loan rates and waived processing fees."
+        },
+        {
+          "role": "customer",
+          "content": "Sure, will keep in mind. That's at least 6-8 months away anyway. Thanks for the quick help!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "low",
+          "reason": "Customer is prepaying his personal loan and mentioned flat hunting only in passing — deleveraging before a big purchase is an early home loan signal 6-8 months out that no application data would capture yet"
+        }
+      ]
+    },
+    {
+      "externalId": "sneha_kulkarni_31",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I want to know how to stop all my SIPs. Your app keeps crashing and honestly Groww is much easier to use. I'm thinking of shifting everything there."
+        },
+        {
+          "role": "agent",
+          "content": "I'm really sorry to hear about the app trouble, Sneha. I understand how frustrating that is. Before you decide, may I know which screens are crashing? We released a fix last week for the portfolio page issue. Also, transferring funds out would mean exit loads and capital gains tax on some holdings."
+        },
+        {
+          "role": "customer",
+          "content": "It crashes on the SIP management page every single time. I've reinstalled twice. I've been complaining for a month and nothing changed."
+        },
+        {
+          "role": "agent",
+          "content": "That's completely fair and I apologise for the delay. I've escalated your case to our tech team on priority with your device details, and I'm personally tracking it. As a goodwill gesture, I can also enable free priority support on your account. Can I request 48 hours before you make the switch?"
+        },
+        {
+          "role": "customer",
+          "content": "Fine, 48 hours. But if it's not fixed I'm moving my ₹8 lakh portfolio out, I'm serious."
+        },
+        {
+          "role": "agent",
+          "content": "Understood, Sneha. I've logged the commitment and will personally follow up with you day after tomorrow with an update. Thank you for giving us the chance to fix this."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "churn_risk",
+          "confidence": "high",
+          "reason": "Customer explicitly threatening to move ₹8 lakh portfolio to competitor due to unresolved app crashes"
+        },
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "App crash on the SIP management page reported repeatedly for a month, with two reinstalls and no fix delivered"
+        }
+      ]
+    },
+    {
+      "externalId": "vikram_nair_45",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I got a mail saying my credit card annual fee of ₹2,999 has been charged. Nobody told me this card had a fee. I barely use it anymore."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Vikram, let me check that for you. I see your card is the Signature variant which has an annual fee, waived if you spend ₹3 lakh per year. Your spends last year were ₹40,000, so the fee was applied. I understand this is disappointing."
+        },
+        {
+          "role": "customer",
+          "content": "₹3 lakh?! That's ridiculous. I mostly use my HDFC card now anyway. Just cancel this card, I don't want it."
+        },
+        {
+          "role": "agent",
+          "content": "I hear you, Vikram. Before cancelling, I can offer two options: downgrade to our zero-fee variant and I'll reverse this year's fee entirely, or keep the Signature card with the fee reversed as a one-time retention offer. Both keep your 6-year credit history intact, which helps your CIBIL score. Which would you prefer?"
+        },
+        {
+          "role": "customer",
+          "content": "Hmm, cancelling would hurt my credit history? Okay, do the downgrade with fee reversal then."
+        },
+        {
+          "role": "agent",
+          "content": "Done! Fee reversal of ₹2,999 will reflect in 5-7 working days and the new zero-fee card will reach you within 10 days. Your card number and history remain the same. Anything else I can help with?"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "retention_risk",
+          "confidence": "high",
+          "reason": "Customer asked to cancel card over surprise annual fee and mentioned shifting usage to a competitor bank card"
+        }
+      ]
+    },
+    {
+      "externalId": "meena_iyer_58",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hello beta, one small doubt. If I want to take out money from my mutual funds, how many days it takes to come to bank? And is there any tax cutting when I withdraw?"
+        },
+        {
+          "role": "agent",
+          "content": "Namaste Meena ji! Equity funds take 2-3 working days to credit and debt funds 1-2 days. No tax is deducted at the time of withdrawal for residents — capital gains tax, if any, is paid when you file your return. Are you planning a withdrawal? I can help you choose which fund to redeem from, it makes a tax difference."
+        },
+        {
+          "role": "customer",
+          "content": "No no, nothing urgent. My husband was asking how fast we can get the money if needed. He saw news about one finance company not returning people's money and got worried. Our money is safe no?"
+        },
+        {
+          "role": "agent",
+          "content": "A very fair question. Your money sits with the mutual fund houses under an independent custodian, not with us — even if anything were to happen to our platform, your units remain yours and fully accessible. That news was about an NBFC taking fixed deposits, which is a completely different structure. Would it help if I send a one-page note on how your holdings are protected? You can show your husband also."
+        },
+        {
+          "role": "customer",
+          "content": "Yes beta, send that note. I will read and show him. Thank you."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "retention_risk",
+          "confidence": "medium",
+          "reason": "Retired couple quietly researching redemption timelines and questioning platform safety after negative NBFC news — classic pre-withdrawal anxiety with no stated intent, easy to dismiss as a routine query"
+        }
+      ]
+    },
+    {
+      "externalId": "arjun_reddy_93",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "This is the THIRD time I'm messaging. My personal loan EMI of ₹18,450 was debited TWICE on 5th August. Where is my refund?? It's been 12 days!"
+        },
+        {
+          "role": "agent",
+          "content": "Arjun, I sincerely apologise for this. You're right, this should have been resolved much earlier. I can see the duplicate debit of ₹18,450 on 5th August and a refund initiated on 9th August that appears stuck in processing. Let me escalate this right now."
+        },
+        {
+          "role": "customer",
+          "content": "Stuck in processing?! That's my money! Because of this my account balance went low and another auto-debit bounced. I got charged ₹590 penalty by my bank. Who pays for that?"
+        },
+        {
+          "role": "agent",
+          "content": "That's completely unacceptable and I apologise. Here's what I'm doing: 1) Marking the refund as priority, you'll receive ₹18,450 within 24 hours, 2) We will reimburse the ₹590 bounce penalty, please share the bank statement screenshot, 3) Registering a formal complaint with reference ID CMP20260810431 so this is tracked to closure. You'll get SMS confirmations for all three."
+        },
+        {
+          "role": "customer",
+          "content": "Sending the screenshot now. If the refund doesn't come by tomorrow I'm going to the banking ombudsman."
+        },
+        {
+          "role": "agent",
+          "content": "Understood, and you have every right to. I've set a reminder to personally verify the credit tomorrow morning and will message you the confirmation. Again, my sincere apologies for the trouble caused."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "Duplicate EMI debit unresolved for 12 days causing a bounce penalty; customer threatening ombudsman escalation"
+        }
+      ]
+    },
+    {
+      "externalId": "kavita_joshi_76",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hello, good morning. Sorry to disturb again. Just wanted to check on my KYC update, I had submitted the new address proof on 18th July. No hurry, whenever you get time."
+        },
+        {
+          "role": "agent",
+          "content": "Good morning Kavita! Let me check... I can see the documents are still marked 'under review'. That's well past our usual 5 working days, apologies. Let me nudge the verification team right away."
+        },
+        {
+          "role": "customer",
+          "content": "Thank you. Actually this is my third time checking, hehe. Also my ₹3,000 SIP got rejected on the 5th saying KYC incomplete — but I'm sure it will sort itself out once the update is done. No problem."
+        },
+        {
+          "role": "agent",
+          "content": "Kavita, honestly, that's not okay on our part — a missed SIP because of our review delay is our failure, and thank you for being so patient about it. I'm fast-tracking your KYC for completion within 24 hours, and once it's done you can put in a one-time ₹3,000 purchase to make up the missed month, no charges. I'll message you personally when it's verified."
+        },
+        {
+          "role": "customer",
+          "content": "That would be nice, thank you so much for helping. Have a good day!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "medium",
+          "reason": "Third follow-up on a KYC stuck for over 3 weeks that already caused a rejected SIP — a genuine service failure wrapped in an apologetic, cheerful tone that sentiment scoring would read as positive"
+        }
+      ]
+    },
+    {
+      "externalId": "rohit_bansal_64",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "URGENT!! I just got SMS that ₹49,999 was spent on my credit card at some online electronics store. I did NOT make this transaction. My card is in my wallet right now!"
+        },
+        {
+          "role": "agent",
+          "content": "Rohit, thank you for alerting us immediately. I'm blocking your card right now... Done, card ending 4482 is blocked. No further transactions can go through. Did you recently share your card details or OTP with anyone, or click any unfamiliar links?"
+        },
+        {
+          "role": "customer",
+          "content": "No OTP came at all! Wait... yesterday I got a call from someone saying they're from your bank asking to 'verify' my card for a reward points redemption. I gave the card number but NOT the CVV, I swear."
+        },
+        {
+          "role": "agent",
+          "content": "That was a fraudster, Rohit — we never call asking for card details. On these calls people often share more than they remember, like card expiry or CVV, and many international sites don't ask for an OTP at all. I've raised a fraud dispute for ₹49,999 with reference FRD20260810992. As per RBI guidelines, since you reported within 24 hours, your liability is zero. The amount will be provisionally credited within 10 working days."
+        },
+        {
+          "role": "customer",
+          "content": "Thank god. What should I do now? I'm worried they have my details."
+        },
+        {
+          "role": "agent",
+          "content": "A replacement card with a new number is being issued, free of cost, arriving in 7 days. Meanwhile: don't share OTPs or card details on calls, enable transaction alerts for all amounts, and report the fraudster's number on the Chakshu portal at sancharsaathi.gov.in. I've also added extra verification on your account for 30 days."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "high",
+          "reason": "Unauthorized ₹49,999 card transaction following a vishing call where customer shared card number"
+        }
+      ]
+    },
+    {
+      "externalId": "deepa_menon_38",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I need to redeem ₹3 lakh from my funds today itself, very urgent. Also I have to add a new bank account and send the money there, not to my usual account. How fast can this be done?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Deepa, I can help. One thing upfront: redemptions to a newly added bank account go through a 24-48 hour verification hold as a safety step, so the fastest credit is always to your existing registered account. May I ask what the urgency is? There may be a better option."
+        },
+        {
+          "role": "customer",
+          "content": "It's a family medical emergency, the money has to go directly to the relative's account. Please don't delay it. The person helping me with all this is on my other phone and he is saying it must be done within one hour."
+        },
+        {
+          "role": "agent",
+          "content": "Deepa, before anything else — this person on your other call, is he someone you know personally? We see cases every day where a stranger creates panic about a medical or police matter and rushes people into sending money to an unknown account. No genuine hospital or authority gives a one-hour deadline for fund transfers."
+        },
+        {
+          "role": "customer",
+          "content": "He said he is from the hospital insurance desk... he called this morning about my cousin's accident in Bangalore. I have never met him. And my cousin's own phone is coming switched off. Now I am confused."
+        },
+        {
+          "role": "agent",
+          "content": "Please hang up that call now and first reach your cousin's family directly on their own numbers. I've placed a 24-hour hold on redemptions and bank account changes on your profile — if the need turns out genuine, everything can still be processed tomorrow to your own account. If you can't reach the family, report the number on 1930, the national cyber fraud helpline. I'm logging this as a suspected social engineering attempt, reference SEC20260810217, and a colleague will call you within the hour to check you're okay."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "medium",
+          "reason": "Urgent redemption routed to an unfamiliar third-party account with a stranger directing the customer on a parallel call — scam-in-progress markers, though no unauthorized access occurred and money never moved"
+        }
+      ]
+    },
+    {
+      "externalId": "ankit_saxena_91",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I'm 24, just joined Infosys. Everyone in office keeps discussing SIP at lunch and I don't fully get it honestly. Is it like an RD? Can I lose money in it?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Ankit, welcome to the working world! Close — like an RD you put in a fixed amount every month, but it goes into mutual funds instead of a bank deposit, so returns are market-linked. Over 5-10 years equity SIPs have historically beaten RDs comfortably, but yes, in the short term the value can dip. Most funds have no lock-in, so you can stop or withdraw anytime."
+        },
+        {
+          "role": "customer",
+          "content": "Hmm okay. Right now most of my salary goes into PG rent and my education loan EMI. Maybe once my probation is over and salary revises, I'll think properly."
+        },
+        {
+          "role": "agent",
+          "content": "Completely fair, no rush at all. Even ₹500 a month is a real start whenever you're ready. One free thing you can do today is finish your KYC on the app, takes 10 minutes — then starting later is just two taps."
+        },
+        {
+          "role": "customer",
+          "content": "Okay, might do the KYC this weekend. Will message if I have doubts. Thanks!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "low",
+          "reason": "First-jobber curious about SIPs but cash-constrained by rent and an education loan EMI; intent parked until probation ends, so this is a nurture lead rather than a sales-ready one"
+        }
+      ]
+    },
+    {
+      "externalId": "nisha_agarwal_84",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, does my credit card work in Europe? And what charges apply on international payments?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Nisha! Yes, it works worldwide — just switch on international usage under Card Settings in the app. On charges: there's a 3.5% forex markup on every international transaction, and ATM withdrawals abroad cost ₹500 plus the markup. When is the trip?"
+        },
+        {
+          "role": "customer",
+          "content": "December, two weeks in Italy and France. 3.5% on everything sounds like a lot no? My friend was saying forex cards are much cheaper."
+        },
+        {
+          "role": "agent",
+          "content": "For two weeks of spending it does add up — on ₹2 lakh of spends that's ₹7,000 just in markup. Forex cards do get better rates but need loading in advance. There's also our travel variant card with 0% forex markup, lounge access and travel insurance, and its fee is waived at your spend level. Want me to email you a simple comparison of all three options for your trip?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes send the comparison, I'll decide after looking. For now please enable international usage on my current card anyway."
+        },
+        {
+          "role": "agent",
+          "content": "Done, international usage is active, and the comparison is on its way to your email. Buon viaggio in advance, Nisha!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "upsell",
+          "confidence": "medium",
+          "reason": "Confirmed December Europe trip and open concern about the 3.5% forex markup create a natural window for the zero-markup travel card, but the customer deferred the decision and needs a pre-travel follow-up"
+        }
+      ]
+    },
+    {
+      "externalId": "suresh_pillai_52",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Sir, my daughter got admission in MS in Australia. Fees is around ₹35 lakh total. I have mutual funds worth ₹20 lakh with you. Should I redeem or is education loan better?"
+        },
+        {
+          "role": "agent",
+          "content": "Congratulations to your daughter, Suresh ji! Great question. Redeeming ₹20 lakh means losing compounding and paying capital gains tax, while education loans offer tax deduction on interest under Section 80E with no upper limit. Many parents do a mix. May I check your eligibility for our education loan?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes please check. What interest rate and how much can I get? I don't want my daughter to have burden also."
+        },
+        {
+          "role": "agent",
+          "content": "Based on your profile and portfolio with us, you're eligible for up to ₹40 lakh at 9.25%, with a 0.5% discount as an existing investor, so effectively 8.75%. You can also pledge part of your mutual funds as collateral to bring it down to 8.5% without redeeming them. Repayment starts 6 months after course completion, and you can be co-borrower so the burden isn't on her alone."
+        },
+        {
+          "role": "customer",
+          "content": "Pledging without selling sounds good. Please send me the details and documents list, I want to finish this before her visa interview next month."
+        },
+        {
+          "role": "agent",
+          "content": "Sending the checklist and application link now. I've also booked a callback from our education loan specialist tomorrow at 11 AM to walk you through it. All the best to your daughter!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "high",
+          "reason": "Existing investor actively seeking a ₹35 lakh education loan with urgency before visa interview"
+        }
+      ]
+    },
+    {
+      "externalId": "tanvi_desai_27",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hey! Quick question — if I pause my SIP for 2 months, does it affect anything? Getting married in December so cash flow is a bit tight."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Tanvi, congratulations!! Pausing is completely fine — no penalty, your existing units stay invested, and the SIP resumes automatically after the pause. Should I set the pause for November and December?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes please, both months. Wedding budget has taken over everything, haha. My company is paying out annual bonus in January though, so things will be back to normal after that."
+        },
+        {
+          "role": "agent",
+          "content": "Done — your ₹6,000 SIP is paused for Nov-Dec and resumes on 1st January. Enjoy the wedding prep, and the portfolio will be right here waiting when you're back!"
+        },
+        {
+          "role": "customer",
+          "content": "Perfect, thanks so much!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "retention_risk",
+          "confidence": "low",
+          "reason": "SIP pause looks routine, but pauses are a known first step in the pause-stop-redeem funnel and worth a January resumption check"
+        },
+        {
+          "signal": "upsell",
+          "confidence": "low",
+          "reason": "Marriage plus a January bonus are life-event triggers for a step-up SIP, joint goals or term insurance once cash flow normalises"
+        }
+      ]
+    },
+    {
+      "externalId": "mohd_farhan_63",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Assalamualaikum, I run a mobile accessories shop in Hyderabad. Business is growing and I want to open a second shop. Do you give business loans? I need around ₹8 lakh."
+        },
+        {
+          "role": "agent",
+          "content": "Walaikum assalam, Farhan bhai! Yes, we offer business loans for shop owners from ₹2 lakh to ₹50 lakh. For ₹8 lakh, we'd need your last 12 months' bank statement, GST returns if registered, and shop establishment proof. How long has the current shop been running?"
+        },
+        {
+          "role": "customer",
+          "content": "4 years running. GST registered, monthly sales around ₹3.5 lakh. How much EMI will come and how fast can I get money? Shop deal needs advance by month end."
+        },
+        {
+          "role": "agent",
+          "content": "With that turnover you look comfortably eligible. For ₹8 lakh over 4 years at 14%, EMI comes to about ₹21,900. If you upload documents today, approval typically takes 48-72 hours and disbursal within 5 working days, well before month end. Want me to start the application now?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes start it, I will upload documents tonight itself."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "high",
+          "reason": "Established shop owner urgently applying for ₹8 lakh business loan for expansion with month-end deadline"
+        }
+      ]
+    },
+    {
+      "externalId": "geeta_rao_49",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I keep around ₹7 lakh in my savings account which gives only 3% interest. My colleague said your liquid funds give more. Is it true? I am confused between FD and this liquid fund thing."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Geeta, your colleague is right! Liquid funds currently yield around 6.8-7%, versus 3% in savings. Compared to FDs: no lock-in, withdraw anytime with money in your bank within 30 minutes for up to ₹50,000 via instant redemption, and no penalty for early exit. FDs may offer similar rates but charge a penalty if you break them early."
+        },
+        {
+          "role": "customer",
+          "content": "Oh, no lock-in is nice because I may need money for house renovation next year. But is it safe? It's not share market risk, no?"
+        },
+        {
+          "role": "agent",
+          "content": "Very fair question. Liquid funds invest in short-term government and top-rated corporate papers, not stocks, so there's no equity market risk. They're among the lowest-risk mutual fund categories. For your renovation goal, you could keep ₹1 lakh in savings for emergencies and move ₹6 lakh to a liquid fund. That's roughly ₹24,000 extra interest in a year versus your savings account."
+        },
+        {
+          "role": "customer",
+          "content": "₹24,000 extra! Okay, I want to do this. What do I need to start?"
+        },
+        {
+          "role": "agent",
+          "content": "Just a one-time KYC since this is your first investment with us — PAN, Aadhaar and a selfie on the app, takes 10 minutes. I'm sending the link now. Once verified, you can transfer the ₹6 lakh and start earning from day one."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "high",
+          "reason": "First-time investor ready to move ₹6 lakh from savings account into liquid funds after rate comparison"
+        }
+      ]
+    },
+    {
+      "externalId": "harpreet_singh_35",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Paaji, I took a used car loan from you last year, ₹4 lakh, paying EMI on time. Now I want to buy a new Scorpio, on-road ₹22 lakh. Can I get a top-up or new loan? Also can old loan be adjusted?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Harpreet! Good to hear from you, and your 14 on-time EMIs make this easy. Best option: a new car loan for the Scorpio with up to 90% funding, ₹19.8 lakh, and we can either continue your old loan separately or consolidate both. As a repeat customer you get 0.25% off, so 8.75% on the new loan."
+        },
+        {
+          "role": "customer",
+          "content": "Consolidate is better, one EMI only. What will total EMI be for 5 years? And how fast? Dealer is giving delivery slot next week if I confirm."
+        },
+        {
+          "role": "agent",
+          "content": "Consolidating your ₹2.6 lakh outstanding with the new ₹19.8 lakh at 8.75% over 5 years, the single EMI comes to roughly ₹46,300. Since you're an existing customer, it's a pre-verified process — sanction letter within 24 hours and disbursal directly to the dealer in 3 working days. That comfortably meets your delivery slot. Shall I lock the application?"
+        },
+        {
+          "role": "customer",
+          "content": "Lock it paaji! Send me whatever I need to sign."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "upsell",
+          "confidence": "high",
+          "reason": "Existing car loan customer with clean history committing to a ₹19.8 lakh new car loan with consolidation"
+        }
+      ]
+    },
+    {
+      "externalId": "lakshmi_venkat_71",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hello, my son set up a ₹2,000 SIP for me two years back. Now I got retirement corpus of ₹25 lakh from my school PF. I don't want it lying in savings. What is the safest way to get monthly income from it?"
+        },
+        {
+          "role": "agent",
+          "content": "Namaste Lakshmi ji, congratulations on your retirement! For safe monthly income from ₹25 lakh, the most popular option is a Systematic Withdrawal Plan: invest in conservative hybrid or debt funds and withdraw a fixed amount monthly. At around 8% returns, a ₹15,000 monthly withdrawal keeps your corpus largely intact."
+        },
+        {
+          "role": "customer",
+          "content": "₹15,000 every month is exactly what I need for household expenses. Is it better than putting in Senior Citizen Savings Scheme? My bank is also asking me to do FD."
+        },
+        {
+          "role": "agent",
+          "content": "SCSS is excellent too, 8.2% government-backed, but it's capped at ₹30 lakh, pays quarterly not monthly, and has a 5-year lock-in. A smart combination: ₹15 lakh in SCSS for the guaranteed base, and ₹10 lakh in a conservative hybrid fund with SWP for monthly flexibility and better tax efficiency than FD interest. Would you like me to set up the ₹10 lakh investment and SWP, and guide you on the SCSS at your post office?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes, this combination sounds sensible. Please set it up. My son will help me with the app steps."
+        },
+        {
+          "role": "agent",
+          "content": "Wonderful! I'm sending the investment link and a simple step-by-step PDF your son can follow. Once invested, the ₹15,000 SWP will credit to your account on the 1st of every month starting October. Happy retirement, Lakshmi ji!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "upsell",
+          "confidence": "high",
+          "reason": "Existing SIP customer investing ₹10 lakh retirement corpus into SWP-based monthly income plan"
+        }
+      ]
+    },
+    {
+      "externalId": "rajesh_khanna_56",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I want to close my demat and mutual fund account. Zerodha charges zero AMC and you people are charging ₹750 per year plus transaction fees on every single order. Why should I stay?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Rajesh, I understand the fee concern, it's a fair comparison to make. Before we proceed, may I check your account? I see you've been with us 5 years with a ₹14 lakh portfolio. As a long-tenure customer, I can move you to our Premium Zero plan — AMC waived and zero brokerage on delivery trades."
+        },
+        {
+          "role": "customer",
+          "content": "Why was I never told about this plan before? I've paid ₹750 every year for 5 years for nothing. This is how you treat old customers?"
+        },
+        {
+          "role": "agent",
+          "content": "You're right to be upset, and I apologise that this wasn't proactively offered. I've applied the Premium Zero plan effective today and I'm also crediting this year's ₹750 AMC back to your account as goodwill. The reversal will reflect within 5 working days."
+        },
+        {
+          "role": "customer",
+          "content": "Fine, but I'm still going to compare with Zerodha. If I find even one more hidden charge I'm transferring everything out."
+        },
+        {
+          "role": "agent",
+          "content": "Completely understood, Rajesh. I've emailed you our full, updated fee schedule so there are no surprises. I'll also follow up next week to make sure the reversal has come through. Thank you for giving us another chance."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "churn_risk",
+          "confidence": "high",
+          "reason": "Customer explicitly comparing with Zerodha and threatening to transfer ₹14 lakh portfolio over AMC and transaction fees"
+        },
+        {
+          "signal": "complaint",
+          "confidence": "medium",
+          "reason": "Customer feels cheated for paying AMC for 5 years without being told about a zero-fee plan"
+        }
+      ]
+    },
+    {
+      "externalId": "shalini_gupta_42",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I've been calling your helpline since Tuesday. 40 minutes on hold each time and then the call drops. Chat support replied after 2 days saying 'we will get back to you'. Is anyone actually working there?"
+        },
+        {
+          "role": "agent",
+          "content": "Shalini, I'm really sorry about this experience. That wait time is not acceptable and I can see three dropped call attempts and one unanswered chat on your account. What was the issue you were trying to reach us about?"
+        },
+        {
+          "role": "customer",
+          "content": "My dividend payout of ₹12,300 from March hasn't come to my bank account. It's been 5 months! And apparently nobody can even pick up a phone to help me."
+        },
+        {
+          "role": "agent",
+          "content": "Let me look into this right now... I found it — your bank account was changed in February and the dividend went to your old, now-closed account, so it bounced back and has been sitting unclaimed. I'm re-initiating the payout to your current registered account, you'll receive ₹12,300 within 3 working days."
+        },
+        {
+          "role": "customer",
+          "content": "Five months and it took one person five minutes to find this? Honestly I'm fed up. My friends use INDmoney and they say support replies in minutes."
+        },
+        {
+          "role": "agent",
+          "content": "I hear you, and the frustration is justified. I've registered a formal complaint about the support delays with reference CMP20260810678, tagged your account for priority support for the next 90 days, and I will personally confirm once the ₹12,300 credits. I'm sorry we made this so hard."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "Unclaimed dividend of ₹12,300 pending 5 months combined with repeated failed attempts to reach support"
+        },
+        {
+          "signal": "churn_risk",
+          "confidence": "medium",
+          "reason": "Fed-up customer citing competitor INDmoney's faster support as an alternative"
+        }
+      ]
+    },
+    {
+      "externalId": "manoj_tiwari_68",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Your advisor made me invest ₹5 lakh in that midcap fund last year saying 15-18% returns. Today it shows minus 9%. My neighbour's simple FD earned more than my 'expert managed' portfolio. What do you say to that?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Manoj, I understand the disappointment, seeing negative returns is never easy. To be transparent: midcap funds have had a rough 12 months across the industry, your fund's category average is down 11%, so yours has actually held up slightly better. But I acknowledge the return expectations set during the sale were too aggressive."
+        },
+        {
+          "role": "customer",
+          "content": "So your answer is 'others lost more'? I didn't sign up to lose less than others, I signed up to grow my money. I want to withdraw everything before it becomes minus 20%."
+        },
+        {
+          "role": "agent",
+          "content": "That's a fair reaction. Two things to consider: withdrawing now locks in the ₹45,000 loss, and midcaps historically recover strongly after such corrections. A middle option is switching to a balanced advantage fund which cushions downside while keeping recovery potential. May I arrange a free portfolio review call with a senior advisor tomorrow before you decide?"
+        },
+        {
+          "role": "customer",
+          "content": "Okay, one call. But I'm telling you clearly, if I'm not convinced I'm withdrawing the full amount and never investing with you again."
+        },
+        {
+          "role": "agent",
+          "content": "Understood, Manoj. I've booked the review call for tomorrow at 6 PM and shared your portfolio details with the senior advisor along with your concerns about how returns were originally communicated. Thank you for the candid feedback."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "retention_risk",
+          "confidence": "high",
+          "reason": "Customer with ₹5 lakh investment down 9% threatening full withdrawal over poor returns versus promised 15-18%"
+        },
+        {
+          "signal": "complaint",
+          "confidence": "medium",
+          "reason": "Customer alleges advisor set unrealistic return expectations during the sale"
+        }
+      ]
+    },
+    {
+      "externalId": "pooja_bhatt_33",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Why has ₹236 been deducted from my account every month for the last 4 months as 'platform convenience fee'? I never agreed to any such fee. This is daylight robbery."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Pooja, let me check that for you. I see the charge started in April when the subscription plan you were on was migrated to our new Pro tier, which includes advanced analytics. A notification email was sent in March about this change."
+        },
+        {
+          "role": "customer",
+          "content": "One email buried in promotions counts as consent? I never used any 'advanced analytics'. I want all 4 months refunded, that's ₹944, and this fee stopped immediately or I'm deleting my account and posting about this on Twitter."
+        },
+        {
+          "role": "agent",
+          "content": "You're right — one email buried in promotions is not proper consent, and I apologise. I've done two things right now: downgraded you back to the free plan effective immediately, and initiated a full refund of ₹944 for all four months, which will credit within 5-7 working days with reference REF20260810553."
+        },
+        {
+          "role": "customer",
+          "content": "It better come. Honestly this has broken my trust, I've recommended your app to so many people."
+        },
+        {
+          "role": "agent",
+          "content": "I understand, and I'm sorry we put that trust at risk. I've also passed this feedback to our product team about making plan changes strictly opt-in. I'll message you personally once the refund is processed."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "Customer charged ₹944 over 4 months for a fee she never consented to, demanding refund"
+        },
+        {
+          "signal": "churn_risk",
+          "confidence": "medium",
+          "reason": "Customer threatened account deletion and public social media escalation over unauthorized fees"
+        }
+      ]
+    },
+    {
+      "externalId": "venkatesh_iyer_59",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I raised a ticket 11 days ago about my mutual fund units not showing after a switch transaction. Ticket number TKT88213. Every day I get the same copy-paste reply 'our team is working on it'. What exactly is your team working on?"
+        },
+        {
+          "role": "agent",
+          "content": "Venkatesh, I apologise for the runaround. Let me pull up TKT88213... I can see the switch from your value fund to the index fund was executed on the fund house side on 31st July, but the units haven't been reconciled in our app due to a data sync failure. Your money is safe with the fund house, it's a display issue on our end."
+        },
+        {
+          "role": "customer",
+          "content": "It took 11 days for someone to tell me my ₹3.2 lakh is safe?? I've been losing sleep thinking my money vanished. Your support is the worst I've experienced in any app, and I use at least ten."
+        },
+        {
+          "role": "agent",
+          "content": "That anxiety is completely on us and I'm sorry. Here's what happens now: I've escalated the sync issue to engineering with a 48-hour deadline, and I'm emailing you the official fund house statement right now showing your 11,240 units so you have independent proof your investment is intact."
+        },
+        {
+          "role": "customer",
+          "content": "Send that statement. And I want compensation for this harassment, 11 days of 'working on it' is a joke."
+        },
+        {
+          "role": "agent",
+          "content": "Statement sent to your registered email. I've also credited ₹500 worth of transaction fee vouchers to your account as an apology, and marked your original ticket for a root-cause review so you receive a formal closure report. You'll see the units in-app within 48 hours."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "Ticket unresolved for 11 days with templated replies while ₹3.2 lakh in units was missing from the app"
+        }
+      ]
+    },
+    {
+      "externalId": "farida_shaikh_47",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "My gold loan interest was supposed to be 9.5% as per the sales person but the statement shows 12.75%. When I call the branch they say 'rate depends on scheme'. Nobody explained any scheme to me. I am a widow managing alone, is this how you take advantage?"
+        },
+        {
+          "role": "agent",
+          "content": "Farida ji, I'm very sorry for this experience. Let me review your loan... I see you were onboarded under the standard scheme at 12.75%, but the promotional 9.5% scheme was active at your branch that same week and required a 6-month tenure selection, which wasn't offered to you."
+        },
+        {
+          "role": "customer",
+          "content": "So the salesman quoted the offer rate and then quietly put me on the expensive one? I have paid 3 EMIs already at wrong rate. I want to close this loan and go to Muthoot, at least they are honest about rates."
+        },
+        {
+          "role": "agent",
+          "content": "Your anger is justified. I'm doing the following: migrating your loan to the 9.5% scheme effective from your original start date, recalculating the 3 EMIs paid so the excess interest of approximately ₹4,100 is adjusted against your next EMI, and filing a mis-selling complaint against the onboarding, reference CMP20260810812."
+        },
+        {
+          "role": "customer",
+          "content": "Adjust it properly and send me everything in writing. I don't trust verbal promises from your company anymore."
+        },
+        {
+          "role": "agent",
+          "content": "Absolutely fair. A written confirmation letter with the revised rate, adjusted EMI schedule, and complaint reference will reach your email within 24 hours and a physical copy by post. I will also call you once the adjustment reflects. My sincere apologies, Farida ji."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "Gold loan mis-sold at 12.75% instead of the quoted 9.5% promotional rate, with 3 EMIs overcharged"
+        },
+        {
+          "signal": "churn_risk",
+          "confidence": "medium",
+          "reason": "Customer explicitly considering closing the loan and moving to competitor Muthoot over lost trust"
+        }
+      ]
+    },
+    {
+      "externalId": "aditya_kapoor_38",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I'm done. Three years of 'wealth management' and my portfolio XIRR is 6.2%. A Nifty index fund did 13% in the same period. I paid you 1% advisory fee every year to underperform a free index? Send me the account closure process."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Aditya, thank you for the direct feedback, and the numbers you've quoted are accurate. Your portfolio was positioned conservatively after the risk assessment in 2023 flagged you as moderate-risk, which capped equity at 50%. That positioning cost returns in a bull market, and the fee on top made it worse."
+        },
+        {
+          "role": "customer",
+          "content": "I told your advisor in 2024 itself to increase my equity and he said 'stay the course'. Staying the course cost me around ₹4 lakh in missed gains by my calculation. Why should I pay for advice that ignores what I ask?"
+        },
+        {
+          "role": "agent",
+          "content": "That 2024 conversation should have triggered a risk profile review, and it didn't — that's a genuine service failure. Before you close the account, here's what I can offer: advisory fee waived for the next 12 months, an immediate reallocation to your desired equity level, and a switch to our performance-linked fee plan where we only charge if we beat the index. If we still underperform, you lose nothing more by leaving then."
+        },
+        {
+          "role": "customer",
+          "content": "Performance-linked fee is the only honest model anyway. Alright, I'll give it one year, but I want the reallocation done this week and the 2024 review failure formally acknowledged."
+        },
+        {
+          "role": "agent",
+          "content": "Agreed on all three. The reallocation instructions are being placed today, the fee waiver and new plan are active from this billing cycle, and you'll receive a written acknowledgement of the 2024 service lapse within 2 working days. I appreciate you giving us the year, Aditya."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "churn_risk",
+          "confidence": "high",
+          "reason": "Customer requested account closure after 3 years of 6.2% XIRR versus 13% index returns while paying 1% advisory fee"
+        },
+        {
+          "signal": "complaint",
+          "confidence": "medium",
+          "reason": "Advisor ignored the customer's 2024 request to increase equity allocation without a risk profile review"
+        }
+      ]
+    },
+    {
+      "externalId": "ritu_malhotra_51",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I applied for premature closure of my FD 9 days back because I need money for my mother's surgery. Your app says 'processing', branch says 'apply online', online support says 'visit branch'. My mother's operation is on Friday. What do I do, beg?"
+        },
+        {
+          "role": "agent",
+          "content": "Ritu, I'm so sorry, both for the situation with your mother and for how we've handled this. No one should be passed around like that for their own money. Give me a moment to check the FD closure request... I see it stuck at a manual verification step that was never assigned to anyone."
+        },
+        {
+          "role": "customer",
+          "content": "Never assigned?! For 9 days?! It's ₹4.5 lakh and I need it in my account before Friday or I'll have to take an emergency loan at some crazy interest because of YOUR mistake."
+        },
+        {
+          "role": "agent",
+          "content": "You will not need to take a loan. I've escalated this to the operations head with a medical emergency flag — the verification is being completed right now while we chat. The FD closure will be processed today and ₹4.5 lakh plus accrued interest will credit to your account by tomorrow morning, well before Friday."
+        },
+        {
+          "role": "customer",
+          "content": "I'll believe it when I see the money. Honestly after this, once the surgery is done I'm moving my salary account and everything else out of this bank."
+        },
+        {
+          "role": "agent",
+          "content": "I understand, and right now the priority is your mother's surgery. The credit confirmation will be SMS'd to you tonight, and I've logged complaint reference CMP20260810934 for the unassigned request so it's formally investigated. Wishing your mother a smooth surgery and recovery."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "FD premature closure for a medical emergency stuck unassigned for 9 days with customer bounced between channels"
+        },
+        {
+          "signal": "churn_risk",
+          "confidence": "high",
+          "reason": "Customer stated she will move her salary account and all holdings out of the bank after the surgery"
+        }
+      ]
+    },
+    {
+      "externalId": "sameer_kulthe_88",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I just got an SMS saying 'New login to your account from Chrome on Windows, Mumbai' at 2:14 AM. I was sleeping and I only ever use the app on my phone in Nagpur. Someone is inside my account!"
+        },
+        {
+          "role": "agent",
+          "content": "Sameer, thank you for flagging this immediately. I'm putting a temporary security hold on your account right now so no transactions or changes can be made... Done. I can see the Mumbai login on our end. Have you shared your password or OTP with anyone recently, even accidentally?"
+        },
+        {
+          "role": "customer",
+          "content": "No, never. But I use the same password for many websites, honestly. Has anything been taken? I have ₹2.7 lakh in liquid funds there."
+        },
+        {
+          "role": "agent",
+          "content": "Checking your activity log... No redemptions, no bank account changes, no new mandates. The session only viewed your portfolio before our system flagged it. Reusing passwords is likely how they got in — if any other site was breached, attackers try the same credentials here. I've terminated all active sessions and logged out every device."
+        },
+        {
+          "role": "customer",
+          "content": "Thank god nothing is gone. What should I do now to make sure this doesn't happen again?"
+        },
+        {
+          "role": "agent",
+          "content": "Three things: I'm sending a password reset link to your registered mobile, please set a unique password you use nowhere else. Second, I've made two-factor authentication mandatory on your account, so every login now needs an OTP. Third, I've filed security incident SEC20260810644 and our fraud team will watch your account for 30 days. You'll get an SMS for any login attempt going forward."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "high",
+          "reason": "Unauthorized login from an unrecognised device and city, likely via credential reuse, caught before any funds were moved"
+        }
+      ]
+    },
+    {
+      "externalId": "bhavna_thakkar_54",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Please help urgently. My phone had no network since morning, and when I got it working with a new SIM, I saw messages that ₹95,000 was transferred from my account through UPI in 3 transactions last night. I did NOT do any of these!"
+        },
+        {
+          "role": "agent",
+          "content": "Bhavna, no network all morning followed by transfers you didn't make — this is the classic pattern of SIM swap fraud. Someone likely got a duplicate SIM issued in your name, received your OTPs, and made the transfers while your phone was dead. I'm blocking your UPI handle and freezing your account immediately... Done. Can you confirm the last transaction you made yourself?"
+        },
+        {
+          "role": "customer",
+          "content": "Last one by me was ₹1,200 to the grocery shop on Saturday morning. These three transfers of ₹40,000, ₹40,000 and ₹15,000 to some 'Rakesh Enterprises' are not mine. Can I get my money back? That's my son's school fees."
+        },
+        {
+          "role": "agent",
+          "content": "I've raised a fraud dispute for all three transactions totalling ₹95,000 with reference FRD20260810388, and flagged the beneficiary account to the receiving bank for a freeze. Since you're reporting within 24 hours of the debits, RBI's zero-liability protection applies for unauthorized electronic transactions. Please also do two things: file a complaint on cybercrime.gov.in or call 1930 right away — the golden hour matters for freezing the money — and ask your telecom operator how the duplicate SIM was issued."
+        },
+        {
+          "role": "customer",
+          "content": "Calling 1930 right now. How long for the provisional credit? And is my account safe to use after this?"
+        },
+        {
+          "role": "agent",
+          "content": "Provisional credit of ₹95,000 will reflect within 10 working days as per RBI norms, and I'll message you as soon as the receiving bank confirms the freeze. Your account stays frozen until your new SIM is verified — once you share the cybercrime acknowledgement number, we'll re-enable it with a new UPI PIN, fresh device binding, and a daily transfer limit you can set yourself."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "high",
+          "reason": "SIM swap attack led to three unauthorized UPI transfers totalling ₹95,000, reported within 24 hours"
+        }
+      ]
+    },
+    {
+      "externalId": "prakash_jadhav_61",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Sir, yesterday my mutual fund app was showing error so I searched customer care number on Google and called. The person asked me to install AnyDesk app to 'fix' the problem. Today ₹78,000 has been redeemed from my fund and sent to some account. I never approved this!"
+        },
+        {
+          "role": "agent",
+          "content": "Prakash ji, I'm sorry to tell you that number was not ours — fraudsters post fake helpline numbers on Google, and AnyDesk gave them full remote control of your phone, including your app and OTPs. First, please uninstall AnyDesk right now. I'm blocking your account and all pending transactions immediately... Done. The ₹78,000 redemption shows as processed with payout to a bank account added yesterday."
+        },
+        {
+          "role": "customer",
+          "content": "Uninstalled it. I feel so stupid, he sounded exactly like a real support person, even told me my name and folio number. Can the payout be stopped? It's from my emergency fund."
+        },
+        {
+          "role": "agent",
+          "content": "Don't blame yourself — these scammers are professionals and this exact fraud is very common. Good news: the payout is still in T+1 settlement and hasn't left for the beneficiary bank yet. I've placed an emergency stop on it and reversed the redemption request. Your units will be restored within 2 working days. I've also removed the fraudulent bank account they added and filed incident FRD20260810725."
+        },
+        {
+          "role": "customer",
+          "content": "Oh thank god, thank you! What about my phone? He had full control, what else can he see?"
+        },
+        {
+          "role": "agent",
+          "content": "Treat the phone as compromised: change your app PIN and password from a different device first, then change your email and banking passwords, and run a factory reset if possible. Never install screen-sharing apps for any 'support' call — we will never ask for that. Our real helpline is only the number printed in the app under Help. I've enforced a 48-hour cooling period on your account for any new bank account additions, and our fraud team will call you tomorrow to confirm everything is secure."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "high",
+          "reason": "Fake customer care number and AnyDesk remote access scam led to an unauthorized ₹78,000 redemption, stopped before settlement"
+        }
+      ]
+    },
+    {
+      "externalId": "ishita_banerjee_44",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, I want to change the email ID on my account from my old Yahoo to my Gmail. What's the process?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Ishita! Simple one — in the app go to Profile, then Contact Details, edit the email and confirm with the OTP that comes to your registered mobile. Two minutes. Anything else while I'm here?"
+        },
+        {
+          "role": "customer",
+          "content": "Doing it now. Btw slightly random, but for the past 2-3 days I keep getting OTP SMSes from you at odd hours, like 1 or 2 AM, when I'm not even using the app. Yesterday there were four or five. I've just been ignoring them, it's some glitch I guess?"
+        },
+        {
+          "role": "agent",
+          "content": "I'm glad you mentioned this — that's usually not a glitch. OTPs are generated only when someone enters your number or email on a login or reset screen. Once could be a stranger's typo, but repeated attempts at 1-2 AM suggests someone may be trying to get into your account. Please change your password right now from inside the app, and enable fingerprint login while you're in Settings. I'm also flagging your account for a security review of where those OTP requests came from."
+        },
+        {
+          "role": "customer",
+          "content": "Oh no, I genuinely thought it was an app bug. Okay, password changed and fingerprint is on. Email update is also done."
+        },
+        {
+          "role": "agent",
+          "content": "Perfect, the Gmail ID is verified and active. Our security team will trace the OTP request sources and message you if anything more is needed — and if the odd-hour OTPs continue even after the password change, tell us immediately."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "medium",
+          "reason": "Repeated late-night unrequested OTPs disclosed only in passing during a routine email change — likely ongoing access attempts the customer had been dismissing as a glitch, the kind of buried mention that goes unflagged"
+        }
+      ]
+    },
+    {
+      "externalId": "yusuf_qureshi_72",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I'm checking my trading account statement and there are 4 intraday trades in penny stocks on 6th August that I never placed. I only do delivery buying of large caps, maybe once a month. Total loss from these trades is ₹31,400. Who traded in MY account?"
+        },
+        {
+          "role": "agent",
+          "content": "Yusuf, unauthorized trades are a serious matter and I'm treating this on priority. I've suspended trading on your account right now and force-logged-out all sessions. I can see the 4 trades were placed via API access from a third-party terminal, not from our app. Did you ever generate an API key or link your account to any algo trading or 'guaranteed returns' platform?"
+        },
+        {
+          "role": "customer",
+          "content": "API key? Wait... 2 months back I joined a Telegram group that promised stock tips, and their 'account manager' walked me through some setup on the website to 'sync recommendations'. Is that what this is?"
+        },
+        {
+          "role": "agent",
+          "content": "Yes — that setup generated an API key that gave the Telegram operators direct trading access to your account. These groups run pump-and-dump schemes using victims' accounts to inflate penny stocks. I've revoked the API key permanently and preserved the trade logs. I'm filing this as unauthorized access, reference FRD20260810856, and you should also report the Telegram group to SEBI's SCORES portal — I'll send you the link and a pre-filled summary of the trades."
+        },
+        {
+          "role": "customer",
+          "content": "Please do. What about my ₹31,400? And when can I trade normally again?"
+        },
+        {
+          "role": "agent",
+          "content": "Since the trades came through an API key generated with your credentials, the recovery route is the SEBI complaint and police cybercrime report — I'll support both with complete evidence: IP logs, timestamps, and order trails. Meanwhile, your account is being reactivated with API access disabled, a new password, and mandatory OTP for every order placed outside our official app. Our fraud team will also review whether the counterparty accounts in those trades can be traced — some victims do recover funds when SEBI freezes the operators' accounts."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "high",
+          "reason": "Telegram stock-tip scam obtained API access and placed 4 unauthorized penny stock trades causing ₹31,400 loss"
+        }
+      ]
+    },
+    {
+      "externalId": "manish_gupta_44",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, my CA is asking for capital gains statement for FY 2025-26 for ITR filing. Where do I find it in the app?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Manish! Go to Profile > Reports > Tax Reports, select FY 2025-26 and tap Download. You'll get a PDF plus an Excel that most CAs prefer. It covers both realised gains and dividend income."
+        },
+        {
+          "role": "customer",
+          "content": "Got it, downloaded. By the way, my CA also mentioned I should look at NPS for extra tax saving. Do you people offer NPS also?"
+        },
+        {
+          "role": "agent",
+          "content": "Yes, we do! You can open an NPS account in the app under Invest > NPS, with the additional ₹50,000 deduction under 80CCD(1B) over your 80C limit. If you'd like, I can send a short explainer to help you decide before the financial year ends."
+        },
+        {
+          "role": "customer",
+          "content": "Sure, send it. No hurry, I'll look at it after filing this year's return."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "low",
+          "reason": "Routine tax report query with a passing interest in NPS, no urgency or commitment"
+        }
+      ]
+    },
+    {
+      "externalId": "divya_nambiar_56",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hello, I want to change my SIP date from 5th to 10th. My company changed salary credit date so 5th is not working for me."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Divya, sure thing. I can shift your ₹4,500 SIP from the 5th to the 10th of every month. The change takes effect from next month's cycle. Should I also update your auto-debit mandate date to match?"
+        },
+        {
+          "role": "customer",
+          "content": "Yes please, both. Last month the debit bounced because salary came late and I got a mandate failure SMS. Nothing bad happened right?"
+        },
+        {
+          "role": "agent",
+          "content": "No damage done — one missed SIP instalment doesn't attract a penalty from us, though the bank may levy a small mandate return fee. I've changed both dates to the 10th now. You'll get a confirmation SMS within an hour."
+        },
+        {
+          "role": "customer",
+          "content": "Perfect, thanks for the quick help!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "retention_risk",
+          "confidence": "low",
+          "reason": "A bounced mandate and a salary-date shift are early payment-friction markers worth a follow-up, even though the customer proactively fixed the cause"
+        }
+      ]
+    },
+    {
+      "externalId": "arnav_bhatia_19",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I redeemed ₹75,000 from my equity fund 6 days back. App said 3-4 working days. Money is still not in my bank. This is my brother's wedding money, I need it NOW."
+        },
+        {
+          "role": "agent",
+          "content": "Arnav, I understand the urgency and I'm sorry for the stress. Let me trace it... The redemption was processed by the AMC on time, but the payout failed and the credit was returned to the AMC yesterday."
+        },
+        {
+          "role": "customer",
+          "content": "Failed?? I use that account every day! What do I do now, the wedding is Saturday!"
+        },
+        {
+          "role": "agent",
+          "content": "The IFSC on record belongs to your old branch which merged last year — that's why the credit bounced. Fastest fix: update your bank details with the new IFSC in Profile > Bank Accounts, verify with a penny-drop, and I'll flag the reprocessing as urgent with the AMC. With that done today, the money should credit within 48 hours, before Saturday."
+        },
+        {
+          "role": "customer",
+          "content": "Updating it right now. Please make sure it's tracked, I can't chase this again."
+        },
+        {
+          "role": "agent",
+          "content": "Verified — your new IFSC just passed the penny-drop check. I've raised the urgent reprocessing with reference RD20260810668 and will message you the moment the AMC confirms the payout. You won't need to follow up."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "high",
+          "reason": "Time-critical ₹75,000 redemption payout failure due to stale IFSC, customer distressed with hard deadline"
+        }
+      ]
+    },
+    {
+      "externalId": "ritika_sood_82",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, how do I export my complete holdings with purchase dates and prices? Want it in Excel format."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Ritika! Go to Portfolio > three-dot menu > Export Holdings, and choose Excel. It includes fund names, units, purchase dates, invested value and current value. Anything specific you're trying to work out? Happy to help."
+        },
+        {
+          "role": "customer",
+          "content": "Just keeping my own records. Also honestly I've been trying out Zerodha Coin side by side, want to compare my returns properly across both."
+        },
+        {
+          "role": "agent",
+          "content": "That makes sense, comparing is fair. One tip: use XIRR rather than absolute returns for a like-to-like comparison, our export includes it per fund. And if there's anything you feel Coin does better, I'd genuinely like to pass on the feedback."
+        },
+        {
+          "role": "customer",
+          "content": "Mostly their UI for tracking is cleaner. Your fund options are better though. Anyway, thanks for the export help!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "churn_risk",
+          "confidence": "medium",
+          "reason": "Holdings export plus side-by-side XIRR comparison on a competitor app is classic pre-switch research, easy to miss because the tone stays friendly and nothing is complained about"
+        }
+      ]
+    },
+    {
+      "externalId": "sanjay_dubey_70",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I just got an SMS that a UPI autopay mandate of ₹15,000 per month was set up on my account for 'QuickGamingPro'. I never did this! I don't even play games!"
+        },
+        {
+          "role": "agent",
+          "content": "Sanjay, thank you for flagging this immediately. I can see the mandate was created 20 minutes ago via UPI. I'm suspending it right now so no money can be debited... Done, the mandate is blocked. Has any amount actually been debited yet?"
+        },
+        {
+          "role": "customer",
+          "content": "No debit yet, balance is same. But how did this even happen? I didn't approve anything on my UPI app. My phone was with my nephew for an hour today though, he plays games on it."
+        },
+        {
+          "role": "agent",
+          "content": "That's very likely the source — mandate approvals only need the UPI PIN on the device, and kids often approve prompts inside game apps without realising. Since no money moved, there's no loss. I've cancelled the mandate permanently and I recommend changing your UPI PIN today and enabling app lock on your UPI app. Also check the game's account settings on the phone for stored payment methods."
+        },
+        {
+          "role": "customer",
+          "content": "Oh god, it must be him. Changing the PIN now. Thank you for blocking it so fast!"
+        },
+        {
+          "role": "agent",
+          "content": "Glad we caught it before any debit, Sanjay. I've noted the incident on your account with reference UPI20260810554. If you see any suspicious SMS again, reach out immediately."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "fraud",
+          "confidence": "medium",
+          "reason": "Unauthorized UPI autopay mandate blocked before any debit, likely caused by family member on customer's device rather than external fraud"
+        }
+      ]
+    },
+    {
+      "externalId": "neha_chandra_33",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "There's a charge of ₹399 on my credit card from 'BBPRIME' that I don't recognise. Is this fraud? Should I block my card?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Neha, let me look before you block anything. BBPRIME is the billing name for BigBasket's annual membership. I see the same charge on your card in August last year too — it looks like an auto-renewal of a membership you took last year."
+        },
+        {
+          "role": "customer",
+          "content": "Ohhh, the bigbasket membership! I completely forgot about that. I do use it, so it's fine. These billing names are so confusing honestly."
+        },
+        {
+          "role": "agent",
+          "content": "You're not alone — unclear merchant names are one of our most common queries! Tip: in the app under Card > Subscriptions you can see all recurring charges on your card with their real merchant names, and cancel any from there directly. No block needed, your card is safe."
+        },
+        {
+          "role": "customer",
+          "content": "That subscriptions view is useful, found two more I'd forgotten about. Thanks!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "low",
+          "reason": "Fraud scare from an unclear merchant billing name, resolved as a forgotten subscription with no dispute — recurring descriptor confusion that drives avoidable panic contacts"
+        }
+      ]
+    },
+    {
+      "externalId": "varun_khanna_88",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Quick question, what does XIRR mean in my portfolio? It shows 14.2% but my absolute return shows 31%. Which one is real?"
+        },
+        {
+          "role": "agent",
+          "content": "Good question, Varun! Both are real, they measure differently. Absolute return is total growth since you invested (31% over your ~2.5 years). XIRR is the annualised rate accounting for the timing of every SIP instalment — 14.2% per year in your case, which is the better number for comparing against FDs or other investments."
+        },
+        {
+          "role": "customer",
+          "content": "Ah makes sense, so 14.2% yearly. That's way better than my FD giving 7%. Maybe I should move some FD money here too, but let me think about it."
+        },
+        {
+          "role": "agent",
+          "content": "It has been a strong period for equity, though do keep in mind markets fluctuate year to year unlike FDs. If you ever want, we can look at your FD maturity dates and plan a staggered move that matches your risk comfort. No pressure, just say the word!"
+        },
+        {
+          "role": "customer",
+          "content": "Cool, will ping you when my FD matures in November. Thanks for explaining!"
+        }
+      ],
+      "labels": [
+        {
+          "signal": "upsell",
+          "confidence": "low",
+          "reason": "Customer casually mentioned possibly moving FD money after understanding returns, deferred to November with no commitment"
+        }
+      ]
+    },
+    {
+      "externalId": "shalini_pandey_61",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I just saw an email that your advisory fee is increasing from 0.5% to 0.75% from October. That's a 50% hike! Nobody asked us. How do I close my account and move out?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Shalini, I understand the frustration — a fee change affects returns directly and the communication should have been clearer. Before you decide, may I share what's changing? The new fee includes quarterly rebalancing calls and tax-loss harvesting, which on a ₹15 lakh portfolio like yours typically saves more than the 0.25% difference."
+        },
+        {
+          "role": "customer",
+          "content": "That's what every company says when they raise prices. I did the math, 0.25% extra on ₹15 lakh is ₹3,750 a year. Direct funds on Kuvera cost me zero. Give me one real reason to stay."
+        },
+        {
+          "role": "agent",
+          "content": "Fair challenge. Honestly, if you're comfortable choosing and rebalancing funds yourself, direct plans are cheaper and I won't pretend otherwise. What we add is discipline and tax optimisation — last year our harvesting saved you ₹6,200 in LTCG tax, which is in your March report. Alternatively, I can grandfather you at 0.5% for 12 more months as a long-time customer. Would that work?"
+        },
+        {
+          "role": "customer",
+          "content": "Hmm. Keep me at 0.5% for the year and I'll stay for now. But I'm watching, if service drops I'm gone."
+        },
+        {
+          "role": "agent",
+          "content": "Locked in — 0.5% until October 2027, confirmation email on its way. And noted seriously on the service expectation, Shalini. Thank you for being direct with us."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "retention_risk",
+          "confidence": "high",
+          "reason": "Customer threatened account closure over 50% advisory fee hike, retained only via a 12-month fee grandfather"
+        }
+      ]
+    },
+    {
+      "externalId": "rajesh_thakur_26",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "Hi, my father is 58 and retiring in 2 years. Is it too late for him to get term insurance? Roughly what would premium be?"
+        },
+        {
+          "role": "agent",
+          "content": "Hi Rajesh! Not too late, though premiums at 58 are steep — a ₹50 lakh cover for 10 years would run roughly ₹55,000-70,000 per year depending on his health. May I ask what you're trying to protect against? For retirees, sometimes health insurance or an annuity fits the actual need better than term cover."
+        },
+        {
+          "role": "customer",
+          "content": "Main worry is his pending home loan of ₹18 lakh. If something happens to him, mom shouldn't have that burden."
+        },
+        {
+          "role": "agent",
+          "content": "That clarifies it — for loan protection specifically, a decreasing-cover term plan matched to the loan schedule is much cheaper, roughly ₹25,000-30,000 per year for ₹18 lakh reducing cover. Some lenders also offer loan insurance directly. If you share his loan tenure and lender, I can get exact quotes from 3 insurers."
+        },
+        {
+          "role": "customer",
+          "content": "It's with LIC Housing Finance, 8 years left. Send me the quotes, I'll discuss with dad this weekend."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "lead",
+          "confidence": "medium",
+          "reason": "Genuine insurance need for father's loan protection with quotes requested, but decision pending family discussion"
+        }
+      ]
+    },
+    {
+      "externalId": "kiran_hegde_47",
+      "messages": [
+        {
+          "role": "customer",
+          "content": "I'm not getting OTP to login since morning. Tried 6 times. I just want to check if my SIP went through today. Very annoying."
+        },
+        {
+          "role": "agent",
+          "content": "Hi Kiran, sorry about that, I know repeated OTP failures are maddening. First, your SIP: I can confirm the ₹2,500 instalment was debited successfully at 9:40 AM today, so nothing missed. Now for the OTP — are you on Jio by any chance? There's a known SMS delivery delay with some Jio circles since last night."
+        },
+        {
+          "role": "customer",
+          "content": "Yes Jio. So it's not my phone's problem? When will it be fixed?"
+        },
+        {
+          "role": "agent",
+          "content": "Not your phone. The operator issue should resolve within a few hours, but you don't have to wait — tap 'Get OTP on email' on the login screen, or use the 'Login with PIN' option if you'd set up a PIN earlier. Both work right now."
+        },
+        {
+          "role": "customer",
+          "content": "Email OTP worked, I'm in. SIP is showing done. Thanks, all good now."
+        }
+      ],
+      "labels": [
+        {
+          "signal": "complaint",
+          "confidence": "low",
+          "reason": "Temporary OTP delivery issue caused by telecom operator, resolved in-chat with alternate login, mild annoyance only"
+        }
+      ]
+    }
+  ]
+}

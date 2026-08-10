@@ -1,0 +1,331 @@
+import { existsSync, readFileSync } from "fs";
+import path from "path";
+import { runDetection } from "./detect";
+import { computeEvalMetrics, type EvalMetrics } from "./eval";
+import { toStoreRecords, type IngestConversationInput } from "./ingest";
+import type { SignalType, StoreData } from "./types";
+
+const TENANT_ID = "tenant_demo";
+const TESTING_JSON_FILENAME = "testing.json";
+
+/** Product GT priority for multi-label rows (lower = preferred). */
+const PRODUCT_PRIORITY: Record<SignalType, number> = {
+  retention: 0,
+  upsell: 1,
+  lead: 2,
+};
+
+const SOURCE_TO_GT: Record<string, SignalType | "none"> = {
+  lead: "lead",
+  upsell: "upsell",
+  churn_risk: "retention",
+  retention_risk: "retention",
+  complaint: "none",
+  fraud: "none",
+};
+
+export const EXPECTED_TESTING_JSON = {
+  conversations: 41,
+  lead: 8,
+  retention: 14,
+  upsell: 5,
+  none: 14,
+} as const;
+
+export type ConfusionKind = "false_positive" | "false_negative";
+
+export interface ConfusionExample {
+  kind: ConfusionKind;
+  externalId: string;
+  expected: SignalType | "none";
+  predicted: SignalType[];
+  snippet: string;
+  /** Lower = higher severity for reporting sort. */
+  severity: number;
+}
+
+export interface TestingJsonEvalResult {
+  absolutePath: string;
+  store: StoreData;
+  metrics: EvalMetrics;
+  confusion: ConfusionExample[];
+}
+
+interface RawLabel {
+  signal?: unknown;
+  confidence?: unknown;
+  reason?: unknown;
+}
+
+interface RawConversation {
+  externalId?: unknown;
+  messages?: unknown;
+  labels?: unknown;
+}
+
+function resolveTestingJsonPath(repoRoot?: string): string {
+  const root =
+    repoRoot ??
+    // Vitest / npm scripts run from web/
+    path.join(process.cwd(), "..");
+  return path.join(root, TESTING_JSON_FILENAME);
+}
+
+function asTrimmedString(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return "";
+}
+
+function normalizeRole(value: unknown): "customer" | "agent" | "system" {
+  const raw = asTrimmedString(value).toLowerCase();
+  if (
+    raw === "agent" ||
+    raw === "admin" ||
+    raw === "support" ||
+    raw === "bot" ||
+    raw === "assistant"
+  ) {
+    return "agent";
+  }
+  if (raw === "system") return "system";
+  return "customer";
+}
+
+/**
+ * Map testing.json `labels[].signal` → single product `groundTruth`.
+ * Multi-label: first product signal by priority retention > upsell > lead.
+ * Pure complaint/fraud → none.
+ */
+export function mapTestingLabelsToGroundTruth(
+  labels: RawLabel[] | undefined
+): SignalType | "none" {
+  const product: SignalType[] = [];
+  for (const label of labels ?? []) {
+    const signal = asTrimmedString(label.signal).toLowerCase();
+    const mapped = SOURCE_TO_GT[signal];
+    if (mapped && mapped !== "none") {
+      product.push(mapped);
+    }
+  }
+  if (product.length === 0) return "none";
+  product.sort((a, b) => PRODUCT_PRIORITY[a] - PRODUCT_PRIORITY[b]);
+  return product[0];
+}
+
+function parseTestingConversation(
+  raw: RawConversation
+): IngestConversationInput | null {
+  const messagesRaw = Array.isArray(raw.messages) ? raw.messages : [];
+  const messages = messagesRaw
+    .map((m) => {
+      if (!m || typeof m !== "object") return null;
+      const msg = m as Record<string, unknown>;
+      const content = asTrimmedString(msg.content ?? msg.text ?? msg.body);
+      if (!content) return null;
+      return {
+        role: normalizeRole(msg.role ?? msg.sender ?? msg.author),
+        content,
+      };
+    })
+    .filter((m): m is NonNullable<typeof m> => m !== null);
+
+  if (messages.length === 0) return null;
+
+  const labels = Array.isArray(raw.labels)
+    ? (raw.labels as RawLabel[])
+    : undefined;
+
+  return {
+    externalId: asTrimmedString(raw.externalId) || undefined,
+    groundTruth: mapTestingLabelsToGroundTruth(labels),
+    messages,
+  };
+}
+
+export function parseTestingJsonDocument(
+  text: string
+): IngestConversationInput[] {
+  const parsed = JSON.parse(text) as unknown;
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !Array.isArray((parsed as { conversations?: unknown }).conversations)
+  ) {
+    throw new Error("testing.json must be { conversations: [...] }");
+  }
+
+  const conversations = (
+    parsed as { conversations: RawConversation[] }
+  ).conversations
+    .map(parseTestingConversation)
+    .filter((c): c is IngestConversationInput => c !== null);
+
+  if (conversations.length === 0) {
+    throw new Error("testing.json contained no usable conversations");
+  }
+
+  return conversations;
+}
+
+function firstCustomerSnippet(
+  store: StoreData,
+  conversationId: string
+): string {
+  const conversation = store.conversations.find((c) => c.id === conversationId);
+  if (!conversation) return "";
+  for (const messageId of conversation.messageIds) {
+    const message = store.messages.find((m) => m.id === messageId);
+    if (message?.role === "customer" && message.content) {
+      const text = message.content.replace(/\s+/g, " ").trim();
+      return text.length > 140 ? `${text.slice(0, 137)}…` : text;
+    }
+  }
+  return "";
+}
+
+function signalSnippet(
+  store: StoreData,
+  conversationId: string
+): string {
+  const signals = store.signals.filter((s) => s.conversationId === conversationId);
+  for (const signal of signals) {
+    const evidence = signal.evidence?.[0];
+    if (evidence) {
+      const text = evidence.replace(/\s+/g, " ").trim();
+      return text.length > 140 ? `${text.slice(0, 137)}…` : text;
+    }
+  }
+  return firstCustomerSnippet(store, conversationId);
+}
+
+/**
+ * Conversation-level FP/FN examples for reporting.
+ * Severity: wrong-type FP (0) < none-as-signal FP (1) < FN miss (2).
+ */
+export function listConfusionExamples(store: StoreData): ConfusionExample[] {
+  const examples: ConfusionExample[] = [];
+  const labeled = store.conversations.filter((c) => c.groundTruth);
+
+  for (const conversation of labeled) {
+    const expected = conversation.groundTruth!;
+    const preds = store.signals.filter(
+      (s) => s.conversationId === conversation.id
+    );
+    const predicted = preds.map((s) => s.type);
+    const externalId = conversation.externalId ?? conversation.id;
+    const snippet = signalSnippet(store, conversation.id);
+
+    if (expected === "none") {
+      if (preds.length > 0) {
+        examples.push({
+          kind: "false_positive",
+          externalId,
+          expected,
+          predicted,
+          snippet,
+          severity: 1,
+        });
+      }
+      continue;
+    }
+
+    const hits = preds.filter((s) => s.type === expected);
+    const misses = preds.filter((s) => s.type !== expected);
+
+    if (hits.length === 0) {
+      examples.push({
+        kind: "false_negative",
+        externalId,
+        expected,
+        predicted,
+        snippet: firstCustomerSnippet(store, conversation.id),
+        severity: 2,
+      });
+    }
+
+    if (misses.length > 0) {
+      examples.push({
+        kind: "false_positive",
+        externalId,
+        expected,
+        predicted,
+        snippet,
+        severity: 0,
+      });
+    }
+  }
+
+  return examples.sort((a, b) => {
+    if (a.severity !== b.severity) return a.severity - b.severity;
+    return a.externalId.localeCompare(b.externalId);
+  });
+}
+
+/** Load testing.json → map labels → ingest → detect → metrics + confusion. */
+export function loadTestingJsonEval(options?: {
+  repoRoot?: string;
+  absolutePath?: string;
+  tenantId?: string;
+}): TestingJsonEvalResult {
+  const tenantId = options?.tenantId ?? TENANT_ID;
+  const absolutePath =
+    options?.absolutePath ?? resolveTestingJsonPath(options?.repoRoot);
+
+  if (!existsSync(absolutePath)) {
+    throw new Error(
+      `Missing ${TESTING_JSON_FILENAME} at ${absolutePath}. Expected at repo root.`
+    );
+  }
+
+  const content = readFileSync(absolutePath, "utf8");
+  const inputs = parseTestingJsonDocument(content);
+  const { conversations, messages } = toStoreRecords(inputs, tenantId);
+  const signals = runDetection(conversations, messages, tenantId);
+
+  const store: StoreData = {
+    tenant: {
+      id: tenantId,
+      name: "testing.json synthetic eval",
+      createdAt: "2026-08-11T00:00:00.000Z",
+    },
+    conversations,
+    messages,
+    signals,
+    pilot: { baselineOpportunities: 0 },
+  };
+
+  return {
+    absolutePath,
+    store,
+    metrics: computeEvalMetrics(store),
+    confusion: listConfusionExamples(store),
+  };
+}
+
+export function formatTestingJsonMetrics(metrics: EvalMetrics): string {
+  const pct = (value: number | null) =>
+    value === null ? "n/a" : value.toFixed(2);
+  const lines = [
+    `labeled=${metrics.labeledConversations} P=${pct(metrics.labeledPrecision)} R=${pct(metrics.labeledRecall)} TP=${metrics.truePositives} FP=${metrics.falsePositives} FN=${metrics.falseNegatives}`,
+    ...metrics.byType.map(
+      (row) =>
+        `${row.type}: labeled=${row.labeledCount} P=${pct(row.precision)} R=${pct(row.recall)} TP=${row.truePositives} FP=${row.falsePositives} FN=${row.falseNegatives}`
+    ),
+  ];
+  return lines.join("\n");
+}
+
+export function formatConfusionExamples(
+  examples: ConfusionExample[],
+  limit = 10
+): string {
+  if (examples.length === 0) return "(no FP/FN)";
+  return examples
+    .slice(0, limit)
+    .map(
+      (ex, i) =>
+        `${i + 1}. [${ex.kind}] ${ex.externalId} expected=${ex.expected} predicted=[${ex.predicted.join(",") || "—"}] — ${ex.snippet || "(no snippet)"}`
+    )
+    .join("\n");
+}

@@ -1,6 +1,6 @@
 # Sioona – Project State
 
-**Last updated:** August 10, 2026  
+**Last updated:** August 11, 2026  
 **Current Stage:** MVP – Insights + Shadow Mode
 
 ---
@@ -52,11 +52,17 @@ It works as an **overlay** on existing chat tools (does not replace them).
 - Day-1 pilot packaging: fail-loud `predictionSync` UX (upload / re-detect / partner demo → Insights `syncFailed` banner); partner demo returns `predictionSync`; Neon stub detail honest empty evidence + feedback via prediction UUID
 - 7-day Shadow Mode pilot cadence UI: one `Week1PilotStrip` on Upload / Insights / Eval (Day 1 → mid-week re-upload → ≥5 reviews → baseline → go/no-go); `pilot.weeklyExportCount` advances on partner file ingest only; cross-links Upload ↔ Insights ↔ Eval; display-only actions
 - Detection precision pass on synthetics: tightened upsell/lead phrases + support negatives; keyword-only ≥2 hits; soft-retention refund phrases; hard-negative fixtures; sample pack lead-vs-upsell label alignment
+- Synthetic eval on root `testing.json` (41 convs / 231 msgs; measurement baseline, not P/R=1.0 gate): loader `web/src/lib/testing-json-eval.ts` maps `labels[]` → `groundTruth` (lead/upsell as-is; churn_risk|retention_risk→retention; complaint|fraud→none; multi-label priority retention>upsell>lead) → ingest → detect → `computeEvalMetrics`. Run: `npx vitest run src/lib/testing-json.eval.test.ts` from `web/`
+  - **Before narrow recall pass:** P **0.83** / R **0.19** (TP 5 / FP 1 / FN 22)
+  - **After narrow recall pass:** P **0.92** / R **0.41** (TP 11 / FP 1 / FN 16) — mix after map: lead 8 · retention 14 · upsell 5 · none 14
+  - **Per-type (after):** lead P0.67/R0.25 · retention P1.00/R0.50 · upsell P1.00/R0.40
+  - **FP delta:** still **1** FP (same wrong-type `nisha_agarwal_84` upsell→lead on forex/international); **no new FPs**
+  - **Narrow taxonomy adds only:** upsell `want to invest more` / `invest more` / top-up loan phrases; lead keyword `first time` + `don't have any credit card`; retention soft-churn (`thinking of shifting`, `moving my portfolio`, `deleting my account`, `account closure process`, `cancel this card`). Soft/ops FNs intentionally left ignored. Fixtures in `detect.test.ts`; fixture + partner-pack gates still P/R 1.0
 
 ### In Progress
 
 - Dual-write: multi-retry + backoff (3 attempts, 50/150ms) + `backendFetch` AbortSignal timeout (2.5s); feedback lazy-create remains safety net
-- Residual detection gap: partner-shaped pack at P/R 1.00/1.00; Day-1 real-export lane ready — drop redacted CSV at `web/data/samples/real-partner-export.local.csv` (from `real-partner-export.template.csv`) and run `npx vitest run src/lib/partner-export.eval.test.ts` (loader `partner-export-eval.ts`); still need real partner exports filled in
+- **Residual detection gap = real partner transcripts:** partner-shaped pack + fixture gates at P/R 1.00; `testing.json` measured after narrow recall pass (P0.92/R0.41). Day-1 real-export lane ready — drop redacted CSV at `web/data/samples/real-partner-export.local.csv` (from `real-partner-export.template.csv`) and run `npx vitest run src/lib/partner-export.eval.test.ts` (loader `partner-export-eval.ts`); still need real partner exports filled in
 
 ### Not Started / Later
 
@@ -102,7 +108,7 @@ This is a **critical** trust metric for pilots.
 
 ## 6. Current Highest-Leverage Priorities
 
-1. Improve detection on **real partner transcripts** (synthetic + partner-shaped packs gated; Day-1 export lane ready)
+1. Improve detection on **real partner transcripts** (synthetic `testing.json` measured; partner-shaped + fixtures gated; Day-1 export lane ready — residual gap is real exports)
 2. Run the 7-day cadence with a real partner export (strip is in-product; prove precision + lift on their chats)
 3. Only then expand Auth0 / full Neon chats / fine-tuning
 

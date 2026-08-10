@@ -241,6 +241,95 @@ describe("runDetection", () => {
     }
   });
 
+  it("recovers invest-more / top-up upsell true gaps", () => {
+    const cases = [
+      conv(
+        "c_invest_more",
+        "upsell",
+        "I've been doing a SIP for 2 years. I got a salary hike so I want to invest more — what are my options?"
+      ),
+      conv(
+        "c_topup_loan",
+        "upsell",
+        "I took a used car loan from you last year. Can I get a top-up or new loan for a Scorpio?"
+      ),
+    ];
+    for (const { conversation, messages } of cases) {
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "upsell")).toBe(true);
+    }
+  });
+
+  it("recovers first-card apply lead true gap", () => {
+    const { conversation, messages } = conv(
+      "c_first_card",
+      "lead",
+      "I saw your ad about the zero-fee credit card. I don't have any credit card right now, first time. Can I apply?"
+    );
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals.some((s) => s.type === "lead")).toBe(true);
+  });
+
+  it("recovers soft churn retention without hard close-my-account", () => {
+    const cases = [
+      conv(
+        "c_shift_portfolio",
+        "retention",
+        "Groww is much easier. I'm thinking of shifting everything there — if it's not fixed I'm moving my portfolio out."
+      ),
+      conv(
+        "c_deleting",
+        "retention",
+        "Refund this fee immediately or I'm deleting my account and posting about this."
+      ),
+      conv(
+        "c_closure_process",
+        "retention",
+        "Send me the account closure process. Your advisory underperformed a free index."
+      ),
+      conv(
+        "c_cancel_card",
+        "retention",
+        "I barely use this card anymore. Just cancel this card, I don't want it."
+      ),
+    ];
+    for (const { conversation, messages } of cases) {
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "retention")).toBe(true);
+    }
+  });
+
+  it("still ignores soft/ops cases that should not become signals", () => {
+    const hardNegatives = [
+      "Hello, I want to change my SIP date from 5th to 10th.",
+      "Hi, my CA is asking for capital gains statement for ITR filing. Where do I find it in the app?",
+      "Hey! Quick question — if I pause my SIP for 2 months, does it affect anything?",
+      "Hi, I want to prepay ₹50,000 towards my personal loan this month. Is there any charge?",
+      "Quick question, what does XIRR mean in my portfolio?",
+    ];
+    for (const text of hardNegatives) {
+      const { conversation, messages } = conv("c_soft_ops", "none", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals).toEqual([]);
+    }
+  });
+
   it("suppresses fintech servicing complaints from becoming leads", () => {
     const cases = [
       "I want a refund for the double charge.",
