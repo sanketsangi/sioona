@@ -24,9 +24,6 @@ export function SignalScoreSummary({
 }) {
   const online = score !== null;
   const primary = online ? formatPercent(score.signal_score) : "—";
-  const hint = online
-    ? `${score.correct_count} correct · ${score.reviewed_count} reviewed`
-    : "Backend offline — score unavailable";
   const byType = online ? score.by_signal_type : [];
 
   return (
@@ -35,15 +32,15 @@ export function SignalScoreSummary({
       aria-label="Signal Score"
       aria-live="polite"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ds-gray-400 px-4 py-2.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-4 py-2.5">
         <p className="eyebrow">Signal Score</p>
-        <p className="text-label-12 text-ds-gray-900">
+        <p className="text-label-12 text-sio-fg-subtle">
           {online ? "From Neon" : "Backend offline"}
         </p>
       </div>
 
       <div
-        className={`grid divide-x divide-ds-gray-400 ${
+        className={`grid divide-x divide-sio-border-base ${
           compact
             ? "grid-cols-1"
             : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]"
@@ -51,21 +48,44 @@ export function SignalScoreSummary({
       >
         <div className="metric-cell">
           <div className="metric-label">Overall</div>
-          <div className="tabular mt-0.5 text-heading-20 text-ds-gray-1000">
+          <div
+            className={`font-mono tabular mt-0.5 text-sio-fg-base ${
+              compact ? "text-heading-20" : "text-heading-24"
+            }`}
+          >
             {primary}
           </div>
-          <p className="mt-0.5 text-label-12 text-ds-gray-900">{hint}</p>
+          {online ? (
+            <>
+              <p className="mt-1.5 tabular text-copy-14 text-sio-fg-base">
+                Reviewed{" "}
+                <span className="font-medium">{score.reviewed_count}</span>
+                <span className="text-sio-fg-subtle"> · </span>
+                Correct{" "}
+                <span className="font-medium">{score.correct_count}</span>
+              </p>
+              <p className="mt-0.5 tabular text-label-12 text-sio-fg-subtle">
+                Incorrect {score.incorrect_count}
+                <span aria-hidden> · </span>
+                Partially correct {score.partially_correct_count}
+              </p>
+            </>
+          ) : (
+            <p className="mt-1.5 text-label-12 text-sio-fg-subtle">
+              Backend offline — score unavailable
+            </p>
+          )}
         </div>
 
         {!compact ? (
           <div className="min-w-0 px-4 py-3">
             <div className="metric-label">By Signal Type</div>
             {!online ? (
-              <p className="mt-2 text-copy-14 text-ds-gray-900">
+              <p className="mt-2 text-copy-14 text-sio-fg-subtle">
                 Start the FastAPI backend to load Signal Score from Neon.
               </p>
             ) : byType.length === 0 ? (
-              <p className="mt-2 text-copy-14 text-ds-gray-900">
+              <p className="mt-2 text-copy-14 text-sio-fg-subtle">
                 No reviews yet. Mark signals in Shadow Mode to build the score.
               </p>
             ) : (
@@ -75,11 +95,11 @@ export function SignalScoreSummary({
                     key={row.signal_type}
                     className="flex min-w-0 items-baseline justify-between gap-3 text-copy-14"
                   >
-                    <span className="min-w-0 truncate text-ds-gray-1000">
+                    <span className="min-w-0 truncate text-sio-fg-base">
                       {typeLabel(row.signal_type)}
                     </span>
-                    <span className="shrink-0 tabular text-ds-gray-900">
-                      <span className="font-medium text-ds-gray-1000">
+                    <span className="shrink-0 font-mono tabular text-sio-fg-subtle">
+                      <span className="font-medium text-sio-fg-base">
                         {formatPercent(row.signal_score)}
                       </span>
                       <span className="ml-2 text-label-12">
@@ -95,11 +115,12 @@ export function SignalScoreSummary({
       </div>
 
       {compact && online && byType.length > 0 ? (
-        <div className="border-t border-ds-gray-400 px-4 py-2.5">
-          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label-13 text-ds-gray-900">
+        <div className="border-t border-sio-border-base px-4 py-2.5">
+          <div className="metric-label mb-1.5">By Signal Type</div>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label-13 text-sio-fg-subtle">
             {byType.map((row) => (
-              <li key={row.signal_type} className="tabular">
-                <span className="text-ds-gray-1000">
+              <li key={row.signal_type} className="font-mono tabular">
+                <span className="font-sans text-sio-fg-base">
                   {typeLabel(row.signal_type)}
                 </span>{" "}
                 {formatPercent(row.signal_score)}
@@ -109,6 +130,14 @@ export function SignalScoreSummary({
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {compact && online && byType.length === 0 ? (
+        <div className="border-t border-sio-border-base px-4 py-2.5">
+          <p className="text-label-13 text-sio-fg-subtle">
+            No reviews yet. Submit feedback below to build Signal Score.
+          </p>
         </div>
       ) : null}
     </section>

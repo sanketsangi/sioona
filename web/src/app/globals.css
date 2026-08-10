@@ -12,6 +12,7 @@
   --space-4: 16px;
   --space-6: 24px;
 
+  /* —— Primitives (Geist steps). Do not use these in components — use --sio-* —— */
   --ds-background-100: #ffffff;
   --ds-background-200: #fafafa;
 
@@ -58,9 +59,61 @@
   --ds-teal-900: #0d7368;
   --ds-teal-1000: #0d3d38;
 
-  --background: var(--ds-background-100);
-  --foreground: var(--ds-gray-1000);
-  --focus-ring: 0 0 0 2px var(--ds-background-100), 0 0 0 4px var(--ds-blue-700);
+  /*
+   * Semantic aliases (Harvey-style intent names, sio- prefix).
+   * Always alias to --ds-* primitives — never invent a second palette.
+   */
+  --sio-bg-base: var(--ds-background-100);
+  --sio-bg-subtle: var(--ds-background-200);
+  --sio-bg-muted: var(--ds-gray-100);
+  --sio-bg-interactive: var(--ds-gray-alpha-100);
+  --sio-bg-interactive-hover: var(--ds-gray-alpha-200);
+  --sio-bg-inverse: var(--ds-gray-1000);
+  --sio-bg-overlay: rgba(0, 0, 0, 0.4);
+  --sio-bg-disabled: var(--ds-gray-200);
+
+  --sio-fg-base: var(--ds-gray-1000);
+  --sio-fg-subtle: var(--ds-gray-900);
+  --sio-fg-muted: var(--ds-gray-700);
+  --sio-fg-faint: var(--ds-gray-600);
+  --sio-fg-on-color: var(--ds-background-100);
+  --sio-fg-link: var(--ds-blue-900);
+  --sio-fg-link-hover: var(--ds-blue-1000);
+
+  --sio-border-base: var(--ds-gray-400);
+  --sio-border-strong: var(--ds-gray-500);
+  --sio-border-subtle: var(--ds-gray-alpha-400);
+  --sio-border-muted: var(--ds-gray-alpha-300);
+
+  --sio-focus-accent: var(--ds-blue-700);
+
+  /* Signal accents (lead / retention / upsell) */
+  --sio-signal-lead-bg: var(--ds-blue-100);
+  --sio-signal-lead-fg: var(--ds-blue-900);
+  --sio-signal-lead-fg-strong: var(--ds-blue-1000);
+  --sio-signal-retention-bg: var(--ds-amber-100);
+  --sio-signal-retention-fg: var(--ds-amber-900);
+  --sio-signal-retention-accent: var(--ds-amber-700);
+  --sio-signal-upsell-bg: var(--ds-teal-100);
+  --sio-signal-upsell-fg: var(--ds-teal-900);
+  --sio-signal-upsell-accent: var(--ds-teal-700);
+
+  /* Status / feedback surfaces */
+  --sio-status-info-bg: var(--ds-gray-100);
+  --sio-status-info-border: var(--ds-gray-400);
+  --sio-status-success-bg: var(--ds-green-100);
+  --sio-status-success-fg: var(--ds-green-900);
+  --sio-status-success-accent: var(--ds-green-700);
+  --sio-status-warning-bg: var(--ds-amber-100);
+  --sio-status-warning-fg: var(--ds-amber-900);
+  --sio-status-warning-accent: var(--ds-amber-700);
+  --sio-status-danger-bg: var(--ds-red-100);
+  --sio-status-danger-fg: var(--ds-red-900);
+  --sio-status-danger-accent: var(--ds-red-700);
+
+  --background: var(--sio-bg-base);
+  --foreground: var(--sio-fg-base);
+  --focus-ring: 0 0 0 2px var(--sio-bg-base), 0 0 0 4px var(--sio-focus-accent);
   --page-max: 1360px;
   --sidebar-width: 240px;
   --mobile-bar-height: 56px;
@@ -132,8 +185,8 @@
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--ds-blue-700) 28%, transparent);
-    color: var(--ds-gray-1000);
+    background: color-mix(in srgb, var(--sio-focus-accent) 28%, transparent);
+    color: var(--sio-fg-base);
   }
 
   :focus-visible {
@@ -178,14 +231,14 @@
   }
 
   .page-main {
-    @apply relative flex min-w-0 flex-1 flex-col;
-    background: var(--ds-background-100);
+    @apply relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto;
+    background: var(--sio-bg-subtle);
   }
 
   /* Skip-link landing needs a visible target, but only for keyboard users */
   .page-main:focus-visible {
     outline: none;
-    box-shadow: inset 0 0 0 2px var(--ds-blue-700);
+    box-shadow: inset 0 0 0 2px var(--sio-focus-accent);
   }
 
   .page-header {
@@ -193,15 +246,15 @@
   }
 
   .page-header-title {
-    @apply text-balance text-heading-24 tracking-tight text-ds-gray-1000 lg:text-heading-32;
+    @apply text-balance text-heading-24 text-sio-fg-base lg:text-heading-32;
   }
 
   .page-header-subtitle {
-    @apply mt-2 max-w-2xl text-pretty text-copy-14 text-ds-gray-900 sm:text-copy-16;
+    @apply mt-2 max-w-2xl text-pretty text-copy-14 text-sio-fg-subtle sm:text-copy-16;
   }
 
   .page-body {
-    @apply flex flex-col;
+    @apply flex min-h-0 flex-1 flex-col;
   }
 
   /* Surface ladder: flush → quiet border → panel */
@@ -211,33 +264,33 @@
 
   .surface-quiet {
     border-radius: var(--radius-panel);
-    border: 1px solid var(--ds-gray-400);
+    border: 1px solid var(--sio-border-base);
     background: transparent;
   }
 
   .panel {
     border-radius: var(--radius-panel);
-    border: 1px solid var(--ds-gray-400);
-    background: var(--ds-background-100);
+    border: 1px solid var(--sio-border-base);
+    background: var(--sio-bg-base);
   }
 
   .panel-quiet {
     border-radius: var(--radius-panel);
-    border: 1px solid var(--ds-gray-400);
+    border: 1px solid var(--sio-border-base);
     background: transparent;
   }
 
   .panel-group {
     border-radius: var(--radius-group);
-    border: 1px solid var(--ds-gray-400);
-    background: var(--ds-background-100);
+    border: 1px solid var(--sio-border-base);
+    background: var(--sio-bg-base);
   }
 
   .metric-strip {
     overflow: hidden;
     border-radius: var(--radius-panel);
-    border: 1px solid var(--ds-gray-400);
-    background: var(--ds-background-100);
+    border: 1px solid var(--sio-border-base);
+    background: var(--sio-bg-base);
   }
 
   /*
@@ -252,13 +305,13 @@
   }
 
   .metric-grid > * {
-    border-top: 1px solid var(--ds-gray-400);
-    border-left: 1px solid var(--ds-gray-400);
+    border-top: 1px solid var(--sio-border-base);
+    border-left: 1px solid var(--sio-border-base);
   }
 
   .metric-bar {
     @apply flex flex-wrap items-end justify-between gap-x-4 gap-y-3 px-4 py-3;
-    background: var(--ds-background-100);
+    background: var(--sio-bg-base);
   }
 
   .metric-cell {
@@ -266,11 +319,11 @@
   }
 
   .metric-label {
-    @apply text-label-12 text-ds-gray-900;
+    @apply text-label-12 text-sio-fg-subtle;
   }
 
   .metric-value {
-    @apply tabular mt-0.5 text-heading-16 text-ds-gray-1000;
+    @apply tabular mt-0.5 text-heading-16 text-sio-fg-base;
   }
 
   .status-banner {
@@ -281,43 +334,55 @@
   }
 
   .status-banner-info {
-    border-color: var(--ds-gray-400);
-    background-color: var(--ds-gray-100);
+    border-color: var(--sio-status-info-border);
+    background-color: var(--sio-status-info-bg);
   }
 
   .status-banner-success {
-    border-color: color-mix(in srgb, var(--ds-green-700) 35%, var(--ds-gray-400));
-    background-color: var(--ds-green-100);
+    border-color: color-mix(
+      in srgb,
+      var(--sio-status-success-accent) 35%,
+      var(--sio-border-base)
+    );
+    background-color: var(--sio-status-success-bg);
   }
 
   .status-banner-warning {
-    border-color: color-mix(in srgb, var(--ds-amber-700) 40%, var(--ds-gray-400));
-    background-color: var(--ds-amber-100);
+    border-color: color-mix(
+      in srgb,
+      var(--sio-status-warning-accent) 40%,
+      var(--sio-border-base)
+    );
+    background-color: var(--sio-status-warning-bg);
   }
 
   .status-banner-accent {
-    border-color: color-mix(in srgb, var(--ds-blue-700) 35%, var(--ds-gray-400));
-    background-color: var(--ds-blue-100);
+    border-color: color-mix(
+      in srgb,
+      var(--sio-focus-accent) 35%,
+      var(--sio-border-base)
+    );
+    background-color: var(--sio-signal-lead-bg);
   }
 
   /* Controls run 44px on touch-sized screens, 36px from md up */
   .btn-primary {
-    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap bg-ds-gray-1000 px-4 text-sm font-medium leading-5 text-ds-background-100 transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-ds-gray-200 disabled:text-ds-gray-700 md:h-9 md:px-3.5;
+    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap bg-sio-bg-inverse px-4 text-sm font-medium leading-5 text-sio-fg-on-color transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-sio-bg-disabled disabled:text-sio-fg-muted md:h-9 md:px-3.5;
     border-radius: var(--radius-control);
   }
 
   .btn-secondary {
-    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap border border-ds-gray-alpha-400 bg-transparent px-4 text-sm font-medium leading-5 text-ds-gray-1000 transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-alpha-100 disabled:cursor-not-allowed disabled:border-ds-gray-alpha-300 disabled:text-ds-gray-700 md:h-9 md:px-3.5;
+    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap border border-sio-border-subtle bg-transparent px-4 text-sm font-medium leading-5 text-sio-fg-base transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive disabled:cursor-not-allowed disabled:border-sio-border-muted disabled:text-sio-fg-muted md:h-9 md:px-3.5;
     border-radius: var(--radius-control);
   }
 
   .btn-tertiary {
-    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium leading-5 text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 disabled:cursor-not-allowed disabled:text-ds-gray-700 md:h-9;
+    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium leading-5 text-sio-fg-subtle transition-colors duration-150 hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base disabled:cursor-not-allowed disabled:text-sio-fg-muted md:h-9;
     border-radius: var(--radius-control);
   }
 
   .input-field {
-    @apply w-full border border-ds-gray-alpha-400 bg-ds-background-100 px-3 py-2.5 text-base leading-5 text-ds-gray-1000 transition-colors duration-150 placeholder:text-ds-gray-700 focus:border-ds-gray-500 focus:outline-none sm:text-sm;
+    @apply w-full border border-sio-border-subtle bg-sio-bg-base px-3 py-2.5 text-base leading-5 text-sio-fg-base transition-colors duration-150 placeholder:text-sio-fg-muted focus:border-sio-border-strong focus:outline-none sm:text-sm;
     border-radius: var(--radius-control);
     min-height: 44px;
   }
@@ -337,59 +402,86 @@
   }
 
   select.input-field {
-    background-color: var(--ds-background-100);
-    color: var(--ds-gray-1000);
+    background-color: var(--sio-bg-base);
+    color: var(--sio-fg-base);
   }
 
   .link-accent {
-    @apply text-sm font-medium text-ds-blue-900 transition-colors duration-150 hover:text-ds-blue-1000;
+    @apply text-sm font-medium text-sio-fg-link transition-colors duration-150 hover:text-sio-fg-link-hover;
   }
 
   /* Shared interactive chrome: nav, filters, chips — 44px on mobile */
   .chrome-item {
-    @apply inline-flex h-11 min-h-11 items-center justify-center gap-1.5 px-2.5 text-label-14 text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 md:h-8 md:min-h-0;
+    @apply inline-flex h-11 min-h-11 items-center justify-center gap-1.5 px-2.5 text-label-14 text-sio-fg-subtle transition-colors duration-150 hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base md:h-8 md:min-h-0;
     border-radius: var(--radius-control);
   }
 
   .chrome-item-active {
-    @apply bg-ds-gray-alpha-200 text-ds-gray-1000;
+    @apply bg-sio-bg-interactive-hover text-sio-fg-base;
   }
 
   .nav-link {
-    @apply inline-flex h-11 min-h-11 items-center justify-center gap-1.5 px-2.5 text-label-14 text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 md:h-8 md:min-h-0;
+    @apply inline-flex h-11 min-h-11 items-center justify-center gap-1.5 px-2.5 text-label-14 text-sio-fg-subtle transition-colors duration-150 hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base md:h-8 md:min-h-0;
     border-radius: var(--radius-control);
   }
 
   .nav-link-active {
-    @apply bg-ds-gray-alpha-200 text-ds-gray-1000;
+    @apply bg-sio-bg-interactive-hover text-sio-fg-base;
   }
 
-  /* Sidebar nav — quiet list, selected = gray-alpha-200 */
+  /* Sidebar nav — quiet list; selected = fill + left accent (not color-only) */
   .sidebar-nav {
     @apply flex min-h-0 flex-1 flex-col gap-0.5;
   }
 
+  .sidebar-nav-section {
+    @apply mb-1.5 px-3 text-label-12 font-medium tracking-[0.06em] text-sio-fg-muted uppercase;
+  }
+
   .sidebar-nav-link {
-    @apply flex h-11 items-center gap-2.5 px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-ds-gray-900 transition-colors duration-150 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000 md:h-9 md:text-[13px];
+    @apply relative flex h-11 items-center gap-2.5 px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-sio-fg-subtle transition-[color,background-color,transform] duration-150 hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base md:h-9 md:text-[13px];
     border-radius: var(--radius-control);
   }
 
   .sidebar-nav-link-active,
   .sidebar-nav-link-active:hover {
-    @apply bg-ds-gray-alpha-200 text-ds-gray-1000;
+    @apply bg-sio-bg-interactive-hover text-sio-fg-base;
+  }
+
+  .sidebar-nav-link-active::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 0;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--sio-fg-base);
   }
 
   .sidebar-nav-link svg {
-    color: inherit;
+    color: var(--sio-fg-muted);
+    transition: color 150ms ease, transform 150ms ease;
+  }
+
+  .sidebar-nav-link:hover svg,
+  .sidebar-nav-link-active svg {
+    color: var(--sio-fg-base);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sidebar-nav-link:hover svg {
+      transform: translateX(1px);
+    }
   }
 
   .sidebar-sign-in {
-    @apply inline-flex h-11 w-full items-center justify-start gap-2.5 border border-ds-gray-alpha-400 bg-transparent px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-ds-gray-1000 transition-colors duration-150 hover:border-ds-gray-500 hover:bg-ds-gray-alpha-100 disabled:cursor-not-allowed disabled:text-ds-gray-700 md:h-9 md:text-[13px];
+    @apply inline-flex h-11 w-full items-center justify-start gap-2.5 border border-sio-border-subtle bg-transparent px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-sio-fg-base transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive disabled:cursor-not-allowed disabled:text-sio-fg-muted md:h-9 md:text-[13px];
     border-radius: var(--radius-control);
   }
 
   .sidebar-sign-in svg {
-    color: var(--ds-gray-900);
+    color: var(--sio-fg-subtle);
   }
 
   .filter-chip {
@@ -398,24 +490,39 @@
   }
 
   .filter-chip-idle {
-    @apply text-ds-gray-900 hover:bg-ds-gray-alpha-200 hover:text-ds-gray-1000;
+    @apply text-sio-fg-subtle hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base;
   }
 
   .filter-chip-active {
-    @apply bg-ds-gray-alpha-200 text-ds-gray-1000;
+    @apply bg-sio-bg-interactive-hover text-sio-fg-base;
   }
 
   /* Flush list row inside .panel — hover/active raise contrast; focus inset so overflow doesn’t clip */
   .list-row {
-    @apply relative transition-colors duration-150 hover:bg-ds-gray-alpha-100 active:bg-ds-gray-alpha-200;
+    @apply relative transition-[color,background-color] duration-150 hover:bg-sio-bg-interactive active:bg-sio-bg-interactive-hover;
+  }
+
+  .list-row[aria-current="true"] {
+    background-color: var(--sio-bg-interactive-hover);
+  }
+
+  .list-row[aria-current="true"]::before {
+    content: "";
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    left: 0;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--sio-fg-base);
   }
 
   .list-row:focus-visible {
     outline: none;
-    background-color: var(--ds-gray-alpha-200);
+    background-color: var(--sio-bg-interactive-hover);
     box-shadow:
-      inset 0 0 0 1px var(--ds-blue-700),
-      inset 0 0 0 3px color-mix(in srgb, var(--ds-blue-700) 35%, transparent);
+      inset 0 0 0 1px var(--sio-focus-accent),
+      inset 0 0 0 3px color-mix(in srgb, var(--sio-focus-accent) 35%, transparent);
   }
 
   /* Tables keep their columns readable and scroll sideways when space runs out */
@@ -435,7 +542,7 @@
   }
 
   .data-table th {
-    @apply whitespace-nowrap px-4 py-2 text-label-12 font-medium text-ds-gray-900;
+    @apply whitespace-nowrap px-4 py-2 text-label-12 font-medium text-sio-fg-subtle;
   }
 
   .data-table td {
@@ -443,10 +550,10 @@
   }
 
   .signal-score {
-    @apply mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center font-mono text-sm font-semibold leading-none text-ds-gray-1000 tabular-nums;
+    @apply mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center font-mono text-sm font-semibold leading-none text-sio-fg-base tabular-nums;
     border-radius: var(--radius-control);
-    border: 1px solid var(--ds-gray-alpha-400);
-    background: var(--ds-gray-100);
+    border: 1px solid var(--sio-border-subtle);
+    background: var(--sio-bg-muted);
   }
 
   .signal-status {
@@ -458,41 +565,41 @@
   }
 
   .signal-status-pending {
-    @apply font-medium text-ds-blue-900;
+    @apply font-medium text-sio-signal-lead-fg;
   }
 
   .signal-status-pending .signal-status-dot {
-    background: var(--ds-blue-900);
+    background: var(--sio-signal-lead-fg);
   }
 
   .signal-status-reviewed {
-    @apply text-ds-gray-900;
+    @apply text-sio-fg-subtle;
   }
 
   .signal-status-reviewed .signal-status-dot {
-    background: var(--ds-gray-600);
+    background: var(--sio-fg-faint);
   }
 
   .label-meta {
-    @apply text-xs leading-4 text-ds-gray-900;
+    @apply text-xs leading-4 text-sio-fg-subtle;
   }
 
   .eyebrow {
-    @apply text-label-13 font-medium tracking-wide text-ds-gray-900;
+    @apply text-label-12 font-medium tracking-[0.06em] text-sio-fg-subtle uppercase;
   }
 
   .sidebar-rail {
-    @apply sticky top-0 h-dvh;
-    border-right: 1px solid var(--ds-gray-400);
-    background: var(--ds-background-100);
+    @apply sticky top-0 z-20 h-dvh;
+    border-right: 1px solid var(--sio-border-base);
+    background: var(--sio-bg-base);
     padding-left: env(safe-area-inset-left);
   }
 
   .sidebar-mobile-bar {
     @apply sticky top-0 z-30;
     min-height: var(--mobile-bar-height);
-    border-bottom: 1px solid var(--ds-gray-400);
-    background: color-mix(in srgb, var(--ds-background-100) 88%, transparent);
+    border-bottom: 1px solid var(--sio-border-base);
+    background: color-mix(in srgb, var(--sio-bg-base) 88%, transparent);
     backdrop-filter: saturate(180%) blur(12px);
     padding-top: env(safe-area-inset-top);
     padding-left: max(0.5rem, env(safe-area-inset-left));
@@ -562,17 +669,47 @@
   }
 
   .sidebar-drawer-backdrop {
-    @apply fixed inset-0 z-40 bg-black/40 transition-opacity duration-200;
+    @apply fixed inset-0 z-40;
+    background: var(--sio-bg-overlay);
+    animation: sio-fade-in 180ms ease-out both;
   }
 
   .sidebar-drawer {
-    @apply fixed inset-y-0 left-0 z-50 flex w-[min(100%,var(--sidebar-width))] flex-col bg-ds-background-100 transition-transform duration-200;
-    border-right: 1px solid var(--ds-gray-400);
+    @apply fixed inset-y-0 left-0 z-50 flex w-[min(100%,var(--sidebar-width))] flex-col bg-sio-bg-base;
+    border-right: 1px solid var(--sio-border-base);
     overscroll-behavior: contain;
     padding-top: env(safe-area-inset-top);
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
+    animation: sio-drawer-in 200ms ease-out both;
+  }
+
+  @keyframes sio-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes sio-drawer-in {
+    from {
+      opacity: 0;
+      transform: translateX(-12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-drawer-backdrop,
+    .sidebar-drawer {
+      animation: none;
+    }
   }
 
   .btn-spinner {

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ResetDemoButton } from "@/components/ResetDemoButton";
 import { UploadForm } from "@/components/UploadForm";
-import { Week1PilotStrip } from "@/components/Week1PilotStrip";
 import { viewHref } from "@/lib/views";
 
 const samples = [
@@ -23,27 +22,9 @@ const samples = [
   },
 ];
 
-export function UploadView({
-  reviewedCount = 0,
-  hasDay1 = false,
-  hasMidWeekUpload = false,
-  hasBaseline = false,
-}: {
-  reviewedCount?: number;
-  hasDay1?: boolean;
-  hasMidWeekUpload?: boolean;
-  hasBaseline?: boolean;
-}) {
+export function UploadView() {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <Week1PilotStrip
-        surface="upload"
-        reviewedCount={reviewedCount}
-        hasDay1={hasDay1}
-        hasMidWeekUpload={hasMidWeekUpload}
-        hasBaseline={hasBaseline}
-      />
-
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div className="min-h-0">
           <UploadForm compact />

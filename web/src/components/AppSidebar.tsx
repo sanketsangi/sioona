@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
+  Activity,
   ClipboardCheck,
-  LayoutDashboard,
   LogIn,
   Menu,
   Tags,
@@ -16,7 +16,7 @@ import { SioonaLogotype } from "@/components/SioonaLogotype";
 import { viewHref, type PlatformView } from "@/lib/views";
 
 const nav: { view: PlatformView; label: string; icon: LucideIcon }[] = [
-  { view: "insights", label: "Insights", icon: LayoutDashboard },
+  { view: "insights", label: "Insights", icon: Activity },
   { view: "upload", label: "Upload", icon: Upload },
   { view: "eval", label: "Eval", icon: ClipboardCheck },
   { view: "taxonomy", label: "Taxonomy", icon: Tags },
@@ -47,7 +47,13 @@ function NavLinks({
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2.5 py-1">
-      <nav aria-label="Primary" className="sidebar-nav">
+      <p className="sidebar-nav-section" id="sidebar-nav-heading">
+        Workspace
+      </p>
+      <nav
+        aria-labelledby="sidebar-nav-heading"
+        className="sidebar-nav"
+      >
         {nav.map((item) => {
           const active = activeView === item.view && !detailOpen;
           const Icon = item.icon;

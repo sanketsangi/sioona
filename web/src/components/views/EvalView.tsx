@@ -2,7 +2,6 @@ import Link from "next/link";
 import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
 import { SignalScoreSummary } from "@/components/SignalScoreSummary";
-import { Week1PilotStrip } from "@/components/Week1PilotStrip";
 import { LabeledTables } from "@/components/views/LabeledTables";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import {
@@ -13,7 +12,6 @@ import {
   type PilotMetrics,
 } from "@/lib/eval";
 import { formatPercent } from "@/lib/format";
-import { hasMidWeekExport, hasPilotBaseline } from "@/lib/pilot-cadence";
 import {
   parseEvalPanel,
   viewHref,
@@ -70,23 +68,9 @@ export function EvalView({
     backendScore
   );
   const pilot = applyBackendSignalScoreToPilot(store, backendScore);
-  const hasDay1 = store.signals.length > 0;
-  const hasBaseline = hasPilotBaseline(
-    store.pilot?.baselineOpportunities ?? 0,
-    store.pilot?.baselineNote
-  );
-  const hasMidWeekUpload = hasMidWeekExport(store.pilot?.weeklyExportCount);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <Week1PilotStrip
-        surface="eval"
-        reviewedCount={pilot.reviewedCount}
-        hasDay1={hasDay1}
-        hasMidWeekUpload={hasMidWeekUpload}
-        hasBaseline={hasBaseline}
-      />
-
       <div
         className="flex shrink-0 gap-0.5 rounded-md border border-ds-gray-400 p-1"
         role="group"

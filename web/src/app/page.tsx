@@ -9,7 +9,6 @@ import { UploadView } from "@/components/views/UploadView";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { predictionToStubSignal } from "@/lib/join-needs-review";
-import { hasMidWeekExport, hasPilotBaseline } from "@/lib/pilot-cadence";
 import {
   neonPredictionIdFromStubSignalId,
   parseSyncCreatedParam,
@@ -82,11 +81,13 @@ export default async function PlatformPage({
     adaptPage?: string;
     syncFailed?: string;
     syncCreated?: string;
+    preview?: string;
   }>;
 }) {
   const sp = await searchParams;
   const view = parseView(sp.view);
   const signalId = sp.signal ?? null;
+  const previewId = sp.preview ?? null;
   const store = await readStore();
 
   if (signalId) {
@@ -193,23 +194,13 @@ export default async function PlatformPage({
   const typeFilter = parseTypeFilter(sp.type);
   const page = parsePage(sp.page);
   const backendScore =
-    view === "insights" || view === "eval" || view === "upload"
+    view === "insights" || view === "eval"
       ? await fetchSignalScoreSafe(store.tenant.id)
       : null;
   const needsReview =
     view === "insights"
       ? await fetchNeedsReview(store.tenant.id, 20)
       : null;
-  const reviewedFromJson = store.signals.filter((s) => s.feedback).length;
-  const uploadCadence = {
-    reviewedCount: backendScore?.reviewed_count ?? reviewedFromJson,
-    hasDay1: store.signals.length > 0,
-    hasMidWeekUpload: hasMidWeekExport(store.pilot?.weeklyExportCount),
-    hasBaseline: hasPilotBaseline(
-      store.pilot?.baselineOpportunities ?? 0,
-      store.pilot?.baselineNote
-    ),
-  };
 
   return (
     <AppShell activeView={view} title={meta.title} subtitle={meta.subtitle}>
@@ -222,13 +213,14 @@ export default async function PlatformPage({
           statusFilter={statusFilter}
           typeFilter={typeFilter}
           page={page}
+          previewId={previewId}
           backendScore={backendScore}
           needsReview={needsReview}
           syncFailed={syncFailed}
           syncCreated={syncCreated}
         />
       ) : null}
-      {view === "upload" ? <UploadView {...uploadCadence} /> : null}
+      {view === "upload" ? <UploadView /> : null}
       {view === "eval" ? (
         <EvalView
           store={store}

@@ -73,7 +73,7 @@ export function SignalDetailView({
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <SignalBadge type={signal.type} />
               <span className="tabular text-label-13 text-ds-gray-900">
-                Score{" "}
+                Detection{" "}
                 <span className="font-medium text-ds-gray-1000">
                   {formatScore(signal.score)}
                 </span>

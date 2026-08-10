@@ -46,6 +46,7 @@ export function SignalQueue({
   statusFilter = "new",
   typeFilter = "all",
   page = 1,
+  previewId = null,
   queryExtras,
 }: {
   /** Neon needs-review order (joined to JSON for evidence when possible). */
@@ -57,6 +58,8 @@ export function SignalQueue({
   statusFilter?: StatusFilter;
   typeFilter?: TypeFilter;
   page?: number;
+  /** Inline Insights preview selection (`?preview=`). */
+  previewId?: string | null;
   /** Preserve banners / demo flags in queue URLs */
   queryExtras?: Record<string, string | undefined | null>;
 }) {
@@ -98,15 +101,19 @@ export function SignalQueue({
     status?: StatusFilter;
     type?: TypeFilter;
     page?: number;
+    preview?: string | null;
   }) {
     const status = next.status ?? statusFilter;
     const type = next.type ?? typeFilter;
     const pageNum = next.page ?? 1;
+    const preview =
+      next.preview !== undefined ? next.preview : previewId;
     return viewHref("insights", {
       ...queryExtras,
       status,
       type: type === "all" ? null : type,
       page: pageNum > 1 ? String(pageNum) : null,
+      preview: preview || null,
     });
   }
 
@@ -131,15 +138,15 @@ export function SignalQueue({
           className="panel flex flex-1 flex-col items-center justify-center px-6 py-10 text-center"
           role="alert"
         >
-          <p className="text-copy-14 text-ds-gray-1000">
+          <p className="text-heading-16 text-sio-fg-base">
             Pending queue unavailable
           </p>
-          <p className="mt-1 text-copy-14 text-ds-gray-900">
+          <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
             Signal Score backend unavailable — pending queue cannot load from
             Neon. Start FastAPI and refresh.
           </p>
           {queueError ? (
-            <p className="mt-2 text-label-13 text-ds-gray-900">{queueError}</p>
+            <p className="mt-2 text-label-13 text-sio-fg-subtle">{queueError}</p>
           ) : null}
         </div>
       </div>
@@ -153,8 +160,8 @@ export function SignalQueue({
   ) {
     return (
       <div className="panel flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-        <p className="text-copy-14 text-ds-gray-1000">No signals yet</p>
-        <p className="mt-1 text-copy-14 text-ds-gray-900">
+        <p className="text-heading-16 text-sio-fg-base">No signals yet</p>
+        <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
           Upload chats or re-run detection to populate Shadow Mode.
         </p>
         <Link href={viewHref("upload")} className="btn-primary mt-4">
@@ -191,7 +198,7 @@ export function SignalQueue({
           className="status-banner status-banner-warning shrink-0"
           role="alert"
         >
-          <p className="text-copy-14 text-ds-gray-1000">
+          <p className="text-copy-14 text-sio-fg-base">
             Neon pending queue unavailable — showing reviewed signals only.
             Start FastAPI to load needs-review.
           </p>
@@ -200,12 +207,12 @@ export function SignalQueue({
 
       {filtered.length === 0 ? (
         <div className="panel flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-          <p className="text-copy-14 text-ds-gray-1000">
+          <p className="text-heading-16 text-sio-fg-base">
             {statusFilter === "new"
               ? "No signals need review"
               : "No matching signals"}
           </p>
-          <p className="mt-1 text-copy-14 text-ds-gray-900">
+          <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
             {statusFilter === "new"
               ? "Upload chats or re-run detection to dual-write predictions to Neon."
               : "Try another filter, or clear filters to see the full queue."}
@@ -219,7 +226,7 @@ export function SignalQueue({
         </div>
       ) : (
         <>
-          <ul className="panel min-h-0 flex-1 divide-y divide-ds-gray-400 overflow-y-auto overflow-x-clip">
+          <ul className="panel min-h-0 flex-1 divide-y divide-sio-border-base overflow-y-auto overflow-x-clip">
             {pageItems.map((signal) => {
               const pending = isPending(signal);
               const score = formatScore(signal.score);
@@ -227,16 +234,16 @@ export function SignalQueue({
               const statusText = pending
                 ? "Pending"
                 : `Reviewed · ${reviewLabel(signal)}`;
+              const selected = previewId === signal.id;
 
               return (
                 <li key={signal.id}>
                   <Link
-                    href={viewHref("insights", {
-                      ...queryExtras,
-                      signal: signal.id,
-                    })}
+                    href={queueHref({ preview: signal.id, page: safePage })}
+                    scroll={false}
+                    aria-current={selected ? "true" : undefined}
                     aria-label={`${typeLabel} signal, score ${score}, ${statusText}. ${signal.summary}`}
-                    className="list-row group flex min-h-11 items-start gap-3 px-4 py-3 sm:min-h-[52px]"
+                    className={`list-row group flex min-h-11 items-start gap-3 px-4 py-3 sm:min-h-[52px]`}
                   >
                     <span className="signal-score" aria-hidden>
                       {score}
@@ -256,26 +263,26 @@ export function SignalQueue({
                           {statusText}
                         </span>
                       </div>
-                      <p className="mt-1 line-clamp-2 text-pretty text-copy-14 text-ds-gray-1000">
+                      <p className="mt-1 line-clamp-2 text-pretty text-copy-14 text-sio-fg-base">
                         {signal.summary || "No summary available"}
                       </p>
                       {(() => {
                         const quote = primaryQuote(signal.evidence);
                         return quote ? (
-                          <p className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
+                          <p className="mt-1 line-clamp-1 text-label-13 text-sio-fg-subtle">
                             “{quote}”
                           </p>
                         ) : null;
                       })()}
                       {signal.suggestedAction ? (
-                        <p className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
+                        <p className="mt-1 line-clamp-1 text-label-13 text-sio-fg-subtle">
                           Next · {signal.suggestedAction}
                         </p>
                       ) : null}
                     </div>
 
                     <ArrowRight
-                      className="mt-1.5 size-4 shrink-0 text-ds-gray-700 opacity-70 transition-[color,opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-ds-gray-1000 group-hover:opacity-100 group-focus-visible:translate-x-0.5 group-focus-visible:text-ds-gray-1000 group-focus-visible:opacity-100"
+                      className="mt-1.5 size-4 shrink-0 text-sio-fg-muted opacity-70 transition-[color,opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-sio-fg-base group-hover:opacity-100 group-focus-visible:translate-x-0.5 group-focus-visible:text-sio-fg-base group-focus-visible:opacity-100"
                       strokeWidth={1.5}
                       aria-hidden
                     />
@@ -325,6 +332,7 @@ function QueueFilters({
     status?: StatusFilter;
     type?: TypeFilter;
     page?: number;
+    preview?: string | null;
   }) => string;
   pendingUnavailable?: boolean;
 }) {
@@ -336,7 +344,11 @@ function QueueFilters({
             <FilterChip
               key={option.value}
               active={statusFilter === option.value}
-              href={queueHref({ status: option.value, page: 1 })}
+              href={queueHref({
+                status: option.value,
+                page: 1,
+                preview: null,
+              })}
               count={
                 option.value === "new"
                   ? pendingCount
@@ -354,22 +366,26 @@ function QueueFilters({
             <FilterChip
               key={option.value}
               active={typeFilter === option.value}
-              href={queueHref({ type: option.value, page: 1 })}
+              href={queueHref({
+                type: option.value,
+                page: 1,
+                preview: null,
+              })}
             >
               {option.label}
             </FilterChip>
           ))}
         </FilterRow>
       </div>
-      <p className="tabular shrink-0 text-label-13 text-ds-gray-900">
+      <p className="tabular shrink-0 text-label-13 text-sio-fg-subtle">
         {pendingUnavailable ? (
           <>
-            <span className="text-ds-red-900">Pending unavailable</span>
+            <span className="text-sio-status-danger-fg">Pending unavailable</span>
             {" · "}
           </>
         ) : pendingCount > 0 ? (
           <>
-            <span className="text-ds-blue-900">{pendingCount} pending</span>
+            <span className="text-sio-signal-lead-fg">{pendingCount} pending</span>
             {" · "}
           </>
         ) : null}
@@ -388,7 +404,7 @@ function FilterRow({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-label-12 text-ds-gray-900">{label}</span>
+      <span className="text-label-12 text-sio-fg-subtle">{label}</span>
       <div className="flex flex-wrap gap-0.5" role="group" aria-label={label}>
         {children}
       </div>
@@ -418,7 +434,7 @@ function FilterChip({
       {typeof count === "number" ? (
         <span
           className={`tabular text-label-12 ${
-            active ? "text-ds-gray-900" : "text-ds-gray-700"
+            active ? "text-sio-fg-subtle" : "text-sio-fg-muted"
           }`}
         >
           {count}
