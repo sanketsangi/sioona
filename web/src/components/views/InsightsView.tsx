@@ -4,17 +4,16 @@ import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { SignalPreviewPanel } from "@/components/SignalPreviewPanel";
 import { SignalQueue } from "@/components/SignalQueue";
-// Hidden on Insights for now
-// import { SignalScoreSummary } from "@/components/SignalScoreSummary";
+// Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { applyBackendSignalScoreToPilot } from "@/lib/eval";
+import { formatPercent } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import {
   joinNeedsReviewPredictions,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
-// import { hasMidWeekExport, hasPilotBaseline } from "@/lib/pilot-cadence";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Signal, StoreData } from "@/lib/types";
@@ -52,9 +51,8 @@ export function InsightsView({
     ? joinNeedsReviewPredictions(needsReview.predictions, store.signals)
     : [];
   const reviewedSignals = reviewedSignalsFromStore(store.signals);
-  // Pilot strip inputs — restore with Week1PilotStrip
-  // const reviewedCount =
-  //   backendScore?.reviewed_count ?? reviewedSignals.length;
+  const scoreLabel =
+    backendScore != null ? formatPercent(backendScore.signal_score) : null;
 
   const showImportBanner =
     importedCount != null &&
@@ -67,18 +65,6 @@ export function InsightsView({
     store.signals
   );
   const staleSyncFailedParam = syncFailed > 0 && !hasSyncFailure;
-  // const hasDay1 =
-  //   Boolean(demo) ||
-  //   (showImportBanner && !zeroSignalsImport) ||
-  //   store.signals.length > 0;
-  // // Cold demo alone is Day 1; partner file ingest increments weeklyExportCount.
-  // const hasMidWeekUpload =
-  //   hasMidWeekExport(store.pilot?.weeklyExportCount) ||
-  //   Boolean(showImportBanner && !zeroSignalsImport && !demo);
-  // const hasBaseline = hasPilotBaseline(
-  //   store.pilot?.baselineOpportunities ?? 0,
-  //   store.pilot?.baselineNote
-  // );
 
   const queryExtras: Record<string, string | undefined | null> = {
     demo: demo ? "1" : null,
@@ -100,6 +86,7 @@ export function InsightsView({
     reviewedSignals
   );
   const previewMissing = Boolean(previewId) && !previewSignal;
+  const showPreviewPane = previewMissing || previewSignal != null;
   const clearPreviewHref = viewHref("insights", {
     ...queryExtras,
     status: statusFilter,
@@ -112,7 +99,7 @@ export function InsightsView({
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <ClearStaleSyncFailedParams shouldClear={staleSyncFailedParam} />
       {(demo || hasSyncFailure || showImportBanner) ? (
-        <div className="scroll-region flex max-h-[30%] shrink-0 flex-col gap-3 lg:max-h-[40%]">
+        <div className="scroll-region flex max-h-[30%] shrink-0 flex-col gap-2.5 lg:max-h-[40%]">
           {demo ? (
             <div
               className="status-banner status-banner-accent shrink-0"
@@ -120,8 +107,10 @@ export function InsightsView({
               aria-live="polite"
             >
               <p className="text-copy-14 text-sio-fg-base">
-                Partner demo ready — review Neon pending below, then open Eval for
-                precision and lift.
+                Partner demo ready
+              </p>
+              <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
+                Review Neon pending below, then open Eval for precision and lift.
               </p>
             </div>
           ) : null}
@@ -132,13 +121,25 @@ export function InsightsView({
               role="alert"
             >
               <p className="text-copy-14 text-sio-fg-base">
-                Neon dual-write incomplete — {syncFailed} prediction
-                {syncFailed === 1 ? "" : "s"} not written
-                {syncCreated > 0 ? ` (${syncCreated} succeeded)` : ""}. Local import
-                does not mean the pending queue is ready. Start FastAPI (
-                <span translate="no">BACKEND_URL</span>), then Re-run Detection.
+                Neon dual-write incomplete —{" "}
+                <span className="tabular">
+                  {syncFailed} prediction{syncFailed === 1 ? "" : "s"}
+                </span>{" "}
+                not written
+                {syncCreated > 0 ? (
+                  <span className="tabular">
+                    {" "}
+                    ({syncCreated} succeeded)
+                  </span>
+                ) : null}
+                .
               </p>
-              <div className="mt-3">
+              <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
+                Local import does not mean the pending queue is ready. Start
+                FastAPI (<span translate="no">BACKEND_URL</span>), then Re-run
+                Detection.
+              </p>
+              <div className="mt-2.5">
                 <ReDetectButton />
               </div>
             </div>
@@ -154,17 +155,19 @@ export function InsightsView({
               role="status"
               aria-live="polite"
             >
-              <p className="text-copy-14 text-sio-fg-base">
+              <p className="tabular text-copy-14 text-sio-fg-base">
                 Imported {importedCount} conversations · {newSignalCount} local
-                signals.
+                signals
+              </p>
+              <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
                 {zeroSignalsImport
-                  ? ` ${ZERO_SIGNAL_HINT}`
+                  ? ZERO_SIGNAL_HINT
                   : hasSyncFailure
-                    ? " Neon sync failed for some predictions — pending queue may be incomplete."
-                    : " Neon pending queue is ready to review below."}
+                    ? "Neon sync failed for some predictions — pending queue may be incomplete."
+                    : "Neon pending queue is ready to review below."}
               </p>
               {zeroSignalsImport ? (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-2.5 flex flex-wrap gap-2">
                   <PartnerDemoButton label="Run Partner Demo" />
                   <Link href={viewHref("upload")} className="btn-secondary">
                     Upload Another File
@@ -176,22 +179,14 @@ export function InsightsView({
         </div>
       ) : null}
 
-      {/* 7-day pilot strip — restore later with design refresh
-      <Week1PilotStrip
-        surface="insights"
-        reviewedCount={reviewedCount}
-        hasDay1={hasDay1}
-        hasMidWeekUpload={hasMidWeekUpload}
-        hasBaseline={hasBaseline}
-      />
-      */}
-
-      {/* Signal Score strip — restore later if needed
-      <SignalScoreSummary score={backendScore} compact />
-      */}
-
-      {/* Mobile: equal-height queue | preview (each scrolls); lg+: side-by-side */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:grid-rows-1 lg:gap-4">
+      {/* Queue alone until a row is selected; then queue | preview split */}
+      <div
+        className={
+          showPreviewPane
+            ? "grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:grid-rows-1 lg:gap-4"
+            : "flex min-h-0 flex-1 flex-col"
+        }
+      >
         <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
           <SignalQueue
             pendingSignals={pendingSignals}
@@ -204,41 +199,78 @@ export function InsightsView({
             queryExtras={queryExtras}
           />
         </div>
-        <div
-          id="signal-preview"
-          className="flex min-h-0 min-w-0 flex-col overflow-hidden scroll-mt-4"
-        >
-          {previewMissing ? (
-            <div
-              className="panel scroll-region flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
-              role="status"
-            >
-              <p className="text-heading-16 text-sio-fg-base">
-                Signal not in this queue
-              </p>
-              <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
-                The preview id is missing from Neon pending and reviewed
-                signals. Clear preview or pick another row.
-              </p>
-              <Link href={clearPreviewHref} className="btn-secondary mt-4">
-                Clear Preview
-              </Link>
-            </div>
-          ) : (
-            <SignalPreviewPanel signal={previewSignal} />
-          )}
-        </div>
+        {showPreviewPane ? (
+          <div
+            id="signal-preview"
+            className="flex min-h-0 min-w-0 flex-col overflow-hidden scroll-mt-4"
+          >
+            {previewMissing ? (
+              <div
+                className="panel scroll-region flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
+                role="status"
+              >
+                <p className="text-heading-16 text-sio-fg-base">
+                  Signal Not in This Queue
+                </p>
+                <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
+                  The preview id is missing from Neon pending and reviewed
+                  signals. Clear preview or pick another row.
+                </p>
+                <Link href={clearPreviewHref} className="btn-secondary mt-4">
+                  Clear Preview
+                </Link>
+              </div>
+            ) : (
+              <SignalPreviewPanel signal={previewSignal} />
+            )}
+          </div>
+        ) : null}
       </div>
 
-      <div className="flex shrink-0 flex-col gap-2 border-t border-sio-border-base pt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:pt-3">
-        <p className="min-w-0 truncate text-label-13 text-sio-fg-subtle">
-          Queue · Neon needs-review ·{" "}
+      <div className="flex shrink-0 flex-col gap-2.5 border-t border-sio-border-base pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <p
+          className="min-w-0 truncate text-label-13 text-sio-fg-subtle"
+          title={[
+            "Queue · Neon needs-review",
+            store.tenant.name,
+            scoreLabel ? `Score ${scoreLabel}` : null,
+            pilot.opportunityLift !== 0
+              ? `Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        >
+          <span className="text-sio-fg-muted">Queue</span>
+          <span className="text-sio-fg-muted" aria-hidden>
+            {" "}
+            ·{" "}
+          </span>
+          Neon needs-review
+          <span className="text-sio-fg-muted" aria-hidden>
+            {" "}
+            ·{" "}
+          </span>
           <span className="text-sio-fg-base" translate="no">
             {store.tenant.name}
           </span>
+          {scoreLabel ? (
+            <>
+              <span className="text-sio-fg-muted" aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
+              <span className="tabular text-sio-fg-base">
+                Score {scoreLabel}
+              </span>
+            </>
+          ) : null}
           {pilot.opportunityLift !== 0 ? (
             <>
-              {" · "}
+              <span className="text-sio-fg-muted" aria-hidden>
+                {" "}
+                ·{" "}
+              </span>
               <span className="tabular text-sio-fg-base">
                 Lift {pilot.opportunityLift >= 0 ? "+" : ""}
                 {pilot.opportunityLift}
@@ -246,13 +278,17 @@ export function InsightsView({
             </>
           ) : null}
         </p>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap items-center gap-2 sm:justify-end"
+          role="group"
+          aria-label="Queue actions"
+        >
           <PartnerDemoButton
-            className="btn-secondary"
+            className="btn-tertiary"
             label="Run Partner Demo"
           />
           <ReDetectButton />
-          <Link href={viewHref("eval")} className="btn-secondary shrink-0">
+          <Link href={viewHref("eval")} className="btn-secondary">
             Open Eval
           </Link>
         </div>

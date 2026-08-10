@@ -59,7 +59,7 @@ export function PartnerDemoButton({
   }
 
   return (
-    <span className="inline-flex flex-col items-start gap-1">
+    <span className="relative inline-flex">
       <button
         type="button"
         onClick={run}
@@ -70,14 +70,17 @@ export function PartnerDemoButton({
         {loading ? <ButtonSpinner /> : null}
         {label}
       </button>
-      <div aria-live="polite">
+      <div
+        className="absolute start-0 top-full z-10 mt-1 max-w-xs text-pretty"
+        aria-live="polite"
+      >
         {error ? (
-          <span className="text-label-13 text-ds-red-900" role="alert">
+          <span className="text-label-13 text-sio-status-danger-fg" role="alert">
             {error}
           </span>
         ) : null}
         {syncWarning ? (
-          <span className="text-label-13 text-ds-gray-900" role="status">
+          <span className="text-label-13 text-sio-fg-subtle" role="status">
             {syncWarning}
           </span>
         ) : null}

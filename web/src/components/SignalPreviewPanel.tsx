@@ -19,34 +19,10 @@ function reviewLabel(signal: Signal): string {
 /**
  * Compact right-pane preview for Insights split layout.
  * Full feedback + transcript live on Signal Detail (`?signal=`).
+ * Renders nothing when no signal is selected (no empty panel chrome).
  */
-export function SignalPreviewPanel({
-  signal,
-  clearHref,
-}: {
-  signal: Signal | null;
-  /** Href that drops preview while keeping filters (for missing-id recovery). */
-  clearHref?: string | null;
-}) {
-  if (!signal) {
-    return (
-      <div
-        className="panel scroll-region flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
-        role="status"
-      >
-        <p className="text-heading-16 text-sio-fg-base">Select a signal</p>
-        <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
-          Choose a row in the queue to preview type, evidence, and score — then
-          open full detail to leave feedback.
-        </p>
-        {clearHref ? (
-          <Link href={clearHref} className="btn-secondary mt-4">
-            Clear Preview
-          </Link>
-        ) : null}
-      </div>
-    );
-  }
+export function SignalPreviewPanel({ signal }: { signal: Signal | null }) {
+  if (!signal) return null;
 
   const pending = isPending(signal);
   const score = formatScore(signal.score);
@@ -74,27 +50,31 @@ export function SignalPreviewPanel({
         </span>
       </div>
 
-      <p className="mt-3 line-clamp-4 break-words text-pretty text-copy-16 text-sio-fg-base">
+      <p className="mt-3 line-clamp-4 min-w-0 break-words text-pretty text-copy-16 text-sio-fg-base">
         {signal.summary || "No summary available"}
       </p>
 
       {quote ? (
-        <blockquote className="mt-3 break-words border-l-2 border-sio-border-strong pl-3 text-pretty text-copy-14 text-sio-fg-base">
+        <blockquote className="mt-3 min-w-0 break-words border-l-2 border-sio-border-strong pl-3 text-pretty text-copy-14 text-sio-fg-base">
           “{quote}”
         </blockquote>
       ) : (
-        <p className="mt-3 text-label-13 text-sio-fg-subtle">
+        <p className="mt-3 text-label-13 text-sio-fg-muted">
           No primary evidence quote
         </p>
       )}
 
       {signal.suggestedAction ? (
-        <p className="mt-3 line-clamp-2 break-words text-label-13 text-sio-fg-subtle">
+        <p className="mt-3 line-clamp-2 min-w-0 break-words text-label-13 text-sio-fg-muted">
           Next · {signal.suggestedAction}
         </p>
       ) : null}
 
-      <div className="mt-auto flex flex-wrap gap-2 border-t border-sio-border-base pt-4">
+      <div
+        className="mt-auto flex flex-wrap gap-2 border-t border-sio-border-base pt-4"
+        role="group"
+        aria-label="Preview actions"
+      >
         <Link href={detailHref} className="btn-primary">
           Open Full Detail
           <ArrowRight className="size-3.5" weight="bold" aria-hidden />

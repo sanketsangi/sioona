@@ -5,11 +5,7 @@ import { useMemo, type ReactNode } from "react";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { Pager } from "@/components/Pager";
 import { formatScore, primaryQuote, signalTypeLabel } from "@/lib/format";
-import {
-  viewHref,
-  type StatusFilter,
-  type TypeFilter,
-} from "@/lib/views";
+import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Signal, SignalType } from "@/lib/types";
 import { SignalBadge } from "./SignalBadge";
 
@@ -76,25 +72,17 @@ export function SignalQueue({
       // Pending (Neon order) first, then reviewed — dedupe by id
       const pendingIds = new Set(pendingSignals.map((s) => s.id));
       const reviewedOnly = reviewedSignals.filter((s) => !pendingIds.has(s.id));
-      list = queueError
-        ? reviewedOnly
-        : [...pendingSignals, ...reviewedOnly];
+      list = queueError ? reviewedOnly : [...pendingSignals, ...reviewedOnly];
     }
     if (typeFilter === "all") return list;
     return list.filter((signal) => signal.type === typeFilter);
-  }, [
-    pendingSignals,
-    reviewedSignals,
-    queueError,
-    statusFilter,
-    typeFilter,
-  ]);
+  }, [pendingSignals, reviewedSignals, queueError, statusFilter, typeFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
   const pageItems = filtered.slice(
     (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE
+    safePage * PAGE_SIZE,
   );
 
   function queueHref(next: {
@@ -106,8 +94,7 @@ export function SignalQueue({
     const status = next.status ?? statusFilter;
     const type = next.type ?? typeFilter;
     const pageNum = next.page ?? 1;
-    const preview =
-      next.preview !== undefined ? next.preview : previewId;
+    const preview = next.preview !== undefined ? next.preview : previewId;
     return viewHref("insights", {
       ...queryExtras,
       status,
@@ -118,8 +105,7 @@ export function SignalQueue({
   }
 
   const showPendingError =
-    Boolean(queueError) &&
-    (statusFilter === "new" || statusFilter === "all");
+    Boolean(queueError) && (statusFilter === "new" || statusFilter === "all");
 
   if (showPendingError && statusFilter === "new") {
     return (
@@ -133,20 +119,23 @@ export function SignalQueue({
           filteredCount={0}
           pageItemCount={0}
           queueHref={queueHref}
+          pendingUnavailable
         />
         <div
-          className="panel flex flex-1 flex-col items-center justify-center px-6 py-10 text-center"
+          className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
           role="alert"
         >
           <p className="text-heading-16 text-sio-fg-base">
-            Pending queue unavailable
+            Pending Queue Unavailable
           </p>
-          <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
+          <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
             Signal Score backend unavailable — pending queue cannot load from
             Neon. Start FastAPI and refresh.
           </p>
           {queueError ? (
-            <p className="mt-2 text-label-13 text-sio-fg-subtle">{queueError}</p>
+            <p className="mt-2 max-w-sm break-words text-label-13 text-sio-fg-muted">
+              {queueError}
+            </p>
           ) : null}
         </div>
       </div>
@@ -159,9 +148,9 @@ export function SignalQueue({
     reviewedSignals.length === 0
   ) {
     return (
-      <div className="panel flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
-        <p className="text-heading-16 text-sio-fg-base">No signals yet</p>
-        <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
+      <div className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10">
+        <p className="text-heading-16 text-sio-fg-base">No Signals Yet</p>
+        <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
           Upload chats or re-run detection to populate Shadow Mode.
         </p>
         <Link href={viewHref("upload")} className="btn-primary mt-4">
@@ -184,7 +173,7 @@ export function SignalQueue({
             ? reviewedCount
             : pendingCount +
               reviewedSignals.filter(
-                (s) => !pendingSignals.some((p) => p.id === s.id)
+                (s) => !pendingSignals.some((p) => p.id === s.id),
               ).length
         }
         filteredCount={filtered.length}
@@ -199,20 +188,22 @@ export function SignalQueue({
           role="alert"
         >
           <p className="text-copy-14 text-sio-fg-base">
-            Neon pending queue unavailable — showing reviewed signals only.
-            Start FastAPI to load needs-review.
+            Neon pending queue unavailable
+          </p>
+          <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
+            Showing reviewed signals only. Start FastAPI to load needs-review.
           </p>
         </div>
       ) : null}
 
       {filtered.length === 0 ? (
-        <div className="panel flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+        <div className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10">
           <p className="text-heading-16 text-sio-fg-base">
             {statusFilter === "new"
-              ? "No signals need review"
-              : "No matching signals"}
+              ? "No Signals Need Review"
+              : "No Matching Signals"}
           </p>
-          <p className="mt-1.5 text-copy-14 text-sio-fg-subtle">
+          <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
             {statusFilter === "new"
               ? "Upload chats or re-run detection to dual-write predictions to Neon."
               : "Try another filter, or clear filters to see the full queue."}
@@ -253,14 +244,14 @@ export function SignalQueue({
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                         <SignalBadge type={signal.type} />
                         <span
-                          className={`signal-status ${
+                          className={`signal-status min-w-0 ${
                             pending
                               ? "signal-status-pending"
                               : "signal-status-reviewed"
                           }`}
                         >
                           <span className="signal-status-dot" aria-hidden />
-                          {statusText}
+                          <span className="truncate">{statusText}</span>
                         </span>
                       </div>
                       <p className="mt-1 line-clamp-2 break-words text-pretty text-copy-14 text-sio-fg-base">
@@ -275,14 +266,14 @@ export function SignalQueue({
                         ) : null;
                       })()}
                       {signal.suggestedAction ? (
-                        <p className="mt-1 line-clamp-1 break-words text-label-13 text-sio-fg-subtle">
+                        <p className="mt-1 line-clamp-1 break-words text-label-13 text-sio-fg-muted">
                           Next · {signal.suggestedAction}
                         </p>
                       ) : null}
                     </div>
 
                     <ArrowRight
-                      className="mt-1.5 size-4 shrink-0 text-sio-fg-muted opacity-70 transition-[color,opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-sio-fg-base group-hover:opacity-100 group-focus-visible:translate-x-0.5 group-focus-visible:text-sio-fg-base group-focus-visible:opacity-100"
+                      className="mt-1.5 size-4 shrink-0 text-sio-fg-muted opacity-70 transition-[color,opacity,transform] duration-150 motion-reduce:transition-none group-hover:translate-x-0.5 group-hover:text-sio-fg-base group-hover:opacity-100 group-focus-visible:translate-x-0.5 group-focus-visible:text-sio-fg-base group-focus-visible:opacity-100 motion-reduce:group-hover:translate-x-0 motion-reduce:group-focus-visible:translate-x-0"
                       weight="regular"
                       aria-hidden
                     />
@@ -296,13 +287,9 @@ export function SignalQueue({
             <Pager
               page={safePage}
               pageCount={pageCount}
-              prevHref={
-                safePage > 1 ? queueHref({ page: safePage - 1 }) : null
-              }
+              prevHref={safePage > 1 ? queueHref({ page: safePage - 1 }) : null}
               nextHref={
-                safePage < pageCount
-                  ? queueHref({ page: safePage + 1 })
-                  : null
+                safePage < pageCount ? queueHref({ page: safePage + 1 }) : null
               }
             />
           </div>
@@ -382,13 +369,19 @@ function QueueFilters({
       <p className="tabular shrink-0 text-label-13 text-sio-fg-subtle">
         {pendingUnavailable ? (
           <>
-            <span className="text-sio-status-danger-fg">Pending unavailable</span>
-            {" · "}
+            <span className="text-sio-fg-muted">Pending unavailable</span>
+            <span className="text-sio-fg-muted" aria-hidden>
+              {" "}
+              ·{" "}
+            </span>
           </>
         ) : pendingCount > 0 ? (
           <>
-            <span className="text-sio-signal-lead-fg">{pendingCount} pending</span>
-            {" · "}
+            <span className="text-sio-fg-base">{pendingCount} pending</span>
+            <span className="text-sio-fg-muted" aria-hidden>
+              {" "}
+              ·{" "}
+            </span>
           </>
         ) : null}
         {pageItemCount} of {filteredCount}
@@ -405,9 +398,9 @@ function FilterRow({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-label-12 text-sio-fg-subtle">{label}</span>
-      <div className="flex flex-wrap gap-0.5" role="group" aria-label={label}>
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <span className="shrink-0 text-label-12 text-sio-fg-subtle">{label}</span>
+      <div className="filter-toggle" role="group" aria-label={label}>
         {children}
       </div>
     </div>

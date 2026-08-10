@@ -61,6 +61,7 @@ It works as an **overlay** on existing chat tools (does not replace them).
 
 ### In Progress
 
+- Insights demo chrome polish (enterprise Geist) — detect remains frozen
 - Dual-write: multi-retry + backoff (3 attempts, 50/150ms) + `backendFetch` AbortSignal timeout (2.5s); feedback lazy-create remains safety net
 - **Hosted demo verified 2026-08-11:** Partner Demo dual-write green on sioona-demo (`predictionSync` created=27 / failed=0; all signals have `backendSignalId`). FastAPI `https://sioona-api.onrender.com/health` ok; Vercel Production `BACKEND_URL` set; Neon needs-review SoT live. Detect frozen; next product priority remains real partner export + outreach.
 - **Residual detection gap = real partner transcripts:** partner-shaped pack + fixture gates at P/R 1.00; `testing.json` measured after narrow recall pass (P0.92/R0.41). Day-1 real-export lane ready — drop redacted CSV at `web/data/samples/real-partner-export.local.csv` (from `real-partner-export.template.csv`) and run `npx vitest run src/lib/partner-export.eval.test.ts` (loader `partner-export-eval.ts`); still need real partner exports filled in

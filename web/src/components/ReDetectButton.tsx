@@ -56,7 +56,7 @@ export function ReDetectButton() {
   }
 
   return (
-    <span className="inline-flex flex-col items-end gap-1">
+    <span className="relative inline-flex">
       <button
         type="button"
         onClick={run}
@@ -73,7 +73,7 @@ export function ReDetectButton() {
       </button>
       {error ? (
         <p
-          className="max-w-xs text-right text-label-13 text-ds-red-900"
+          className="absolute end-0 top-full z-10 mt-1 max-w-xs text-pretty text-right text-label-13 text-sio-status-danger-fg"
           role="alert"
         >
           {error}
