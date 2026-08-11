@@ -36,6 +36,22 @@ export function signalTypeClass(type: SignalType): string {
   }
 }
 
+/** Quiet type mark fill for campaign-style queue rows (`sio-signal-*`). */
+export function signalTypeMarkClass(type: SignalType): string {
+  switch (type) {
+    case "lead":
+      return "bg-sio-signal-lead-bg text-sio-signal-lead-fg";
+    case "retention":
+      return "bg-sio-signal-retention-bg text-sio-signal-retention-fg";
+    case "upsell":
+      return "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg";
+  }
+}
+
+export function signalTypeInitial(type: SignalType): string {
+  return signalTypeLabel(type).charAt(0);
+}
+
 /** Human-readable evidence line (quotes vs match labels). */
 export function formatEvidenceItem(item: string): {
   kind: "quote" | "match" | "suppressed";

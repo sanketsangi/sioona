@@ -11,7 +11,7 @@ import { formatEvidenceItem, formatScore } from "@/lib/format";
 import { parsePage, viewHref } from "@/lib/views";
 import type { Conversation, Message, Signal } from "@/lib/types";
 
-const MSG_PAGE_SIZE = 3;
+const MSG_PAGE_SIZE = 12;
 
 export function SignalDetailView({
   signal,
@@ -20,6 +20,8 @@ export function SignalDetailView({
   msgPageRaw,
   backendScore = null,
   isNeonStub = false,
+  /** Preserve Insights filters / banners when returning to the queue. */
+  queueReturn,
 }: {
   signal: Signal;
   conversation?: Conversation;
@@ -28,6 +30,7 @@ export function SignalDetailView({
   backendScore?: BackendSignalScore | null;
   /** Neon needs-review row without a JSON conversation join. */
   isNeonStub?: boolean;
+  queueReturn?: Record<string, string | undefined | null>;
 }) {
   const pageCount = Math.max(1, Math.ceil(messages.length / MSG_PAGE_SIZE));
   const page = Math.min(parsePage(msgPageRaw), pageCount);
@@ -35,11 +38,12 @@ export function SignalDetailView({
     (page - 1) * MSG_PAGE_SIZE,
     page * MSG_PAGE_SIZE
   );
+  const backHref = viewHref("insights", queueReturn);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
       <Link
-        href={viewHref("insights")}
+        href={backHref}
         className="link-accent inline-flex h-11 shrink-0 items-center gap-1.5 md:h-9"
       >
         <ArrowLeft className="size-3.5" weight="regular" aria-hidden />
@@ -155,7 +159,7 @@ export function SignalDetailView({
           ) : null}
         </div>
 
-        <div className="panel flex min-h-0 min-w-0 flex-col overflow-hidden p-4 sm:p-5">
+        <div className="panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
           <h2 className="text-balance shrink-0 text-heading-16 text-sio-fg-base">
             Conversation
           </h2>
@@ -175,7 +179,7 @@ export function SignalDetailView({
                 <Link href={viewHref("upload")} className="btn-secondary">
                   Upload Chats
                 </Link>
-                <Link href={viewHref("insights")} className="btn-secondary">
+                <Link href={backHref} className="btn-secondary">
                   Back to Queue
                 </Link>
               </div>
@@ -195,33 +199,37 @@ export function SignalDetailView({
                     <div className="mb-1 text-label-12 capitalize text-sio-fg-subtle">
                       {message.role}
                     </div>
-                    <p className="line-clamp-3 break-words">{message.content}</p>
+                    <p className="break-words text-pretty">{message.content}</p>
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 shrink-0">
-                <Pager
-                  page={page}
-                  pageCount={pageCount}
-                  label="Messages"
-                  prevHref={
-                    page > 1
-                      ? viewHref("insights", {
-                          signal: signal.id,
-                          msgPage: page - 1 > 1 ? String(page - 1) : null,
-                        })
-                      : null
-                  }
-                  nextHref={
-                    page < pageCount
-                      ? viewHref("insights", {
-                          signal: signal.id,
-                          msgPage: String(page + 1),
-                        })
-                      : null
-                  }
-                />
-              </div>
+              {pageCount > 1 ? (
+                <div className="mt-auto shrink-0 border-t border-sio-border-base pt-4">
+                  <Pager
+                    page={page}
+                    pageCount={pageCount}
+                    label="Messages"
+                    prevHref={
+                      page > 1
+                        ? viewHref("insights", {
+                            ...queueReturn,
+                            signal: signal.id,
+                            msgPage: page - 1 > 1 ? String(page - 1) : null,
+                          })
+                        : null
+                    }
+                    nextHref={
+                      page < pageCount
+                        ? viewHref("insights", {
+                            ...queueReturn,
+                            signal: signal.id,
+                            msgPage: String(page + 1),
+                          })
+                        : null
+                    }
+                  />
+                </div>
+              ) : null}
             </>
           )}
         </div>

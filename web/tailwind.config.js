@@ -15,6 +15,7 @@ module.exports = {
           "bg-base": "var(--sio-bg-base)",
           "bg-subtle": "var(--sio-bg-subtle)",
           "bg-muted": "var(--sio-bg-muted)",
+          "bg-group": "var(--sio-bg-group)",
           "bg-interactive": "var(--sio-bg-interactive)",
           "bg-interactive-hover": "var(--sio-bg-interactive-hover)",
           "bg-inverse": "var(--sio-bg-inverse)",
@@ -106,7 +107,12 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: [
+          "var(--font-geist-sans)",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
         mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
       },
       borderRadius: {

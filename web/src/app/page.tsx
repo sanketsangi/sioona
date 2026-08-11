@@ -77,6 +77,17 @@ export default async function PlatformPage({
 
   if (signalId) {
     const signal = store.signals.find((s) => s.id === signalId);
+    const queueReturn: Record<string, string | undefined | null> = {
+      demo: sp.demo === "1" ? "1" : null,
+      imported: sp.imported ?? null,
+      signals: sp.signals ?? null,
+      status: sp.status ?? null,
+      type: sp.type ?? null,
+      page: sp.page ?? null,
+      syncFailed: sp.syncFailed ?? null,
+      syncCreated: sp.syncCreated ?? null,
+      preview: sp.preview ?? null,
+    };
     if (signal) {
       const conversation = store.conversations.find(
         (c) => c.id === signal.conversationId,
@@ -98,6 +109,7 @@ export default async function PlatformPage({
             messages={messages}
             msgPageRaw={sp.msgPage}
             backendScore={backendScore}
+            queueReturn={queueReturn}
           />
         </AppShell>
       );
@@ -137,6 +149,7 @@ export default async function PlatformPage({
             msgPageRaw={sp.msgPage}
             backendScore={backendScore}
             isNeonStub
+            queueReturn={queueReturn}
           />
         </AppShell>
       );
@@ -160,7 +173,10 @@ export default async function PlatformPage({
             .
           </p>
           <p className="mt-4">
-            <Link href={viewHref("insights")} className="link-accent">
+            <Link
+              href={viewHref("insights", queueReturn)}
+              className="link-accent"
+            >
               Back to Signal Queue
             </Link>
           </p>

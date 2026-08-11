@@ -17,7 +17,7 @@
   --ds-background-200: #ffffff;
 
   --ds-gray-100: #f2f1f0;
-  --ds-gray-200: #ebebeb;
+  --ds-gray-200: #eaeaea;
   --ds-gray-300: #e8e8e8;
   --ds-gray-400: #e5e7eb;
   --ds-gray-500: #c9c9c9;
@@ -66,6 +66,8 @@
   --sio-bg-base: var(--ds-background-100);
   --sio-bg-subtle: var(--ds-background-200);
   --sio-bg-muted: var(--ds-gray-100);
+  /* Large grouped regions — sits between page #fff and hover #f2f1f0 */
+  --sio-bg-group: var(--ds-gray-200);
   /* Hover / selected / chrome highlight — solid warm gray */
   --sio-bg-interactive: var(--ds-gray-100);
   --sio-bg-interactive-hover: var(--ds-gray-100);
@@ -291,10 +293,11 @@
     background: transparent;
   }
 
+  /* Large grouped region — quiet fill between page and hover; nested .panel stays white */
   .panel-group {
     border-radius: var(--radius-group);
     border: 1px solid var(--sio-border-base);
-    background: var(--sio-bg-base);
+    background: var(--sio-bg-group);
   }
 
   .metric-strip {
