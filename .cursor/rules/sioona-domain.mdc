@@ -33,7 +33,7 @@ Taxonomy SoT: `web/src/lib/taxonomy.ts`. Types: `web/src/lib/types.ts`.
 - Formats: Sioona CSV/JSON, Intercom JSON (`conversation_parts`), WhatsApp Business `.txt` (`ingest-platforms.ts`)
 - Detect **replaces** signals but **preserves SignalScore feedback** when the same `conversationId` + `type` is still emitted (`mergeSignalsPreservingFeedback`)
 - Detection uses `getEffectiveTaxonomy(store.taxonomyOverrides)` — base [`taxonomy.ts`](web/src/lib/taxonomy.ts) ⊕ store overrides
-- Reset reseeds fixtures from `src/data/fixtures/sample-store.ts`
+- Reset reseeds from `testing.json` via `loadTestingJsonIntoStore` (empty shell in `sample-store.ts`; P/R=1.0 pack is test-only `detect-eval-fixtures.ts`)
 - Optional `groundTruth` on conversations/signals for labeled eval
 - `store.pilot.baselineOpportunities` feeds lift in `computePilotMetrics`
 - Pilot pack: opportunity lift, ≥80% review precision target, go/no-go

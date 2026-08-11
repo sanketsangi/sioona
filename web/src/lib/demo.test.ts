@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runPartnerDemo } from "./demo";
 import { resetStore, readStore } from "./store";
+import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
 
 describe("runPartnerDemo", () => {
   beforeEach(async () => {
@@ -16,30 +17,25 @@ describe("runPartnerDemo", () => {
     vi.unstubAllGlobals();
   });
 
-  it("resets fixtures and ingests Intercom + WhatsApp samples", async () => {
-    const before = await readStore();
-    const fixtureConvos = before.conversations.length;
-    const fixtureSignals = before.signals.length;
-
+  it("resets and loads only testing.json showcase corpus", async () => {
     const result = await runPartnerDemo();
 
-    expect(result.samples).toEqual([
-      "sample-intercom.json",
-      "sample-whatsapp.txt",
-    ]);
-    expect(result.importedConversations).toBeGreaterThan(0);
+    expect(result.samples).toEqual(["testing.json"]);
+    expect(result.importedConversations).toBe(EXPECTED_TESTING_JSON.conversations);
     expect(result.newSignals).toBeGreaterThan(0);
-    expect(result.store.conversations.length).toBeGreaterThan(fixtureConvos);
-    expect(result.store.signals.length).toBeGreaterThan(fixtureSignals);
-    expect(
-      result.store.conversations.some((c) => c.channel === "intercom")
-    ).toBe(true);
-    expect(
-      result.store.conversations.some((c) => c.channel === "whatsapp")
-    ).toBe(true);
+    expect(result.store.conversations).toHaveLength(
+      EXPECTED_TESTING_JSON.conversations
+    );
+    expect(result.store.signals.length).toBe(result.newSignals);
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
     expect(result.opportunityLift).toBeGreaterThan(0);
+
+    const afterReset = await readStore();
+    expect(afterReset.conversations).toHaveLength(
+      EXPECTED_TESTING_JSON.conversations
+    );
+
     expect(result.predictionSync).toEqual(
       expect.objectContaining({
         attempted: expect.any(Number),

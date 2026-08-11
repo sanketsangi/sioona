@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sampleStore } from "@/data/fixtures/sample-store";
+import { detectEvalStore as sampleStore } from "@/data/fixtures/detect-eval-fixtures";
 import {
   detectSignalsForConversation,
   runDetection,

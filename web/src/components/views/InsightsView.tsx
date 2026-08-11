@@ -10,7 +10,7 @@ import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 // Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { applyBackendSignalScoreToPilot } from "@/lib/eval";
-import { formatPercent } from "@/lib/format";
+import { formatPercent, customerNameFromExternalId } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import {
@@ -56,8 +56,11 @@ export function InsightsView({
   const reviewedSignals = reviewedSignalsFromStore(store.signals);
   const customerNames: Record<string, string> = {};
   for (const conversation of store.conversations) {
-    if (conversation.customerName) {
-      customerNames[conversation.id] = conversation.customerName;
+    const name =
+      conversation.customerName?.trim() ||
+      customerNameFromExternalId(conversation.externalId);
+    if (name) {
+      customerNames[conversation.id] = name;
     }
   }
   const scoreLabel =
@@ -98,6 +101,9 @@ export function InsightsView({
         .filter((m) => m.conversationId === previewSignal.conversationId)
         .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
     : [];
+  const previewCustomerName = previewSignal
+    ? customerNames[previewSignal.conversationId] ?? null
+    : null;
   const clearPreviewHref = viewHref("insights", {
     ...queryExtras,
     status: statusFilter,
@@ -121,7 +127,7 @@ export function InsightsView({
                 Partner demo ready
               </p>
               <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
-                Review Neon pending below, then open Eval for precision and
+                Review Neon needs-review below, then open Eval for precision and
                 lift.
               </p>
             </div>
@@ -144,7 +150,7 @@ export function InsightsView({
                 .
               </p>
               <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
-                Local import does not mean the pending queue is ready. Start
+                Local import does not mean the needs-review queue is ready. Start
                 FastAPI (<span translate="no">BACKEND_URL</span>), then Re-run
                 Detection.
               </p>
@@ -172,8 +178,8 @@ export function InsightsView({
                 {zeroSignalsImport
                   ? ZERO_SIGNAL_HINT
                   : hasSyncFailure
-                    ? "Neon sync failed for some predictions — pending queue may be incomplete."
-                    : "Neon pending queue is ready to review below."}
+                    ? "Neon sync failed for some predictions — needs-review queue may be incomplete."
+                    : "Neon needs-review queue is ready below."}
               </p>
               {zeroSignalsImport ? (
                 <div className="mt-2.5 flex flex-wrap gap-2">
@@ -258,7 +264,7 @@ export function InsightsView({
               Needs Attention
             </h2>
             <p className="mt-0.5 text-label-13 text-sio-fg-muted">
-              Review Neon pending signals in Shadow Mode
+              Review signals that need review in Shadow Mode
             </p>
           </div>
           <SignalQueueFilters
@@ -310,8 +316,8 @@ export function InsightsView({
                       Signal Not in This Queue
                     </p>
                     <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-                      The preview id is missing from Neon pending and reviewed
-                      signals. Clear preview or pick another row.
+                      The preview id is missing from Neon needs-review and
+                      reviewed signals. Clear preview or pick another row.
                     </p>
                     <Link
                       href={clearPreviewHref}
@@ -324,6 +330,7 @@ export function InsightsView({
                   <SignalPreviewPanel
                     signal={previewSignal}
                     messages={previewMessages}
+                    customerName={previewCustomerName}
                     detailExtras={{
                       ...queryExtras,
                       status: statusFilter,

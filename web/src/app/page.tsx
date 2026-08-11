@@ -95,7 +95,6 @@ export default async function PlatformPage({
       const messages = store.messages
         .filter((m) => m.conversationId === signal.conversationId)
         .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-      const backendScore = await fetchSignalScoreSafe(store.tenant.id);
 
       return (
         <AppShell
@@ -107,8 +106,6 @@ export default async function PlatformPage({
             signal={signal}
             conversation={conversation}
             messages={messages}
-            msgPageRaw={sp.msgPage}
-            backendScore={backendScore}
             queueReturn={queueReturn}
           />
         </AppShell>
@@ -135,7 +132,6 @@ export default async function PlatformPage({
             }),
             id: signalId,
           };
-      const backendScore = await fetchSignalScoreSafe(store.tenant.id);
 
       return (
         <AppShell
@@ -146,8 +142,6 @@ export default async function PlatformPage({
           <SignalDetailView
             signal={stub}
             messages={[]}
-            msgPageRaw={sp.msgPage}
-            backendScore={backendScore}
             isNeonStub
             queueReturn={queueReturn}
           />

@@ -1,9 +1,59 @@
-import { readFileSync } from "fs";
-import path from "path";
 import { describe, expect, it } from "vitest";
 import { parseIngestDocument, parseIngestFile, toStoreRecords } from "./ingest";
 
-const samplesDir = path.join(process.cwd(), "data/samples");
+/** Minimal Intercom-shaped fixture (showcase sample files removed). */
+const INTERCOM_FIXTURE = JSON.stringify({
+  conversations: [
+    {
+      type: "conversation",
+      id: "ic_9001",
+      created_at: 1754121600,
+      source: {
+        type: "conversation",
+        body: "<p>Hi, I want to open a demat account this week.</p>",
+        created_at: 1754121600,
+        author: { type: "user", name: "Asha Mehta" },
+      },
+      conversation_parts: {
+        conversation_parts: [
+          {
+            part_type: "comment",
+            body: "<p>Happy to help!</p>",
+            created_at: 1754121660,
+            author: { type: "admin", name: "Support" },
+          },
+        ],
+      },
+    },
+    {
+      type: "conversation",
+      id: "ic_9002",
+      created_at: 1754208000,
+      source: {
+        type: "conversation",
+        body: "Existing customer — enable F&O and margin trading on my account?",
+        created_at: 1754208000,
+        author: { type: "user", name: "Farhan Ali" },
+      },
+      conversation_parts: {
+        conversation_parts: [
+          {
+            part_type: "comment",
+            body: "I can share eligibility.",
+            created_at: 1754208060,
+            author: { type: "admin", name: "Support" },
+          },
+        ],
+      },
+    },
+  ],
+});
+
+const WHATSAPP_FIXTURE = [
+  "[02/08/2026, 11:05:00 AM] Neha Singh: I already trade equity — do you offer a premium advisory plan?",
+  "[02/08/2026, 11:06:00 AM] You: Yes, we have a wealth manager tier.",
+  "[02/08/2026, 11:07:10 AM] Neha Singh: Need higher limits and portfolio review.",
+].join("\n");
 
 describe("parseIngestFile", () => {
   it("parses CSV with quoted commas and ground truth", () => {
@@ -75,11 +125,7 @@ describe("parseIngestFile", () => {
   });
 
   it("parses Intercom conversation JSON exports", () => {
-    const content = readFileSync(
-      path.join(samplesDir, "sample-intercom.json"),
-      "utf8"
-    );
-    const doc = parseIngestDocument("sample-intercom.json", content);
+    const doc = parseIngestDocument("partner-intercom.json", INTERCOM_FIXTURE);
     expect(doc.format).toBe("intercom_json");
     expect(doc.conversations.length).toBeGreaterThanOrEqual(2);
     expect(doc.conversations[0].channel).toBe("intercom");
@@ -97,11 +143,7 @@ describe("parseIngestFile", () => {
   });
 
   it("parses WhatsApp Business .txt exports", () => {
-    const content = readFileSync(
-      path.join(samplesDir, "sample-whatsapp.txt"),
-      "utf8"
-    );
-    const doc = parseIngestDocument("sample-whatsapp.txt", content);
+    const doc = parseIngestDocument("partner-whatsapp.txt", WHATSAPP_FIXTURE);
     expect(doc.format).toBe("whatsapp_txt");
     expect(doc.conversations).toHaveLength(1);
     expect(doc.conversations[0].channel).toBe("whatsapp");
