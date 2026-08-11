@@ -53,6 +53,8 @@ It works as an **overlay** on existing chat tools (does not replace them).
 - 7-day Shadow Mode pilot cadence UI: one `Week1PilotStrip` on Upload / Insights / Eval (Day 1 → mid-week re-upload → ≥5 reviews → baseline → go/no-go); `pilot.weeklyExportCount` advances on partner file ingest only; cross-links Upload ↔ Insights ↔ Eval; display-only actions
 - Detection precision pass on synthetics: tightened upsell/lead phrases + support negatives; keyword-only ≥2 hits; soft-retention refund phrases; hard-negative fixtures; sample pack lead-vs-upsell label alignment
 - Synthetic eval on root `testing.json` (41 convs / 231 msgs; measurement baseline, not P/R=1.0 gate): loader `web/src/lib/testing-json-eval.ts` maps `labels[]` → `groundTruth` (lead/upsell as-is; churn_risk|retention_risk→retention; complaint|fraud→none; multi-label priority retention>upsell>lead) → ingest → detect → `computeEvalMetrics`. Run: `npx vitest run src/lib/testing-json.eval.test.ts` from `web/`
+  - **Partner demo / cold open showcase** = `testing.json` only (`loadTestingJsonIntoStore`; deployable copy at `web/data/samples/testing.json`). Old Intercom / WhatsApp / CSV showcase sample pack removed. Detect/eval P/R=1.0 gate uses test-only `detect-eval-fixtures.ts`. Synthetic eval path unchanged.
+  - **Customer names in Insights preview:** corpus encodes names in `externalId` (`rahul_mehta_29`); loader derives `customerName` → detect summaries + dual-write to FastAPI/Neon; UI User column + preview panel show the name (no Neon schema change).
   - **Before narrow recall pass:** P **0.83** / R **0.19** (TP 5 / FP 1 / FN 22)
   - **After narrow recall pass:** P **0.92** / R **0.41** (TP 11 / FP 1 / FN 16) — mix after map: lead 8 · retention 14 · upsell 5 · none 14
   - **Per-type (after):** lead P0.67/R0.25 · retention P1.00/R0.50 · upsell P1.00/R0.40
@@ -61,7 +63,7 @@ It works as an **overlay** on existing chat tools (does not replace them).
 
 ### In Progress
 
-- Insights demo chrome polish (enterprise Geist) — detect remains frozen
+- Insights demo chrome polish (enterprise Geist) — detect remains frozen; queue/preview StatusDot: Needs Review (blue) | Correct (green) | Incorrect (red) | Partially Correct (orange); URL `status=new` unchanged; conversation transcript opens in Drawer via **See Conversation** (Message + Bubble, not inline preview scroll); drawer has visible **Conversation** header + customer subtitle and in-header Close (narrow right sheet desktop / bottom sheet mobile)
 - Dual-write: multi-retry + backoff (3 attempts, 50/150ms) + `backendFetch` AbortSignal timeout (2.5s); feedback lazy-create remains safety net
 - **Hosted demo verified 2026-08-11:** Partner Demo dual-write green on sioona-demo (`predictionSync` created=27 / failed=0; all signals have `backendSignalId`). FastAPI `https://sioona-api.onrender.com/health` ok; Vercel Production `BACKEND_URL` set; Neon needs-review SoT live. Detect frozen; next product priority remains real partner export + outreach.
 - **Residual detection gap = real partner transcripts:** partner-shaped pack + fixture gates at P/R 1.00; `testing.json` measured after narrow recall pass (P0.92/R0.41). Day-1 real-export lane ready — drop redacted CSV at `web/data/samples/real-partner-export.local.csv` (from `real-partner-export.template.csv`) and run `npx vitest run src/lib/partner-export.eval.test.ts` (loader `partner-export-eval.ts`); still need real partner exports filled in

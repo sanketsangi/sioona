@@ -308,6 +308,11 @@
     min-width: 0;
   }
 
+  /* Dense strip for Signal Detail / Eval — ~1–2 rows vs stacked header/body/footer */
+  .metric-strip--compact {
+    @apply px-3 py-1.5 sm:px-3.5 sm:py-2;
+  }
+
   /*
    * Each cell draws its own top/left rule and the grid is nudged 1px up and
    * left so the outer ones fall outside the clip. Dividers then stay correct
@@ -617,27 +622,52 @@
     background: var(--sio-bg-muted);
   }
 
-  .signal-status {
-    @apply inline-flex items-center gap-1.5 text-label-12;
+  /* Local StatusDot (geistcn-aligned) — Insights review chrome */
+  .status-dot {
+    @apply inline-flex items-center gap-1.5 text-label-12 font-medium;
   }
 
-  .signal-status-dot {
+  .status-dot-indicator {
     @apply size-1.5 shrink-0 rounded-full;
   }
 
-  .signal-status-pending {
-    @apply font-medium text-sio-fg-base;
+  .status-dot-queued {
+    color: var(--sio-fg-link);
   }
 
-  .signal-status-pending .signal-status-dot {
-    background: var(--sio-signal-lead-fg);
+  .status-dot-queued .status-dot-indicator {
+    background: var(--ds-blue-700);
   }
 
-  .signal-status-reviewed {
+  .status-dot-ready {
+    color: var(--sio-status-success-fg);
+  }
+
+  .status-dot-ready .status-dot-indicator {
+    background: var(--sio-status-success-accent);
+  }
+
+  .status-dot-error {
+    color: var(--sio-status-danger-fg);
+  }
+
+  .status-dot-error .status-dot-indicator {
+    background: var(--sio-status-danger-accent);
+  }
+
+  .status-dot-building {
+    color: var(--sio-status-warning-fg);
+  }
+
+  .status-dot-building .status-dot-indicator {
+    background: var(--sio-status-warning-accent);
+  }
+
+  .status-dot-canceled {
     @apply text-sio-fg-muted;
   }
 
-  .signal-status-reviewed .signal-status-dot {
+  .status-dot-canceled .status-dot-indicator {
     background: var(--sio-fg-faint);
   }
 
@@ -845,6 +875,93 @@
   @media (prefers-reduced-motion: reduce) {
     .sidebar-drawer-backdrop,
     .sidebar-drawer {
+      animation: none;
+    }
+  }
+
+  /* Conversation drawer — portaled to body; above sidebar (z-50) and skip link (z-[60]) */
+  .conversation-drawer-root {
+    @apply fixed inset-0 z-[70];
+  }
+
+  .conversation-drawer-backdrop {
+    @apply absolute inset-0;
+    background: var(--sio-bg-overlay);
+    animation: sio-fade-in 180ms ease-out both;
+  }
+
+  .conversation-drawer-panel {
+    @apply absolute flex flex-col bg-sio-bg-base;
+    overscroll-behavior: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Mobile: bottom sheet */
+  .conversation-drawer-panel {
+    inset-inline: 0;
+    bottom: 0;
+    top: auto;
+    max-height: 85dvh;
+    border-top: 1px solid var(--sio-border-base);
+    border-radius: 0.75rem 0.75rem 0 0;
+    animation: sio-conversation-drawer-up 200ms ease-out both;
+  }
+
+  .conversation-drawer-handle {
+    @apply flex shrink-0 cursor-grab items-center justify-center pt-2 pb-1 active:cursor-grabbing md:hidden;
+    touch-action: none;
+  }
+
+  .conversation-drawer-handle-bar {
+    @apply block h-1 w-10 rounded-full bg-sio-border-base;
+  }
+
+  @media (min-width: 768px) {
+    .conversation-drawer-panel {
+      inset: 0 0 0 auto;
+      top: 0;
+      bottom: 0;
+      width: min(100%, 28rem);
+      max-height: none;
+      border-top: none;
+      border-radius: 0;
+      border-left: 1px solid var(--sio-border-base);
+      padding-top: env(safe-area-inset-top);
+      animation: sio-conversation-drawer-right 200ms ease-out both;
+    }
+
+    .conversation-drawer-handle {
+      display: none;
+    }
+  }
+
+  @keyframes sio-conversation-drawer-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes sio-conversation-drawer-right {
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .conversation-drawer-backdrop,
+    .conversation-drawer-panel {
       animation: none;
     }
   }

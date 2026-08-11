@@ -80,6 +80,7 @@ Borders + tonal fills first; avoid card-on-card nesting.
 - **Focus**: `0 0 0 2px` base bg, `0 0 0 4px` `sio-focus-accent`
 - Icons: `@phosphor-icons/react` (use `/ssr` in App Router) — **Bold** for primary nav / key actions; **Regular** for dense chrome (lists, pagers, spinners). Prefer `weight` over stroke hacks; ~16px; `sio-fg-subtle` at rest
 - Loading labels end with `…`
+- **Conversation rows** (`Message` / `ConversationMessages`): customer **right** (`align="end"`, full-width row + `flex-row-reverse`), agent **left** (`align="start"`). Quiet muted vs primary-quiet bubbles; `min-w-0` + bubble max-width so text wraps. Details in `docs/UI_DESIGN.md`.
 
 ## Web interface rules (must follow)
 
