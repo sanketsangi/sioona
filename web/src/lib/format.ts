@@ -1,4 +1,4 @@
-import type { SignalType } from "./types";
+import type { Signal, SignalType } from "./types";
 
 const percentFormatter = new Intl.NumberFormat("en-US", {
   style: "percent",
@@ -12,6 +12,56 @@ export function formatPercent(value: number | null): string {
 
 export function formatScore(score: number): string {
   return `${Math.round(score * 100)}`;
+}
+
+/**
+ * Pending until the operator leaves feedback.
+ * Feedback label is the StatusDot source of truth once present (not `status===new`).
+ * URL filter `status=new` remains the Neon needs-review bucket.
+ */
+export function isSignalNeedsReview(
+  signal: Pick<Signal, "status" | "feedback">
+): boolean {
+  return !signal.feedback;
+}
+
+/** geistcn StatusDot states used for Insights review chrome. */
+export type SignalStatusDotState =
+  | "QUEUED"
+  | "BUILDING"
+  | "ERROR"
+  | "READY"
+  | "CANCELED";
+
+/**
+ * Map signal review/feedback → StatusDot state + visible label.
+ * Pending (no feedback) → Needs Review / blue QUEUED.
+ * Correct → green READY | Incorrect → red ERROR | Partially Correct → orange BUILDING.
+ */
+export function signalStatusDot(
+  signal: Pick<Signal, "status" | "feedback">
+): { state: SignalStatusDotState; label: string } {
+  const label = signal.feedback?.label;
+  if (!label) {
+    return { state: "QUEUED", label: "Needs Review" };
+  }
+  switch (label) {
+    case "correct":
+      return { state: "READY", label: "Correct" };
+    case "incorrect":
+      return { state: "ERROR", label: "Incorrect" };
+    case "partially_correct":
+      return { state: "BUILDING", label: "Partially Correct" };
+    default:
+      return { state: "CANCELED", label: "Reviewed" };
+  }
+}
+
+/** Operator-facing review status for queue + preview (outcome label only). */
+export function signalReviewStatusLabel(
+  signal: Pick<Signal, "status" | "feedback">
+): string {
+  return signalStatusDot(signal).label;
 }
 
 export function signalTypeLabel(type: SignalType): string {
@@ -81,6 +131,24 @@ export function primaryQuote(evidence: string[]): string | null {
     if (formatted.kind === "quote") return formatted.text;
   }
   return null;
+}
+
+/**
+ * Derive display name from corpus-style externalIds like `rahul_mehta_29` → `Rahul Mehta`.
+ * Returns null when the id is not a name_tokens + numeric suffix pattern.
+ */
+export function customerNameFromExternalId(
+  externalId: string | undefined | null
+): string | null {
+  const id = typeof externalId === "string" ? externalId.trim() : "";
+  if (!id) return null;
+  const match = id.match(/^([a-z]+(?:_[a-z]+)*)_(\d+)$/i);
+  if (!match) return null;
+  return match[1]
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }
 
 /**

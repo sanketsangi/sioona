@@ -1,24 +1,31 @@
+import type { ReactNode } from "react";
+
 type AvatarProps = {
-  /** Initials or short letter mark shown on the placeholder surface. */
+  /** Initials or short letter mark when no children. */
   letter?: string;
-  /** Muted fill with letter (geistcn letter-avatar mode). */
+  /** Muted fill (geistcn letter-avatar / icon mode). */
   placeholder?: boolean;
   /** Width and height in px. Default 32. */
   size?: number;
   className?: string;
+  /** Icon or custom mark (e.g. computer for Agent). Overrides letter. */
+  children?: ReactNode;
 };
 
 /**
  * Local Avatar primitive matching `@vercel/geistcn` Avatar letter API.
  * geistcn is not on public npm — keep API-aligned for drop-in later.
  *
- * Usage: `<Avatar letter="NS" placeholder size={32} />`
+ * Usage:
+ * - `<Avatar letter="NS" placeholder size={32} />`
+ * - `<Avatar placeholder size={28}><Desktop … /></Avatar>`
  */
 export function Avatar({
   letter,
   placeholder = false,
   size = 32,
   className = "",
+  children,
 }: AvatarProps) {
   const text = (letter ?? "?").slice(0, 2);
 
@@ -32,7 +39,18 @@ export function Avatar({
       style={{ width: size, height: size }}
       aria-hidden
     >
-      {text}
+      {children ?? text}
     </span>
   );
+}
+
+/** Geistcn-aligned fallback alias — renders initials inside Avatar. */
+export function AvatarFallback({
+  children,
+  className = "",
+}: {
+  children?: ReactNode;
+  className?: string;
+}) {
+  return <span className={className}>{children}</span>;
 }
