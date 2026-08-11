@@ -537,15 +537,6 @@
     }
   }
 
-  .sidebar-sign-in {
-    @apply inline-flex h-11 w-full items-center justify-start gap-2.5 border border-sio-border-subtle bg-transparent px-3 text-sm font-medium leading-4 tracking-[-0.01em] text-sio-fg-base transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive disabled:cursor-not-allowed disabled:text-sio-fg-muted md:h-9 md:text-[13px];
-    border-radius: var(--radius-control);
-  }
-
-  .sidebar-sign-in svg {
-    color: inherit;
-  }
-
   /* Segmented filter — same language as .mode-toggle (bordered track, quiet active fill) */
   .filter-toggle {
     @apply inline-flex max-w-full flex-wrap items-center rounded-sm border border-sio-border-base p-0.5;

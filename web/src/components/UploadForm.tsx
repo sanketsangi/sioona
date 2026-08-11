@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { UploadSimple } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import {
   hasSyncFailures,
   parsePredictionSync,
@@ -125,7 +125,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         {loading ? (
           <ButtonSpinner />
         ) : (
-          <UploadSimple className="size-3.5" weight="bold" aria-hidden />
+          <ArrowCircleUpIcon className="size-3.5 shrink-0" />
         )}
         Upload & Detect
       </button>

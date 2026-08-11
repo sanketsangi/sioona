@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
+import { BoltIcon } from "@/components/icons/BoltIcon";
+import { ExternalIcon } from "@/components/icons/ExternalIcon";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { SignalPreviewPanel } from "@/components/SignalPreviewPanel";
 import { SignalQueue } from "@/components/SignalQueue";
+import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 // Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { applyBackendSignalScoreToPilot } from "@/lib/eval";
@@ -179,6 +182,72 @@ export function InsightsView({
         </div>
       ) : null}
 
+      <Note icon={<BoltIcon />}>
+        <NoteContent>
+          <p
+            className="min-w-0 truncate"
+            title={[
+              "Queue · Neon needs-review",
+              store.tenant.name,
+              scoreLabel ? `Score ${scoreLabel}` : null,
+              pilot.opportunityLift !== 0
+                ? `Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          >
+            <span className="text-sio-fg-muted">Queue</span>
+            <span className="text-sio-fg-muted" aria-hidden>
+              {" "}
+              ·{" "}
+            </span>
+            Neon needs-review
+            <span className="text-sio-fg-muted" aria-hidden>
+              {" "}
+              ·{" "}
+            </span>
+            <span className="text-sio-fg-base" translate="no">
+              {store.tenant.name}
+            </span>
+            {scoreLabel ? (
+              <>
+                <span className="text-sio-fg-muted" aria-hidden>
+                  {" "}
+                  ·{" "}
+                </span>
+                <span className="tabular text-sio-fg-base">
+                  Score {scoreLabel}
+                </span>
+              </>
+            ) : null}
+            {pilot.opportunityLift !== 0 ? (
+              <>
+                <span className="text-sio-fg-muted" aria-hidden>
+                  {" "}
+                  ·{" "}
+                </span>
+                <span className="tabular text-sio-fg-base">
+                  Lift {pilot.opportunityLift >= 0 ? "+" : ""}
+                  {pilot.opportunityLift}
+                </span>
+              </>
+            ) : null}
+          </p>
+        </NoteContent>
+        <NoteAction aria-label="Queue actions">
+          <PartnerDemoButton
+            className="btn-primary"
+            label="Run Partner Demo"
+          />
+          <ReDetectButton />
+          <Link href={viewHref("eval")} className="btn-secondary">
+            <ExternalIcon className="size-3.5 shrink-0" />
+            Open Eval
+          </Link>
+        </NoteAction>
+      </Note>
+
       {/* Queue alone until a row is selected; then queue | preview split */}
       <div
         className={
@@ -225,73 +294,6 @@ export function InsightsView({
             )}
           </div>
         ) : null}
-      </div>
-
-      <div className="flex shrink-0 flex-col gap-2.5 border-t border-sio-border-base pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <p
-          className="min-w-0 truncate text-label-13 text-sio-fg-subtle"
-          title={[
-            "Queue · Neon needs-review",
-            store.tenant.name,
-            scoreLabel ? `Score ${scoreLabel}` : null,
-            pilot.opportunityLift !== 0
-              ? `Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        >
-          <span className="text-sio-fg-muted">Queue</span>
-          <span className="text-sio-fg-muted" aria-hidden>
-            {" "}
-            ·{" "}
-          </span>
-          Neon needs-review
-          <span className="text-sio-fg-muted" aria-hidden>
-            {" "}
-            ·{" "}
-          </span>
-          <span className="text-sio-fg-base" translate="no">
-            {store.tenant.name}
-          </span>
-          {scoreLabel ? (
-            <>
-              <span className="text-sio-fg-muted" aria-hidden>
-                {" "}
-                ·{" "}
-              </span>
-              <span className="tabular text-sio-fg-base">
-                Score {scoreLabel}
-              </span>
-            </>
-          ) : null}
-          {pilot.opportunityLift !== 0 ? (
-            <>
-              <span className="text-sio-fg-muted" aria-hidden>
-                {" "}
-                ·{" "}
-              </span>
-              <span className="tabular text-sio-fg-base">
-                Lift {pilot.opportunityLift >= 0 ? "+" : ""}
-                {pilot.opportunityLift}
-              </span>
-            </>
-          ) : null}
-        </p>
-        <div
-          className="flex flex-wrap items-center gap-2 sm:justify-end"
-          role="group"
-          aria-label="Queue actions"
-        >
-          <PartnerDemoButton
-            className="btn-tertiary"
-            label="Run Partner Demo"
-          />
-          <ReDetectButton />
-          <Link href={viewHref("eval")} className="btn-secondary">
-            Open Eval
-          </Link>
-        </div>
       </div>
     </div>
   );

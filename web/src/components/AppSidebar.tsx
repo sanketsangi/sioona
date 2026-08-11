@@ -3,29 +3,32 @@
 import Link from "next/link";
 import { useEffect, useId, useRef } from "react";
 import {
-  BookOpenText,
   CaretDoubleLeft,
+  ChartLineUp,
   ListChecks,
-  Pulse,
-  Question,
   Tag,
-  UploadSimple,
-  User,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
+import { BookOpenIcon } from "@/components/icons/BookOpenIcon";
+import { LifebuoyIcon } from "@/components/icons/LifebuoyIcon";
+import { UserIcon } from "@/components/icons/UserIcon";
 import { SioonaLogotype } from "@/components/SioonaLogotype";
 import { viewHref, type PlatformView } from "@/lib/views";
 
-const nav: { view: PlatformView; label: string; icon: Icon }[] = [
-  { view: "insights", label: "Insights", icon: Pulse },
-  { view: "upload", label: "Upload", icon: UploadSimple },
+const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
+  { view: "insights", label: "Insights", icon: ChartLineUp },
+  { view: "upload", label: "Upload", icon: null },
   { view: "eval", label: "Eval", icon: ListChecks },
   { view: "taxonomy", label: "Taxonomy", icon: Tag },
 ];
 
-const footerLinks: { label: string; icon: Icon }[] = [
-  { label: "Help", icon: Question },
-  { label: "Guidance", icon: BookOpenText },
+const footerLinks: {
+  label: string;
+  Icon: typeof LifebuoyIcon | typeof BookOpenIcon;
+}[] = [
+  { label: "Help", Icon: LifebuoyIcon },
+  { label: "Guidance", Icon: BookOpenIcon },
 ];
 
 function NavLinks({
@@ -71,7 +74,11 @@ function NavLinks({
               aria-current={active ? "page" : undefined}
               className={`sidebar-nav-link ${active ? "sidebar-nav-link-active" : ""}`}
             >
-              <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
+              {Icon ? (
+                <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
+              ) : (
+                <ArrowCircleUpIcon className="size-4 shrink-0" />
+              )}
               <span className="truncate">{item.label}</span>
             </Link>
           );
@@ -86,7 +93,7 @@ function SidebarFooter() {
     <div className="shrink-0 border-t border-sio-border-base p-3">
       <div className="sidebar-nav mb-1.5">
         {footerLinks.map((item) => {
-          const Icon = item.icon;
+          const { Icon } = item;
           return (
             <button
               key={item.label}
@@ -94,20 +101,19 @@ function SidebarFooter() {
               className="sidebar-nav-link w-full"
               disabled
             >
-              <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
+              <Icon className="size-4 shrink-0" />
               <span className="truncate">{item.label}</span>
             </button>
           );
         })}
       </div>
-      <button type="button" className="sidebar-sign-in" disabled>
-        <span
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-sio-fg-faint text-sio-fg-on-color"
-          aria-hidden
-        >
-          <User className="size-3.5" weight="bold" />
-        </span>
-        Create Account
+      <button
+        type="button"
+        className="btn-secondary w-full justify-start gap-2.5 px-3"
+        aria-label="Create Account"
+      >
+        <UserIcon className="size-4 shrink-0" />
+        <span>Create Account</span>
       </button>
     </div>
   );
@@ -250,11 +256,7 @@ export function AppSidebar({
         className="sidebar-rail hidden w-[var(--sidebar-width)] shrink-0 flex-col md:flex"
         style={{ width: "var(--sidebar-width)" }}
       >
-        <SidebarBody
-          activeView={activeView}
-          detailOpen={detailOpen}
-          showLogo
-        />
+        <SidebarBody activeView={activeView} detailOpen={detailOpen} showLogo />
       </aside>
 
       {/* Mobile drawer */}

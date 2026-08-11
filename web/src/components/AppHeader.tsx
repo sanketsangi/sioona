@@ -2,22 +2,22 @@
 
 import { useState } from "react";
 import {
-  BellSimple,
   CaretDoubleLeft,
-  Export,
+  ChartLineUp,
   ListChecks,
   LockSimple,
-  MegaphoneSimple,
-  Pulse,
   Tag,
-  UploadSimple,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
+import { BellIcon } from "@/components/icons/BellIcon";
+import { EyeIcon } from "@/components/icons/EyeIcon";
+import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
+import { SparklesIcon } from "@/components/icons/SparklesIcon";
 import type { PlatformView } from "@/lib/views";
 
-const TITLE_ICONS: Record<PlatformView, Icon> = {
-  insights: Pulse,
-  upload: UploadSimple,
+const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
+  insights: ChartLineUp,
   eval: ListChecks,
   taxonomy: Tag,
 };
@@ -51,7 +51,11 @@ export function AppHeader({
   onOpenNav,
   menuTriggerRef,
 }: AppHeaderProps) {
-  const TitleIcon = title && !detailOpen ? TITLE_ICONS[activeView] : null;
+  const TitleIcon =
+    title && !detailOpen && activeView !== "upload"
+      ? TITLE_ICONS[activeView]
+      : null;
+  const showUploadTitleIcon = Boolean(title && !detailOpen && activeView === "upload");
 
   return (
     <header className="app-header">
@@ -71,7 +75,9 @@ export function AppHeader({
 
         {title ? (
           <h1 className="flex min-w-0 items-center gap-2 text-balance text-heading-20 text-sio-fg-base">
-            {TitleIcon ? (
+            {showUploadTitleIcon ? (
+              <ArrowCircleUpIcon className="size-5 shrink-0" />
+            ) : TitleIcon ? (
               <TitleIcon
                 className="size-5 shrink-0"
                 weight="bold"
@@ -95,7 +101,7 @@ export function AppHeader({
           className="btn-secondary size-11 shrink-0 px-0 md:size-9"
           aria-label="Notifications"
         >
-          <BellSimple className="size-4" weight="regular" aria-hidden />
+          <BellIcon className="size-4 shrink-0" />
         </button>
 
         <button
@@ -103,7 +109,7 @@ export function AppHeader({
           className="btn-secondary size-11 shrink-0 gap-1.5 px-0 md:size-9 lg:w-auto lg:px-3.5"
           aria-label="Export"
         >
-          <Export className="size-3.5 shrink-0" weight="regular" aria-hidden />
+          <ArrowCircleUpIcon className="size-3.5 shrink-0" />
           <span className="hidden lg:inline">Export</span>
         </button>
 
@@ -112,11 +118,7 @@ export function AppHeader({
           className="btn-primary size-11 shrink-0 gap-1.5 px-0 md:size-9 lg:h-9 lg:w-auto lg:px-3.5"
           aria-label="Create Campaign"
         >
-          <MegaphoneSimple
-            className="size-3.5 shrink-0"
-            weight="bold"
-            aria-hidden
-          />
+          <SparklesIcon className="size-3.5 shrink-0" />
           <span className="hidden lg:inline">Create Campaign</span>
         </button>
       </div>
@@ -154,6 +156,7 @@ function ModeToggle() {
             : "text-sio-fg-muted hover:text-sio-fg-base"
         }`}
       >
+        <EyeOffIcon className="size-3.5 shrink-0" />
         <span className="lg:hidden">Shadow</span>
         <span className="hidden lg:inline">Shadow Mode</span>
       </button>
@@ -173,6 +176,7 @@ function ModeToggle() {
             : "text-sio-fg-muted hover:text-sio-fg-base"
         } disabled:cursor-not-allowed disabled:hover:text-sio-fg-muted`}
       >
+        <EyeIcon className="size-3.5 shrink-0" />
         <span className="lg:hidden">Action</span>
         <span className="hidden lg:inline">Action Mode</span>
         {!unlocked ? (

@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowsClockwise } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { RefreshClockwiseIcon } from "@/components/icons/RefreshClockwiseIcon";
 import {
   hasSyncFailures,
   parsePredictionSync,
@@ -67,7 +67,7 @@ export function ReDetectButton() {
         {loading ? (
           <ButtonSpinner />
         ) : (
-          <ArrowsClockwise className="size-3.5" weight="regular" aria-hidden />
+          <RefreshClockwiseIcon className="size-3.5 shrink-0" />
         )}
         Re-run Detection
       </button>

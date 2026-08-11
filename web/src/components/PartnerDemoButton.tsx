@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
 import {
   hasSyncFailures,
   parsePredictionSync,
@@ -67,7 +68,11 @@ export function PartnerDemoButton({
         aria-busy={loading}
         className={className}
       >
-        {loading ? <ButtonSpinner /> : null}
+        {loading ? (
+          <ButtonSpinner />
+        ) : (
+          <PlayCircleIcon className="size-3.5 shrink-0" />
+        )}
         {label}
       </button>
       <div

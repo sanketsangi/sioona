@@ -1,9 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
+import { FilterIcon } from "@/components/icons/FilterIcon";
 import { Pager } from "@/components/Pager";
+import {
+  Menu,
+  MenuButton,
+  MenuContainer,
+  MenuDivider,
+  MenuItem,
+  MenuSection,
+} from "@/components/ui/Menu";
 import { formatScore, primaryQuote, signalTypeLabel } from "@/lib/format";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Signal, SignalType } from "@/lib/types";
@@ -326,46 +335,59 @@ function QueueFilters({
   pendingUnavailable?: boolean;
 }) {
   return (
-    <div className="flex shrink-0 flex-col gap-2.5 sm:gap-3 md:flex-row md:items-center md:justify-between">
-      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
-        <FilterRow label="Status">
-          {STATUS_OPTIONS.map((option) => (
-            <FilterChip
-              key={option.value}
-              active={statusFilter === option.value}
-              href={queueHref({
-                status: option.value,
-                page: 1,
-                preview: null,
-              })}
-              count={
+    <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <MenuContainer>
+        <MenuButton showChevron variant="secondary">
+          <FilterIcon className="size-3.5 shrink-0" />
+          Filters
+        </MenuButton>
+        <Menu width={220}>
+          <MenuSection title="Status">
+            {STATUS_OPTIONS.map((option) => {
+              const count =
                 option.value === "new"
                   ? pendingCount
                   : option.value === "reviewed"
                     ? reviewedCount
-                    : allCount
-              }
-            >
-              {option.label}
-            </FilterChip>
-          ))}
-        </FilterRow>
-        <FilterRow label="Type">
-          {TYPE_OPTIONS.map((option) => (
-            <FilterChip
-              key={option.value}
-              active={typeFilter === option.value}
-              href={queueHref({
-                type: option.value,
-                page: 1,
-                preview: null,
-              })}
-            >
-              {option.label}
-            </FilterChip>
-          ))}
-        </FilterRow>
-      </div>
+                    : allCount;
+              return (
+                <MenuItem
+                  key={option.value}
+                  active={statusFilter === option.value}
+                  href={queueHref({
+                    status: option.value,
+                    page: 1,
+                    preview: null,
+                  })}
+                  suffix={
+                    <span className="tabular text-label-12 text-sio-fg-muted">
+                      {count}
+                    </span>
+                  }
+                >
+                  {option.label}
+                </MenuItem>
+              );
+            })}
+          </MenuSection>
+          <MenuDivider />
+          <MenuSection title="Type">
+            {TYPE_OPTIONS.map((option) => (
+              <MenuItem
+                key={option.value}
+                active={typeFilter === option.value}
+                href={queueHref({
+                  type: option.value,
+                  page: 1,
+                  preview: null,
+                })}
+              >
+                {option.label}
+              </MenuItem>
+            ))}
+          </MenuSection>
+        </Menu>
+      </MenuContainer>
       <p className="tabular shrink-0 text-label-13 text-sio-fg-subtle">
         {pendingUnavailable ? (
           <>
@@ -387,54 +409,5 @@ function QueueFilters({
         {pageItemCount} of {filteredCount}
       </p>
     </div>
-  );
-}
-
-function FilterRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-      <span className="shrink-0 text-label-12 text-sio-fg-subtle">{label}</span>
-      <div className="filter-toggle" role="group" aria-label={label}>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function FilterChip({
-  active,
-  href,
-  children,
-  count,
-}: {
-  active: boolean;
-  href: string;
-  children: ReactNode;
-  count?: number;
-}) {
-  return (
-    <Link
-      href={href}
-      scroll={false}
-      aria-current={active ? "true" : undefined}
-      className={`filter-chip ${active ? "filter-chip-active" : "filter-chip-idle"}`}
-    >
-      {children}
-      {typeof count === "number" ? (
-        <span
-          className={`tabular text-label-12 ${
-            active ? "text-sio-fg-subtle" : "text-sio-fg-muted"
-          }`}
-        >
-          {count}
-        </span>
-      ) : null}
-    </Link>
   );
 }
