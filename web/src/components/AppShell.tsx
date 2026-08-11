@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import type { PlatformView } from "@/lib/views";
 
 export function AppShell({
@@ -16,14 +16,16 @@ export function AppShell({
   activeView: PlatformView;
   detailOpen?: boolean;
 }) {
-  const [navOpen, setNavOpen] = useState(false);
-  const menuTriggerRef = useRef<HTMLButtonElement>(null);
-
-  const openNav = useCallback(() => setNavOpen(true), []);
-  const closeNav = useCallback(() => setNavOpen(false), []);
-
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-sio-bg-subtle text-sio-fg-base md:flex-row">
+    <SidebarProvider
+      className="flex !min-h-0 h-dvh overflow-hidden bg-sio-bg-subtle text-sio-fg-base"
+      style={
+        {
+          "--sidebar-width": "240px",
+          "--sidebar-width-icon": "3rem",
+        } as React.CSSProperties
+      }
+    >
       <a
         href="#main"
         className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:m-0 focus:h-auto focus:w-auto focus:overflow-visible focus:rounded-sm focus:bg-sio-bg-inverse focus:px-3 focus:py-2 focus:text-sm focus:text-sio-fg-on-color focus:[clip:auto]"
@@ -31,31 +33,19 @@ export function AppShell({
         Skip to content
       </a>
 
-      <AppSidebar
-        activeView={activeView}
-        detailOpen={detailOpen}
-        navOpen={navOpen}
-        onNavOpenChange={setNavOpen}
-        onCloseNav={closeNav}
-        menuTriggerRef={menuTriggerRef}
-      />
+      <AppSidebar activeView={activeView} detailOpen={detailOpen} />
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <AppHeader
-          title={title}
-          activeView={activeView}
-          detailOpen={detailOpen}
-          navOpen={navOpen}
-          onOpenNav={openNav}
-          menuTriggerRef={menuTriggerRef}
-        />
+      <SidebarInset
+        id="main"
+        tabIndex={-1}
+        className="page-main min-h-0 overflow-hidden bg-sio-bg-subtle"
+      >
+        <AppHeader title={title} activeView={activeView} detailOpen={detailOpen} />
 
-        <main id="main" tabIndex={-1} className="page-main">
-          <div className="page-frame flex min-h-0 flex-1 flex-col py-3 sm:py-4 lg:py-5">
-            <div className="page-body">{children}</div>
-          </div>
-        </main>
-      </div>
-    </div>
+        <div className="page-frame flex min-h-0 flex-1 flex-col py-3 sm:py-4 lg:py-5">
+          <div className="page-body">{children}</div>
+        </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

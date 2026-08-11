@@ -13,7 +13,7 @@ Tokens, typography, Title Case / verb+noun labels, empty states, and focus rings
 ## Structure
 
 - Wrap pages in `AppShell` with a Title Case title + sentence-case subtitle
-- Reuse signal chrome via `format.ts` / `SignalBadge` (lead=blue, retention=amber, upsell=teal — via `sio-signal-*` when styling in CSS)
+- Reuse signal chrome via `SignalStatus` / `SignalScoreChip` / `SignalTypeChip` / `SignalUser` (mappings in `format.ts`); colored `SignalBadge` only for taxonomy / legacy marks (lead=blue, retention=amber, upsell=teal — via `sio-signal-*` when styling in CSS)
 
 ## Reuse before inventing
 

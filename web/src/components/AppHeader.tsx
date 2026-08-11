@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  CaretDoubleLeft,
   ChartLineUp,
   ListChecks,
   LockSimple,
@@ -14,6 +13,7 @@ import { BellIcon } from "@/components/icons/BellIcon";
 import { EyeIcon } from "@/components/icons/EyeIcon";
 import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
 import { SparklesIcon } from "@/components/icons/SparklesIcon";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import type { PlatformView } from "@/lib/views";
 
 const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
@@ -26,9 +26,6 @@ type AppHeaderProps = {
   title?: string;
   activeView: PlatformView;
   detailOpen?: boolean;
-  navOpen?: boolean;
-  onOpenNav?: () => void;
-  menuTriggerRef?: React.RefObject<HTMLButtonElement | null>;
 };
 
 type WorkspaceMode = "shadow" | "action";
@@ -42,36 +39,29 @@ function isActionModeUnlocked(): boolean {
 /**
  * Main-column header — sits parallel to the sidebar logo row.
  * Page title lives here for every view; logo/nav stay in the sidebar.
+ * SidebarTrigger toggles desktop icon-collapse and the mobile sheet.
  */
 export function AppHeader({
   title,
   activeView,
   detailOpen = false,
-  navOpen = false,
-  onOpenNav,
-  menuTriggerRef,
 }: AppHeaderProps) {
   const TitleIcon =
     title && !detailOpen && activeView !== "upload"
       ? TITLE_ICONS[activeView]
       : null;
-  const showUploadTitleIcon = Boolean(title && !detailOpen && activeView === "upload");
+  const showUploadTitleIcon = Boolean(
+    title && !detailOpen && activeView === "upload",
+  );
 
   return (
     <header className="app-header">
       <div className="app-header-start flex min-w-0 flex-1 items-center gap-2">
-        <button
-          ref={menuTriggerRef}
-          type="button"
-          className="btn-tertiary size-11 shrink-0 px-0 md:hidden"
-          aria-expanded={navOpen}
-          aria-controls="app-sidebar-drawer"
-          aria-label="Collapse"
-          title="Collapse"
-          onClick={onOpenNav}
-        >
-          <CaretDoubleLeft className="size-4" weight="bold" aria-hidden />
-        </button>
+        <SidebarTrigger
+          className="size-11 shrink-0 md:size-9"
+          aria-label="Toggle navigation"
+          title="Toggle navigation"
+        />
 
         {title ? (
           <h1 className="flex min-w-0 items-center gap-2 text-balance text-heading-20 text-sio-fg-base">

@@ -4,11 +4,13 @@ import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
 import { ReDetectButton } from "@/components/ReDetectButton";
-import { SignalBadge } from "@/components/SignalBadge";
+import { SignalScoreChip } from "@/components/SignalScoreChip";
+import { SignalStatus } from "@/components/SignalStatus";
+import { SignalTypeChip } from "@/components/SignalTypeChip";
+import { SignalUser } from "@/components/SignalUser";
 import {
   customerNameFromExternalId,
   formatEvidenceItem,
-  formatScore,
   signalTypeLabel,
 } from "@/lib/format";
 import { viewHref } from "@/lib/views";
@@ -87,21 +89,18 @@ export function SignalDetailView({
       <div className="scroll-region flex min-h-0 min-w-0 flex-1 flex-col gap-2.5">
         <div className="panel shrink-0 p-3 sm:p-3.5">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <SignalBadge type={signal.type} />
-            <span className="tabular text-label-13 text-sio-fg-muted">
-              Detection{" "}
-              <span className="font-medium text-sio-fg-base">
-                {formatScore(signal.score)}
-              </span>
-            </span>
+            <SignalTypeChip type={signal.type} />
+            <SignalScoreChip score={signal.score} />
+            <SignalStatus signal={signal} />
             {displayName ? (
-              <span
-                className="min-w-0 truncate text-label-13 text-sio-fg-muted"
-                translate="no"
-              >
-                · {displayName}
-                {conversation?.channel ? ` · ${conversation.channel}` : ""}
-              </span>
+              <>
+                <SignalUser name={displayName} />
+                {conversation?.channel ? (
+                  <span className="text-label-13 text-sio-fg-muted">
+                    · {conversation.channel}
+                  </span>
+                ) : null}
+              </>
             ) : isNeonStub ? (
               <span className="text-label-13 text-sio-fg-muted">
                 · Neon prediction only

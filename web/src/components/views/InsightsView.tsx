@@ -264,7 +264,7 @@ export function InsightsView({
               Needs Attention
             </h2>
             <p className="mt-0.5 text-label-13 text-sio-fg-muted">
-              Review signals that need review in Shadow Mode
+              Shadow Mode queue — confirm or correct detections.
             </p>
           </div>
           <SignalQueueFilters

@@ -27,7 +27,7 @@ const STATE_CLASS: Record<StatusDotState, string> = {
  * Local StatusDot primitive matching `@vercel/geistcn` StatusDot API.
  * geistcn is not on public npm — keep API-aligned for drop-in later.
  *
- * Usage: `<StatusDot label state="QUEUED">Needs Review</StatusDot>`
+ * Usage: `<StatusDot label state="QUEUED">Pending</StatusDot>`
  */
 export function StatusDot({
   state,

@@ -3,17 +3,43 @@ import {
   customerNameFromExternalId,
   initialsFromName,
   isSignalNeedsReview,
+  queueSignalSummary,
+  scoreIconClass,
+  scoreIconColor,
+  scoreIconKind,
   signalReviewStatusLabel,
   signalStatusDot,
 } from "./format";
 
+describe("scoreIconKind", () => {
+  it("maps stop / warning / good bands", () => {
+    expect(scoreIconKind(0.49)).toBe("stop");
+    expect(scoreIconKind(0.5)).toBe("warning");
+    expect(scoreIconKind(0.9)).toBe("warning");
+    expect(scoreIconKind(0.91)).toBe("good");
+    expect(scoreIconKind(1)).toBe("good");
+  });
+
+  it("pairs exact hex colors for mask currentColor", () => {
+    expect(scoreIconColor(0.91)).toBe("#279141");
+    expect(scoreIconColor(0.5)).toBe("#ff9300");
+    expect(scoreIconColor(0.49)).toBe("#d8001b");
+  });
+
+  it("mirrors hex as Tailwind text classes", () => {
+    expect(scoreIconClass(0.91)).toBe("text-[#279141]");
+    expect(scoreIconClass(0.5)).toBe("text-[#ff9300]");
+    expect(scoreIconClass(0.49)).toBe("text-[#d8001b]");
+  });
+});
+
 describe("signalReviewStatusLabel", () => {
-  it("labels unreviewed as Needs Review", () => {
+  it("labels unreviewed as Pending", () => {
     expect(
       signalReviewStatusLabel({
         status: "new",
       })
-    ).toBe("Needs Review");
+    ).toBe("Pending");
     expect(
       isSignalNeedsReview({ status: "new", feedback: undefined })
     ).toBe(true);
@@ -45,7 +71,7 @@ describe("signalStatusDot", () => {
   it("maps needs-review to QUEUED", () => {
     expect(signalStatusDot({ status: "new" })).toEqual({
       state: "QUEUED",
-      label: "Needs Review",
+      label: "Pending",
     });
   });
 
@@ -119,5 +145,37 @@ describe("initialsFromName", () => {
     expect(initialsFromName("")).toBe("?");
     expect(initialsFromName("   ")).toBe("?");
     expect(initialsFromName("!!!")).toBe("?");
+  });
+});
+
+describe("queueSignalSummary", () => {
+  it("strips name + optional channel and capitalizes the rest", () => {
+    expect(
+      queueSignalSummary(
+        "Shalini Pandey (upload) may be drifting…",
+        "Shalini Pandey"
+      )
+    ).toBe("May be drifting…");
+  });
+
+  it("strips name-only prefix", () => {
+    expect(
+      queueSignalSummary("Shalini Pandey may be drifting…", "Shalini Pandey")
+    ).toBe("May be drifting…");
+  });
+
+  it("leaves summaries without a name prefix unchanged", () => {
+    expect(
+      queueSignalSummary("Renewal risk in Q3 pipeline", "Shalini Pandey")
+    ).toBe("Renewal risk in Q3 pipeline");
+  });
+
+  it("falls back to the original when strip would empty", () => {
+    expect(queueSignalSummary("Shalini Pandey", "Shalini Pandey")).toBe(
+      "Shalini Pandey"
+    );
+    expect(
+      queueSignalSummary("Shalini Pandey (upload)", "Shalini Pandey")
+    ).toBe("Shalini Pandey (upload)");
   });
 });

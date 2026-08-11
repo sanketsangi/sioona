@@ -119,10 +119,43 @@
   --focus-ring: 0 0 0 2px var(--sio-bg-base), 0 0 0 4px var(--sio-focus-accent);
   --page-max: 1360px;
   --sidebar-width: 240px;
+  --sidebar-width-icon: 3rem;
   --mobile-bar-height: 56px;
   --radius-control: 6px;
   --radius-panel: 12px;
   --radius-group: 16px;
+
+  /*
+   * shadcn Sidebar / Button theme tokens — HSL channels for hsl(var(--…)).
+   * Alias to sio neutrals; do not invent a second palette.
+   */
+  --primary: 0 0% 9%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 30 6% 95%;
+  --secondary-foreground: 0 0% 9%;
+  --muted: 30 6% 95%;
+  --muted-foreground: 0 0% 45%;
+  --accent: 30 6% 95%;
+  --accent-foreground: 0 0% 9%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 212 100% 48%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+
+  /* shadcn sidebar-* → sio neutrals (light product default) */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 0 0% 9%;
+  --sidebar-primary: 0 0% 9%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 30 6% 95%;
+  --sidebar-accent-foreground: 0 0% 9%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 212 100% 48%;
 }
 
 @layer base {
@@ -615,20 +648,13 @@
     @apply px-4 py-2.5 align-top;
   }
 
-  .signal-score {
-    @apply mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center font-mono text-label-12 font-medium leading-none text-sio-fg-base tabular-nums;
-    border-radius: var(--radius-control);
-    border: 1px solid var(--sio-border-subtle);
-    background: var(--sio-bg-muted);
-  }
-
   /* Local StatusDot (geistcn-aligned) — Insights review chrome */
   .status-dot {
     @apply inline-flex items-center gap-1.5 text-label-12 font-medium;
   }
 
   .status-dot-indicator {
-    @apply size-1.5 shrink-0 rounded-full;
+    @apply size-2.5 shrink-0 rounded-full;
   }
 
   .status-dot-queued {

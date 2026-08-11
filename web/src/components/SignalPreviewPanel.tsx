@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
-import { SignalBadge } from "@/components/SignalBadge";
-import { StatusDot } from "@/components/ui/StatusDot";
+import { SignalScoreChip } from "@/components/SignalScoreChip";
+import { SignalStatus } from "@/components/SignalStatus";
+import { SignalTypeChip } from "@/components/SignalTypeChip";
+import { SignalUser } from "@/components/SignalUser";
 import {
   formatScore,
   primaryQuote,
-  signalStatusDot,
+  queueSignalSummary,
+  signalReviewStatusLabel,
   signalTypeLabel,
 } from "@/lib/format";
 import { viewHref } from "@/lib/views";
@@ -36,36 +39,27 @@ export function SignalPreviewPanel({
 
   const score = formatScore(signal.score);
   const typeLabel = signalTypeLabel(signal.type);
-  const statusDot = signalStatusDot(signal);
-  const statusText = statusDot.label;
+  const statusText = signalReviewStatusLabel(signal);
   const quote = primaryQuote(signal.evidence);
   const detailHref = viewHref("insights", {
     ...detailExtras,
     signal: signal.id,
   });
   const who = customerName?.trim() || "Customer";
+  const summaryText = queueSignalSummary(signal.summary || "", who);
 
   return (
     <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden p-3.5 sm:p-4">
       <div className="flex shrink-0 min-w-0 flex-wrap items-center gap-2">
-        <SignalBadge type={signal.type} />
-        <span className="signal-score" aria-hidden>
-          {score}
-        </span>
-        <StatusDot label state={statusDot.state}>
-          {statusText}
-        </StatusDot>
+        <SignalTypeChip type={signal.type} />
+        <SignalScoreChip score={signal.score} />
+        <SignalStatus signal={signal} />
       </div>
 
-      <p
-        className="mt-2.5 shrink-0 min-w-0 truncate text-label-13 font-medium text-sio-fg-base"
-        translate="no"
-      >
-        {who}
-      </p>
+      <SignalUser name={who} className="mt-2.5 shrink-0" />
 
       <p className="mt-1 line-clamp-2 shrink-0 min-w-0 break-words text-pretty text-copy-14 font-medium text-sio-fg-base">
-        {signal.summary || "No summary available"}
+        {summaryText || "No summary available"}
       </p>
 
       {quote ? (
