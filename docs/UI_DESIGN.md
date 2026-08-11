@@ -19,6 +19,17 @@ clear, minimal, trustworthy.
 3. Quiet confidence over visual noise
 4. Fast scanning for operators reviewing signals
 
+## App shell (sidebar-07)
+
+Shell uses shadcn Sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarInset`, `SidebarTrigger`, `SidebarRail`) with `collapsible="icon"`.
+
+- **Tokens:** `--sidebar-*` (and related shadcn HSL channels) alias to sio neutrals in `globals.css` — light theme / `color-scheme: light`; do not invent a second palette.
+- **Width:** `--sidebar-width: 240px`; icon rail `--sidebar-width-icon: 3rem` (Tailwind uses `w-[var(--sidebar-width)]`).
+- **Brand:** `SioonaLogotype` + compact “S” mark in the sidebar header (no Acme `TeamSwitcher`).
+- **Nav:** Workspace — Insights, Upload, Eval, Taxonomy via `viewHref` / Phosphor + local icons; Help / Guidance disabled; Create Account stub (no fake user avatars / Auth0).
+- **Header:** existing `AppHeader` title + mode toggle + actions; `SidebarTrigger` for desktop collapse and mobile sheet.
+- **Out of product:** do not ship the sidebar-07 demo dashboard as the home route.
+
 ## Concrete rules
 
 - Font: Geist
@@ -72,17 +83,57 @@ Shared `ConversationDrawer` → local `Drawer` shim. Insights preview keeps summ
 
 ### Insights queue status
 
-Operator-facing StatusDot (`web/src/components/ui/StatusDot.tsx`, geistcn-aligned local shim). **Pending until review = blue**; colors follow the operator feedback label after review (not signal type).
+Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/components/ui/StatusDot.tsx`, geistcn-aligned local shim). **Pending until review = blue**; colors follow the operator feedback label after review (not signal type). Mapping lives only in `format.ts` (`signalStatusDot`).
 
 | Operator state | Label | Dot |
 |---|---|---|
-| Pending / Needs Review (no feedback yet) | **Needs Review** | Blue (`ds-blue` / sio link) — QUEUED |
+| Pending (no feedback yet) | **Pending** | Blue (`ds-blue` / sio link) — QUEUED |
 | `feedback.label === correct` | **Correct** | Green (`sio-status-success-*`) — READY |
 | `feedback.label === incorrect` | **Incorrect** | Red (`sio-status-danger-*`) — ERROR |
 | `feedback.label === partially_correct` | **Partially Correct** | Orange/amber (`sio-status-warning-*`) — BUILDING |
 
-URL filter stays `status=new` for the Neon needs-review bucket. StatusDot uses **feedback presence/label** once reviewed (so a reviewed row never stays blue from a stale `status===new`). Always show the text label with the dot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status.
+URL filter stays `status=new` for the Neon needs-review bucket. StatusDot uses **feedback presence/label** once reviewed (so a reviewed row never stays Pending/blue from a stale `status===new`). Always show the text label with the dot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status.
+
+### Signal chrome (reuse lock)
+
+Operator Insights surfaces (queue / preview / detail) share one chrome set — copy the locked queue look; do not re-wire icons or status mapping in views.
+
+| Surface | Component | Notes |
+|---|---|---|
+| Status | `SignalStatus` only | Internals call `signalStatusDot` → `StatusDot`; Pending / Correct / Incorrect / Partially Correct mapping stays in `format.ts` |
+| Detection score | `SignalScoreChip` only | Hairline pill + band icon hex; bands unchanged via `scoreIconKind` / `scoreIconColor` |
+| Type (ops scan) | `SignalTypeChip` | Same hairline pill + muted Lead / Retention / Upsell glyphs |
+| Type (taxonomy / legacy colored mark) | `SignalBadge` | Colored mark for taxonomy tables only — do not duplicate chip logic inside `SignalBadge` |
+| User | `SignalUser` | `Avatar` + initials (`?` when empty / `"Customer"`) + optional truncated name |
+
+**NEVER** re-wire `scoreIconKind` / `StatusDot` mapping / type icons inline in views — import the shared components.
+
+Shared pill class: `signalChipClass` (exported from `SignalScoreChip.tsx`).
+
+### Insights queue Type chip
+
+Queue **Type** column uses `SignalTypeChip`: pill radius (`rounded-full`), white/base fill, hairline only (`shadow-[0_0_0_1px_rgba(0,0,0,0.08)]` — no elevation), type glyph (`LeadIcon` / `RetentionIcon` / `UpsellIcon`, muted) + Title Case label. Preview + detail use the same chip for ops scan consistency.
+
+### Insights queue Score chip
+
+Queue **Score** column uses `SignalScoreChip` (same `signalChipClass` hairline pill as Type): band icon + tabular digits (`formatScore`) side by side. Bands on `signal.score` (0–1) via `scoreIconKind` / `scoreIconColor` (inline `color` on `GeistMaskIcon`) — only inside `SignalScoreChip`:
+
+| Score | Display | Icon | Hex |
+|---|---|---|---|
+| `< 0.5` | `< 50` | `StopIcon` (`stop.svg`, solid octagon) | `#d8001b` |
+| `0.5`–`0.9` | `50`–`90` | `WarningIcon` (`warning.svg`, solid triangle) | `#ff9300` |
+| `> 0.9` | `> 90` | `GoodIcon` (`good.svg`, check-in-circle) | `#279141` |
+
+Preview + detail use `SignalScoreChip` too. Not StatusDot / feedback colors.
+
+### Insights queue Evidence density
+
+Desktop queue shows Evidence (quote only, truncated) from `lg+`. Between `sm` and `lg`, columns are User · Signal · Status · Score · Type · Action (no Evidence). Mobile stacked cards keep a single evidence quote line. Do not show `Next · suggestedAction` under Evidence in the queue; suggested action stays on preview/detail.
+
+### Insights summary display (no name echo)
+
+When the customer name is already shown (queue User column, preview name line), display summary via `queueSignalSummary(summary, customerName)` — strip a leading name + optional `(channel)`, trim leftover dashes/colons, capitalize the remainder. Fall back to the original summary if strip would empty. Do **not** change `detect.ts` / stored summaries. Preview panel uses the same helper as the queue Signal column.
 
 ## Showcase corpus names
 
-`testing.json` encodes people in `externalId` (`rahul_mehta_29`). The loader derives `customerName` for store + detect summaries; FastAPI dual-write carries the name inside `summary` (no separate Neon customer column).
+`testing.json` encodes people in `externalId` (`rahul_mehta_29`). The loader derives `customerName` for store + detect summaries; FastAPI dual-write carries the name inside `summary` (no separate Neon customer column). UI strips the name prefix for display only (`queueSignalSummary`).

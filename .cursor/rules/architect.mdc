@@ -39,6 +39,7 @@ The generated prompt must include:
 - Shadow Mode + Insights first
 - Multi-tenant by default
 - Prefer small focused steps
+- Signal chrome is locked: reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`; do not reinvent status/score/type/avatar in prompts or diffs
 
 ## Style
 

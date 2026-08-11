@@ -14,6 +14,39 @@ export function formatScore(score: number): string {
   return `${Math.round(score * 100)}`;
 }
 
+/** Score band → Insights Score icon (not StatusDot / feedback). */
+export type ScoreIconKind = "good" | "warning" | "stop";
+
+export function scoreIconKind(score: number): ScoreIconKind {
+  if (score > 0.9) return "good";
+  if (score >= 0.5) return "warning";
+  return "stop";
+}
+
+/** Exact hex for Score icon via GeistMaskIcon currentColor (number stays base / tabular). */
+export function scoreIconColor(score: number): string {
+  switch (scoreIconKind(score)) {
+    case "good":
+      return "#279141";
+    case "warning":
+      return "#ff9300";
+    case "stop":
+      return "#d8001b";
+  }
+}
+
+/** Tailwind class mirror of `scoreIconColor` (prefer `color={scoreIconColor(...)}` for masks). */
+export function scoreIconClass(score: number): string {
+  switch (scoreIconKind(score)) {
+    case "good":
+      return "text-[#279141]";
+    case "warning":
+      return "text-[#ff9300]";
+    case "stop":
+      return "text-[#d8001b]";
+  }
+}
+
 /**
  * Pending until the operator leaves feedback.
  * Feedback label is the StatusDot source of truth once present (not `status===new`).
@@ -35,7 +68,7 @@ export type SignalStatusDotState =
 
 /**
  * Map signal review/feedback → StatusDot state + visible label.
- * Pending (no feedback) → Needs Review / blue QUEUED.
+ * Pending (no feedback) → Pending / blue QUEUED.
  * Correct → green READY | Incorrect → red ERROR | Partially Correct → orange BUILDING.
  */
 export function signalStatusDot(
@@ -43,7 +76,7 @@ export function signalStatusDot(
 ): { state: SignalStatusDotState; label: string } {
   const label = signal.feedback?.label;
   if (!label) {
-    return { state: "QUEUED", label: "Needs Review" };
+    return { state: "QUEUED", label: "Pending" };
   }
   switch (label) {
     case "correct":
@@ -169,4 +202,28 @@ export function initialsFromName(name?: string): string {
   return (
     parts[0].charAt(0) + parts[parts.length - 1].charAt(0)
   ).toUpperCase();
+}
+
+/**
+ * Queue Signal column: strip a leading customer name (+ optional channel)
+ * so the cell does not repeat the User column.
+ * Does not mutate stored summaries / detect.ts.
+ */
+export function queueSignalSummary(
+  summary: string,
+  customerName: string
+): string {
+  const name = customerName.trim();
+  if (!name || !summary.startsWith(name)) return summary;
+
+  let rest = summary.slice(name.length);
+  rest = rest.replace(/^\s*\([^)]{1,40}\)/, "");
+  rest = rest.replace(/^[\s—–\-:]+/, "");
+
+  if (!rest) return summary;
+
+  if (/^[a-z]/.test(rest)) {
+    rest = rest.charAt(0).toUpperCase() + rest.slice(1);
+  }
+  return rest;
 }
