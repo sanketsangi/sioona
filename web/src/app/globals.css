@@ -66,8 +66,8 @@
   --sio-bg-base: var(--ds-background-100);
   --sio-bg-subtle: var(--ds-background-200);
   --sio-bg-muted: var(--ds-gray-100);
-  /* Large grouped regions — sits between page #fff and hover #f2f1f0 */
-  --sio-bg-group: var(--ds-gray-200);
+  /* Large grouped regions — match page canvas; nested .panel supplies contrast */
+  --sio-bg-group: var(--ds-background-200);
   /* Hover / selected / chrome highlight — solid warm gray */
   --sio-bg-interactive: var(--ds-gray-100);
   --sio-bg-interactive-hover: var(--ds-gray-100);
@@ -334,7 +334,7 @@
   }
 
   .metric-label {
-    @apply text-label-12 text-sio-fg-subtle;
+    @apply text-label-12 text-sio-fg-muted;
   }
 
   .metric-value {
@@ -611,7 +611,7 @@
   }
 
   .signal-score {
-    @apply mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center font-mono text-sm font-semibold leading-none text-sio-fg-base tabular-nums;
+    @apply mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center font-mono text-label-12 font-medium leading-none text-sio-fg-base tabular-nums;
     border-radius: var(--radius-control);
     border: 1px solid var(--sio-border-subtle);
     background: var(--sio-bg-muted);
@@ -626,7 +626,7 @@
   }
 
   .signal-status-pending {
-    @apply font-medium text-sio-signal-lead-fg;
+    @apply font-medium text-sio-fg-base;
   }
 
   .signal-status-pending .signal-status-dot {
@@ -634,7 +634,7 @@
   }
 
   .signal-status-reviewed {
-    @apply text-sio-fg-subtle;
+    @apply text-sio-fg-muted;
   }
 
   .signal-status-reviewed .signal-status-dot {
@@ -642,11 +642,11 @@
   }
 
   .label-meta {
-    @apply text-xs leading-4 text-sio-fg-subtle;
+    @apply text-xs leading-4 text-sio-fg-muted;
   }
 
   .eyebrow {
-    @apply text-label-12 font-medium tracking-[0.06em] text-sio-fg-subtle uppercase;
+    @apply text-label-12 font-medium tracking-[0.06em] text-sio-fg-muted uppercase;
   }
 
   .sidebar-rail {

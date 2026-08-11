@@ -64,11 +64,8 @@ describe("testing.json synthetic eval", () => {
       confusion.filter((c) => c.kind === "false_negative"),
       10
     );
-    // eslint-disable-next-line no-console
     console.log("\n=== testing.json synthetic eval ===\n" + summary);
-    // eslint-disable-next-line no-console
     console.log("\n=== top false positives ===\n" + topFp);
-    // eslint-disable-next-line no-console
     console.log("\n=== top false negatives ===\n" + topFn + "\n");
 
     expect(summary).toContain("labeled=41");

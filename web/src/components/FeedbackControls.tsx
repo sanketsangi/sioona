@@ -85,25 +85,32 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
   }
 
   return (
-    <div className="panel p-4 sm:p-5">
-      <h2 className="text-heading-16 text-sio-fg-base">SignalScore Feedback</h2>
-      <p className="mt-1 text-label-13 text-sio-fg-subtle">
+    <div className="panel p-3.5 sm:p-4">
+      <h2 className="text-heading-16 text-sio-fg-base">Feedback</h2>
+      <p className="mt-1 text-label-13 text-sio-fg-muted">
         Mark correct / incorrect / partially correct. Saves to Neon and
         refreshes Signal Score above.
       </p>
       <div aria-live="polite">
         {signal.feedback || justSaved ? (
-          <p className="mt-3 break-words text-copy-14 text-sio-signal-lead-fg">
+          <p className="mt-2.5 break-words text-copy-14 text-sio-fg-base">
             Current:{" "}
-            {(signal.feedback?.label ?? justSaved)!.replaceAll("_", " ")}
-            {signal.feedback?.note ? ` — ${signal.feedback.note}` : ""}
+            <span className="font-medium">
+              {(signal.feedback?.label ?? justSaved)!.replaceAll("_", " ")}
+            </span>
+            {signal.feedback?.note ? (
+              <span className="text-sio-fg-muted">
+                {" "}
+                — {signal.feedback.note}
+              </span>
+            ) : null}
             {justSaved && !signal.feedback
               ? " — saved; score refreshing…"
               : null}
           </p>
         ) : null}
       </div>
-      <label className="mt-4 block">
+      <label className="mt-3.5 block">
         <span className="sr-only">Optional note</span>
         <textarea
           ref={noteRef}
@@ -117,7 +124,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           rows={2}
         />
       </label>
-      <p className="mt-1 text-label-12 text-sio-fg-subtle">
+      <p className="mt-1 text-label-12 text-sio-fg-muted">
         ⌘&nbsp;Enter or Ctrl&nbsp;Enter marks correct with the current note.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -134,7 +141,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
               {pending === option.label ? <ButtonSpinner /> : null}
               {option.title}
             </div>
-            <div className="mt-0.5 text-label-12 text-sio-fg-subtle">
+            <div className="mt-0.5 text-label-12 text-sio-fg-muted">
               {option.hint}
             </div>
           </button>
@@ -142,7 +149,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
       </div>
       {needsAdapt ? (
         <div
-          className="mt-4 rounded-sm border border-sio-border-base bg-sio-bg-muted px-3 py-3"
+          className="mt-3.5 rounded-sm border border-sio-border-base bg-sio-bg-muted px-3 py-2.5"
           role="status"
           aria-live="polite"
         >
@@ -153,7 +160,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           </p>
           <Link
             href={viewHref("eval", { panel: "adapt" })}
-            className="btn-secondary mt-3"
+            className="btn-secondary mt-2.5"
           >
             Adapt From Reviews
           </Link>

@@ -49,7 +49,6 @@ export function AdaptationPanel({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [focusTermId, setFocusTermId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     for (const signal of signals) {
@@ -80,12 +79,18 @@ export function AdaptationPanel({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [draftsDirty]);
 
-  useEffect(() => {
-    if (!focusTermId) return;
+  const pageCount = Math.max(1, Math.ceil(reviewSignals.length / PAGE_SIZE));
+  const page = Math.min(parsePage(adaptPageRaw), pageCount);
+  const pageItems = reviewSignals.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
+
+  function focusOverrideInput(signalId: string) {
     // Mobile card + desktop table both render a `override-<id>` input;
     // only one is visible per breakpoint, so focus whichever isn't hidden.
     const candidates = document.querySelectorAll<HTMLInputElement>(
-      `input[name="override-${focusTermId}"]`
+      `input[name="override-${signalId}"]`
     );
     for (const candidate of candidates) {
       if (candidate.offsetParent !== null) {
@@ -93,15 +98,7 @@ export function AdaptationPanel({
         break;
       }
     }
-    setFocusTermId(null);
-  }, [focusTermId]);
-
-  const pageCount = Math.max(1, Math.ceil(reviewSignals.length / PAGE_SIZE));
-  const page = Math.min(parsePage(adaptPageRaw), pageCount);
-  const pageItems = reviewSignals.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE
-  );
+  }
 
   async function applyOverride(
     signal: Signal,
@@ -111,7 +108,7 @@ export function AdaptationPanel({
     const value = (drafts[signal.id] ?? "").trim();
     if (!value) {
       setError("Enter a phrase or negative term first.");
-      setFocusTermId(signal.id);
+      focusOverrideInput(signal.id);
       return;
     }
     setError(null);
@@ -171,11 +168,11 @@ export function AdaptationPanel({
     <div
       className={`panel flex min-h-0 flex-1 flex-col overflow-hidden ${compact ? "" : "mt-6"}`}
     >
-      <div className="shrink-0 border-b border-ds-gray-400 px-4 py-2.5">
-        <h2 className="text-balance text-heading-16 text-ds-gray-1000">
+      <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
+        <h2 className="text-balance text-heading-16 text-sio-fg-base">
           Adapt From Reviews
         </h2>
-        <p className="mt-1 text-label-13 text-ds-gray-900">
+        <p className="mt-1 text-label-13 text-sio-fg-muted">
           Reject → Add Negative (stop false positives). Wrong reason / miss →
           Add Phrase. Each change re-detects immediately.
         </p>
@@ -183,7 +180,7 @@ export function AdaptationPanel({
 
       <div aria-live="polite">
         {success ? (
-          <p className="shrink-0 border-b border-ds-gray-400 px-4 py-2 text-copy-14 text-ds-green-900">
+          <p className="shrink-0 border-b border-sio-border-base px-3 py-2 text-copy-14 text-sio-status-success-fg sm:px-4">
             {success}
           </p>
         ) : null}
@@ -191,7 +188,7 @@ export function AdaptationPanel({
 
       {error ? (
         <p
-          className="shrink-0 border-b border-ds-gray-400 px-4 py-2 text-copy-14 text-ds-red-900"
+          className="shrink-0 border-b border-sio-border-base px-3 py-2 text-copy-14 text-sio-status-danger-fg sm:px-4"
           role="alert"
         >
           {error} Fix the term and try again.
@@ -199,16 +196,19 @@ export function AdaptationPanel({
       ) : null}
 
       {overrideRows.length > 0 ? (
-        <div className="shrink-0 border-b border-ds-gray-400 px-4 py-2">
-          <h3 className="text-label-12 text-ds-gray-900">Active Overrides</h3>
-          <ul className="mt-1 space-y-0.5 text-copy-14 text-ds-gray-1000">
+        <div className="shrink-0 border-b border-sio-border-base px-3 py-2 sm:px-4">
+          <h3 className="eyebrow">Active Overrides</h3>
+          <ul className="mt-1.5 space-y-0.5 text-copy-14 text-sio-fg-base">
             {overrideRows.slice(0, 3).map((row) => (
-              <li key={`${row.type}-${row.field}-${row.value}`} className="truncate">
+              <li
+                key={`${row.type}-${row.field}-${row.value}`}
+                className="truncate"
+              >
                 {signalTypeLabel(row.type)} · {row.field}: “{row.value}”
               </li>
             ))}
             {overrideRows.length > 3 ? (
-              <li className="text-label-13 text-ds-gray-900">
+              <li className="text-label-13 text-sio-fg-muted">
                 +{overrideRows.length - 3} more
               </li>
             ) : null}
@@ -217,7 +217,7 @@ export function AdaptationPanel({
       ) : null}
 
       {reviewSignals.length === 0 ? (
-        <p className="px-4 py-4 text-copy-14 text-ds-gray-900">
+        <p className="px-3 py-4 text-copy-14 text-sio-fg-subtle sm:px-4">
           No incorrect or partially_correct feedback yet. Review signals in{" "}
           <Link href={viewHref("insights")} className="link-accent">
             Insights
@@ -228,19 +228,19 @@ export function AdaptationPanel({
         <>
           <div className="scroll-region min-h-0 flex-1">
             {/* Card list below md — table columns clip inputs/actions on narrow viewports */}
-            <ul className="divide-y divide-ds-gray-400 md:hidden">
+            <ul className="divide-y divide-sio-border-base md:hidden">
               {pageItems.map((signal) => (
-                <li key={signal.id} className="px-4 py-3">
+                <li key={signal.id} className="px-3 py-3 sm:px-4">
                   <Link
                     href={viewHref("insights", { signal: signal.id })}
                     className="link-accent"
                   >
                     {signalTypeLabel(signal.type)}
                   </Link>
-                  <span className="ml-2 text-label-13 text-ds-gray-900">
+                  <span className="ml-2 text-label-13 text-sio-fg-subtle">
                     {signal.feedback?.label.replace("_", " ")}
                   </span>
-                  <div className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
+                  <div className="mt-1 line-clamp-1 text-label-13 text-sio-fg-muted">
                     {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
                   </div>
                   <label className="mt-2.5 block min-w-0">
@@ -300,37 +300,38 @@ export function AdaptationPanel({
 
             {/* Table at md+ — columns have room to breathe */}
             <table className="hidden w-full text-left text-copy-14 md:table">
-              <thead className="border-b border-ds-gray-400">
+              <thead className="border-b border-sio-border-base">
                 <tr>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
+                  <th className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle">
                     Signal
                   </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
+                  <th className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle">
                     Feedback
                   </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
+                  <th className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle">
                     Term
                   </th>
-                  <th className="px-4 py-2 text-label-12 font-medium text-ds-gray-900">
+                  <th className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ds-gray-400">
+              <tbody className="divide-y divide-sio-border-base">
                 {pageItems.map((signal) => (
                   <tr key={signal.id}>
-                    <td className="min-w-0 px-4 py-2.5 align-top text-ds-gray-1000">
+                    <td className="min-w-0 px-4 py-2.5 align-top text-sio-fg-base">
                       <Link
                         href={viewHref("insights", { signal: signal.id })}
                         className="link-accent"
                       >
                         {signalTypeLabel(signal.type)}
                       </Link>
-                      <div className="mt-1 line-clamp-1 text-label-13 text-ds-gray-900">
-                        {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
+                      <div className="mt-1 line-clamp-1 text-label-13 text-sio-fg-muted">
+                        {signal.evidence.slice(0, 1).join(" · ") ||
+                          "No evidence"}
                       </div>
                     </td>
-                    <td className="px-4 py-2.5 align-top text-ds-gray-900">
+                    <td className="px-4 py-2.5 align-top text-sio-fg-subtle">
                       {signal.feedback?.label.replace("_", " ")}
                     </td>
                     <td className="min-w-0 px-4 py-2.5 align-top">
@@ -380,7 +381,11 @@ export function AdaptationPanel({
                             busyId === `${signal.id}:negativePhrases`
                           }
                           onClick={() =>
-                            applyOverride(signal, "negativePhrases", signal.type)
+                            applyOverride(
+                              signal,
+                              "negativePhrases",
+                              signal.type
+                            )
                           }
                         >
                           {busyId === `${signal.id}:negativePhrases` ? (
@@ -395,7 +400,7 @@ export function AdaptationPanel({
               </tbody>
             </table>
           </div>
-          <div className="shrink-0 border-t border-ds-gray-400 px-4 py-2">
+          <div className="mt-auto shrink-0 border-t border-sio-border-base px-3 py-2 sm:px-4">
             <Pager
               page={page}
               pageCount={pageCount}

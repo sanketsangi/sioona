@@ -70,9 +70,9 @@ export function EvalView({
   const pilot = applyBackendSignalScoreToPilot(store, backendScore);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div
-        className="flex min-w-0 shrink-0 flex-wrap gap-0.5 rounded-md border border-sio-border-base p-1"
+        className="flex min-w-0 shrink-0 flex-wrap gap-0.5 rounded-sm border border-sio-border-base bg-sio-bg-base p-0.5"
         role="group"
         aria-label="Eval panels"
       >
@@ -103,14 +103,12 @@ export function EvalView({
           />
         ) : null}
         {panel === "adapt" ? (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <AdaptationPanel
-              signals={store.signals}
-              taxonomyOverrides={store.taxonomyOverrides ?? {}}
-              compact
-              adaptPageRaw={adaptPageRaw}
-            />
-          </div>
+          <AdaptationPanel
+            signals={store.signals}
+            taxonomyOverrides={store.taxonomyOverrides ?? {}}
+            compact
+            adaptPageRaw={adaptPageRaw}
+          />
         ) : null}
         {panel === "labeled" ? (
           <LabeledTables
@@ -139,91 +137,96 @@ function MetricsPanel({
   baselineNote?: string;
 }) {
   return (
-    <div className="scroll-region flex min-h-0 flex-1 flex-col gap-4">
-      <SignalScoreSummary score={backendScore} />
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+      <SignalScoreSummary score={backendScore} compact />
 
-      <section className="metric-strip shrink-0">
-        <div className="border-b border-sio-border-base px-4 py-2.5">
-          <p className="eyebrow">Labeled Eval</p>
-        </div>
-        <div className="grid grid-cols-1 divide-y divide-sio-border-base sm:grid-cols-2 sm:divide-x lg:grid-cols-3 lg:divide-y-0">
-          <Metric
-            label="Labeled P"
-            value={formatPercent(metrics.labeledPrecision)}
-            hint={`${metrics.truePositives} TP / ${metrics.falsePositives} FP`}
-          />
-          <Metric
-            label="Labeled R"
-            value={formatPercent(metrics.labeledRecall)}
-            hint={`${metrics.falseNegatives} FN`}
-          />
-          <Metric
-            label="Labeled Chats"
-            value={String(metrics.labeledConversations)}
-            hint={`${metrics.predictedSignals} predictions`}
-          />
-        </div>
-      </section>
+      <div className="grid shrink-0 gap-3 lg:grid-cols-2">
+        <section className="metric-strip">
+          <div className="border-b border-sio-border-base px-3 py-2">
+            <p className="eyebrow">Labeled Eval</p>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-sio-border-base">
+            <Metric
+              label="P"
+              value={formatPercent(metrics.labeledPrecision)}
+              hint={`${metrics.truePositives} TP / ${metrics.falsePositives} FP`}
+            />
+            <Metric
+              label="R"
+              value={formatPercent(metrics.labeledRecall)}
+              hint={`${metrics.falseNegatives} FN`}
+            />
+            <Metric
+              label="Chats"
+              value={String(metrics.labeledConversations)}
+              hint={`${metrics.predictedSignals} pred.`}
+            />
+          </div>
+        </section>
 
-      <section className="metric-strip shrink-0">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-sio-border-base px-4 py-2.5">
-          <p className="eyebrow">Pilot</p>
-          <p className={`tabular text-label-14 font-medium ${goNoGoClass(pilot.goNoGo)}`}>
-            {goNoGoLabel(pilot.goNoGo)}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 divide-y divide-sio-border-base sm:grid-cols-2 sm:divide-x lg:grid-cols-3 lg:divide-y-0">
-          <Metric
-            label="Opportunities"
-            value={String(pilot.sioonaOpportunities)}
-            hint={`Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift} vs ${pilot.baselineOpportunities}`}
-          />
-          <Metric
-            label="Labeled Opp."
-            value={String(pilot.labeledOpportunities)}
-            hint={`Recall ${formatPercent(pilot.labeledRecall)}`}
-          />
-          <Metric
-            label="P Target"
-            value={formatPercent(pilot.reviewPrecisionTarget)}
-            hint={
-              pilot.meetsReviewPrecisionTarget === null
-                ? `${pilot.reviewedCount} reviews`
-                : pilot.meetsReviewPrecisionTarget
-                  ? "Met"
-                  : "Below"
-            }
-          />
-        </div>
-      </section>
-
-      <div className="surface-quiet shrink-0 px-4 py-3">
-        <p className="text-copy-14 text-sio-fg-subtle">{pilot.offerSummary}</p>
-        {pilot.reviewedCount < 5 ? (
-          <p className="mt-2 text-copy-14 text-sio-fg-subtle">
-            Need ≥5 SignalScore reviews. Open{" "}
-            <Link href={viewHref("insights")} className="link-accent">
-              Insights
-            </Link>
-            , then return here.
-          </p>
-        ) : pilot.goNoGo === "go" ? (
-          <p className="mt-2 text-copy-14 text-sio-fg-subtle">
-            Share{" "}
-            <span className="text-sio-fg-base">
-              {formatPercent(pilot.reviewPrecision)} Signal Score
-            </span>{" "}
-            · ask for a 2-week Shadow Mode pilot.
-          </p>
-        ) : (
-          <p className="mt-2 text-copy-14 text-sio-fg-subtle">
-            Hold expansion until review precision hits ≥80%. Use Adapt, then
-            re-review.
-          </p>
-        )}
+        <section className="metric-strip">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
+            <p className="eyebrow">Pilot</p>
+            <p
+              className={`tabular text-label-13 font-medium ${goNoGoClass(pilot.goNoGo)}`}
+            >
+              {goNoGoLabel(pilot.goNoGo)}
+            </p>
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-sio-border-base">
+            <Metric
+              label="Opp."
+              value={String(pilot.sioonaOpportunities)}
+              hint={`Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`}
+            />
+            <Metric
+              label="Labeled"
+              value={String(pilot.labeledOpportunities)}
+              hint={`R ${formatPercent(pilot.labeledRecall)}`}
+            />
+            <Metric
+              label="P Target"
+              value={formatPercent(pilot.reviewPrecisionTarget)}
+              hint={
+                pilot.meetsReviewPrecisionTarget === null
+                  ? `${pilot.reviewedCount} reviews`
+                  : pilot.meetsReviewPrecisionTarget
+                    ? "Met"
+                    : "Below"
+              }
+            />
+          </div>
+        </section>
       </div>
 
-      <div className="min-h-0 shrink-0 pb-1">
+      <div className="surface-quiet shrink-0 px-3 py-2.5">
+        <p className="line-clamp-2 text-pretty text-label-13 text-sio-fg-subtle">
+          {pilot.offerSummary}
+          {pilot.reviewedCount < 5 ? (
+            <>
+              {" "}
+              Need ≥5 reviews — open{" "}
+              <Link href={viewHref("insights")} className="link-accent">
+                Insights
+              </Link>
+              .
+            </>
+          ) : pilot.goNoGo === "go" ? (
+            <>
+              {" "}
+              Share{" "}
+              <span className="text-sio-fg-base">
+                {formatPercent(pilot.reviewPrecision)} Signal Score
+              </span>
+              .
+            </>
+          ) : (
+            <> Hold until precision ≥80% — use Adapt, then re-review.</>
+          )}
+        </p>
+      </div>
+
+      <div className="mt-auto shrink-0">
         <BaselineForm
           baselineOpportunities={baselineOpportunities}
           baselineNote={baselineNote}
@@ -244,12 +247,14 @@ function Metric({
   hint: string;
 }) {
   return (
-    <div className="metric-cell min-w-0">
+    <div className="min-w-0 px-3 py-2.5">
       <div className="metric-label">{label}</div>
-      <div className="tabular mt-0.5 text-heading-20 text-sio-fg-base">
+      <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
         {value}
       </div>
-      <div className="mt-0.5 truncate text-label-12 text-sio-fg-subtle">{hint}</div>
+      <div className="mt-0.5 truncate text-label-12 text-sio-fg-muted">
+        {hint}
+      </div>
     </div>
   );
 }

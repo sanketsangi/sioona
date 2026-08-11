@@ -106,6 +106,19 @@ describe("joinNeedsReviewPredictions", () => {
     expect(joined.feedback).toBeUndefined();
     expect(joined.status).toBe("new");
   });
+
+  it("dedupes when multiple Neon predictions match one JSON signal", () => {
+    const preds = [
+      prediction({ id: "neon-first", created_at: "2026-08-03T00:00:00.000Z" }),
+      prediction({ id: "neon-second", created_at: "2026-08-02T00:00:00.000Z" }),
+    ];
+    const json: Signal[] = [{ ...baseSignal, id: "sig_shared" }];
+
+    const joined = joinNeedsReviewPredictions(preds, json);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].id).toBe("sig_shared");
+    expect(joined[0].backendSignalId).toBe("neon-first");
+  });
 });
 
 describe("predictionToStubSignal", () => {

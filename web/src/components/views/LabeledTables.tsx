@@ -10,7 +10,8 @@ import {
 import type { computeEvalMetrics } from "@/lib/eval";
 import type { Conversation, StoreData } from "@/lib/types";
 
-const CONV_PAGE_SIZE = 10;
+/** Compact page size so the list fits the viewport without nested scroll. */
+const CONV_PAGE_SIZE = 5;
 
 export function LabeledTables({
   store,
@@ -63,9 +64,9 @@ export function LabeledTables({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
       <div
-        className="flex shrink-0 flex-wrap gap-0.5"
+        className="flex shrink-0 flex-wrap gap-0.5 rounded-sm border border-sio-border-base bg-sio-bg-base p-0.5"
         role="group"
         aria-label="Labeled tables"
       >
@@ -89,29 +90,49 @@ export function LabeledTables({
 
       {table === "byType" ? (
         <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-sio-border-base px-4 py-3">
+          <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
             <h2 className="text-balance text-heading-16 text-sio-fg-base">
               Precision By Signal Type
             </h2>
           </div>
-          <div
-            className="table-scroll scroll-region min-h-0 flex-1"
-            tabIndex={0}
-            role="region"
-            aria-label="Precision by signal type, scrollable"
-          >
-            <table className="data-table">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <table className="w-full text-left text-copy-14">
               <caption className="sr-only">
                 Labeled precision, recall, and confusion counts for each signal
                 type.
               </caption>
               <thead className="border-b border-sio-border-base">
                 <tr>
-                  <th scope="col">Type</th>
-                  <th scope="col">Labeled</th>
-                  <th scope="col">Precision</th>
-                  <th scope="col">Recall</th>
-                  <th scope="col">TP / FP / FN</th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 text-label-12 font-medium text-sio-fg-subtle sm:px-4"
+                  >
+                    Type
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 text-label-12 font-medium text-sio-fg-subtle sm:px-4"
+                  >
+                    Labeled
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 text-label-12 font-medium text-sio-fg-subtle sm:px-4"
+                  >
+                    Precision
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-2 text-label-12 font-medium text-sio-fg-subtle sm:px-4"
+                  >
+                    Recall
+                  </th>
+                  <th
+                    scope="col"
+                    className="hidden px-3 py-2 text-label-12 font-medium text-sio-fg-subtle sm:table-cell sm:px-4"
+                  >
+                    TP / FP / FN
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-sio-border-base">
@@ -119,20 +140,20 @@ export function LabeledTables({
                   <tr key={row.type}>
                     <th
                       scope="row"
-                      className="whitespace-nowrap px-4 py-2.5 text-left text-copy-14 font-normal text-sio-fg-base"
+                      className="whitespace-nowrap px-3 py-2.5 text-left text-copy-14 font-normal text-sio-fg-base sm:px-4"
                     >
                       {signalTypeLabel(row.type)}
                     </th>
-                    <td className="tabular font-mono text-label-13 text-sio-fg-subtle">
+                    <td className="tabular px-3 py-2.5 font-mono text-label-13 text-sio-fg-subtle sm:px-4">
                       {row.labeledCount}
                     </td>
-                    <td className="tabular text-sio-fg-base">
+                    <td className="tabular px-3 py-2.5 text-sio-fg-base sm:px-4">
                       {formatPercent(row.precision)}
                     </td>
-                    <td className="tabular text-sio-fg-base">
+                    <td className="tabular px-3 py-2.5 text-sio-fg-base sm:px-4">
                       {formatPercent(row.recall)}
                     </td>
-                    <td className="tabular whitespace-nowrap font-mono text-label-13 text-sio-fg-subtle">
+                    <td className="hidden tabular whitespace-nowrap px-3 py-2.5 font-mono text-label-13 text-sio-fg-subtle sm:table-cell sm:px-4">
                       {row.truePositives} / {row.falsePositives} /{" "}
                       {row.falseNegatives}
                     </td>
@@ -145,7 +166,7 @@ export function LabeledTables({
       ) : (
         <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
           {pageConvs.length === 0 ? (
-            <div className="scroll-region flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+            <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
               <p className="text-heading-16 text-sio-fg-base">
                 No conversations yet
               </p>
@@ -159,24 +180,23 @@ export function LabeledTables({
             </div>
           ) : (
             <>
-              {/* Cards below md — four squeezed columns are unreadable on a phone */}
-              <ul className="scroll-region min-h-0 flex-1 divide-y divide-sio-border-base md:hidden">
+              <ul className="min-h-0 flex-1 divide-y divide-sio-border-base overflow-hidden md:hidden">
                 {pageConvs.map((conversation) => (
-                  <li key={conversation.id} className="px-4 py-3">
-                    <p className="text-pretty text-copy-14 font-medium text-sio-fg-base">
+                  <li key={conversation.id} className="px-3 py-2.5 sm:px-4">
+                    <p className="truncate text-copy-14 font-medium text-sio-fg-base">
                       {conversation.customerName ?? conversation.id}
                     </p>
-                    <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-label-13">
-                      <dt className="text-sio-fg-subtle">Ground truth</dt>
-                      <dd className="min-w-0 break-words text-sio-fg-base">
+                    <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-label-13">
+                      <dt className="text-sio-fg-muted">Ground truth</dt>
+                      <dd className="min-w-0 truncate text-sio-fg-base">
                         {conversation.groundTruth ?? "—"}
                       </dd>
-                      <dt className="text-sio-fg-subtle">Predicted</dt>
-                      <dd className="min-w-0 break-words font-mono text-sio-fg-base">
+                      <dt className="text-sio-fg-muted">Predicted</dt>
+                      <dd className="min-w-0 truncate font-mono text-sio-fg-base">
                         {predictionText(conversation)}
                       </dd>
-                      <dt className="text-sio-fg-subtle">Feedback</dt>
-                      <dd className="min-w-0 break-words text-sio-fg-base">
+                      <dt className="text-sio-fg-muted">Feedback</dt>
+                      <dd className="min-w-0 truncate text-sio-fg-base">
                         {feedbackText(conversation)}
                       </dd>
                     </dl>
@@ -184,23 +204,38 @@ export function LabeledTables({
                 ))}
               </ul>
 
-              <div
-                className="table-scroll scroll-region hidden min-h-0 flex-1 md:block"
-                tabIndex={0}
-                role="region"
-                aria-label="Labeled conversations, scrollable"
-              >
-                <table className="data-table">
+              <div className="hidden min-h-0 flex-1 overflow-hidden md:block">
+                <table className="w-full text-left text-copy-14">
                   <caption className="sr-only">
                     Ground truth labels, predicted signals, and reviewer
                     feedback per conversation.
                   </caption>
                   <thead className="border-b border-sio-border-base">
                     <tr>
-                      <th scope="col">Conversation</th>
-                      <th scope="col">Ground Truth</th>
-                      <th scope="col">Predicted</th>
-                      <th scope="col">Feedback</th>
+                      <th
+                        scope="col"
+                        className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle"
+                      >
+                        Conversation
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle"
+                      >
+                        Ground Truth
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle"
+                      >
+                        Predicted
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-4 py-2 text-label-12 font-medium text-sio-fg-subtle"
+                      >
+                        Feedback
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-sio-border-base">
@@ -208,17 +243,17 @@ export function LabeledTables({
                       <tr key={conversation.id}>
                         <th
                           scope="row"
-                          className="max-w-[16rem] truncate px-4 py-2.5 text-left text-copy-14 font-normal text-sio-fg-base"
+                          className="max-w-[14rem] truncate px-4 py-2 text-left text-copy-14 font-normal text-sio-fg-base"
                         >
                           {conversation.customerName ?? conversation.id}
                         </th>
-                        <td className="whitespace-nowrap text-sio-fg-subtle">
+                        <td className="whitespace-nowrap px-4 py-2 text-sio-fg-subtle">
                           {conversation.groundTruth ?? "—"}
                         </td>
-                        <td className="font-mono text-label-13 text-sio-fg-subtle">
+                        <td className="max-w-[12rem] truncate px-4 py-2 font-mono text-label-13 text-sio-fg-subtle">
                           {predictionText(conversation)}
                         </td>
-                        <td className="text-sio-fg-subtle">
+                        <td className="max-w-[10rem] truncate px-4 py-2 text-sio-fg-subtle">
                           {feedbackText(conversation)}
                         </td>
                       </tr>
@@ -227,7 +262,7 @@ export function LabeledTables({
                 </table>
               </div>
 
-              <div className="shrink-0 border-t border-sio-border-base px-4 py-3">
+              <div className="mt-auto shrink-0 border-t border-sio-border-base px-3 py-2 sm:px-4">
                 <Pager
                   page={page}
                   pageCount={pageCount}

@@ -29,8 +29,7 @@ export function Note({ children, icon, className = "" }: NoteProps) {
   return (
     <div
       role="note"
-      className={`flex shrink-0 flex-col gap-3 rounded-sm px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${className}`}
-      style={{ backgroundColor: "#F2F2F2" }}
+      className={`flex shrink-0 flex-col gap-3 rounded-sm bg-sio-bg-muted px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${className}`}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
         {icon != null ? (

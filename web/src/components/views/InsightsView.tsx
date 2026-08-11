@@ -54,6 +54,12 @@ export function InsightsView({
     ? joinNeedsReviewPredictions(needsReview.predictions, store.signals)
     : [];
   const reviewedSignals = reviewedSignalsFromStore(store.signals);
+  const customerNames: Record<string, string> = {};
+  for (const conversation of store.conversations) {
+    if (conversation.customerName) {
+      customerNames[conversation.id] = conversation.customerName;
+    }
+  }
   const scoreLabel =
     backendScore != null ? formatPercent(backendScore.signal_score) : null;
 
@@ -246,10 +252,15 @@ export function InsightsView({
       </Note>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <h2 className="min-w-0 scroll-mt-4 text-balance text-heading-16 text-sio-fg-base">
-            Conversation That Needs Your Attention
-          </h2>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <h2 className="scroll-mt-4 text-balance text-heading-16 text-sio-fg-base">
+              Needs Attention
+            </h2>
+            <p className="mt-0.5 text-label-13 text-sio-fg-muted">
+              Review Neon pending signals in Shadow Mode
+            </p>
+          </div>
           <SignalQueueFilters
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}
@@ -263,7 +274,7 @@ export function InsightsView({
         </div>
 
         {/* Soft canvas; each queue row is its own quiet .panel */}
-        <div className="panel-group flex min-h-0 flex-1 flex-col overflow-hidden p-3 sm:p-4">
+        <div className="panel-group flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 sm:p-3">
           <div
             className={
               showPreviewPane
@@ -275,6 +286,7 @@ export function InsightsView({
               <SignalQueue
                 pendingSignals={pendingSignals}
                 reviewedSignals={reviewedSignals}
+                customerNames={customerNames}
                 queueError={queueError}
                 statusFilter={statusFilter}
                 typeFilter={typeFilter}
@@ -297,7 +309,7 @@ export function InsightsView({
                     <p className="text-heading-16 text-sio-fg-base">
                       Signal Not in This Queue
                     </p>
-                    <p className="mt-1.5 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
+                    <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
                       The preview id is missing from Neon pending and reviewed
                       signals. Clear preview or pick another row.
                     </p>

@@ -1,0 +1,68 @@
+---
+alwaysApply: true
+---
+
+# UI Design System — Vercel Style
+
+When working on frontend UI, follow a Vercel-like design language.
+
+## Visual direction
+
+- Clean, minimal, calm, product-focused
+- High clarity, low decoration
+- Finance-friendly and enterprise-safe
+- Prefer whitespace over dense layouts
+
+## Typography
+
+- Use Geist (already in project) as the primary font
+- Strong hierarchy:
+  - Page titles: clear and restrained
+  - Section headers: medium weight
+  - Body text: readable, not heavy
+- Avoid oversized display typography
+- Avoid playful or marketing-style fonts
+
+## Color
+
+- Neutral-first palette (zinc/stone/neutral)
+- Black/white/gray foundation
+- One subtle accent only
+- Avoid loud gradients, neon, or heavy color blocks
+- Borders should be soft and low-contrast
+
+## Components
+
+- Prefer shadcn/ui primitives
+- Cards with subtle borders, not heavy shadows
+- Rounded corners: modest (not pill-heavy)
+- Buttons:
+  - Primary: solid, simple
+  - Secondary: outline/ghost
+- Tables and lists should feel like Vercel dashboard density
+- Status badges: quiet and compact
+
+## Layout
+
+- Consistent max content width
+- Clear page header + optional description
+- Predictable spacing scale
+- Avoid cluttered side panels unless necessary
+- Prefer simple split views over complex multi-panel dashboards
+
+## Interaction
+
+- Fast and obvious
+- Minimal animation
+- No decorative motion
+- Feedback states should be clear but quiet
+
+## Do NOT
+
+- Make it look like a consumer consumer AI toy
+- Use glassmorphism, neon glows, or heavy gradients
+- Overuse icons
+- Create inconsistent button styles
+- Invent a new design language
+
+When redesigning UI, match the restraint and polish of Vercel dashboard / Next.js docs / shadcn examples.

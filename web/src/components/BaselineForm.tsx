@@ -74,17 +74,32 @@ export function BaselineForm({
   return (
     <form
       onSubmit={onSubmit}
-      className={`panel p-4 sm:p-5 ${compact ? "" : "mt-4"}`}
+      className={`panel ${compact ? "px-3 py-3 sm:px-4" : "p-4 sm:p-5"} ${compact ? "" : "mt-4"}`}
     >
-      <h2 className="text-balance text-heading-16 text-ds-gray-1000">
-        Set Partner Baseline
-      </h2>
-      <p className="mt-1 max-w-2xl text-pretty text-copy-14 text-ds-gray-900">
-        Opportunities they find today. Lift = Sioona − baseline.
-      </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_minmax(12rem,2fr)_auto] sm:items-end">
+      <div
+        className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 ${compact ? "" : "mb-1"}`}
+      >
+        <h2 className="text-balance text-heading-16 text-sio-fg-base">
+          Set Partner Baseline
+        </h2>
+        {compact ? (
+          <p className="text-label-12 text-sio-fg-muted">
+            Lift = Sioona − baseline
+          </p>
+        ) : null}
+      </div>
+      {!compact ? (
+        <p className="mt-1 max-w-2xl text-pretty text-copy-14 text-sio-fg-subtle">
+          Opportunities they find today. Lift = Sioona − baseline.
+        </p>
+      ) : null}
+      <div
+        className={`grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_minmax(12rem,2fr)_auto] sm:items-end ${compact ? "mt-2.5" : "mt-4"}`}
+      >
         <label className="block min-w-0">
-          <span className="text-label-12 text-ds-gray-900">Baseline Count</span>
+          <span className="text-label-12 text-sio-fg-muted">
+            Baseline Count
+          </span>
           <input
             ref={countRef}
             type="text"
@@ -100,7 +115,9 @@ export function BaselineForm({
           />
         </label>
         <label className="block min-w-0">
-          <span className="text-label-12 text-ds-gray-900">Note (optional)</span>
+          <span className="text-label-12 text-sio-fg-muted">
+            Note (optional)
+          </span>
           <input
             type="text"
             name="baselineNote"
@@ -123,13 +140,15 @@ export function BaselineForm({
         </button>
       </div>
       {error ? (
-        <p className="mt-2 text-copy-14 text-ds-red-900" role="alert">
+        <p className="mt-2 text-copy-14 text-sio-status-danger-fg" role="alert">
           {error}
         </p>
       ) : null}
       <div aria-live="polite">
         {saved ? (
-          <p className="mt-2 text-copy-14 text-ds-green-900">Baseline saved.</p>
+          <p className="mt-2 text-copy-14 text-sio-status-success-fg">
+            Baseline saved.
+          </p>
         ) : null}
       </div>
     </form>

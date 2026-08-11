@@ -48,7 +48,7 @@ export function SignalPreviewPanel({
   });
 
   return (
-    <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden p-4 sm:p-5">
+    <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden p-3.5 sm:p-4">
       <div className="flex shrink-0 min-w-0 flex-wrap items-center gap-2">
         <SignalBadge type={signal.type} />
         <span className="signal-score" aria-hidden>
@@ -64,20 +64,18 @@ export function SignalPreviewPanel({
         </span>
       </div>
 
-      <p className="mt-3 line-clamp-2 shrink-0 min-w-0 break-words text-pretty text-copy-16 text-sio-fg-base">
+      <p className="mt-2.5 line-clamp-2 shrink-0 min-w-0 break-words text-pretty text-copy-14 font-medium text-sio-fg-base">
         {signal.summary || "No summary available"}
       </p>
 
       {quote ? (
-        <blockquote className="mt-2 shrink-0 min-w-0 break-words border-l-2 border-sio-border-strong pl-3 text-pretty text-copy-14 text-sio-fg-base line-clamp-2">
+        <blockquote className="mt-2 shrink-0 min-w-0 break-words border-l-2 border-sio-border-base pl-3 text-pretty text-label-13 text-sio-fg-subtle line-clamp-2">
           “{quote}”
         </blockquote>
       ) : null}
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden">
-        <h3 className="shrink-0 text-label-12 text-sio-fg-subtle">
-          Conversation
-        </h3>
+        <h3 className="eyebrow shrink-0">Conversation</h3>
         {messages.length === 0 ? (
           <div className="scroll-region mt-2 flex min-h-0 flex-1 flex-col items-center justify-center px-2 text-center">
             <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
@@ -87,17 +85,17 @@ export function SignalPreviewPanel({
             </p>
           </div>
         ) : (
-          <ul className="scroll-region mt-2 min-h-0 flex-1 space-y-2">
+          <ul className="scroll-region mt-2 min-h-0 flex-1 space-y-1.5">
             {messages.map((message) => (
               <li
                 key={message.id}
-                className={`rounded-sm px-3 py-2.5 text-copy-14 ${
+                className={`rounded-sm px-2.5 py-2 text-copy-14 ${
                   message.role === "customer"
                     ? "bg-sio-bg-muted text-sio-fg-base"
                     : "bg-transparent text-sio-fg-subtle ring-1 ring-inset ring-sio-border-base"
                 }`}
               >
-                <div className="mb-1 text-label-12 capitalize text-sio-fg-subtle">
+                <div className="mb-0.5 text-label-12 capitalize text-sio-fg-muted">
                   {message.role}
                 </div>
                 <p className="break-words text-pretty">{message.content}</p>
@@ -108,7 +106,7 @@ export function SignalPreviewPanel({
       </div>
 
       <div
-        className="mt-auto flex shrink-0 flex-wrap gap-2 border-t border-sio-border-base pt-4"
+        className="mt-auto flex shrink-0 flex-wrap gap-2 border-t border-sio-border-base pt-3"
         role="group"
         aria-label="Preview actions"
       >

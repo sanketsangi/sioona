@@ -32,9 +32,9 @@ export function SignalScoreSummary({
       aria-label="Signal Score"
       aria-live="polite"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-4 py-2.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2 sm:px-4 sm:py-2.5">
         <p className="eyebrow">Signal Score</p>
-        <p className="text-label-12 text-sio-fg-subtle">
+        <p className="text-label-12 text-sio-fg-muted">
           {online ? "From Neon" : "Backend offline"}
         </p>
       </div>
@@ -46,7 +46,7 @@ export function SignalScoreSummary({
             : "grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:divide-x sm:divide-sio-border-base"
         }`}
       >
-        <div className="metric-cell">
+        <div className={compact ? "min-w-0 px-3 py-2.5 sm:px-4" : "metric-cell"}>
           <div className="metric-label">Overall</div>
           <div
             className={`font-mono tabular mt-0.5 text-sio-fg-base ${
@@ -57,21 +57,23 @@ export function SignalScoreSummary({
           </div>
           {online ? (
             <>
-              <p className="mt-1.5 tabular text-copy-14 text-sio-fg-base">
+              <p
+                className={`tabular text-sio-fg-base ${compact ? "mt-1 text-label-13" : "mt-1.5 text-copy-14"}`}
+              >
                 Reviewed{" "}
                 <span className="font-medium">{score.reviewed_count}</span>
                 <span className="text-sio-fg-subtle"> · </span>
                 Correct{" "}
                 <span className="font-medium">{score.correct_count}</span>
               </p>
-              <p className="mt-0.5 tabular text-label-12 text-sio-fg-subtle">
+              <p className="mt-0.5 tabular text-label-12 text-sio-fg-muted">
                 Incorrect {score.incorrect_count}
                 <span aria-hidden> · </span>
                 Partially correct {score.partially_correct_count}
               </p>
             </>
           ) : (
-            <p className="mt-1.5 text-label-12 text-sio-fg-subtle">
+            <p className="mt-1.5 text-label-12 text-sio-fg-muted">
               Backend offline — score unavailable
             </p>
           )}
@@ -81,11 +83,11 @@ export function SignalScoreSummary({
           <div className="min-w-0 px-4 py-3">
             <div className="metric-label">By Signal Type</div>
             {!online ? (
-              <p className="mt-2 text-copy-14 text-sio-fg-subtle">
+              <p className="mt-2 text-copy-14 text-sio-fg-muted">
                 Start the FastAPI backend to load Signal Score from Neon.
               </p>
             ) : byType.length === 0 ? (
-              <p className="mt-2 text-copy-14 text-sio-fg-subtle">
+              <p className="mt-2 text-copy-14 text-sio-fg-muted">
                 No reviews yet. Mark signals in Shadow Mode to build the score.
               </p>
             ) : (
@@ -115,8 +117,7 @@ export function SignalScoreSummary({
       </div>
 
       {compact && online && byType.length > 0 ? (
-        <div className="border-t border-sio-border-base px-4 py-2.5">
-          <div className="metric-label mb-1.5">By Signal Type</div>
+        <div className="border-t border-sio-border-base px-3 py-2 sm:px-4">
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-label-13 text-sio-fg-subtle">
             {byType.map((row) => (
               <li key={row.signal_type} className="font-mono tabular">
@@ -134,9 +135,9 @@ export function SignalScoreSummary({
       ) : null}
 
       {compact && online && byType.length === 0 ? (
-        <div className="border-t border-sio-border-base px-4 py-2.5">
-          <p className="text-label-13 text-sio-fg-subtle">
-            No reviews yet. Submit feedback below to build Signal Score.
+        <div className="border-t border-sio-border-base px-3 py-2 sm:px-4">
+          <p className="text-label-13 text-sio-fg-muted">
+            No reviews yet. Mark signals in Shadow Mode to build the score.
           </p>
         </div>
       ) : null}

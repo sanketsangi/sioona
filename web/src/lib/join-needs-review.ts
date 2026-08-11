@@ -48,24 +48,36 @@ function findJsonSignal(
 /**
  * Map each needs-review prediction to a display Signal, preserving Neon order.
  * Prefers JSON match (evidence/detail); falls back to a Neon stub.
+ * Dedupes by JSON signal id when multiple Neon rows match the same local
+ * signal (re-detect / dual-write races) so queue React keys stay unique.
  */
 export function joinNeedsReviewPredictions(
   predictions: BackendPrediction[],
   jsonSignals: Signal[]
 ): Signal[] {
-  return predictions.map((prediction) => {
+  const seenJsonIds = new Set<string>();
+  const joined: Signal[] = [];
+
+  for (const prediction of predictions) {
     const matched = findJsonSignal(prediction, jsonSignals);
     if (!matched) {
-      return predictionToStubSignal(prediction);
+      joined.push(predictionToStubSignal(prediction));
+      continue;
     }
-    return {
+    if (seenJsonIds.has(matched.id)) {
+      continue;
+    }
+    seenJsonIds.add(matched.id);
+    joined.push({
       ...matched,
       backendSignalId: matched.backendSignalId ?? prediction.id,
       // Pending queue SoT is Neon — treat as unreviewed for UI status
       status: "new" as const,
       feedback: undefined,
-    };
-  });
+    });
+  }
+
+  return joined;
 }
 
 /** JSON signals that already have human feedback (reviewed filter). */
