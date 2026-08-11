@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { FilterIcon } from "@/components/icons/FilterIcon";
 import {
@@ -14,19 +20,107 @@ import {
 } from "@/components/ui/Menu";
 import { Avatar } from "@/components/ui/Avatar";
 import { ShowMore } from "@/components/ui/ShowMore";
+import { StatusDot } from "@/components/ui/StatusDot";
 import {
   formatScore,
   initialsFromName,
   primaryQuote,
+  signalStatusDot,
   signalTypeLabel,
 } from "@/lib/format";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Signal, SignalType } from "@/lib/types";
 
-/** Rows shown before Show More (geist progressive-disclosure guidance). */
-const INITIAL_VISIBLE = 5;
+/** Floor while measuring; actual collapsed count fills the panel height. */
+const MIN_VISIBLE = 3;
+/** SSR / first-paint fallback before ResizeObserver measures the panel. */
+const FALLBACK_VISIBLE = 8;
+/** Space reserved for the Show More / Show Less control + padding. */
+const SHOW_MORE_RESERVE_PX = 52;
 
 const QUEUE_LIST_ID = "insights-signal-queue";
+
+/**
+ * How many queue rows fit in the panel before overflowing into Show More.
+ * Measures live row height + available height so the list fills the view.
+ */
+function useQueueFitCount({
+  rootRef,
+  headerRef,
+  listRef,
+  itemCount,
+}: {
+  rootRef: RefObject<HTMLElement | null>;
+  headerRef: RefObject<HTMLElement | null>;
+  listRef: RefObject<HTMLElement | null>;
+  itemCount: number;
+}): number {
+  const [fitCount, setFitCount] = useState(FALLBACK_VISIBLE);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || itemCount === 0) return;
+
+    const measure = () => {
+      const available = root.clientHeight;
+      if (available <= 0) return;
+
+      const headerH = headerRef.current?.offsetHeight ?? 0;
+      const headerGap = headerH > 0 ? 8 : 0;
+      const firstRow = listRef.current?.querySelector<HTMLElement>(
+        "[data-queue-row]",
+      );
+      const rowH = firstRow?.offsetHeight ?? 72;
+      const listStyles = listRef.current
+        ? getComputedStyle(listRef.current)
+        : null;
+      const gap = Number.parseFloat(
+        listStyles?.rowGap || listStyles?.gap || "8",
+      );
+      const rowStride = rowH + (Number.isFinite(gap) ? gap : 8);
+
+      if (rowStride <= 0) return;
+
+      const bodyBudget = Math.max(0, available - headerH - headerGap);
+      let count = Math.max(
+        1,
+        Math.floor((bodyBudget + (Number.isFinite(gap) ? gap : 8)) / rowStride),
+      );
+
+      if (itemCount > count) {
+        const withFooter = Math.max(0, bodyBudget - SHOW_MORE_RESERVE_PX);
+        count = Math.max(
+          MIN_VISIBLE,
+          Math.floor(
+            (withFooter + (Number.isFinite(gap) ? gap : 8)) / rowStride,
+          ),
+        );
+      }
+
+      setFitCount(Math.min(Math.max(MIN_VISIBLE, count), itemCount));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [rootRef, headerRef, listRef, itemCount]);
+
+  return fitCount;
+}
+
+/** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
+function resolveCustomerName(
+  conversationId: string,
+  customerNames: Record<string, string>,
+  summary: string,
+): string {
+  const fromStore = customerNames[conversationId]?.trim();
+  if (fromStore) return fromStore;
+  const match = summary.match(/^([A-Za-z][A-Za-z .'-]{0,60}?)\s*\(/);
+  if (match?.[1]) return match[1].trim();
+  return "Customer";
+}
 
 /** Desktop queue columns: User · Signal · Status · Score · Type · Evidence (+ Action outside). */
 const QUEUE_GRID =
@@ -34,7 +128,7 @@ const QUEUE_GRID =
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "new", label: "New" },
+  { value: "new", label: "Needs Review" },
   { value: "reviewed", label: "Reviewed" },
 ];
 
@@ -44,17 +138,6 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: "retention", label: "Retention" },
   { value: "upsell", label: "Upsell" },
 ];
-
-function isPending(signal: Signal): boolean {
-  return signal.status === "new" || !signal.feedback;
-}
-
-function reviewLabel(signal: Signal): string {
-  if (signal.feedback?.label) {
-    return signal.feedback.label.replace("_", " ");
-  }
-  return signalTypeLabel(signal.type as SignalType);
-}
 
 type QueueHref = (next: {
   status?: StatusFilter;
@@ -226,10 +309,20 @@ export function SignalQueue({
   );
   const expanded = expandedFilterKey === filterKey;
 
-  const hiddenCount = Math.max(0, filtered.length - INITIAL_VISIBLE);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const fitCount = useQueueFitCount({
+    rootRef,
+    headerRef,
+    listRef,
+    itemCount: filtered.length,
+  });
+
+  const hiddenCount = Math.max(0, filtered.length - fitCount);
   const visibleItems = expanded
     ? filtered
-    : filtered.slice(0, INITIAL_VISIBLE);
+    : filtered.slice(0, fitCount);
 
   const queueHref = buildQueueHref(
     queryExtras,
@@ -261,11 +354,11 @@ export function SignalQueue({
           role="alert"
         >
           <p className="text-heading-16 text-sio-fg-base">
-            Pending Queue Unavailable
+            Needs-Review Queue Unavailable
           </p>
           <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            Signal Score backend unavailable — pending queue cannot load from
-            Neon. Start FastAPI and refresh.
+            Signal Score backend unavailable — needs-review queue cannot load
+            from Neon. Start FastAPI and refresh.
           </p>
           {queueError ? (
             <p className="mt-2 max-w-sm break-words text-label-12 text-sio-fg-muted">
@@ -317,7 +410,7 @@ export function SignalQueue({
           role="alert"
         >
           <p className="text-copy-14 text-sio-fg-base">
-            Neon pending queue unavailable
+            Neon needs-review queue unavailable
           </p>
           <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
             Showing reviewed signals only. Start FastAPI to load needs-review.
@@ -345,8 +438,12 @@ export function SignalQueue({
           </Link>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          ref={rootRef}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <div
+            ref={headerRef}
             className="mb-2 hidden shrink-0 px-1 sm:flex sm:items-center sm:gap-3 sm:px-3.5 lg:gap-4"
             aria-hidden
           >
@@ -365,18 +462,23 @@ export function SignalQueue({
             </span>
           </div>
 
-          <div className="scroll-region min-h-0 flex-1">
+          <div
+            className={
+              expanded
+                ? "scroll-region min-h-0 flex-1"
+                : "min-h-0 flex-1 overflow-hidden"
+            }
+          >
             <ul
+              ref={listRef}
               id={QUEUE_LIST_ID}
               className="flex flex-col gap-2 sm:gap-2.5"
             >
               {visibleItems.map((signal) => {
-                const pending = isPending(signal);
                 const score = formatScore(signal.score);
                 const typeLabel = signalTypeLabel(signal.type);
-                const statusText = pending
-                  ? "Pending"
-                  : `Reviewed · ${reviewLabel(signal)}`;
+                const statusDot = signalStatusDot(signal);
+                const statusText = statusDot.label;
                 const selected = previewId === signal.id;
                 const quote = primaryQuote(signal.evidence);
                 const evidencePrimary = quote
@@ -389,11 +491,15 @@ export function SignalQueue({
                   : signal.suggestedAction
                     ? "Suggested action"
                     : "No evidence quote";
-                const resolvedName = customerNames[signal.conversationId];
-                const customerName = resolvedName?.trim() || "Customer";
-                const initials = resolvedName?.trim()
-                  ? initialsFromName(resolvedName)
-                  : "?";
+                const customerName = resolveCustomerName(
+                  signal.conversationId,
+                  customerNames,
+                  signal.summary || "",
+                );
+                const initials =
+                  customerName === "Customer"
+                    ? "?"
+                    : initialsFromName(customerName);
                 const previewHref = queueHref({
                   preview: signal.id,
                   page: 1,
@@ -410,6 +516,7 @@ export function SignalQueue({
                 return (
                   <li
                     key={signal.backendSignalId ?? signal.id}
+                    data-queue-row
                     className="shrink-0"
                   >
                     <div
@@ -441,19 +548,13 @@ export function SignalQueue({
                             <p className="mt-0.5 truncate text-copy-14 font-medium text-sio-fg-base sm:mt-0">
                               {signal.summary || "No summary available"}
                             </p>
-                            <span
-                              className={`signal-status mt-1 min-w-0 sm:hidden ${
-                                pending
-                                  ? "signal-status-pending"
-                                  : "signal-status-reviewed"
-                              }`}
+                            <StatusDot
+                              className="mt-1 sm:hidden"
+                              label
+                              state={statusDot.state}
                             >
-                              <span
-                                className="signal-status-dot"
-                                aria-hidden
-                              />
-                              <span className="truncate">{statusText}</span>
-                            </span>
+                              {statusText}
+                            </StatusDot>
 
                             <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:hidden">
                               <div className="min-w-0">
@@ -490,16 +591,13 @@ export function SignalQueue({
                         </div>
 
                         <div className="hidden min-w-0 sm:flex sm:items-center">
-                          <span
-                            className={`signal-status min-w-0 max-w-full ${
-                              pending
-                                ? "signal-status-pending"
-                                : "signal-status-reviewed"
-                            }`}
+                          <StatusDot
+                            className="max-w-full"
+                            label
+                            state={statusDot.state}
                           >
-                            <span className="signal-status-dot" aria-hidden />
-                            <span className="truncate">{statusText}</span>
-                          </span>
+                            {statusText}
+                          </StatusDot>
                         </div>
 
                         <div className="hidden min-w-0 sm:block">
@@ -637,7 +735,7 @@ function QueueFilters({
       <p className="tabular shrink-0 text-label-13 text-sio-fg-subtle">
         {pendingUnavailable ? (
           <>
-            <span className="text-sio-fg-muted">Pending unavailable</span>
+            <span className="text-sio-fg-muted">Needs review unavailable</span>
             <span className="text-sio-fg-muted" aria-hidden>
               {" "}
               ·{" "}
@@ -645,7 +743,9 @@ function QueueFilters({
           </>
         ) : pendingCount > 0 ? (
           <>
-            <span className="text-sio-fg-base">{pendingCount} pending</span>
+            <span className="text-sio-fg-base">
+              {pendingCount} Needs Review
+            </span>
             <span className="text-sio-fg-muted" aria-hidden>
               {" "}
               ·{" "}

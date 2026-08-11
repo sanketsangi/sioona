@@ -2,8 +2,11 @@ import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { runDetection } from "./detect";
 import { computeEvalMetrics, type EvalMetrics } from "./eval";
+import { customerNameFromExternalId } from "./format";
 import { toStoreRecords, type IngestConversationInput } from "./ingest";
 import type { SignalType, StoreData } from "./types";
+
+export { customerNameFromExternalId } from "./format";
 
 const TENANT_ID = "tenant_demo";
 const TESTING_JSON_FILENAME = "testing.json";
@@ -59,16 +62,33 @@ interface RawLabel {
 
 interface RawConversation {
   externalId?: unknown;
+  customerName?: unknown;
   messages?: unknown;
   labels?: unknown;
 }
 
-function resolveTestingJsonPath(repoRoot?: string): string {
-  const root =
-    repoRoot ??
-    // Vitest / npm scripts run from web/
-    path.join(process.cwd(), "..");
-  return path.join(root, TESTING_JSON_FILENAME);
+/**
+ * Resolve testing.json for Node/Vitest and Next (cwd usually `web/`).
+ * Prefer deployable copy under `web/data/samples/` (Vercel cannot rely on
+ * repo-root), then fall back to repo-root canonical file.
+ */
+export function resolveTestingJsonPath(repoRoot?: string): string {
+  const cwd = process.cwd();
+  const samplesCopy = path.join(cwd, "data", "samples", TESTING_JSON_FILENAME);
+  if (existsSync(samplesCopy)) return samplesCopy;
+
+  if (repoRoot) {
+    return path.join(repoRoot, TESTING_JSON_FILENAME);
+  }
+
+  const fromWebCwd = path.join(cwd, "..", TESTING_JSON_FILENAME);
+  if (existsSync(fromWebCwd)) return fromWebCwd;
+
+  const fromRepoCwd = path.join(cwd, TESTING_JSON_FILENAME);
+  if (existsSync(fromRepoCwd)) return fromRepoCwd;
+
+  // Default expectation when none exist yet (clearer error from caller).
+  return samplesCopy;
 }
 
 function asTrimmedString(value: unknown): string {
@@ -136,8 +156,14 @@ function parseTestingConversation(
     ? (raw.labels as RawLabel[])
     : undefined;
 
+  const externalId = asTrimmedString(raw.externalId) || undefined;
+  const explicitName = asTrimmedString(raw.customerName);
+  const customerName =
+    explicitName || customerNameFromExternalId(externalId) || undefined;
+
   return {
-    externalId: asTrimmedString(raw.externalId) || undefined,
+    externalId,
+    customerName,
     groundTruth: mapTestingLabelsToGroundTruth(labels),
     messages,
   };

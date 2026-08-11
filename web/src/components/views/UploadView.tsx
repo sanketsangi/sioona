@@ -6,19 +6,19 @@ import { viewHref } from "@/lib/views";
 
 const samples = [
   {
-    file: "sample-upload.csv",
-    label: "Sioona CSV",
-    use: "conversation_id, role, content",
+    file: "testing.json",
+    label: "Showcase Corpus",
+    use: "41 labeled finance chats — cold open + Run Partner Demo",
   },
   {
-    file: "sample-intercom.json",
-    label: "Intercom JSON",
-    use: "source + conversation_parts",
+    file: "partner-shaped-labeled.csv",
+    label: "Partner-Shaped CSV",
+    use: "Messier multi-turn pack for labeled eval (upload)",
   },
   {
-    file: "sample-whatsapp.txt",
-    label: "WhatsApp .txt",
-    use: "You = agent; others = customer",
+    file: "real-partner-export.template.csv",
+    label: "Partner Export Template",
+    use: "Day-1 pilot drop-in — copy to .local.csv, then upload",
   },
 ];
 
@@ -37,12 +37,17 @@ export function UploadView() {
               No export yet?
             </h2>
             <p className="mt-2 shrink-0 text-copy-14 text-sio-fg-subtle">
-              Use files in{" "}
+              Showcase corpus is{" "}
+              <code className="font-mono text-sio-signal-lead-fg" translate="no">
+                testing.json
+              </code>{" "}
+              (also under{" "}
               <code className="font-mono text-sio-signal-lead-fg" translate="no">
                 web/data/samples/
-              </code>{" "}
-              or run the one-click demo. Mid-week: drop the next weekly export
-              here.
+              </code>
+              ). Or upload a partner CSV / Intercom JSON / WhatsApp{" "}
+              <span translate="no">.txt</span>. Mid-week: drop the next weekly
+              export here.
             </p>
             <ul className="mt-4 divide-y divide-sio-border-base border-t border-sio-border-base lg:scroll-region lg:min-h-0 lg:flex-1">
               {samples.map((sample) => (

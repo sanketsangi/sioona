@@ -67,6 +67,11 @@ export function joinNeedsReviewPredictions(
     if (seenJsonIds.has(matched.id)) {
       continue;
     }
+    // JSON already has operator feedback — leave Neon pending SoT, but do not
+    // re-show as Needs Review (would strip feedback and stick StatusDot on blue).
+    if (matched.feedback) {
+      continue;
+    }
     seenJsonIds.add(matched.id);
     joined.push({
       ...matched,

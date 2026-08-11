@@ -17,6 +17,8 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
 
+Cold open and **Reset Demo** also load the same showcase corpus (`testing.json`, ~41 conversations).
+
 ## Week-1 pilot rhythm (visible in the strip)
 
 | When | What | Where |
@@ -34,15 +36,22 @@ Same strip on Upload, Insights, and Eval. No autonomous actions — suggested ne
 2. Same Insights → SignalScore → Eval path (mid-week step completes on partner file ingest)
 3. Set their baseline (“how many opportunities do you find today?”) so lift is credible
 
-## Sample pack
+## Showcase corpus
+
+| File | Role |
+|------|------|
+| Repo-root `testing.json` | Canonical labeled corpus (eval measurement) |
+| `web/data/samples/testing.json` | Deployable copy for Next/Vercel runtime (keep in sync with root) |
+
+**Run Partner Demo** resets the store and loads only `testing.json`, dual-writes predictions to FastAPI/Neon, and sets the cold-demo baseline.
+
+Partner upload / eval lanes (not the showcase seed):
 
 | File | Format |
 |------|--------|
-| `web/data/samples/sample-upload.csv` | Sioona CSV |
-| `web/data/samples/sample-intercom.json` | Intercom API shape |
-| `web/data/samples/sample-whatsapp.txt` | WhatsApp Business export |
-
-**Run Partner Demo** resets fixtures and loads Intercom + WhatsApp samples automatically.
+| `web/data/samples/partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` |
+| `web/data/samples/real-partner-export.template.csv` | Day-1 pilot template |
+| `web/data/samples/real-partner-export.local.csv` | Gitignored real export drop-in |
 
 ## What not to promise on the call
 

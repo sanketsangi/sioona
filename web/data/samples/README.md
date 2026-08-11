@@ -1,15 +1,15 @@
 # Partner sample pack
 
-Use these when you don’t have a real partner export yet. Upload via `/upload`, or click **Run Partner Demo** (loads Intercom + WhatsApp on top of fixtures).
+Showcase conversations for cold open and **Run Partner Demo** come from **`testing.json`** only (repo root canonical; deployable copy here for Vercel).
 
 | File | Format | Notes |
 |------|--------|--------|
-| `sample-upload.csv` | Sioona CSV | `conversation_id, role, content` (+ optional columns); lead / retention / upsell / ops rows |
+| `testing.json` | Sioona-shaped JSON | ~41 labeled finance chats; cold open + Partner Demo + reset seed. Keep in sync with repo-root `testing.json`. |
 | `partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` | Messier partner-like multi-turn pack for labeled P/R vs synthetics |
 | `real-partner-export.template.csv` | Sioona CSV + `ground_truth` | Redacted template for Day-1 pilot exports (safe to commit) |
 | `real-partner-export.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** drop-in — paste redacted partner chats here |
-| `sample-intercom.json` | Intercom JSON | `source` + `conversation_parts`; demat lead → churn → F&O upsell |
-| `sample-whatsapp.txt` | WhatsApp Business `.txt` | `You` = agent; premium advisory upsell thread |
+
+Upload still accepts partner CSV / Intercom JSON / WhatsApp `.txt` — those formats are parsers, not bundled showcase files.
 
 ## Lead vs upsell (label policy)
 
@@ -19,8 +19,6 @@ Use these when you don’t have a real partner export yet. Upload via `/upload`,
 - **None** — ops (password, OTP, app crash, pending txn) and pure support (“chat support”, ticket help).
 
 Broking / wealth wedge: demat account opening, brokerage/fee questions, “close / shift broker” churn, and F&O / margin / family-account upsell — plus ops tickets that should **not** fire a revenue signal.
-
-Fintech CS wedge (in `sample-upload.csv`): wallet / UPI / credit-card onboarding (lead), failed refund + “delete my account” / “switching to another app” (retention), and premium-plus / credit-limit / add-on card (**lead**, not upsell) — plus a “transaction pending / refund already processed” ops row that must stay a hard negative.
 
 Samples include PII-shaped values (phone, email, PAN). Ingest runs
 `redactText` (`src/lib/redact.ts`) before anything is stored, so stored messages
@@ -46,7 +44,7 @@ Run from `web/`:
 npx vitest run src/lib/partner-pack.eval.test.ts
 ```
 
-Synthetic fixture gate (still must stay at 1.0):
+Synthetic fixture gate (still must stay at 1.0) — test-only pack in `src/data/fixtures/detect-eval-fixtures.ts`:
 
 ```bash
 npx vitest run src/lib/eval.test.ts src/lib/detect.test.ts
@@ -58,7 +56,7 @@ Root corpus `testing.json` (41 labeled finance chats; measurement, not a 1.0 gat
 npx vitest run src/lib/testing-json.eval.test.ts
 ```
 
-Loader: [`src/lib/testing-json-eval.ts`](../../src/lib/testing-json-eval.ts) — maps corpus `labels[]` → product `groundTruth`, then ingest → detect → metrics.
+Loader: [`src/lib/testing-json-eval.ts`](../../src/lib/testing-json-eval.ts) — maps corpus `labels[]` → product `groundTruth`, then ingest → detect → metrics. Runtime prefers `web/data/samples/testing.json`, then repo root.
 
 ### Baseline metrics (keyword detect, 2026-08-10)
 

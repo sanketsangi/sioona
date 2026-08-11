@@ -70,10 +70,10 @@ Unset or `localhost` `BACKEND_URL` on Vercel makes dual-write fail (`syncFailed`
 ## Notes
 
 - `web/data/store.json` is **runtime data** and must not be committed or shipped
-  as source; on Vercel the store re-seeds from the fixtures in
-  `src/data/fixtures/sample-store.ts`.
-- Use **Start Partner Demo** in the UI to reset + load the Intercom/WhatsApp
-  samples for a cold demo (requires reachable FastAPI for Neon dual-write).
+  as source; on Vercel the store re-seeds from `testing.json`
+  (`web/data/samples/testing.json` → `loadTestingJsonIntoStore`).
+- Use **Start Partner Demo** in the UI to reset + reload `testing.json` for a
+  cold demo (requires reachable FastAPI for Neon dual-write).
 
 ## CI / token-based deploy (optional)
 

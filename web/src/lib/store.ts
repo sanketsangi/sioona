@@ -2,7 +2,6 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
-import { sampleStore } from "@/data/fixtures/sample-store";
 import type {
   AuditEvent,
   FeedbackLabel,
@@ -13,6 +12,16 @@ import type {
   TaxonomyOverrides,
   TaxonomyTypeOverride,
 } from "./types";
+
+/** Seed showcase from testing.json (dynamic import avoids cycle with writeStore). */
+async function seedShowcaseStore(): Promise<StoreData> {
+  const { loadTestingJsonIntoStore } = await import("./load-testing-json-store");
+  const result = await loadTestingJsonIntoStore({
+    applyDemoBaseline: false,
+    syncPredictions: true,
+  });
+  return result.store;
+}
 
 // Local dev writes the bundled data dir; serverless (Vercel) filesystems are
 // read-only except for the OS temp dir, so we fall back there when the bundled
@@ -114,9 +123,7 @@ export async function readStore(): Promise<StoreData> {
   } else if (memoryStore) {
     return normalizeStore(structuredClone(memoryStore));
   }
-  const seeded = normalizeStore(structuredClone(sampleStore));
-  await writeStore(seeded);
-  return seeded;
+  return seedShowcaseStore();
 }
 
 export async function writeStore(data: StoreData): Promise<void> {
@@ -143,9 +150,7 @@ export async function writeStore(data: StoreData): Promise<void> {
 }
 
 export async function resetStore(): Promise<StoreData> {
-  const seeded = normalizeStore(structuredClone(sampleStore));
-  await writeStore(seeded);
-  return seeded;
+  return seedShowcaseStore();
 }
 
 /** Match key for carrying review state across re-detect runs. */

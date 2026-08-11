@@ -18,13 +18,14 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 - **Upload** — Sioona CSV/JSON, Intercom JSON, WhatsApp `.txt` ingest + auto-detect
 - **Eval** — labeled P/R, per-type metrics, SignalScore review precision, pilot go/no-go
 - **Taxonomy** — MVP signal definitions
-- Demo fixtures seeded on first run (`data/store.json`)
+- Demo fixtures: cold open / reset / Partner Demo seed from `testing.json` (~41 chats)
 
-## Sample uploads
+## Showcase corpus
 
-- `data/samples/sample-upload.csv` — Sioona CSV
-- `data/samples/sample-intercom.json` — Intercom-shaped export
-- `data/samples/sample-whatsapp.txt` — WhatsApp Business chat export
+- Repo-root `testing.json` — canonical labeled corpus
+- `data/samples/testing.json` — deployable copy used at runtime (Vercel); keep in sync with root
+- Upload still accepts partner CSV / Intercom JSON / WhatsApp `.txt`
+- Eval lanes: `partner-shaped-labeled.csv`, `real-partner-export.template.csv`
 
 ## Scripts
 

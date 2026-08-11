@@ -89,7 +89,7 @@ describe("joinNeedsReviewPredictions", () => {
     expect(joined.evidence).toEqual([]);
   });
 
-  it("strips JSON feedback so pending queue stays Neon SoT", () => {
+  it("omits JSON matches that already have feedback", () => {
     const preds = [prediction({ id: "aaa" })];
     const json: Signal[] = [
       {
@@ -102,9 +102,8 @@ describe("joinNeedsReviewPredictions", () => {
         status: "reviewed",
       },
     ];
-    const [joined] = joinNeedsReviewPredictions(preds, json);
-    expect(joined.feedback).toBeUndefined();
-    expect(joined.status).toBe("new");
+    const joined = joinNeedsReviewPredictions(preds, json);
+    expect(joined).toHaveLength(0);
   });
 
   it("dedupes when multiple Neon predictions match one JSON signal", () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EXPECTED_TESTING_JSON,
+  customerNameFromExternalId,
   formatConfusionExamples,
   formatTestingJsonMetrics,
   loadTestingJsonEval,
@@ -26,6 +27,24 @@ describe("testing.json synthetic eval", () => {
       "none"
     );
     expect(mapTestingLabelsToGroundTruth([{ signal: "lead" }])).toBe("lead");
+  });
+
+  it("derives customerName from externalId (rahul_mehta_29 → Rahul Mehta)", () => {
+    expect(customerNameFromExternalId("rahul_mehta_29")).toBe("Rahul Mehta");
+    expect(customerNameFromExternalId("priya_sharma_22")).toBe("Priya Sharma");
+    expect(customerNameFromExternalId("wa-1001")).toBeNull();
+    expect(customerNameFromExternalId("")).toBeNull();
+
+    const result = loadTestingJsonEval();
+    const named = result.store.conversations.filter((c) => c.customerName);
+    expect(named.length).toBe(EXPECTED_TESTING_JSON.conversations);
+    expect(
+      result.store.conversations.find((c) => c.externalId === "rahul_mehta_29")
+        ?.customerName
+    ).toBe("Rahul Mehta");
+    expect(result.store.signals[0]?.summary).toMatch(
+      /^(Rahul|Priya|Amit|[A-Z][a-z]+)/
+    );
   });
 
   it("loads via adapter and reports overall + per-type metrics (measurement)", () => {

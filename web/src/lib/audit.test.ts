@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   appendAuditEvent,
   normalizeStore,
@@ -34,7 +34,15 @@ describe("appendAuditEvent", () => {
 
 describe("setSignalFeedback audit trail", () => {
   beforeEach(async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
     await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("records an audit event when SignalScore feedback is saved", async () => {
