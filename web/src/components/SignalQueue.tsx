@@ -20,7 +20,7 @@ import {
   signalTypeLabel,
 } from "@/lib/format";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
-import type { Signal } from "@/lib/types";
+import type { Conversation, Message, Signal } from "@/lib/types";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -62,12 +62,16 @@ type SignalQueueProps = {
   reviewedSignals: Signal[];
   /** conversationId → customerName for User column avatars. */
   customerNames?: Record<string, string>;
+  /** conversationId → messages for Open Conversation in expand. */
+  messagesByConversationId?: Record<string, Message[]>;
+  /** conversationId → conversation for Ground Truth in expand. */
+  conversationsById?: Record<string, Conversation>;
   /** Set when FastAPI needs-review could not be loaded. */
   queueError?: string | null;
   statusFilter?: StatusFilter;
   typeFilter?: TypeFilter;
   page?: number;
-  /** Inline Insights preview selection (`?preview=`). */
+  /** Inline Insights expand selection (`?preview=`). */
   previewId?: string | null;
   /** Preserve banners / demo flags in queue URLs */
   queryExtras?: Record<string, string | undefined | null>;
@@ -94,25 +98,6 @@ function buildQueueHref(
       preview: preview || null,
     });
   };
-}
-
-/** Detail URL preserves queue filters + preview so Back can restore them. */
-function buildDetailHref(
-  signalId: string,
-  queryExtras: Record<string, string | undefined | null> | undefined,
-  statusFilter: StatusFilter,
-  typeFilter: TypeFilter,
-  page: number,
-  previewId?: string | null,
-): string {
-  return viewHref("insights", {
-    ...queryExtras,
-    signal: signalId,
-    status: statusFilter,
-    type: typeFilter === "all" ? null : typeFilter,
-    page: page > 1 ? String(page) : null,
-    preview: previewId || null,
-  });
 }
 
 function useQueueList({
@@ -185,9 +170,7 @@ export function SignalQueueFilters({
       pendingCount={pendingCount}
       reviewedCount={reviewedCount}
       allCount={statusFilter === "new" && queueError ? reviewedCount : allCount}
-      filteredCount={statusFilter === "new" && queueError ? 0 : filtered.length}
       queueHref={queueHref}
-      pendingUnavailable={Boolean(queueError)}
     />
   );
 }
@@ -196,6 +179,8 @@ export function SignalQueue({
   pendingSignals,
   reviewedSignals,
   customerNames = {},
+  messagesByConversationId = {},
+  conversationsById = {},
   queueError = null,
   statusFilter = "new",
   typeFilter = "all",
@@ -232,9 +217,7 @@ export function SignalQueue({
             pendingCount={pendingCount}
             reviewedCount={reviewedCount}
             allCount={reviewedCount}
-            filteredCount={0}
             queueHref={queueHref}
-            pendingUnavailable
           />
         ) : null}
         <div
@@ -286,9 +269,7 @@ export function SignalQueue({
           pendingCount={pendingCount}
           reviewedCount={reviewedCount}
           allCount={allCount}
-          filteredCount={filtered.length}
           queueHref={queueHref}
-          pendingUnavailable={Boolean(queueError)}
         />
       ) : null}
 
@@ -373,7 +354,7 @@ export function SignalQueue({
                 </span>
               </div>
               <span
-                className="w-[4.5rem] shrink-0 text-right text-label-12 font-semibold text-sio-fg-base"
+                className="w-[4.5rem] shrink-0 text-left text-label-12 font-semibold text-sio-fg-base"
                 role="columnheader"
               >
                 Action
@@ -392,17 +373,16 @@ export function SignalQueue({
                   signal.summary || "",
                 );
                 const previewHref = queueHref({
-                  preview: signal.id,
-                  page: 1,
-                });
-                const detailHref = buildDetailHref(
-                  signal.id,
-                  queryExtras,
-                  statusFilter,
-                  typeFilter,
+                  preview: selected ? null : signal.id,
                   page,
-                  previewId,
-                );
+                });
+                const summaryForLabel =
+                  queueSignalSummary(signal.summary || "", customerName) ||
+                  "signal";
+                const messages =
+                  messagesByConversationId[signal.conversationId] ?? [];
+                const conversation =
+                  conversationsById[signal.conversationId] ?? null;
 
                 return (
                   <li
@@ -415,11 +395,20 @@ export function SignalQueue({
                       customerName={customerName}
                       selected={selected}
                       previewHref={previewHref}
-                      previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Preview ${queueSignalSummary(signal.summary || "", customerName) || "signal"}`}
+                      previewAriaLabel={
+                        selected
+                          ? `${customerName}. Collapse review for ${summaryForLabel}`
+                          : `${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Expand review for ${summaryForLabel}`
+                      }
+                      messages={messages}
+                      conversation={conversation}
                       action={
-                        <div className="w-full shrink-0 sm:flex sm:w-[4.5rem] sm:justify-end">
+                        <div className="w-full shrink-0 sm:flex sm:w-[4.5rem] sm:justify-start">
                           <Link
-                            href={detailHref}
+                            href={previewHref}
+                            scroll={false}
+                            aria-expanded={selected}
+                            aria-controls={`signal-expand-${signal.id}`}
                             className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:w-auto sm:px-3"
                           >
                             Review
@@ -444,23 +433,19 @@ function QueueFilters({
   pendingCount,
   reviewedCount,
   allCount,
-  filteredCount,
   queueHref,
-  pendingUnavailable = false,
 }: {
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
   pendingCount: number;
   reviewedCount: number;
   allCount: number;
-  filteredCount: number;
   queueHref: (next: {
     status?: StatusFilter;
     type?: TypeFilter;
     page?: number;
     preview?: string | null;
   }) => string;
-  pendingUnavailable?: boolean;
 }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-2">
@@ -516,28 +501,6 @@ function QueueFilters({
           </MenuSection>
         </Menu>
       </MenuContainer>
-      <p className="tabular shrink-0 text-label-13 text-sio-fg-subtle">
-        {pendingUnavailable ? (
-          <>
-            <span className="text-sio-fg-muted">Needs review unavailable</span>
-            <span className="text-sio-fg-muted" aria-hidden>
-              {" "}
-              ·{" "}
-            </span>
-          </>
-        ) : pendingCount > 0 ? (
-          <>
-            <span className="text-sio-fg-base">
-              {pendingCount} Pending
-            </span>
-            <span className="text-sio-fg-muted" aria-hidden>
-              {" "}
-              ·{" "}
-            </span>
-          </>
-        ) : null}
-        {filteredCount}
-      </p>
     </div>
   );
 }

@@ -51,10 +51,16 @@ export function GroundTruthControl({
   }
 
   return (
-    <section className="panel p-4 sm:p-5" aria-labelledby="ground-truth-heading">
-      <h2 id="ground-truth-heading" className="text-heading-16 text-ds-gray-1000">
+    <section
+      className="panel p-4 sm:p-5"
+      aria-labelledby={`ground-truth-heading-${conversationId}`}
+    >
+      <h3
+        id={`ground-truth-heading-${conversationId}`}
+        className="text-heading-16 text-ds-gray-1000"
+      >
         Set Ground Truth
-      </h2>
+      </h3>
       <p className="mt-1 max-w-prose text-pretty text-copy-14 text-ds-gray-900">
         Label this conversation for labeled precision/recall on partner chats.
       </p>

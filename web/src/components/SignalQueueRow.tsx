@@ -1,16 +1,22 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { SignalScoreChip } from "@/components/SignalScoreChip";
 import { SignalStatus } from "@/components/SignalStatus";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { SignalUser } from "@/components/SignalUser";
-import { primaryQuote, queueSignalSummary } from "@/lib/format";
-import type { Signal } from "@/lib/types";
+import {
+  ExpandRegion,
+  SignalReviewExpand,
+} from "@/components/SignalReviewExpand";
+import { primaryQuote } from "@/lib/format";
+import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Desktop queue columns: User · Signal · Status · Score · Type (+ Evidence @ lg; Action outside). */
+/** Desktop queue columns: User (avatar) · Signal · Status · Score · Type (+ Evidence @ lg; Action outside). */
 export const QUEUE_GRID =
-  "sm:grid-cols-[minmax(6.5rem,0.85fr)_minmax(0,1.5fr)_4.75rem_4.5rem_6.75rem] lg:grid-cols-[minmax(7rem,0.9fr)_minmax(0,1.45fr)_5rem_4.75rem_7rem_minmax(0,1.35fr)]";
+  "sm:grid-cols-[2.25rem_minmax(0,1.5fr)_4.75rem_4.5rem_6.75rem] lg:grid-cols-[2.25rem_minmax(0,1.45fr)_5rem_4.75rem_7rem_minmax(0,1.35fr)]";
 
 const QUEUE_GRID_CLASS = `grid min-w-0 flex-1 grid-cols-1 gap-2.5 sm:items-center sm:gap-3 lg:gap-4 ${QUEUE_GRID}`;
 
@@ -21,8 +27,16 @@ type SignalQueueRowProps = {
   previewHref?: string;
   previewAriaLabel?: string;
   action?: ReactNode;
+  /** Messages for Open Conversation when expanded. */
+  messages?: Message[];
+  /** Local conversation for Ground Truth when expanded. */
+  conversation?: Conversation | null;
 };
 
+/**
+ * Row chrome stays identical open or closed (truncated Signal cell; no
+ * selected fill). Review panels open below via ExpandRegion.
+ */
 export function SignalQueueRow({
   signal,
   customerName,
@@ -30,27 +44,31 @@ export function SignalQueueRow({
   previewHref,
   previewAriaLabel,
   action,
+  messages = [],
+  conversation = null,
 }: SignalQueueRowProps) {
   const quote = primaryQuote(signal.evidence);
   const evidencePrimary = quote ? `“${quote}”` : "—";
-  const signalText = queueSignalSummary(signal.summary || "", customerName);
+  // Full stored summary (includes customer name) — name is avatar-only in User column.
+  const signalText = signal.summary?.trim() || "";
+  const expandId = `signal-expand-${signal.id}`;
+  const summaryId = `signal-summary-${signal.id}`;
 
   const cells = (
     <>
       <div className="flex min-w-0 items-start gap-2.5 sm:contents">
         <SignalUser
           name={customerName}
-          className="mt-0.5 shrink-0 sm:mt-0 sm:min-w-0 max-sm:[&_.signal-user-name]:hidden"
+          showName={false}
+          className="mt-0.5 shrink-0 sm:mt-0 sm:min-w-0"
         />
 
         <div className="min-w-0 flex-1">
           <p
-            className="truncate text-label-13 font-medium text-sio-fg-base sm:hidden"
+            id={summaryId}
+            className="truncate text-copy-14 font-medium text-sio-fg-base"
             translate="no"
           >
-            {customerName}
-          </p>
-          <p className="mt-0.5 truncate text-copy-14 font-medium text-sio-fg-base sm:mt-0">
             {signalText || "No summary available"}
           </p>
           <SignalStatus signal={signal} className="mt-1 sm:hidden" />
@@ -106,26 +124,38 @@ export function SignalQueueRow({
 
   return (
     <div
-      className={cn(
-        "list-row flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-3.5 sm:py-2.5",
-        selected &&
-          "bg-sio-bg-interactive before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-sm before:bg-sio-fg-base",
-      )}
+      className="list-row flex flex-col"
+      data-expanded={selected ? "true" : undefined}
     >
+      <div className="flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-3.5 sm:py-2.5">
+        {previewHref ? (
+          <Link
+            href={previewHref}
+            scroll={false}
+            aria-label={previewAriaLabel}
+            aria-expanded={selected}
+            aria-controls={expandId}
+            className={gridClassName}
+          >
+            {cells}
+          </Link>
+        ) : (
+          <div className={gridClassName}>{cells}</div>
+        )}
+        {action}
+      </div>
+
       {previewHref ? (
-        <Link
-          href={previewHref}
-          scroll={false}
-          aria-current={selected ? "true" : undefined}
-          aria-label={previewAriaLabel}
-          className={gridClassName}
-        >
-          {cells}
-        </Link>
-      ) : (
-        <div className={gridClassName}>{cells}</div>
-      )}
-      {action}
+        <ExpandRegion open={selected} id={expandId} labelledBy={summaryId}>
+          <SignalReviewExpand
+            signal={signal}
+            customerName={customerName}
+            messages={messages}
+            conversation={conversation}
+            labelledBy={summaryId}
+          />
+        </ExpandRegion>
+      ) : null}
     </div>
   );
 }

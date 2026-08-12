@@ -50,11 +50,11 @@ Shell uses shadcn Sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarInse
 ### Signal Score chrome
 
 - **Full** (`SignalScoreSummary`): stacked header + overall cell + by-type column (Eval overview when not compact).
-- **Compact** (`compact` on Eval strips): single `.metric-strip--compact` block — eyebrow + Overall % + Reviewed/Correct + type chips inline; tight padding (~70–90px vs ~175px stacked). Neon SoT unchanged. Signal Detail omits the score strip (score lives on Insights/Eval).
+- **Compact** (`compact` on Eval strips): single `.metric-strip--compact` block — eyebrow + Overall % + Reviewed/Correct + type chips inline; tight padding (~70–90px vs ~175px stacked). Neon SoT unchanged. Insights in-queue review omits the score strip (score lives on Insights queue chrome / Eval).
 
 ### Conversation transcript (alignment lock)
 
-Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/shadcn-aligned API; no fake `/avatars/*.png`). Used as the full list in `ConversationDrawer` (Insights + Detail).
+Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/shadcn-aligned API; no fake `/avatars/*.png`). Used as the full list in `ConversationDrawer` (Insights accordion).
 
 | Role | Side | Bubble | Avatar |
 |---|---|---|---|
@@ -67,19 +67,25 @@ Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/sh
 - `MessageContent` / bubble max-width: `min(24rem, calc(100% - 2.5rem))` with `min-w-0` + `break-words` so long text wraps on mobile without overflowing.
 - Tokens: `sio-*` only; quiet fills; no glass, neon, or heavy shadows.
 
-### Signal Detail (single viewport)
+### Insights in-queue review (accordion)
 
-Detail must fit a typical laptop viewport without scrolling the main page: header row (Back + **Open Conversation**) and a single full-width column for signal + feedback in `min-h-0` flex children (no Signal Score strip — that lives on Insights/Eval). Signal card is dense (clamped summary, short Suggested Next Action, ≤2 Why This Fired lines) so evidence is not repeated three ways. No inline Conversation panel or message teaser — full transcript is drawer-only. When there are no messages (or Neon stub), omit the button and show a short honesty note in the header (“No messages stored” / “No local conversation”); never invent chat.
+Operator review happens **in the queue**, not on a full-page Signal Detail screen and not in a right split preview pane. Clicking a `SignalQueueRow` (or **Review**) toggles expand for that signal via `?preview=<signalId>` (one open at a time). Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body sits under the same row chrome inside the list item:
 
-### Conversation drawer (Insights + Detail)
+1. **Signal cell (in-row):** row chrome stays identical open or closed — truncated Signal summary (no unwrap, no selected fill / `aria-current` bar). Full text and evidence live in the expand body; no duplicate full-signal block there beyond Why This Fired.
+2. **Suggested Next Action + Why This Fired** — dense two-column panel below the chrome (display-only action note; ≤2 why lines / honesty for Neon stubs). Review panels open downward only.
+3. **Open Conversation → Feedback → Ground Truth** — `ConversationDrawer` when messages exist for the conversation id (including Neon stubs that still join a local transcript); then `FeedbackControls`; then `GroundTruthControl` when a local conversation exists. No **Open Full Detail** / **Add Feedback** links. Neon stubs without local evidence: quiet empty copy in Action/Why (no yellow status banner); Upload / Re-run only when no local conversation or messages.
 
-Shared `ConversationDrawer` → local `Drawer` shim. Insights preview keeps summary + evidence quote + status and opens with **See Conversation**; Signal Detail places **Open Conversation** in the top header action row (next to Back). Full transcript scrolls inside the drawer (not inline). Summary / type stay on the preview/detail surface.
+Smooth expand/collapse uses compositor-friendly `grid-template-rows` and honors `prefers-reduced-motion`. Expanded row keeps `aria-expanded` / `aria-controls` / `data-expanded` (no `aria-current` highlight). Legacy `?signal=` and `/insights/[id]` redirect to `?view=insights&preview=<id>`.
+
+### Conversation drawer (Insights)
+
+Shared `ConversationDrawer` → local `Drawer` shim. Accordion **Open Conversation** / **See Conversation** opens the full transcript in the drawer (not inline). Summary / type / feedback stay on the expanded row.
 
 - **Header:** visible quiet title **Conversation** (`DrawerTitle`) + optional customer subtitle (`DrawerDescription`, `translate="no"`, truncate). Dialog uses `aria-labelledby` on the title (not `aria-label` alone). Close lives in the header row (not absolute overlay); Escape, backdrop click, and focus return to the trigger unchanged.
 - **Layout:** shrink-0 header + flex-1 scroll body (`overscroll-behavior: contain`, safe-area on bottom / desktop top) + optional footer. Header/body/footer share horizontal inset `px-6` (24px) and a centered `max-w-md` content column so wide bottom sheets keep calm side gutters (bubbles/chrome don’t flush to the panel edge); vertical header/footer `py-2`. Same message alignment lock as above (customer right / agent left); identity via avatar only — no per-message name/**Agent** labels; no StatusDot on messages.
 - **Chrome:** desktop (`md+`) narrow right sheet `width: min(100%, 28rem)`, border-left only, radius 0; mobile bottom sheet `max-height: ~85dvh`, modest top radius (~12px), compact swipe handle. Panel `bg-sio-bg-base` + `sio-border-base`; backdrop `--sio-bg-overlay`; honor `prefers-reduced-motion`.
 - **Empty:** same honesty as Neon stubs — “No messages stored” (no invented transcript).
-- **Footer:** Insights only — **Open Full Detail** / **Add Feedback** → existing detail href (dense `px-6 py-2`, buttons `h-9` on `md+`). Detail omits footer (already on the page). No toast.
+- **Footer:** omitted for Insights review (feedback lives in the expanded row). No toast.
 
 ### Insights queue status
 
@@ -96,7 +102,7 @@ URL filter stays `status=new` for the Neon needs-review bucket. StatusDot uses *
 
 ### Signal chrome (reuse lock)
 
-Operator Insights surfaces (queue / preview / detail) share one chrome set — copy the locked queue look; do not re-wire icons or status mapping in views.
+Operator Insights surfaces (queue / in-row expand) share one chrome set — copy the locked queue look; do not re-wire icons or status mapping in views.
 
 | Surface | Component | Notes |
 |---|---|---|
@@ -112,7 +118,7 @@ Shared pill class: `signalChipClass` (exported from `SignalScoreChip.tsx`).
 
 ### Insights queue Type chip
 
-Queue **Type** column uses `SignalTypeChip`: pill radius (`rounded-full`), white/base fill, hairline only (`shadow-[0_0_0_1px_rgba(0,0,0,0.08)]` — no elevation), type glyph (`LeadIcon` / `RetentionIcon` / `UpsellIcon`, muted) + Title Case label. Preview + detail use the same chip for ops scan consistency.
+Queue **Type** column uses `SignalTypeChip`: pill radius (`rounded-full`), white/base fill, hairline only (`shadow-[0_0_0_1px_rgba(0,0,0,0.08)]` — no elevation), type glyph (`LeadIcon` / `RetentionIcon` / `UpsellIcon`, muted) + Title Case label. Expanded review reuses the same chrome in the collapsed row only.
 
 ### Insights queue Score chip
 
@@ -124,15 +130,15 @@ Queue **Score** column uses `SignalScoreChip` (same `signalChipClass` hairline p
 | `0.5`–`0.9` | `50`–`90` | `WarningIcon` (`warning.svg`, solid triangle) | `#ff9300` |
 | `> 0.9` | `> 90` | `GoodIcon` (`good.svg`, check-in-circle) | `#279141` |
 
-Preview + detail use `SignalScoreChip` too. Not StatusDot / feedback colors.
+Not StatusDot / feedback colors.
 
 ### Insights queue Evidence density
 
-Desktop queue shows Evidence (quote only, truncated) from `lg+`. Between `sm` and `lg`, columns are User · Signal · Status · Score · Type · Action (no Evidence). Mobile stacked cards keep a single evidence quote line. Do not show `Next · suggestedAction` under Evidence in the queue; suggested action stays on preview/detail.
+Desktop queue shows Evidence (quote only, truncated) from `lg+`. Between `sm` and `lg`, columns are User · Signal · Status · Score · Type · Action (no Evidence). Mobile stacked cards keep a single evidence quote line. Do not show `Next · suggestedAction` under Evidence in the collapsed row; suggested action lives in the expanded review panel.
 
 ### Insights summary display (no name echo)
 
-When the customer name is already shown (queue User column, preview name line), display summary via `queueSignalSummary(summary, customerName)` — strip a leading name + optional `(channel)`, trim leftover dashes/colons, capitalize the remainder. Fall back to the original summary if strip would empty. Do **not** change `detect.ts` / stored summaries. Preview panel uses the same helper as the queue Signal column.
+When the customer name is already shown (queue User column), display summary via `queueSignalSummary(summary, customerName)` — strip a leading name + optional `(channel)`, trim leftover dashes/colons, capitalize the remainder. Fall back to the original summary if strip would empty. Do **not** change `detect.ts` / stored summaries.
 
 ## Showcase corpus names
 

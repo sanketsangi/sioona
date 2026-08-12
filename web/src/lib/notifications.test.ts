@@ -1,0 +1,80 @@
+import { describe, expect, it } from "vitest";
+import { buildHeaderNotifications } from "./notifications";
+
+describe("buildHeaderNotifications", () => {
+  it("surfaces pending review count", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 3,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("pending-review");
+    expect(items[0]?.tone).toBe("accent");
+    expect(items[0]?.href).toContain("status=new");
+  });
+
+  it("prefers queue error over pending count", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 5,
+      queueError: "backend down",
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+    });
+    expect(items.map((i) => i.id)).toEqual(["queue-unavailable"]);
+  });
+
+  it("includes sync and score warnings", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 0,
+      queueError: null,
+      syncFailed: 2,
+      syncCreated: 1,
+      scoreUnavailable: true,
+    });
+    expect(items.map((i) => i.id)).toEqual([
+      "sync-failed",
+      "score-unavailable",
+    ]);
+    expect(items[0]?.title).toBe("Neon Dual-Write Incomplete");
+    expect(items[0]?.tone).toBe("warning");
+    expect(items[0]?.description).toContain("2 predictions not written");
+    expect(items[0]?.description).toContain("1 succeeded");
+  });
+
+  it("includes partner demo ready when demoReady", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 0,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      demoReady: true,
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("partner-demo-ready");
+    expect(items[0]?.title).toBe("Partner Demo Ready");
+    expect(items[0]?.tone).toBe("accent");
+    expect(items[0]?.href).toContain("status=new");
+    expect(items[0]?.href).toContain("demo=1");
+  });
+
+  it("stacks demo ready ahead of sync failure", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 1,
+      queueError: null,
+      syncFailed: 3,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      demoReady: true,
+    });
+    expect(items.map((i) => i.id)).toEqual([
+      "partner-demo-ready",
+      "pending-review",
+      "sync-failed",
+    ]);
+  });
+});

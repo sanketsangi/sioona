@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { EvalView } from "@/components/views/EvalView";
 import { InsightsView } from "@/components/views/InsightsView";
-import { SignalDetailView } from "@/components/views/SignalDetailView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { UploadView } from "@/components/views/UploadView";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
-import { predictionToStubSignal } from "@/lib/join-needs-review";
+import { buildHeaderNotifications } from "@/lib/notifications";
 import {
-  neonPredictionIdFromStubSignalId,
   parseSyncCreatedParam,
   parseSyncFailedParam,
+  shouldShowSyncFailureBanner,
 } from "@/lib/prediction-sync";
 import { readStore } from "@/lib/store";
 import {
@@ -20,7 +19,6 @@ import {
   parseStatusFilter,
   parseTypeFilter,
   parseView,
-  viewHref,
   type PlatformView,
 } from "@/lib/views";
 
@@ -36,13 +34,13 @@ const TITLES: Record<PlatformView, string> = {
 export async function generateMetadata({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; signal?: string }>;
+  searchParams: Promise<{ view?: string; preview?: string }>;
 }): Promise<Metadata> {
   const sp = await searchParams;
-  if (sp.signal) {
-    return { title: "Signal Detail" };
-  }
   const view = parseView(sp.view);
+  if (view === "insights" && sp.preview) {
+    return { title: "Signal Review" };
+  }
   return { title: TITLES[view] };
 }
 
@@ -72,132 +70,53 @@ export default async function PlatformPage({
   const sp = await searchParams;
   const view = parseView(sp.view);
   const signalId = sp.signal ?? null;
+
+  // Legacy `?signal=` → in-queue expand via `?preview=`
+  if (signalId) {
+    const params = new URLSearchParams();
+    params.set("view", "insights");
+    params.set("preview", signalId);
+    for (const [key, value] of Object.entries(sp)) {
+      if (key === "signal" || key === "preview" || key === "view") continue;
+      if (typeof value === "string" && value !== "") {
+        params.set(key, value);
+      }
+    }
+    redirect(`/?${params.toString()}`);
+  }
+
   const previewId = sp.preview ?? null;
   const store = await readStore();
+  const syncFailed = parseSyncFailedParam(sp.syncFailed);
+  const syncCreated = parseSyncCreatedParam(sp.syncCreated);
 
-  if (signalId) {
-    const signal = store.signals.find((s) => s.id === signalId);
-    const queueReturn: Record<string, string | undefined | null> = {
-      demo: sp.demo === "1" ? "1" : null,
-      imported: sp.imported ?? null,
-      signals: sp.signals ?? null,
-      status: sp.status ?? null,
-      type: sp.type ?? null,
-      page: sp.page ?? null,
-      syncFailed: sp.syncFailed ?? null,
-      syncCreated: sp.syncCreated ?? null,
-      preview: sp.preview ?? null,
-    };
-    if (signal) {
-      const conversation = store.conversations.find(
-        (c) => c.id === signal.conversationId,
-      );
-      const messages = store.messages
-        .filter((m) => m.conversationId === signal.conversationId)
-        .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-      return (
-        <AppShell
-          activeView="insights"
-          detailOpen
-          title="Signal Detail"
-        >
-          <SignalDetailView
-            signal={signal}
-            conversation={conversation}
-            messages={messages}
-            queueReturn={queueReturn}
-          />
-        </AppShell>
-      );
-    }
-
-    const neonId = neonPredictionIdFromStubSignalId(signalId);
-    if (neonId) {
-      const needsReview = await fetchNeedsReview(store.tenant.id, 100);
-      const prediction = needsReview.ok
-        ? needsReview.predictions.find((p) => p.id === neonId)
-        : undefined;
-      const stub = prediction
-        ? predictionToStubSignal(prediction)
-        : {
-            ...predictionToStubSignal({
-              id: neonId,
-              tenant_id: store.tenant.id,
-              conversation_id: "",
-              signal_type: "lead",
-              confidence: 0,
-              summary: "Neon prediction (details unavailable)",
-              created_at: new Date().toISOString(),
-            }),
-            id: signalId,
-          };
-
-      return (
-        <AppShell
-          activeView="insights"
-          detailOpen
-          title="Signal Detail"
-        >
-          <SignalDetailView
-            signal={stub}
-            messages={[]}
-            isNeonStub
-            queueReturn={queueReturn}
-          />
-        </AppShell>
-      );
-    }
-
-    return (
-      <AppShell
-        activeView="insights"
-        detailOpen
-        title="Signal Not Found"
-      >
-        <div className="panel max-w-lg p-5">
-          <p className="text-copy-14 text-ds-gray-900">
-            No signal matches{" "}
-            <code
-              className="font-mono text-label-13 text-ds-gray-1000"
-              translate="no"
-            >
-              {signalId}
-            </code>
-            .
-          </p>
-          <p className="mt-4">
-            <Link
-              href={viewHref("insights", queueReturn)}
-              className="link-accent"
-            >
-              Back to Signal Queue
-            </Link>
-          </p>
-        </div>
-      </AppShell>
-    );
-  }
+  const [backendScore, needsReview] = await Promise.all([
+    fetchSignalScoreSafe(store.tenant.id),
+    fetchNeedsReview(store.tenant.id, 20),
+  ]);
+  const pendingCount = needsReview.ok ? needsReview.predictions.length : 0;
+  const queueError = needsReview.ok ? null : needsReview.error;
+  const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
+  const notifications = buildHeaderNotifications({
+    pendingCount,
+    queueError,
+    syncFailed: hasSyncFailure ? syncFailed : 0,
+    syncCreated: hasSyncFailure ? syncCreated : 0,
+    scoreUnavailable: backendScore == null,
+    demoReady: sp.demo === "1",
+  });
 
   const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
-  const syncFailed = parseSyncFailedParam(sp.syncFailed);
-  const syncCreated = parseSyncCreatedParam(sp.syncCreated);
   // Insights default: Neon pending (needs-review) list
   const statusFilter = parseStatusFilter(sp.status ?? "new");
   const typeFilter = parseTypeFilter(sp.type);
   const page = parsePage(sp.page);
-  const backendScore =
-    view === "insights" || view === "eval"
-      ? await fetchSignalScoreSafe(store.tenant.id)
-      : null;
-  const needsReview =
-    view === "insights" ? await fetchNeedsReview(store.tenant.id, 20) : null;
 
   return (
-    <AppShell activeView={view} title={title}>
-      {view === "insights" && needsReview ? (
+    <AppShell activeView={view} title={title} notifications={notifications}>
+      {view === "insights" ? (
         <InsightsView
           store={store}
           demo={sp.demo === "1"}
