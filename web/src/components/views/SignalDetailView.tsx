@@ -3,6 +3,7 @@ import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
+import { ReDetectButton } from "@/components/ReDetectButton";
 import { SignalQueueRow } from "@/components/SignalQueueRow";
 import {
   customerNameFromExternalId,
