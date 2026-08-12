@@ -4,13 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { RefreshClockwiseIcon } from "@/components/icons/RefreshClockwiseIcon";
+import { cn } from "@/lib/utils";
 import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
 } from "@/lib/prediction-sync";
 
-export function ReDetectButton() {
+export function ReDetectButton({ className }: { className?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export function ReDetectButton() {
         onClick={run}
         disabled={loading}
         aria-busy={loading}
-        className="btn-secondary"
+        className={cn("btn-secondary", className)}
       >
         {loading ? (
           <ButtonSpinner />

@@ -3,11 +3,7 @@ import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
-import { ReDetectButton } from "@/components/ReDetectButton";
-import { SignalScoreChip } from "@/components/SignalScoreChip";
-import { SignalStatus } from "@/components/SignalStatus";
-import { SignalTypeChip } from "@/components/SignalTypeChip";
-import { SignalUser } from "@/components/SignalUser";
+import { SignalQueueRow } from "@/components/SignalQueueRow";
 import {
   customerNameFromExternalId,
   formatEvidenceItem,
@@ -69,90 +65,75 @@ export function SignalDetailView({
 
       {isNeonStub ? (
         <div
-          className="status-banner status-banner-warning shrink-0 py-2.5"
+          className="status-banner status-banner-warning flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-3 py-2"
           role="status"
         >
-          <p className="text-copy-14 text-sio-fg-base">
-            Prediction is in Neon, but this conversation is not in the local
-            store — no evidence or chat transcript to show. Re-run Detection or
-            re-upload so dual-write can join evidence.
+          <p className="min-w-0 flex-1 text-pretty text-label-13 text-sio-fg-base">
+            No local conversation to join — evidence and transcript unavailable.
           </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Link href={viewHref("upload")} className="btn-secondary">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            <Link
+              href={viewHref("upload")}
+              className="btn-secondary h-8 min-h-8 px-2.5 text-label-13 md:h-8"
+            >
               Upload Chats
             </Link>
-            <ReDetectButton />
+            <ReDetectButton className="h-8 min-h-8 px-2.5 text-label-13 md:h-8" />
           </div>
         </div>
       ) : null}
 
       <div className="scroll-region flex min-h-0 min-w-0 flex-1 flex-col gap-2.5">
-        <div className="panel shrink-0 p-3 sm:p-3.5">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <SignalTypeChip type={signal.type} />
-            <SignalScoreChip score={signal.score} />
-            <SignalStatus signal={signal} />
-            {displayName ? (
-              <>
-                <SignalUser name={displayName} />
-                {conversation?.channel ? (
-                  <span className="text-label-13 text-sio-fg-muted">
-                    · {conversation.channel}
-                  </span>
-                ) : null}
-              </>
-            ) : isNeonStub ? (
-              <span className="text-label-13 text-sio-fg-muted">
-                · Neon prediction only
-              </span>
-            ) : null}
-          </div>
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
+          <SignalQueueRow signal={signal} customerName={who} />
 
-          <p className="mt-2 line-clamp-2 break-words text-pretty text-copy-14 font-medium text-sio-fg-base">
-            {signal.summary}
-          </p>
-
-          <div className="mt-2.5 border-t border-sio-border-base pt-2.5">
-            <div className="eyebrow">Suggested Next Action</div>
-            <p className="mt-1 line-clamp-2 break-words text-pretty text-label-13 text-sio-fg-base">
-              {isNeonStub || !signal.suggestedAction
-                ? "Unavailable — local detection join missing."
-                : signal.suggestedAction}
-            </p>
-            <p className="mt-0.5 text-label-12 text-sio-fg-muted">
-              Display-only — not sent by Sioona.
-            </p>
-          </div>
-
-          <div className="mt-2.5 border-t border-sio-border-base pt-2.5">
-            <div className="eyebrow">Why This Fired</div>
-            {evidenceItems.length > 0 ? (
-              <ul className="mt-1 space-y-1.5">
-                {evidenceItems.map((item) => {
-                  const { kind, text } = formatEvidenceItem(item);
-                  return (
-                    <li key={item} className="min-w-0 text-label-13">
-                      {kind === "quote" ? (
-                        <blockquote className="line-clamp-2 break-words border-l-2 border-sio-border-base pl-2.5 text-pretty text-sio-fg-base">
-                          “{text}”
-                        </blockquote>
-                      ) : (
-                        <span className="line-clamp-2 break-words text-sio-fg-muted">
-                          {text}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="mt-1 text-label-13 text-sio-fg-muted">
-                No local evidence
-                {isNeonStub
-                  ? " — this Neon stub has no joined JSON signal."
-                  : "."}
+          <div className="grid border-t border-sio-border-base sm:grid-cols-2 sm:divide-x sm:divide-sio-border-base">
+            <section className="min-w-0 px-3 py-2.5 sm:px-3.5">
+              <h3 className="text-label-12 font-semibold text-sio-fg-base">
+                Suggested Next Action
+              </h3>
+              <p className="mt-1 line-clamp-2 break-words text-pretty text-copy-14 text-sio-fg-base">
+                {isNeonStub || !signal.suggestedAction
+                  ? "Unavailable — local detection join missing."
+                  : signal.suggestedAction}
               </p>
-            )}
+              <p className="mt-0.5 text-label-12 text-sio-fg-muted">
+                Display-only — not sent by Sioona.
+              </p>
+            </section>
+
+            <section className="min-w-0 border-t border-sio-border-base px-3 py-2.5 sm:border-t-0 sm:px-3.5">
+              <h3 className="text-label-12 font-semibold text-sio-fg-base">
+                Why This Fired
+              </h3>
+              {evidenceItems.length > 0 ? (
+                <ul className="mt-1 space-y-1">
+                  {evidenceItems.map((item) => {
+                    const { kind, text } = formatEvidenceItem(item);
+                    return (
+                      <li key={item} className="min-w-0 text-copy-14">
+                        {kind === "quote" ? (
+                          <p className="line-clamp-2 break-words text-pretty text-sio-fg-subtle">
+                            “{text}”
+                          </p>
+                        ) : (
+                          <p className="line-clamp-2 break-words text-label-12 text-sio-fg-muted">
+                            {text}
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-1 text-copy-14 text-sio-fg-muted">
+                  No local evidence
+                  {isNeonStub
+                    ? " — this Neon stub has no joined JSON signal."
+                    : "."}
+                </p>
+              )}
+            </section>
           </div>
         </div>
 

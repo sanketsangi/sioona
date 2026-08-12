@@ -3,10 +3,9 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
-import { PanelLeft } from "lucide-react"
-
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
+import { SidebarPanelIcon } from "@/components/icons/SidebarPanelIcon"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -271,11 +270,13 @@ Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
-  React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  React.ComponentProps<typeof Button> & {
+    tooltip?: string | React.ComponentProps<typeof TooltipContent>
+  }
+>(({ className, onClick, tooltip, ...props }, ref) => {
+  const { isMobile, toggleSidebar } = useSidebar()
 
-  return (
+  const button = (
     <Button
       ref={ref}
       data-sidebar="trigger"
@@ -288,9 +289,32 @@ const SidebarTrigger = React.forwardRef<
       }}
       {...props}
     >
-      <PanelLeft />
+      <SidebarPanelIcon />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
+  )
+
+  if (!tooltip) {
+    return button
+  }
+
+  if (typeof tooltip === "string") {
+    tooltip = {
+      children: tooltip,
+    }
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent
+        side="right"
+        align="center"
+        // Logo-row trigger is only shown when expanded; hide on mobile sheet.
+        hidden={isMobile}
+        {...tooltip}
+      />
+    </Tooltip>
   )
 })
 SidebarTrigger.displayName = "SidebarTrigger"

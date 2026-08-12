@@ -24,6 +24,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { viewHref, type PlatformView } from "@/lib/views";
@@ -93,30 +94,37 @@ function SidebarBrand() {
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton size="lg" asChild tooltip="Sioona">
-          <Link
-            href={viewHref("insights")}
-            aria-label="Sioona"
-            translate="no"
-            onClick={() => {
-              if (isMobile) setOpenMobile(false);
-            }}
-          >
-            <span
-              className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-label-14 font-semibold text-sidebar-primary-foreground"
-              aria-hidden
+    <div className="flex items-center gap-1">
+      <SidebarMenu className="min-w-0 flex-1">
+        <SidebarMenuItem>
+          <SidebarMenuButton size="lg" asChild tooltip="Sioona">
+            <Link
+              href={viewHref("insights")}
+              aria-label="Sioona"
+              translate="no"
+              onClick={() => {
+                if (isMobile) setOpenMobile(false);
+              }}
             >
-              S
-            </span>
-            <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
-              <SioonaLogotype height={28} />
-            </span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    </SidebarMenu>
+              <span
+                className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-label-14 font-semibold text-sidebar-primary-foreground"
+                aria-hidden
+              >
+                S
+              </span>
+              <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+                <SioonaLogotype height={28} />
+              </span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      <SidebarTrigger
+        className="size-8 shrink-0 group-data-[collapsible=icon]:hidden"
+        aria-label="Collapse"
+        tooltip="Collapse"
+      />
+    </div>
   );
 }
 
@@ -142,10 +150,12 @@ function AppSidebarFooter() {
             size="lg"
             tooltip="Create Account"
             aria-label="Create Account"
-            className="border border-sidebar-border bg-background"
+            className="border border-sidebar-border bg-background group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
           >
             <UserIcon className="size-4 shrink-0" />
-            <span>Create Account</span>
+            <span className="group-data-[collapsible=icon]:hidden">
+              Create Account
+            </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>

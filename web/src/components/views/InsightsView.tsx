@@ -279,8 +279,7 @@ export function InsightsView({
           />
         </div>
 
-        {/* Soft canvas; each queue row is its own quiet .panel */}
-        <div className="panel-group flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 sm:p-3">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div
             className={
               showPreviewPane
