@@ -4,21 +4,52 @@ import { BoltIcon } from "@/components/icons/BoltIcon";
 import { ExternalIcon } from "@/components/icons/ExternalIcon";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
+import { JoinRecoveryBanner } from "@/components/JoinRecoveryBanner";
+import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { SignalQueue, SignalQueueFilters } from "@/components/SignalQueue";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 // Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { applyBackendSignalScoreToPilot } from "@/lib/eval";
-import { formatPercent, customerNameFromExternalId } from "@/lib/format";
+import {
+  formatPercent,
+  customerNameFromExternalId,
+  queueSignalSummary,
+  signalTypeLabel,
+} from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import {
   joinNeedsReviewPredictions,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
-import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
+import {
+  isNeonStubSignalId,
+  shouldShowSyncFailureBanner,
+} from "@/lib/prediction-sync";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Message, StoreData } from "@/lib/types";
+
+/** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
+function resolveCustomerName(
+  conversationId: string,
+  customerNames: Record<string, string>,
+  summary: string,
+): string {
+  const fromStore = customerNames[conversationId]?.trim();
+  if (fromStore) return fromStore;
+  const match = summary.match(/^([A-Za-z][A-Za-z .'-]{0,60}?)\s*\(/);
+  if (match?.[1]) return match[1].trim();
+  return "Customer";
+}
 
 export function InsightsView({
   store,
@@ -101,6 +132,51 @@ export function InsightsView({
     syncFailed: hasSyncFailure ? String(syncFailed) : null,
     syncCreated: hasSyncFailure ? String(syncCreated) : null,
   };
+
+  // Same resolution as SignalQueue — deep links ignore active filters.
+  const previewSignal = previewId
+    ? (pendingSignals.find((s) => s.id === previewId) ??
+      reviewedSignals.find((s) => s.id === previewId) ??
+      null)
+    : null;
+  const previewCustomerName = previewSignal
+    ? resolveCustomerName(
+        previewSignal.conversationId,
+        customerNames,
+        previewSignal.summary || "",
+      )
+    : null;
+  const previewMessages = previewSignal
+    ? (messagesByConversationId[previewSignal.conversationId] ?? [])
+    : [];
+  const previewConversation = previewSignal
+    ? (conversationsById[previewSignal.conversationId] ?? null)
+    : null;
+  const reviewOpen = Boolean(previewSignal && previewCustomerName != null);
+  const showJoinRecovery = Boolean(
+    previewSignal &&
+      isNeonStubSignalId(previewSignal.id) &&
+      previewMessages.length === 0 &&
+      !previewConversation,
+  );
+  const breadcrumbPageLabel = (() => {
+    if (!previewSignal || previewCustomerName == null) return null;
+    const who = previewCustomerName.trim() || "Customer";
+    if (who !== "Customer") return who;
+    return (
+      queueSignalSummary(previewSignal.summary || "", who).trim() ||
+      previewSignal.summary?.trim() ||
+      "Signal"
+    );
+  })();
+  // Clear `?preview=` while preserving filters / banners.
+  const backToQueueHref = viewHref("insights", {
+    ...queryExtras,
+    status: statusFilter,
+    type: typeFilter === "all" ? null : typeFilter,
+    page: page > 1 ? String(page) : null,
+    preview: null,
+  });
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -202,23 +278,68 @@ export function InsightsView({
         </NoteAction>
       </Note>
 
+      {showJoinRecovery && previewSignal ? (
+        <JoinRecoveryBanner signalId={previewSignal.id} />
+      ) : null}
+
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="min-w-0">
-            <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-              Conversation that needs your attention
-            </h2>
+            {reviewOpen && breadcrumbPageLabel ? (
+              <Breadcrumb
+                aria-label="Insights review"
+                className="scroll-mt-4"
+              >
+                <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2">
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link
+                        href={backToQueueHref}
+                        scroll={false}
+                        className="rounded-sm font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[0_0_0_2px_var(--sio-bg-base),0_0_0_4px_var(--sio-focus-accent)]"
+                      >
+                        Insights Queue
+                      </Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage
+                      className="max-w-[16rem] truncate font-medium text-sio-fg-base sm:max-w-xs"
+                      translate="no"
+                    >
+                      {breadcrumbPageLabel}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            ) : (
+              <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                Conversation that needs your attention
+              </h2>
+            )}
           </div>
-          <SignalQueueFilters
-            pendingSignals={pendingSignals}
-            reviewedSignals={reviewedSignals}
-            queueError={queueError}
-            statusFilter={statusFilter}
-            typeFilter={typeFilter}
-            page={page}
-            previewId={previewId}
-            queryExtras={queryExtras}
-          />
+          <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
+            {previewSignal && previewCustomerName != null ? (
+              <OpenConversationHeaderAction
+                messages={previewMessages}
+                customerName={previewCustomerName}
+                typeLabel={signalTypeLabel(previewSignal.type)}
+                summary={previewSignal.summary || ""}
+              />
+            ) : (
+              <SignalQueueFilters
+                pendingSignals={pendingSignals}
+                reviewedSignals={reviewedSignals}
+                queueError={queueError}
+                statusFilter={statusFilter}
+                typeFilter={typeFilter}
+                page={page}
+                previewId={previewId}
+                queryExtras={queryExtras}
+              />
+            )}
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -226,7 +347,6 @@ export function InsightsView({
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}
             customerNames={customerNames}
-            messagesByConversationId={messagesByConversationId}
             conversationsById={conversationsById}
             queueError={queueError}
             statusFilter={statusFilter}

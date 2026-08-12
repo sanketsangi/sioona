@@ -1,30 +1,86 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  useTransition,
+  type KeyboardEvent,
+} from "react";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { LeadIcon } from "@/components/icons/LeadIcon";
+import { RetentionIcon } from "@/components/icons/RetentionIcon";
+import { UpsellIcon } from "@/components/icons/UpsellIcon";
 import type { SignalType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
-const OPTIONS: Array<{ value: SignalType | "none" | ""; label: string }> = [
-  { value: "", label: "Unset" },
-  { value: "lead", label: "Lead" },
-  { value: "retention", label: "Retention" },
-  { value: "upsell", label: "Upsell" },
-  { value: "none", label: "None" },
+type GroundTruthValue = SignalType | "none" | "";
+
+const OPTIONS: Array<{
+  value: GroundTruthValue;
+  label: string;
+  hint: string;
+}> = [
+  { value: "", label: "Unset", hint: "No ground truth label" },
+  { value: "lead", label: "Lead", hint: "Labeled as Lead" },
+  { value: "retention", label: "Retention", hint: "Labeled as Retention" },
+  { value: "upsell", label: "Upsell", hint: "Labeled as Upsell" },
+  { value: "none", label: "None", hint: "Explicitly no signal" },
 ];
+
+/** Class literals live here so Tailwind content scan picks them up (not only via lib/). */
+const STATUS_CHIP: Record<GroundTruthValue, string> = {
+  "": "bg-sio-bg-muted text-sio-fg-muted",
+  none: "bg-sio-bg-interactive-hover text-sio-fg-base",
+  lead: "bg-sio-signal-lead-bg text-sio-signal-lead-fg",
+  retention: "bg-sio-signal-retention-bg text-sio-signal-retention-fg",
+  upsell: "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg",
+};
+
+function optionIcon(value: GroundTruthValue) {
+  switch (value) {
+    case "lead":
+      return LeadIcon;
+    case "retention":
+      return RetentionIcon;
+    case "upsell":
+      return UpsellIcon;
+    default:
+      return null;
+  }
+}
+
+function statusLabel(value: GroundTruthValue): string {
+  return OPTIONS.find((o) => o.value === value)?.label ?? "Unset";
+}
 
 export function GroundTruthControl({
   conversationId,
   groundTruth,
+  className,
 }: {
   conversationId: string;
   groundTruth?: SignalType | "none";
+  className?: string;
 }) {
   const router = useRouter();
+  const headingId = useId();
+  const groupId = useId();
   const [pending, startTransition] = useTransition();
-  const [value, setValue] = useState<string>(groundTruth ?? "");
+  const [value, setValue] = useState<GroundTruthValue>(groundTruth ?? "");
+  const [prevGroundTruth, setPrevGroundTruth] = useState(groundTruth);
   const [error, setError] = useState<string | null>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  async function onChange(next: string) {
+  if (groundTruth !== prevGroundTruth) {
+    setPrevGroundTruth(groundTruth);
+    setValue(groundTruth ?? "");
+  }
+
+  async function onSelect(next: GroundTruthValue) {
+    if (next === value || pending) return;
+    const previous = value;
     setValue(next);
     setError(null);
     try {
@@ -36,7 +92,7 @@ export function GroundTruthControl({
           body: JSON.stringify({
             groundTruth: next === "" ? null : next,
           }),
-        }
+        },
       );
       const data = await res.json();
       if (!res.ok) {
@@ -44,51 +100,116 @@ export function GroundTruthControl({
       }
       startTransition(() => router.refresh());
     } catch (err) {
+      setValue(previous);
       setError(
-        err instanceof Error ? err.message : "Failed to save ground truth"
+        err instanceof Error ? err.message : "Failed to save ground truth",
       );
     }
   }
 
+  function onRadioKeyDown(e: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const last = OPTIONS.length - 1;
+    let nextIndex: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      nextIndex = index === last ? 0 : index + 1;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      nextIndex = index === 0 ? last : index - 1;
+    } else if (e.key === "Home") {
+      nextIndex = 0;
+    } else if (e.key === "End") {
+      nextIndex = last;
+    }
+    if (nextIndex === null) return;
+    e.preventDefault();
+    optionRefs.current[nextIndex]?.focus();
+    void onSelect(OPTIONS[nextIndex].value);
+  }
+
   return (
     <section
-      className="panel p-4 sm:p-5"
-      aria-labelledby={`ground-truth-heading-${conversationId}`}
+      className={cn("metric-strip flex flex-col", className)}
+      aria-labelledby={headingId}
     >
-      <h3
-        id={`ground-truth-heading-${conversationId}`}
-        className="text-heading-16 text-ds-gray-1000"
-      >
-        Set Ground Truth
-      </h3>
-      <p className="mt-1 max-w-prose text-pretty text-copy-14 text-ds-gray-900">
-        Label this conversation for labeled precision/recall on partner chats.
-      </p>
-      <label className="mt-4 block">
-        <span className="text-label-12 text-ds-gray-900">Ground Truth</span>
-        <select
-          name="groundTruth"
-          autoComplete="off"
-          className="input-field mt-1 w-full max-w-xs bg-ds-background-100 text-ds-gray-1000"
-          value={value}
-          disabled={pending}
-          onChange={(e) => onChange(e.target.value)}
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
+        <h3 id={headingId} className="eyebrow">
+          Ground Truth
+        </h3>
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 text-label-12 font-medium",
+            STATUS_CHIP[value],
+          )}
+          translate="no"
         >
-          {OPTIONS.map((opt) => (
-            <option key={opt.label} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {error ? (
-        <p className="mt-2 text-copy-14 text-ds-red-900" role="alert">
-          {error}. Try again or refresh the page.
+          {statusLabel(value)}
+        </span>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
+        <p className="text-label-12 text-sio-fg-muted">
+          For labeled precision/recall.
         </p>
-      ) : null}
-      <div aria-live="polite">
-        {pending ? (
-          <p className="mt-2 text-copy-14 text-ds-gray-900">Saving…</p>
+
+        <div
+          id={groupId}
+          role="radiogroup"
+          aria-labelledby={headingId}
+          aria-disabled={pending || undefined}
+          className="filter-toggle mt-2.5 w-full"
+        >
+          {OPTIONS.map((opt, index) => {
+            const selected = value === opt.value;
+            const Icon = optionIcon(opt.value);
+            return (
+              <button
+                key={opt.label}
+                ref={(el) => {
+                  optionRefs.current[index] = el;
+                }}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                title={opt.hint}
+                tabIndex={selected ? 0 : -1}
+                disabled={pending}
+                onClick={() => void onSelect(opt.value)}
+                onKeyDown={(e) => onRadioKeyDown(e, index)}
+                className={cn(
+                  "filter-chip min-w-0 flex-1 touch-manipulation gap-1 px-2 sm:flex-none",
+                  selected ? "filter-chip-active" : "filter-chip-idle",
+                  pending && "cursor-wait opacity-70",
+                )}
+              >
+                {Icon ? (
+                  <Icon
+                    className={cn(
+                      "size-3.5 shrink-0",
+                      selected ? "text-sio-fg-base" : "text-sio-fg-muted",
+                    )}
+                  />
+                ) : null}
+                <span className="truncate">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div aria-live="polite">
+          {pending ? (
+            <p className="mt-2.5 inline-flex items-center gap-1.5 text-label-12 text-sio-fg-muted">
+              <ButtonSpinner className="size-3.5" />
+              Saving…
+            </p>
+          ) : null}
+        </div>
+
+        {error ? (
+          <p
+            className="mt-2.5 text-label-12 text-sio-status-danger-fg"
+            role="alert"
+          >
+            {error}. Try again or refresh the page.
+          </p>
         ) : null}
       </div>
     </section>

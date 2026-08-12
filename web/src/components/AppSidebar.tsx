@@ -136,7 +136,7 @@ function AppSidebarFooter() {
           const { Icon } = item;
           return (
             <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton disabled tooltip={item.label}>
+              <SidebarMenuButton tooltip={item.label}>
                 <Icon className="size-4 shrink-0" />
                 <span>{item.label}</span>
               </SidebarMenuButton>

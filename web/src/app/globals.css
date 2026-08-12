@@ -332,7 +332,7 @@
   }
 
   .page-body {
-    @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
   }
 
   /* Contained scroll region — use inside panels / list panes */
@@ -458,17 +458,17 @@
 
   /* Controls run 44px on touch-sized screens, 36px from md up */
   .btn-primary {
-    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap bg-sio-bg-inverse px-4 text-sm font-medium leading-5 text-sio-fg-on-color transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-sio-bg-disabled disabled:text-sio-fg-muted md:h-9 md:px-3.5;
+    @apply inline-flex h-11 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap bg-sio-bg-inverse px-4 text-sm font-medium leading-5 text-sio-fg-on-color transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-sio-bg-disabled disabled:text-sio-fg-muted md:h-9 md:px-3.5;
     border-radius: var(--radius-control);
   }
 
   .btn-secondary {
-    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap border border-sio-border-subtle bg-transparent px-4 text-sm font-medium leading-5 text-sio-fg-base transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive disabled:cursor-not-allowed disabled:border-sio-border-muted disabled:text-sio-fg-muted md:h-9 md:px-3.5;
+    @apply inline-flex h-11 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap border border-sio-border-subtle bg-transparent px-4 text-sm font-medium leading-5 text-sio-fg-base transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive disabled:cursor-not-allowed disabled:border-sio-border-muted disabled:text-sio-fg-muted md:h-9 md:px-3.5;
     border-radius: var(--radius-control);
   }
 
   .btn-tertiary {
-    @apply inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium leading-5 text-sio-fg-subtle transition-colors duration-150 hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base disabled:cursor-not-allowed disabled:text-sio-fg-muted md:h-9;
+    @apply inline-flex h-11 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap px-3 text-sm font-medium leading-5 text-sio-fg-subtle transition-colors duration-150 hover:bg-sio-bg-interactive-hover hover:text-sio-fg-base disabled:cursor-not-allowed disabled:text-sio-fg-muted md:h-9;
     border-radius: var(--radius-control);
   }
 
@@ -636,6 +636,11 @@
   /* Flush list row inside .panel — hover/active raise contrast; focus inset so overflow doesn’t clip */
   .list-row {
     @apply relative min-w-0 transition-[color,background-color] duration-150 hover:bg-sio-bg-interactive active:bg-sio-bg-interactive-hover;
+  }
+
+  /* Review panel chrome — static row, no list hover */
+  .list-row[data-expand-text="true"] {
+    @apply hover:bg-transparent active:bg-transparent;
   }
 
   .list-row[aria-current="true"] {

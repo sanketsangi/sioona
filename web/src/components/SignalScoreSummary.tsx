@@ -44,7 +44,7 @@ export function SignalScoreSummary({
           </p>
         </div>
 
-        <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="metric-label">Overall</span>
             <span className="font-mono tabular text-heading-16 text-sio-fg-base">
