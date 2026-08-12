@@ -10,13 +10,12 @@ import { primaryQuote } from "@/lib/format";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Desktop queue columns: User (avatar) · Signal · Status · Score · Type (+ Evidence @ lg; Action outside). */
+/**
+ * Shared with QueueColumnHeader — keep templates identical so columns line up.
+ * User · Signal · Status · Score · Type (+ Evidence @ lg; Action outside the grid).
+ */
 export const QUEUE_GRID =
   "sm:grid-cols-[2.25rem_minmax(0,1fr)_4.5rem_4rem_5.75rem] lg:grid-cols-[2.25rem_minmax(0,1.45fr)_5rem_4.75rem_6.5rem_minmax(0,1.35fr)]";
-
-/** Panel chrome: same columns, evidence visible from sm so full text can grow. */
-const PANEL_GRID =
-  "sm:grid-cols-[2.25rem_minmax(0,1fr)_4.5rem_4rem_5.75rem_minmax(0,1.35fr)] lg:grid-cols-[2.25rem_minmax(0,1.45fr)_5rem_4.75rem_6.5rem_minmax(0,1.35fr)]";
 
 type SignalQueueRowProps = {
   signal: Signal;
@@ -67,7 +66,7 @@ export function SignalQueueRow({
           )}
         />
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 sm:min-w-0">
           <p id={summaryId} className={summaryClass} translate="no">
             {signalText || "No summary available"}
           </p>
@@ -123,8 +122,8 @@ export function SignalQueueRow({
 
       <div
         className={cn(
-          "hidden min-w-0",
-          expandText ? "sm:block sm:pt-0.5" : "lg:block",
+          "hidden min-w-0 lg:block",
+          expandText && "lg:pt-0.5",
         )}
       >
         <p className={evidenceClass}>{evidencePrimary}</p>
@@ -133,10 +132,9 @@ export function SignalQueueRow({
   );
 
   const gridClassName = cn(
-    "grid min-w-0 flex-1 grid-cols-1 gap-2.5 lg:gap-4",
-    expandText
-      ? cn(PANEL_GRID, "sm:items-start sm:gap-3")
-      : cn(QUEUE_GRID, "sm:items-center sm:gap-3"),
+    "grid min-w-0 flex-1 grid-cols-1 gap-2.5 sm:gap-3 lg:gap-4",
+    QUEUE_GRID,
+    expandText ? "sm:items-start" : "sm:items-center",
     previewHref &&
       "touch-manipulation outline-none transition-[color,background-color] duration-150 focus-visible:bg-sio-bg-interactive-hover focus-visible:shadow-[inset_0_0_0_1px_var(--sio-focus-accent),inset_0_0_0_3px_color-mix(in_srgb,var(--sio-focus-accent)_35%,transparent)]",
   );
@@ -149,7 +147,7 @@ export function SignalQueueRow({
     >
       <div
         className={cn(
-          "flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:gap-3 sm:px-3.5 sm:py-2.5",
+          "flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:gap-3 sm:px-3.5 sm:py-2.5 lg:gap-4",
           expandText ? "sm:items-start" : "sm:items-center",
         )}
       >

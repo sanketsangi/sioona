@@ -6,11 +6,13 @@ import {
   useRef,
   useState,
   useTransition,
+  type ComponentType,
   type KeyboardEvent,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
+import { StopIcon } from "@/components/icons/StopIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -21,12 +23,28 @@ const OPTIONS: Array<{
   value: GroundTruthValue;
   label: string;
   hint: string;
+  Icon?: ComponentType<{ className?: string }>;
 }> = [
   { value: "", label: "Unset", hint: "No ground truth label" },
-  { value: "lead", label: "Lead", hint: "Labeled as Lead" },
-  { value: "retention", label: "Retention", hint: "Labeled as Retention" },
-  { value: "upsell", label: "Upsell", hint: "Labeled as Upsell" },
-  { value: "none", label: "None", hint: "Explicitly no signal" },
+  { value: "lead", label: "Lead", hint: "Labeled as Lead", Icon: LeadIcon },
+  {
+    value: "retention",
+    label: "Retention",
+    hint: "Labeled as Retention",
+    Icon: RetentionIcon,
+  },
+  {
+    value: "upsell",
+    label: "Upsell",
+    hint: "Labeled as Upsell",
+    Icon: UpsellIcon,
+  },
+  {
+    value: "none",
+    label: "None",
+    hint: "Explicitly no signal",
+    Icon: StopIcon,
+  },
 ];
 
 /** Class literals live here so Tailwind content scan picks them up (not only via lib/). */
@@ -37,19 +55,6 @@ const STATUS_CHIP: Record<GroundTruthValue, string> = {
   retention: "bg-sio-signal-retention-bg text-sio-signal-retention-fg",
   upsell: "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg",
 };
-
-function optionIcon(value: GroundTruthValue) {
-  switch (value) {
-    case "lead":
-      return LeadIcon;
-    case "retention":
-      return RetentionIcon;
-    case "upsell":
-      return UpsellIcon;
-    default:
-      return null;
-  }
-}
 
 function statusLabel(value: GroundTruthValue): string {
   return OPTIONS.find((o) => o.value === value)?.label ?? "Unset";
@@ -155,11 +160,11 @@ export function GroundTruthControl({
           role="radiogroup"
           aria-labelledby={headingId}
           aria-disabled={pending || undefined}
-          className="filter-toggle mt-2.5 w-full"
+          className="mt-2.5 flex flex-wrap items-center gap-2"
         >
           {OPTIONS.map((opt, index) => {
             const selected = value === opt.value;
-            const Icon = optionIcon(opt.value);
+            const { Icon } = opt;
             return (
               <button
                 key={opt.label}
@@ -172,23 +177,20 @@ export function GroundTruthControl({
                 title={opt.hint}
                 tabIndex={selected ? 0 : -1}
                 disabled={pending}
+                aria-busy={pending && selected}
                 onClick={() => void onSelect(opt.value)}
                 onKeyDown={(e) => onRadioKeyDown(e, index)}
                 className={cn(
-                  "filter-chip min-w-0 flex-1 touch-manipulation gap-1 px-2 sm:flex-none",
-                  selected ? "filter-chip-active" : "filter-chip-idle",
-                  pending && "cursor-wait opacity-70",
+                  selected ? "btn-primary" : "btn-secondary",
+                  pending && "cursor-wait",
                 )}
               >
-                {Icon ? (
-                  <Icon
-                    className={cn(
-                      "size-3.5 shrink-0",
-                      selected ? "text-sio-fg-base" : "text-sio-fg-muted",
-                    )}
-                  />
+                {pending && selected ? (
+                  <ButtonSpinner />
+                ) : Icon ? (
+                  <Icon className="size-3.5 shrink-0" />
                 ) : null}
-                <span className="truncate">{opt.label}</span>
+                {opt.label}
               </button>
             );
           })}
@@ -196,10 +198,7 @@ export function GroundTruthControl({
 
         <div aria-live="polite">
           {pending ? (
-            <p className="mt-2.5 inline-flex items-center gap-1.5 text-label-12 text-sio-fg-muted">
-              <ButtonSpinner className="size-3.5" />
-              Saving…
-            </p>
+            <p className="mt-2.5 text-label-12 text-sio-fg-muted">Saving…</p>
           ) : null}
         </div>
 

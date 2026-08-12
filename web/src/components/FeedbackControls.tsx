@@ -2,30 +2,51 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ComponentType } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
+import { GoodIcon } from "@/components/icons/GoodIcon";
+import { WarningIcon } from "@/components/icons/WarningIcon";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { viewHref } from "@/lib/views";
 import type { FeedbackLabel, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const options: { label: FeedbackLabel; title: string; hint: string }[] = [
+const options: {
+  label: FeedbackLabel;
+  title: string;
+  hint: string;
+  primary?: boolean;
+  Icon: ComponentType<{ className?: string }>;
+}[] = [
   {
     label: "correct",
     title: "Correct",
     hint: "Signal is correct and useful",
+    primary: true,
+    Icon: GoodIcon,
   },
   {
     label: "incorrect",
     title: "Incorrect",
     hint: "Not a real opportunity",
+    Icon: CrossCircleIcon,
   },
   {
     label: "partially_correct",
     title: "Partially Correct",
     hint: "Right-ish signal, bad rationale",
+    Icon: WarningIcon,
   },
 ];
+
+/** Header chip chrome — same shell as GroundTruthControl STATUS_CHIP. */
+const FEEDBACK_CHIP: Record<FeedbackLabel | "pending", string> = {
+  pending: "bg-sio-bg-muted text-sio-fg-muted",
+  correct: "bg-sio-status-success-bg text-sio-status-success-fg",
+  incorrect: "bg-sio-status-danger-bg text-sio-status-danger-fg",
+  partially_correct: "bg-sio-status-warning-bg text-sio-status-warning-fg",
+};
 
 export function FeedbackControls({
   signal,
@@ -105,14 +126,22 @@ export function FeedbackControls({
         <h3 id={headingId} className="eyebrow">
           Feedback
         </h3>
-        <p className="text-label-12 text-sio-fg-muted">
-          ⌘&nbsp;Enter / Ctrl&nbsp;Enter → Correct
-        </p>
+        <span
+          className={cn(
+            "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 text-label-12 font-medium",
+            FEEDBACK_CHIP[feedbackLabel ?? "pending"],
+          )}
+          translate="no"
+        >
+          {currentTitle ?? "Pending"}
+        </span>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
         <p className="text-label-12 text-sio-fg-muted">
           Mark Correct, Incorrect, or Partially Correct. Saves to Neon.
+          {" "}
+          ⌘&nbsp;Enter / Ctrl&nbsp;Enter → Correct.
         </p>
 
         <div aria-live="polite">
@@ -148,9 +177,14 @@ export function FeedbackControls({
           />
         </label>
 
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
+        <div
+          className="mt-2.5 flex flex-wrap items-center gap-2"
+          role="group"
+          aria-label="Feedback actions"
+        >
           {options.map((option) => {
             const isCurrent = feedbackLabel === option.label;
+            const { Icon } = option;
             return (
               <button
                 key={option.label}
@@ -161,12 +195,17 @@ export function FeedbackControls({
                 aria-pressed={isCurrent}
                 onClick={() => submit(option.label)}
                 className={cn(
-                  "btn-secondary h-8 min-h-8 gap-1.5 px-2.5 text-sm md:h-8",
+                  option.primary ? "btn-primary" : "btn-secondary",
                   isCurrent &&
+                    !option.primary &&
                     "border-sio-border-strong bg-sio-bg-interactive-hover",
                 )}
               >
-                {pending === option.label ? <ButtonSpinner /> : null}
+                {pending === option.label ? (
+                  <ButtonSpinner />
+                ) : (
+                  <Icon className="size-3.5 shrink-0" />
+                )}
                 {option.title}
               </button>
             );
@@ -187,7 +226,7 @@ export function FeedbackControls({
               <NoteAction>
                 <Link
                   href={viewHref("eval", { panel: "adapt" })}
-                  className="btn-secondary h-8 min-h-8 px-2.5 text-sm md:h-8"
+                  className="btn-secondary"
                 >
                   Adapt From Reviews
                 </Link>
