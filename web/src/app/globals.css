@@ -12,27 +12,67 @@
   --space-4: 16px;
   --space-6: 24px;
 
-  /* —— Primitives (Geist steps). Do not use these in components — use --sio-* —— */
-  --ds-background-100: #ffffff;
-  --ds-background-200: #ffffff;
+  /*
+   * Mira / preset theme SoT (oklch) — review/mira-theme-keeps.
+   * Prefer these for chrome; --sio-* remounts onto them.
+   */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.45rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 
-  --ds-gray-100: #f2f1f0;
-  --ds-gray-200: #eaeaea;
-  --ds-gray-300: #e8e8e8;
-  --ds-gray-400: #e5e7eb;
-  --ds-gray-500: #c9c9c9;
-  --ds-gray-600: #a8a8a8;
-  --ds-gray-700: #8f8f8f;
-  --ds-gray-800: #7d7d7d;
-  --ds-gray-900: #666666;
-  --ds-gray-1000: #171717;
+  /* Legacy sidebar HSL name → mira sidebar surface */
+  --sidebar-background: var(--sidebar);
 
-  --ds-gray-alpha-100: #f2f1f0;
-  --ds-gray-alpha-200: #f2f1f0;
-  --ds-gray-alpha-300: rgba(0, 0, 0, 0.1);
-  --ds-gray-alpha-400: #e5e7eb;
-  --ds-gray-alpha-500: rgba(0, 0, 0, 0.21);
+  /* Neutrals aliased to mira (legacy ds-* consumers) */
+  --ds-background-100: var(--card);
+  --ds-background-200: var(--background);
+  --ds-gray-100: var(--muted);
+  --ds-gray-200: var(--secondary);
+  --ds-gray-300: var(--border);
+  --ds-gray-400: var(--border);
+  --ds-gray-500: var(--ring);
+  --ds-gray-600: var(--muted-foreground);
+  --ds-gray-700: var(--muted-foreground);
+  --ds-gray-800: oklch(0.439 0 0);
+  --ds-gray-900: oklch(0.371 0 0);
+  --ds-gray-1000: var(--foreground);
+  --ds-gray-alpha-100: var(--muted);
+  --ds-gray-alpha-200: var(--muted);
+  --ds-gray-alpha-300: color-mix(in oklch, var(--foreground) 10%, transparent);
+  --ds-gray-alpha-400: var(--border);
+  --ds-gray-alpha-500: color-mix(in oklch, var(--foreground) 21%, transparent);
 
+  /* Signal / status chroma (unchanged intent) */
   --ds-blue-100: #f0f7ff;
   --ds-blue-700: #0070f3;
   --ds-blue-900: #0060d1;
@@ -60,37 +100,34 @@
   --ds-teal-1000: #0d3d38;
 
   /*
-   * Semantic aliases (Harvey-style intent names, sio- prefix).
-   * Always alias to --ds-* primitives — never invent a second palette.
+   * Product semantic aliases — remount onto mira theme tokens.
+   * Signal accents stay on --ds-* chroma steps.
    */
-  --sio-bg-base: var(--ds-background-100);
-  --sio-bg-subtle: var(--ds-background-200);
-  --sio-bg-muted: var(--ds-gray-100);
-  /* Large grouped regions — match page canvas; nested .panel supplies contrast */
-  --sio-bg-group: var(--ds-background-200);
-  /* Hover / selected / chrome highlight — solid warm gray */
-  --sio-bg-interactive: var(--ds-gray-100);
-  --sio-bg-interactive-hover: var(--ds-gray-100);
-  --sio-bg-inverse: var(--ds-gray-1000);
-  --sio-bg-overlay: rgba(0, 0, 0, 0.4);
-  --sio-bg-disabled: var(--ds-gray-200);
+  --sio-bg-base: var(--card);
+  --sio-bg-subtle: var(--background);
+  --sio-bg-muted: var(--muted);
+  --sio-bg-group: var(--background);
+  --sio-bg-interactive: var(--accent);
+  --sio-bg-interactive-hover: var(--accent);
+  --sio-bg-inverse: var(--primary);
+  --sio-bg-overlay: color-mix(in oklch, var(--foreground) 40%, transparent);
+  --sio-bg-disabled: var(--secondary);
 
-  --sio-fg-base: var(--ds-gray-1000);
-  --sio-fg-subtle: var(--ds-gray-900);
-  --sio-fg-muted: var(--ds-gray-700);
-  --sio-fg-faint: var(--ds-gray-600);
-  --sio-fg-on-color: var(--ds-background-100);
+  --sio-fg-base: var(--foreground);
+  --sio-fg-subtle: var(--muted-foreground);
+  --sio-fg-muted: var(--muted-foreground);
+  --sio-fg-faint: var(--muted-foreground);
+  --sio-fg-on-color: var(--primary-foreground);
   --sio-fg-link: var(--ds-blue-900);
   --sio-fg-link-hover: var(--ds-blue-1000);
 
-  --sio-border-base: var(--ds-gray-400);
-  --sio-border-strong: var(--ds-gray-500);
-  --sio-border-subtle: var(--ds-gray-400);
+  --sio-border-base: var(--border);
+  --sio-border-strong: var(--ring);
+  --sio-border-subtle: var(--border);
   --sio-border-muted: var(--ds-gray-alpha-300);
 
-  --sio-focus-accent: var(--ds-blue-700);
+  --sio-focus-accent: var(--ring);
 
-  /* Signal accents (lead / retention / upsell) */
   --sio-signal-lead-bg: var(--ds-blue-100);
   --sio-signal-lead-fg: var(--ds-blue-900);
   --sio-signal-lead-fg-strong: var(--ds-blue-1000);
@@ -101,9 +138,8 @@
   --sio-signal-upsell-fg: var(--ds-teal-900);
   --sio-signal-upsell-accent: var(--ds-teal-700);
 
-  /* Status / feedback surfaces */
-  --sio-status-info-bg: var(--ds-gray-100);
-  --sio-status-info-border: var(--ds-gray-400);
+  --sio-status-info-bg: var(--muted);
+  --sio-status-info-border: var(--border);
   --sio-status-success-bg: var(--ds-green-100);
   --sio-status-success-fg: var(--ds-green-900);
   --sio-status-success-accent: var(--ds-green-700);
@@ -114,48 +150,50 @@
   --sio-status-danger-fg: var(--ds-red-900);
   --sio-status-danger-accent: var(--ds-red-700);
 
-  --background: var(--sio-bg-base);
-  --foreground: var(--sio-fg-base);
   --focus-ring: 0 0 0 2px var(--sio-bg-base), 0 0 0 4px var(--sio-focus-accent);
   --page-max: 1360px;
   --sidebar-width: 240px;
   --sidebar-width-icon: 3rem;
   --mobile-bar-height: 56px;
-  --radius-control: 6px;
-  --radius-panel: 12px;
-  --radius-group: 16px;
+  --radius-control: var(--radius);
+  --radius-panel: calc(var(--radius) + 0.3rem);
+  --radius-group: calc(var(--radius) + 0.55rem);
+}
 
-  /*
-   * shadcn Sidebar / Button theme tokens — HSL channels for hsl(var(--…)).
-   * Alias to sio neutrals; do not invent a second palette.
-   */
-  --primary: 0 0% 9%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 30 6% 95%;
-  --secondary-foreground: 0 0% 9%;
-  --muted: 30 6% 95%;
-  --muted-foreground: 0 0% 45%;
-  --accent: 30 6% 95%;
-  --accent-foreground: 0 0% 9%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 212 100% 48%;
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 9%;
-
-  /* shadcn sidebar-* → sio neutrals (light product default) */
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 0 0% 9%;
-  --sidebar-primary: 0 0% 9%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 30 6% 95%;
-  --sidebar-accent-foreground: 0 0% 9%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 212 100% 48%;
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-background: var(--sidebar);
 }
 
 @layer base {
