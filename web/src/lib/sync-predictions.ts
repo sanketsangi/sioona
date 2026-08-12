@@ -12,7 +12,7 @@ export const PREDICTION_SYNC_MAX_RETRIES = 2;
 /** Total attempts = 1 + PREDICTION_SYNC_MAX_RETRIES. */
 export const PREDICTION_SYNC_MAX_ATTEMPTS = 1 + PREDICTION_SYNC_MAX_RETRIES;
 /** Backoff after each failed attempt (ms), before the next try. */
-export const PREDICTION_SYNC_BACKOFF_MS = [50, 150] as const;
+export const PREDICTION_SYNC_BACKOFF_MS = [200, 800] as const;
 
 export type PredictionSyncStats = {
   attempted: number;

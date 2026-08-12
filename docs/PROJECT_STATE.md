@@ -41,7 +41,7 @@ It works as an **overlay** on existing chat tools (does not replace them).
 ### Completed
 
 - App shell: shadcn sidebar-07 primitives (`SidebarProvider` / collapsible `icon` sidebar); custom mobile drawer replaced by Sheet; product nav unchanged (Insights / Upload / Eval / Taxonomy); geist `Avatar` preserved for `SignalUser` / messages
-- Shared Insights signal chrome: `SignalStatus` / `SignalScoreChip` / `SignalTypeChip` / `SignalUser`; Insights queue, preview, and detail consume them (taxonomy keeps colored `SignalBadge`)
+- Shared Insights signal chrome: `SignalStatus` / `SignalScoreChip` / `SignalTypeChip` / `SignalUser`; Insights queue + in-row accordion review consume them (taxonomy keeps colored `SignalBadge`)
 - Project foundation & structure (`web/` + `backend/`); Next.js 16 deploy path
 - Domain wedges: broking/wealth + fintech CS taxonomy/demo samples; PII redaction; audit log
 - Detection heuristics improved (qualified-lead / badge-expansion as lead; fintech CS tuning)
@@ -49,14 +49,15 @@ It works as an **overlay** on existing chat tools (does not replace them).
 - Next.js client/BFF: `backend-client`, dual-write (`sync-predictions` with multi-retry + short backoff + stats), soft score fetch
 - Feedback BFF: lazy-creates missing prediction, then requires FastAPI feedback before JSON mirror
 - Feedback labels: `correct` / `incorrect` / `partially_correct`
-- Signal Score UI: `SignalScoreSummary` on Insights, Eval, Signal Detail — overall %, Reviewed/Correct + Incorrect/Partially correct, per-type breakdown; Neon SoT via `fetchSignalScoreSafe`; detection confidence labeled separately on detail
+- Signal Score UI: `SignalScoreSummary` on Eval (Insights queue chrome shows score chips per row) — overall %, Reviewed/Correct + Incorrect/Partially correct, per-type breakdown; Neon SoT via `fetchSignalScoreSafe`
 - Insights pending queue wired to Neon `needs-review` (join by `backendSignalId` / conversation+type); backend-down shows explicit queue error (no JSON pending SoT fallback)
-- Day-1 pilot packaging: fail-loud `predictionSync` UX (upload / re-detect / partner demo → Insights `syncFailed` banner); partner demo returns `predictionSync`; Neon stub detail honest empty evidence + feedback via prediction UUID
+- Day-1 pilot packaging: fail-loud `predictionSync` UX (upload / re-detect / partner demo → Insights `syncFailed` banner); partner demo returns `predictionSync`; Neon stub accordion honest empty evidence + feedback via prediction UUID
+- Insights operator review: in-queue accordion (`?preview=`) replaces full-page Signal Detail and split `SignalPreviewPanel`; `/insights/[id]` and legacy `?signal=` redirect to `preview=`
 - 7-day Shadow Mode pilot cadence UI: one `Week1PilotStrip` on Upload / Insights / Eval (Day 1 → mid-week re-upload → ≥5 reviews → baseline → go/no-go); `pilot.weeklyExportCount` advances on partner file ingest only; cross-links Upload ↔ Insights ↔ Eval; display-only actions
 - Detection precision pass on synthetics: tightened upsell/lead phrases + support negatives; keyword-only ≥2 hits; soft-retention refund phrases; hard-negative fixtures; sample pack lead-vs-upsell label alignment
 - Synthetic eval on root `testing.json` (41 convs / 231 msgs; measurement baseline, not P/R=1.0 gate): loader `web/src/lib/testing-json-eval.ts` maps `labels[]` → `groundTruth` (lead/upsell as-is; churn_risk|retention_risk→retention; complaint|fraud→none; multi-label priority retention>upsell>lead) → ingest → detect → `computeEvalMetrics`. Run: `npx vitest run src/lib/testing-json.eval.test.ts` from `web/`
   - **Partner demo / cold open showcase** = `testing.json` only (`loadTestingJsonIntoStore`; deployable copy at `web/data/samples/testing.json`). Old Intercom / WhatsApp / CSV showcase sample pack removed. Detect/eval P/R=1.0 gate uses test-only `detect-eval-fixtures.ts`. Synthetic eval path unchanged.
-  - **Customer names in Insights preview:** corpus encodes names in `externalId` (`rahul_mehta_29`); loader derives `customerName` → detect summaries + dual-write to FastAPI/Neon; UI User column + preview panel show the name (no Neon schema change). Queue Signal + preview summary use `queueSignalSummary` so the name/`(channel)` prefix is not repeated under the name line (stored summaries unchanged).
+  - **Customer names in Insights queue:** corpus encodes names in `externalId` (`rahul_mehta_29`); loader derives `customerName` → detect summaries + dual-write to FastAPI/Neon; UI User column shows the name (no Neon schema change). Queue Signal uses `queueSignalSummary` so the name/`(channel)` prefix is not repeated under the name line (stored summaries unchanged).
   - **Before narrow recall pass:** P **0.83** / R **0.19** (TP 5 / FP 1 / FN 22)
   - **After narrow recall pass:** P **0.92** / R **0.41** (TP 11 / FP 1 / FN 16) — mix after map: lead 8 · retention 14 · upsell 5 · none 14
   - **Per-type (after):** lead P0.67/R0.25 · retention P1.00/R0.50 · upsell P1.00/R0.40
@@ -65,7 +66,7 @@ It works as an **overlay** on existing chat tools (does not replace them).
 
 ### In Progress
 
-- Insights demo chrome polish (enterprise Geist) — detect remains frozen; queue/preview StatusDot: Pending (blue) | Correct (green) | Incorrect (red) | Partially Correct (orange); URL `status=new` unchanged; queue Signal + preview summary strip leading customer name via `queueSignalSummary`; Type/Score chips hairline-only; Evidence quote-only from `lg+`; Review is `btn-tertiary`; conversation transcript opens in Drawer via **See Conversation** (Message + Bubble, not inline preview scroll); drawer has visible **Conversation** header + customer subtitle and in-header Close (narrow right sheet desktop / bottom sheet mobile)
+- Insights demo chrome polish (enterprise Geist) — detect remains frozen; queue StatusDot: Pending (blue) | Correct (green) | Incorrect (red) | Partially Correct (orange); URL `status=new` unchanged; queue Signal strips leading customer name via `queueSignalSummary`; Type/Score chips hairline-only; Evidence quote-only from `lg+`; Review toggles in-row accordion expand (`?preview=`); conversation transcript opens in Drawer via **Open Conversation** (Message + Bubble, not inline); drawer has visible **Conversation** header + customer subtitle and in-header Close (narrow right sheet desktop / bottom sheet mobile)
 - Dual-write: multi-retry + backoff (3 attempts, 50/150ms) + `backendFetch` AbortSignal timeout (2.5s); feedback lazy-create remains safety net
 - **Hosted demo verified 2026-08-11:** Partner Demo dual-write green on sioona-demo (`predictionSync` created=27 / failed=0; all signals have `backendSignalId`). FastAPI `https://sioona-api.onrender.com/health` ok; Vercel Production `BACKEND_URL` set; Neon needs-review SoT live. Detect frozen; next product priority remains real partner export + outreach.
 - **Residual detection gap = real partner transcripts:** partner-shaped pack + fixture gates at P/R 1.00; `testing.json` measured after narrow recall pass (P0.92/R0.41). Day-1 real-export lane ready — drop redacted CSV at `web/data/samples/real-partner-export.local.csv` (from `real-partner-export.template.csv`) and run `npx vitest run src/lib/partner-export.eval.test.ts` (loader `partner-export-eval.ts`); still need real partner exports filled in

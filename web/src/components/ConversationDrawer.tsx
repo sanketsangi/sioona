@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowRight, X } from "@phosphor-icons/react/ssr";
+import { X } from "@phosphor-icons/react/ssr";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Drawer,
   DrawerClose,
@@ -15,12 +15,12 @@ import {
   DrawerTrigger,
 } from "@/components/ui/Drawer";
 import type { Message as ChatMessage } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /**
  * Full conversation transcript in a Drawer.
- * Insights: trigger “See Conversation” + detail footer (inline in preview).
- * Signal Detail: trigger “Open Conversation” in the page header action row
- * (composed in SignalDetailView), no footer (already on detail).
+ * Insights accordion: trigger “Open Conversation” / “See Conversation”.
+ * Full transcript scrolls inside the drawer (not inline).
  */
 export function ConversationDrawer({
   messages,
@@ -28,8 +28,7 @@ export function ConversationDrawer({
   typeLabel: _typeLabel,
   summary: _summary,
   triggerLabel = "See Conversation",
-  detailHref,
-  footer,
+  footer = null,
 }: {
   messages: ChatMessage[];
   customerName: string;
@@ -39,33 +38,19 @@ export function ConversationDrawer({
   summary: string;
   /** Title Case trigger label. */
   triggerLabel?: "See Conversation" | "Open Conversation" | string;
-  /** When set and `footer` is omitted, shows Open Full Detail / Add Feedback. */
-  detailHref?: string;
-  /** Optional custom footer; pass `null` to hide when `detailHref` is set. */
+  /** Optional custom footer; default none (review lives in-queue). */
   footer?: ReactNode | null;
 }) {
   const who = customerName.trim() || "Customer";
 
-  const resolvedFooter =
-    footer !== undefined
-      ? footer
-      : detailHref
-        ? (
-            <>
-              <Link href={detailHref} className="btn-primary">
-                Open Full Detail
-                <ArrowRight className="size-3.5" weight="bold" aria-hidden />
-              </Link>
-              <Link href={detailHref} className="btn-secondary">
-                Add Feedback
-              </Link>
-            </>
-          )
-        : null;
-
   return (
     <Drawer>
-      <DrawerTrigger className="btn-secondary min-h-6">
+      <DrawerTrigger
+        className={cn(
+          buttonVariants({ variant: "outline", size: "sm" }),
+          "h-11 min-h-11 border-sio-border-subtle bg-transparent text-sm shadow-none hover:border-sio-border-strong hover:bg-sio-bg-interactive hover:text-sio-fg-base md:h-8 md:min-h-8",
+        )}
+      >
         {triggerLabel}
       </DrawerTrigger>
 
@@ -93,8 +78,8 @@ export function ConversationDrawer({
               <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center">
                 <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
                 <p className="mt-1 max-w-xs text-pretty text-label-13 text-sio-fg-muted">
-                  Open full detail after re-upload or re-detect to attach the
-                  transcript.
+                  Re-upload or re-detect to attach the transcript. No invented
+                  chat.
                 </p>
               </div>
             ) : (
@@ -106,14 +91,14 @@ export function ConversationDrawer({
           </div>
         </div>
 
-        {resolvedFooter ? (
+        {footer ? (
           <DrawerFooter
             role="group"
             aria-label="Conversation actions"
             className="justify-center"
           >
-            <div className="flex w-full max-w-md flex-wrap gap-2">
-              {resolvedFooter}
+            <div className="flex w-full max-w-md flex-wrap gap-2 md:[&_a]:h-9">
+              {footer}
             </div>
           </DrawerFooter>
         ) : null}

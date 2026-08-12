@@ -232,7 +232,7 @@ export function AdaptationPanel({
               {pageItems.map((signal) => (
                 <li key={signal.id} className="px-3 py-3 sm:px-4">
                   <Link
-                    href={viewHref("insights", { signal: signal.id })}
+                    href={viewHref("insights", { preview: signal.id })}
                     className="link-accent"
                   >
                     {signalTypeLabel(signal.type)}
@@ -321,7 +321,7 @@ export function AdaptationPanel({
                   <tr key={signal.id}>
                     <td className="min-w-0 px-4 py-2.5 align-top text-sio-fg-base">
                       <Link
-                        href={viewHref("insights", { signal: signal.id })}
+                        href={viewHref("insights", { preview: signal.id })}
                         className="link-accent"
                       >
                         {signalTypeLabel(signal.type)}

@@ -9,11 +9,12 @@ import {
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
-import { BellIcon } from "@/components/icons/BellIcon";
 import { EyeIcon } from "@/components/icons/EyeIcon";
 import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
 import { SparklesIcon } from "@/components/icons/SparklesIcon";
+import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import type { HeaderNotification } from "@/lib/notifications";
 import type { PlatformView } from "@/lib/views";
 
 const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
@@ -26,6 +27,7 @@ type AppHeaderProps = {
   title?: string;
   activeView: PlatformView;
   detailOpen?: boolean;
+  notifications?: HeaderNotification[];
 };
 
 type WorkspaceMode = "shadow" | "action";
@@ -46,6 +48,7 @@ export function AppHeader({
   title,
   activeView,
   detailOpen = false,
+  notifications = [],
 }: AppHeaderProps) {
   const TitleIcon =
     title && !detailOpen && activeView !== "upload"
@@ -87,13 +90,7 @@ export function AppHeader({
       </div>
 
       <div className="app-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
-        <button
-          type="button"
-          className="btn-secondary size-11 shrink-0 px-0 md:size-9"
-          aria-label="Notifications"
-        >
-          <BellIcon className="size-4 shrink-0" />
-        </button>
+        <NotificationsMenu notifications={notifications} />
 
         <button
           type="button"

@@ -3,6 +3,7 @@
 import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import type { HeaderNotification } from "@/lib/notifications";
 import type { PlatformView } from "@/lib/views";
 
 export function AppShell({
@@ -10,11 +11,13 @@ export function AppShell({
   title,
   activeView,
   detailOpen = false,
+  notifications = [],
 }: {
   children: React.ReactNode;
   title?: string;
   activeView: PlatformView;
   detailOpen?: boolean;
+  notifications?: HeaderNotification[];
 }) {
   return (
     <SidebarProvider
@@ -40,7 +43,12 @@ export function AppShell({
         tabIndex={-1}
         className="page-main min-h-0 overflow-hidden bg-muted"
       >
-        <AppHeader title={title} activeView={activeView} detailOpen={detailOpen} />
+        <AppHeader
+          title={title}
+          activeView={activeView}
+          detailOpen={detailOpen}
+          notifications={notifications}
+        />
 
         <div className="page-frame flex min-h-0 flex-1 flex-col py-3 sm:py-4 lg:py-5">
           <div className="page-body">{children}</div>

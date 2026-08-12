@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { viewHref } from "@/lib/views";
 import type { FeedbackLabel, Signal } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const options: { label: FeedbackLabel; title: string; hint: string }[] = [
   {
@@ -85,18 +87,21 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
   }
 
   return (
-    <div className="panel p-3.5 sm:p-4">
-      <h2 className="text-heading-16 text-sio-fg-base">Feedback</h2>
-      <p className="mt-1 text-label-13 text-sio-fg-muted">
-        Mark correct / incorrect / partially correct. Saves to Neon and
-        refreshes Signal Score above.
+    <div className="panel p-3 sm:p-3.5">
+      <h3 className="text-label-12 font-medium text-sio-fg-muted">Feedback</h3>
+      <p className="mt-0.5 text-label-12 text-sio-fg-muted">
+        Mark correct, incorrect, or partially correct. Saves to Neon; refreshes
+        Signal Score on Eval.
       </p>
       <div aria-live="polite">
         {signal.feedback || justSaved ? (
-          <p className="mt-2.5 break-words text-copy-14 text-sio-fg-base">
+          <p className="mt-2 break-words text-copy-14 text-sio-fg-base">
             Current:{" "}
             <span className="font-medium">
-              {(signal.feedback?.label ?? justSaved)!.replaceAll("_", " ")}
+              {options.find(
+                (o) => o.label === (signal.feedback?.label ?? justSaved),
+              )?.title ??
+                (signal.feedback?.label ?? justSaved)!.replaceAll("_", " ")}
             </span>
             {signal.feedback?.note ? (
               <span className="text-sio-fg-muted">
@@ -110,7 +115,7 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
           </p>
         ) : null}
       </div>
-      <label className="mt-3.5 block">
+      <label className="mt-3 block">
         <span className="sr-only">Optional note</span>
         <textarea
           ref={noteRef}
@@ -128,42 +133,53 @@ export function FeedbackControls({ signal }: { signal: Signal }) {
         ⌘&nbsp;Enter or Ctrl&nbsp;Enter marks correct with the current note.
       </p>
       <div className="mt-3 grid gap-2 sm:grid-cols-3">
-        {options.map((option) => (
-          <button
-            key={option.label}
-            type="button"
-            disabled={pending !== null}
-            aria-busy={pending === option.label}
-            onClick={() => submit(option.label)}
-            className="min-h-11 rounded-sm border border-sio-border-base bg-sio-bg-base px-3 py-2.5 text-left transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0"
-          >
-            <div className="flex items-center gap-1.5 text-label-14 font-medium text-sio-fg-base">
-              {pending === option.label ? <ButtonSpinner /> : null}
-              {option.title}
-            </div>
-            <div className="mt-0.5 text-label-12 text-sio-fg-muted">
-              {option.hint}
-            </div>
-          </button>
-        ))}
+        {options.map((option) => {
+          const isCurrent = feedbackLabel === option.label;
+          return (
+            <button
+              key={option.label}
+              type="button"
+              disabled={pending !== null}
+              aria-busy={pending === option.label}
+              aria-pressed={isCurrent}
+              onClick={() => submit(option.label)}
+              className={cn(
+                "btn-secondary h-auto min-h-11 flex-col items-start justify-center gap-0.5 whitespace-normal px-3 py-2 text-left md:h-auto md:min-h-11",
+                isCurrent &&
+                  "border-sio-border-strong bg-sio-bg-interactive-hover",
+              )}
+            >
+              <span className="flex items-center gap-1.5 text-sm font-medium leading-5 text-sio-fg-base">
+                {pending === option.label ? <ButtonSpinner /> : null}
+                {option.title}
+              </span>
+              <span className="line-clamp-2 text-label-12 font-normal leading-4 text-sio-fg-muted">
+                {option.hint}
+              </span>
+            </button>
+          );
+        })}
       </div>
       {needsAdapt ? (
-        <div
-          className="mt-3.5 rounded-sm border border-sio-border-base bg-sio-bg-muted px-3 py-2.5"
-          role="status"
-          aria-live="polite"
-        >
-          <p className="text-copy-14 text-sio-fg-base">
-            {feedbackLabel === "incorrect"
-              ? "False positive? Add a negative phrase so this pattern stops firing."
-              : "Wrong rationale? Add the phrase that should drive this signal type."}
-          </p>
-          <Link
-            href={viewHref("eval", { panel: "adapt" })}
-            className="btn-secondary mt-2.5"
+        <div className="mt-3" role="status" aria-live="polite">
+          <Note
+            icon={null}
+            className="rounded-md border-sio-border-base bg-sio-bg-muted px-3 py-2.5"
           >
-            Adapt From Reviews
-          </Link>
+            <NoteContent className="text-copy-14 text-sio-fg-base">
+              {feedbackLabel === "incorrect"
+                ? "False positive? Add a negative phrase so this pattern stops firing."
+                : "Wrong rationale? Add the phrase that should drive this signal type."}
+            </NoteContent>
+            <NoteAction>
+              <Link
+                href={viewHref("eval", { panel: "adapt" })}
+                className="btn-secondary"
+              >
+                Adapt From Reviews
+              </Link>
+            </NoteAction>
+          </Note>
         </div>
       ) : null}
       {error ? (

@@ -5,8 +5,12 @@
 
 const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
-/** Fail hung FastAPI calls so dual-write retries can proceed. */
-export const BACKEND_FETCH_TIMEOUT_MS = 2500;
+/**
+ * Fail hung FastAPI calls so dual-write retries can proceed.
+ * Partner Demo writes ~12 predictions sequentially; cold Neon/Render can
+ * exceed 2.5s on a single POST — keep headroom without blocking forever.
+ */
+export const BACKEND_FETCH_TIMEOUT_MS = 5000;
 
 export const VERCEL_BACKEND_MISCONFIG_MESSAGE =
   "BACKEND_URL unset or localhost on Vercel — set Production BACKEND_URL to the public FastAPI base URL";
