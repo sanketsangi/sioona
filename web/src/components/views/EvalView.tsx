@@ -145,7 +145,7 @@ function MetricsPanel({
           <div className="border-b border-sio-border-base px-3 py-2">
             <p className="eyebrow">Labeled Eval</p>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-sio-border-base">
+          <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
             <Metric
               label="P"
               value={formatPercent(metrics.labeledPrecision)}
@@ -173,7 +173,7 @@ function MetricsPanel({
               {goNoGoLabel(pilot.goNoGo)}
             </p>
           </div>
-          <div className="grid grid-cols-3 divide-x divide-sio-border-base">
+          <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
             <Metric
               label="Opp."
               value={String(pilot.sioonaOpportunities)}
@@ -247,7 +247,7 @@ function Metric({
   hint: string;
 }) {
   return (
-    <div className="min-w-0 px-3 py-2.5">
+    <div className="min-w-0 px-2 py-2.5 sm:px-3">
       <div className="metric-label">{label}</div>
       <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
         {value}

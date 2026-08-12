@@ -56,7 +56,7 @@ export function ConversationDrawer({
 
       <DrawerContent>
         <DrawerHeader>
-          <div className="mx-auto flex w-full max-w-md items-center justify-between gap-3">
+          <div className="mx-auto flex w-full max-w-md min-w-0 items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <DrawerTitle>Conversation</DrawerTitle>
               <DrawerDescription translate="no" className="mt-0.5">
@@ -64,7 +64,7 @@ export function ConversationDrawer({
               </DrawerDescription>
             </div>
             <DrawerClose
-              className="btn-tertiary size-11 shrink-0 px-0 md:size-9"
+              className="btn-tertiary size-11 min-h-11 shrink-0 px-0 md:size-9 md:min-h-0"
               aria-label="Close"
             >
               <X className="size-5" weight="bold" aria-hidden />

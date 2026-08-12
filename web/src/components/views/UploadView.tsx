@@ -24,8 +24,8 @@ const samples = [
 
 export function UploadView() {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:overflow-hidden">
-      <div className="grid min-h-0 grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-6 lg:overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:overflow-hidden">
+      <div className="grid min-h-0 min-w-0 grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-6 lg:overflow-hidden">
         <div className="min-h-0 min-w-0 lg:scroll-region">
           <UploadForm compact />
         </div>

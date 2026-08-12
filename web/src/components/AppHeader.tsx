@@ -94,7 +94,7 @@ export function AppHeader({
 
         <button
           type="button"
-          className="btn-secondary size-11 shrink-0 gap-1.5 px-0 md:size-9 lg:w-auto lg:px-3.5"
+          className="btn-secondary size-11 min-h-11 shrink-0 gap-1.5 px-0 md:size-9 md:min-h-0 lg:w-auto lg:px-3.5"
           aria-label="Export"
         >
           <ArrowCircleUpIcon className="size-3.5 shrink-0" />
@@ -103,7 +103,7 @@ export function AppHeader({
 
         <button
           type="button"
-          className="btn-primary size-11 shrink-0 gap-1.5 px-0 md:size-9 lg:h-9 lg:w-auto lg:px-3.5"
+          className="btn-primary size-11 min-h-11 shrink-0 gap-1.5 px-0 md:size-9 md:min-h-0 lg:h-9 lg:w-auto lg:px-3.5"
           aria-label="Create Campaign"
         >
           <SparklesIcon className="size-3.5 shrink-0" />

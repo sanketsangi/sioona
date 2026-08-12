@@ -9,7 +9,7 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
   const entry = SIGNAL_TAXONOMY[page - 1] ?? SIGNAL_TAXONOMY[0];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
       <div className="shrink-0">
         <Pager
           page={page}
@@ -30,7 +30,7 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
         />
       </div>
 
-      <section className="panel scroll-region min-h-0 flex-1 p-4 sm:p-5 lg:p-6">
+      <section className="panel scroll-region min-h-0 min-w-0 flex-1 p-4 sm:p-5 lg:p-6">
         <div className="flex flex-wrap items-center gap-3">
           <SignalBadge type={entry.type} />
           <h2 className="text-balance text-heading-20 text-sio-fg-base">

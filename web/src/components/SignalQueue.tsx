@@ -5,6 +5,13 @@ import { useMemo } from "react";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { FilterIcon } from "@/components/icons/FilterIcon";
 import { SignalQueueRow, QUEUE_GRID } from "@/components/SignalQueueRow";
+import { FeedbackControls } from "@/components/FeedbackControls";
+import { GroundTruthControl } from "@/components/GroundTruthControl";
+import {
+  SignalReviewMissing,
+  SignalReviewPanel,
+} from "@/components/SignalReviewPanel";
+import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import {
   Menu,
   MenuButton,
@@ -20,7 +27,7 @@ import {
   signalTypeLabel,
 } from "@/lib/format";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
-import type { Conversation, Message, Signal } from "@/lib/types";
+import type { Conversation, Signal } from "@/lib/types";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -62,16 +69,14 @@ type SignalQueueProps = {
   reviewedSignals: Signal[];
   /** conversationId → customerName for User column avatars. */
   customerNames?: Record<string, string>;
-  /** conversationId → messages for Open Conversation in expand. */
-  messagesByConversationId?: Record<string, Message[]>;
-  /** conversationId → conversation for Ground Truth in expand. */
+  /** conversationId → conversation for Ground Truth in review panel. */
   conversationsById?: Record<string, Conversation>;
   /** Set when FastAPI needs-review could not be loaded. */
   queueError?: string | null;
   statusFilter?: StatusFilter;
   typeFilter?: TypeFilter;
   page?: number;
-  /** Inline Insights expand selection (`?preview=`). */
+  /** Full-panel review selection (`?preview=`). */
   previewId?: string | null;
   /** Preserve banners / demo flags in queue URLs */
   queryExtras?: Record<string, string | undefined | null>;
@@ -98,6 +103,63 @@ function buildQueueHref(
       preview: preview || null,
     });
   };
+}
+
+/** Sticky column labels — shared by queue list and review panel modes. */
+function QueueColumnHeader() {
+  return (
+    <div
+      className="sticky top-0 z-10 hidden h-10 shrink-0 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 sm:flex lg:gap-4"
+      role="row"
+    >
+      <div
+        className={`grid min-w-0 flex-1 items-center gap-3 lg:gap-4 ${QUEUE_GRID}`}
+      >
+        <span
+          className="text-label-12 font-semibold text-sio-fg-base"
+          role="columnheader"
+        >
+          User
+        </span>
+        <span
+          className="text-label-12 font-semibold text-sio-fg-base"
+          role="columnheader"
+        >
+          Signal
+        </span>
+        <span
+          className="text-label-12 font-semibold text-sio-fg-base"
+          role="columnheader"
+        >
+          Status
+        </span>
+        <span
+          className="text-label-12 font-semibold text-sio-fg-base"
+          role="columnheader"
+        >
+          Score
+        </span>
+        <span
+          className="text-label-12 font-semibold text-sio-fg-base"
+          role="columnheader"
+        >
+          Type
+        </span>
+        <span
+          className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
+          role="columnheader"
+        >
+          Evidence
+        </span>
+      </div>
+      <span
+        className="w-[4.5rem] shrink-0 text-left text-label-12 font-semibold text-sio-fg-base"
+        role="columnheader"
+      >
+        Action
+      </span>
+    </div>
+  );
 }
 
 function useQueueList({
@@ -149,7 +211,7 @@ export function SignalQueueFilters({
   previewId = null,
   queryExtras,
 }: Omit<SignalQueueProps, "showFilters">) {
-  const { pendingCount, reviewedCount, allCount, filtered } = useQueueList({
+  const { pendingCount, reviewedCount, allCount } = useQueueList({
     pendingSignals,
     reviewedSignals,
     queueError,
@@ -179,7 +241,6 @@ export function SignalQueue({
   pendingSignals,
   reviewedSignals,
   customerNames = {},
-  messagesByConversationId = {},
   conversationsById = {},
   queueError = null,
   statusFilter = "new",
@@ -204,8 +265,92 @@ export function SignalQueue({
     previewId,
   );
 
+  const backToQueueHref = queueHref({ preview: null, page });
+
+  // Resolve preview across pending + reviewed (deep links ignore active filters).
+  const previewSignal = useMemo(() => {
+    if (!previewId) return null;
+    return (
+      pendingSignals.find((s) => s.id === previewId) ??
+      reviewedSignals.find((s) => s.id === previewId) ??
+      null
+    );
+  }, [previewId, pendingSignals, reviewedSignals]);
+
   const showPendingError =
     Boolean(queueError) && (statusFilter === "new" || statusFilter === "all");
+
+  if (previewId) {
+    const previewConversation = previewSignal
+      ? (conversationsById[previewSignal.conversationId] ?? null)
+      : null;
+    const previewCustomerName = previewSignal
+      ? resolveCustomerName(
+          previewSignal.conversationId,
+          customerNames,
+          previewSignal.summary || "",
+        )
+      : null;
+    const reviewChrome = previewSignal ? (
+      <SignalReviewPanel
+        signal={previewSignal}
+        customerName={previewCustomerName ?? "Customer"}
+      />
+    ) : (
+      <SignalReviewMissing
+        queueHref={backToQueueHref}
+        previewId={previewId}
+      />
+    );
+
+    return (
+      <div className="scroll-region flex min-h-0 flex-1 flex-col gap-3">
+        {showFilters ? (
+          <QueueFilters
+            statusFilter={statusFilter}
+            typeFilter={typeFilter}
+            pendingCount={pendingCount}
+            reviewedCount={reviewedCount}
+            allCount={
+              previewSignal
+                ? allCount
+                : statusFilter === "new" && queueError
+                  ? reviewedCount
+                  : allCount
+            }
+            queueHref={queueHref}
+          />
+        ) : null}
+        <div className="shrink-0 overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
+          <QueueColumnHeader />
+          {reviewChrome}
+        </div>
+        {previewSignal ? (
+          <div
+            id={`signal-review-body-${previewSignal.id}`}
+            className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-3"
+            aria-labelledby={`signal-review-heading-${previewSignal.id}`}
+          >
+            <SignalReviewSuggestedAction
+              signal={previewSignal}
+              className="min-w-0 lg:h-full"
+            />
+            <FeedbackControls
+              signal={previewSignal}
+              className="min-w-0 lg:h-full"
+            />
+            {previewConversation ? (
+              <GroundTruthControl
+                conversationId={previewConversation.id}
+                groundTruth={previewConversation.groundTruth}
+                className="min-w-0 lg:h-full"
+              />
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   if (showPendingError && statusFilter === "new") {
     return (
@@ -309,80 +454,25 @@ export function SignalQueue({
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
           <div className="scroll-region min-h-0 flex-1">
-            <div
-              className="sticky top-0 z-10 hidden h-10 shrink-0 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 sm:flex lg:gap-4"
-              role="row"
-            >
-              <div
-                className={`grid min-w-0 flex-1 items-center gap-3 lg:gap-4 ${QUEUE_GRID}`}
-              >
-                <span
-                  className="text-label-12 font-semibold text-sio-fg-base"
-                  role="columnheader"
-                >
-                  User
-                </span>
-                <span
-                  className="text-label-12 font-semibold text-sio-fg-base"
-                  role="columnheader"
-                >
-                  Signal
-                </span>
-                <span
-                  className="text-label-12 font-semibold text-sio-fg-base"
-                  role="columnheader"
-                >
-                  Status
-                </span>
-                <span
-                  className="text-label-12 font-semibold text-sio-fg-base"
-                  role="columnheader"
-                >
-                  Score
-                </span>
-                <span
-                  className="text-label-12 font-semibold text-sio-fg-base"
-                  role="columnheader"
-                >
-                  Type
-                </span>
-                <span
-                  className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
-                  role="columnheader"
-                >
-                  Evidence
-                </span>
-              </div>
-              <span
-                className="w-[4.5rem] shrink-0 text-left text-label-12 font-semibold text-sio-fg-base"
-                role="columnheader"
-              >
-                Action
-              </span>
-            </div>
+            <QueueColumnHeader />
 
             <ul className="flex flex-col divide-y divide-sio-border-base">
               {filtered.map((signal) => {
                 const score = formatScore(signal.score);
                 const typeLabel = signalTypeLabel(signal.type);
                 const statusText = signalReviewStatusLabel(signal);
-                const selected = previewId === signal.id;
                 const customerName = resolveCustomerName(
                   signal.conversationId,
                   customerNames,
                   signal.summary || "",
                 );
                 const previewHref = queueHref({
-                  preview: selected ? null : signal.id,
+                  preview: signal.id,
                   page,
                 });
                 const summaryForLabel =
                   queueSignalSummary(signal.summary || "", customerName) ||
                   "signal";
-                const messages =
-                  messagesByConversationId[signal.conversationId] ?? [];
-                const conversation =
-                  conversationsById[signal.conversationId] ?? null;
 
                 return (
                   <li
@@ -393,27 +483,16 @@ export function SignalQueue({
                     <SignalQueueRow
                       signal={signal}
                       customerName={customerName}
-                      selected={selected}
                       previewHref={previewHref}
-                      previewAriaLabel={
-                        selected
-                          ? `${customerName}. Collapse review for ${summaryForLabel}`
-                          : `${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Expand review for ${summaryForLabel}`
-                      }
-                      messages={messages}
-                      conversation={conversation}
+                      previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Open review for ${summaryForLabel}`}
                       action={
-                        <div className="w-full shrink-0 sm:flex sm:w-[4.5rem] sm:justify-start">
-                          <Link
-                            href={previewHref}
-                            scroll={false}
-                            aria-expanded={selected}
-                            aria-controls={`signal-expand-${signal.id}`}
-                            className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:w-auto sm:px-3"
-                          >
-                            Review
-                          </Link>
-                        </div>
+                        <Link
+                          href={previewHref}
+                          scroll={false}
+                          className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:w-auto sm:px-3"
+                        >
+                          Review
+                        </Link>
                       }
                     />
                   </li>
