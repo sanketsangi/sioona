@@ -18,7 +18,7 @@ export function AppShell({
 }) {
   return (
     <SidebarProvider
-      className="flex !min-h-0 h-dvh overflow-hidden bg-sio-bg-subtle text-sio-fg-base"
+      className="flex !min-h-0 h-dvh overflow-hidden bg-background text-foreground"
       style={
         {
           "--sidebar-width": "240px",
@@ -28,7 +28,7 @@ export function AppShell({
     >
       <a
         href="#main"
-        className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:m-0 focus:h-auto focus:w-auto focus:overflow-visible focus:rounded-sm focus:bg-sio-bg-inverse focus:px-3 focus:py-2 focus:text-sm focus:text-sio-fg-on-color focus:[clip:auto]"
+        className="sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:m-0 focus:h-auto focus:w-auto focus:overflow-visible focus:rounded-sm focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground focus:[clip:auto]"
       >
         Skip to content
       </a>
@@ -38,7 +38,7 @@ export function AppShell({
       <SidebarInset
         id="main"
         tabIndex={-1}
-        className="page-main min-h-0 overflow-hidden bg-sio-bg-subtle"
+        className="page-main min-h-0 overflow-hidden bg-muted"
       >
         <AppHeader title={title} activeView={activeView} detailOpen={detailOpen} />
 
