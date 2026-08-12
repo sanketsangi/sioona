@@ -722,8 +722,8 @@
 
   /* Main-column header — parallel to sidebar logo row (not over the sidebar).
    * Mobile: title | actions on row 1, ModeToggle centered on row 2.
-   * md+: title | actions in flow; ModeToggle absolutely centered in this
-   *      header’s box (left: 50% of .app-header) — never 50vw / viewport.
+   * md+: title | actions in flow; ModeToggle absolutely centered on the
+   *      full platform (viewport), compensating for the sidebar offset.
    */
   .app-header {
     @apply relative z-30 grid shrink-0 items-center gap-x-3 gap-y-2 px-3 sm:px-4 lg:px-6;
@@ -772,11 +772,13 @@
       padding-right: max(1.5rem, env(safe-area-inset-right));
     }
 
-    /* Header-box center (relative ancestor), not viewport / 50vw. */
+    /* Viewport center: header is only the main column, so 50% would sit
+     * mid-inset. 100% - 50vw is the viewport midline in header coords and
+     * tracks sidebar expand/collapse without hardcoding --sidebar-width. */
     .app-header-mode {
       position: absolute;
       inset-block: 0;
-      left: 50%;
+      left: calc(100% - 50vw);
       z-index: 1;
       transform: translateX(-50%);
     }

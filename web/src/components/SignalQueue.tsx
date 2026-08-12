@@ -1,19 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useMemo } from "react";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { FilterIcon } from "@/components/icons/FilterIcon";
-import { SignalScoreChip } from "@/components/SignalScoreChip";
-import { SignalStatus } from "@/components/SignalStatus";
-import { SignalTypeChip } from "@/components/SignalTypeChip";
-import { SignalUser } from "@/components/SignalUser";
+import { SignalQueueRow, QUEUE_GRID } from "@/components/SignalQueueRow";
 import {
   Menu,
   MenuButton,
@@ -22,94 +13,14 @@ import {
   MenuItem,
   MenuSection,
 } from "@/components/ui/Menu";
-import { ShowMore } from "@/components/ui/ShowMore";
 import {
   formatScore,
-  primaryQuote,
   queueSignalSummary,
   signalReviewStatusLabel,
   signalTypeLabel,
 } from "@/lib/format";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Signal } from "@/lib/types";
-
-/** Floor while measuring; actual collapsed count fills the panel height. */
-const MIN_VISIBLE = 3;
-/** SSR / first-paint fallback before ResizeObserver measures the panel. */
-const FALLBACK_VISIBLE = 8;
-/** Space reserved for the Show More / Show Less control + padding. */
-const SHOW_MORE_RESERVE_PX = 52;
-
-const QUEUE_LIST_ID = "insights-signal-queue";
-
-/**
- * How many queue rows fit in the panel before overflowing into Show More.
- * Measures live row height + available height so the list fills the view.
- */
-function useQueueFitCount({
-  rootRef,
-  headerRef,
-  listRef,
-  itemCount,
-}: {
-  rootRef: RefObject<HTMLElement | null>;
-  headerRef: RefObject<HTMLElement | null>;
-  listRef: RefObject<HTMLElement | null>;
-  itemCount: number;
-}): number {
-  const [fitCount, setFitCount] = useState(FALLBACK_VISIBLE);
-
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root || itemCount === 0) return;
-
-    const measure = () => {
-      const available = root.clientHeight;
-      if (available <= 0) return;
-
-      const headerH = headerRef.current?.offsetHeight ?? 0;
-      const headerGap = headerH > 0 ? 8 : 0;
-      const firstRow = listRef.current?.querySelector<HTMLElement>(
-        "[data-queue-row]",
-      );
-      const rowH = firstRow?.offsetHeight ?? 72;
-      const listStyles = listRef.current
-        ? getComputedStyle(listRef.current)
-        : null;
-      const gap = Number.parseFloat(
-        listStyles?.rowGap || listStyles?.gap || "8",
-      );
-      const rowStride = rowH + (Number.isFinite(gap) ? gap : 8);
-
-      if (rowStride <= 0) return;
-
-      const bodyBudget = Math.max(0, available - headerH - headerGap);
-      let count = Math.max(
-        1,
-        Math.floor((bodyBudget + (Number.isFinite(gap) ? gap : 8)) / rowStride),
-      );
-
-      if (itemCount > count) {
-        const withFooter = Math.max(0, bodyBudget - SHOW_MORE_RESERVE_PX);
-        count = Math.max(
-          MIN_VISIBLE,
-          Math.floor(
-            (withFooter + (Number.isFinite(gap) ? gap : 8)) / rowStride,
-          ),
-        );
-      }
-
-      setFitCount(Math.min(Math.max(MIN_VISIBLE, count), itemCount));
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [rootRef, headerRef, listRef, itemCount]);
-
-  return fitCount;
-}
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -123,10 +34,6 @@ function resolveCustomerName(
   if (match?.[1]) return match[1].trim();
   return "Customer";
 }
-
-/** Desktop queue columns: User · Signal · Status · Score · Type (+ Evidence @ lg; Action outside). */
-const QUEUE_GRID =
-  "sm:grid-cols-[minmax(6.5rem,0.85fr)_minmax(0,1.5fr)_4.75rem_4.5rem_6.75rem] lg:grid-cols-[minmax(7rem,0.9fr)_minmax(0,1.45fr)_5rem_4.75rem_7rem_minmax(0,1.35fr)]";
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -305,27 +212,6 @@ export function SignalQueue({
     typeFilter,
   });
 
-  const filterKey = `${statusFilter}:${typeFilter}`;
-  const [expandedFilterKey, setExpandedFilterKey] = useState<string | null>(
-    null,
-  );
-  const expanded = expandedFilterKey === filterKey;
-
-  const rootRef = useRef<HTMLDivElement>(null);
-  const headerRef = useRef<HTMLDivElement>(null);
-  const listRef = useRef<HTMLUListElement>(null);
-  const fitCount = useQueueFitCount({
-    rootRef,
-    headerRef,
-    listRef,
-    itemCount: filtered.length,
-  });
-
-  const hiddenCount = Math.max(0, filtered.length - fitCount);
-  const visibleItems = expanded
-    ? filtered
-    : filtered.slice(0, fitCount);
-
   const queueHref = buildQueueHref(
     queryExtras,
     statusFilter,
@@ -440,59 +326,70 @@ export function SignalQueue({
           </Link>
         </div>
       ) : (
-        <div
-          ref={rootRef}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden"
-        >
-          <div
-            ref={headerRef}
-            className="mb-2 hidden shrink-0 px-1 sm:flex sm:items-center sm:gap-3 sm:px-3.5 lg:gap-4"
-            aria-hidden
-          >
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
+          <div className="scroll-region min-h-0 flex-1">
             <div
-              className={`grid min-w-0 flex-1 gap-3 sm:gap-3 lg:gap-4 ${QUEUE_GRID}`}
+              className="sticky top-0 z-10 hidden h-10 shrink-0 items-center gap-3 border-b border-sio-border-base bg-sio-bg-muted px-3.5 sm:flex lg:gap-4"
+              role="row"
             >
-              <span className="text-label-12 text-sio-fg-muted">User</span>
-              <span className="text-label-12 text-sio-fg-muted">Signal</span>
-              <span className="text-label-12 text-sio-fg-muted">Status</span>
-              <span className="text-label-12 text-sio-fg-muted">Score</span>
-              <span className="text-label-12 text-sio-fg-muted">Type</span>
-              <span className="hidden text-label-12 text-sio-fg-muted lg:block">
-                Evidence
+              <div
+                className={`grid min-w-0 flex-1 items-center gap-3 lg:gap-4 ${QUEUE_GRID}`}
+              >
+                <span
+                  className="text-label-12 font-semibold text-sio-fg-base"
+                  role="columnheader"
+                >
+                  User
+                </span>
+                <span
+                  className="text-label-12 font-semibold text-sio-fg-base"
+                  role="columnheader"
+                >
+                  Signal
+                </span>
+                <span
+                  className="text-label-12 font-semibold text-sio-fg-base"
+                  role="columnheader"
+                >
+                  Status
+                </span>
+                <span
+                  className="text-label-12 font-semibold text-sio-fg-base"
+                  role="columnheader"
+                >
+                  Score
+                </span>
+                <span
+                  className="text-label-12 font-semibold text-sio-fg-base"
+                  role="columnheader"
+                >
+                  Type
+                </span>
+                <span
+                  className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
+                  role="columnheader"
+                >
+                  Evidence
+                </span>
+              </div>
+              <span
+                className="w-[4.5rem] shrink-0 text-right text-label-12 font-semibold text-sio-fg-base"
+                role="columnheader"
+              >
+                Action
               </span>
             </div>
-            <span className="w-[4.5rem] shrink-0 text-right text-label-12 text-sio-fg-muted">
-              Action
-            </span>
-          </div>
 
-          <div
-            className={
-              expanded
-                ? "scroll-region min-h-0 flex-1"
-                : "min-h-0 flex-1 overflow-hidden"
-            }
-          >
-            <ul
-              ref={listRef}
-              id={QUEUE_LIST_ID}
-              className="flex flex-col gap-2 sm:gap-2.5"
-            >
-              {visibleItems.map((signal) => {
+            <ul className="flex flex-col divide-y divide-sio-border-base">
+              {filtered.map((signal) => {
                 const score = formatScore(signal.score);
                 const typeLabel = signalTypeLabel(signal.type);
                 const statusText = signalReviewStatusLabel(signal);
                 const selected = previewId === signal.id;
-                const quote = primaryQuote(signal.evidence);
-                const evidencePrimary = quote ? `“${quote}”` : "—";
                 const customerName = resolveCustomerName(
                   signal.conversationId,
                   customerNames,
                   signal.summary || "",
-                );
-                const signalText = queueSignalSummary(
-                  signal.summary || "",
-                  customerName,
                 );
                 const previewHref = queueHref({
                   preview: signal.id,
@@ -513,118 +410,28 @@ export function SignalQueue({
                     data-queue-row
                     className="shrink-0"
                   >
-                    <div
-                      className={`panel flex flex-col gap-2.5 p-3 sm:flex-row sm:items-center sm:gap-3 sm:px-3.5 sm:py-3 ${
-                        selected
-                          ? "bg-sio-bg-interactive ring-1 ring-inset ring-sio-border-strong"
-                          : ""
-                      }`}
-                    >
-                      <Link
-                        href={previewHref}
-                        scroll={false}
-                        aria-current={selected ? "true" : undefined}
-                        aria-label={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Preview ${signalText || "signal"}`}
-                        className={`grid min-w-0 flex-1 grid-cols-1 gap-2.5 rounded-sm touch-manipulation outline-none transition-[opacity] duration-150 focus-visible:shadow-[0_0_0_2px_var(--sio-bg-base),0_0_0_4px_var(--sio-focus-accent)] sm:items-center sm:gap-3 lg:gap-4 ${QUEUE_GRID}`}
-                      >
-                        <div className="flex min-w-0 items-start gap-2.5 sm:contents">
-                          <SignalUser
-                            name={customerName}
-                            className="mt-0.5 shrink-0 sm:mt-0 sm:min-w-0 max-sm:[&_.signal-user-name]:hidden"
-                          />
-
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className="truncate text-label-13 font-medium text-sio-fg-base sm:hidden"
-                              translate="no"
-                            >
-                              {customerName}
-                            </p>
-                            <p className="mt-0.5 truncate text-copy-14 font-medium text-sio-fg-base sm:mt-0">
-                              {signalText || "No summary available"}
-                            </p>
-                            <SignalStatus
-                              signal={signal}
-                              className="mt-1 sm:hidden"
-                            />
-
-                            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:hidden">
-                              <div className="min-w-0">
-                                <dt className="text-label-12 text-sio-fg-muted">
-                                  Score
-                                </dt>
-                                <dd className="mt-0.5">
-                                  <SignalScoreChip score={signal.score} />
-                                </dd>
-                              </div>
-                              <div className="min-w-0">
-                                <dt className="text-label-12 text-sio-fg-muted">
-                                  Type
-                                </dt>
-                                <dd className="mt-0.5">
-                                  <SignalTypeChip type={signal.type} />
-                                </dd>
-                              </div>
-                              <div className="col-span-2 min-w-0">
-                                <dt className="text-label-12 text-sio-fg-muted">
-                                  Evidence
-                                </dt>
-                                <dd className="truncate text-copy-14 text-sio-fg-subtle">
-                                  {evidencePrimary}
-                                </dd>
-                              </div>
-                            </dl>
-                          </div>
+                    <SignalQueueRow
+                      signal={signal}
+                      customerName={customerName}
+                      selected={selected}
+                      previewHref={previewHref}
+                      previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Preview ${queueSignalSummary(signal.summary || "", customerName) || "signal"}`}
+                      action={
+                        <div className="w-full shrink-0 sm:flex sm:w-[4.5rem] sm:justify-end">
+                          <Link
+                            href={detailHref}
+                            className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:w-auto sm:px-3"
+                          >
+                            Review
+                          </Link>
                         </div>
-
-                        <div className="hidden min-w-0 sm:flex sm:items-center">
-                          <SignalStatus
-                            signal={signal}
-                            className="max-w-full"
-                          />
-                        </div>
-
-                        <div className="hidden min-w-0 sm:block">
-                          <SignalScoreChip score={signal.score} />
-                        </div>
-
-                        <div className="hidden min-w-0 sm:block">
-                          <SignalTypeChip type={signal.type} />
-                        </div>
-
-                        <div className="hidden min-w-0 lg:block">
-                          <p className="truncate text-copy-14 text-sio-fg-subtle">
-                            {evidencePrimary}
-                          </p>
-                        </div>
-                      </Link>
-
-                      <Link
-                        href={detailHref}
-                        className="btn-tertiary min-h-11 w-full shrink-0 touch-manipulation sm:min-h-0 sm:w-auto"
-                      >
-                        Review
-                      </Link>
-                    </div>
+                      }
+                    />
                   </li>
                 );
               })}
             </ul>
           </div>
-
-          {hiddenCount > 0 ? (
-            <div className="shrink-0 pt-3">
-              <ShowMore
-                expanded={expanded}
-                onClick={() =>
-                  setExpandedFilterKey(expanded ? null : filterKey)
-                }
-                aria-controls={QUEUE_LIST_ID}
-                moreLabel={`Show ${hiddenCount} More`}
-                lessLabel="Show Less"
-              />
-            </div>
-          ) : null}
         </div>
       )}
     </div>

@@ -39,7 +39,8 @@ function isActionModeUnlocked(): boolean {
 /**
  * Main-column header — sits parallel to the sidebar logo row.
  * Page title lives here for every view; logo/nav stay in the sidebar.
- * SidebarTrigger toggles desktop icon-collapse and the mobile sheet.
+ * Desktop collapse lives beside the sidebar logo; a mobile-only trigger
+ * remains here so the sheet can open when the sidebar is closed.
  */
 export function AppHeader({
   title,
@@ -58,7 +59,7 @@ export function AppHeader({
     <header className="app-header">
       <div className="app-header-start flex min-w-0 flex-1 items-center gap-2">
         <SidebarTrigger
-          className="size-11 shrink-0 md:size-9"
+          className="size-11 shrink-0 md:hidden"
           aria-label="Toggle navigation"
           title="Toggle navigation"
         />
