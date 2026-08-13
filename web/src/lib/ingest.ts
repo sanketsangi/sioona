@@ -26,11 +26,41 @@ export interface IngestDocument {
   conversations: IngestConversationInput[];
 }
 
+/**
+ * Split CSV text into rows, preserving newlines inside quoted fields.
+ * RFC4180-style: `"` toggles quotes; `""` is a literal quote.
+ */
+function splitCsvRows(text: string): string[] {
+  const rows: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        current += '""';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+        current += ch;
+      }
+      continue;
+    }
+    if ((ch === "\n" || ch === "\r") && !inQuotes) {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      if (current.trim()) rows.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  if (current.trim()) rows.push(current);
+  return rows;
+}
+
 function parseCsv(text: string): IngestConversationInput[] {
-  const lines = text
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const lines = splitCsvRows(text);
   if (lines.length < 2) return [];
 
   const headers = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
@@ -57,6 +87,11 @@ function parseCsv(text: string): IngestConversationInput[] {
     const role =
       roleRaw === "agent" || roleRaw === "system" ? roleRaw : "customer";
 
+    const rowGroundTruth =
+      idx("ground_truth") >= 0
+        ? normalizeGroundTruth(cols[idx("ground_truth")])
+        : undefined;
+
     if (!groups.has(conversationId)) {
       groups.set(conversationId, {
         externalId: conversationId,
@@ -70,12 +105,11 @@ function parseCsv(text: string): IngestConversationInput[] {
           idx("timestamp") >= 0
             ? cols[idx("timestamp")] || new Date().toISOString()
             : new Date().toISOString(),
-        groundTruth:
-          idx("ground_truth") >= 0
-            ? normalizeGroundTruth(cols[idx("ground_truth")])
-            : undefined,
+        groundTruth: rowGroundTruth,
         messages: [],
       });
+    } else if (rowGroundTruth && !groups.get(conversationId)!.groundTruth) {
+      groups.get(conversationId)!.groundTruth = rowGroundTruth;
     }
 
     const group = groups.get(conversationId)!;

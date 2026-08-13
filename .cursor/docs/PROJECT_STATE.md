@@ -10,7 +10,16 @@ This is the file new agent windows should read first. Update it when decisions, 
 
 ## 0. What we are doing now
 
-**Heading: real partner transcript** — next leftover. **GT-on-Neon hosted verified** (PR #24). Neon `alembic_version` = `005_conversation_ground_truth`; Partner Demo dual-wrote 41 labeled chats (`conversationSync.failed=0`); sample `conv_rajesh_thakur_26` → `ground_truth=lead`. After Vercel Production redeploy (empty `/tmp`), Eval Labeled showed restored GT (e.g. Varun Khanna `upsell`, Aditya Kapoor `retention` + matching predicted retention). Taxonomy still JSON. Do not claim customer recall. Still not Auth0, not vLLM, not Action Mode, not Insights chrome.
+**Heading: real partner transcript scored** — customer-export metrics recorded (not template). **Next leftover:** Groq Developer **$20** spend cap when offered (non-blocking). Still not Auth0, not vLLM, not Action Mode, not Insights chrome. Taxonomy still JSON.
+
+**Customer-export Detect metrics** (`npm run eval:partner-export`, source=`local` / `real-partner-export.local.csv`, 2026-08-14). **These are customer-export metrics, not template.** 40 chats / **23 labeled** (lead 5 / retention 8 / upsell 6 / none 4; 17 unlabeled excluded from P/R). Ingest CSV now keeps newlines inside quoted fields (fix required for this export).
+
+| | P | R | TP | FP | FN |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Heuristic | **0.75** | **0.63** | 12 | 4 | 7 |
+| Hybrid | **0.75** | **0.63** | 12 | 4 | 7 |
+
+Per-type heuristic: lead P 0.56 / R 1.00; retention P 1.00 / R 0.88; upsell P n/a / R 0.00. Hybrid: llm attempted=8 added=0 failed=8 skipped=0 (Free-plan fail-soft; no recall lift this run). Day-1 upload skipped this pass.
 
 | Slice | Status |
 | --- | --- |
@@ -19,18 +28,16 @@ This is the file new agent windows should read first. Update it when decisions, 
 | Durable chats slice 1 (conversations + messages) | **Closed 2026-08-14** — FastAPI + Alembic `003_conversations_messages` **applied on hosted Neon** (PR #22). Dual-write from ingest / Partner Demo / reset |
 | Neon chat hydrate (cold start) | **Closed 2026-08-14** — miss-path GET chats + detect + prediction sync + **feedback/Acted/GT restore**; JSON SoT when file exists; taxonomy stays JSON. **003+004+005 live**; Vercel redeploy cold-start verified GT restore into Eval (PR #24) |
 | Shadow Mode `status: acted` | **Closed 2026-08-14** — reviewed signals only; JSON persist + re-detect keep; SignalStatus `CANCELED` / Acted; no outbound send. **`004_prediction_acted` applied on hosted Neon**; dual-write fail-soft; hydrate restores Acted |
-| Groq plan / $20 spend cap | **Blocked** — Free; Developer upgrade unavailable. Do **not** Create Project model limits |
-| Real-partner-export hybrid eval | **Done 2026-08-14** — async loader always scores heuristic; optional hybrid via inject/`DETECT_LLM=1`+`GROQ_API_KEY`; tests never call Groq; `cd web && npm run eval:partner-export`. No `local.csv` this pass — template is not customer recall |
+| Groq plan / $20 spend cap | **Blocked** — Free; Developer upgrade unavailable. **Next leftover** when offered. Do **not** Create Project model limits |
+| Real-partner-export hybrid eval | **Done 2026-08-14** — async loader always scores heuristic; optional hybrid via inject/`DETECT_LLM=1`+`GROQ_API_KEY`; tests never call Groq; `cd web && npm run eval:partner-export` |
 | Ingest upsert by `externalId` | **Done 2026-08-14** — mid-week re-upload merges JSON chats; keep existing `conversation.id`; feedback/Acted via `mergeSignalsPreservingFeedback` |
 | Upload replaces showcase | **Done 2026-08-14** — Day-1 partner CSV replaces JSON showcase; Neon prune leftover `tenant_demo` conversation_ids (fail-soft 404); confirm before replace |
 | GT-on-Neon | **Hosted verified 2026-08-14** (PR #24) — Alembic `005_conversation_ground_truth` on Neon; dual-write + omit/null keep + PATCH clear; cold-start hydrate restores labeled Eval; taxonomy still JSON |
-| Real partner transcript | **Next** — required before claiming recall is real; not required to keep building |
+| Real partner transcript | **Scored 2026-08-14** — `real-partner-export.local.csv` (gitignored); heuristic P 0.75 / R 0.63 (TP 12 / FP 4 / FN 7); hybrid same (0 LLM adds). Not template |
 
-**Detect v2 is done.** Hydrate / 003 / 004 / **005** are on hosted Neon. How Detect v2 works stays in §3. Do not put keys/tokens in this file.
+**Detect v2 is done.** Hydrate / 003 / 004 / **005** are on hosted Neon. How Detect v2 works stays in §3. Do not put keys/tokens in this file. Never commit `.local.csv` / PII.
 
-**Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon.
-
-**No real pilot chat does not block development.** It only blocks the claim that Groq works on customers. Measure on `testing.json` until one redacted export exists (`web/data/samples/real-partner-export.local.csv`). Reset Demo / Partner Demo still seed `testing.json` and overwrite via existing upsert.
+**Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon, taxonomy expansion to fake recall.
 
 ---
 
@@ -154,7 +161,8 @@ Path alias `@/*` → `web/src/*`.
 - Detect v2 hybrid + Neon upsert `002` + concurrency **2** (PR #21 on `main`); Groq Free ($0); classify stays in Next.js
 - **Hosted Detect v2 closed** (2026-08-14) — Partner Demo on sioona-demo: Hybrid +N / `?llmAdded=`, retention first, no `syncFailed`
 - **Hosted hydrate + 003/004 closed** (2026-08-14, PR #22) — then **`005` hosted verified** (PR #24); Partner Demo dual-wrote 41 chats / 231 messages with GT; Insights queue loads
-- **Real-partner-export hybrid eval** (2026-08-14) — async loader scores heuristic always + optional hybrid (inject or env); `npm run eval:partner-export`; tests never call Groq. No `local.csv` this pass — template P/R is not customer proof
+- **Real-partner-export hybrid eval** (2026-08-14) — async loader scores heuristic always + optional hybrid (inject or env); `npm run eval:partner-export`; tests never call Groq
+- **Real partner transcript scored** (2026-08-14) — `source=local` `real-partner-export.local.csv` (23 labeled / 40); heuristic P **0.75** / R **0.63** (TP 12 / FP 4 / FN 7); hybrid same (llm added=0). CSV ingest keeps newlines in quoted fields. **Not template.** Never commit `.local.csv`
 - Confirmed Groq Project Limits ≠ spend cap; left model limits at org max
 
 ---
@@ -185,13 +193,13 @@ Do **not** Create Limits on `/settings/project/limits`. Durable Neon chats + hyd
 1. ~~Durable chats on Neon — conversations / messages~~ **Closed 2026-08-14** — dual-write live; hosted `003` applied (PR #22)
 2. ~~Neon chat hydrate on cold start~~ **Closed 2026-08-14** — miss-path + detect + prediction sync + **feedback/Acted/GT restore**; JSON SoT when file exists; taxonomy stays JSON. Hosted `003`+`004`+`005` applied; cold-start GT restore verified (PR #24). Still not Auth0
 3. ~~`status: acted`~~ **Closed 2026-08-14** — Shadow Mode JSON persist after review; hosted Neon `004` + hydrate restore; SignalStatus Acted; no live actions
-4. ~~**Real-partner-export hybrid eval**~~ **Closed 2026-08-14** — loader + tests + `eval:partner-export`; template is measurement only (not customer proof). No `local.csv` this pass
+4. ~~**Real-partner-export hybrid eval**~~ **Closed 2026-08-14** — loader + tests + `eval:partner-export`; template is measurement only. Customer proof is §0 local.csv score
 5. ~~**Ingest upsert by externalId**~~ **Closed 2026-08-14** — partner re-upload merges JSON by `externalId`; Neon upserts unchanged; feedback/Acted kept
 6. ~~**Upload replaces showcase**~~ **Closed 2026-08-14** — Day-1 partner upload replaces JSON showcase; confirm; Neon prune leftover `tenant_demo` conversation_ids (fail-soft 404). Mid-week still merges
 7. ~~**GT-on-Neon**~~ **Hosted verified 2026-08-14** (PR #24) — Neon head `005_conversation_ground_truth`; labeled Eval survives Vercel `/tmp` cold-start; taxonomy still JSON
-8. **Real partner transcript** — a real `web/data/samples/real-partner-export.local.csv` when the founder drops one (then re-run `npm run eval:partner-export`; do not claim recall from the template). When Groq Developer is available: monthly spend **20** + alerts (does not block building)
+8. ~~**Real partner transcript**~~ **Scored 2026-08-14** — customer-export `real-partner-export.local.csv` (not template); heuristic P 0.75 / R 0.63; hybrid unchanged this run. Re-score after new redacted drops. **Next leftover:** when Groq Developer is available — monthly spend **20** + alerts (does not block building)
 
-~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). ~~Hydrate / 003 / 004~~ **Closed** (hosted 2026-08-14, PR #22). ~~GT-on-Neon / 005~~ **Hosted verified** (2026-08-14, PR #24). Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, Insights chrome, or taxonomy-on-Neon.
+~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). ~~Hydrate / 003 / 004~~ **Closed** (hosted 2026-08-14, PR #22). ~~GT-on-Neon / 005~~ **Hosted verified** (2026-08-14, PR #24). ~~Real partner transcript~~ **Scored** (local.csv metrics in §0). Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, Insights chrome, or taxonomy-on-Neon.
 
 ---
 
