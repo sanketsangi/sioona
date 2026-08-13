@@ -84,6 +84,8 @@ Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPL
 | `POST` | `/v1/conversations` | Upsert one conversation + messages |
 | `POST` | `/v1/conversations/bulk` | Bulk upsert conversations + messages |
 | `GET` | `/v1/tenants/{tenant_id}/conversations` | List tenant conversations (API; Insights still JSON) |
+| `DELETE` | `/v1/tenants/{tenant_id}/conversations/{conversation_id}` | Delete one conversation + messages/predictions |
+| `POST` | `/v1/tenants/{tenant_id}/conversations/prune` | Delete conversation_ids not in `keep_conversation_ids` |
 | `POST` | `/v1/signals/{signal_id}/feedback` | Submit/update feedback |
 | `POST` | `/v1/signals/{signal_id}/acted` | Set/clear Acted (reviewed only) |
 | `GET` | `/v1/tenants/{tenant_id}/signal-score` | Overall + per-type SignalScore |

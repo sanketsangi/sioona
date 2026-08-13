@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import {
@@ -23,21 +23,40 @@ const FORMAT_LABELS: Record<string, string> = {
   whatsapp_txt: "WhatsApp chat",
 };
 
-export function UploadForm({ compact = false }: { compact?: boolean }) {
+export function UploadForm({
+  compact = false,
+  hasPartnerExport = false,
+}: {
+  compact?: boolean;
+  hasPartnerExport?: boolean;
+}) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus();
+  }, [confirming]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
+      setConfirming(false);
       fileRef.current?.focus();
+      return;
+    }
+    if (!hasPartnerExport && !confirming) {
+      setError(null);
+      setConfirming(true);
       return;
     }
     setLoading(true);
@@ -48,6 +67,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
     try {
       const body = new FormData();
       body.append("file", file);
+      if (!hasPartnerExport) body.append("replace", "true");
       const res = await fetch("/api/ingest", { method: "POST", body });
       const data = (await res.json()) as {
         error?: string;
@@ -94,6 +114,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
       setTimeout(() => router.push(`/?${query.toString()}`), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
+      setConfirming(false);
     } finally {
       setLoading(false);
     }
@@ -124,19 +145,52 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
       />
-      <button
-        type="submit"
-        disabled={loading}
-        aria-busy={loading}
-        className="btn-primary mt-4 shrink-0"
-      >
-        {loading ? (
-          <ButtonSpinner />
-        ) : (
-          <ArrowCircleUpIcon className="size-3.5 shrink-0" />
-        )}
-        Upload & Detect
-      </button>
+      {confirming && !hasPartnerExport ? (
+        <div className="mt-4 flex shrink-0 flex-col gap-3">
+          <p className="text-copy-14 text-ds-gray-1000" role="status">
+            Replace current chats with this file. Later re-uploads update
+            matching conversations.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              ref={confirmRef}
+              type="submit"
+              disabled={loading}
+              aria-busy={loading}
+              className="btn-primary"
+            >
+              {loading ? <ButtonSpinner /> : null}
+              Confirm Replace
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false);
+                submitRef.current?.focus();
+              }}
+              disabled={loading}
+              className="btn-secondary"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          ref={submitRef}
+          type="submit"
+          disabled={loading}
+          aria-busy={loading}
+          className="btn-primary mt-4 shrink-0"
+        >
+          {loading ? (
+            <ButtonSpinner />
+          ) : (
+            <ArrowCircleUpIcon className="size-3.5 shrink-0" />
+          )}
+          Upload & Detect
+        </button>
+      )}
       <div className="sr-only" aria-live="polite">
         {loading ? "Uploading…" : status ?? ""}
       </div>

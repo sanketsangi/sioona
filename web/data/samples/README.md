@@ -84,16 +84,20 @@ Use this when a partner sends a chat export. **Never commit real PII** — redac
 3. Set `ground_truth` to `lead` | `retention` | `upsell` | `none` per the label policy above.
 4. Score from `web/`:
    ```bash
+   npm run eval:partner-export
+   ```
+   Prefers gitignored `real-partner-export.local.csv`, else the committed template. Prints heuristic metrics always; hybrid Detect v2 only when `DETECT_LLM=1` and `GROQ_API_KEY` are already set (otherwise `hybrid=skipped`). Unit tests inject `classify` and never call Groq. **Never commit `.local.csv`.** Template P/R is measurement only — not customer recall.
+   ```bash
    npx vitest run src/lib/partner-export.eval.test.ts
    ```
    Or in a Node/TS scratch:
    ```ts
-   import { loadPartnerExportEval, formatPartnerExportMetrics } from "@/lib/partner-export-eval";
-   const result = loadPartnerExportEval(); // prefers .local.csv if present
-   console.log(result.source, formatPartnerExportMetrics(result.metrics));
+   import { loadPartnerExportEval, formatPartnerExportEval } from "@/lib/partner-export-eval";
+   const result = await loadPartnerExportEval(); // prefers .local.csv if present
+   console.log(formatPartnerExportEval(result));
    ```
 
-Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts) — ingest → detect → `computeEvalMetrics` (overall + per-type). Prefers `real-partner-export.local.csv`, else the committed template.
+Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts) — ingest → heuristic detect → optional `runHybridDetection` → `computeEvalMetrics` (heuristic + hybrid). Prefers `real-partner-export.local.csv`, else the committed template. Eval is measurement only (no Neon dual-write).
 
 This lane is a **measurement baseline** (not a P/R = 1.0 gate). Signal Score review precision remains FastAPI + Neon after upload/feedback.
 

@@ -22,12 +22,16 @@ const samples = [
   },
 ];
 
-export function UploadView() {
+export function UploadView({
+  hasPartnerExport = false,
+}: {
+  hasPartnerExport?: boolean;
+}) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:overflow-hidden">
       <div className="grid min-h-0 min-w-0 grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-6 lg:overflow-hidden">
         <div className="min-h-0 min-w-0 lg:scroll-region">
-          <UploadForm compact />
+          <UploadForm compact hasPartnerExport={hasPartnerExport} />
         </div>
 
         <aside className="flex min-h-0 min-w-0 flex-col gap-3 lg:overflow-hidden">
@@ -46,8 +50,8 @@ export function UploadView() {
                 web/data/samples/
               </code>
               ). Or upload a partner CSV / Intercom JSON / WhatsApp{" "}
-              <span translate="no">.txt</span>. Mid-week: drop the next weekly
-              export here.
+              <span translate="no">.txt</span>. First partner upload replaces
+              the showcase. Mid-week: re-upload updates matching chats.
             </p>
             <ul className="mt-4 divide-y divide-sio-border-base border-t border-sio-border-base lg:scroll-region lg:min-h-0 lg:flex-1">
               {samples.map((sample) => (

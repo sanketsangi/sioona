@@ -4,8 +4,21 @@
  * ingest / Partner Demo (same pattern as sync-predictions.ts).
  */
 
-import { upsertConversations } from "./backend-client";
+import {
+  BackendClientError,
+  pruneConversations,
+  upsertConversations,
+  type BackendConversationInput,
+  type BackendGroundTruth,
+} from "./backend-client";
 import type { Conversation, Message } from "./types";
+
+const GROUND_TRUTH_LABELS = new Set<BackendGroundTruth>([
+  "lead",
+  "retention",
+  "upsell",
+  "none",
+]);
 
 /** Initial try + this many retries on transient failure. */
 export const CONVERSATION_SYNC_MAX_RETRIES = 2;
@@ -27,6 +40,15 @@ export type ConversationSyncStats = {
 export type SyncConversationsOptions = {
   /** Injectable for tests; defaults to real setTimeout sleep. */
   sleep?: (ms: number) => Promise<void>;
+  /** Day-1 replace: unlabeled file chats clear leftover Neon GT. */
+  clearUnlabeledGroundTruth?: boolean;
+};
+
+export type ConversationPruneStats = {
+  deleted: number;
+  kept: number;
+  skipped: boolean;
+  reason?: "not_supported" | "backend_unavailable";
 };
 
 async function defaultSleep(ms: number): Promise<void> {
@@ -47,36 +69,47 @@ export function emptyConversationSyncStats(): ConversationSyncStats {
 
 export function toConversationSyncPayload(
   conversations: Conversation[],
-  messages: Message[]
-) {
+  messages: Message[],
+  options?: Pick<SyncConversationsOptions, "clearUnlabeledGroundTruth">
+): BackendConversationInput[] {
   const byConv = new Map<string, Message[]>();
   for (const message of messages) {
     const list = byConv.get(message.conversationId) ?? [];
     list.push(message);
     byConv.set(message.conversationId, list);
   }
-  return conversations.map((conversation) => ({
-    conversation_id: conversation.id,
-    channel: conversation.channel,
-    customer_name: conversation.customerName ?? null,
-    started_at: conversation.startedAt,
-    external_id: conversation.externalId ?? null,
-    messages: (byConv.get(conversation.id) ?? []).map((message) => ({
-      message_id: message.id,
-      role: message.role,
-      content: message.content,
-      timestamp: message.timestamp,
-    })),
-  }));
+  return conversations.map((conversation) => {
+    const payload: BackendConversationInput = {
+      conversation_id: conversation.id,
+      channel: conversation.channel,
+      customer_name: conversation.customerName ?? null,
+      started_at: conversation.startedAt,
+      external_id: conversation.externalId ?? null,
+      messages: (byConv.get(conversation.id) ?? []).map((message) => ({
+        message_id: message.id,
+        role: message.role,
+        content: message.content,
+        timestamp: message.timestamp,
+      })),
+    };
+    const groundTruth = conversation.groundTruth;
+    if (groundTruth && GROUND_TRUTH_LABELS.has(groundTruth)) {
+      payload.ground_truth = groundTruth;
+    } else if (options?.clearUnlabeledGroundTruth) {
+      payload.clear_ground_truth = true;
+    }
+    return payload;
+  });
 }
 
 async function upsertConversationsWithRetry(
   tenantId: string,
   conversations: Conversation[],
   messages: Message[],
-  sleep: (ms: number) => Promise<void>
+  sleep: (ms: number) => Promise<void>,
+  options?: Pick<SyncConversationsOptions, "clearUnlabeledGroundTruth">
 ) {
-  const payload = toConversationSyncPayload(conversations, messages);
+  const payload = toConversationSyncPayload(conversations, messages, options);
   let lastError: unknown;
   for (let attempt = 0; attempt < CONVERSATION_SYNC_MAX_ATTEMPTS; attempt++) {
     try {
@@ -117,7 +150,8 @@ export async function syncConversationsToBackend(
       tenantId,
       conversations,
       messages,
-      sleep
+      sleep,
+      options
     );
     return {
       attempted: conversations.length,
@@ -141,6 +175,38 @@ export async function syncConversationsToBackend(
       skipped: 0,
       messagesCreated: 0,
       messagesUpdated: 0,
+    };
+  }
+}
+
+/**
+ * After a replace ingest: drop Neon conversation_ids not in this file.
+ * Fail-soft — 404 (old API) or network errors must not fail JSON replace.
+ */
+export async function pruneConversationsNotInBackend(
+  tenantId: string,
+  keepConversationIds: string[]
+): Promise<ConversationPruneStats> {
+  try {
+    const result = await pruneConversations(tenantId, keepConversationIds);
+    return {
+      deleted: result.deleted,
+      kept: result.kept,
+      skipped: false,
+    };
+  } catch (err) {
+    const status = err instanceof BackendClientError ? err.status : undefined;
+    const reason =
+      status === 404 ? "not_supported" : "backend_unavailable";
+    const detail = err instanceof Error ? err.message : "unknown error";
+    console.warn(
+      `[sync-conversations] prune skipped tenant=${tenantId} reason=${reason}: ${detail}`
+    );
+    return {
+      deleted: 0,
+      kept: keepConversationIds.length,
+      skipped: true,
+      reason,
     };
   }
 }

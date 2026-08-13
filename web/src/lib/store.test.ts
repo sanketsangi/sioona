@@ -4,6 +4,7 @@ import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
 import {
   readStore,
   resetStore,
+  setConversationGroundTruth,
   setSignalActed,
   setSignalFeedback,
 } from "./store";
@@ -86,6 +87,91 @@ describe("setSignalActed", () => {
     expect(persisted?.status).toBe("acted");
     expect(persisted?.feedback?.label).toBe("partially_correct");
     expect(persisted?.feedback?.note).toBe("ok type");
+  });
+});
+
+describe("setConversationGroundTruth", () => {
+  beforeEach(async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("persists JSON labels when Neon is down", async () => {
+    const before = await readStore();
+    const target = before.conversations[0];
+    expect(target).toBeTruthy();
+
+    const upsertSpy = vi
+      .spyOn(backendClient, "upsertConversation")
+      .mockRejectedValue(new Error("backend unavailable"));
+
+    const store = await setConversationGroundTruth(target.id, "retention");
+    expect(store).not.toBeNull();
+    expect(
+      store?.conversations.find((conversation) => conversation.id === target.id)
+        ?.groundTruth
+    ).toBe("retention");
+
+    const after = await readStore();
+    expect(
+      after.conversations.find((conversation) => conversation.id === target.id)
+        ?.groundTruth
+    ).toBe("retention");
+    expect(upsertSpy).toHaveBeenCalled();
+  });
+
+  it("fail-softs Unset via PATCH and still clears JSON", async () => {
+    const before = await readStore();
+    const target = before.conversations[0];
+    await setConversationGroundTruth(target.id, "lead");
+
+    const patchSpy = vi
+      .spyOn(backendClient, "patchConversationGroundTruth")
+      .mockRejectedValue(new Error("backend unavailable"));
+
+    const store = await setConversationGroundTruth(target.id, null);
+    expect(store?.conversations.find((c) => c.id === target.id)).not.toHaveProperty(
+      "groundTruth"
+    );
+    expect(patchSpy).toHaveBeenCalledWith(target.tenantId, target.id, null);
+  });
+
+  it("dual-writes a labeled value via conversation upsert", async () => {
+    const before = await readStore();
+    const target = before.conversations[0];
+    const upsertSpy = vi
+      .spyOn(backendClient, "upsertConversation")
+      .mockResolvedValue({
+        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        tenant_id: target.tenantId,
+        conversation_id: target.id,
+        channel: target.channel,
+        customer_name: target.customerName ?? null,
+        started_at: target.startedAt,
+        external_id: target.externalId ?? null,
+        ground_truth: "upsell",
+        created_at: target.startedAt,
+        updated_at: target.startedAt,
+        messages: [],
+      });
+
+    await setConversationGroundTruth(target.id, "upsell");
+
+    expect(upsertSpy).toHaveBeenCalledWith(
+      target.tenantId,
+      expect.objectContaining({
+        conversation_id: target.id,
+        ground_truth: "upsell",
+      })
+    );
   });
 });
 

@@ -1,7 +1,8 @@
 /**
  * Cold-start hydrate: pull conversations + messages from Neon when the JSON
  * store file is missing. Fail-soft — empty/down/404/500 → null (caller seeds
- * testing.json). Does not invent groundTruth or taxonomy from Neon.
+ * testing.json). Copies Neon ground_truth onto conversations + matching
+ * signals; never invents GT or taxonomy.
  */
 
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
@@ -9,6 +10,7 @@ import {
   getConversations,
   getTenantSignals,
   type BackendConversation,
+  type BackendGroundTruth,
   type BackendMessage,
   type BackendFeedbackLabel,
   type BackendPredictionWithFeedback,
@@ -23,6 +25,22 @@ import type {
   Signal,
   StoreData,
 } from "./types";
+
+const GROUND_TRUTH_LABELS = new Set<BackendGroundTruth>([
+  "lead",
+  "retention",
+  "upsell",
+  "none",
+]);
+
+function asGroundTruth(
+  value: string | null | undefined
+): Conversation["groundTruth"] | undefined {
+  if (!value || !GROUND_TRUTH_LABELS.has(value as BackendGroundTruth)) {
+    return undefined;
+  }
+  return value as BackendGroundTruth;
+}
 
 const STORE_ROLES = new Set<Message["role"]>(["customer", "agent", "system"]);
 
@@ -80,6 +98,10 @@ export function mapBackendConversationsToStore(
     if (row.external_id) {
       conversation.externalId = row.external_id;
     }
+    const groundTruth = asGroundTruth(row.ground_truth);
+    if (groundTruth) {
+      conversation.groundTruth = groundTruth;
+    }
     conversations.push(conversation);
     messages.push(...mappedMessages);
   }
@@ -110,7 +132,7 @@ function asFeedbackLabel(raw: string): FeedbackLabel | null {
 /**
  * Overlay Neon feedback (and Acted) onto detected JSON signals.
  * Match backendSignalId first, then tenant+conversationId+type.
- * Does not invent groundTruth or taxonomy.
+ * Does not invent taxonomy. Conversation GT is copied separately.
  */
 export function applyNeonFeedbackToSignals(
   signals: Signal[],
@@ -148,6 +170,29 @@ export function applyNeonFeedbackToSignals(
         reviewedAt: neonFeedback.reviewed_at,
       },
     };
+  });
+}
+
+/**
+ * Copy non-null conversation groundTruth onto matching signals.
+ * Never invents a label when the conversation is unlabeled.
+ */
+export function applyConversationGroundTruthToSignals(
+  signals: Signal[],
+  conversations: Conversation[]
+): Signal[] {
+  if (signals.length === 0 || conversations.length === 0) return signals;
+  const byId = new Map<string, Conversation["groundTruth"]>();
+  for (const conversation of conversations) {
+    if (conversation.groundTruth) {
+      byId.set(conversation.id, conversation.groundTruth);
+    }
+  }
+  if (byId.size === 0) return signals;
+  return signals.map((signal) => {
+    const groundTruth = byId.get(signal.conversationId);
+    if (!groundTruth) return signal;
+    return { ...signal, groundTruth };
   });
 }
 
@@ -200,6 +245,10 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
     } catch {
       // Fail-soft: chats + signals still persist; chips stay Pending.
     }
+    signals = applyConversationGroundTruthToSignals(
+      signals,
+      chats.conversations
+    );
   } catch {
     // Keep chats (+ any signals assigned before the throw). Do not seed testing.json.
   }

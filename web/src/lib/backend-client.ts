@@ -209,6 +209,8 @@ async function backendFetch<T>(
 
 export type BackendMessageRole = "customer" | "agent" | "system";
 
+export type BackendGroundTruth = "lead" | "retention" | "upsell" | "none";
+
 export interface BackendConversationMessageInput {
   message_id: string;
   role: BackendMessageRole;
@@ -222,6 +224,8 @@ export interface BackendConversationInput {
   customer_name?: string | null;
   started_at: string;
   external_id?: string | null;
+  ground_truth?: BackendGroundTruth | null;
+  clear_ground_truth?: boolean;
   messages: BackendConversationMessageInput[];
 }
 
@@ -244,6 +248,7 @@ export interface BackendConversation {
   customer_name: string | null;
   started_at: string;
   external_id: string | null;
+  ground_truth?: BackendGroundTruth | null;
   created_at: string;
   updated_at: string;
   messages: BackendMessage[];
@@ -270,6 +275,32 @@ export async function upsertConversations(
       timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
     }
   );
+}
+
+export async function upsertConversation(
+  tenantId: string,
+  conversation: BackendConversationInput
+): Promise<BackendConversation> {
+  return backendFetch<BackendConversation>(tenantId, "/v1/conversations", {
+    method: "POST",
+    body: JSON.stringify(conversation),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
+}
+
+export async function patchConversationGroundTruth(
+  tenantId: string,
+  conversationId: string,
+  groundTruth: BackendGroundTruth | null
+): Promise<BackendConversation> {
+  const path = `/v1/tenants/${encodeURIComponent(
+    tenantId
+  )}/conversations/${encodeURIComponent(conversationId)}`;
+  return backendFetch<BackendConversation>(tenantId, path, {
+    method: "PATCH",
+    body: JSON.stringify({ ground_truth: groundTruth }),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
 }
 
 export async function createPrediction(
@@ -363,6 +394,23 @@ export async function getConversations(
 ): Promise<BackendConversation[]> {
   const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations`;
   return backendFetch<BackendConversation[]>(tenantId, path);
+}
+
+export interface BackendConversationPruneResult {
+  deleted: number;
+  kept: number;
+}
+
+export async function pruneConversations(
+  tenantId: string,
+  keepConversationIds: string[]
+): Promise<BackendConversationPruneResult> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations/prune`;
+  return backendFetch<BackendConversationPruneResult>(tenantId, path, {
+    method: "POST",
+    body: JSON.stringify({ keep_conversation_ids: keepConversationIds }),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
 }
 
 export async function getTenantSignals(

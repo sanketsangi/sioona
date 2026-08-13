@@ -1,6 +1,12 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { runDetection } from "./detect";
+import {
+  isDetectLlmEnabled,
+  runHybridDetection,
+  type LlmClassifyFn,
+  type LlmPassStats,
+} from "./detect-llm";
 import { computeEvalMetrics, type EvalMetrics } from "./eval";
 import { parseIngestDocument, toStoreRecords } from "./ingest";
 import type { StoreData } from "./types";
@@ -25,8 +31,25 @@ export interface PartnerExportEvalResult {
   source: PartnerExportSource;
   filename: string;
   absolutePath: string;
+  /** Heuristic signals only — no Neon dual-write. */
   store: StoreData;
+  /** Alias of heuristic (callers / format). */
   metrics: EvalMetrics;
+  heuristic: EvalMetrics;
+  /** Null when hybrid is skipped (no classify inject and env off). */
+  hybrid: EvalMetrics | null;
+  llm: LlmPassStats;
+}
+
+function skippedLlmStats(): LlmPassStats {
+  return {
+    enabled: false,
+    candidates: 0,
+    attempted: 0,
+    added: 0,
+    failed: 0,
+    skipped: 0,
+  };
 }
 
 export function resolvePartnerExportPath(
@@ -58,12 +81,19 @@ export function resolvePartnerExportPath(
   };
 }
 
-/** Load CSV → ingest → detect → labeled eval metrics (overall + per-type). */
-export function loadPartnerExportEval(options?: {
+function pct(value: number | null): string {
+  return value === null ? "n/a" : value.toFixed(2);
+}
+
+/** Load CSV → ingest → heuristic detect → labeled metrics; optional hybrid pass 2. */
+export async function loadPartnerExportEval(options?: {
   samplesDir?: string;
   preferTemplate?: boolean;
   tenantId?: string;
-}): PartnerExportEvalResult {
+  classify?: LlmClassifyFn;
+  maxCalls?: number;
+  concurrency?: number;
+}): Promise<PartnerExportEvalResult> {
   const tenantId = options?.tenantId ?? TENANT_ID;
   const resolved = resolvePartnerExportPath(
     options?.samplesDir ?? SAMPLES_DIR,
@@ -75,7 +105,7 @@ export function loadPartnerExportEval(options?: {
     doc.conversations,
     tenantId
   );
-  const signals = runDetection(conversations, messages, tenantId);
+  const heuristicSignals = runDetection(conversations, messages, tenantId);
 
   const store: StoreData = {
     tenant: {
@@ -85,21 +115,51 @@ export function loadPartnerExportEval(options?: {
     },
     conversations,
     messages,
-    signals,
+    signals: heuristicSignals,
     pilot: { baselineOpportunities: 0 },
   };
+
+  const heuristic = computeEvalMetrics(store);
+
+  const shouldHybrid =
+    Boolean(options?.classify) || isDetectLlmEnabled();
+
+  if (!shouldHybrid) {
+    return {
+      ...resolved,
+      store,
+      metrics: heuristic,
+      heuristic,
+      hybrid: null,
+      llm: skippedLlmStats(),
+    };
+  }
+
+  const { signals: hybridSignals, llm } = await runHybridDetection(
+    conversations,
+    messages,
+    tenantId,
+    null,
+    {
+      classify: options?.classify,
+      maxCalls: options?.maxCalls,
+      concurrency: options?.concurrency,
+    }
+  );
+  const hybrid = computeEvalMetrics({ ...store, signals: hybridSignals });
 
   return {
     ...resolved,
     store,
-    metrics: computeEvalMetrics(store),
+    metrics: heuristic,
+    heuristic,
+    hybrid,
+    llm,
   };
 }
 
 /** Compact CLI-friendly summary for pilots. */
 export function formatPartnerExportMetrics(metrics: EvalMetrics): string {
-  const pct = (value: number | null) =>
-    value === null ? "n/a" : value.toFixed(2);
   const lines = [
     `labeled=${metrics.labeledConversations} P=${pct(metrics.labeledPrecision)} R=${pct(metrics.labeledRecall)} TP=${metrics.truePositives} FP=${metrics.falsePositives} FN=${metrics.falseNegatives}`,
     ...metrics.byType.map(
@@ -107,5 +167,35 @@ export function formatPartnerExportMetrics(metrics: EvalMetrics): string {
         `${row.type}: labeled=${row.labeledCount} P=${pct(row.precision)} R=${pct(row.recall)}`
     ),
   ];
+  return lines.join("\n");
+}
+
+/** Hybrid vs heuristic one-liner (or skipped). */
+export function formatPartnerExportHybridLine(
+  heuristic: EvalMetrics,
+  hybrid: EvalMetrics | null,
+  llm: LlmPassStats
+): string {
+  if (!hybrid || !llm.enabled) {
+    return "hybrid=skipped";
+  }
+  return `hybrid vs heuristic: P ${pct(heuristic.labeledPrecision)}→${pct(hybrid.labeledPrecision)} R ${pct(heuristic.labeledRecall)}→${pct(hybrid.labeledRecall)} TP ${heuristic.truePositives}→${hybrid.truePositives} FP ${heuristic.falsePositives}→${hybrid.falsePositives} FN ${heuristic.falseNegatives}→${hybrid.falseNegatives} | llm attempted=${llm.attempted} added=${llm.added} failed=${llm.failed} skipped=${llm.skipped}`;
+}
+
+/** Full CLI block: source + heuristic + hybrid (or skipped). */
+export function formatPartnerExportEval(result: PartnerExportEvalResult): string {
+  const lines = [
+    `source=${result.source} file=${result.filename}`,
+    "heuristic:",
+    formatPartnerExportMetrics(result.heuristic),
+  ];
+  if (result.hybrid && result.llm.enabled) {
+    lines.push("hybrid:", formatPartnerExportMetrics(result.hybrid));
+    lines.push(
+      formatPartnerExportHybridLine(result.heuristic, result.hybrid, result.llm)
+    );
+  } else {
+    lines.push(formatPartnerExportHybridLine(result.heuristic, result.hybrid, result.llm));
+  }
   return lines.join("\n");
 }

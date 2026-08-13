@@ -9,7 +9,10 @@ import {
   getConversations,
   getSignalScore,
   getTenantSignals,
+  patchConversationGroundTruth,
+  pruneConversations,
   submitFeedback,
+  upsertConversation,
   upsertConversations,
 } from "./backend-client";
 
@@ -159,6 +162,96 @@ describe("backendFetch timeout", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/v1/tenants/tenant_demo/conversations"),
       expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+  });
+
+  it("prunes conversations not in the keep set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ deleted: 2, kept: 1 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await pruneConversations("tenant_demo", ["conv_keep"]);
+
+    expect(result).toEqual({ deleted: 2, kept: 1 });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/v1/tenants/tenant_demo/conversations/prune"
+      ),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
+      keep_conversation_ids: string[];
+    };
+    expect(body.keep_conversation_ids).toEqual(["conv_keep"]);
+  });
+
+  it("upserts one conversation and patches ground_truth", async () => {
+    const conversationBody = {
+      id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      tenant_id: "tenant_demo",
+      conversation_id: "conv_1",
+      channel: "whatsapp",
+      customer_name: "Priya",
+      started_at: "2026-08-01T10:00:00.000Z",
+      external_id: "priya_1",
+      ground_truth: "retention",
+      created_at: "2026-08-01T10:00:00.000Z",
+      updated_at: "2026-08-01T10:00:00.000Z",
+      messages: [],
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        json: async () => conversationBody,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...conversationBody, ground_truth: null }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const created = await upsertConversation("tenant_demo", {
+      conversation_id: "conv_1",
+      channel: "whatsapp",
+      customer_name: "Priya",
+      started_at: "2026-08-01T10:00:00.000Z",
+      external_id: "priya_1",
+      ground_truth: "retention",
+      messages: [],
+    });
+    expect(created.ground_truth).toBe("retention");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/conversations"),
+      expect.objectContaining({ method: "POST" })
+    );
+
+    const cleared = await patchConversationGroundTruth(
+      "tenant_demo",
+      "conv_1",
+      null
+    );
+    expect(cleared.ground_truth).toBeNull();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/v1/tenants/tenant_demo/conversations/conv_1"
+      ),
+      expect.objectContaining({
+        method: "PATCH",
         headers: expect.objectContaining({
           "X-Tenant-Id": "tenant_demo",
         }),
