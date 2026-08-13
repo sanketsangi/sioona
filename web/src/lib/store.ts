@@ -25,9 +25,9 @@ async function seedShowcaseStore(): Promise<StoreData> {
 
 // Local dev writes the bundled data dir; serverless (Vercel) filesystems are
 // read-only except for the OS temp dir, so we fall back there when the bundled
-// dir can't be written. On serverless the store therefore lives in tmp and is
-// per-instance ephemeral (reseeded from fixtures on a cold start) — acceptable
-// for the Phase-1 demo, and the data model is unchanged.
+// dir can't be written. On serverless the store lives in tmp and is
+// per-instance ephemeral. Cold start hydrates conversations from Neon when
+// present; otherwise reseeds from testing.json.
 const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
 const BUNDLED_STORE_PATH = path.join(BUNDLED_DATA_DIR, "store.json");
 const TMP_DATA_DIR = path.join(os.tmpdir(), "sioona-store");
@@ -123,6 +123,9 @@ export async function readStore(): Promise<StoreData> {
   } else if (memoryStore) {
     return normalizeStore(structuredClone(memoryStore));
   }
+  const { tryHydrateStoreFromNeon } = await import("./hydrate-conversations");
+  const hydrated = await tryHydrateStoreFromNeon();
+  if (hydrated) return hydrated;
   return seedShowcaseStore();
 }
 
@@ -220,7 +223,9 @@ export async function setSignalFeedback(
     note,
     reviewedAt: new Date().toISOString(),
   };
-  signal.status = "reviewed";
+  if (signal.status !== "acted") {
+    signal.status = "reviewed";
+  }
   appendAuditEvent(store, {
     action: "signal_feedback",
     signalId: signal.id,
@@ -230,6 +235,27 @@ export async function setSignalFeedback(
   });
   await writeStore(store);
   return signal;
+}
+
+export type SetSignalActedResult =
+  | { ok: true; signal: Signal }
+  | { ok: false; reason: "not_found" | "not_reviewed" };
+
+/**
+ * Shadow Mode only: persist `status: acted` (or undo to `reviewed`).
+ * Requires existing feedback. Does not clear feedback or fire suggestedAction.
+ */
+export async function setSignalActed(
+  signalId: string,
+  acted: boolean
+): Promise<SetSignalActedResult> {
+  const store = await readStore();
+  const signal = store.signals.find((s) => s.id === signalId);
+  if (!signal) return { ok: false, reason: "not_found" };
+  if (!signal.feedback) return { ok: false, reason: "not_reviewed" };
+  signal.status = acted ? "acted" : "reviewed";
+  await writeStore(store);
+  return { ok: true, signal };
 }
 
 export async function setPilotBaseline(

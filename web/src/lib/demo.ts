@@ -4,6 +4,7 @@ import {
   DEMO_BASELINE_OPPORTUNITIES,
 } from "./demo-baseline";
 import type { LlmPassStats } from "./detect-llm";
+import type { ConversationSyncStats } from "./sync-conversations";
 import type { PredictionSyncStats } from "./sync-predictions";
 import type { StoreData } from "./types";
 
@@ -20,11 +21,12 @@ export interface PartnerDemoResult {
   baselineOpportunities: number;
   opportunityLift: number;
   predictionSync: PredictionSyncStats;
+  conversationSync: ConversationSyncStats;
   detectLlm: LlmPassStats;
 }
 
 /**
- * Reset + load testing.json showcase corpus, dual-write predictions, and set
+ * Reset + load testing.json showcase corpus, dual-write chats + predictions, and set
  * the cold-demo baseline so lift / “missed opportunities” is visible immediately.
  */
 export async function runPartnerDemo(): Promise<PartnerDemoResult> {
@@ -45,6 +47,7 @@ export async function runPartnerDemo(): Promise<PartnerDemoResult> {
     baselineOpportunities: DEMO_BASELINE_OPPORTUNITIES,
     opportunityLift: sioonaOpportunities - DEMO_BASELINE_OPPORTUNITIES,
     predictionSync: loaded.predictionSync,
+    conversationSync: loaded.conversationSync,
     detectLlm: loaded.detectLlm,
   };
 }

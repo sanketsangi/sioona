@@ -48,6 +48,13 @@ describe("runPartnerDemo", () => {
     expect(
       result.predictionSync.attempted + result.predictionSync.skipped
     ).toBeGreaterThan(0);
+    expect(result.conversationSync).toEqual(
+      expect.objectContaining({
+        attempted: EXPECTED_TESTING_JSON.conversations,
+        failed: EXPECTED_TESTING_JSON.conversations,
+        created: 0,
+      })
+    );
     expect(result.detectLlm.enabled).toBe(false);
 
     const again = await runPartnerDemo();

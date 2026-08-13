@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         newSignals: result.newSignals,
         samples: result.samples,
         predictionSync: result.predictionSync,
+        conversationSync: result.conversationSync,
         detectLlm: result.detectLlm,
       });
     } catch (error) {

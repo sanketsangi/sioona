@@ -241,4 +241,48 @@ describe("mergeSignalsPreservingFeedback", () => {
     );
     expect(merged.status).toBe("reviewed");
   });
+
+  it("keeps acted when conversation+type still detected", () => {
+    const previous: Signal[] = [
+      {
+        id: "sig_old",
+        tenantId: "t",
+        conversationId: "c1",
+        type: "retention",
+        score: 0.4,
+        confidence: 0.4,
+        summary: "old",
+        suggestedAction: "a",
+        evidence: ["e1"],
+        status: "acted",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        feedback: {
+          label: "correct",
+          note: "handled",
+          reviewedAt: "2026-01-02T00:00:00.000Z",
+        },
+      },
+    ];
+    const next: Signal[] = [
+      {
+        id: "sig_new",
+        tenantId: "t",
+        conversationId: "c1",
+        type: "retention",
+        score: 0.88,
+        confidence: 0.88,
+        summary: "new",
+        suggestedAction: "b",
+        evidence: ["e2"],
+        status: "new",
+        createdAt: "2026-08-01T00:00:00.000Z",
+      },
+    ];
+    const merged = mergeSignalsPreservingFeedback(previous, next)[0];
+    expect(merged.id).toBe("sig_old");
+    expect(merged.status).toBe("acted");
+    expect(merged.feedback?.label).toBe("correct");
+    expect(merged.feedback?.note).toBe("handled");
+    expect(merged.score).toBe(0.88);
+  });
 });

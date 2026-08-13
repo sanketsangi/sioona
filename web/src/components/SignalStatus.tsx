@@ -8,7 +8,7 @@ type SignalStatusProps = {
 };
 
 /**
- * Insights review status chrome — Pending / Correct / Incorrect / Partially Correct.
+ * Insights review status chrome — Pending / Correct / Incorrect / Partially Correct / Acted.
  * Mapping stays in `format.ts` (`signalStatusDot`); do not re-wire StatusDot in views.
  */
 export function SignalStatus({ signal, className }: SignalStatusProps) {

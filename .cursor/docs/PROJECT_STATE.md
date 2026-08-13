@@ -1,7 +1,7 @@
 # Sioona — Project State (agent SoT)
 
 **Last updated:** 2026-08-14  
-**Stage:** MVP — Insights + Shadow Mode + Detect v2 (**on locally**; Vercel Production env **set**; concurrency-2 code on `production` → `main`)  
+**Stage:** MVP — Insights + Shadow Mode + Detect v2 (**hosted verified**)  
 **Branch:** `production`
 
 This is the file new agent windows should read first. Update it when decisions, milestones, or “what we’re doing now” change. Human-facing pointer: [`docs/PROJECT_STATE.md`](../../docs/PROJECT_STATE.md).
@@ -10,24 +10,23 @@ This is the file new agent windows should read first. Update it when decisions, 
 
 ## 0. What we are doing now
 
-**Heading: Detect v2** — hybrid keyword + managed Groq Qwen second pass. Not Auth0, not vLLM, not Action Mode, not another Insights chrome pass.
+**Heading: Neon chat hydrate on cold start** — JSON is still UI SoT when a store file exists. On miss (missing `store.json` / empty memory), GET `tenant_demo` conversations from Neon, re-detect, dual-write predictions, GET tenant signals + join feedback (and Acted via `004`), `writeStore`. Empty / down / 404 / 500 → existing `testing.json` seed. Feedback GET timeout fail-soft (chats + signals still persist). Hosted `003` + `004` apply on next Render deploy from `main`; until then GET fail-soft to seed (does not block this code). Still not Auth0, not vLLM, not Action Mode, not Insights chrome. JSON is not replaced as always-on chat SoT; taxonomy/GT stay JSON.
 
 | Slice | Status |
 | --- | --- |
-| Neon prediction **upsert** `(tenant_id, conversation_id, signal_type)` | **Live on Neon** — `002_prediction_upsert` + unique `uq_signal_predictions_tenant_conv_type` |
-| Groq Qwen pass 2 on heuristic **misses only** | **On locally** (`web/.env`: `DETECT_LLM=1` + key, gitignored). **Vercel Production env set** (2026-08-14): `DETECT_LLM`, `GROQ_API_KEY` (Sensitive), `DETECT_LLM_CONCURRENCY=2`, `DETECT_LLM_MAX_CALLS=4`. Preview/Dev unset |
-| Groq 429 / Hobby 10s (concurrency env) | **Committed** — default `DETECT_LLM_CONCURRENCY=2`, env-gated like `MAX_CALLS`. Lands on `main` via `production` PR so Production runs 2-wide / `MAX_CALLS=4` |
-| Groq plan / $20 spend cap | **Blocked** — account is **Free**. Developer upgrade **temporarily unavailable**. Spend Limits are Developer-only. Stay Free ($0). Do **not** create Project model limits |
-| Retention ranks first in queue + `sortSignals` | Done |
-| Quiet Insights `?llmAdded=` / queue “Hybrid +N” after detect/demo | Done |
-| Live Groq eval on `testing.json` | **Measured 2026-08-13** — see §3. FP stayed 1. Groq **429** ate most of then-concurrency 8 |
+| Detect v2 (hybrid Groq pass 2) | **Closed 2026-08-14** — hosted Partner Demo verified on sioona-demo: Hybrid +N / `?llmAdded=`, retention first, no `syncFailed`. Concurrency-2 on `main` (PR #21). Groq **Free** ($0). See §3 |
+| Neon prediction **upsert** `(tenant_id, conversation_id, signal_type)` | **Live on Neon** — `002_prediction_upsert` |
+| Durable chats slice 1 (conversations + messages) | **Done 2026-08-14** — FastAPI + Alembic `003_conversations_messages`; dual-write from ingest / Partner Demo / reset. Hosted Neon applies `003` on next Render deploy |
+| Neon chat hydrate (cold start) | **Done 2026-08-14** — miss-path GET chats + detect + prediction sync + **feedback restore** (`GET /v1/tenants/{id}/signals`); JSON SoT when file exists; taxonomy/GT stay JSON |
+| Shadow Mode `status: acted` | **Done 2026-08-14** — reviewed signals only; JSON persist + re-detect keep; SignalStatus `CANCELED` / Acted; no outbound send. **`004_prediction_acted`** boolean on predictions; dual-write fail-soft; hydrate restores Acted |
+| Groq plan / $20 spend cap | **Blocked** — Free; Developer upgrade unavailable. Do **not** Create Project model limits |
 | Real partner transcript | **Not required to keep building**; required before claiming recall is real |
 
-**Detect v2:** local yes (key + 002). Hosted Production env is **set**. Concurrency-2 / maxCalls-4 **code is in this commit** (PR `production` → `main`). Next: Partner Demo verify on sioona-demo. Do not put keys/tokens in this file. No $20 Groq cap until Developer exists.
+**Detect v2 is done.** How it works stays in §3. Do not put keys/tokens in this file.
 
-**Do not:** Auth0, full Neon chats, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish.
+**Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/GT/signals on Neon.
 
-**No real pilot chat does not block development.** It only blocks the claim that Groq works on customers. Keep building; measure on `testing.json` until one redacted export exists (`web/data/samples/real-partner-export.local.csv`).
+**No real pilot chat does not block development.** It only blocks the claim that Groq works on customers. Measure on `testing.json` until one redacted export exists (`web/data/samples/real-partner-export.local.csv`). Reset Demo / Partner Demo still seed `testing.json` and overwrite via existing upsert.
 
 ---
 
@@ -46,7 +45,7 @@ Primary product signal for Detect v2: **retention** (lead/upsell secondary).
 | App | Next.js 15/16 App Router, React 19, Tailwind, Geist (`web/`) | — |
 | API | FastAPI Signal Score only (`backend/`) | Auth0-gated multi-tenant API |
 | Detect | `detect.ts` heuristics + optional `detect-llm.ts` Groq pass 2 | vLLM / LangGraph / QLoRA |
-| Data | JSON `web/data/store.ts` for chats/taxonomy/GT; **Neon** for predictions + feedback | Full Neon chats + pgvector |
+| Data | JSON `store.ts` for chats/taxonomy/GT (**UI SoT** when a file exists); **Neon** for predictions + feedback + Acted (`004`) + dual-written conversations/messages + **cold-start chat hydrate** (feedback restored after detect+sync) | Full Neon chat SoT + taxonomy/GT + pgvector |
 | Auth | `X-Tenant-Id` (`tenant_demo`) | Auth0 |
 | Hosting | Vercel `sioona-demo.vercel.app` + Render `sioona-api.onrender.com` (free, sleeps) + Neon project `sioona` (free, 0.25 CU) | Render Starter / Neon Launch if sleep hurts |
 | Score SoT | FastAPI + Neon | — |
@@ -54,11 +53,11 @@ Primary product signal for Detect v2: **retention** (lead/upsell secondary).
 
 **Unused:** Render `sioona.onrender.com` (duplicate free API) — ignore or delete later.
 
-**Autonomy:** Shadow Mode only. Suggested actions are display-only. `status: acted` exists in types, never set.
+**Autonomy:** Shadow Mode only. Suggested actions are display-only. `status: acted` is set from Insights after feedback (JSON + Neon `004`); never executes the action.
 
 ---
 
-## 3. Detect v2 (how it works)
+## 3. Detect v2 (how it works) — **closed / hosted verified** 2026-08-14
 
 ```text
 runHybridDetection
@@ -117,7 +116,7 @@ Template: [`web/.env.example`](../../web/.env.example). Off by default → $0. H
 - Types: `web/src/lib/types.ts`
 - Taxonomy: `web/src/lib/taxonomy.ts`
 - Detect: `web/src/lib/detect.ts` + `detect-llm.ts`
-- Ingest / store / eval / sync: matching files in `web/src/lib/`
+- Ingest / store / eval / sync: matching files in `web/src/lib/` (`sync-predictions.ts`, `sync-conversations.ts`, `hydrate-conversations.ts`)
 - Signal Score client: `web/src/lib/backend-client.ts`
 - Backend: `backend/app/`
 - Signal chrome (locked): `SignalStatus` / `SignalScoreChip` / `SignalTypeChip` / `SignalUser`
@@ -129,10 +128,10 @@ Path alias `@/*` → `web/src/*`.
 
 ## 5. Hosted demo (as of 2026-08-14)
 
-- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` set; **Detect v2 env set 2026-08-14** (`DETECT_LLM`, `GROQ_API_KEY` Sensitive, `DETECT_LLM_CONCURRENCY=2`, `DETECT_LLM_MAX_CALLS=4`). Preview/Dev unset. Prior redeploy `dpl_69iMGUZwwahFfyN6EDw2sHTC5wfw` was PR #20 (concurrency 8 in binary, `MAX_CALLS=4` from env). This slice’s commit is the concurrency-2 binary — Production picks it up after merge to `main`
+- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env set. **Partner Demo verified 2026-08-14:** Hybrid +N / `?llmAdded=`, retention first, no `syncFailed`. Concurrency-2 binary on `main` (PR #21). Preview/Dev Groq unset
 - API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`** (PR #20 shipped upsert code)
-- Neon: `002_prediction_upsert` on; needs-review live
-- Vercel store is ephemeral (`/tmp`) — reseeds from `testing.json`
+- Neon: `002_prediction_upsert` on; needs-review live. `003_conversations_messages` + `004_prediction_acted` in repo — apply on next Render `alembic upgrade head`. Until then GET conversations/signals 404/500 fail-soft to `testing.json` seed
+- Vercel store is ephemeral (`/tmp`) — cold start hydrates from Neon when chats exist (feedback/Acted joined after detect+sync); else reseeds `testing.json`
 - Vercel: project API token in `web/.env` as `VERCEL_TOKEN` (gitignored). MCP is read-only for env; REST upsert works. CLI `whoami` still fails on this token type
 
 ---
@@ -144,8 +143,11 @@ Path alias `@/*` → `web/src/*`.
 - Eval: labeled P/R, Signal Score, baseline lift, Adapt from incorrect/partial (manual phrases/negatives)
 - Partner Demo = `testing.json` only (stable conv ids from `externalId`)
 - Dual-write retries; feedback lazy-create; unmatched Neon rows **omitted** (no stub cards)
-- Detect v2 hybrid code + Neon upsert `002` (2026-08-13); Groq on locally (Free, $0); hosted Production env set 2026-08-14
-- Detect v2 concurrency default **2** + `DETECT_LLM_CONCURRENCY` env **committed** (2026-08-14); Production rec `MAX_CALLS=4` so Hobby 10s + Groq RPM survive; classify stays in Next.js
+- Durable chats slice 1: `conversations` + `messages` upsert `(tenant_id, conversation_id)` / `(tenant_id, message_id)`; fail-soft dual-write
+- Neon chat hydrate (cold start): miss-path GET `tenant_demo` → map `conversation_id`/`message_id` → detect + prediction sync → GET tenant signals + join feedback/Acted by `backendSignalId` or conversation+type → `writeStore`; empty/down → `testing.json`; existing file unchanged; feedback GET timeout fail-soft
+- Shadow Mode `status: acted`: `setSignalActed` after feedback; JSON persist + fail-soft dual-write to Neon `004`; survives `mergeSignalsPreservingFeedback` and hydrate; queue/detail via existing `SignalStatus`; no Intercom/WhatsApp/email send
+- Detect v2 hybrid + Neon upsert `002` + concurrency **2** (PR #21 on `main`); Groq Free ($0); classify stays in Next.js
+- **Hosted Detect v2 closed** (2026-08-14) — Partner Demo on sioona-demo: Hybrid +N / `?llmAdded=`, retention first, no `syncFailed`
 - Confirmed Groq Project Limits ≠ spend cap; left model limits at org max
 
 ---
@@ -153,7 +155,6 @@ Path alias `@/*` → `web/src/*`.
 ## 7. Later / do not start
 
 - Auth0 / real tenant isolation
-- Neon conversations / messages / taxonomy / GT
 - vLLM, QLoRA, LangGraph, pgvector
 - Live Intercom / WhatsApp webhooks
 - Action Mode / Export / Create Campaign (dead chrome — leave locked)
@@ -163,22 +164,23 @@ Path alias `@/*` → `web/src/*`.
 
 ## 8. Ask the founder (open)
 
-1. ~~Groq key locally~~ **Done** — `web/.env` has `DETECT_LLM=1` + key (gitignored).
-2. ~~Vercel Production Groq env~~ **Done 2026-08-14** — Production only: `DETECT_LLM`, `GROQ_API_KEY` (Sensitive), `DETECT_LLM_CONCURRENCY=2`, `DETECT_LLM_MAX_CALLS=4`. `BACKEND_URL` unchanged. Preview/Dev unset.
-3. ~~$20 Groq spend cap~~ **Blocked** — Free plan; Developer upgrade unavailable. Revisit [Billing → Limits](https://console.groq.com/settings/billing/limits) only after Developer is offered. Until then $0; rate 429s are expected.
+1. ~~Groq key locally~~ **Done** — `web/.env` (gitignored).
+2. ~~Vercel Production Groq env + Partner Demo~~ **Done 2026-08-14** — hosted Detect v2 verified.
+3. ~~$20 Groq spend cap~~ **Blocked** — Free plan; Developer upgrade unavailable. Revisit [Billing → Limits](https://console.groq.com/settings/billing/limits) only after Developer is offered. Until then $0.
 4. Optional: delete unused Render service `sioona` (`sioona.onrender.com`).
 
-Do **not** wait for a pilot export to continue Detect v2. Do **not** Create Limits on `/settings/project/limits`.
+Do **not** Create Limits on `/settings/project/limits`. Do **not** wait on a pilot export to start durable Neon chats.
 
 ---
 
-## 9. Next Detect v2 slices (ordered)
+## 9. Next slices (ordered)
 
-1. Partner Demo verify on sioona-demo (`?llmAdded=` / Hybrid +N) after this commit is on `main`. Upsert already on Neon
-2. When Groq Developer is available: monthly spend **20** + alerts; do not wait on this to ship hosted v2 (Free is $0)
-3. Then stop. Next heading after v2 is durable chats on Neon + `status: acted` — still not Auth0
+1. ~~Durable chats on Neon — conversations / messages~~ **Slice 1 done (2026-08-14)** — dual-write live in code. Hosted `003` on next Render deploy
+2. ~~Neon chat hydrate on cold start~~ **Done 2026-08-14** — miss-path + detect + prediction sync + **feedback/Acted restore**; JSON SoT when file exists; taxonomy/GT stay JSON. Hosted `003`+`004` on next Render deploy. Still not Auth0
+3. ~~`status: acted`~~ **Done 2026-08-14** — Shadow Mode JSON persist after review; Neon `004` + hydrate restore; SignalStatus Acted; no live actions
+4. When Groq Developer is available: monthly spend **20** + alerts (does not block building)
 
-~~Lower concurrency / MAX_CALLS for 429 + Hobby 10s~~ **Done + committed** (default 2 / Production rec 4). Still do not move classify to FastAPI; do not lower Groq project model limits.
+~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, or Insights chrome.
 
 ---
 
