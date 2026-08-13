@@ -13,7 +13,8 @@ export type NeedsReviewResult =
   | { ok: true; predictions: BackendPrediction[] }
   | { ok: false; error: string };
 
-const DEFAULT_LIMIT = 20;
+/** Backend max — fetch enough to fill the queue after join/dedupe of stale rows. */
+const DEFAULT_LIMIT = 100;
 
 export async function fetchNeedsReview(
   tenantId: string,

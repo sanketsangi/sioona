@@ -57,7 +57,7 @@ export function FeedbackControls({
 }) {
   const router = useRouter();
   const headingId = useId();
-  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const noteRef = useRef<HTMLInputElement>(null);
   const initialNote = signal.feedback?.note ?? "";
   const [note, setNote] = useState(initialNote);
   const [pending, setPending] = useState<FeedbackLabel | null>(null);
@@ -110,11 +110,11 @@ export function FeedbackControls({
     }
   }
 
-  function onNoteKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      void submit("correct");
-    }
+  function onNoteKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
+    e.preventDefault();
+    if (pending !== null) return;
+    void submit("correct");
   }
 
   return (
@@ -139,41 +139,27 @@ export function FeedbackControls({
 
       <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
         <p className="text-label-12 text-sio-fg-muted">
-          Mark Correct, Incorrect, or Partially Correct. Saves to Neon.
-          {" "}
-          ⌘&nbsp;Enter / Ctrl&nbsp;Enter → Correct.
+          Mark Correct, Incorrect, or Partially Correct. Saves to Neon. Enter →
+          Correct.
         </p>
-
-        <div aria-live="polite">
-          {signal.feedback || justSaved ? (
-            <p className="mt-1.5 break-words text-label-12 text-sio-fg-base">
-              Current:{" "}
-              <span className="font-medium">{currentTitle}</span>
-              {signal.feedback?.note ? (
-                <span className="text-sio-fg-muted">
-                  {" "}
-                  — {signal.feedback.note}
-                </span>
-              ) : null}
-              {justSaved && !signal.feedback
-                ? " — saved; score refreshing…"
-                : null}
-            </p>
-          ) : null}
-        </div>
+        <p className="sr-only" aria-live="polite">
+          {justSaved
+            ? `${options.find((o) => o.label === justSaved)?.title ?? justSaved} saved`
+            : null}
+        </p>
 
         <label className="mt-2.5 block">
           <span className="sr-only">Optional note</span>
-          <textarea
+          <input
             ref={noteRef}
+            type="text"
             name="feedbackNote"
             autoComplete="off"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             onKeyDown={onNoteKeyDown}
-            placeholder="Optional note — e.g. ops language, not churn…"
-            className="input-field !min-h-8 resize-y !py-1.5 text-base leading-5 sm:text-sm"
-            rows={1}
+            placeholder="Optional note -- e.g. ops language, not churn…"
+            className="input-field"
           />
         </label>
 

@@ -13,6 +13,8 @@ export const PREDICTION_SYNC_MAX_RETRIES = 2;
 export const PREDICTION_SYNC_MAX_ATTEMPTS = 1 + PREDICTION_SYNC_MAX_RETRIES;
 /** Backoff after each failed attempt (ms), before the next try. */
 export const PREDICTION_SYNC_BACKOFF_MS = [200, 800] as const;
+/** Parallel POSTs so Partner Demo (~27 signals) does not sit on a 30s sequential chain. */
+export const PREDICTION_SYNC_CONCURRENCY = 6;
 
 export type PredictionSyncStats = {
   attempted: number;
@@ -68,6 +70,38 @@ async function createPredictionWithRetry(
     : new Error("createPrediction failed after retries");
 }
 
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  if (items.length === 0) return [];
+
+  const results = new Array<R>(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (true) {
+      const index = next;
+      next += 1;
+      if (index >= items.length) return;
+      results[index] = await mapper(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(Math.max(1, concurrency), items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+type SyncRow = {
+  signal: Signal;
+  attempted: boolean;
+  created: boolean;
+  failed: boolean;
+  skipped: boolean;
+};
+
 /** POST predictions missing a backend id; preserve existing backendSignalId. */
 export async function syncPredictionsToBackend(
   signals: Signal[],
@@ -75,34 +109,59 @@ export async function syncPredictionsToBackend(
   options?: SyncPredictionsOptions
 ): Promise<PredictionSyncResult> {
   const sleep = options?.sleep ?? defaultSleep;
-  const synced: Signal[] = [];
+
+  const rows = await mapWithConcurrency(
+    signals,
+    PREDICTION_SYNC_CONCURRENCY,
+    async (signal): Promise<SyncRow> => {
+      if (signal.backendSignalId) {
+        return {
+          signal,
+          attempted: false,
+          created: false,
+          failed: false,
+          skipped: true,
+        };
+      }
+
+      try {
+        const created = await createPredictionWithRetry(tenantId, signal, sleep);
+        return {
+          signal: { ...signal, backendSignalId: created.id },
+          attempted: true,
+          created: true,
+          failed: false,
+          skipped: false,
+        };
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : "unknown error";
+        console.warn(
+          `[sync-predictions] createPrediction failed tenant=${tenantId} signal=${signal.id}: ${detail}`
+        );
+        return {
+          signal,
+          attempted: true,
+          created: false,
+          failed: true,
+          skipped: false,
+        };
+      }
+    }
+  );
+
   const sync: PredictionSyncStats = {
     attempted: 0,
     created: 0,
     failed: 0,
     skipped: 0,
   };
-
-  for (const signal of signals) {
-    if (signal.backendSignalId) {
-      synced.push(signal);
-      sync.skipped += 1;
-      continue;
-    }
-
-    sync.attempted += 1;
-    try {
-      const created = await createPredictionWithRetry(tenantId, signal, sleep);
-      synced.push({ ...signal, backendSignalId: created.id });
-      sync.created += 1;
-    } catch (err) {
-      sync.failed += 1;
-      synced.push(signal);
-      const detail = err instanceof Error ? err.message : "unknown error";
-      console.warn(
-        `[sync-predictions] createPrediction failed tenant=${tenantId} signal=${signal.id}: ${detail}`
-      );
-    }
+  const synced: Signal[] = [];
+  for (const row of rows) {
+    synced.push(row.signal);
+    if (row.skipped) sync.skipped += 1;
+    if (row.attempted) sync.attempted += 1;
+    if (row.created) sync.created += 1;
+    if (row.failed) sync.failed += 1;
   }
 
   if (sync.failed > 0) {

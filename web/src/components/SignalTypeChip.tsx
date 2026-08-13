@@ -2,8 +2,9 @@ import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
 import { signalChipClass } from "@/components/SignalScoreChip";
-import { signalTypeLabel } from "@/lib/format";
+import { signalTypeLabel, signalTypeMarkClass } from "@/lib/format";
 import type { SignalType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type SignalTypeChipProps = {
   type: SignalType;
@@ -11,8 +12,8 @@ type SignalTypeChipProps = {
 };
 
 /**
- * Ops-scan Type chrome (hairline pill + muted glyph).
- * Colored `SignalBadge` stays for taxonomy tables / legacy colored marks only.
+ * Ops-scan Type chrome — hairline pill tinted by signal type
+ * (lead=blue, retention=amber, upsell=teal). Label always accompanies color.
  */
 export function SignalTypeChip({ type, className }: SignalTypeChipProps) {
   const Icon =
@@ -23,9 +24,18 @@ export function SignalTypeChip({ type, className }: SignalTypeChipProps) {
         : UpsellIcon;
 
   return (
-    <span className={className ? `${signalChipClass} ${className}` : signalChipClass}>
-      <Icon className="size-3.5 shrink-0 text-sio-fg-muted" />
-      <span className="whitespace-nowrap">{signalTypeLabel(type)}</span>
+    <span
+      className={cn(
+        signalChipClass,
+        "leading-none",
+        signalTypeMarkClass(type),
+        className,
+      )}
+    >
+      <Icon className="block size-3.5 shrink-0" />
+      <span className="translate-y-px whitespace-nowrap text-label-12 font-medium leading-none">
+        {signalTypeLabel(type)}
+      </span>
     </span>
   );
 }

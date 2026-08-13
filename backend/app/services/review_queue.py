@@ -1,6 +1,6 @@
 """Shadow Mode review queue: predictions without feedback."""
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from app.models.signal_feedback import SignalFeedback
@@ -19,14 +19,15 @@ def list_signals_needing_review(
     if limit > 100:
         limit = 100
 
+    unreviewed = ~exists(
+        select(SignalFeedback.id).where(
+            SignalFeedback.signal_id == SignalPrediction.id
+        )
+    )
     stmt = (
         select(SignalPrediction)
-        .outerjoin(
-            SignalFeedback,
-            SignalFeedback.signal_id == SignalPrediction.id,
-        )
         .where(SignalPrediction.tenant_id == tenant_id)
-        .where(SignalFeedback.id.is_(None))
+        .where(unreviewed)
         .order_by(SignalPrediction.created_at.desc())
         .limit(limit)
     )

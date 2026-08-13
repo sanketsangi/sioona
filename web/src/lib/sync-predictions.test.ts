@@ -143,6 +143,40 @@ describe("syncPredictionsToBackend", () => {
     });
   });
 
+  it("keeps input order when syncing several signals in parallel", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { summary: string };
+      await new Promise((r) => setTimeout(r, body.summary === "first" ? 20 : 0));
+      return {
+        ok: true,
+        status: 201,
+        json: async () => ({
+          ...createdBody,
+          id: `id-${body.summary}`,
+          summary: body.summary,
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { signals, sync } = await syncPredictionsToBackend(
+      [
+        { ...baseSignal, id: "a", summary: "first" },
+        { ...baseSignal, id: "b", summary: "second" },
+        { ...baseSignal, id: "c", summary: "third" },
+      ],
+      "tenant_demo"
+    );
+
+    expect(signals.map((s) => s.id)).toEqual(["a", "b", "c"]);
+    expect(signals.map((s) => s.backendSignalId)).toEqual([
+      "id-first",
+      "id-second",
+      "id-third",
+    ]);
+    expect(sync.created).toBe(3);
+  });
+
   it("leaves signal unchanged and counts one failure after all retries", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
     vi.stubGlobal("fetch", fetchMock);

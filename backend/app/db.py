@@ -45,9 +45,15 @@ if _is_sqlite:
 
     Base.metadata.create_all(bind=engine)
 else:
+    # Do not pass libpq `options` / `connect_timeout` here — they break Neon
+    # SQLAlchemy connections (writes hang then return database_unavailable).
     engine = create_engine(
         _database_url,
         pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=5,
+        pool_timeout=30,
+        pool_recycle=300,
     )
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)

@@ -328,22 +328,22 @@ export function SignalQueue({
         {previewSignal ? (
           <div
             id={`signal-review-body-${previewSignal.id}`}
-            className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-3"
+            className="flex shrink-0 flex-col gap-3"
             aria-labelledby={`signal-review-heading-${previewSignal.id}`}
           >
             <SignalReviewSuggestedAction
               signal={previewSignal}
-              className="min-w-0 lg:h-full"
+              className="min-w-0"
             />
             <FeedbackControls
               signal={previewSignal}
-              className="min-w-0 lg:h-full"
+              className="min-w-0"
             />
             {previewConversation ? (
               <GroundTruthControl
                 conversationId={previewConversation.id}
                 groundTruth={previewConversation.groundTruth}
-                className="min-w-0 lg:h-full"
+                className="min-w-0"
               />
             ) : null}
           </div>

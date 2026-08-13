@@ -47,7 +47,9 @@ function findJsonSignal(
 
 /**
  * Map each needs-review prediction to a display Signal, preserving Neon order.
- * Prefers JSON match (evidence/detail); falls back to a Neon stub.
+ * Prefers JSON match (evidence / local conversation). Unmatched Neon rows
+ * (stale Partner Demo runs with different conversation ids) are omitted so
+ * Insights never opens a card with no local chat.
  * Dedupes by JSON signal id when multiple Neon rows match the same local
  * signal (re-detect / dual-write races) so queue React keys stay unique.
  */
@@ -61,7 +63,6 @@ export function joinNeedsReviewPredictions(
   for (const prediction of predictions) {
     const matched = findJsonSignal(prediction, jsonSignals);
     if (!matched) {
-      joined.push(predictionToStubSignal(prediction));
       continue;
     }
     if (seenJsonIds.has(matched.id)) {

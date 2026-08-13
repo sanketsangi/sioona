@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.signal_feedback import FEEDBACK_LABELS, SignalFeedback
@@ -67,9 +68,22 @@ def record_feedback(
             reviewed_at=now,
         )
         db.add(row)
-        db.commit()
-        db.refresh(row)
-        return row
+        try:
+            db.commit()
+        except IntegrityError:
+            # Client retried after a timeout; the first insert landed.
+            db.rollback()
+            existing = db.scalar(
+                select(SignalFeedback).where(
+                    SignalFeedback.signal_id == signal_id,
+                    SignalFeedback.tenant_id == tenant_id,
+                )
+            )
+            if existing is None:
+                raise
+        else:
+            db.refresh(row)
+            return row
 
     existing.feedback = feedback
     existing.note = note

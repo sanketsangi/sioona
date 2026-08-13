@@ -7,6 +7,7 @@ import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { UploadView } from "@/components/views/UploadView";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
+import { joinNeedsReviewPredictions } from "@/lib/join-needs-review";
 import { buildHeaderNotifications } from "@/lib/notifications";
 import {
   parseSyncCreatedParam,
@@ -92,9 +93,11 @@ export default async function PlatformPage({
 
   const [backendScore, needsReview] = await Promise.all([
     fetchSignalScoreSafe(store.tenant.id),
-    fetchNeedsReview(store.tenant.id, 20),
+    fetchNeedsReview(store.tenant.id),
   ]);
-  const pendingCount = needsReview.ok ? needsReview.predictions.length : 0;
+  const pendingCount = needsReview.ok
+    ? joinNeedsReviewPredictions(needsReview.predictions, store.signals).length
+    : 0;
   const queueError = needsReview.ok ? null : needsReview.error;
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
   const notifications = buildHeaderNotifications({

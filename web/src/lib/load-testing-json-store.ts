@@ -51,7 +51,9 @@ export async function loadTestingJsonIntoStore(
   const inputs = parseTestingJsonDocument(content);
 
   const tenantId = emptyShowcaseStore.tenant.id;
-  const { conversations, messages } = toStoreRecords(inputs, tenantId);
+  const { conversations, messages } = toStoreRecords(inputs, tenantId, {
+    stableIds: true,
+  });
   const signals = runDetection(
     conversations,
     messages,

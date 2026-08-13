@@ -1,15 +1,29 @@
-import { ArrowRight } from "@phosphor-icons/react/ssr";
+import { useId } from "react";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const MAX_WHY_ITEMS = 2;
-
 type SignalReviewSuggestedActionProps = {
   signal: Signal;
   className?: string;
 };
+
+function EvidenceChip({ text }: { text: string }) {
+  const sep = text.indexOf(" · ");
+  const kindLabel = sep > 0 ? text.slice(0, sep) : null;
+  const value = sep > 0 ? text.slice(sep + 3) : text;
+
+  return (
+    <span className="inline-block max-w-full rounded-sm bg-sio-bg-muted px-2 py-0.5 text-label-12">
+      {kindLabel ? (
+        <span className="text-sio-fg-muted">{kindLabel}</span>
+      ) : null}
+      {kindLabel ? <span className="text-sio-fg-muted"> · </span> : null}
+      <span className="break-words text-pretty text-sio-fg-base">{value}</span>
+    </span>
+  );
+}
 
 /**
  * Suggested Next Action + Why This Fired — display-only metric-strip.
@@ -19,66 +33,90 @@ export function SignalReviewSuggestedAction({
   signal,
   className,
 }: SignalReviewSuggestedActionProps) {
+  const headingId = useId();
+  const whyId = useId();
   const isNeonStub = isNeonStubSignalId(signal.id);
-  const evidenceItems = signal.evidence.slice(0, MAX_WHY_ITEMS);
   const missingLocalJoin = isNeonStub || !signal.suggestedAction;
 
+  const formatted = signal.evidence.map((item) => ({
+    item,
+    ...formatEvidenceItem(item),
+  }));
+  const quotes = formatted.filter((entry) => entry.kind === "quote");
+  const matches = formatted.filter(
+    (entry) => entry.kind === "match" || entry.kind === "suppressed",
+  );
+  const hasEvidence = quotes.length > 0 || matches.length > 0;
+
   return (
-    <div className={cn("metric-strip flex flex-col", className)}>
-      <section className="min-w-0 px-3 py-3">
-        <div className="flex items-center gap-1.5">
-          <ArrowRight
-            className="size-3.5 shrink-0 text-sio-fg-muted"
-            weight="bold"
-            aria-hidden
-          />
-          <h3 className="text-label-12 font-semibold tracking-wide text-sio-fg-base">
-            Suggested Next Action
-          </h3>
-        </div>
-        <p className="mt-1.5 break-words text-pretty text-copy-14 font-medium text-sio-fg-base">
+    <section
+      className={cn("metric-strip flex flex-col", className)}
+      aria-labelledby={headingId}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
+        <h3 id={headingId} className="eyebrow">
+          Suggested Next Action
+        </h3>
+        <p className="text-label-12 text-sio-fg-muted">
+          Display-only — not sent by Sioona.
+        </p>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col px-3 py-3">
+        <p
+          className={cn(
+            "break-words text-pretty text-copy-14 font-medium",
+            missingLocalJoin ? "text-sio-fg-muted" : "text-sio-fg-base",
+          )}
+        >
           {missingLocalJoin
             ? "Unavailable — local detection join missing."
             : signal.suggestedAction}
         </p>
-        <p className="mt-1 text-label-12 text-sio-fg-muted">
-          Display-only — not sent by Sioona.
-        </p>
-      </section>
 
-      <div className="mx-3 border-t border-sio-border-base" aria-hidden />
+        <section
+          className="mt-3 border-t border-sio-border-base pt-3"
+          aria-labelledby={whyId}
+        >
+          <h4 id={whyId} className="text-label-12 font-medium text-sio-fg-muted">
+            Why This Fired
+          </h4>
 
-      <section className="min-w-0 px-3 py-3">
-        <h3 className="text-label-12 font-semibold tracking-wide text-sio-fg-base">
-          Why This Fired
-        </h3>
-        {evidenceItems.length > 0 ? (
-          <ul className="mt-1.5 space-y-1.5">
-            {evidenceItems.map((item) => {
-              const { kind, text } = formatEvidenceItem(item);
-              return (
-                <li key={item} className="min-w-0 text-copy-14">
-                  {kind === "quote" ? (
-                    <p className="break-words text-pretty text-sio-fg-subtle">
-                      “{text}”
-                    </p>
-                  ) : (
-                    <p className="break-words text-label-12 text-sio-fg-muted">
-                      {text}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="mt-1.5 text-copy-14 text-sio-fg-muted">
-            {isNeonStub
-              ? "No local evidence — detection join missing."
-              : "No local evidence."}
-          </p>
-        )}
-      </section>
-    </div>
+          {hasEvidence ? (
+            <div className="mt-1.5 flex flex-col gap-2">
+              {quotes.length > 0 ? (
+                <ul className="flex flex-col gap-2">
+                  {quotes.map(({ item, text }) => (
+                    <li key={item} className="min-w-0">
+                      <blockquote className="border-l border-sio-border-base pl-2.5">
+                        <p className="break-words text-pretty text-copy-14 text-sio-fg-subtle">
+                          “{text}”
+                        </p>
+                      </blockquote>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {matches.length > 0 ? (
+                <ul className="flex flex-wrap gap-1.5">
+                  {matches.map(({ item, text }) => (
+                    <li key={item} className="min-w-0 max-w-full">
+                      <EvidenceChip text={text} />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-1.5 break-words text-pretty text-copy-14 text-sio-fg-muted">
+              {isNeonStub
+                ? "No local evidence — detection join missing."
+                : "No local evidence."}
+            </p>
+          )}
+        </section>
+      </div>
+    </section>
   );
 }
