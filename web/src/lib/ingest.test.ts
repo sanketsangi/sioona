@@ -191,4 +191,29 @@ describe("toStoreRecords", () => {
     expect(result.conversations).toHaveLength(1);
     expect(result.messages).toHaveLength(1);
   });
+
+  it("stableIds derives conversation id from externalId", () => {
+    const first = toStoreRecords(
+      [
+        {
+          externalId: "priya_sharma_22",
+          messages: [{ role: "customer", content: "Hi" }],
+        },
+      ],
+      "tenant_demo",
+      { stableIds: true }
+    );
+    const second = toStoreRecords(
+      [
+        {
+          externalId: "priya_sharma_22",
+          messages: [{ role: "customer", content: "Hi again" }],
+        },
+      ],
+      "tenant_demo",
+      { stableIds: true }
+    );
+    expect(first.conversations[0].id).toBe("conv_priya_sharma_22");
+    expect(second.conversations[0].id).toBe("conv_priya_sharma_22");
+  });
 });

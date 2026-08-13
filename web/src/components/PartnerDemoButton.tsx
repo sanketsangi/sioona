@@ -50,7 +50,9 @@ export function PartnerDemoButton({
         );
       }
 
-      router.push(`/?${query.toString()}`);
+      // replace: drop a stale `?preview=sig_neon_…` from the prior queue so
+      // Back does not reopen an orphan card after the store reset.
+      router.replace(`/?${query.toString()}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Demo failed");

@@ -74,7 +74,7 @@ describe("joinNeedsReviewPredictions", () => {
     expect(joined.evidence).toEqual(["quote"]);
   });
 
-  it("stubs when no JSON match", () => {
+  it("omits unmatched Neon predictions (stale demo / no local chat)", () => {
     const preds = [
       prediction({
         id: "orphan",
@@ -82,11 +82,8 @@ describe("joinNeedsReviewPredictions", () => {
         summary: "Neon only",
       }),
     ];
-    const [joined] = joinNeedsReviewPredictions(preds, [baseSignal]);
-    expect(joined.id).toBe("sig_neon_orphan");
-    expect(joined.summary).toBe("Neon only");
-    expect(joined.backendSignalId).toBe("orphan");
-    expect(joined.evidence).toEqual([]);
+    const joined = joinNeedsReviewPredictions(preds, [baseSignal]);
+    expect(joined).toHaveLength(0);
   });
 
   it("omits JSON matches that already have feedback", () => {

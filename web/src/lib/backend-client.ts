@@ -7,10 +7,14 @@ const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
 /**
  * Fail hung FastAPI calls so dual-write retries can proceed.
- * Partner Demo writes ~12 predictions sequentially; cold Neon/Render can
- * exceed 2.5s on a single POST — keep headroom without blocking forever.
+ * Neon round-trips (especially writes) often land in the 3–8s range; 5s
+ * aborted Correct/Incorrect before FastAPI logged the POST.
  */
-export const BACKEND_FETCH_TIMEOUT_MS = 5000;
+export const BACKEND_FETCH_TIMEOUT_MS = 10_000;
+/** createPrediction / submitFeedback — Neon commits can exceed read latency. */
+export const BACKEND_MUTATION_TIMEOUT_MS = 15_000;
+const MUTATION_RETRY_BACKOFF_MS = [250, 800] as const;
+const MUTATION_MAX_ATTEMPTS = 2;
 
 export const VERCEL_BACKEND_MISCONFIG_MESSAGE =
   "BACKEND_URL unset or localhost on Vercel — set Production BACKEND_URL to the public FastAPI base URL";
@@ -129,27 +133,41 @@ export function assertBackendUrlConfigured(): string {
   return url;
 }
 
+type BackendFetchInit = RequestInit & { timeoutMs?: number };
+
+function isRetryableBackendError(err: unknown): boolean {
+  if (!(err instanceof BackendClientError)) return false;
+  if (err.status == null) return true;
+  return err.status >= 500;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function backendFetch<T>(
   tenantId: string,
   path: string,
-  init?: RequestInit
+  init?: BackendFetchInit
 ): Promise<T> {
   const url = `${assertBackendUrlConfigured()}${path}`;
+  const { timeoutMs: timeoutOverride, signal: userSignal, ...rest } = init ?? {};
+  const timeoutMs = timeoutOverride ?? BACKEND_FETCH_TIMEOUT_MS;
   const { signal: timeoutSignal, clear: clearTimeoutSignal } =
-    createTimeoutSignal(BACKEND_FETCH_TIMEOUT_MS);
-  const signal = init?.signal
-    ? combineAbortSignals(init.signal, timeoutSignal)
+    createTimeoutSignal(timeoutMs);
+  const signal = userSignal
+    ? combineAbortSignals(userSignal, timeoutSignal)
     : timeoutSignal;
 
   let response: Response;
   try {
     response = await fetch(url, {
-      ...init,
+      ...rest,
       signal,
       headers: {
         "Content-Type": "application/json",
         "X-Tenant-Id": tenantId,
-        ...(init?.headers ?? {}),
+        ...(rest.headers ?? {}),
       },
       cache: "no-store",
     });
@@ -157,7 +175,7 @@ async function backendFetch<T>(
     const name = err instanceof Error ? err.name : "";
     const detail =
       name === "AbortError"
-        ? `timed out after ${BACKEND_FETCH_TIMEOUT_MS}ms`
+        ? `timed out after ${timeoutMs}ms`
         : err instanceof Error
           ? err.message
           : "network error";
@@ -195,6 +213,7 @@ export async function createPrediction(
   return backendFetch<BackendPrediction>(tenantId, "/v1/predictions", {
     method: "POST",
     body: JSON.stringify(input),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
   });
 }
 
@@ -207,14 +226,36 @@ export async function submitFeedback(
     note?: string;
   }
 ): Promise<BackendFeedback> {
-  return backendFetch<BackendFeedback>(
-    tenantId,
-    `/v1/signals/${signalId}/feedback`,
-    {
-      method: "POST",
-      body: JSON.stringify(input),
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MUTATION_MAX_ATTEMPTS; attempt++) {
+    try {
+      return await backendFetch<BackendFeedback>(
+        tenantId,
+        `/v1/signals/${signalId}/feedback`,
+        {
+          method: "POST",
+          body: JSON.stringify(input),
+          timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+        }
+      );
+    } catch (err) {
+      lastError = err;
+      if (
+        !isRetryableBackendError(err) ||
+        attempt >= MUTATION_MAX_ATTEMPTS - 1
+      ) {
+        break;
+      }
+      const delay =
+        MUTATION_RETRY_BACKOFF_MS[
+          Math.min(attempt, MUTATION_RETRY_BACKOFF_MS.length - 1)
+        ] ?? MUTATION_RETRY_BACKOFF_MS[MUTATION_RETRY_BACKOFF_MS.length - 1];
+      await sleep(delay);
     }
-  );
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new BackendClientError("Failed to save feedback to Signal Score backend");
 }
 
 export async function getSignalScore(

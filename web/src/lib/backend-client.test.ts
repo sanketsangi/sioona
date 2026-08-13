@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   BACKEND_FETCH_TIMEOUT_MS,
+  BACKEND_MUTATION_TIMEOUT_MS,
   BackendClientError,
   VERCEL_BACKEND_MISCONFIG_MESSAGE,
   assertBackendUrlConfigured,
   createPrediction,
   getSignalScore,
+  submitFeedback,
 } from "./backend-client";
 
 afterEach(() => {
@@ -123,6 +125,61 @@ describe("backendFetch timeout", () => {
     expect((err as BackendClientError).message).toContain(
       `timed out after ${BACKEND_FETCH_TIMEOUT_MS}ms`
     );
+  });
+
+  it("retries submitFeedback after a timeout then succeeds", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_url: string, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            const signal = init?.signal;
+            if (!signal) {
+              reject(new Error("missing abort signal"));
+              return;
+            }
+            signal.addEventListener(
+              "abort",
+              () => {
+                reject(
+                  new DOMException("The operation was aborted.", "AbortError")
+                );
+              },
+              { once: true }
+            );
+          })
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: "fb-1",
+          tenant_id: "tenant_demo",
+          signal_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          feedback: "correct",
+          note: null,
+          reviewed_by: "shadow_reviewer",
+          reviewed_at: "2026-08-01T00:00:00.000Z",
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = submitFeedback(
+      "tenant_demo",
+      "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      { feedback: "correct", reviewed_by: "shadow_reviewer" }
+    ).then(
+      (value) => value,
+      (err: unknown) => err
+    );
+
+    await vi.advanceTimersByTimeAsync(BACKEND_MUTATION_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(250);
+
+    const result = await pending;
+    expect(result).toMatchObject({ feedback: "correct", id: "fb-1" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("still surfaces non-timeout network errors", async () => {

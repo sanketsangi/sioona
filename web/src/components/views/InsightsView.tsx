@@ -4,7 +4,6 @@ import { BoltIcon } from "@/components/icons/BoltIcon";
 import { ExternalIcon } from "@/components/icons/ExternalIcon";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
-import { JoinRecoveryBanner } from "@/components/JoinRecoveryBanner";
 import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { SignalQueue, SignalQueueFilters } from "@/components/SignalQueue";
 import {
@@ -31,10 +30,7 @@ import {
   joinNeedsReviewPredictions,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
-import {
-  isNeonStubSignalId,
-  shouldShowSyncFailureBanner,
-} from "@/lib/prediction-sync";
+import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Message, StoreData } from "@/lib/types";
 
@@ -149,16 +145,7 @@ export function InsightsView({
   const previewMessages = previewSignal
     ? (messagesByConversationId[previewSignal.conversationId] ?? [])
     : [];
-  const previewConversation = previewSignal
-    ? (conversationsById[previewSignal.conversationId] ?? null)
-    : null;
   const reviewOpen = Boolean(previewSignal && previewCustomerName != null);
-  const showJoinRecovery = Boolean(
-    previewSignal &&
-      isNeonStubSignalId(previewSignal.id) &&
-      previewMessages.length === 0 &&
-      !previewConversation,
-  );
   const breadcrumbPageLabel = (() => {
     if (!previewSignal || previewCustomerName == null) return null;
     const who = previewCustomerName.trim() || "Customer";
@@ -278,12 +265,8 @@ export function InsightsView({
         </NoteAction>
       </Note>
 
-      {showJoinRecovery && previewSignal ? (
-        <JoinRecoveryBanner signalId={previewSignal.id} />
-      ) : null}
-
       <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
           <div className="min-w-0">
             {reviewOpen && breadcrumbPageLabel ? (
               <Breadcrumb
@@ -319,7 +302,7 @@ export function InsightsView({
               </h2>
             )}
           </div>
-          <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 sm:w-auto">
+          <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
             {previewSignal && previewCustomerName != null ? (
               <OpenConversationHeaderAction
                 messages={previewMessages}

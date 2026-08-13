@@ -12,8 +12,7 @@ type OpenConversationHeaderActionProps = {
 
 /**
  * Insights header slot — Open Conversation beside Filters when the review
- * panel is open and local messages exist. Join recovery (Neon stub / missing
- * conversation) lives in JoinRecoveryBanner, not this slot.
+ * panel is open and local messages exist.
  */
 export function OpenConversationHeaderAction({
   messages,

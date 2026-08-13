@@ -271,16 +271,51 @@ export function parseIngestFile(
   return parseIngestDocument(filename, content).conversations;
 }
 
+export type ToStoreRecordsOptions = {
+  /**
+   * Derive conversation ids from externalId so Partner Demo / reset reloads
+   * join the same Neon predictions. Uploads keep unique ids (default) so
+   * re-ingest can append without colliding.
+   */
+  stableIds?: boolean;
+};
+
+/** Slug used when `stableIds` is on — `priya_sharma_22` → `conv_priya_sharma_22`. */
+export function stableConversationId(
+  externalId: string | undefined,
+  used: Set<string>
+): string {
+  const slug = (externalId ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 48);
+  const base = slug ? `conv_${slug}` : `conv_${randomUUID().slice(0, 8)}`;
+  let id = base;
+  let n = 2;
+  while (used.has(id)) {
+    id = `${base}_${n}`;
+    n += 1;
+  }
+  used.add(id);
+  return id;
+}
+
 export function toStoreRecords(
   inputs: IngestConversationInput[],
-  tenantId: string
+  tenantId: string,
+  options?: ToStoreRecordsOptions
 ): IngestResult {
   const conversations: Conversation[] = [];
   const messages: Message[] = [];
+  const usedIds = new Set<string>();
 
   for (const input of inputs) {
     if (!input.messages?.length) continue;
-    const conversationId = `conv_${randomUUID().slice(0, 8)}`;
+    const conversationId = options?.stableIds
+      ? stableConversationId(input.externalId, usedIds)
+      : `conv_${randomUUID().slice(0, 8)}`;
     const messageIds: string[] = [];
     const startedAt =
       input.startedAt ||
