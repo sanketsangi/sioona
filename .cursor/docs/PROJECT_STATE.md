@@ -1,8 +1,8 @@
 # Sioona — Project State (agent SoT)
 
 **Last updated:** 2026-08-13  
-**Stage:** MVP — Insights + Shadow Mode + Detect v2 (code + upsert live; Groq still **off**)  
-**Branch:** `production` (Detect v2 + upsert committed this run)
+**Stage:** MVP — Insights + Shadow Mode + Detect v2 (**on locally**; Vercel Production still **off**)  
+**Branch:** `production`
 
 This is the file new agent windows should read first. Update it when decisions, milestones, or “what we’re doing now” change. Human-facing pointer: [`docs/PROJECT_STATE.md`](../../docs/PROJECT_STATE.md).
 
@@ -14,14 +14,14 @@ This is the file new agent windows should read first. Update it when decisions, 
 
 | Slice | Status |
 | --- | --- |
-| Neon prediction **upsert** `(tenant_id, conversation_id, signal_type)` | **Live on Neon** — Alembic `002_prediction_upsert` applied 2026-08-13 (`alembic_version` = `002_prediction_upsert`; unique `uq_signal_predictions_tenant_conv_type`) |
-| Groq Qwen pass 2 on heuristic **misses only** | Code shipped — **off** (no `GROQ_API_KEY` this run; `DETECT_LLM` unset locally and on Vercel) |
+| Neon prediction **upsert** `(tenant_id, conversation_id, signal_type)` | **Live on Neon** — `002_prediction_upsert` + unique `uq_signal_predictions_tenant_conv_type` |
+| Groq Qwen pass 2 on heuristic **misses only** | **On locally** (`web/.env`: `DETECT_LLM=1` + key, gitignored). **Off on Vercel Production** (CLI not logged in — set dashboard vars) |
 | Retention ranks first in queue + `sortSignals` | Done |
 | Quiet Insights `?llmAdded=` / queue “Hybrid +N” after detect/demo | Done |
-| Live Groq eval on `testing.json` | **Blocked** — need founder Groq key (see §8). Heuristic-only still P **0.92** / R **0.41** |
+| Live Groq eval on `testing.json` | **Measured 2026-08-13** — see §3. FP stayed 1. Groq **429** ate most of concurrency 8 |
 | Real partner transcript | **Not required to keep building**; required before claiming recall is real |
 
-**Detect v2 is not live.** Upsert + hybrid code are in git and 002 is on Neon. Pass 2 never runs until `DETECT_LLM=1` + `GROQ_API_KEY` are set locally and on Vercel Production.
+**Detect v2:** local yes (key + 002). Hosted pass 2 **not live** until Vercel Production `DETECT_LLM=1` + `GROQ_API_KEY`. Do not put the key in this file.
 
 **Do not:** Auth0, full Neon chats, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish.
 
@@ -75,8 +75,17 @@ runHybridDetection
 - Evidence includes `llm: <model>` so reviewers can see the source
 - Wired from: `/api/detect`, `/api/ingest`, `/api/store` redetect, Partner Demo (`load-testing-json-store.ts`)
 - Tests: `web/src/lib/detect-llm.test.ts` (injected classifier lifts `testing.json` recall, FP not worse)
-- **Heuristic-only** (current live path): P **0.92** / R **0.41** on `testing.json` (TP 11 / FP 1 / FN 16). Fixture + partner-pack still P/R **1.0**
-- **Live hybrid vs heuristic:** not measured — Groq key not provided this run
+- **Heuristic-only:** P **0.92** / R **0.41** (TP 11 / FP 1 / FN 16). Fixture + partner-pack still P/R **1.0**
+- **Live hybrid vs heuristic** (2026-08-13, `qwen/qwen3.6-27b`, 29 miss candidates, concurrency 8):
+
+| | P | R | TP | FP | FN |
+| --- | --- | --- | --- | --- | --- |
+| Heuristic | 0.92 | 0.41 | 11 | 1 | 16 |
+| Hybrid | **0.93** | **0.48** | 13 | **1** | 14 |
+
+Per-type hybrid: lead P 0.67 / R 0.25 (unchanged); retention P 1.00 / R **0.57** (was 0.50); upsell P 1.00 / R **0.60** (was 0.40).  
+LLM stats: attempted 29 / added 2 / failed 20 / skipped 0. FP **not** > 1 (same `nisha_agarwal_84` lead-vs-upsell heuristic FP).  
+Follow-up probe: 8 parallel Groq calls → **1×200 + 7×429** `rate_limit_exceeded`. Fail-soft kept precision; recall lift is a lower bound until RPM allows concurrency 8 (or we drop concurrency later — do **not** move classify to FastAPI in that pass).
 
 **Env (web, server-only):**
 
@@ -113,11 +122,11 @@ Path alias `@/*` → `web/src/*`.
 
 ## 5. Hosted demo (as of 2026-08-13)
 
-- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` set; **Detect v2 env not set**
-- API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`** (not `production`)
+- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` set; **Detect v2 env still unset** (pass 2 off on hosted)
+- API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`**
 - Neon: `002_prediction_upsert` on; needs-review live
 - Vercel store is ephemeral (`/tmp`) — reseeds from `testing.json`
-- Vercel CLI not logged in this machine — set Groq env in dashboard when key exists (see `web/DEPLOY.md`)
+- Vercel CLI not logged in — set Production `DETECT_LLM=1` + `GROQ_API_KEY` in dashboard, then redeploy (see `web/DEPLOY.md`). Cap Groq **$20/mo**
 
 ---
 
@@ -128,7 +137,7 @@ Path alias `@/*` → `web/src/*`.
 - Eval: labeled P/R, Signal Score, baseline lift, Adapt from incorrect/partial (manual phrases/negatives)
 - Partner Demo = `testing.json` only (stable conv ids from `externalId`)
 - Dual-write retries; feedback lazy-create; unmatched Neon rows **omitted** (no stub cards)
-- Detect v2 hybrid code + Neon upsert `002` (2026-08-13) — Groq still off
+- Detect v2 hybrid code + Neon upsert `002` (2026-08-13); Groq on locally; hosted pass 2 still waiting on Vercel env
 
 ---
 
@@ -145,9 +154,10 @@ Path alias `@/*` → `web/src/*`.
 
 ## 8. Ask the founder (open)
 
-1. **Groq API key** — paste in chat (or set yourself). Local: `web/.env` with `DETECT_LLM=1` + `GROQ_API_KEY` (gitignored). Vercel Production: same two vars, then redeploy. Until then pass 2 never runs. Cap **$20/mo** in Groq console.
-2. ~~Commit + deploy backend / apply `002`~~ **Done** 2026-08-13 (Neon head = `002_prediction_upsert`).
-3. Optional: delete unused Render service `sioona` (`sioona.onrender.com`).
+1. ~~Groq key locally~~ **Done** — `web/.env` has `DETECT_LLM=1` + key (gitignored).
+2. **Vercel Production** — set `DETECT_LLM=1` + `GROQ_API_KEY` (Sensitive), Production only, then redeploy. Cap **$20/mo** in Groq console. CLI not logged in on this machine.
+3. Groq **429** at concurrency 8 (free/dev RPM). Next code slice: lower concurrency or `DETECT_LLM_MAX_CALLS`, not FastAPI classify.
+4. Optional: delete unused Render service `sioona` (`sioona.onrender.com`).
 
 Do **not** wait for a pilot export to continue Detect v2.
 
@@ -155,9 +165,9 @@ Do **not** wait for a pilot export to continue Detect v2.
 
 ## 9. Next Detect v2 slices (ordered)
 
-1. Founder pastes Groq key → turn on locally + Vercel Production → live `testing.json` hybrid vs heuristic (watch FP > 1)
-2. Partner Demo on sioona-demo after upsert deploy (no orphan cards)
-3. If Vercel 10s Hobby timeout bites: lower `DETECT_LLM_MAX_CALLS` only (do not move classify to FastAPI in that pass)
+1. Set Vercel Production Groq env + redeploy (hosted Detect v2)
+2. If 429 or Hobby 10s timeout: lower `DETECT_LLM_MAX_CALLS` (and/or concurrency) only — do not move classify to FastAPI
+3. Partner Demo on sioona-demo (upsert already on Neon)
 4. Then stop. Next heading after v2 is durable chats on Neon + `status: acted` — still not Auth0
 
 ---
