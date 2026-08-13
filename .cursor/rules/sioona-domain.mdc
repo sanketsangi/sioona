@@ -17,15 +17,18 @@ alwaysApply: false
 
 Taxonomy SoT: `web/src/lib/taxonomy.ts`. Types: `web/src/lib/types.ts`.
 
-## Detection (`detect.ts`)
+## Detection (`detect.ts` + `detect-llm.ts`)
 
 - Score **customer** messages only (ignore agent/system for matching)
-- Keyword/phrase heuristics; threshold ~0.35; top-1 (+ near-tie)
+- Pass 1: keyword/phrase heuristics; threshold ~0.35; top-1 (+ near-tie)
 - Phrases weigh more than keywords; weak/ambiguous keywords weigh less
 - Short tokens use word boundaries; `negativePhrases` in taxonomy zero that type’s score
+- Pass 2 (Detect v2): `runHybridDetection` — Groq Qwen on conversations with **zero** heuristic signals only; never overrides a heuristic hit; env `DETECT_LLM=1` + `GROQ_API_KEY`; max 8 calls; fail-soft
+- Primary type for ranking / LLM prompt: **retention** (then upsell, then lead)
 - Today `confidence === score` — do not invent a separate model score
 - Suggested actions are **Shadow Mode display-only** — never execute them
-- Unit tests: `src/lib/detect.test.ts`, `ingest.test.ts`, `eval.test.ts` (`npm test`)
+- Predictions upsert on `(tenant_id, conversation_id, signal_type)` in Neon
+- Unit tests: `src/lib/detect.test.ts`, `detect-llm.test.ts`, `ingest.test.ts`, `eval.test.ts` (`npm test`)
 
 ## Ingest / store / eval
 

@@ -6,7 +6,16 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, Index, String, Text, Uuid, func
+from sqlalchemy import (
+    DateTime,
+    Float,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -20,6 +29,12 @@ class SignalPrediction(Base):
 
     __tablename__ = "signal_predictions"
     __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "conversation_id",
+            "signal_type",
+            name="uq_signal_predictions_tenant_conv_type",
+        ),
         Index("ix_signal_predictions_tenant_id", "tenant_id"),
         Index("ix_signal_predictions_conversation_id", "conversation_id"),
         Index("ix_signal_predictions_signal_type", "signal_type"),

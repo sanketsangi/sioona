@@ -92,5 +92,8 @@ describe("testing.json synthetic eval", () => {
     expect(summary).toContain("retention:");
     expect(summary).toContain("upsell:");
     expect(Array.isArray(confusion)).toBe(true);
+
+    // Heuristic measurement baseline (Detect v2 off). Hybrid lift is in detect-llm.test.ts.
+    expect(metrics.labeledRecall).not.toBeNull();
   });
 });

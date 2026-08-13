@@ -60,6 +60,7 @@ describe("syncPredictionsToBackend", () => {
     expect(sync).toEqual({
       attempted: 1,
       created: 1,
+      updated: 0,
       failed: 0,
       skipped: 0,
     });
@@ -75,8 +76,12 @@ describe("syncPredictionsToBackend", () => {
     );
   });
 
-  it("skips signals that already have backendSignalId", async () => {
-    const fetchMock = vi.fn();
+  it("upserts signals that already have backendSignalId", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ ...createdBody, id: "existing-id" }),
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const { signals, sync } = await syncPredictionsToBackend(
@@ -85,9 +90,10 @@ describe("syncPredictionsToBackend", () => {
     );
 
     expect(signals[0].backendSignalId).toBe("existing-id");
-    expect(sync.skipped).toBe(1);
-    expect(sync.attempted).toBe(0);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sync.updated).toBe(1);
+    expect(sync.created).toBe(0);
+    expect(sync.attempted).toBe(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("retries with backoff after one transient failure then succeeds", async () => {
@@ -138,6 +144,7 @@ describe("syncPredictionsToBackend", () => {
     expect(sync).toEqual({
       attempted: 1,
       created: 1,
+      updated: 0,
       failed: 0,
       skipped: 0,
     });

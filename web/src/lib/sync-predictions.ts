@@ -19,6 +19,7 @@ export const PREDICTION_SYNC_CONCURRENCY = 6;
 export type PredictionSyncStats = {
   attempted: number;
   created: number;
+  updated: number;
   failed: number;
   skipped: number;
 };
@@ -98,11 +99,11 @@ type SyncRow = {
   signal: Signal;
   attempted: boolean;
   created: boolean;
+  updated: boolean;
   failed: boolean;
-  skipped: boolean;
 };
 
-/** POST predictions missing a backend id; preserve existing backendSignalId. */
+/** Upsert every signal so re-detect updates the same Neon row. */
 export async function syncPredictionsToBackend(
   signals: Signal[],
   tenantId: string,
@@ -114,24 +115,15 @@ export async function syncPredictionsToBackend(
     signals,
     PREDICTION_SYNC_CONCURRENCY,
     async (signal): Promise<SyncRow> => {
-      if (signal.backendSignalId) {
-        return {
-          signal,
-          attempted: false,
-          created: false,
-          failed: false,
-          skipped: true,
-        };
-      }
-
+      const hadId = Boolean(signal.backendSignalId);
       try {
-        const created = await createPredictionWithRetry(tenantId, signal, sleep);
+        const upserted = await createPredictionWithRetry(tenantId, signal, sleep);
         return {
-          signal: { ...signal, backendSignalId: created.id },
+          signal: { ...signal, backendSignalId: upserted.id },
           attempted: true,
-          created: true,
+          created: !hadId,
+          updated: hadId,
           failed: false,
-          skipped: false,
         };
       } catch (err) {
         const detail = err instanceof Error ? err.message : "unknown error";
@@ -142,8 +134,8 @@ export async function syncPredictionsToBackend(
           signal,
           attempted: true,
           created: false,
+          updated: false,
           failed: true,
-          skipped: false,
         };
       }
     }
@@ -152,15 +144,16 @@ export async function syncPredictionsToBackend(
   const sync: PredictionSyncStats = {
     attempted: 0,
     created: 0,
+    updated: 0,
     failed: 0,
     skipped: 0,
   };
   const synced: Signal[] = [];
   for (const row of rows) {
     synced.push(row.signal);
-    if (row.skipped) sync.skipped += 1;
     if (row.attempted) sync.attempted += 1;
     if (row.created) sync.created += 1;
+    if (row.updated) sync.updated += 1;
     if (row.failed) sync.failed += 1;
   }
 

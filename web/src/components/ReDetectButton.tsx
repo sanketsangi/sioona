@@ -6,6 +6,10 @@ import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { RefreshClockwiseIcon } from "@/components/icons/RefreshClockwiseIcon";
 import { cn } from "@/lib/utils";
 import {
+  llmQueryExtras,
+  parseLlmPassStats,
+} from "@/lib/detect-llm-query";
+import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
@@ -24,6 +28,7 @@ export function ReDetectButton({ className }: { className?: string }) {
       const data = (await res.json()) as {
         error?: string;
         predictionSync?: unknown;
+        detectLlm?: unknown;
       };
       if (!res.ok) {
         throw new Error(data.error || "Detection failed");
@@ -37,9 +42,14 @@ export function ReDetectButton({ className }: { className?: string }) {
       // Clear prior sync failure markers, then re-apply if still failing
       params.delete("syncFailed");
       params.delete("syncCreated");
+      params.delete("llmAdded");
+      params.delete("llmFailed");
       const extras = syncQueryExtras(sync);
       if (extras.syncFailed) params.set("syncFailed", extras.syncFailed);
       if (extras.syncCreated) params.set("syncCreated", extras.syncCreated);
+      const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
+      if (llmExtras.llmAdded) params.set("llmAdded", llmExtras.llmAdded);
+      if (llmExtras.llmFailed) params.set("llmFailed", llmExtras.llmFailed);
 
       if (hasSyncFailures(sync) && sync) {
         setError(

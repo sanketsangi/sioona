@@ -1,6 +1,9 @@
 import { promises as fs } from "fs";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
-import { runDetection } from "./detect";
+import {
+  runHybridDetection,
+  type LlmPassStats,
+} from "./detect-llm";
 import { toStoreRecords } from "./ingest";
 import {
   DEMO_BASELINE_NOTE,
@@ -26,6 +29,7 @@ export interface LoadTestingJsonResult {
   samples: string[];
   absolutePath: string;
   predictionSync: PredictionSyncStats;
+  detectLlm: LlmPassStats;
 }
 
 export interface LoadTestingJsonOptions {
@@ -54,7 +58,7 @@ export async function loadTestingJsonIntoStore(
   const { conversations, messages } = toStoreRecords(inputs, tenantId, {
     stableIds: true,
   });
-  const signals = runDetection(
+  const { signals, llm } = await runHybridDetection(
     conversations,
     messages,
     tenantId,
@@ -71,6 +75,7 @@ export async function loadTestingJsonIntoStore(
   let predictionSync: PredictionSyncStats = {
     attempted: 0,
     created: 0,
+    updated: 0,
     failed: 0,
     skipped: 0,
   };
@@ -102,5 +107,6 @@ export async function loadTestingJsonIntoStore(
     samples: [SHOWCASE_SAMPLE_NAME],
     absolutePath,
     predictionSync,
+    detectLlm: llm,
   };
 }

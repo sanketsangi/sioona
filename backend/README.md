@@ -38,6 +38,8 @@ cp .env.example .env
 alembic upgrade head
 ```
 
+`002_prediction_upsert` unique-indexes `(tenant_id, conversation_id, signal_type)` so re-detect updates the same Neon row. Run this on Neon before relying on Detect v2 dual-write.
+
 ## Run
 
 ```bash

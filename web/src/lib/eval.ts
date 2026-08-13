@@ -3,6 +3,13 @@ import type { Signal, SignalType, StoreData } from "./types";
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
 
+/** Queue / list rank — retention is the primary product signal. */
+export const SIGNAL_TYPE_RANK: Record<SignalType, number> = {
+  retention: 0,
+  upsell: 1,
+  lead: 2,
+};
+
 export interface TypeEvalMetrics {
   type: SignalType;
   labeledCount: number;
@@ -155,6 +162,8 @@ export function computeEvalMetrics(store: StoreData): EvalMetrics {
 
 export function sortSignals(signals: Signal[]): Signal[] {
   return [...signals].sort((a, b) => {
+    const typeDelta = SIGNAL_TYPE_RANK[a.type] - SIGNAL_TYPE_RANK[b.type];
+    if (typeDelta !== 0) return typeDelta;
     if (b.score !== a.score) return b.score - a.score;
     return b.createdAt.localeCompare(a.createdAt);
   });

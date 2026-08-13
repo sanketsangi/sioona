@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runDetection } from "@/lib/detect";
+import { runHybridDetection } from "@/lib/detect-llm";
 import {
   parseIngestDocument,
   toStoreRecords,
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     store.conversations.push(...conversations);
     store.messages.push(...messages);
 
-    const newSignals = runDetection(
+    const { signals: newSignals, llm } = await runHybridDetection(
       conversations,
       messages,
       store.tenant.id,
@@ -79,6 +79,7 @@ export async function POST(request: Request) {
       hint: newSignals.length === 0 ? ZERO_SIGNAL_HINT : undefined,
       signals: sortSignals(store.signals),
       predictionSync: sync,
+      detectLlm: llm,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Ingest failed";

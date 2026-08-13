@@ -234,3 +234,20 @@ def test_needs_review_excludes_reviewed(db: Session) -> None:
     ids = [s.id for s in queue]
     assert open_sig.id in ids
     assert reviewed.id not in ids
+
+
+def test_needs_review_ranks_retention_first(db: Session) -> None:
+    lead = _pred(db, conversation_id="c_lead", signal_type="lead")
+    upsell = _pred(db, conversation_id="c_upsell", signal_type="upsell")
+    retention = _pred(db, conversation_id="c_ret", signal_type="retention")
+    newer_lead = _pred(db, conversation_id="c_lead2", signal_type="lead")
+    newer_lead.created_at = datetime.now(timezone.utc) + timedelta(seconds=5)
+    db.commit()
+
+    queue = list_signals_needing_review(db, "tenant_a", limit=20)
+    types = [row.signal_type for row in queue]
+    assert types[0] == "retention"
+    assert "upsell" in types
+    assert types.index("retention") < types.index("upsell")
+    assert types.index("upsell") < types.index("lead")
+    assert {lead.id, upsell.id, retention.id, newer_lead.id} <= {row.id for row in queue}
