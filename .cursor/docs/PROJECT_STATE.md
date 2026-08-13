@@ -10,23 +10,23 @@ This is the file new agent windows should read first. Update it when decisions, 
 
 ## 0. What we are doing now
 
-**Heading: real partner transcript** — next leftover. **GT-on-Neon done this pass**. Conversation `ground_truth` on Neon (`005`); dual-write from ingest / Partner Demo / GroundTruthControl; cold-start hydrate restores labels onto conversations + matching signals. Taxonomy still JSON. JSON remains UI SoT when a file exists. Do not claim customer recall. Still not Auth0, not vLLM, not Action Mode, not Insights chrome.
+**Heading: real partner transcript** — next leftover. **GT-on-Neon hosted verified** (PR #24). Neon `alembic_version` = `005_conversation_ground_truth`; Partner Demo dual-wrote 41 labeled chats (`conversationSync.failed=0`); sample `conv_rajesh_thakur_26` → `ground_truth=lead`. After Vercel Production redeploy (empty `/tmp`), Eval Labeled showed restored GT (e.g. Varun Khanna `upsell`, Aditya Kapoor `retention` + matching predicted retention). Taxonomy still JSON. Do not claim customer recall. Still not Auth0, not vLLM, not Action Mode, not Insights chrome.
 
 | Slice | Status |
 | --- | --- |
 | Detect v2 (hybrid Groq pass 2) | **Closed 2026-08-14** — hosted Partner Demo verified on sioona-demo: Hybrid +N / `?llmAdded=`, retention first, no `syncFailed`. Concurrency-2 on `main` (PR #21). Groq **Free** ($0). See §3 |
 | Neon prediction **upsert** `(tenant_id, conversation_id, signal_type)` | **Live on Neon** — `002_prediction_upsert` |
 | Durable chats slice 1 (conversations + messages) | **Closed 2026-08-14** — FastAPI + Alembic `003_conversations_messages` **applied on hosted Neon** (PR #22). Dual-write from ingest / Partner Demo / reset |
-| Neon chat hydrate (cold start) | **Closed 2026-08-14** — miss-path GET chats + detect + prediction sync + **feedback restore** (`GET /v1/tenants/{id}/signals`); JSON SoT when file exists; taxonomy stays JSON. **003+004 live; hydrate path armed** (true `/tmp` cold-start restore not forced this pass). GT restore added with `005` |
+| Neon chat hydrate (cold start) | **Closed 2026-08-14** — miss-path GET chats + detect + prediction sync + **feedback/Acted/GT restore**; JSON SoT when file exists; taxonomy stays JSON. **003+004+005 live**; Vercel redeploy cold-start verified GT restore into Eval (PR #24) |
 | Shadow Mode `status: acted` | **Closed 2026-08-14** — reviewed signals only; JSON persist + re-detect keep; SignalStatus `CANCELED` / Acted; no outbound send. **`004_prediction_acted` applied on hosted Neon**; dual-write fail-soft; hydrate restores Acted |
 | Groq plan / $20 spend cap | **Blocked** — Free; Developer upgrade unavailable. Do **not** Create Project model limits |
 | Real-partner-export hybrid eval | **Done 2026-08-14** — async loader always scores heuristic; optional hybrid via inject/`DETECT_LLM=1`+`GROQ_API_KEY`; tests never call Groq; `cd web && npm run eval:partner-export`. No `local.csv` this pass — template is not customer recall |
 | Ingest upsert by `externalId` | **Done 2026-08-14** — mid-week re-upload merges JSON chats; keep existing `conversation.id`; feedback/Acted via `mergeSignalsPreservingFeedback` |
 | Upload replaces showcase | **Done 2026-08-14** — Day-1 partner CSV replaces JSON showcase; Neon prune leftover `tenant_demo` conversation_ids (fail-soft 404); confirm before replace |
-| GT-on-Neon | **Closed 2026-08-14** — Alembic `005_conversation_ground_truth`; upsert + PATCH; hydrate restores labeled Eval; taxonomy still JSON |
+| GT-on-Neon | **Hosted verified 2026-08-14** (PR #24) — Alembic `005_conversation_ground_truth` on Neon; dual-write + omit/null keep + PATCH clear; cold-start hydrate restores labeled Eval; taxonomy still JSON |
 | Real partner transcript | **Next** — required before claiming recall is real; not required to keep building |
 
-**Detect v2 is done.** Hydrate / 003 / 004 are on hosted Neon. GT-on-Neon (`005`) is in this slice (apply on next Render deploy). How Detect v2 works stays in §3. Do not put keys/tokens in this file.
+**Detect v2 is done.** Hydrate / 003 / 004 / **005** are on hosted Neon. How Detect v2 works stays in §3. Do not put keys/tokens in this file.
 
 **Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon.
 
@@ -49,7 +49,7 @@ Primary product signal for Detect v2: **retention** (lead/upsell secondary).
 | App | Next.js 15/16 App Router, React 19, Tailwind, Geist (`web/`) | — |
 | API | FastAPI Signal Score only (`backend/`) | Auth0-gated multi-tenant API |
 | Detect | `detect.ts` heuristics + optional `detect-llm.ts` Groq pass 2 | vLLM / LangGraph / QLoRA |
-| Data | JSON `store.ts` for chats/taxonomy (**UI SoT** when a file exists); **Neon** for predictions + feedback + Acted (`004`) + dual-written conversations/messages + conversation `ground_truth` (`005`) + **cold-start chat hydrate** (feedback + GT restored after detect+sync) | Full Neon chat SoT + taxonomy + pgvector |
+| Data | JSON `store.ts` for chats/taxonomy (**UI SoT** when a file exists); **Neon** for predictions + feedback + Acted (`004`) + dual-written conversations/messages + conversation `ground_truth` (`005` **hosted**) + **cold-start chat hydrate** (feedback + GT restored after detect+sync) | Full Neon chat SoT + taxonomy + pgvector |
 | Auth | `X-Tenant-Id` (`tenant_demo`) | Auth0 |
 | Hosting | Vercel `sioona-demo.vercel.app` + Render `sioona-api.onrender.com` (free, sleeps) + Neon project `sioona` (free, 0.25 CU) | Render Starter / Neon Launch if sleep hurts |
 | Score SoT | FastAPI + Neon | — |
@@ -133,9 +133,9 @@ Path alias `@/*` → `web/src/*`.
 ## 5. Hosted demo (as of 2026-08-14)
 
 - App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env set. **Partner Demo verified 2026-08-14 (PR #22):** 41 chats dual-written, `predictionSync.failed=0`, `conversationSync.failed=0`, Hybrid +1 / no `syncFailed`, Insights queue loads (needs-review 20, retention first). Preview/Dev Groq unset
-- API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`** (PR #22 shipped 003+004)
-- Neon: `002_prediction_upsert` + **`003_conversations_messages` + `004_prediction_acted` applied** (`alembic_version` = `004_prediction_acted`). `005_conversation_ground_truth` ships with this slice (Render `alembic upgrade head` on deploy). `GET /v1/tenants/tenant_demo/conversations` and `GET /v1/tenants/tenant_demo/signals` are live (not 404)
-- Vercel store is ephemeral (`/tmp`) — **003+004 live; hydrate path armed**; GT dual-write + hydrate restore in this slice. On miss, GET Neon chats then join feedback/Acted + conversation `ground_truth` after detect+sync; else reseed `testing.json`. True `/tmp` cold-start restore only proves on a new serverless instance (not forced this pass)
+- API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`** (PR #24 shipped `005`; build runs `alembic upgrade head`)
+- Neon: `002` + `003` + `004` + **`005_conversation_ground_truth` applied** (`alembic_version` = `005_conversation_ground_truth`). `GET /v1/tenants/tenant_demo/conversations` returns `ground_truth` (41 labeled after Partner Demo; sample `conv_rajesh_thakur_26` = `lead`). Signals GET live
+- Vercel store is ephemeral (`/tmp`) — **003+004+005 live**. On miss, GET Neon chats then join feedback/Acted + conversation `ground_truth` after detect+sync; else reseed `testing.json`. **Cold-start verified 2026-08-14:** Production redeploy → Eval Labeled Conversations showed restored GT (not blank)
 - Vercel: project API token in `web/.env` as `VERCEL_TOKEN` (gitignored). MCP is read-only for env; REST upsert works. CLI `whoami` still fails on this token type
 
 ---
@@ -148,12 +148,12 @@ Path alias `@/*` → `web/src/*`.
 - Partner Demo = `testing.json` only (stable conv ids from `externalId`)
 - Dual-write retries; feedback lazy-create; unmatched Neon rows **omitted** (no stub cards)
 - Durable chats slice 1: `conversations` + `messages` upsert `(tenant_id, conversation_id)` / `(tenant_id, message_id)`; fail-soft dual-write; **hosted `003` applied** (PR #22)
-- Neon chat hydrate (cold start): miss-path GET `tenant_demo` → map `conversation_id`/`message_id` + `ground_truth` → detect + prediction sync → GET tenant signals + join feedback/Acted by `backendSignalId` or conversation+type → copy conversation GT onto matching signals → `writeStore`; empty/down → `testing.json`; existing file unchanged; feedback GET timeout fail-soft. **003+004 live; hydrate path armed**; GT restore with `005`
-- **GT-on-Neon** (2026-08-14) — `conversations.ground_truth` nullable (`lead|retention|upsell|none|null`); dual-write from ingest / Partner Demo / label UI; omit/null on upsert does not wipe; PATCH `null` or `clear_ground_truth` clears; hydrate restores labeled Eval; taxonomy still JSON. Do not claim customer recall
+- Neon chat hydrate (cold start): miss-path GET `tenant_demo` → map `conversation_id`/`message_id` + `ground_truth` → detect + prediction sync → GET tenant signals + join feedback/Acted by `backendSignalId` or conversation+type → copy conversation GT onto matching signals → `writeStore`; empty/down → `testing.json`; existing file unchanged; feedback GET timeout fail-soft. **003+004+005 live; cold-start GT restore verified** (Vercel redeploy)
+- **GT-on-Neon hosted verified** (2026-08-14, PR #24) — `conversations.ground_truth` nullable (`lead|retention|upsell|none|null`); dual-write from ingest / Partner Demo / label UI; omit/null on upsert does not wipe; PATCH `null` or `clear_ground_truth` clears; no taxonomy table on Neon. Do not claim customer recall
 - Shadow Mode `status: acted`: `setSignalActed` after feedback; JSON persist + fail-soft dual-write to Neon `004` (**hosted applied**); survives `mergeSignalsPreservingFeedback` and hydrate; queue/detail via existing `SignalStatus`; no Intercom/WhatsApp/email send
 - Detect v2 hybrid + Neon upsert `002` + concurrency **2** (PR #21 on `main`); Groq Free ($0); classify stays in Next.js
 - **Hosted Detect v2 closed** (2026-08-14) — Partner Demo on sioona-demo: Hybrid +N / `?llmAdded=`, retention first, no `syncFailed`
-- **Hosted hydrate + 003/004 closed** (2026-08-14, PR #22) — Alembic head `004_prediction_acted`; Partner Demo dual-wrote 41 chats / 231 messages; Insights queue loads
+- **Hosted hydrate + 003/004 closed** (2026-08-14, PR #22) — then **`005` hosted verified** (PR #24); Partner Demo dual-wrote 41 chats / 231 messages with GT; Insights queue loads
 - **Real-partner-export hybrid eval** (2026-08-14) — async loader scores heuristic always + optional hybrid (inject or env); `npm run eval:partner-export`; tests never call Groq. No `local.csv` this pass — template P/R is not customer proof
 - Confirmed Groq Project Limits ≠ spend cap; left model limits at org max
 
@@ -183,15 +183,15 @@ Do **not** Create Limits on `/settings/project/limits`. Durable Neon chats + hyd
 ## 9. Next slices (ordered)
 
 1. ~~Durable chats on Neon — conversations / messages~~ **Closed 2026-08-14** — dual-write live; hosted `003` applied (PR #22)
-2. ~~Neon chat hydrate on cold start~~ **Closed 2026-08-14** — miss-path + detect + prediction sync + **feedback/Acted restore**; JSON SoT when file exists; taxonomy stays JSON. Hosted `003`+`004` applied. **003+004 live; hydrate path armed** (cold-start restore not forced). GT restore added with `005`. Still not Auth0
+2. ~~Neon chat hydrate on cold start~~ **Closed 2026-08-14** — miss-path + detect + prediction sync + **feedback/Acted/GT restore**; JSON SoT when file exists; taxonomy stays JSON. Hosted `003`+`004`+`005` applied; cold-start GT restore verified (PR #24). Still not Auth0
 3. ~~`status: acted`~~ **Closed 2026-08-14** — Shadow Mode JSON persist after review; hosted Neon `004` + hydrate restore; SignalStatus Acted; no live actions
 4. ~~**Real-partner-export hybrid eval**~~ **Closed 2026-08-14** — loader + tests + `eval:partner-export`; template is measurement only (not customer proof). No `local.csv` this pass
 5. ~~**Ingest upsert by externalId**~~ **Closed 2026-08-14** — partner re-upload merges JSON by `externalId`; Neon upserts unchanged; feedback/Acted kept
 6. ~~**Upload replaces showcase**~~ **Closed 2026-08-14** — Day-1 partner upload replaces JSON showcase; confirm; Neon prune leftover `tenant_demo` conversation_ids (fail-soft 404). Mid-week still merges
-7. ~~**GT-on-Neon**~~ **Closed 2026-08-14** — labeled Eval survives Vercel `/tmp`; taxonomy still JSON
+7. ~~**GT-on-Neon**~~ **Hosted verified 2026-08-14** (PR #24) — Neon head `005_conversation_ground_truth`; labeled Eval survives Vercel `/tmp` cold-start; taxonomy still JSON
 8. **Real partner transcript** — a real `web/data/samples/real-partner-export.local.csv` when the founder drops one (then re-run `npm run eval:partner-export`; do not claim recall from the template). When Groq Developer is available: monthly spend **20** + alerts (does not block building)
 
-~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). ~~Hydrate / 003 / 004~~ **Closed** (hosted 2026-08-14, PR #22). ~~GT-on-Neon / 005~~ **Closed** (2026-08-14). Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, Insights chrome, or taxonomy-on-Neon.
+~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). ~~Hydrate / 003 / 004~~ **Closed** (hosted 2026-08-14, PR #22). ~~GT-on-Neon / 005~~ **Hosted verified** (2026-08-14, PR #24). Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, Insights chrome, or taxonomy-on-Neon.
 
 ---
 
