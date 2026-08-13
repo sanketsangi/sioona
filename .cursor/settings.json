@@ -5,6 +5,12 @@
     },
     "neon-postgres": {
       "enabled": true
+    },
+    "render": {
+      "enabled": true
+    },
+    "figma": {
+      "enabled": true
     }
   }
 }

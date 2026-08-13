@@ -5,17 +5,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models.conversation import Conversation
+from app.models.conversation import GROUND_TRUTH_VALUES, Conversation
 from app.models.message import MESSAGE_ROLES, Message
+from app.models.signal_feedback import SignalFeedback
+from app.models.signal_prediction import SignalPrediction
 from app.schemas.conversation import ConversationUpsert, MessageUpsert
 
 
 class InvalidMessageRoleError(ValueError):
     """Raised when a message role is not customer|agent|system."""
+
+
+class InvalidGroundTruthError(ValueError):
+    """Raised when ground_truth is not lead|retention|upsell|none|null."""
 
 
 @dataclass
@@ -52,6 +58,31 @@ def _validate_role(role: str) -> str:
     return role
 
 
+def _validate_ground_truth(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if value not in GROUND_TRUTH_VALUES:
+        raise InvalidGroundTruthError(
+            f"invalid ground_truth: {value!r}; "
+            "expected lead|retention|upsell|none|null"
+        )
+    return value
+
+
+def _apply_ground_truth(row: Conversation, payload: ConversationUpsert) -> None:
+    """Set GT from a labeled value or clear flag; omit/null on upsert do not wipe."""
+    if "ground_truth" in payload.model_fields_set and payload.ground_truth is not None:
+        _validate_ground_truth(payload.ground_truth)
+    if payload.clear_ground_truth:
+        row.ground_truth = None
+        return
+    if "ground_truth" not in payload.model_fields_set:
+        return
+    if payload.ground_truth is None:
+        return
+    row.ground_truth = payload.ground_truth
+
+
 def _apply_conversation_fields(
     row: Conversation,
     payload: ConversationUpsert,
@@ -60,6 +91,7 @@ def _apply_conversation_fields(
     row.customer_name = payload.customer_name
     row.started_at = payload.started_at
     row.external_id = payload.external_id
+    _apply_ground_truth(row, payload)
     row.updated_at = _now()
 
 
@@ -156,6 +188,7 @@ def upsert_conversation(
             external_id=payload.external_id,
             updated_at=_now(),
         )
+        _apply_ground_truth(conversation, payload)
         db.add(conversation)
         try:
             with db.begin_nested():
@@ -245,6 +278,40 @@ def upsert_conversations(
     )
 
 
+def patch_conversation_ground_truth(
+    db: Session,
+    *,
+    tenant_id: str,
+    conversation_id: str,
+    ground_truth: str | None,
+) -> tuple[Conversation, list[Message]] | None:
+    """Set or clear ground_truth on one tenant conversation. None clears to NULL."""
+    _validate_ground_truth(ground_truth)
+    row = db.scalar(
+        select(Conversation).where(
+            Conversation.tenant_id == tenant_id,
+            Conversation.conversation_id == conversation_id,
+        )
+    )
+    if row is None:
+        return None
+    row.ground_truth = ground_truth
+    row.updated_at = _now()
+    db.commit()
+    db.refresh(row)
+    messages = list(
+        db.scalars(
+            select(Message)
+            .where(
+                Message.tenant_id == tenant_id,
+                Message.conversation_id == conversation_id,
+            )
+            .order_by(Message.timestamp.asc())
+        ).all()
+    )
+    return row, messages
+
+
 def list_conversations(
     db: Session,
     tenant_id: str,
@@ -275,3 +342,88 @@ def list_conversations(
     for msg in messages:
         by_conv.setdefault(msg.conversation_id, []).append(msg)
     return [(c, by_conv.get(c.conversation_id, [])) for c in convos]
+
+
+def delete_conversation(
+    db: Session,
+    *,
+    tenant_id: str,
+    conversation_id: str,
+    commit: bool = True,
+) -> bool:
+    """Delete one conversation and its messages/predictions/feedback.
+
+    Tenant-scoped only. Returns False when this tenant has no such row.
+    No FK cascade on chats — children are deleted explicitly.
+    """
+    row = db.scalar(
+        select(Conversation).where(
+            Conversation.tenant_id == tenant_id,
+            Conversation.conversation_id == conversation_id,
+        )
+    )
+    if row is None:
+        return False
+
+    pred_ids = list(
+        db.scalars(
+            select(SignalPrediction.id).where(
+                SignalPrediction.tenant_id == tenant_id,
+                SignalPrediction.conversation_id == conversation_id,
+            )
+        ).all()
+    )
+    if pred_ids:
+        db.execute(
+            delete(SignalFeedback).where(
+                SignalFeedback.tenant_id == tenant_id,
+                SignalFeedback.signal_id.in_(pred_ids),
+            )
+        )
+        db.execute(
+            delete(SignalPrediction).where(
+                SignalPrediction.tenant_id == tenant_id,
+                SignalPrediction.conversation_id == conversation_id,
+            )
+        )
+    db.execute(
+        delete(Message).where(
+            Message.tenant_id == tenant_id,
+            Message.conversation_id == conversation_id,
+        )
+    )
+    db.delete(row)
+    if commit:
+        db.commit()
+    return True
+
+
+def prune_conversations_not_in(
+    db: Session,
+    *,
+    tenant_id: str,
+    keep_ids: set[str],
+) -> tuple[int, int]:
+    """Delete this tenant's conversations whose ids are not in ``keep_ids``.
+
+    Returns (deleted, kept). Never touches other tenants.
+    """
+    existing = list(
+        db.scalars(
+            select(Conversation.conversation_id).where(
+                Conversation.tenant_id == tenant_id
+            )
+        ).all()
+    )
+    deleted = 0
+    kept = 0
+    for cid in existing:
+        if cid in keep_ids:
+            kept += 1
+            continue
+        if delete_conversation(
+            db, tenant_id=tenant_id, conversation_id=cid, commit=False
+        ):
+            deleted += 1
+    db.commit()
+    return deleted, kept

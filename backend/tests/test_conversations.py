@@ -8,13 +8,21 @@ from sqlalchemy.orm import Session
 
 from app.models.conversation import Conversation
 from app.models.message import Message
+from app.models.signal_feedback import SignalFeedback
+from app.models.signal_prediction import SignalPrediction
 from app.schemas.conversation import ConversationUpsert, MessageUpsert
 from app.services.conversations import (
+    InvalidGroundTruthError,
     InvalidMessageRoleError,
+    delete_conversation,
     list_conversations,
+    patch_conversation_ground_truth,
+    prune_conversations_not_in,
     upsert_conversation,
     upsert_conversations,
 )
+from app.services.feedback import record_feedback
+from app.services.predictions import record_prediction
 
 
 def _ts(hour: int = 10) -> datetime:
@@ -189,3 +197,248 @@ def test_invalid_role_rejected(db: Session) -> None:
     )
     with pytest.raises(InvalidMessageRoleError):
         upsert_conversation(db, tenant_id="tenant_a", payload=payload)
+
+
+def test_delete_conversation_is_tenant_safe(db: Session) -> None:
+    upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    upsert_conversation(db, tenant_id="tenant_b", payload=_payload())
+    pred_a = record_prediction(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_1",
+        signal_type="retention",
+        confidence=0.9,
+        summary="Close account",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=pred_a.id,
+        feedback="correct",
+        reviewed_by="reviewer_1",
+    )
+    record_prediction(
+        db,
+        tenant_id="tenant_b",
+        conversation_id="conv_1",
+        signal_type="retention",
+        confidence=0.8,
+        summary="Other tenant",
+    )
+
+    assert delete_conversation(db, tenant_id="tenant_a", conversation_id="conv_1") is True
+    assert delete_conversation(db, tenant_id="tenant_a", conversation_id="conv_1") is False
+
+    assert list_conversations(db, "tenant_a") == []
+    listed_b = list_conversations(db, "tenant_b")
+    assert len(listed_b) == 1
+    assert listed_b[0][0].tenant_id == "tenant_b"
+    assert len(listed_b[0][1]) == 2
+
+    assert (
+        db.scalar(
+            select(SignalPrediction).where(SignalPrediction.tenant_id == "tenant_a")
+        )
+        is None
+    )
+    assert (
+        db.scalar(
+            select(SignalFeedback).where(SignalFeedback.tenant_id == "tenant_a")
+        )
+        is None
+    )
+    other_pred = db.scalar(
+        select(SignalPrediction).where(SignalPrediction.tenant_id == "tenant_b")
+    )
+    assert other_pred is not None
+    assert other_pred.conversation_id == "conv_1"
+
+
+def test_prune_conversations_not_in_is_tenant_safe(db: Session) -> None:
+    upsert_conversation(
+        db, tenant_id="tenant_a", payload=_payload(conversation_id="conv_keep")
+    )
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            conversation_id="conv_drop",
+            messages=[
+                MessageUpsert(
+                    message_id="msg_drop_0",
+                    role="customer",
+                    content="Showcase leftover",
+                    timestamp=_ts(12),
+                )
+            ],
+        ),
+    )
+    upsert_conversation(
+        db,
+        tenant_id="tenant_b",
+        payload=_payload(
+            conversation_id="conv_drop",
+            messages=[
+                MessageUpsert(
+                    message_id="msg_b_0",
+                    role="customer",
+                    content="Other tenant drop id",
+                    timestamp=_ts(12),
+                )
+            ],
+        ),
+    )
+    record_prediction(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_drop",
+        signal_type="lead",
+        confidence=0.7,
+        summary="Showcase lead",
+    )
+    record_prediction(
+        db,
+        tenant_id="tenant_b",
+        conversation_id="conv_drop",
+        signal_type="lead",
+        confidence=0.7,
+        summary="Other tenant lead",
+    )
+
+    deleted, kept = prune_conversations_not_in(
+        db, tenant_id="tenant_a", keep_ids={"conv_keep"}
+    )
+    assert deleted == 1
+    assert kept == 1
+
+    listed_a = list_conversations(db, "tenant_a")
+    assert [row[0].conversation_id for row in listed_a] == ["conv_keep"]
+    assert (
+        db.scalar(select(Message).where(Message.conversation_id == "conv_drop", Message.tenant_id == "tenant_a"))
+        is None
+    )
+    assert (
+        db.scalar(
+            select(SignalPrediction).where(
+                SignalPrediction.tenant_id == "tenant_a",
+                SignalPrediction.conversation_id == "conv_drop",
+            )
+        )
+        is None
+    )
+
+    listed_b = list_conversations(db, "tenant_b")
+    assert len(listed_b) == 1
+    assert listed_b[0][0].conversation_id == "conv_drop"
+    assert listed_b[0][1][0].content == "Other tenant drop id"
+    other_pred = db.scalar(
+        select(SignalPrediction).where(SignalPrediction.tenant_id == "tenant_b")
+    )
+    assert other_pred is not None
+    assert other_pred.conversation_id == "conv_drop"
+
+
+def test_upsert_and_list_round_trip_ground_truth(db: Session) -> None:
+    labeled = _payload().model_copy(update={"ground_truth": "retention"})
+    created = upsert_conversation(db, tenant_id="tenant_a", payload=labeled)
+
+    assert created.created is True
+    assert created.conversation.ground_truth == "retention"
+
+    listed = list_conversations(db, "tenant_a")
+    assert listed[0][0].ground_truth == "retention"
+
+
+def test_upsert_omit_and_null_do_not_wipe_ground_truth(db: Session) -> None:
+    labeled = _payload().model_copy(update={"ground_truth": "lead"})
+    upsert_conversation(db, tenant_id="tenant_a", payload=labeled)
+
+    omitted = upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    assert omitted.created is False
+    assert omitted.conversation.ground_truth == "lead"
+
+    explicit_null = _payload().model_copy(update={"ground_truth": None})
+    assert "ground_truth" in explicit_null.model_fields_set
+    kept = upsert_conversation(db, tenant_id="tenant_a", payload=explicit_null)
+    assert kept.conversation.ground_truth == "lead"
+
+
+def test_none_ground_truth_is_labeled_not_null(db: Session) -> None:
+    payload = _payload().model_copy(update={"ground_truth": "none"})
+    result = upsert_conversation(db, tenant_id="tenant_a", payload=payload)
+    assert result.conversation.ground_truth == "none"
+    listed = list_conversations(db, "tenant_a")
+    assert listed[0][0].ground_truth == "none"
+
+
+def test_clear_ground_truth_flag_and_patch_null(db: Session) -> None:
+    labeled = _payload().model_copy(update={"ground_truth": "upsell"})
+    upsert_conversation(db, tenant_id="tenant_a", payload=labeled)
+
+    cleared = upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload().model_copy(update={"clear_ground_truth": True}),
+    )
+    assert cleared.conversation.ground_truth is None
+
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload().model_copy(update={"ground_truth": "lead"}),
+    )
+    patched = patch_conversation_ground_truth(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_1",
+        ground_truth=None,
+    )
+    assert patched is not None
+    assert patched[0].ground_truth is None
+
+
+def test_invalid_ground_truth_rejected(db: Session) -> None:
+    payload = _payload().model_copy(update={"ground_truth": "churn"})
+    with pytest.raises(InvalidGroundTruthError):
+        upsert_conversation(db, tenant_id="tenant_a", payload=payload)
+
+    upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    with pytest.raises(InvalidGroundTruthError):
+        patch_conversation_ground_truth(
+            db,
+            tenant_id="tenant_a",
+            conversation_id="conv_1",
+            ground_truth="churn",
+        )
+
+
+def test_ground_truth_is_tenant_safe(db: Session) -> None:
+    labeled = _payload().model_copy(update={"ground_truth": "retention"})
+    upsert_conversation(db, tenant_id="tenant_a", payload=labeled)
+    upsert_conversation(db, tenant_id="tenant_b", payload=_payload())
+
+    listed_a = list_conversations(db, "tenant_a")
+    listed_b = list_conversations(db, "tenant_b")
+    assert listed_a[0][0].ground_truth == "retention"
+    assert listed_b[0][0].ground_truth is None
+
+    patched_b = patch_conversation_ground_truth(
+        db,
+        tenant_id="tenant_b",
+        conversation_id="conv_1",
+        ground_truth="lead",
+    )
+    assert patched_b is not None
+    assert patched_b[0].ground_truth == "lead"
+    assert patched_b[0].tenant_id == "tenant_b"
+
+    missing = patch_conversation_ground_truth(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_missing",
+        ground_truth="lead",
+    )
+    assert missing is None
+
+    listed_a_again = list_conversations(db, "tenant_a")
+    assert listed_a_again[0][0].ground_truth == "retention"

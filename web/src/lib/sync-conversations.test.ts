@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { BackendClientError } from "./backend-client";
 import {
   CONVERSATION_SYNC_BACKOFF_MS,
   CONVERSATION_SYNC_MAX_ATTEMPTS,
+  pruneConversationsNotInBackend,
   syncConversationsToBackend,
   toConversationSyncPayload,
 } from "./sync-conversations";
@@ -71,18 +73,19 @@ afterEach(() => {
 });
 
 describe("toConversationSyncPayload", () => {
-  it("maps JSON store chats and skips groundTruth", () => {
-    const payload = toConversationSyncPayload(
+  it("maps labeled JSON groundTruth to ground_truth and omits unlabeled", () => {
+    const labeled = toConversationSyncPayload(
       [{ ...conversation, groundTruth: "retention" }],
       [message]
     );
-    expect(payload).toEqual([
+    expect(labeled).toEqual([
       {
         conversation_id: "conv_1",
         channel: "whatsapp",
         customer_name: "Priya",
         started_at: "2026-08-01T10:00:00.000Z",
         external_id: "priya_1",
+        ground_truth: "retention",
         messages: [
           {
             message_id: "msg_conv_1_0",
@@ -93,7 +96,27 @@ describe("toConversationSyncPayload", () => {
         ],
       },
     ]);
-    expect(JSON.stringify(payload)).not.toContain("groundTruth");
+    expect(JSON.stringify(labeled)).not.toContain("groundTruth");
+
+    const unlabeled = toConversationSyncPayload([conversation], [message]);
+    expect(unlabeled[0]).not.toHaveProperty("ground_truth");
+    expect(unlabeled[0]).not.toHaveProperty("clear_ground_truth");
+  });
+
+  it("sets clear_ground_truth on replace when the conversation is unlabeled", () => {
+    const payload = toConversationSyncPayload([conversation], [message], {
+      clearUnlabeledGroundTruth: true,
+    });
+    expect(payload[0]).not.toHaveProperty("ground_truth");
+    expect(payload[0]?.clear_ground_truth).toBe(true);
+
+    const labeled = toConversationSyncPayload(
+      [{ ...conversation, groundTruth: "none" }],
+      [message],
+      { clearUnlabeledGroundTruth: true }
+    );
+    expect(labeled[0]?.ground_truth).toBe("none");
+    expect(labeled[0]).not.toHaveProperty("clear_ground_truth");
   });
 });
 
@@ -216,5 +239,65 @@ describe("syncConversationsToBackend", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(sync.attempted).toBe(0);
     expect(sync.failed).toBe(0);
+  });
+});
+
+describe("pruneConversationsNotInBackend", () => {
+  it("returns deleted/kept when prune succeeds", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ deleted: 41, kept: 1 }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const stats = await pruneConversationsNotInBackend("tenant_demo", [
+      "conv_keep",
+    ]);
+
+    expect(stats).toEqual({ deleted: 41, kept: 1, skipped: false });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/tenants/tenant_demo/conversations/prune"),
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("fail-softs on 404 old API without throwing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: "Not Found",
+      json: async () => ({ detail: "Not Found" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const stats = await pruneConversationsNotInBackend("tenant_demo", [
+      "conv_keep",
+    ]);
+
+    expect(stats).toEqual({
+      deleted: 0,
+      kept: 1,
+      skipped: true,
+      reason: "not_supported",
+    });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("fail-softs on network errors without throwing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new BackendClientError("ECONNREFUSED"))
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const stats = await pruneConversationsNotInBackend("tenant_demo", [
+      "conv_keep",
+    ]);
+
+    expect(stats.skipped).toBe(true);
+    expect(stats.reason).toBe("backend_unavailable");
+    expect(warn).toHaveBeenCalled();
   });
 });

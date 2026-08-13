@@ -2,6 +2,11 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
+import {
+  patchConversationGroundTruth,
+  upsertConversation,
+} from "./backend-client";
+import { toConversationSyncPayload } from "./sync-conversations";
 import type {
   AuditEvent,
   FeedbackLabel,
@@ -335,5 +340,26 @@ export async function setConversationGroundTruth(
   }
 
   await writeStore(store);
+
+  try {
+    if (groundTruth === null) {
+      await patchConversationGroundTruth(
+        conversation.tenantId,
+        conversationId,
+        null
+      );
+    } else {
+      const messages = store.messages.filter(
+        (message) => message.conversationId === conversationId
+      );
+      const [payload] = toConversationSyncPayload([conversation], messages);
+      if (payload) {
+        await upsertConversation(conversation.tenantId, payload);
+      }
+    }
+  } catch {
+    // JSON is still SoT when the file exists; hydrate restores GT once Neon has it.
+  }
+
   return store;
 }

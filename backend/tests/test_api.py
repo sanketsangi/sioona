@@ -240,6 +240,163 @@ def test_conversation_bulk_upsert_and_tenant_isolation(client: TestClient) -> No
     assert leaked.status_code == 403
 
 
+def test_conversation_prune_is_tenant_safe(client: TestClient) -> None:
+    keep_payload = {
+        "conversations": [
+            {
+                "conversation_id": "conv_keep",
+                "channel": "whatsapp",
+                "customer_name": "Asha",
+                "started_at": "2026-08-01T10:00:00+00:00",
+                "external_id": "asha_1",
+                "messages": [
+                    {
+                        "message_id": "msg_keep_0",
+                        "role": "customer",
+                        "content": "I want to open a demat account",
+                        "timestamp": "2026-08-01T10:00:00+00:00",
+                    }
+                ],
+            },
+            {
+                "conversation_id": "conv_priya_showcase",
+                "channel": "whatsapp",
+                "customer_name": "Priya",
+                "started_at": "2026-08-01T11:00:00+00:00",
+                "external_id": "priya_sharma_22",
+                "messages": [
+                    {
+                        "message_id": "msg_priya_0",
+                        "role": "customer",
+                        "content": "I want to close my account",
+                        "timestamp": "2026-08-01T11:00:00+00:00",
+                    }
+                ],
+            },
+        ]
+    }
+    created_a = client.post(
+        "/v1/conversations/bulk",
+        headers={"X-Tenant-Id": "tenant_a"},
+        json=keep_payload,
+    )
+    assert created_a.status_code == 201
+
+    created_b = client.post(
+        "/v1/conversations/bulk",
+        headers={"X-Tenant-Id": "tenant_b"},
+        json={
+            "conversations": [
+                {
+                    "conversation_id": "conv_priya_showcase",
+                    "channel": "whatsapp",
+                    "customer_name": "Priya B",
+                    "started_at": "2026-08-01T11:00:00+00:00",
+                    "external_id": "priya_b",
+                    "messages": [
+                        {
+                            "message_id": "msg_b_0",
+                            "role": "customer",
+                            "content": "Other tenant showcase",
+                            "timestamp": "2026-08-01T11:00:00+00:00",
+                        }
+                    ],
+                }
+            ]
+        },
+    )
+    assert created_b.status_code == 201
+
+    pred_a = client.post(
+        "/v1/predictions",
+        headers={"X-Tenant-Id": "tenant_a"},
+        json={
+            "conversation_id": "conv_priya_showcase",
+            "signal_type": "retention",
+            "confidence": 0.9,
+            "summary": "Showcase churn",
+        },
+    )
+    assert pred_a.status_code == 201
+    pred_b = client.post(
+        "/v1/predictions",
+        headers={"X-Tenant-Id": "tenant_b"},
+        json={
+            "conversation_id": "conv_priya_showcase",
+            "signal_type": "retention",
+            "confidence": 0.8,
+            "summary": "Other tenant churn",
+        },
+    )
+    assert pred_b.status_code == 201
+
+    leaked = client.post(
+        "/v1/tenants/tenant_a/conversations/prune",
+        headers={"X-Tenant-Id": "tenant_b"},
+        json={"keep_conversation_ids": ["conv_keep"]},
+    )
+    assert leaked.status_code == 403
+
+    pruned = client.post(
+        "/v1/tenants/tenant_a/conversations/prune",
+        headers={"X-Tenant-Id": "tenant_a"},
+        json={"keep_conversation_ids": ["conv_keep"]},
+    )
+    assert pruned.status_code == 200
+    assert pruned.json() == {"deleted": 1, "kept": 1}
+
+    listed_a = client.get(
+        "/v1/tenants/tenant_a/conversations",
+        headers={"X-Tenant-Id": "tenant_a"},
+    )
+    assert listed_a.status_code == 200
+    assert [row["conversation_id"] for row in listed_a.json()] == ["conv_keep"]
+
+    listed_b = client.get(
+        "/v1/tenants/tenant_b/conversations",
+        headers={"X-Tenant-Id": "tenant_b"},
+    )
+    assert listed_b.status_code == 200
+    assert len(listed_b.json()) == 1
+    assert listed_b.json()[0]["conversation_id"] == "conv_priya_showcase"
+    assert listed_b.json()[0]["messages"][0]["content"] == "Other tenant showcase"
+
+    signals_a = client.get(
+        "/v1/tenants/tenant_a/signals",
+        headers={"X-Tenant-Id": "tenant_a"},
+    )
+    assert signals_a.status_code == 200
+    assert signals_a.json() == []
+
+    signals_b = client.get(
+        "/v1/tenants/tenant_b/signals",
+        headers={"X-Tenant-Id": "tenant_b"},
+    )
+    assert signals_b.status_code == 200
+    assert len(signals_b.json()) == 1
+    assert signals_b.json()[0]["conversation_id"] == "conv_priya_showcase"
+
+    missing = client.delete(
+        "/v1/tenants/tenant_a/conversations/conv_priya_showcase",
+        headers={"X-Tenant-Id": "tenant_a"},
+    )
+    assert missing.status_code == 404
+
+    deleted = client.delete(
+        "/v1/tenants/tenant_b/conversations/conv_priya_showcase",
+        headers={"X-Tenant-Id": "tenant_b"},
+    )
+    assert deleted.status_code == 200
+    assert deleted.json() == {"deleted": True}
+
+    empty_b = client.get(
+        "/v1/tenants/tenant_b/conversations",
+        headers={"X-Tenant-Id": "tenant_b"},
+    )
+    assert empty_b.status_code == 200
+    assert empty_b.json() == []
+
+
 def test_conversation_upsert_requires_tenant_header(client: TestClient) -> None:
     response = client.post(
         "/v1/conversations",
@@ -457,3 +614,131 @@ def test_acted_requires_feedback_and_survives_list(client: TestClient) -> None:
     )
     assert needs.status_code == 200
     assert signal_id not in [row["id"] for row in needs.json()]
+
+
+def test_conversation_ground_truth_upsert_list_and_patch(client: TestClient) -> None:
+    headers_a = {"X-Tenant-Id": "tenant_a"}
+    headers_b = {"X-Tenant-Id": "tenant_b"}
+    payload = {
+        "conversation_id": "conv_gt",
+        "channel": "whatsapp",
+        "customer_name": "Priya",
+        "started_at": "2026-08-01T10:00:00+00:00",
+        "external_id": "priya_gt",
+        "ground_truth": "retention",
+        "messages": [
+            {
+                "message_id": "msg_gt_0",
+                "role": "customer",
+                "content": "I want to close my account",
+                "timestamp": "2026-08-01T10:00:00+00:00",
+            }
+        ],
+    }
+
+    created = client.post("/v1/conversations", headers=headers_a, json=payload)
+    assert created.status_code == 201
+    assert created.json()["ground_truth"] == "retention"
+
+    omitted = client.post(
+        "/v1/conversations",
+        headers=headers_a,
+        json={k: v for k, v in payload.items() if k != "ground_truth"},
+    )
+    assert omitted.status_code == 201
+    assert omitted.json()["ground_truth"] == "retention"
+
+    explicit_null = client.post(
+        "/v1/conversations",
+        headers=headers_a,
+        json={**{k: v for k, v in payload.items() if k != "ground_truth"}, "ground_truth": None},
+    )
+    assert explicit_null.status_code == 201
+    assert explicit_null.json()["ground_truth"] == "retention"
+
+    none_label = client.post(
+        "/v1/conversations",
+        headers=headers_a,
+        json={**payload, "ground_truth": "none"},
+    )
+    assert none_label.status_code == 201
+    assert none_label.json()["ground_truth"] == "none"
+
+    listed = client.get(
+        "/v1/tenants/tenant_a/conversations",
+        headers=headers_a,
+    )
+    assert listed.status_code == 200
+    assert listed.json()[0]["ground_truth"] == "none"
+
+    invalid = client.post(
+        "/v1/conversations",
+        headers=headers_a,
+        json={**payload, "ground_truth": "churn"},
+    )
+    assert invalid.status_code == 400
+
+    other = client.post(
+        "/v1/conversations",
+        headers=headers_b,
+        json={k: v for k, v in payload.items() if k != "ground_truth"},
+    )
+    assert other.status_code == 201
+    assert other.json()["ground_truth"] is None
+
+    leaked_patch = client.patch(
+        "/v1/tenants/tenant_a/conversations/conv_gt",
+        headers=headers_b,
+        json={"ground_truth": "lead"},
+    )
+    assert leaked_patch.status_code == 403
+
+    patched = client.patch(
+        "/v1/tenants/tenant_a/conversations/conv_gt",
+        headers=headers_a,
+        json={"ground_truth": "lead"},
+    )
+    assert patched.status_code == 200
+    assert patched.json()["ground_truth"] == "lead"
+
+    cleared = client.patch(
+        "/v1/tenants/tenant_a/conversations/conv_gt",
+        headers=headers_a,
+        json={"ground_truth": None},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["ground_truth"] is None
+
+    missing = client.patch(
+        "/v1/tenants/tenant_a/conversations/conv_missing",
+        headers=headers_a,
+        json={"ground_truth": "lead"},
+    )
+    assert missing.status_code == 404
+
+    listed_b = client.get(
+        "/v1/tenants/tenant_b/conversations",
+        headers=headers_b,
+    )
+    assert listed_b.status_code == 200
+    assert listed_b.json()[0]["ground_truth"] is None
+
+    replace_clear = client.post(
+        "/v1/conversations",
+        headers=headers_b,
+        json={
+            **{k: v for k, v in payload.items() if k != "ground_truth"},
+            "ground_truth": "upsell",
+        },
+    )
+    assert replace_clear.json()["ground_truth"] == "upsell"
+    cleared_flag = client.post(
+        "/v1/conversations",
+        headers=headers_b,
+        json={
+            **{k: v for k, v in payload.items() if k != "ground_truth"},
+            "clear_ground_truth": True,
+        },
+    )
+    assert cleared_flag.status_code == 201
+    assert cleared_flag.json()["ground_truth"] is None

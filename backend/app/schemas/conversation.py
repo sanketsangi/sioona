@@ -26,7 +26,16 @@ class ConversationUpsert(BaseModel):
     customer_name: str | None = None
     started_at: datetime
     external_id: str | None = None
+    # str (not Literal) so invalid values reach the service as 400, not 422.
+    ground_truth: str | None = None
+    clear_ground_truth: bool = False
     messages: list[MessageUpsert] = Field(default_factory=list)
+
+
+class ConversationGroundTruthPatch(BaseModel):
+    """Dedicated GT mutation. ``null`` is the explicit Unset clear."""
+
+    ground_truth: str | None
 
 
 class ConversationBulkUpsert(BaseModel):
@@ -62,6 +71,7 @@ class ConversationResponse(BaseModel):
     customer_name: str | None
     started_at: datetime
     external_id: str | None
+    ground_truth: str | None
     created_at: datetime
     updated_at: datetime
     messages: list[MessageResponse] = Field(default_factory=list)
@@ -75,3 +85,22 @@ class ConversationBulkResponse(BaseModel):
     updated: int
     messages_created: int
     messages_updated: int
+
+
+class ConversationDeleteResponse(BaseModel):
+    """Result of deleting one tenant-scoped conversation."""
+
+    deleted: bool
+
+
+class ConversationPruneRequest(BaseModel):
+    """Keep these conversation_ids; delete the rest for this tenant."""
+
+    keep_conversation_ids: list[str] = Field(default_factory=list)
+
+
+class ConversationPruneResponse(BaseModel):
+    """How many tenant conversations were dropped vs kept."""
+
+    deleted: int
+    kept: int

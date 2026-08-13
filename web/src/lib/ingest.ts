@@ -273,9 +273,11 @@ export function parseIngestFile(
 
 export type ToStoreRecordsOptions = {
   /**
-   * Derive conversation ids from externalId so Partner Demo / reset reloads
-   * join the same Neon predictions. Uploads keep unique ids (default) so
-   * re-ingest can append without colliding.
+   * Derive conversation ids from externalId / CSV conversation_id
+   * (`priya_sharma_22` → `conv_priya_sharma_22`). Partner Demo / reset and
+   * partner file ingest pass `true` so re-uploads and Neon predictions join
+   * the same conversation.id. Eval loaders omit it and keep random `conv_*`
+   * ids (measurement only, no store write).
    */
   stableIds?: boolean;
 };

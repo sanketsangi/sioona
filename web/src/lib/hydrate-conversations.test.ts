@@ -3,6 +3,7 @@ import { BackendClientError } from "./backend-client";
 import type { BackendConversation } from "./backend-client";
 import type { BackendPredictionWithFeedback } from "./backend-client";
 import {
+  applyConversationGroundTruthToSignals,
   applyNeonFeedbackToSignals,
   fetchHydrateConversations,
   mapBackendConversationsToStore,
@@ -87,7 +88,7 @@ afterEach(() => {
 });
 
 describe("mapBackendConversationsToStore", () => {
-  it("maps conversation_id / message_id to store ids and drops Neon UUIDs and GT", () => {
+  it("maps conversation_id / message_id to store ids and drops Neon UUIDs", () => {
     const mapped = mapBackendConversationsToStore(
       [partnerRow()],
       "tenant_demo"
@@ -157,6 +158,26 @@ describe("mapBackendConversationsToStore", () => {
     expect(mapped.messages).toHaveLength(1);
     expect(mapped.messages[0].id).toBe("msg_ok");
   });
+
+  it("copies Neon ground_truth onto conversations and never invents when null", () => {
+    const labeled = mapBackendConversationsToStore(
+      [partnerRow({ ground_truth: "retention" })],
+      "tenant_demo"
+    );
+    expect(labeled.conversations[0].groundTruth).toBe("retention");
+
+    const unlabeled = mapBackendConversationsToStore(
+      [partnerRow({ ground_truth: null })],
+      "tenant_demo"
+    );
+    expect(unlabeled.conversations[0]).not.toHaveProperty("groundTruth");
+
+    const invalid = mapBackendConversationsToStore(
+      [partnerRow({ ground_truth: "churn" as never })],
+      "tenant_demo"
+    );
+    expect(invalid.conversations[0]).not.toHaveProperty("groundTruth");
+  });
 });
 
 describe("fetchHydrateConversations", () => {
@@ -223,10 +244,36 @@ describe("applyNeonFeedbackToSignals", () => {
   });
 });
 
+describe("applyConversationGroundTruthToSignals", () => {
+  it("copies labeled conversation GT onto matching signals", () => {
+    const mapped = mapBackendConversationsToStore(
+      [partnerRow({ ground_truth: "retention" })],
+      "tenant_demo"
+    );
+    const joined = applyConversationGroundTruthToSignals(
+      [detectedSignal],
+      mapped.conversations
+    );
+    expect(joined[0]?.groundTruth).toBe("retention");
+  });
+
+  it("does not invent GT when the conversation is unlabeled", () => {
+    const mapped = mapBackendConversationsToStore(
+      [partnerRow({ ground_truth: null })],
+      "tenant_demo"
+    );
+    const joined = applyConversationGroundTruthToSignals(
+      [detectedSignal],
+      mapped.conversations
+    );
+    expect(joined[0]).not.toHaveProperty("groundTruth");
+  });
+});
+
 describe("tryHydrateStoreFromNeon", () => {
   it("detects, syncs predictions, and writes store without conversation upsert", async () => {
     vi.spyOn(backendClient, "getConversations").mockResolvedValue([
-      partnerRow(),
+      partnerRow({ ground_truth: "retention" }),
     ]);
     const upsertSpy = vi.spyOn(backendClient, "upsertConversations");
     vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
@@ -262,10 +309,11 @@ describe("tryHydrateStoreFromNeon", () => {
 
     expect(result).not.toBeNull();
     expect(result?.conversations[0].id).toBe("conv_partner_upload_1");
-    expect(result?.conversations[0]).not.toHaveProperty("groundTruth");
+    expect(result?.conversations[0].groundTruth).toBe("retention");
     expect(result?.taxonomyOverrides).toEqual({});
     expect(result?.pilot?.baselineOpportunities).toBe(0);
     expect(result?.signals[0].backendSignalId).toBe("pred-hydrated-1");
+    expect(result?.signals[0].groundTruth).toBe("retention");
     expect(result?.signals[0].feedback).toBeUndefined();
     expect(writeSpy).toHaveBeenCalledTimes(1);
     expect(upsertSpy).not.toHaveBeenCalled();
@@ -310,7 +358,42 @@ describe("tryHydrateStoreFromNeon", () => {
     });
     expect(result?.signals[0]?.status).toBe("acted");
     expect(result?.signals[0]).not.toHaveProperty("groundTruth");
+    expect(result?.conversations[0]).not.toHaveProperty("groundTruth");
     expect(writeSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves unlabeled Neon chats unlabeled after detect", async () => {
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow({ ground_truth: null }),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [detectedSignal],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, backendSignalId: "pred-hydrated-1" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expect(result?.conversations[0]).not.toHaveProperty("groundTruth");
+    expect(result?.signals[0]).not.toHaveProperty("groundTruth");
   });
 
   it("still writes chats and signals when feedback GET fails", async () => {

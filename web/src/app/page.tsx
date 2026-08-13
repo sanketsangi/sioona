@@ -18,6 +18,7 @@ import {
   parseSyncFailedParam,
   shouldShowSyncFailureBanner,
 } from "@/lib/prediction-sync";
+import { hasMidWeekExport } from "@/lib/pilot-cadence";
 import { readStore } from "@/lib/store";
 import {
   parsePage,
@@ -143,7 +144,11 @@ export default async function PlatformPage({
           llmFailed={parseLlmFailedParam(sp.llmFailed)}
         />
       ) : null}
-      {view === "upload" ? <UploadView /> : null}
+      {view === "upload" ? (
+        <UploadView
+          hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
+        />
+      ) : null}
       {view === "eval" ? (
         <EvalView
           store={store}
