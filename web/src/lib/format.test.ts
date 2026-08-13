@@ -65,6 +65,21 @@ describe("signalReviewStatusLabel", () => {
       })
     ).toBe("Partially Correct");
   });
+
+  it("labels acted over feedback", () => {
+    expect(
+      signalReviewStatusLabel({
+        status: "acted",
+        feedback: { label: "correct", reviewedAt: "2026-01-01" },
+      })
+    ).toBe("Acted");
+    expect(
+      isSignalNeedsReview({
+        status: "acted",
+        feedback: { label: "correct", reviewedAt: "2026-01-01" },
+      })
+    ).toBe(false);
+  });
 });
 
 describe("signalStatusDot", () => {
@@ -109,6 +124,15 @@ describe("signalStatusDot", () => {
         feedback: { label: "partially_correct", reviewedAt: "2026-01-01" },
       })
     ).toEqual({ state: "BUILDING", label: "Partially Correct" });
+  });
+
+  it("maps acted to CANCELED / Acted", () => {
+    expect(
+      signalStatusDot({
+        status: "acted",
+        feedback: { label: "correct", reviewedAt: "2026-01-01" },
+      })
+    ).toEqual({ state: "CANCELED", label: "Acted" });
   });
 });
 

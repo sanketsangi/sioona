@@ -1,10 +1,17 @@
-"""Service for recording signal predictions."""
+"""Service for recording and listing signal predictions."""
+
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.signal_prediction import SignalPrediction
+from app.services.feedback import SignalNotFoundError
+
+
+class PredictionNotReviewedError(Exception):
+    """Raised when Acted is set on a prediction that has no feedback."""
 
 
 def record_prediction(
@@ -61,5 +68,48 @@ def record_prediction(
         db.refresh(raced)
         return raced
 
+    db.refresh(prediction)
+    return prediction
+
+
+def list_tenant_predictions(
+    db: Session,
+    tenant_id: str,
+) -> list[SignalPrediction]:
+    """Return this tenant's predictions with feedback loaded. Newest first."""
+    stmt = (
+        select(SignalPrediction)
+        .options(joinedload(SignalPrediction.feedback))
+        .where(SignalPrediction.tenant_id == tenant_id)
+        .order_by(SignalPrediction.created_at.desc())
+    )
+    return list(db.scalars(stmt).unique().all())
+
+
+def set_prediction_acted(
+    db: Session,
+    *,
+    tenant_id: str,
+    signal_id: UUID,
+    acted: bool,
+) -> SignalPrediction:
+    """Set or clear Acted. Requires existing feedback. Tenant-scoped."""
+    prediction = db.scalar(
+        select(SignalPrediction)
+        .options(joinedload(SignalPrediction.feedback))
+        .where(
+            SignalPrediction.id == signal_id,
+            SignalPrediction.tenant_id == tenant_id,
+        )
+    )
+    if prediction is None:
+        raise SignalNotFoundError(f"Signal {signal_id} not found for tenant")
+    if prediction.feedback is None:
+        raise PredictionNotReviewedError(
+            "Signal must be reviewed before marking acted"
+        )
+
+    prediction.acted = acted
+    db.commit()
     db.refresh(prediction)
     return prediction

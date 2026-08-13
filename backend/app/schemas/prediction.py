@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.feedback import FeedbackResponse
+
 
 class PredictionCreate(BaseModel):
     """Payload to record a model prediction."""
@@ -13,6 +15,12 @@ class PredictionCreate(BaseModel):
     signal_type: str = Field(..., min_length=1)
     confidence: float = Field(..., ge=0.0, le=1.0)
     summary: str = Field(..., min_length=1)
+
+
+class PredictionActedUpdate(BaseModel):
+    """Shadow Mode: persist Acted on a reviewed prediction."""
+
+    acted: bool
 
 
 class PredictionResponse(BaseModel):
@@ -26,4 +34,11 @@ class PredictionResponse(BaseModel):
     signal_type: str
     confidence: float
     summary: str
+    acted: bool = False
     created_at: datetime
+
+
+class PredictionWithFeedbackResponse(PredictionResponse):
+    """Prediction plus optional human feedback (hydrate / reviewed list)."""
+
+    feedback: FeedbackResponse | None = None

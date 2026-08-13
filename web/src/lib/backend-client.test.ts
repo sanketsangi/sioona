@@ -6,8 +6,11 @@ import {
   VERCEL_BACKEND_MISCONFIG_MESSAGE,
   assertBackendUrlConfigured,
   createPrediction,
+  getConversations,
   getSignalScore,
+  getTenantSignals,
   submitFeedback,
+  upsertConversations,
 } from "./backend-client";
 
 afterEach(() => {
@@ -80,6 +83,128 @@ describe("backendFetch timeout", () => {
           "X-Tenant-Id": "tenant_demo",
         }),
         signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it("posts conversation bulk upsert with X-Tenant-Id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        conversations: [],
+        created: 1,
+        updated: 0,
+        messages_created: 1,
+        messages_updated: 0,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await upsertConversations("tenant_demo", [
+      {
+        conversation_id: "conv_1",
+        channel: "whatsapp",
+        customer_name: "Priya",
+        started_at: "2026-08-01T10:00:00.000Z",
+        external_id: "priya_1",
+        messages: [
+          {
+            message_id: "msg_1",
+            role: "customer",
+            content: "hello",
+            timestamp: "2026-08-01T10:00:00.000Z",
+          },
+        ],
+      },
+    ]);
+
+    expect(result.created).toBe(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/conversations/bulk"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+  });
+
+  it("lists tenant conversations with X-Tenant-Id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_partner_1",
+          channel: "whatsapp",
+          customer_name: "Priya",
+          started_at: "2026-08-01T10:00:00.000Z",
+          external_id: "priya_1",
+          created_at: "2026-08-01T10:00:00.000Z",
+          updated_at: "2026-08-01T10:00:00.000Z",
+          messages: [],
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rows = await getConversations("tenant_demo");
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].conversation_id).toBe("conv_partner_1");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/tenants/tenant_demo/conversations"),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+  });
+
+  it("lists tenant signals with optional feedback and X-Tenant-Id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [
+        {
+          id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_1",
+          signal_type: "retention",
+          confidence: 0.9,
+          summary: "Churn risk",
+          created_at: "2026-08-01T00:00:00.000Z",
+          acted: true,
+          feedback: {
+            id: "fb-1",
+            tenant_id: "tenant_demo",
+            signal_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            feedback: "correct",
+            note: "clear churn",
+            reviewed_by: "shadow_reviewer",
+            reviewed_at: "2026-08-02T00:00:00.000Z",
+          },
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rows = await getTenantSignals("tenant_demo");
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].feedback?.feedback).toBe("correct");
+    expect(rows[0].acted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/tenants/tenant_demo/signals"),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
       })
     );
   });

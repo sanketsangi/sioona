@@ -7,6 +7,7 @@ import {
 } from "@/lib/ingest";
 import { readStore, writeStore } from "@/lib/store";
 import { sortSignals } from "@/lib/eval";
+import { syncConversationsToBackend } from "@/lib/sync-conversations";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 
 export async function POST(request: Request) {
@@ -54,10 +55,14 @@ export async function POST(request: Request) {
       store.tenant.id,
       store.taxonomyOverrides
     );
-    const { signals: syncedNew, sync } = await syncPredictionsToBackend(
-      newSignals,
-      store.tenant.id
-    );
+    const [conversationSync, { signals: syncedNew, sync }] = await Promise.all([
+      syncConversationsToBackend(
+        conversations,
+        messages,
+        store.tenant.id
+      ),
+      syncPredictionsToBackend(newSignals, store.tenant.id),
+    ]);
     store.signals.push(...syncedNew);
     // Partner file ingest advances week-1 mid-week cadence (cold demo does not).
     const priorExports = store.pilot?.weeklyExportCount ?? 0;
@@ -79,6 +84,7 @@ export async function POST(request: Request) {
       hint: newSignals.length === 0 ? ZERO_SIGNAL_HINT : undefined,
       signals: sortSignals(store.signals),
       predictionSync: sync,
+      conversationSync,
       detectLlm: llm,
     });
   } catch (error) {

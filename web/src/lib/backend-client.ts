@@ -74,6 +74,12 @@ export interface BackendPrediction {
   confidence: number;
   summary: string;
   created_at: string;
+  /** Present after 004; treat missing as false (fail-soft). */
+  acted?: boolean;
+}
+
+export interface BackendPredictionWithFeedback extends BackendPrediction {
+  feedback: BackendFeedback | null;
 }
 
 export interface BackendFeedback {
@@ -201,6 +207,71 @@ async function backendFetch<T>(
   return (await response.json()) as T;
 }
 
+export type BackendMessageRole = "customer" | "agent" | "system";
+
+export interface BackendConversationMessageInput {
+  message_id: string;
+  role: BackendMessageRole;
+  content: string;
+  timestamp: string;
+}
+
+export interface BackendConversationInput {
+  conversation_id: string;
+  channel: string;
+  customer_name?: string | null;
+  started_at: string;
+  external_id?: string | null;
+  messages: BackendConversationMessageInput[];
+}
+
+export interface BackendMessage {
+  id: string;
+  tenant_id: string;
+  conversation_id: string;
+  message_id: string;
+  role: string;
+  content: string;
+  timestamp: string;
+  created_at: string;
+}
+
+export interface BackendConversation {
+  id: string;
+  tenant_id: string;
+  conversation_id: string;
+  channel: string;
+  customer_name: string | null;
+  started_at: string;
+  external_id: string | null;
+  created_at: string;
+  updated_at: string;
+  messages: BackendMessage[];
+}
+
+export interface BackendConversationBulkResult {
+  conversations: BackendConversation[];
+  created: number;
+  updated: number;
+  messages_created: number;
+  messages_updated: number;
+}
+
+export async function upsertConversations(
+  tenantId: string,
+  conversations: BackendConversationInput[]
+): Promise<BackendConversationBulkResult> {
+  return backendFetch<BackendConversationBulkResult>(
+    tenantId,
+    "/v1/conversations/bulk",
+    {
+      method: "POST",
+      body: JSON.stringify({ conversations }),
+      timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    }
+  );
+}
+
 export async function createPrediction(
   tenantId: string,
   input: {
@@ -285,4 +356,34 @@ export async function getNeedsReview(
     tenantId
   )}/signals/needs-review?limit=${limit}`;
   return backendFetch<BackendPrediction[]>(tenantId, path);
+}
+
+export async function getConversations(
+  tenantId: string
+): Promise<BackendConversation[]> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations`;
+  return backendFetch<BackendConversation[]>(tenantId, path);
+}
+
+export async function getTenantSignals(
+  tenantId: string
+): Promise<BackendPredictionWithFeedback[]> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/signals`;
+  return backendFetch<BackendPredictionWithFeedback[]>(tenantId, path);
+}
+
+export async function setPredictionActed(
+  tenantId: string,
+  signalId: string,
+  acted: boolean
+): Promise<BackendPredictionWithFeedback> {
+  return backendFetch<BackendPredictionWithFeedback>(
+    tenantId,
+    `/v1/signals/${signalId}/acted`,
+    {
+      method: "POST",
+      body: JSON.stringify({ acted }),
+      timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    }
+  );
 }

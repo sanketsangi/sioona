@@ -49,8 +49,8 @@ export function scoreIconClass(score: number): string {
 
 /**
  * Pending until the operator leaves feedback.
- * Feedback label is the StatusDot source of truth once present (not `status===new`).
- * URL filter `status=new` remains the Neon needs-review bucket.
+ * Acted signals already have feedback, so they leave this bucket.
+ * URL filter `status=new` remains the Neon needs-review queue.
  */
 export function isSignalNeedsReview(
   signal: Pick<Signal, "status" | "feedback">
@@ -69,11 +69,15 @@ export type SignalStatusDotState =
 /**
  * Map signal review/feedback → StatusDot state + visible label.
  * Pending (no feedback) → Pending / blue QUEUED.
+ * Acted → Acted / gray CANCELED (takes priority over feedback).
  * Correct → green READY | Incorrect → red ERROR | Partially Correct → orange BUILDING.
  */
 export function signalStatusDot(
   signal: Pick<Signal, "status" | "feedback">
 ): { state: SignalStatusDotState; label: string } {
+  if (signal.status === "acted") {
+    return { state: "CANCELED", label: "Acted" };
+  }
   const label = signal.feedback?.label;
   if (!label) {
     return { state: "QUEUED", label: "Pending" };

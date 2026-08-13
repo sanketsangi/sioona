@@ -11,6 +11,11 @@ import {
 } from "./demo-baseline";
 import { writeStore } from "./store";
 import {
+  emptyConversationSyncStats,
+  syncConversationsToBackend,
+  type ConversationSyncStats,
+} from "./sync-conversations";
+import {
   syncPredictionsToBackend,
   type PredictionSyncStats,
 } from "./sync-predictions";
@@ -29,6 +34,7 @@ export interface LoadTestingJsonResult {
   samples: string[];
   absolutePath: string;
   predictionSync: PredictionSyncStats;
+  conversationSync: ConversationSyncStats;
   detectLlm: LlmPassStats;
 }
 
@@ -37,13 +43,15 @@ export interface LoadTestingJsonOptions {
   applyDemoBaseline?: boolean;
   /** Dual-write predictions to FastAPI (default true). */
   syncPredictions?: boolean;
+  /** Dual-write conversations + messages to FastAPI (default true). */
+  syncConversations?: boolean;
   repoRoot?: string;
   absolutePath?: string;
 }
 
 /**
  * Load the showcase corpus (testing.json) into the JSON store:
- * parse → toStoreRecords → detect → optional dual-write → writeStore.
+ * parse → toStoreRecords → detect → optional dual-write (chats + predictions) → writeStore.
  * Used by cold open / resetStore and Run Partner Demo.
  */
 export async function loadTestingJsonIntoStore(
@@ -79,16 +87,35 @@ export async function loadTestingJsonIntoStore(
     failed: 0,
     skipped: 0,
   };
+  let conversationSync: ConversationSyncStats = emptyConversationSyncStats();
+  const testSleep = process.env.VITEST
+    ? { sleep: async () => undefined }
+    : undefined;
 
-  if (options?.syncPredictions !== false) {
-    const synced = await syncPredictionsToBackend(
-      store.signals,
-      store.tenant.id,
-      process.env.VITEST ? { sleep: async () => undefined } : undefined
+  const syncJobs: Promise<void>[] = [];
+  if (options?.syncConversations !== false) {
+    syncJobs.push(
+      syncConversationsToBackend(
+        store.conversations,
+        store.messages,
+        store.tenant.id,
+        testSleep
+      ).then((stats) => {
+        conversationSync = stats;
+      })
     );
-    store.signals = synced.signals;
-    predictionSync = synced.sync;
   }
+  if (options?.syncPredictions !== false) {
+    syncJobs.push(
+      syncPredictionsToBackend(store.signals, store.tenant.id, testSleep).then(
+        (synced) => {
+          store.signals = synced.signals;
+          predictionSync = synced.sync;
+        }
+      )
+    );
+  }
+  await Promise.all(syncJobs);
 
   if (options?.applyDemoBaseline) {
     store.pilot = {
@@ -107,6 +134,7 @@ export async function loadTestingJsonIntoStore(
     samples: [SHOWCASE_SAMPLE_NAME],
     absolutePath,
     predictionSync,
+    conversationSync,
     detectLlm: llm,
   };
 }
