@@ -73,6 +73,26 @@ describe("parseIngestFile", () => {
     expect(parsed[1].groundTruth).toBe("none");
   });
 
+  it("parses CSV with newlines inside quoted content and ground_truth", () => {
+    const csv = [
+      "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+      'ml-1,customer,"Portfolio Feedback',
+      "",
+      'Risk: High",Asish,forum,2026-01-01T00:00:00.000Z,retention',
+      "ml-1,agent,Sorry to hear that,Asish,forum,2026-01-01T00:01:00.000Z,retention",
+      "ml-2,customer,Just need OTP help,Vikram,forum,2026-01-02T00:00:00.000Z,none",
+    ].join("\n");
+
+    const parsed = parseIngestFile("multiline.csv", csv);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].externalId).toBe("ml-1");
+    expect(parsed[0].groundTruth).toBe("retention");
+    expect(parsed[0].messages).toHaveLength(2);
+    expect(parsed[0].messages[0].content).toContain("Portfolio Feedback");
+    expect(parsed[0].messages[0].content).toContain("Risk: High");
+    expect(parsed[1].groundTruth).toBe("none");
+  });
+
   it("parses JSON conversation arrays", () => {
     const json = JSON.stringify([
       {
