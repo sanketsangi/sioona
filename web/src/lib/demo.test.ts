@@ -40,6 +40,7 @@ describe("runPartnerDemo", () => {
       expect.objectContaining({
         attempted: expect.any(Number),
         created: expect.any(Number),
+        updated: expect.any(Number),
         failed: expect.any(Number),
         skipped: expect.any(Number),
       })
@@ -47,6 +48,7 @@ describe("runPartnerDemo", () => {
     expect(
       result.predictionSync.attempted + result.predictionSync.skipped
     ).toBeGreaterThan(0);
+    expect(result.detectLlm.enabled).toBe(false);
 
     const again = await runPartnerDemo();
     expect(again.store.conversations.map((c) => c.id).sort()).toEqual(

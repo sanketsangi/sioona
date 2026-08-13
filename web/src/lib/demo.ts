@@ -3,6 +3,7 @@ import {
   DEMO_BASELINE_NOTE,
   DEMO_BASELINE_OPPORTUNITIES,
 } from "./demo-baseline";
+import type { LlmPassStats } from "./detect-llm";
 import type { PredictionSyncStats } from "./sync-predictions";
 import type { StoreData } from "./types";
 
@@ -19,6 +20,7 @@ export interface PartnerDemoResult {
   baselineOpportunities: number;
   opportunityLift: number;
   predictionSync: PredictionSyncStats;
+  detectLlm: LlmPassStats;
 }
 
 /**
@@ -43,5 +45,6 @@ export async function runPartnerDemo(): Promise<PartnerDemoResult> {
     baselineOpportunities: DEMO_BASELINE_OPPORTUNITIES,
     opportunityLift: sioonaOpportunities - DEMO_BASELINE_OPPORTUNITIES,
     predictionSync: loaded.predictionSync,
+    detectLlm: loaded.detectLlm,
   };
 }

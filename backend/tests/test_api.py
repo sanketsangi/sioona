@@ -143,3 +143,48 @@ def test_tenant_mismatch_forbidden(client: TestClient) -> None:
         headers={"X-Tenant-Id": "tenant_b"},
     )
     assert response.status_code == 403
+
+
+def test_prediction_upsert_same_conversation_and_type(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    first = client.post(
+        "/v1/predictions",
+        headers=headers,
+        json={
+            "conversation_id": "conv_upsert",
+            "signal_type": "retention",
+            "confidence": 0.4,
+            "summary": "Maybe leaving",
+        },
+    )
+    assert first.status_code == 201
+    signal_id = first.json()["id"]
+
+    second = client.post(
+        "/v1/predictions",
+        headers=headers,
+        json={
+            "conversation_id": "conv_upsert",
+            "signal_type": "retention",
+            "confidence": 0.81,
+            "summary": "High churn risk — closing account",
+        },
+    )
+    assert second.status_code == 201
+    assert second.json()["id"] == signal_id
+    assert second.json()["confidence"] == 0.81
+    assert second.json()["summary"] == "High churn risk — closing account"
+
+    needs = client.get(
+        "/v1/tenants/tenant_demo/signals/needs-review",
+        headers=headers,
+        params={"limit": 100},
+    )
+    assert needs.status_code == 200
+    matches = [
+        row
+        for row in needs.json()
+        if row["conversation_id"] == "conv_upsert" and row["signal_type"] == "retention"
+    ]
+    assert len(matches) == 1
+    assert matches[0]["id"] == signal_id

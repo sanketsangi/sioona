@@ -13,7 +13,7 @@ Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages
 |-------|----------------|---------------------------|
 | App | Next.js 15 App Router, React 19, Tailwind, Geist (`web/`) | — |
 | API | FastAPI Signal Score (`backend/`) | Auth0-gated multi-tenant API |
-| Detect | Keyword heuristics + store taxonomy overrides (`detect.ts`) | LLM / vLLM / LangGraph |
+| Detect | Keyword heuristics (`detect.ts`) + optional Groq Qwen pass 2 (`detect-llm.ts`, `DETECT_LLM=1`) | vLLM / LangGraph / QLoRA |
 | Data | JSON file store for chats/messages/taxonomy (`store.ts`) + **Neon** for SignalScore + Shadow Mode needs-review queue | Full Neon chat migration / pgvector |
 | Auth | None (`X-Tenant-Id` header to backend) | Auth0 |
 
@@ -35,6 +35,8 @@ Path alias: `@/*` → `./src/*` (web).
 - Types: `web/src/lib/types.ts`
 - Taxonomy SoT: `web/src/lib/taxonomy.ts` (not `taxonomy.json`)
 - Detect / ingest / eval / format / store: matching files in `web/src/lib/`
+- Detect v2 (hybrid): `web/src/lib/detect-llm.ts` — heuristics first; Groq only on misses; off without `DETECT_LLM=1` + `GROQ_API_KEY`
+- Agent project state: `.cursor/docs/PROJECT_STATE.md` (update on milestones)
 - Signal Score client: `web/src/lib/backend-client.ts`
 - Backend models/services: `backend/app/`
 - Tokens + utilities: `web/src/app/globals.css`
@@ -44,6 +46,6 @@ Path alias: `@/*` → `./src/*` (web).
 
 - RSC pages read the store directly; mutations via `fetch` to `/api/*` then `router.refresh()`
 - Data pages: `export const dynamic = "force-dynamic"`
-- Detect/ingest dual-write predictions to FastAPI (`backendSignalId` on signals; multi-retry + short backoff + `predictionSync` stats)
+- Detect/ingest dual-write predictions to FastAPI (`backendSignalId` on signals; upsert on tenant+conversation+type; multi-retry + short backoff + `predictionSync` stats)
 - Insights pending queue: `fetchNeedsReview` → join via `join-needs-review.ts` (not JSON `status===new` as SoT)
 - Feedback proxies to FastAPI (`correct` / `incorrect` / `partially_correct`) and mirrors into JSON for reviewed filter / detail

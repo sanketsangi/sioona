@@ -1,10 +1,18 @@
 """Shadow Mode review queue: predictions without feedback."""
 
-from sqlalchemy import exists, select
+from sqlalchemy import case, exists, select
 from sqlalchemy.orm import Session
 
 from app.models.signal_feedback import SignalFeedback
 from app.models.signal_prediction import SignalPrediction
+
+# Retention is the primary product signal; then upsell; then lead.
+_TYPE_RANK = case(
+    (SignalPrediction.signal_type == "retention", 0),
+    (SignalPrediction.signal_type == "upsell", 1),
+    (SignalPrediction.signal_type == "lead", 2),
+    else_=3,
+)
 
 
 def list_signals_needing_review(
@@ -13,7 +21,7 @@ def list_signals_needing_review(
     *,
     limit: int = 20,
 ) -> list[SignalPrediction]:
-    """Return recent unreviewed predictions for a tenant (newest first)."""
+    """Return unreviewed predictions: retention first, then newest."""
     if limit < 1:
         limit = 1
     if limit > 100:
@@ -28,7 +36,7 @@ def list_signals_needing_review(
         select(SignalPrediction)
         .where(SignalPrediction.tenant_id == tenant_id)
         .where(unreviewed)
-        .order_by(SignalPrediction.created_at.desc())
+        .order_by(_TYPE_RANK, SignalPrediction.created_at.desc())
         .limit(limit)
     )
     return list(db.scalars(stmt).all())

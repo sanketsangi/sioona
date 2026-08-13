@@ -10,6 +10,10 @@ import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { joinNeedsReviewPredictions } from "@/lib/join-needs-review";
 import { buildHeaderNotifications } from "@/lib/notifications";
 import {
+  parseLlmAddedParam,
+  parseLlmFailedParam,
+} from "@/lib/detect-llm-query";
+import {
   parseSyncCreatedParam,
   parseSyncFailedParam,
   shouldShowSyncFailureBanner,
@@ -65,6 +69,8 @@ export default async function PlatformPage({
     adaptPage?: string;
     syncFailed?: string;
     syncCreated?: string;
+    llmAdded?: string;
+    llmFailed?: string;
     preview?: string;
   }>;
 }) {
@@ -133,6 +139,8 @@ export default async function PlatformPage({
           needsReview={needsReview}
           syncFailed={syncFailed}
           syncCreated={syncCreated}
+          llmAdded={parseLlmAddedParam(sp.llmAdded)}
+          llmFailed={parseLlmFailedParam(sp.llmFailed)}
         />
       ) : null}
       {view === "upload" ? <UploadView /> : null}

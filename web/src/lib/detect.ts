@@ -7,7 +7,8 @@ import type {
   TaxonomyOverrides,
 } from "./types";
 
-const SCORE_THRESHOLD = 0.35;
+/** Minimum heuristic score to emit a Shadow Mode signal. */
+export const SCORE_THRESHOLD = 0.35;
 const PHRASE_WEIGHT = 2.5;
 const KEYWORD_WEIGHT = 1;
 /** Weak/ambiguous tokens need more co-evidence. */
@@ -165,7 +166,7 @@ export function enrichEvidence(
   return [...quotes.slice(0, 2), ...matches.slice(0, 3)].slice(0, 5);
 }
 
-function pickAction(
+export function pickAction(
   type: SignalType,
   score: number,
   overrides?: TaxonomyOverrides | null

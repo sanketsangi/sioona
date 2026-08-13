@@ -6,6 +6,10 @@ import { useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import {
+  llmQueryExtras,
+  parseLlmPassStats,
+} from "@/lib/detect-llm-query";
+import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
@@ -52,6 +56,7 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
         newSignals?: number;
         hint?: string;
         predictionSync?: unknown;
+        detectLlm?: unknown;
       };
       if (!res.ok) throw new Error(data.error || "Upload failed");
       const formatLabel =
@@ -83,6 +88,9 @@ export function UploadForm({ compact = false }: { compact?: boolean }) {
       const extras = syncQueryExtras(sync);
       if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
       if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
+      const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
+      if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
+      if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
       setTimeout(() => router.push(`/?${query.toString()}`), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");

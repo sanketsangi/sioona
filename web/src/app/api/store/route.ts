@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runDetection } from "@/lib/detect";
+import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
   addTaxonomyOverride,
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         newSignals: result.newSignals,
         samples: result.samples,
         predictionSync: result.predictionSync,
+        detectLlm: result.detectLlm,
       });
     } catch (error) {
       const message =
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
       );
       let redetectCount: number | undefined;
       if (body.redetect !== false) {
-        const detected = runDetection(
+        const { signals: detected } = await runHybridDetection(
           store.conversations,
           store.messages,
           store.tenant.id,

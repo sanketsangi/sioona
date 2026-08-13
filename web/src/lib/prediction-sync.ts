@@ -15,6 +15,8 @@ export function parsePredictionSync(
   const created = Number(o.created);
   const failed = Number(o.failed);
   const skipped = Number(o.skipped);
+  const updatedRaw = Number(o.updated);
+  const updated = Number.isFinite(updatedRaw) ? updatedRaw : 0;
   if (
     ![attempted, created, failed, skipped].every((n) => Number.isFinite(n))
   ) {
@@ -23,6 +25,7 @@ export function parsePredictionSync(
   return {
     attempted: Math.max(0, Math.floor(attempted)),
     created: Math.max(0, Math.floor(created)),
+    updated: Math.max(0, Math.floor(updated)),
     failed: Math.max(0, Math.floor(failed)),
     skipped: Math.max(0, Math.floor(skipped)),
   };

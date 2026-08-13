@@ -60,6 +60,8 @@ export function InsightsView({
   needsReview,
   syncFailed = 0,
   syncCreated = 0,
+  llmAdded = 0,
+  llmFailed = 0,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -73,6 +75,8 @@ export function InsightsView({
   needsReview: NeedsReviewResult;
   syncFailed?: number;
   syncCreated?: number;
+  llmAdded?: number;
+  llmFailed?: number;
 }) {
   const pilot = applyBackendSignalScoreToPilot(store, backendScore);
   const queueError = needsReview.ok ? null : needsReview.error;
@@ -127,6 +131,8 @@ export function InsightsView({
         : null,
     syncFailed: hasSyncFailure ? String(syncFailed) : null,
     syncCreated: hasSyncFailure ? String(syncCreated) : null,
+    llmAdded: llmAdded > 0 ? String(llmAdded) : null,
+    llmFailed: llmFailed > 0 ? String(llmFailed) : null,
   };
 
   // Same resolution as SignalQueue — deep links ignore active filters.
@@ -213,6 +219,7 @@ export function InsightsView({
               pilot.opportunityLift !== 0
                 ? `Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`
                 : null,
+              llmAdded > 0 ? `Hybrid +${llmAdded}` : null,
             ]
               .filter(Boolean)
               .join(" · ")}
@@ -250,6 +257,17 @@ export function InsightsView({
                 <span className="tabular text-sio-fg-base">
                   Lift {pilot.opportunityLift >= 0 ? "+" : ""}
                   {pilot.opportunityLift}
+                </span>
+              </>
+            ) : null}
+            {llmAdded > 0 ? (
+              <>
+                <span className="text-sio-fg-muted" aria-hidden>
+                  {" "}
+                  ·{" "}
+                </span>
+                <span className="tabular text-sio-fg-base">
+                  Hybrid +{llmAdded}
                 </span>
               </>
             ) : null}

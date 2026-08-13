@@ -14,7 +14,7 @@ Ingest export → detect → Shadow Mode Insights → SignalScore feedback → p
 
 Prove domain signal detection beats the customer’s current process with enough precision to earn trust.
 
-**Domain adaptation in Phase 1** = merge partner SignalScore feedback into store taxonomy overrides used by `detect.ts`. Not QLoRA / vLLM / LangGraph.
+**Domain adaptation in Phase 1** = merge partner SignalScore feedback into store taxonomy overrides used by `detect.ts`. Detect v2 adds an optional Groq Qwen second pass (`DETECT_LLM=1`) — still not QLoRA / vLLM / LangGraph.
 
 ## In scope
 
@@ -37,6 +37,7 @@ Prove domain signal detection beats the customer’s current process with enough
 
 ## Agent sources of truth
 
-- Code: `web/`
-- Locked brief: `.cursor/plans/sioona_product_context_6028d8b1.plan.md`
+- **Current work / stack / blockers:** `.cursor/docs/PROJECT_STATE.md` (update when heading changes)
+- Code: `web/` + `backend/`
+- Locked brief: `.cursor/plans/sioona_product_context.md`
 - `Grok NLP Report.pdf` is image-only — do not rely on grepping it

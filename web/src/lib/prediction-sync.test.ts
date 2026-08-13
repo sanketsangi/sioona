@@ -19,7 +19,22 @@ describe("parsePredictionSync", () => {
         failed: 1,
         skipped: 0,
       })
-    ).toEqual({ attempted: 3, created: 2, failed: 1, skipped: 0 });
+    ).toEqual({
+      attempted: 3,
+      created: 2,
+      updated: 0,
+      failed: 1,
+      skipped: 0,
+    });
+    expect(
+      parsePredictionSync({
+        attempted: 4,
+        created: 1,
+        updated: 3,
+        failed: 0,
+        skipped: 0,
+      })?.updated
+    ).toBe(3);
   });
 
   it("returns null for invalid input", () => {
@@ -30,14 +45,26 @@ describe("parsePredictionSync", () => {
 
 describe("hasSyncFailures / syncQueryExtras", () => {
   it("detects failures and builds query extras", () => {
-    const sync = { attempted: 2, created: 1, failed: 1, skipped: 0 };
+    const sync = {
+      attempted: 2,
+      created: 1,
+      updated: 0,
+      failed: 1,
+      skipped: 0,
+    };
     expect(hasSyncFailures(sync)).toBe(true);
     expect(syncQueryExtras(sync)).toEqual({
       syncFailed: "1",
       syncCreated: "1",
     });
     expect(
-      syncQueryExtras({ attempted: 1, created: 1, failed: 0, skipped: 0 })
+      syncQueryExtras({
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      })
     ).toEqual({ syncFailed: null, syncCreated: null });
   });
 });

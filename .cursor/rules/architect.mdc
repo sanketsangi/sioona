@@ -36,10 +36,11 @@ The generated prompt must include:
 
 - FastAPI + Neon is the source of truth for Signal Score
 - Next.js is the frontend
-- Shadow Mode + Insights first
+- Shadow Mode + Insights first; current heading is **Detect v2** (see `.cursor/docs/PROJECT_STATE.md`)
 - Multi-tenant by default
 - Prefer small focused steps
 - Signal chrome is locked: reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`; do not reinvent status/score/type/avatar in prompts or diffs
+- Update `.cursor/docs/PROJECT_STATE.md` when milestones or blockers change
 
 ## Style
 

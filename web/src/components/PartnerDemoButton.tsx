@@ -5,6 +5,10 @@ import { useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
 import {
+  llmQueryExtras,
+  parseLlmPassStats,
+} from "@/lib/detect-llm-query";
+import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
@@ -35,6 +39,7 @@ export function PartnerDemoButton({
       const data = (await res.json()) as {
         error?: string;
         predictionSync?: unknown;
+        detectLlm?: unknown;
       };
       if (!res.ok) throw new Error(data.error || "Demo failed");
 
@@ -43,6 +48,9 @@ export function PartnerDemoButton({
       const extras = syncQueryExtras(sync);
       if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
       if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
+      const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
+      if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
+      if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
 
       if (hasSyncFailures(sync) && sync) {
         setSyncWarning(

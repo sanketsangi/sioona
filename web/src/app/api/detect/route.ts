@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runDetection } from "@/lib/detect";
+import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
   readStore,
@@ -10,7 +10,7 @@ import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 
 export async function POST() {
   const store = await readStore();
-  const detected = runDetection(
+  const { signals: detected, llm } = await runHybridDetection(
     store.conversations,
     store.messages,
     store.tenant.id,
@@ -27,5 +27,6 @@ export async function POST() {
     count: updated.signals.length,
     signals: sortSignals(updated.signals),
     predictionSync: sync,
+    detectLlm: llm,
   });
 }

@@ -52,10 +52,21 @@ The JSON file store alone is enough to browse fixtures after reseeding, but
 | Variable | Scope | Value |
 |----------|--------|--------|
 | `BACKEND_URL` | Production (server-only; **not** `NEXT_PUBLIC_`) | Public FastAPI base URL, no trailing slash (e.g. `https://sioona-api.onrender.com`) |
+| `DETECT_LLM` | Production (server-only) | `1` to enable Groq pass 2. Omit or `0` = heuristics only ($0). |
+| `GROQ_API_KEY` | Production (server-only, Sensitive) | Groq key. Never commit. Cap spend at **$20/mo** in the Groq console. |
+| `DETECT_LLM_MAX_CALLS` | Production (optional) | Default `8`. Lower if Hobby 10s timeouts hit. |
 
 1. Host FastAPI + Neon per [`backend/README.md`](../backend/README.md#hosted-deploy-demo).
 2. In the Vercel project **Settings → Environment Variables**, set `BACKEND_URL` for **Production**.
-3. Redeploy so serverless functions pick up the env var.
+3. **Detect v2 (when you have a Groq key):** same page, Production only:
+   - [Vercel project → Settings → Environment Variables](https://vercel.com/sanketsangi/web/settings/environment-variables)
+   - Add `DETECT_LLM` = `1` (Production)
+   - Add `GROQ_API_KEY` (Sensitive) = your `gsk_…` key (Production)
+   - Leave Preview/Development unset so previews stay $0
+   - Redeploy Production so serverless functions pick up the vars
+4. Redeploy after any env change.
+
+Without both `DETECT_LLM=1` and `GROQ_API_KEY`, pass 2 never runs (heuristic-only, $0).
 
 Unset or `localhost` `BACKEND_URL` on Vercel makes dual-write fail (`syncFailed`) and the Insights pending queue unavailable.
 

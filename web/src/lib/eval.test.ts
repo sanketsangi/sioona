@@ -148,15 +148,15 @@ describe("computePilotMetrics", () => {
 });
 
 describe("sortSignals", () => {
-  it("orders by score descending then createdAt", () => {
+  it("orders retention first, then score descending", () => {
     const sorted = sortSignals([
       {
         id: "a",
         tenantId: "t",
         conversationId: "c1",
         type: "lead",
-        score: 0.4,
-        confidence: 0.4,
+        score: 0.95,
+        confidence: 0.95,
         summary: "",
         suggestedAction: "",
         evidence: [],
@@ -176,8 +176,21 @@ describe("sortSignals", () => {
         status: "new",
         createdAt: "2026-08-01T00:00:00.000Z",
       },
+      {
+        id: "c",
+        tenantId: "t",
+        conversationId: "c3",
+        type: "retention",
+        score: 0.4,
+        confidence: 0.4,
+        summary: "",
+        suggestedAction: "",
+        evidence: [],
+        status: "new",
+        createdAt: "2026-08-03T00:00:00.000Z",
+      },
     ]);
-    expect(sorted.map((s) => s.id)).toEqual(["b", "a"]);
+    expect(sorted.map((s) => s.id)).toEqual(["c", "b", "a"]);
   });
 });
 
