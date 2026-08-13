@@ -38,7 +38,11 @@ cp .env.example .env
 alembic upgrade head
 ```
 
-`002_prediction_upsert` unique-indexes `(tenant_id, conversation_id, signal_type)` so re-detect updates the same Neon row. Run this on Neon before relying on Detect v2 dual-write.
+`002_prediction_upsert` unique-indexes `(tenant_id, conversation_id, signal_type)` so re-detect updates the same Neon row.
+
+`003_conversations_messages` creates `conversations` + `messages` (upsert keys `(tenant_id, conversation_id)` and `(tenant_id, message_id)`). No FK from `signal_predictions`. Render runs `alembic upgrade head` on deploy.
+
+`004_prediction_acted` adds `acted` on `signal_predictions` (default false) so Shadow Mode Acted survives cold-start hydrate.
 
 ## Run
 
@@ -77,8 +81,13 @@ Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPL
 |--------|------|---------|
 | `GET` | `/health` | Liveness |
 | `POST` | `/v1/predictions` | Record a prediction |
+| `POST` | `/v1/conversations` | Upsert one conversation + messages |
+| `POST` | `/v1/conversations/bulk` | Bulk upsert conversations + messages |
+| `GET` | `/v1/tenants/{tenant_id}/conversations` | List tenant conversations (API; Insights still JSON) |
 | `POST` | `/v1/signals/{signal_id}/feedback` | Submit/update feedback |
+| `POST` | `/v1/signals/{signal_id}/acted` | Set/clear Acted (reviewed only) |
 | `GET` | `/v1/tenants/{tenant_id}/signal-score` | Overall + per-type SignalScore |
+| `GET` | `/v1/tenants/{tenant_id}/signals` | Tenant predictions + optional feedback |
 | `GET` | `/v1/tenants/{tenant_id}/signals/needs-review` | Shadow Mode review queue |
 
 Query params for score: `date_from`, `date_to`, `signal_type`.

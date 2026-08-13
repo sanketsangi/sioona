@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 
-from app.api.routes import feedback, predictions, review, scores
+from app.api.routes import conversations, feedback, predictions, review, scores
 from app.config import get_settings
 
 settings = get_settings()
@@ -18,6 +18,7 @@ app = FastAPI(
 )
 
 app.include_router(predictions.router)
+app.include_router(conversations.router)
 app.include_router(feedback.router)
 app.include_router(scores.router)
 app.include_router(review.router)
