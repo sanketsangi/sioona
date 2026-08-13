@@ -20,7 +20,8 @@ const SIGNAL_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 
 export const DEFAULT_DETECT_LLM_MODEL = "qwen/qwen3.6-27b";
 export const DETECT_LLM_MAX_CALLS = 8;
-export const DETECT_LLM_CONCURRENCY = 8;
+/** Default 2 — Groq Free 429s at 8-wide; keep Hobby detect + Neon sync under 10s. */
+export const DETECT_LLM_CONCURRENCY = 2;
 export const DETECT_LLM_TIMEOUT_MS = 6_000;
 const CUSTOMER_TEXT_MAX = 2_400;
 const QUOTE_MAX = 140;
@@ -94,6 +95,11 @@ export function isDetectLlmEnabled(): boolean {
 
 export function detectLlmModel(): string {
   return process.env.DETECT_LLM_MODEL?.trim() || DEFAULT_DETECT_LLM_MODEL;
+}
+
+function positiveEnvNumber(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 function clipQuote(text: string, max = QUOTE_MAX): string {
@@ -325,18 +331,21 @@ export async function applyLlmSecondPass(
         customerText(a.customerMessages).length
     );
 
-  const envMax = Number(process.env.DETECT_LLM_MAX_CALLS);
   const maxCalls = Math.max(
     0,
     options?.maxCalls ??
-      (Number.isFinite(envMax) && envMax > 0 ? envMax : DETECT_LLM_MAX_CALLS)
+      positiveEnvNumber(process.env.DETECT_LLM_MAX_CALLS, DETECT_LLM_MAX_CALLS)
   );
   const selected = candidates.slice(0, maxCalls);
   const skipped = Math.max(0, candidates.length - selected.length);
   const classifyFn = classify ?? classifyConversationWithGroq;
   const concurrency = Math.max(
     1,
-    options?.concurrency ?? DETECT_LLM_CONCURRENCY
+    options?.concurrency ??
+      positiveEnvNumber(
+        process.env.DETECT_LLM_CONCURRENCY,
+        DETECT_LLM_CONCURRENCY
+      )
   );
 
   const added: Signal[] = [];

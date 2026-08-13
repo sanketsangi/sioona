@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeEvalMetrics } from "./eval";
 import {
   applyLlmSecondPass,
+  DETECT_LLM_CONCURRENCY,
+  DETECT_LLM_MAX_CALLS,
   isDetectLlmEnabled,
   runHybridDetection,
 } from "./detect-llm";
@@ -46,6 +48,76 @@ describe("isDetectLlmEnabled", () => {
     expect(isDetectLlmEnabled()).toBe(true);
   });
 });
+
+const noneClassification = {
+  type: "none" as const,
+  confidence: 0,
+  summary: "",
+  quotes: [] as string[],
+};
+
+function quietMissBatch(n: number): {
+  conversations: Conversation[];
+  messages: Message[];
+} {
+  const conversations: Conversation[] = [];
+  const messages: Message[] = [];
+  for (let i = 0; i < n; i++) {
+    const id = `conv_miss_${i}`;
+    conversations.push({ ...conv, id });
+    messages.push({
+      id: `m_miss_${i}`,
+      conversationId: id,
+      role: "customer",
+      content:
+        "Please send the monthly account statement to my email when you can.",
+      timestamp: "2026-08-01T00:00:00.000Z",
+    });
+  }
+  return { conversations, messages };
+}
+
+async function inFlightUnderHold(input: {
+  candidates: number;
+  env?: string;
+  optionsConcurrency?: number;
+}): Promise<number> {
+  vi.stubEnv("DETECT_LLM_CONCURRENCY", input.env ?? "");
+  const { conversations, messages } = quietMissBatch(input.candidates);
+
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = 0;
+
+  const pending = applyLlmSecondPass(
+    conversations,
+    messages,
+    "tenant_demo",
+    [],
+    null,
+    {
+      ...(input.optionsConcurrency !== undefined
+        ? { concurrency: input.optionsConcurrency }
+        : {}),
+      classify: async () => {
+        started += 1;
+        await hold;
+        return noneClassification;
+      },
+    }
+  );
+
+  await vi.waitFor(() => {
+    expect(started).toBeGreaterThan(0);
+  });
+  await new Promise((r) => setTimeout(r, 25));
+  const inFlight = started;
+  release();
+  await pending;
+  return inFlight;
+}
 
 describe("applyLlmSecondPass", () => {
   it("does not call classifier when heuristics already fired", async () => {
@@ -189,6 +261,23 @@ describe("applyLlmSecondPass", () => {
       }
     );
     expect(weak.signals).toHaveLength(0);
+  });
+
+  it("defaults concurrency to 2 and honors DETECT_LLM_CONCURRENCY", async () => {
+    expect(DETECT_LLM_CONCURRENCY).toBe(2);
+    expect(DETECT_LLM_MAX_CALLS).toBe(8);
+
+    expect(await inFlightUnderHold({ candidates: 5 })).toBe(2);
+    expect(await inFlightUnderHold({ candidates: 5, env: "4" })).toBe(4);
+    expect(await inFlightUnderHold({ candidates: 5, env: "nope" })).toBe(2);
+    expect(await inFlightUnderHold({ candidates: 5, env: "0" })).toBe(2);
+    expect(
+      await inFlightUnderHold({
+        candidates: 5,
+        env: "8",
+        optionsConcurrency: 3,
+      })
+    ).toBe(3);
   });
 });
 
