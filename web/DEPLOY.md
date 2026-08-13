@@ -53,15 +53,19 @@ The JSON file store alone is enough to browse fixtures after reseeding, but
 |----------|--------|--------|
 | `BACKEND_URL` | Production (server-only; **not** `NEXT_PUBLIC_`) | Public FastAPI base URL, no trailing slash (e.g. `https://sioona-api.onrender.com`) |
 | `DETECT_LLM` | Production (server-only) | `1` to enable Groq pass 2. Omit or `0` = heuristics only ($0). |
-| `GROQ_API_KEY` | Production (server-only, Sensitive) | Groq key. Never commit. Cap spend at **$20/mo** in the Groq console. |
-| `DETECT_LLM_MAX_CALLS` | Production (optional) | Default `8`. Lower if Hobby 10s timeouts hit. |
+| `GROQ_API_KEY` | Production (server-only, Sensitive) | Groq key. Never commit. **Production only.** Cap spend at **$20/mo** in the Groq console. |
+| `DETECT_LLM_CONCURRENCY` | Production | Set to **`2`** (also the code default). Do not use `8` — Groq Free returns 429s. No 429 retry (would blow Hobby 10s). |
+| `DETECT_LLM_MAX_CALLS` | Production | Set to **`4`**. Local default is `8`; Production `4` so detect + Neon sync fit in Hobby ~10s. |
 
 1. Host FastAPI + Neon per [`backend/README.md`](../backend/README.md#hosted-deploy-demo).
 2. In the Vercel project **Settings → Environment Variables**, set `BACKEND_URL` for **Production**.
 3. **Detect v2 (when you have a Groq key):** same page, Production only:
    - [Vercel project → Settings → Environment Variables](https://vercel.com/sanketsangi/web/settings/environment-variables)
    - Add `DETECT_LLM` = `1` (Production)
-   - Add `GROQ_API_KEY` (Sensitive) = your `gsk_…` key (Production)
+   - Add `GROQ_API_KEY` (Sensitive) = your `gsk_…` key (Production only)
+   - Add `DETECT_LLM_CONCURRENCY` = `2` (Production)
+   - Add `DETECT_LLM_MAX_CALLS` = `4` (Production) — detect + Neon sync must fit Hobby ~10s
+   - Cap Groq spend at **$20/mo** in the Groq console (when Developer billing exists)
    - Leave Preview/Development unset so previews stay $0
    - Redeploy Production so serverless functions pick up the vars
 4. Redeploy after any env change.
