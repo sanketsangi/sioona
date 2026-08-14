@@ -19,6 +19,8 @@ export function ReDetectButton({ className }: { className?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fullWidth = Boolean(className && /\bw-full\b/.test(className));
+  const autoWidthMd = Boolean(className && /\bmd:w-auto\b/.test(className));
 
   async function run() {
     setLoading(true);
@@ -67,7 +69,13 @@ export function ReDetectButton({ className }: { className?: string }) {
   }
 
   return (
-    <span className="relative inline-flex">
+    <span
+      className={cn(
+        "relative inline-flex max-w-full",
+        fullWidth && "w-full",
+        autoWidthMd && "md:w-auto",
+      )}
+    >
       <button
         type="button"
         onClick={run}

@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 
 type SignalTypeChipProps = {
   type: SignalType;
+  /** Optional keep-set count shown after the type label. */
+  count?: number;
   className?: string;
 };
 
@@ -15,7 +17,7 @@ type SignalTypeChipProps = {
  * Ops-scan Type chrome — hairline pill tinted by signal type
  * (lead=blue, retention=amber, upsell=teal). Label always accompanies color.
  */
-export function SignalTypeChip({ type, className }: SignalTypeChipProps) {
+export function SignalTypeChip({ type, count, className }: SignalTypeChipProps) {
   const Icon =
     type === "lead"
       ? LeadIcon
@@ -36,6 +38,11 @@ export function SignalTypeChip({ type, className }: SignalTypeChipProps) {
       <span className="translate-y-px whitespace-nowrap text-label-12 font-medium leading-none">
         {signalTypeLabel(type)}
       </span>
+      {count != null ? (
+        <span className="translate-y-px tabular text-label-12 font-medium leading-none">
+          {count}
+        </span>
+      ) : null}
     </span>
   );
 }

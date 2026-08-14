@@ -61,25 +61,17 @@ export function FeedbackControls({
   const initialNote = signal.feedback?.note ?? "";
   const [note, setNote] = useState(initialNote);
   const [pending, setPending] = useState<FeedbackLabel | null>(null);
-  const [actedPending, setActedPending] = useState(false);
-  const [actedLocal, setActedLocal] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState<FeedbackLabel | null>(null);
   const dirty = note.trim() !== initialNote.trim();
 
   const feedbackLabel = signal.feedback?.label ?? justSaved;
-  const hasFeedback = Boolean(signal.feedback) || justSaved !== null;
-  const isActed = actedLocal ?? signal.status === "acted";
-  const busy = pending !== null || actedPending;
+  const busy = pending !== null;
   const needsAdapt =
     feedbackLabel === "incorrect" || feedbackLabel === "partially_correct";
   const currentTitle =
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
-
-  useEffect(() => {
-    setActedLocal(null);
-  }, [signal.id, signal.status]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -126,37 +118,16 @@ export function FeedbackControls({
     void submit("correct");
   }
 
-  async function setActed(acted: boolean) {
-    setActedPending(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/signals/${signal.id}/acted`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acted }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || "Failed to update acted status");
-      }
-      setActedLocal(acted);
-      router.refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to update acted status",
-      );
-    } finally {
-      setActedPending(false);
-    }
-  }
-
   return (
     <section
       className={cn("metric-strip flex flex-col", className)}
       aria-labelledby={headingId}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
-        <h3 id={headingId} className="eyebrow">
+        <h3
+          id={headingId}
+          className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+        >
           Feedback
         </h3>
         <span
@@ -197,7 +168,7 @@ export function FeedbackControls({
         </label>
 
         <div
-          className="mt-2.5 flex flex-wrap items-center gap-2"
+          className="mt-2.5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3"
           role="group"
           aria-label="Feedback actions"
         >
@@ -212,8 +183,9 @@ export function FeedbackControls({
                 disabled={busy}
                 aria-busy={pending === option.label}
                 aria-pressed={isCurrent}
-                onClick={() => submit(option.label)}
+                onClick={() => void submit(option.label)}
                 className={cn(
+                  "w-full min-w-0",
                   option.primary ? "btn-primary" : "btn-secondary",
                   isCurrent &&
                     !option.primary &&
@@ -225,55 +197,20 @@ export function FeedbackControls({
                 ) : (
                   <Icon className="size-3.5 shrink-0" />
                 )}
-                {option.title}
+                {option.label === "partially_correct" ? (
+                  <>
+                    <span className="min-[420px]:hidden">Partial</span>
+                    <span className="hidden min-[420px]:inline">
+                      {option.title}
+                    </span>
+                  </>
+                ) : (
+                  option.title
+                )}
               </button>
             );
           })}
         </div>
-
-        {hasFeedback ? (
-          <div className="mt-2.5 border-t border-sio-border-base pt-2.5">
-            <p className="text-label-12 text-sio-fg-muted">
-              Mark as Acted when you&apos;ve handled this. Does not send the
-              suggested action.
-            </p>
-            <p className="sr-only" aria-live="polite">
-              {isActed
-                ? "Marked as Acted. Suggested action was not sent."
-                : null}
-            </p>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              {isActed ? (
-                <>
-                  <p className="text-label-12 text-sio-fg-base">
-                    Marked as Acted
-                  </p>
-                  <button
-                    type="button"
-                    className="btn-tertiary"
-                    disabled={busy}
-                    aria-busy={actedPending}
-                    onClick={() => setActed(false)}
-                  >
-                    {actedPending ? <ButtonSpinner /> : null}
-                    Undo
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={busy}
-                  aria-busy={actedPending}
-                  onClick={() => setActed(true)}
-                >
-                  {actedPending ? <ButtonSpinner /> : null}
-                  Mark as Acted
-                </button>
-              )}
-            </div>
-          </div>
-        ) : null}
 
         {needsAdapt ? (
           <div className="mt-2.5" role="status" aria-live="polite">

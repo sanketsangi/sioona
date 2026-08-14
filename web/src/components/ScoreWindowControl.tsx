@@ -39,18 +39,18 @@ export function ScoreWindowControl({
         {panel && panel !== "metrics" ? (
           <input type="hidden" name="panel" value={panel} />
         ) : null}
-        <label className="flex min-w-0 items-center gap-1.5">
-          <span className="text-label-12 text-sio-fg-muted">From</span>
+        <label className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-none">
+          <span className="shrink-0 text-label-12 text-sio-fg-muted">From</span>
           <input
             type="date"
             name="scoreFrom"
             defaultValue={window.dateInput}
             required
             autoComplete="off"
-            className="input-field h-11 min-h-11 w-[10.5rem] px-2 py-0 md:h-8 md:min-h-0"
+            className="input-field h-11 min-h-11 w-full min-w-0 max-w-[11rem] px-2 py-0 md:h-8 md:min-h-0"
           />
         </label>
-        <button type="submit" className="btn-secondary">
+        <button type="submit" className="btn-secondary shrink-0">
           Apply Window
         </button>
       </form>

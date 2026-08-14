@@ -4,10 +4,6 @@ import { GeistMono } from "geist/font/mono";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: {
@@ -31,9 +27,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "overflow-hidden", GeistSans.variable, GeistMono.variable, "font-sans", geist.variable)}
+      className={`theme h-full overflow-hidden font-sans ${GeistSans.variable} ${GeistMono.variable}`}
     >
-      <body className="h-full overflow-hidden font-sans antialiased">
+      <body className="h-full overflow-hidden bg-background font-sans text-foreground antialiased">
         {children}
         <SpeedInsights />
         <Analytics />

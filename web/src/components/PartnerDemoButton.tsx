@@ -13,6 +13,7 @@ import {
   parsePredictionSync,
   syncQueryExtras,
 } from "@/lib/prediction-sync";
+import { cn } from "@/lib/utils";
 
 export function PartnerDemoButton({
   className = "btn-primary",
@@ -25,6 +26,8 @@ export function PartnerDemoButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
+  const fullWidth = /\bw-full\b/.test(className);
+  const autoWidthMd = /\bmd:w-auto\b/.test(className);
 
   async function run() {
     setLoading(true);
@@ -70,7 +73,13 @@ export function PartnerDemoButton({
   }
 
   return (
-    <span className="relative inline-flex">
+    <span
+      className={cn(
+        "relative inline-flex max-w-full",
+        fullWidth && "w-full",
+        autoWidthMd && "md:w-auto",
+      )}
+    >
       <button
         type="button"
         onClick={run}

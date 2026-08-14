@@ -1,13 +1,13 @@
 export type PlatformView = "insights" | "upload" | "eval" | "taxonomy";
 
-export type EvalPanel = "metrics" | "adapt" | "labeled";
+export type EvalPanel = "metrics" | "adapt" | "labeled" | "export";
 
 export type StatusFilter = "all" | "new" | "reviewed";
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
 export type LabeledTab = "byType" | "conversations";
 
 const VIEWS: PlatformView[] = ["insights", "upload", "eval", "taxonomy"];
-const EVAL_PANELS: EvalPanel[] = ["metrics", "adapt", "labeled"];
+const EVAL_PANELS: EvalPanel[] = ["metrics", "adapt", "labeled", "export"];
 const STATUS_FILTERS: StatusFilter[] = ["all", "new", "reviewed"];
 const TYPE_FILTERS: TypeFilter[] = ["all", "lead", "retention", "upsell"];
 const LABELED_TABS: LabeledTab[] = ["byType", "conversations"];

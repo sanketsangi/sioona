@@ -50,8 +50,13 @@ export function AppShell({
           notifications={notifications}
         />
 
-        <div className="page-frame flex min-h-0 flex-1 flex-col py-3 sm:py-4 lg:py-5">
-          <div className="page-body">{children}</div>
+        {/* dashboard-01 main column: flex → @container/main → padded frame */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="@container/main flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="page-frame">
+              <div className="page-body">{children}</div>
+            </div>
+          </div>
         </div>
       </SidebarInset>
     </SidebarProvider>

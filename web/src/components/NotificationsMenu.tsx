@@ -159,7 +159,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="btn-secondary relative size-11 shrink-0 px-0 md:size-9"
+          className="btn-secondary relative size-11 shrink-0 px-0 outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none md:size-9"
           aria-label={
             hasUnread
               ? `Notifications, ${unreadCount} unread`
@@ -178,7 +178,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-[min(100vw-2rem,22.5rem)] overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base p-0 text-sio-fg-base shadow-md"
+        className="w-[min(100vw-2rem,22.5rem)] overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base p-0 text-sio-fg-base shadow-md outline-none ring-0 focus:outline-none focus-visible:shadow-none"
       >
         <DropdownMenuLabel className="flex items-center justify-between gap-3 px-3.5 py-3 font-normal">
           <span className="text-label-14 font-semibold tracking-tight text-sio-fg-base">

@@ -145,6 +145,8 @@ export async function loadPartnerExportEval(options?: {
   classify?: LlmClassifyFn;
   maxCalls?: number;
   concurrency?: number;
+  /** When true, never run hybrid even if DETECT_LLM=1 (UI measurement dry-run). */
+  skipHybrid?: boolean;
   /**
    * Adapt terms for the second heuristic pass.
    * Default: partner-export fixture when `source=local` or `week2`; none for template.
@@ -194,7 +196,8 @@ export async function loadPartnerExportEval(options?: {
     : null;
 
   const shouldHybrid =
-    Boolean(options?.classify) || isDetectLlmEnabled();
+    !options?.skipHybrid &&
+    (Boolean(options?.classify) || isDetectLlmEnabled());
 
   if (!shouldHybrid) {
     return {

@@ -53,13 +53,13 @@ export function SignalReviewSuggestedAction({
       className={cn("metric-strip flex flex-col", className)}
       aria-labelledby={headingId}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
-        <h3 id={headingId} className="eyebrow">
+      <div className="border-b border-sio-border-base px-3 py-2">
+        <h3
+          id={headingId}
+          className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+        >
           Suggested Next Action
         </h3>
-        <p className="text-label-12 text-sio-fg-muted">
-          Display-only — not sent by Sioona.
-        </p>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col px-3 py-3">

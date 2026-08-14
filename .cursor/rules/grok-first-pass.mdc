@@ -11,6 +11,8 @@ When this rule is attached, the user's message is a **job sketch**, not the fina
 
 Rewrite if the user message is short, informal, or missing stack/visual/verify details (typical: 1–5 lines).
 
+If the user pasted an **Architect handoff sketch** (Goal / Touch / Constraints / Done + “Attach grok-first-pass”), treat it as the job sketch: expand internally and execute. Never reprint the full expansion unless they asked “show the prompt”.
+
 Do **not** rewrite if they already pasted a full spec, said "just do this exactly", or asked "rewrite only" / "show the prompt".
 
 ## Rewrite then act

@@ -97,7 +97,7 @@ function buildQueueHref(
     const preview = next.preview !== undefined ? next.preview : previewId;
     return viewHref("insights", {
       ...queryExtras,
-      status,
+      status: status === "all" ? null : status,
       type: type === "all" ? null : type,
       page: pageNum > 1 ? String(pageNum) : null,
       preview: preview || null,
@@ -165,38 +165,35 @@ function QueueColumnHeader() {
 function useQueueList({
   pendingSignals,
   reviewedSignals,
-  queueError,
   statusFilter,
   typeFilter,
 }: {
   pendingSignals: Signal[];
   reviewedSignals: Signal[];
-  queueError?: string | null;
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
 }) {
-  const pendingCount = queueError ? 0 : pendingSignals.length;
+  const pendingCount = pendingSignals.length;
   const reviewedCount = reviewedSignals.length;
-  const allCount = queueError
-    ? reviewedCount
-    : pendingCount +
-      reviewedSignals.filter((s) => !pendingSignals.some((p) => p.id === s.id))
-        .length;
+  const allCount =
+    pendingCount +
+    reviewedSignals.filter((s) => !pendingSignals.some((p) => p.id === s.id))
+      .length;
 
   const filtered = useMemo(() => {
     let list: Signal[];
     if (statusFilter === "new") {
-      list = queueError ? [] : pendingSignals;
+      list = pendingSignals;
     } else if (statusFilter === "reviewed") {
       list = reviewedSignals;
     } else {
       const pendingIds = new Set(pendingSignals.map((s) => s.id));
       const reviewedOnly = reviewedSignals.filter((s) => !pendingIds.has(s.id));
-      list = queueError ? reviewedOnly : [...pendingSignals, ...reviewedOnly];
+      list = [...pendingSignals, ...reviewedOnly];
     }
     if (typeFilter === "all") return list;
     return list.filter((signal) => signal.type === typeFilter);
-  }, [pendingSignals, reviewedSignals, queueError, statusFilter, typeFilter]);
+  }, [pendingSignals, reviewedSignals, statusFilter, typeFilter]);
 
   return { pendingCount, reviewedCount, allCount, filtered };
 }
@@ -206,7 +203,7 @@ export function SignalQueueFilters({
   pendingSignals,
   reviewedSignals,
   queueError = null,
-  statusFilter = "new",
+  statusFilter = "all",
   typeFilter = "all",
   previewId = null,
   queryExtras,
@@ -214,7 +211,6 @@ export function SignalQueueFilters({
   const { pendingCount, reviewedCount, allCount } = useQueueList({
     pendingSignals,
     reviewedSignals,
-    queueError,
     statusFilter,
     typeFilter,
   });
@@ -231,7 +227,7 @@ export function SignalQueueFilters({
       typeFilter={typeFilter}
       pendingCount={pendingCount}
       reviewedCount={reviewedCount}
-      allCount={statusFilter === "new" && queueError ? reviewedCount : allCount}
+      allCount={allCount}
       queueHref={queueHref}
     />
   );
@@ -243,7 +239,7 @@ export function SignalQueue({
   customerNames = {},
   conversationsById = {},
   queueError = null,
-  statusFilter = "new",
+  statusFilter = "all",
   typeFilter = "all",
   page = 1,
   previewId = null,
@@ -253,7 +249,6 @@ export function SignalQueue({
   const { pendingCount, reviewedCount, allCount, filtered } = useQueueList({
     pendingSignals,
     reviewedSignals,
-    queueError,
     statusFilter,
     typeFilter,
   });
@@ -311,13 +306,7 @@ export function SignalQueue({
             typeFilter={typeFilter}
             pendingCount={pendingCount}
             reviewedCount={reviewedCount}
-            allCount={
-              previewSignal
-                ? allCount
-                : statusFilter === "new" && queueError
-                  ? reviewedCount
-                  : allCount
-            }
+            allCount={allCount}
             queueHref={queueHref}
           />
         ) : null}
@@ -328,22 +317,22 @@ export function SignalQueue({
         {previewSignal ? (
           <div
             id={`signal-review-body-${previewSignal.id}`}
-            className="flex shrink-0 flex-col gap-3"
+            className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
             aria-labelledby={`signal-review-heading-${previewSignal.id}`}
           >
             <SignalReviewSuggestedAction
               signal={previewSignal}
-              className="min-w-0"
+              className="min-w-0 lg:h-full"
             />
             <FeedbackControls
               signal={previewSignal}
-              className="min-w-0"
+              className="min-w-0 lg:h-full"
             />
             {previewConversation ? (
               <GroundTruthControl
                 conversationId={previewConversation.id}
                 groundTruth={previewConversation.groundTruth}
-                className="min-w-0"
+                className="min-w-0 lg:col-span-2"
               />
             ) : null}
           </div>
@@ -352,7 +341,7 @@ export function SignalQueue({
     );
   }
 
-  if (showPendingError && statusFilter === "new") {
+  if (showPendingError && statusFilter === "new" && pendingSignals.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         {showFilters ? (
@@ -418,7 +407,7 @@ export function SignalQueue({
         />
       ) : null}
 
-      {showPendingError && statusFilter === "all" ? (
+      {showPendingError ? (
         <div
           className="status-banner status-banner-warning shrink-0"
           role="alert"
@@ -427,7 +416,8 @@ export function SignalQueue({
             Neon needs-review queue unavailable
           </p>
           <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
-            Showing reviewed signals only. Start FastAPI to load needs-review.
+            Showing local keep-set signals. Start FastAPI to load needs-review
+            from Neon.
           </p>
         </div>
       ) : null}

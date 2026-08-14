@@ -1,6 +1,7 @@
 import { SIGNAL_TAXONOMY } from "@/lib/taxonomy";
 import { SignalBadge } from "@/components/SignalBadge";
 import { Pager } from "@/components/Pager";
+import { ViewFrame } from "@/components/ViewFrame";
 import { parsePage, viewHref } from "@/lib/views";
 
 export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
@@ -9,7 +10,7 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
   const entry = SIGNAL_TAXONOMY[page - 1] ?? SIGNAL_TAXONOMY[0];
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden sm:gap-4">
+    <ViewFrame className="gap-3 sm:gap-4">
       <div className="shrink-0">
         <Pager
           page={page}
@@ -70,6 +71,6 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
           </div>
         </div>
       </section>
-    </div>
+    </ViewFrame>
   );
 }

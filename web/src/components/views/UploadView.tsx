@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ResetDemoButton } from "@/components/ResetDemoButton";
 import { UploadForm } from "@/components/UploadForm";
+import { ViewFrame } from "@/components/ViewFrame";
 import { viewHref } from "@/lib/views";
 
 const samples = [
@@ -28,7 +29,7 @@ export function UploadView({
   hasPartnerExport?: boolean;
 }) {
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain lg:overflow-hidden">
+    <ViewFrame className="overflow-y-auto overscroll-contain lg:overflow-hidden">
       <div className="grid min-h-0 min-w-0 grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-6 lg:overflow-hidden">
         <div className="min-h-0 min-w-0 lg:scroll-region">
           <UploadForm compact hasPartnerExport={hasPartnerExport} />
@@ -96,6 +97,6 @@ export function UploadView({
           </p>
         </aside>
       </div>
-    </div>
+    </ViewFrame>
   );
 }

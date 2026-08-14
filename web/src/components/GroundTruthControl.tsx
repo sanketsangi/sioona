@@ -136,7 +136,10 @@ export function GroundTruthControl({
       aria-labelledby={headingId}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
-        <h3 id={headingId} className="eyebrow">
+        <h3
+          id={headingId}
+          className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+        >
           Ground Truth
         </h3>
         <span

@@ -7,7 +7,7 @@ import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { UploadView } from "@/components/views/UploadView";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
-import { joinNeedsReviewPredictions } from "@/lib/join-needs-review";
+import { pendingQueueSignals } from "@/lib/join-needs-review";
 import { buildHeaderNotifications } from "@/lib/notifications";
 import {
   parseLlmAddedParam,
@@ -114,8 +114,8 @@ export default async function PlatformPage({
     fetchNeedsReview(store.tenant.id),
   ]);
   const pendingCount = needsReview.ok
-    ? joinNeedsReviewPredictions(needsReview.predictions, store.signals).length
-    : 0;
+    ? pendingQueueSignals(needsReview.predictions, store.signals).length
+    : store.signals.filter((s) => !s.feedback).length;
   const queueError = needsReview.ok ? null : needsReview.error;
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
   const notifications = buildHeaderNotifications({
@@ -130,8 +130,8 @@ export default async function PlatformPage({
   const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
-  // Insights default: Neon pending (needs-review) list
-  const statusFilter = parseStatusFilter(sp.status ?? "new");
+  // Insights default: status=all + type=all (URL omits both when default)
+  const statusFilter = parseStatusFilter(sp.status);
   const typeFilter = parseTypeFilter(sp.type);
   const page = parsePage(sp.page);
 

@@ -31,6 +31,7 @@ export function OpenConversationHeaderAction({
       typeLabel={typeLabel}
       summary={summary}
       triggerLabel="Open Conversation"
+      triggerClassName="btn-secondary"
       footer={null}
     />
   );

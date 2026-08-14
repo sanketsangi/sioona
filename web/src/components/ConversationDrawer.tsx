@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 import { X } from "@phosphor-icons/react/ssr";
 import { ConversationMessages } from "@/components/ConversationMessages";
-import { buttonVariants } from "@/components/ui/button";
 import {
   Drawer,
   DrawerClose,
@@ -28,6 +27,7 @@ export function ConversationDrawer({
   typeLabel: _typeLabel,
   summary: _summary,
   triggerLabel = "See Conversation",
+  triggerClassName,
   footer = null,
 }: {
   messages: ChatMessage[];
@@ -38,6 +38,8 @@ export function ConversationDrawer({
   summary: string;
   /** Title Case trigger label. */
   triggerLabel?: "See Conversation" | "Open Conversation" | string;
+  /** Override trigger chrome; default matches Mark as Acted (`btn-secondary`). */
+  triggerClassName?: string;
   /** Optional custom footer; default none (review lives in-queue). */
   footer?: ReactNode | null;
 }) {
@@ -45,12 +47,7 @@ export function ConversationDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger
-        className={cn(
-          buttonVariants({ variant: "outline", size: "sm" }),
-          "h-11 min-h-11 border-sio-border-subtle bg-transparent text-sm shadow-none hover:border-sio-border-strong hover:bg-sio-bg-interactive hover:text-sio-fg-base md:h-8 md:min-h-8",
-        )}
-      >
+      <DrawerTrigger className={cn("btn-secondary", triggerClassName)}>
         {triggerLabel}
       </DrawerTrigger>
 

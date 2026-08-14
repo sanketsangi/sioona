@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BackendPrediction } from "./backend-client";
 import {
   joinNeedsReviewPredictions,
+  pendingQueueSignals,
   predictionToStubSignal,
   reviewedSignalsFromStore,
 } from "./join-needs-review";
@@ -139,5 +140,52 @@ describe("reviewedSignalsFromStore", () => {
       },
     ]);
     expect(reviewed.map((s) => s.id)).toEqual(["sig_r"]);
+  });
+});
+
+describe("pendingQueueSignals", () => {
+  it("keeps Neon join order then appends local unreviewed Neon missed", () => {
+    const preds = [prediction({ id: "aaa" })];
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        id: "sig_neon",
+        backendSignalId: "aaa",
+      },
+      {
+        ...baseSignal,
+        id: "sig_local_only",
+        conversationId: "conv_local",
+        summary: "Local only",
+      },
+      {
+        ...baseSignal,
+        id: "sig_reviewed",
+        conversationId: "conv_done",
+        feedback: {
+          label: "correct",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+      },
+    ];
+
+    const pending = pendingQueueSignals(preds, json);
+    expect(pending.map((s) => s.id)).toEqual(["sig_neon", "sig_local_only"]);
+  });
+
+  it("surfaces keep-set locals when Neon queue has no overlapping chats", () => {
+    const preds = [
+      prediction({
+        id: "stale",
+        conversation_id: "conv_other_pack",
+      }),
+    ];
+    const json: Signal[] = [
+      { ...baseSignal, id: "sig_a" },
+      { ...baseSignal, id: "sig_b", conversationId: "conv_2", type: "retention" },
+    ];
+
+    const pending = pendingQueueSignals(preds, json);
+    expect(pending.map((s) => s.id)).toEqual(["sig_a", "sig_b"]);
   });
 });

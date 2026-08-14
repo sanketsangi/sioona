@@ -5,7 +5,9 @@ import { ExternalIcon } from "@/components/icons/ExternalIcon";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
+import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
 import { SignalQueue, SignalQueueFilters } from "@/components/SignalQueue";
+import { ViewFrame } from "@/components/ViewFrame";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,6 +17,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
+import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 // Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { applyBackendSignalScoreToPilot } from "@/lib/eval";
@@ -27,7 +30,7 @@ import {
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import {
-  joinNeedsReviewPredictions,
+  pendingQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
@@ -84,8 +87,8 @@ export function InsightsView({
   const pilot = applyBackendSignalScoreToPilot(store, backendScore);
   const queueError = needsReview.ok ? null : needsReview.error;
   const pendingSignals = needsReview.ok
-    ? joinNeedsReviewPredictions(needsReview.predictions, store.signals)
-    : [];
+    ? pendingQueueSignals(needsReview.predictions, store.signals)
+    : store.signals.filter((s) => !s.feedback);
   const reviewedSignals = reviewedSignalsFromStore(store.signals);
   const customerNames: Record<string, string> = {};
   const conversationsById: Record<string, Conversation> = {};
@@ -169,14 +172,14 @@ export function InsightsView({
   // Clear `?preview=` while preserving filters / banners.
   const backToQueueHref = viewHref("insights", {
     ...queryExtras,
-    status: statusFilter,
+    status: statusFilter === "all" ? null : statusFilter,
     type: typeFilter === "all" ? null : typeFilter,
     page: page > 1 ? String(page) : null,
     preview: null,
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <ViewFrame>
       <ClearStaleSyncFailedParams shouldClear={staleSyncFailedParam} />
       {showImportBanner ? (
         <div className="scroll-region flex max-h-[30%] shrink-0 flex-col gap-2.5 lg:max-h-[40%]">
@@ -198,7 +201,9 @@ export function InsightsView({
                 ? ZERO_SIGNAL_HINT
                 : hasSyncFailure
                   ? "Neon sync failed for some predictions — needs-review queue may be incomplete."
-                  : "Neon needs-review queue is ready below."}
+                  : pendingSignals.length === 0
+                    ? "Import finished — open Filters or re-run detection if the queue stays empty."
+                    : "Neon needs-review queue is ready below."}
             </p>
             {zeroSignalsImport ? (
               <div className="mt-2.5 flex flex-wrap gap-2">
@@ -277,18 +282,30 @@ export function InsightsView({
             ) : null}
           </p>
         </NoteContent>
-        <NoteAction aria-label="Queue actions">
-          <PartnerDemoButton className="btn-primary" label="Run Partner Demo" />
-          <ReDetectButton />
+        <NoteAction
+          aria-label="Queue actions"
+          className="flex-col items-stretch md:flex-row md:items-center"
+        >
+          <PartnerDemoButton
+            className="btn-secondary w-full md:w-auto md:border-transparent md:bg-sio-bg-inverse md:text-sio-fg-on-color md:hover:border-transparent md:hover:bg-black md:disabled:border-transparent md:disabled:bg-sio-bg-disabled md:disabled:text-sio-fg-muted"
+            label="Run Partner Demo"
+          />
+          <ReDetectButton className="w-full md:w-auto" />
           <Link
             href={viewHref("eval", { scoreFrom })}
-            className="btn-secondary"
+            className="btn-secondary w-full md:w-auto"
           >
             <ExternalIcon className="size-3.5 shrink-0" />
             Open Eval
           </Link>
         </NoteAction>
       </Note>
+
+      <InsightsQueueMetrics
+        conversationCount={store.conversations.length}
+        signals={store.signals}
+        pendingSignals={pendingSignals}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col gap-3">
         <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
@@ -329,12 +346,15 @@ export function InsightsView({
           </div>
           <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
             {previewSignal && previewCustomerName != null ? (
-              <OpenConversationHeaderAction
-                messages={previewMessages}
-                customerName={previewCustomerName}
-                typeLabel={signalTypeLabel(previewSignal.type)}
-                summary={previewSignal.summary || ""}
-              />
+              <>
+                <OpenConversationHeaderAction
+                  messages={previewMessages}
+                  customerName={previewCustomerName}
+                  typeLabel={signalTypeLabel(previewSignal.type)}
+                  summary={previewSignal.summary || ""}
+                />
+                <MarkActedHeaderAction signal={previewSignal} />
+              </>
             ) : (
               <SignalQueueFilters
                 pendingSignals={pendingSignals}
@@ -366,6 +386,6 @@ export function InsightsView({
           />
         </div>
       </div>
-    </div>
+    </ViewFrame>
   );
 }

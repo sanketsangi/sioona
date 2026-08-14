@@ -3,6 +3,8 @@ import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
 import { ScoreWindowControl } from "@/components/ScoreWindowControl";
 import { SignalScoreSummary } from "@/components/SignalScoreSummary";
+import { ViewFrame } from "@/components/ViewFrame";
+import { ExportEvalPanel } from "@/components/views/ExportEvalPanel";
 import { LabeledTables } from "@/components/views/LabeledTables";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import {
@@ -43,6 +45,7 @@ const PANELS: { id: EvalPanel; label: string }[] = [
   { id: "metrics", label: "Metrics" },
   { id: "adapt", label: "Adapt" },
   { id: "labeled", label: "Labeled" },
+  { id: "export", label: "Export eval" },
 ];
 
 export function EvalView({
@@ -76,7 +79,7 @@ export function EvalView({
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+    <ViewFrame className="gap-3 md:gap-4">
       <div
         className="flex min-w-0 shrink-0 flex-wrap gap-0.5 rounded-sm border border-sio-border-base bg-sio-bg-base p-0.5"
         role="group"
@@ -130,8 +133,9 @@ export function EvalView({
             convPageRaw={convPageRaw}
           />
         ) : null}
+        {panel === "export" ? <ExportEvalPanel /> : null}
       </div>
-    </div>
+    </ViewFrame>
   );
 }
 
@@ -276,12 +280,12 @@ function Metric({
   hint: string;
 }) {
   return (
-    <div className="min-w-0 px-2 py-2.5 sm:px-3">
+    <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
       <div className="metric-label">{label}</div>
       <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
         {value}
       </div>
-      <div className="mt-0.5 truncate text-label-12 text-sio-fg-muted">
+      <div className="mt-0.5 line-clamp-2 break-words text-pretty text-label-12 text-sio-fg-muted">
         {hint}
       </div>
     </div>

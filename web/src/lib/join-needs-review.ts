@@ -90,3 +90,24 @@ export function joinNeedsReviewPredictions(
 export function reviewedSignalsFromStore(jsonSignals: Signal[]): Signal[] {
   return jsonSignals.filter((s) => Boolean(s.feedback));
 }
+
+/**
+ * Shadow Mode pending list for Insights: Neon needs-review join first, then
+ * keep-set JSON unreviewed rows Neon did not return (id drift / stale queue).
+ * Reviewed (feedback) rows stay out — they belong in the reviewed filter.
+ */
+export function pendingQueueSignals(
+  predictions: BackendPrediction[],
+  jsonSignals: Signal[]
+): Signal[] {
+  const fromNeon = joinNeedsReviewPredictions(predictions, jsonSignals);
+  const seen = new Set(fromNeon.map((s) => s.id));
+  const localOnly: Signal[] = [];
+  for (const signal of jsonSignals) {
+    if (signal.feedback) continue;
+    if (seen.has(signal.id)) continue;
+    seen.add(signal.id);
+    localOnly.push(signal);
+  }
+  return [...fromNeon, ...localOnly];
+}
