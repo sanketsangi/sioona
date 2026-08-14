@@ -10,12 +10,26 @@ import {
 
 export async function fetchSignalScoreSafe(
   tenantId: string,
-  conversationIds?: string[]
+  conversationIds?: string[],
+  dateRange?: {
+    dateFrom?: string;
+    dateTo?: string;
+  }
 ): Promise<BackendSignalScore | null> {
   try {
+    const opts: {
+      conversationIds?: string[];
+      date_from?: string;
+      date_to?: string;
+    } = {};
+    if (conversationIds !== undefined) {
+      opts.conversationIds = conversationIds;
+    }
+    if (dateRange?.dateFrom) opts.date_from = dateRange.dateFrom;
+    if (dateRange?.dateTo) opts.date_to = dateRange.dateTo;
     return await getSignalScore(
       tenantId,
-      conversationIds !== undefined ? { conversationIds } : undefined
+      Object.keys(opts).length > 0 ? opts : undefined
     );
   } catch {
     return null;

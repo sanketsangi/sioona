@@ -499,4 +499,24 @@ describe("getSignalScore keep-set", () => {
     expect(url).toContain("/v1/tenants/tenant_demo/signal-score");
     expect(url).not.toContain("conversation_id");
   });
+
+  it("sets date_from and date_to query params when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => scoreBody,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSignalScore("tenant_demo", {
+      conversationIds: ["pack_1"],
+      date_from: "2026-08-07T12:00:00.000Z",
+      date_to: "2026-08-14T12:00:00.000Z",
+    });
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("date_from=2026-08-07T12%3A00%3A00.000Z");
+    expect(url).toContain("date_to=2026-08-14T12%3A00%3A00.000Z");
+    expect(url).toContain("conversation_id=pack_1");
+  });
 });

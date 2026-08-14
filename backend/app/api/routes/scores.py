@@ -29,6 +29,7 @@ def get_signal_score(
 ) -> SignalScoreResponse:
     """Return overall and per-type SignalScore for a tenant.
 
+    ``date_from`` / ``date_to`` filter by feedback ``reviewed_at`` (inclusive).
     Repeat ``conversation_id`` to scope to a keep-set (Eval / Insights pass
     JSON store ids). Omitted → Neon conversations if any, else tenant-wide.
     Present but empty (``conversation_id=``) → 0 reviewed, not tenant-wide.
