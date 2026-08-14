@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-14  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `production`
+**Branch:** `main`
 
 This is the file new agent windows should read first. Update it when decisions, milestones, or “what we’re doing now” change. Human-facing pointer: [`docs/PROJECT_STATE.md`](../../docs/PROJECT_STATE.md).
 
@@ -10,7 +10,7 @@ This is the file new agent windows should read first. Update it when decisions, 
 
 ## 0. What we are doing now
 
-**Heading: 2-week Shadow Mode pilot** — Live Adapt + SignalScore on the real export is **Done (local)**. Human review precision on this pack: **n=6, correct=5, incorrect=1, precision 0.83** → **go** vs ≥80% (not labeled P/R; do not cite CLI adapt 1.00 as a customer claim). Run weekly Insights reviews for two weeks. **Orphan mix fixed (slice 1):** SignalScore is scoped to the current conversation keep-set (JSON store ids from Eval/Insights, else Neon `conversations` if populated). Leftover Partner Demo `tenant_demo` feedback rows may remain in Neon but are **excluded** from the score — not deleted. Founder rhythm unchanged: weekly export + Insights SignalScore + Eval go/no-go for two weeks. **Next leftover:** Groq Developer **$20** spend cap when offered (non-blocking). Still not Auth0, not vLLM, not Action Mode, not Insights chrome. Taxonomy still JSON.
+**Heading: 2-week Shadow Mode pilot** — Live Adapt + SignalScore on the real export is **hosted verified** (PR #27). Human review precision on this pack: **n=6, correct=5, incorrect=1, precision 0.83** → **go** vs ≥80% (not labeled P/R; do not cite CLI adapt 1.00 as a customer claim). Run weekly Insights reviews for two weeks. **Orphan mix fixed (slice 1):** SignalScore is scoped to the current conversation keep-set (JSON store ids from Eval/Insights, else Neon `conversations` if populated). Leftover Partner Demo `tenant_demo` feedback rows may remain in Neon but are **excluded** from the score — not deleted. Founder rhythm unchanged: weekly export + Insights SignalScore + Eval go/no-go for two weeks. **Next leftover:** Groq Developer **$20** spend cap when offered (non-blocking). Still not Auth0, not vLLM, not Action Mode, not Insights chrome. Taxonomy still JSON.
 
 **Customer-export Detect metrics** (`npm run eval:partner-export`, source=`local` / `real-partner-export.local.csv`, 2026-08-14). **These are customer-export metrics, not template.** 40 chats / **23 labeled** (lead 5 / retention 8 / upsell 6 / none 4; 17 unlabeled excluded from P/R). Adapt = store-style `taxonomyOverrides` in [`partner-export-overrides.ts`](../../web/src/data/fixtures/partner-export-overrides.ts) merged by `getEffectiveTaxonomy`.
 
@@ -35,8 +35,8 @@ Per-type **base:** lead P 0.56 / R 1.00; retention P 1.00 / R 0.88; upsell P n/a
 | GT-on-Neon | **Hosted verified 2026-08-14** (PR #24) — Alembic `005_conversation_ground_truth` on Neon; dual-write + omit/null keep + PATCH clear; cold-start hydrate restores labeled Eval; taxonomy still JSON |
 | Real partner transcript | **Scored 2026-08-14** — `real-partner-export.local.csv` (gitignored); heuristic P 0.75 / R 0.63 (TP 12 / FP 4 / FN 7); hybrid same (0 LLM adds). Not template |
 | Adapt on real partner export | **Done 2026-08-14** — `taxonomyOverrides` from 4 FP / 7 FN (lead negatives: portfolio review / already doing sip / move my money; upsell phrases: portfolio review / already doing sip / increase investment / where do i even start). Adapt P **1.00** / R **1.00** (TP 19 / FP 0 / FN 0) vs base 0.75 / 0.63. Not `taxonomy.ts`. Labeled 1.00 is this 23-chat pack only |
-| Live Adapt + SignalScore on real export | **Done 2026-08-14 (local)** — Day-1 replace ingest of `real-partner-export.local.csv` unioned Adapt into `store.taxonomyOverrides`; Insights matched adapt (lead FPs on portfolio-review / already-doing-SIP gone; upsell hits present; funds-out = retention). Human SignalScore **this pack:** n=6 / correct=5 / incorrect=1 / precision **0.83** (retention 1/1, upsell 3/3, lead 1/2). Gate ≥80% → **go**. Do not cite labeled 1.00 as a customer claim |
-| SignalScore keep-set scope (pilot slice 1) | **Done 2026-08-14** — FastAPI `calculate_signal_score` + `GET …/signal-score?conversation_id=` filter predictions to current keep-set. Eval/Insights pass JSON store ids. Orphan Partner Demo reviews stay in Neon, unscored. Empty keep-set → 0 reviewed / null score (not tenant-wide). |
+| Live Adapt + SignalScore on real export | **Hosted verified 2026-08-14** (PR #27) — Day-1 replace ingest of `real-partner-export.local.csv` unioned Adapt into `store.taxonomyOverrides`; Insights matched adapt (lead FPs on portfolio-review / already-doing-SIP gone; upsell hits present; funds-out = retention). Human SignalScore **this pack:** n=6 / correct=5 / incorrect=1 / precision **0.83** (retention 1/1, upsell 3/3, lead 1/2). Gate ≥80% → **go**. Do not cite labeled 1.00 as a customer claim |
+| SignalScore keep-set scope (pilot slice 1) | **Hosted verified 2026-08-14** (PR #27) — FastAPI `calculate_signal_score` + `GET …/signal-score?conversation_id=` filter predictions to current keep-set. Eval/Insights pass JSON store ids. Orphan Partner Demo reviews stay in Neon, unscored. Empty keep-set → 0 reviewed / null score (not tenant-wide). |
 
 **Detect v2 is done.** Hydrate / 003 / 004 / **005** are on hosted Neon. How Detect v2 works stays in §3. Do not put keys/tokens in this file. Never commit `.local.csv` / PII.
 
@@ -142,8 +142,8 @@ Path alias `@/*` → `web/src/*`.
 
 ## 5. Hosted demo (as of 2026-08-14)
 
-- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env set. **Partner Demo verified 2026-08-14 (PR #22):** 41 chats dual-written, `predictionSync.failed=0`, `conversationSync.failed=0`, Hybrid +1 / no `syncFailed`, Insights queue loads (needs-review 20, retention first). Preview/Dev Groq unset
-- API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`** (PR #24 shipped `005`; build runs `alembic upgrade head`)
+- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env set. **Partner Demo verified 2026-08-14 (PR #22):** 41 chats dual-written, `predictionSync.failed=0`, `conversationSync.failed=0`, Hybrid +1 / no `syncFailed`, Insights queue loads (needs-review 20, retention first). Preview/Dev Groq unset. **Live Adapt + keep-set hosted verified 2026-08-14 (PR #27):** Eval/Insights SignalScore is pack-scoped (`reviewed_count` 6 / precision **0.83**, `signalScoreSource=backend`) — not leftover Partner Demo ~43/47. Empty `?conversation_id=` → 0 reviewed / null score. Day-1 replace of gitignored partner CSV: 40 chats, Adapt `taxonomyOverrides` live, lead FPs on portfolio-review / already-doing-SIP gone, upsell Adapt hits present. Human go is 0.83 — do not cite labeled Adapt 1.00 as a customer claim. Adapt overrides are JSON-only; after `/tmp` wipe, re-upload or Eval Apply Scored Adapt.
+- API: https://sioona-api.onrender.com/health → ok (Render **free** — cold after ~15 min). Auto-deploys from **`main`** (PR #27 keep-set query live; build runs `alembic upgrade head`)
 - Neon: `002` + `003` + `004` + **`005_conversation_ground_truth` applied** (`alembic_version` = `005_conversation_ground_truth`). `GET /v1/tenants/tenant_demo/conversations` returns `ground_truth` (41 labeled after Partner Demo; sample `conv_rajesh_thakur_26` = `lead`). Signals GET live
 - Vercel store is ephemeral (`/tmp`) — **003+004+005 live**. On miss, GET Neon chats then join feedback/Acted + conversation `ground_truth` after detect+sync; else reseed `testing.json`. **Cold-start verified 2026-08-14:** Production redeploy → Eval Labeled Conversations showed restored GT (not blank)
 - Vercel: project API token in `web/.env` as `VERCEL_TOKEN` (gitignored). MCP is read-only for env; REST upsert works. CLI `whoami` still fails on this token type
@@ -168,8 +168,8 @@ Path alias `@/*` → `web/src/*`.
 - **Real partner transcript scored** (2026-08-14) — `source=local` `real-partner-export.local.csv` (23 labeled / 40); heuristic P **0.75** / R **0.63** (TP 12 / FP 4 / FN 7); hybrid same (llm added=0). CSV ingest keeps newlines in quoted fields. **Not template.** Never commit `.local.csv`
 - **Adapt on real partner export** (2026-08-14) — `taxonomyOverrides` fixture (not `taxonomy.ts`); adapt P **1.00** / R **1.00** (TP 19 / FP 0 / FN 0) vs base 0.75 / 0.63. Eval CLI prints base confusion + adapt. Labeled 1.00 is this 23-chat pack only
 - **Live Adapt into JSON store** (2026-08-14) — Day-1/replace ingest unions fixture into `store.taxonomyOverrides`; Eval Apply Scored Adapt writes the same merge + re-detect. Not `taxonomy.ts`
-- **Live Adapt + SignalScore on real export** (2026-08-14, **local**) — replace ingest 40 chats / 36 signals; Adapt live in JSON store; Insights adapted set. Human SignalScore this pack: **5/6 = 0.83 go** (≥80%). Pre-scope Eval overlay mixed Partner Demo leftovers (43/47); **orphan mix fixed** by keep-set scope (slice 1) — score uses current conversation ids only. Not hosted-verified. Not CLI 1.00
-- **SignalScore keep-set scope** (2026-08-14, pilot slice 1) — FastAPI + Eval/Insights scope reviews to JSON store (else Neon `conversations`) keep-set; leftover Partner Demo feedback rows may remain, unscored; never delete feedback for score honesty
+- **Live Adapt + SignalScore on real export** (2026-08-14, **hosted verified**, PR #27) — replace ingest 40 chats / 36 signals; Adapt live in JSON store; Insights adapted set. Human SignalScore this pack: **5/6 = 0.83 go** (≥80%). Pre-scope Eval overlay mixed Partner Demo leftovers (43/47); **orphan mix fixed** by keep-set scope (slice 1) — score uses current conversation ids only. Not CLI 1.00
+- **SignalScore keep-set scope** (2026-08-14, **hosted verified**, PR #27) — FastAPI + Eval/Insights scope reviews to JSON store (else Neon `conversations`) keep-set; leftover Partner Demo feedback rows may remain, unscored; never delete feedback for score honesty. Empty keep-set → 0 / null (not tenant-wide)
 - Confirmed Groq Project Limits ≠ spend cap; left model limits at org max
 
 ---
@@ -206,10 +206,10 @@ Do **not** Create Limits on `/settings/project/limits`. Durable Neon chats + hyd
 7. ~~**GT-on-Neon**~~ **Hosted verified 2026-08-14** (PR #24) — Neon head `005_conversation_ground_truth`; labeled Eval survives Vercel `/tmp` cold-start; taxonomy still JSON
 8. ~~**Real partner transcript**~~ **Scored 2026-08-14** — customer-export `real-partner-export.local.csv` (not template); heuristic P 0.75 / R 0.63
 9. ~~**Adapt on real partner export**~~ **Done 2026-08-14** — overrides from 4 FP / 7 FN; adapt P 1.00 / R 1.00 (FP 4→0). Labeled 1.00 is this 23-chat pack only
-10. ~~**Live Adapt + SignalScore on real export**~~ **Done 2026-08-14 (local)** — Adapt in live JSON store; Insights adapted set; human review precision **0.83** (5/6) → **go**. Next heading: **2-week Shadow Mode pilot**. **Next leftover:** Groq $20 cap when Developer is offered
-11. ~~**SignalScore keep-set scope (pilot slice 1)**~~ **Done 2026-08-14** — Eval/Insights score only current conversation ids; leftover Partner Demo reviews excluded, not deleted. Not Insights chrome.
+10. ~~**Live Adapt + SignalScore on real export**~~ **Hosted verified 2026-08-14** (PR #27) — Adapt in live JSON store on sioona-demo; Insights adapted set; human review precision **0.83** (5/6) → **go**. Heading: **2-week Shadow Mode pilot**. **Next leftover:** Groq $20 cap when Developer is offered
+11. ~~**SignalScore keep-set scope (pilot slice 1)**~~ **Hosted verified 2026-08-14** (PR #27) — Eval/Insights score only current conversation ids; leftover Partner Demo reviews excluded, not deleted. Empty keep-set → 0 / null. Not Insights chrome.
 
-~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). ~~Hydrate / 003 / 004~~ **Closed** (hosted 2026-08-14, PR #22). ~~GT-on-Neon / 005~~ **Hosted verified** (PR #24). ~~Real partner transcript~~ **Scored**. ~~Adapt on real partner export~~ **Done**. ~~Live Adapt + SignalScore~~ **Done (local)**. ~~Keep-set score scope~~ **Done**. Heading is the 2-week Shadow Mode pilot, not a new Detect engine. Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, Insights chrome, or taxonomy-on-Neon.
+~~Detect v2~~ **Closed** (hosted Partner Demo 2026-08-14). ~~Hydrate / 003 / 004~~ **Closed** (hosted 2026-08-14, PR #22). ~~GT-on-Neon / 005~~ **Hosted verified** (PR #24). ~~Real partner transcript~~ **Scored**. ~~Adapt on real partner export~~ **Done**. ~~Live Adapt + SignalScore~~ **Hosted verified** (PR #27). ~~Keep-set score scope~~ **Hosted verified** (PR #27). Heading is the 2-week Shadow Mode pilot, not a new Detect engine. Do not reopen for classify-on-FastAPI, 429 retries, Groq project limits, Insights chrome, or taxonomy-on-Neon.
 
 ---
 
