@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.orm import Session
 
+from app.models.conversation import Conversation
 from app.services.feedback import (
     InvalidFeedbackLabelError,
     SignalNotFoundError,
@@ -13,6 +14,24 @@ from app.services.feedback import (
 from app.services.predictions import record_prediction
 from app.services.review_queue import list_signals_needing_review
 from app.services.signal_score import calculate_signal_score
+
+
+def _conversation(
+    db: Session,
+    *,
+    tenant_id: str = "tenant_a",
+    conversation_id: str = "conv_1",
+) -> Conversation:
+    row = Conversation(
+        tenant_id=tenant_id,
+        conversation_id=conversation_id,
+        channel="whatsapp",
+        customer_name="Keep",
+        started_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+    )
+    db.add(row)
+    db.commit()
+    return row
 
 
 def _pred(
@@ -251,3 +270,161 @@ def test_needs_review_ranks_retention_first(db: Session) -> None:
     assert types.index("retention") < types.index("upsell")
     assert types.index("upsell") < types.index("lead")
     assert {lead.id, upsell.id, retention.id, newer_lead.id} <= {row.id for row in queue}
+
+
+def test_signal_score_excludes_orphan_reviews_when_keep_set_provided(
+    db: Session,
+) -> None:
+    keep_ok = _pred(db, conversation_id="pack_1")
+    keep_ok2 = _pred(db, conversation_id="pack_2")
+    keep_bad = _pred(db, conversation_id="pack_3")
+    orphan = _pred(db, conversation_id="orphan_demo")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=keep_ok.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=keep_ok2.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=keep_bad.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=orphan.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(
+        db, "tenant_a", conversation_ids=["pack_1", "pack_2", "pack_3"]
+    )
+    assert result.reviewed_count == 3
+    assert result.correct_count == 2
+    assert result.incorrect_count == 1
+    assert result.signal_score == pytest.approx(2 / 3)
+
+    unscoped = calculate_signal_score(db, "tenant_a")
+    assert unscoped.reviewed_count == 4
+    assert unscoped.signal_score == pytest.approx(0.75)
+
+
+def test_signal_score_neon_conversations_default_scope(db: Session) -> None:
+    _conversation(db, conversation_id="pack_1")
+    _conversation(db, conversation_id="pack_2")
+    keep_ok = _pred(db, conversation_id="pack_1")
+    keep_bad = _pred(db, conversation_id="pack_2")
+    orphan = _pred(db, conversation_id="orphan_demo")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=keep_ok.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=keep_bad.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=orphan.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert result.reviewed_count == 2
+    assert result.correct_count == 1
+    assert result.incorrect_count == 1
+    assert result.signal_score == pytest.approx(0.5)
+
+
+def test_signal_score_empty_keep_set_is_zero_reviewed(db: Session) -> None:
+    p = _pred(db, conversation_id="orphan_demo")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=p.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a", conversation_ids=[])
+    assert result.reviewed_count == 0
+    assert result.signal_score is None
+    assert result.by_signal_type == []
+
+
+def test_signal_score_keep_set_still_tenant_isolated(db: Session) -> None:
+    a = _pred(db, tenant_id="tenant_a", conversation_id="shared_id")
+    b = _pred(db, tenant_id="tenant_b", conversation_id="shared_id")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=a.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_b",
+        signal_id=b.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(
+        db, "tenant_a", conversation_ids=["shared_id"]
+    )
+    assert result.reviewed_count == 1
+    assert result.signal_score == pytest.approx(1.0)
+
+
+def test_signal_score_neon_keep_set_is_tenant_scoped(db: Session) -> None:
+    _conversation(db, tenant_id="tenant_a", conversation_id="pack_a")
+    _conversation(db, tenant_id="tenant_b", conversation_id="pack_b")
+    a = _pred(db, tenant_id="tenant_a", conversation_id="pack_a")
+    a_orphan = _pred(db, tenant_id="tenant_a", conversation_id="pack_b")
+    b = _pred(db, tenant_id="tenant_b", conversation_id="pack_b")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=a.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=a_orphan.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_b",
+        signal_id=b.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert result.reviewed_count == 1
+    assert result.signal_score == pytest.approx(1.0)

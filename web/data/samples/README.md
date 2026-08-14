@@ -86,7 +86,7 @@ Use this when a partner sends a chat export. **Never commit real PII** — redac
    ```bash
    npm run eval:partner-export
    ```
-   Prefers gitignored `real-partner-export.local.csv`, else the committed template. Prints heuristic metrics always; hybrid Detect v2 only when `DETECT_LLM=1` and `GROQ_API_KEY` are already set (otherwise `hybrid=skipped`). Unit tests inject `classify` and never call Groq. **Never commit `.local.csv`.** Template P/R is measurement only — not customer recall.
+   Prefers gitignored `real-partner-export.local.csv`, else the committed template. Prints heuristic (base) + FP/FN, then **heuristic (adapt)** from [`partner-export-overrides.ts`](../../src/data/fixtures/partner-export-overrides.ts) on local.csv (same merge as store `taxonomyOverrides` / Eval Adapt-from-reviews). Hybrid Detect v2 only when `DETECT_LLM=1` and `GROQ_API_KEY` are already set (otherwise `hybrid=skipped`). Unit tests inject `classify` and never call Groq. **Never commit `.local.csv`.** Template P/R is measurement only — not customer recall. Do not expand `taxonomy.ts` to chase this pack.
    ```bash
    npx vitest run src/lib/partner-export.eval.test.ts
    ```
@@ -97,7 +97,7 @@ Use this when a partner sends a chat export. **Never commit real PII** — redac
    console.log(formatPartnerExportEval(result));
    ```
 
-Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts) — ingest → heuristic detect → optional `runHybridDetection` → `computeEvalMetrics` (heuristic + hybrid). Prefers `real-partner-export.local.csv`, else the committed template. Eval is measurement only (no Neon dual-write).
+Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts) — ingest → heuristic detect → optional Adapt overrides (local.csv) → optional `runHybridDetection` → `computeEvalMetrics`. Prefers `real-partner-export.local.csv`, else the committed template. Eval is measurement only (no Neon dual-write).
 
 This lane is a **measurement baseline** (not a P/R = 1.0 gate). Signal Score review precision remains FastAPI + Neon after upload/feedback.
 

@@ -366,12 +366,23 @@ export async function getSignalScore(
     date_from?: string;
     date_to?: string;
     signal_type?: string;
+    /** JSON store conversation ids. Empty array is an explicit keep-set (0 reviewed). */
+    conversationIds?: string[];
   }
 ): Promise<BackendSignalScore> {
   const params = new URLSearchParams();
   if (opts?.date_from) params.set("date_from", opts.date_from);
   if (opts?.date_to) params.set("date_to", opts.date_to);
   if (opts?.signal_type) params.set("signal_type", opts.signal_type);
+  if (opts?.conversationIds !== undefined) {
+    if (opts.conversationIds.length === 0) {
+      params.append("conversation_id", "");
+    } else {
+      for (const id of opts.conversationIds) {
+        params.append("conversation_id", id);
+      }
+    }
+  }
   const qs = params.toString();
   const path = `/v1/tenants/${encodeURIComponent(tenantId)}/signal-score${
     qs ? `?${qs}` : ""

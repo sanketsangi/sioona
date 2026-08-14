@@ -9,7 +9,10 @@ import { readStore } from "@/lib/store";
 
 export async function GET() {
   const store = await readStore();
-  const backendScore = await fetchSignalScoreSafe(store.tenant.id);
+  const backendScore = await fetchSignalScoreSafe(
+    store.tenant.id,
+    store.conversations.map((c) => c.id)
+  );
   const metrics = applyBackendSignalScore(
     computeEvalMetrics(store),
     backendScore

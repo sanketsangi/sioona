@@ -425,3 +425,78 @@ describe("backendFetch timeout", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("getSignalScore keep-set", () => {
+  const scoreBody = {
+    tenant_id: "tenant_demo",
+    signal_score: 0.83,
+    reviewed_count: 6,
+    correct_count: 5,
+    incorrect_count: 1,
+    partially_correct_count: 0,
+    by_signal_type: [],
+  };
+
+  it("appends repeated conversation_id query params", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => scoreBody,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSignalScore("tenant_demo", {
+      conversationIds: ["pack_1", "pack_2"],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/v1\/tenants\/tenant_demo\/signal-score\?conversation_id=pack_1&conversation_id=pack_2$/
+      ),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+  });
+
+  it("sends empty conversation_id for an explicit empty keep-set", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...scoreBody,
+        signal_score: null,
+        reviewed_count: 0,
+        correct_count: 0,
+        incorrect_count: 0,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSignalScore("tenant_demo", { conversationIds: [] });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/v1\/tenants\/tenant_demo\/signal-score\?conversation_id=$/
+      ),
+      expect.any(Object)
+    );
+  });
+
+  it("omits conversation_id when keep-set is not passed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => scoreBody,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSignalScore("tenant_demo");
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("/v1/tenants/tenant_demo/signal-score");
+    expect(url).not.toContain("conversation_id");
+  });
+});
