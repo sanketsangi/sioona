@@ -99,7 +99,10 @@ export default async function PlatformPage({
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
 
   const [backendScore, needsReview] = await Promise.all([
-    fetchSignalScoreSafe(store.tenant.id),
+    fetchSignalScoreSafe(
+      store.tenant.id,
+      store.conversations.map((c) => c.id)
+    ),
     fetchNeedsReview(store.tenant.id),
   ]);
   const pendingCount = needsReview.ok

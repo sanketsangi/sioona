@@ -6,8 +6,10 @@ import {
   ZERO_SIGNAL_HINT,
 } from "@/lib/ingest";
 import { mergeConversationsByExternalId } from "@/lib/merge-conversations";
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import {
   mergeSignalsPreservingFeedback,
+  mergeTaxonomyOverrides,
   readStore,
   writeStore,
 } from "@/lib/store";
@@ -68,6 +70,10 @@ export async function POST(request: Request) {
     if (replaceShowcase) {
       store.conversations = incoming.conversations;
       store.messages = incoming.messages;
+      store.taxonomyOverrides = mergeTaxonomyOverrides(
+        store.taxonomyOverrides,
+        PARTNER_EXPORT_ADAPT_OVERRIDES
+      );
     } else {
       const merged = mergeConversationsByExternalId(store, incoming);
       store.conversations = merged.conversations;

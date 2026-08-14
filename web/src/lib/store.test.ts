@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as backendClient from "./backend-client";
 import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
 import {
+  mergeTaxonomyOverrides,
   readStore,
   resetStore,
   setConversationGroundTruth,
@@ -217,5 +218,25 @@ describe("readStore cold-start hydrate", () => {
     );
     expect(getSpy).not.toHaveBeenCalled();
     expect(signalsSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("mergeTaxonomyOverrides", () => {
+  it("unions phrases and negatives case-insensitively without dropping existing terms", () => {
+    const merged = mergeTaxonomyOverrides(
+      {
+        lead: { phrases: ["Demat account"], negativePhrases: ["foo"] },
+      },
+      {
+        lead: {
+          phrases: ["demat account"],
+          negativePhrases: ["bar"],
+        },
+        upsell: { phrases: ["portfolio review"] },
+      }
+    );
+    expect(merged.lead?.phrases).toEqual(["Demat account"]);
+    expect(merged.lead?.negativePhrases).toEqual(["foo", "bar"]);
+    expect(merged.upsell?.phrases).toEqual(["portfolio review"]);
   });
 });

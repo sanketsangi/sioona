@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
   addTaxonomyOverride,
+  mergeTaxonomyOverrides,
   readStore,
   replaceSignalsPreservingFeedback,
   resetStore,
@@ -12,7 +14,7 @@ import {
 } from "@/lib/store";
 import { runPartnerDemo } from "@/lib/demo";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
-import type { SignalType } from "@/lib/types";
+import type { SignalType, StoreData } from "@/lib/types";
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
 const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
@@ -20,6 +22,26 @@ const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
   "keywords",
   "negativePhrases",
 ];
+
+async function redetectWithOverrides(store: StoreData): Promise<{
+  store: StoreData;
+  redetectCount: number;
+}> {
+  const { signals: detected } = await runHybridDetection(
+    store.conversations,
+    store.messages,
+    store.tenant.id,
+    store.taxonomyOverrides
+  );
+  let updated = await replaceSignalsPreservingFeedback(detected);
+  const synced = await syncPredictionsToBackend(
+    updated.signals,
+    store.tenant.id
+  );
+  updated.signals = synced.signals;
+  await writeStore(updated);
+  return { store: updated, redetectCount: updated.signals.length };
+}
 
 export async function GET() {
   const store = await readStore();
@@ -117,20 +139,9 @@ export async function POST(request: Request) {
       );
       let redetectCount: number | undefined;
       if (body.redetect !== false) {
-        const { signals: detected } = await runHybridDetection(
-          store.conversations,
-          store.messages,
-          store.tenant.id,
-          store.taxonomyOverrides
-        );
-        store = await replaceSignalsPreservingFeedback(detected);
-        const synced = await syncPredictionsToBackend(
-          store.signals,
-          store.tenant.id
-        );
-        store.signals = synced.signals;
-        await writeStore(store);
-        redetectCount = store.signals.length;
+        const result = await redetectWithOverrides(store);
+        store = result.store;
+        redetectCount = result.redetectCount;
       }
       return NextResponse.json({
         ...store,
@@ -140,6 +151,28 @@ export async function POST(request: Request) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Override failed";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
+  if (body.action === "apply_partner_export_adapt") {
+    try {
+      let store = await readStore();
+      store.taxonomyOverrides = mergeTaxonomyOverrides(
+        store.taxonomyOverrides,
+        PARTNER_EXPORT_ADAPT_OVERRIDES
+      );
+      await writeStore(store);
+      const result = await redetectWithOverrides(store);
+      store = result.store;
+      return NextResponse.json({
+        ...store,
+        signals: sortSignals(store.signals),
+        redetectCount: result.redetectCount,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Adapt apply failed";
       return NextResponse.json({ error: message }, { status: 400 });
     }
   }

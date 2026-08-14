@@ -288,6 +288,49 @@ export type TaxonomyOverrideField =
   | "keywords"
   | "negativePhrases";
 
+const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
+const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
+  "phrases",
+  "keywords",
+  "negativePhrases",
+];
+
+function uniqOverrideTerms(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const key = value.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(value.trim());
+  }
+  return out;
+}
+
+/** Union two override maps (case-insensitive per type × field). */
+export function mergeTaxonomyOverrides(
+  existing: TaxonomyOverrides | undefined | null,
+  incoming: TaxonomyOverrides
+): TaxonomyOverrides {
+  const out: TaxonomyOverrides = { ...(existing ?? {}) };
+  for (const type of SIGNAL_TYPES) {
+    const extra = incoming[type];
+    if (!extra) continue;
+    const merged: TaxonomyTypeOverride = { ...(out[type] ?? {}) };
+    for (const field of OVERRIDE_FIELDS) {
+      const unique = uniqOverrideTerms([
+        ...(merged[field] ?? []),
+        ...(extra[field] ?? []),
+      ]);
+      if (unique.length > 0) {
+        merged[field] = unique;
+      }
+    }
+    out[type] = merged;
+  }
+  return out;
+}
+
 export async function addTaxonomyOverride(
   type: SignalType,
   field: TaxonomyOverrideField,
@@ -299,18 +342,9 @@ export async function addTaxonomyOverride(
   }
 
   const store = await readStore();
-  const overrides: TaxonomyOverrides = {
-    ...(store.taxonomyOverrides ?? {}),
-  };
-  const current: TaxonomyTypeOverride = { ...(overrides[type] ?? {}) };
-  const list = [...(current[field] ?? [])];
-  const exists = list.some((item) => item.toLowerCase() === term.toLowerCase());
-  if (!exists) {
-    list.push(term);
-  }
-  current[field] = list;
-  overrides[type] = current;
-  store.taxonomyOverrides = overrides;
+  store.taxonomyOverrides = mergeTaxonomyOverrides(store.taxonomyOverrides, {
+    [type]: { [field]: [term] },
+  });
   await writeStore(store);
   return store;
 }

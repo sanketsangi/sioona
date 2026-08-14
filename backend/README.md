@@ -88,11 +88,11 @@ Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPL
 | `POST` | `/v1/tenants/{tenant_id}/conversations/prune` | Delete conversation_ids not in `keep_conversation_ids` |
 | `POST` | `/v1/signals/{signal_id}/feedback` | Submit/update feedback |
 | `POST` | `/v1/signals/{signal_id}/acted` | Set/clear Acted (reviewed only) |
-| `GET` | `/v1/tenants/{tenant_id}/signal-score` | Overall + per-type SignalScore |
+| `GET` | `/v1/tenants/{tenant_id}/signal-score` | Overall + per-type SignalScore (optional keep-set) |
 | `GET` | `/v1/tenants/{tenant_id}/signals` | Tenant predictions + optional feedback |
 | `GET` | `/v1/tenants/{tenant_id}/signals/needs-review` | Shadow Mode review queue |
 
-Query params for score: `date_from`, `date_to`, `signal_type`.
+Query params for score: `date_from`, `date_to`, `signal_type`, repeated `conversation_id` (keep-set). Client ids win; else Neon `conversations` for the tenant if any; else tenant-wide. Empty `conversation_id=` → 0 reviewed.
 
 ## Tests
 

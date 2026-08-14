@@ -9,10 +9,14 @@ import {
 } from "./backend-client";
 
 export async function fetchSignalScoreSafe(
-  tenantId: string
+  tenantId: string,
+  conversationIds?: string[]
 ): Promise<BackendSignalScore | null> {
   try {
-    return await getSignalScore(tenantId);
+    return await getSignalScore(
+      tenantId,
+      conversationIds !== undefined ? { conversationIds } : undefined
+    );
   } catch {
     return null;
   }

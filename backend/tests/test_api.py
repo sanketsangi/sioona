@@ -132,6 +132,65 @@ def test_prediction_feedback_and_score_flow(client: TestClient) -> None:
     assert by_type["upsell"]["incorrect_count"] == 1
 
 
+def test_signal_score_scopes_to_conversation_id_query_params(
+    client: TestClient,
+) -> None:
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    keep = client.post(
+        "/v1/predictions",
+        headers=headers,
+        json={
+            "conversation_id": "pack_1",
+            "signal_type": "lead",
+            "confidence": 0.9,
+            "summary": "Keep",
+        },
+    )
+    orphan = client.post(
+        "/v1/predictions",
+        headers=headers,
+        json={
+            "conversation_id": "orphan_demo",
+            "signal_type": "lead",
+            "confidence": 0.9,
+            "summary": "Orphan",
+        },
+    )
+    assert keep.status_code == 201
+    assert orphan.status_code == 201
+    client.post(
+        f"/v1/signals/{keep.json()['id']}/feedback",
+        headers=headers,
+        json={"feedback": "correct", "reviewed_by": "r1"},
+    )
+    client.post(
+        f"/v1/signals/{orphan.json()['id']}/feedback",
+        headers=headers,
+        json={"feedback": "incorrect", "reviewed_by": "r1"},
+    )
+
+    scoped = client.get(
+        "/v1/tenants/tenant_demo/signal-score",
+        headers=headers,
+        params=[("conversation_id", "pack_1")],
+    )
+    assert scoped.status_code == 200
+    body = scoped.json()
+    assert body["reviewed_count"] == 1
+    assert body["correct_count"] == 1
+    assert body["signal_score"] == 1.0
+
+    empty = client.get(
+        "/v1/tenants/tenant_demo/signal-score",
+        headers=headers,
+        params=[("conversation_id", "")],
+    )
+    assert empty.status_code == 200
+    empty_body = empty.json()
+    assert empty_body["reviewed_count"] == 0
+    assert empty_body["signal_score"] is None
+
+
 def test_missing_tenant_header(client: TestClient) -> None:
     response = client.get("/v1/tenants/tenant_demo/signal-score")
     assert response.status_code == 400

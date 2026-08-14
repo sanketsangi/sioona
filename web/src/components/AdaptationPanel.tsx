@@ -100,6 +100,37 @@ export function AdaptationPanel({
     }
   }
 
+  async function applyScoredAdapt() {
+    setError(null);
+    setSuccess(null);
+    setBusyId("apply-scored-adapt");
+    try {
+      const res = await fetch("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "apply_partner_export_adapt" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to apply scored Adapt");
+      }
+      setSuccess(
+        `Applied scored Adapt and re-ran detection${
+          typeof data.redetectCount === "number"
+            ? ` (${data.redetectCount} signals)`
+            : ""
+        }.`
+      );
+      startTransition(() => router.refresh());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to apply scored Adapt"
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function applyOverride(
     signal: Signal,
     field: OverrideField,
@@ -176,6 +207,16 @@ export function AdaptationPanel({
           Reject → Add Negative (stop false positives). Wrong reason / miss →
           Add Phrase. Each change re-detects immediately.
         </p>
+        <button
+          type="button"
+          className="btn-secondary mt-2"
+          disabled={pending || busyId !== null}
+          aria-busy={busyId === "apply-scored-adapt"}
+          onClick={() => void applyScoredAdapt()}
+        >
+          {busyId === "apply-scored-adapt" ? <ButtonSpinner /> : null}
+          Apply Scored Adapt
+        </button>
       </div>
 
       <div aria-live="polite">

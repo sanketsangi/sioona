@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "../data/fixtures/partner-export-overrides";
 import { runDetection } from "./detect";
 import {
   isDetectLlmEnabled,
@@ -9,7 +10,14 @@ import {
 } from "./detect-llm";
 import { computeEvalMetrics, type EvalMetrics } from "./eval";
 import { parseIngestDocument, toStoreRecords } from "./ingest";
-import type { StoreData } from "./types";
+import {
+  formatConfusionExamples,
+  listConfusionExamples,
+  type ConfusionExample,
+} from "./testing-json-eval";
+import type { StoreData, TaxonomyOverrides } from "./types";
+
+export { PARTNER_EXPORT_ADAPT_OVERRIDES };
 
 const SAMPLES_DIR = path.join(process.cwd(), "data/samples");
 
@@ -31,11 +39,19 @@ export interface PartnerExportEvalResult {
   source: PartnerExportSource;
   filename: string;
   absolutePath: string;
-  /** Heuristic signals only — no Neon dual-write. */
+  /** Heuristic signals only — no Neon dual-write. Base detect (no Adapt). */
   store: StoreData;
   /** Alias of heuristic (callers / format). */
   metrics: EvalMetrics;
   heuristic: EvalMetrics;
+  /**
+   * Heuristic after Adapt taxonomyOverrides. Null when overrides are omitted
+   * (template / explicit `overrides: null`).
+   */
+  adapted: EvalMetrics | null;
+  /** Base FP/FN examples (conversation-level). */
+  confusion: ConfusionExample[];
+  adaptedConfusion: ConfusionExample[] | null;
   /** Null when hybrid is skipped (no classify inject and env off). */
   hybrid: EvalMetrics | null;
   llm: LlmPassStats;
@@ -85,6 +101,15 @@ function pct(value: number | null): string {
   return value === null ? "n/a" : value.toFixed(2);
 }
 
+function resolveEvalOverrides(
+  source: PartnerExportSource,
+  overrides?: TaxonomyOverrides | null
+): TaxonomyOverrides | null {
+  if (overrides === null) return null;
+  if (overrides !== undefined) return overrides;
+  return source === "local" ? PARTNER_EXPORT_ADAPT_OVERRIDES : null;
+}
+
 /** Load CSV → ingest → heuristic detect → labeled metrics; optional hybrid pass 2. */
 export async function loadPartnerExportEval(options?: {
   samplesDir?: string;
@@ -93,6 +118,12 @@ export async function loadPartnerExportEval(options?: {
   classify?: LlmClassifyFn;
   maxCalls?: number;
   concurrency?: number;
+  /**
+   * Adapt terms for the second heuristic pass.
+   * Default: partner-export fixture when `source=local`; none for template.
+   * Pass `null` to skip Adapt even on local.csv.
+   */
+  overrides?: TaxonomyOverrides | null;
 }): Promise<PartnerExportEvalResult> {
   const tenantId = options?.tenantId ?? TENANT_ID;
   const resolved = resolvePartnerExportPath(
@@ -106,6 +137,10 @@ export async function loadPartnerExportEval(options?: {
     tenantId
   );
   const heuristicSignals = runDetection(conversations, messages, tenantId);
+  const adaptOverrides = resolveEvalOverrides(resolved.source, options?.overrides);
+  const adaptedSignals = adaptOverrides
+    ? runDetection(conversations, messages, tenantId, adaptOverrides)
+    : null;
 
   const store: StoreData = {
     tenant: {
@@ -117,9 +152,18 @@ export async function loadPartnerExportEval(options?: {
     messages,
     signals: heuristicSignals,
     pilot: { baselineOpportunities: 0 },
+    taxonomyOverrides: adaptOverrides ?? {},
   };
 
   const heuristic = computeEvalMetrics(store);
+  const confusion = listConfusionExamples(store);
+  const adaptedStore = adaptedSignals
+    ? { ...store, signals: adaptedSignals }
+    : null;
+  const adapted = adaptedStore ? computeEvalMetrics(adaptedStore) : null;
+  const adaptedConfusion = adaptedStore
+    ? listConfusionExamples(adaptedStore)
+    : null;
 
   const shouldHybrid =
     Boolean(options?.classify) || isDetectLlmEnabled();
@@ -130,6 +174,9 @@ export async function loadPartnerExportEval(options?: {
       store,
       metrics: heuristic,
       heuristic,
+      adapted,
+      confusion,
+      adaptedConfusion,
       hybrid: null,
       llm: skippedLlmStats(),
     };
@@ -139,20 +186,26 @@ export async function loadPartnerExportEval(options?: {
     conversations,
     messages,
     tenantId,
-    null,
+    adaptOverrides,
     {
       classify: options?.classify,
       maxCalls: options?.maxCalls,
       concurrency: options?.concurrency,
     }
   );
-  const hybrid = computeEvalMetrics({ ...store, signals: hybridSignals });
+  const hybrid = computeEvalMetrics({
+    ...store,
+    signals: hybridSignals,
+  });
 
   return {
     ...resolved,
     store,
     metrics: heuristic,
     heuristic,
+    adapted,
+    confusion,
+    adaptedConfusion,
     hybrid,
     llm,
   };
@@ -182,20 +235,38 @@ export function formatPartnerExportHybridLine(
   return `hybrid vs heuristic: P ${pct(heuristic.labeledPrecision)}→${pct(hybrid.labeledPrecision)} R ${pct(heuristic.labeledRecall)}→${pct(hybrid.labeledRecall)} TP ${heuristic.truePositives}→${hybrid.truePositives} FP ${heuristic.falsePositives}→${hybrid.falsePositives} FN ${heuristic.falseNegatives}→${hybrid.falseNegatives} | llm attempted=${llm.attempted} added=${llm.added} failed=${llm.failed} skipped=${llm.skipped}`;
 }
 
-/** Full CLI block: source + heuristic + hybrid (or skipped). */
+/** Full CLI block: source + heuristic + optional Adapt + hybrid (or skipped). */
 export function formatPartnerExportEval(result: PartnerExportEvalResult): string {
   const lines = [
     `source=${result.source} file=${result.filename}`,
     "heuristic:",
     formatPartnerExportMetrics(result.heuristic),
   ];
+  if (result.confusion.length > 0) {
+    lines.push("confusion (base):");
+    lines.push(formatConfusionExamples(result.confusion, 20));
+  }
+  if (result.adapted) {
+    lines.push("heuristic (adapt):");
+    lines.push(formatPartnerExportMetrics(result.adapted));
+  }
   if (result.hybrid && result.llm.enabled) {
     lines.push("hybrid:", formatPartnerExportMetrics(result.hybrid));
     lines.push(
-      formatPartnerExportHybridLine(result.heuristic, result.hybrid, result.llm)
+      formatPartnerExportHybridLine(
+        result.adapted ?? result.heuristic,
+        result.hybrid,
+        result.llm
+      )
     );
   } else {
-    lines.push(formatPartnerExportHybridLine(result.heuristic, result.hybrid, result.llm));
+    lines.push(
+      formatPartnerExportHybridLine(
+        result.adapted ?? result.heuristic,
+        result.hybrid,
+        result.llm
+      )
+    );
   }
   return lines.join("\n");
 }

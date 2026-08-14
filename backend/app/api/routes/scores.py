@@ -25,8 +25,14 @@ def get_signal_score(
     date_from: Annotated[datetime | None, Query()] = None,
     date_to: Annotated[datetime | None, Query()] = None,
     signal_type: Annotated[str | None, Query()] = None,
+    conversation_id: Annotated[list[str] | None, Query()] = None,
 ) -> SignalScoreResponse:
-    """Return overall and per-type SignalScore for a tenant."""
+    """Return overall and per-type SignalScore for a tenant.
+
+    Repeat ``conversation_id`` to scope to a keep-set (Eval / Insights pass
+    JSON store ids). Omitted → Neon conversations if any, else tenant-wide.
+    Present but empty (``conversation_id=``) → 0 reviewed, not tenant-wide.
+    """
     assert_tenant_match(tenant_id, header_tenant_id)
     result = calculate_signal_score(
         db,
@@ -34,6 +40,7 @@ def get_signal_score(
         date_from=date_from,
         date_to=date_to,
         signal_type=signal_type,
+        conversation_ids=conversation_id,
     )
     return SignalScoreResponse(
         tenant_id=result.tenant_id,

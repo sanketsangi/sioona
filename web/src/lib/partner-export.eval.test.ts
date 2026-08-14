@@ -1,14 +1,8 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  unlinkSync,
-  writeFileSync,
-} from "fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "../data/fixtures/partner-export-overrides";
 import {
   formatPartnerExportEval,
   formatPartnerExportHybridLine,
@@ -19,9 +13,6 @@ import {
   resolvePartnerExportPath,
 } from "./partner-export-eval";
 
-const SAMPLES_DIR = path.join(process.cwd(), "data/samples");
-const LOCAL_PATH = path.join(SAMPLES_DIR, PARTNER_EXPORT_LOCAL_FILE);
-
 const tempDirs: string[] = [];
 
 beforeEach(() => {
@@ -31,9 +22,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
-  if (existsSync(LOCAL_PATH)) {
-    unlinkSync(LOCAL_PATH);
-  }
   while (tempDirs.length > 0) {
     const dir = tempDirs.pop();
     if (dir && existsSync(dir)) {
@@ -60,6 +48,7 @@ describe("real partner export eval lane", () => {
       result.store.conversations.length
     );
     expect(result.heuristic).toEqual(result.metrics);
+    expect(result.adapted).toBeNull();
     expect(result.hybrid).toBeNull();
     expect(result.llm.enabled).toBe(false);
 
@@ -98,8 +87,9 @@ describe("real partner export eval lane", () => {
   });
 
   it("prefers gitignored local drop-in when present", async () => {
+    const samplesDir = makeSamplesDir();
     writeFileSync(
-      LOCAL_PATH,
+      path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE),
       [
         "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
         'local_lead,customer,"Interested in signing up for a new account — email [email]",Local A,whatsapp,2026-08-06T13:00:00.000Z,lead',
@@ -110,16 +100,80 @@ describe("real partner export eval lane", () => {
       "utf8"
     );
 
-    const resolved = resolvePartnerExportPath(SAMPLES_DIR, false);
+    const resolved = resolvePartnerExportPath(samplesDir, false);
     expect(resolved.source).toBe("local");
     expect(resolved.filename).toBe(PARTNER_EXPORT_LOCAL_FILE);
 
-    const result = await loadPartnerExportEval({ preferTemplate: false });
+    const result = await loadPartnerExportEval({
+      samplesDir,
+      preferTemplate: false,
+      overrides: null,
+    });
     expect(result.source).toBe("local");
+    expect(result.adapted).toBeNull();
     expect(result.metrics.labeledConversations).toBe(2);
     expect(
       result.metrics.byType.find((r) => r.type === "lead")?.labeledCount
     ).toBe(1);
+  });
+
+  it("Adapt overrides flip lead FP / upsell miss without new FPs", async () => {
+    const samplesDir = makeSamplesDir();
+    writeFileSync(
+      path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE),
+      [
+        "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+        'upsell_pr,customer,"Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.",Ada,whatsapp,2026-08-06T09:00:00.000Z,upsell',
+        "upsell_pr,agent,Sharing notes.,,whatsapp,2026-08-06T09:01:00.000Z,upsell",
+        'ret_move,customer,"Need advice on how to invest. I keep money in a savings account and a fixed deposit. If this is not fixed I will move my money.",Ben,whatsapp,2026-08-06T10:00:00.000Z,retention',
+        "ret_move,agent,Looking into it.,,whatsapp,2026-08-06T10:01:00.000Z,retention",
+        'true_lead,customer,"Want to open a demat account this week — send pricing to [email]",Cara,whatsapp,2026-08-06T11:00:00.000Z,lead',
+        "true_lead,agent,Sharing the fee schedule.,,whatsapp,2026-08-06T11:01:00.000Z,lead",
+        'ops_none,customer,"Please reset my password — OTP missing",Dev,in_app_chat,2026-08-06T14:00:00.000Z,none',
+        "ops_none,agent,Reset sent.,,in_app_chat,2026-08-06T14:01:00.000Z,none",
+      ].join("\n"),
+      "utf8"
+    );
+
+    const base = await loadPartnerExportEval({
+      samplesDir,
+      overrides: null,
+    });
+    expect(base.adapted).toBeNull();
+    expect(base.heuristic.falsePositives).toBeGreaterThan(0);
+    expect(base.heuristic.falseNegatives).toBeGreaterThan(0);
+
+    const adapted = await loadPartnerExportEval({
+      samplesDir,
+      overrides: PARTNER_EXPORT_ADAPT_OVERRIDES,
+    });
+    expect(adapted.adapted).not.toBeNull();
+    expect(adapted.adapted!.falsePositives).toBeLessThanOrEqual(
+      base.heuristic.falsePositives
+    );
+    expect(adapted.adapted!.truePositives).toBeGreaterThan(
+      base.heuristic.truePositives
+    );
+    expect(adapted.adapted!.falseNegatives).toBeLessThan(
+      base.heuristic.falseNegatives
+    );
+
+    expect(
+      adapted.adaptedConfusion?.find((ex) => ex.externalId === "upsell_pr")
+    ).toBeUndefined();
+    expect(
+      adapted.adaptedConfusion?.find((ex) => ex.externalId === "ret_move")
+    ).toBeUndefined();
+
+    const leadRow = adapted.adapted!.byType.find((r) => r.type === "lead");
+    const upsellRow = adapted.adapted!.byType.find((r) => r.type === "upsell");
+    const retentionRow = adapted.adapted!.byType.find(
+      (r) => r.type === "retention"
+    );
+    expect(leadRow?.truePositives).toBe(1);
+    expect(upsellRow?.truePositives).toBe(1);
+    expect(retentionRow?.truePositives).toBe(1);
+    expect(adapted.adapted!.falsePositives).toBe(0);
   });
 
   it("injected classify lifts recall on a miss conversation without extra FP", async () => {
@@ -138,12 +192,16 @@ describe("real partner export eval lane", () => {
       "utf8"
     );
 
-    const heuristicOnly = await loadPartnerExportEval({ samplesDir });
+    const heuristicOnly = await loadPartnerExportEval({
+      samplesDir,
+      overrides: null,
+    });
     expect(heuristicOnly.heuristic.falseNegatives).toBeGreaterThan(0);
     expect(heuristicOnly.hybrid).toBeNull();
 
     const result = await loadPartnerExportEval({
       samplesDir,
+      overrides: null,
       classify: async ({ conversation, customerMessages }) => {
         const gt = conversation.groundTruth;
         if (!gt || gt === "none") {

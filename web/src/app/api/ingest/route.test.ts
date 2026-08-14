@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
+import { runDetection } from "@/lib/detect";
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import {
   readStore,
   resetStore,
@@ -89,6 +91,56 @@ describe("POST /api/ingest", () => {
           message.content.includes("this week")
       )
     ).toBe(true);
+  });
+
+  it("merges partner-export Adapt into store and changes detect vs base", async () => {
+    const before = await readStore();
+    before.pilot = {
+      baselineOpportunities: 0,
+      weeklyExportCount: 0,
+    };
+    before.taxonomyOverrides = { lead: { phrases: ["demat account"] } };
+    await writeStore(before);
+
+    const first = await POST(
+      ingestRequest(
+        csvFile("partner-week1.csv", [
+          'upsell_pr,customer,"Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.",Ada,whatsapp,upsell',
+        ])
+      )
+    );
+    expect(first.status).toBe(200);
+
+    const after = await readStore();
+    expect(after.taxonomyOverrides?.lead?.phrases).toEqual(["demat account"]);
+    expect(after.taxonomyOverrides?.lead?.negativePhrases).toEqual(
+      PARTNER_EXPORT_ADAPT_OVERRIDES.lead?.negativePhrases
+    );
+    expect(after.taxonomyOverrides?.upsell?.phrases).toEqual(
+      PARTNER_EXPORT_ADAPT_OVERRIDES.upsell?.phrases
+    );
+
+    const conversation = after.conversations.find(
+      (row) => row.externalId === "upsell_pr"
+    );
+    expect(conversation).toBeTruthy();
+    const messages = after.messages.filter(
+      (message) => message.conversationId === conversation!.id
+    );
+
+    const baseSignals = runDetection(
+      [conversation!],
+      messages,
+      after.tenant.id
+    );
+    expect(baseSignals.some((signal) => signal.type === "lead")).toBe(true);
+    expect(baseSignals.some((signal) => signal.type === "upsell")).toBe(false);
+
+    const adapted = after.signals.filter(
+      (signal) => signal.conversationId === conversation!.id
+    );
+    expect(adapted.some((signal) => signal.type === "upsell")).toBe(true);
+    expect(adapted.some((signal) => signal.type === "lead")).toBe(false);
   });
 
   it("upserts the same conversation_id instead of appending a duplicate", async () => {
