@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import type { SignalType } from "@/lib/types";
@@ -26,15 +27,23 @@ export function SignalScoreSummary({
   score,
   compact = false,
   allTimeScore = null,
+  windowLabel = "This window",
+  windowInvalid = false,
+  windowControl = null,
 }: {
   score: BackendSignalScore | null;
   compact?: boolean;
   allTimeScore?: BackendSignalScore | null;
+  /** Review-window chrome label (Last 7 days / From …). */
+  windowLabel?: string;
+  windowInvalid?: boolean;
+  windowControl?: ReactNode;
 }) {
   const online = score !== null;
   const primary = online ? formatPercent(score.signal_score) : "—";
   const byType = online ? score.by_signal_type : [];
   const emptyWindow = online && score.reviewed_count === 0;
+  const sourceLine = online ? `${windowLabel} · Neon` : "Backend offline";
 
   const allTimeLine =
     allTimeScore != null ? (
@@ -55,12 +64,19 @@ export function SignalScoreSummary({
         aria-label="Signal Score"
         aria-live="polite"
       >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="eyebrow">Signal Score</p>
-          <p className="text-label-12 text-sio-fg-muted">
-            {online ? "This window · Neon" : "Backend offline"}
-          </p>
+          <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
         </div>
+        {windowControl ? (
+          <div className="mt-2 min-w-0">{windowControl}</div>
+        ) : null}
+        {windowInvalid ? (
+          <p className="mt-1.5 text-label-12 text-sio-fg-subtle" role="alert">
+            Invalid from date — using last 7 days. Enter a calendar date and
+            Apply Window.
+          </p>
+        ) : null}
 
         <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -125,10 +141,19 @@ export function SignalScoreSummary({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2 sm:px-4 sm:py-2.5">
         <p className="eyebrow">Signal Score</p>
-        <p className="text-label-12 text-sio-fg-muted">
-          {online ? "This window · Neon" : "Backend offline"}
-        </p>
+        <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
       </div>
+      {windowControl || windowInvalid ? (
+        <div className="border-b border-sio-border-base px-3 py-2 sm:px-4">
+          {windowControl}
+          {windowInvalid ? (
+            <p className="mt-1.5 text-label-12 text-sio-fg-subtle" role="alert">
+              Invalid from date — using last 7 days. Enter a calendar date and
+              Apply Window.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid min-w-0 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:divide-x sm:divide-sio-border-base">
         <div className="metric-cell">

@@ -58,6 +58,7 @@ export function InsightsView({
   previewId = null,
   backendScore = null,
   needsReview,
+  scoreFrom = null,
   syncFailed = 0,
   syncCreated = 0,
   llmAdded = 0,
@@ -73,6 +74,8 @@ export function InsightsView({
   previewId?: string | null;
   backendScore?: BackendSignalScore | null;
   needsReview: NeedsReviewResult;
+  /** Preserve Eval `?scoreFrom=` across queue filters. */
+  scoreFrom?: string | null;
   syncFailed?: number;
   syncCreated?: number;
   llmAdded?: number;
@@ -133,6 +136,7 @@ export function InsightsView({
     syncCreated: hasSyncFailure ? String(syncCreated) : null,
     llmAdded: llmAdded > 0 ? String(llmAdded) : null,
     llmFailed: llmFailed > 0 ? String(llmFailed) : null,
+    scoreFrom,
   };
 
   // Same resolution as SignalQueue — deep links ignore active filters.
@@ -215,7 +219,7 @@ export function InsightsView({
             title={[
               "Queue · Neon needs-review",
               store.tenant.name,
-              scoreLabel ? `Score ${scoreLabel}` : null,
+              scoreLabel ? `Window ${scoreLabel}` : null,
               pilot.opportunityLift !== 0
                 ? `Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`
                 : null,
@@ -244,7 +248,7 @@ export function InsightsView({
                   ·{" "}
                 </span>
                 <span className="tabular text-sio-fg-base">
-                  Score {scoreLabel}
+                  Window {scoreLabel}
                 </span>
               </>
             ) : null}
@@ -276,7 +280,10 @@ export function InsightsView({
         <NoteAction aria-label="Queue actions">
           <PartnerDemoButton className="btn-primary" label="Run Partner Demo" />
           <ReDetectButton />
-          <Link href={viewHref("eval")} className="btn-secondary">
+          <Link
+            href={viewHref("eval", { scoreFrom })}
+            className="btn-secondary"
+          >
             <ExternalIcon className="size-3.5 shrink-0" />
             Open Eval
           </Link>

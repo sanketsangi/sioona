@@ -3,6 +3,7 @@ import { detectEvalStore as sampleStore } from "@/data/fixtures/detect-eval-fixt
 import { runDetection } from "./detect";
 import {
   applyBackendSignalScore,
+  applyBackendSignalScoreToPilot,
   computeEvalMetrics,
   computePilotMetrics,
   REVIEW_PRECISION_TARGET,
@@ -144,6 +145,93 @@ describe("computePilotMetrics", () => {
     const pilot = computePilotMetrics(store);
     expect(pilot.baselineOpportunities).toBe(3);
     expect(pilot.opportunityLift).toBe(pilot.sioonaOpportunities - 3);
+  });
+});
+
+describe("applyBackendSignalScoreToPilot", () => {
+  it("empty review window stays insufficient_data (no labeled Go shortcut)", () => {
+    const signals = runDetection(
+      sampleStore.conversations,
+      sampleStore.messages,
+      sampleStore.tenant.id
+    );
+    const store = withSignals(signals);
+    const withoutBackend = computePilotMetrics(store);
+    expect(withoutBackend.goNoGo).toBe("go");
+
+    const pilot = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: null,
+      reviewed_count: 0,
+      correct_count: 0,
+      incorrect_count: 0,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(pilot.reviewedCount).toBe(0);
+    expect(pilot.reviewPrecision).toBeNull();
+    expect(pilot.goNoGo).toBe("insufficient_data");
+  });
+
+  it("windowed reviews drive go when n≥5 and precision ≥ target", () => {
+    const store = withSignals([]);
+    const pilot = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: 0.83,
+      reviewed_count: 6,
+      correct_count: 5,
+      incorrect_count: 1,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(pilot.goNoGo).toBe("go");
+    expect(pilot.reviewedCount).toBe(6);
+    expect(pilot.reviewPrecision).toBe(0.83);
+  });
+
+  it("windowed reviews drive hold when n≥5 and precision below target", () => {
+    const store = withSignals([]);
+    const pilot = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: 0.5,
+      reviewed_count: 6,
+      correct_count: 3,
+      incorrect_count: 3,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(pilot.goNoGo).toBe("hold");
+  });
+
+  it("0<n<5 with precision below target is hold (reviews exist)", () => {
+    const store = withSignals([]);
+    const pilot = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: 0.5,
+      reviewed_count: 2,
+      correct_count: 1,
+      incorrect_count: 1,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(pilot.goNoGo).toBe("hold");
+    expect(pilot.reviewedCount).toBe(2);
+  });
+
+  it("0<n<5 with precision at target stays insufficient_data (not Go)", () => {
+    const store = withSignals([]);
+    const pilot = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: 1,
+      reviewed_count: 3,
+      correct_count: 3,
+      incorrect_count: 0,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(pilot.goNoGo).toBe("insufficient_data");
+    expect(pilot.reviewedCount).toBe(3);
+    expect(pilot.reviewPrecision).toBe(1);
   });
 });
 

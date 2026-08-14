@@ -1,6 +1,25 @@
 /** Default Eval/Insights SignalScore window: last 7 days of feedback.reviewed_at (UTC). */
 export const SIGNAL_SCORE_WINDOW_DAYS = 7;
 
+export type SignalScoreWindowStatus = "default" | "custom" | "invalid";
+
+export interface SignalScoreWindow {
+  status: SignalScoreWindowStatus;
+  /** ISO UTC `date_from` sent to FastAPI. */
+  resolvedFrom: string;
+  /** `YYYY-MM-DD` for `<input type="date">`. */
+  dateInput: string;
+  /** Short chrome label (This week vs From …). */
+  label: string;
+}
+
+const UTC_DAY = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
 /**
  * Resolve `date_from` for SignalScore (ISO UTC).
  * Precedence: `scoreFrom` query → `SIGNAL_SCORE_FROM` env → now − 7 days.
@@ -10,16 +29,64 @@ export function resolveSignalScoreDateFrom(opts?: {
   envFrom?: string | null;
   now?: Date;
 }): string {
-  const raw = (opts?.scoreFrom ?? "").trim() || (opts?.envFrom ?? "").trim();
-  if (raw) {
-    const parsed = parseScoreFromInstant(raw);
-    if (parsed) return parsed.toISOString();
-  }
+  return inspectSignalScoreWindow(opts).resolvedFrom;
+}
+
+/** Query-driven window for Eval chrome. Env override still affects `resolvedFrom`. */
+export function inspectSignalScoreWindow(opts?: {
+  scoreFrom?: string | null;
+  envFrom?: string | null;
+  now?: Date;
+}): SignalScoreWindow {
+  const queryRaw = (opts?.scoreFrom ?? "").trim();
+  const envRaw = (opts?.envFrom ?? "").trim();
   const now = opts?.now ?? new Date();
-  const from = new Date(
+  const fallback = defaultWindowStart(now);
+
+  if (queryRaw) {
+    const parsed = parseScoreFromInstant(queryRaw);
+    if (!parsed) {
+      return {
+        status: "invalid",
+        resolvedFrom: fallback,
+        dateInput: fallback.slice(0, 10),
+        label: `Last ${SIGNAL_SCORE_WINDOW_DAYS} days`,
+      };
+    }
+    const iso = parsed.toISOString();
+    return {
+      status: "custom",
+      resolvedFrom: iso,
+      dateInput: iso.slice(0, 10),
+      label: `From ${UTC_DAY.format(parsed)}`,
+    };
+  }
+
+  if (envRaw) {
+    const parsed = parseScoreFromInstant(envRaw);
+    if (parsed) {
+      const iso = parsed.toISOString();
+      return {
+        status: "default",
+        resolvedFrom: iso,
+        dateInput: iso.slice(0, 10),
+        label: `Last ${SIGNAL_SCORE_WINDOW_DAYS} days`,
+      };
+    }
+  }
+
+  return {
+    status: "default",
+    resolvedFrom: fallback,
+    dateInput: fallback.slice(0, 10),
+    label: `Last ${SIGNAL_SCORE_WINDOW_DAYS} days`,
+  };
+}
+
+function defaultWindowStart(now: Date): string {
+  return new Date(
     now.getTime() - SIGNAL_SCORE_WINDOW_DAYS * 24 * 60 * 60 * 1000
-  );
-  return from.toISOString();
+  ).toISOString();
 }
 
 /** Accept full ISO datetime or date-only (`YYYY-MM-DD` → UTC midnight). */

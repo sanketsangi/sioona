@@ -32,7 +32,9 @@ Same strip on Upload, Insights, and Eval. No autonomous actions — suggested ne
 
 **Hosted week-1 (sioona-demo):** set Eval baseline (dual-writes to Neon `pilot_settings`) + mid-week partner CSV re-upload with `replaced=false` (upsert by `externalId`, no Day-1 prune). Week-1 dry-run logged 2026-08-14: baseline 12, keep-set n=6 / precision 0.83 → go, lift 23. No new Detect engine.
 
-**Week-2 share-outs:** Eval / Insights SignalScore and go/no-go use the **review window** (`feedback.reviewed_at`, default last 7 days UTC) ∩ conversation keep-set — not the recycled week-1 n=6 alone. Empty window → 0 reviewed / null score / Insufficient Data until new reviews land. Override with `?scoreFrom=` or `SIGNAL_SCORE_FROM`.
+**Week-2 dry-run (2026-08-14):** CLI `--week2` scored held-out `week2.local.csv` (34 labeled; base P 0.75 / R 0.31; adapt P 0.89 / R 0.55 — not week-1 1.00). sioona-demo mid-week upsert `replaced=false` (34 chats / 18 signals / sync failed=0 / `weekly_export_count` 6). Default Eval window still week-1 n=6 / 0.83 — **not** week-2 go. Next: ≥5 new window reviews, then week-window SignalScore. Do not expand `taxonomy.ts`. Never commit `*.local.csv`.
+
+**Week-2 share-outs:** Eval / Insights SignalScore and go/no-go use the **review window** (`feedback.reviewed_at`, default last 7 days UTC) ∩ conversation keep-set — not the recycled week-1 n=6 alone. Empty window → 0 reviewed / null score / Insufficient Data until new reviews land. On Eval Metrics, pick **This Week** or a From date (`?scoreFrom=`); `SIGNAL_SCORE_FROM` remains a server override. Empty-window go/no-go honesty is **coded + tests green**; claim it on sioona-demo only after the next **Production Vercel redeploy** (pre-fix still recycled labeled Go when Neon n=0).
 
 ## With a partner file
 
