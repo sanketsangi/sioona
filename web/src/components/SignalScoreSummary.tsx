@@ -18,17 +18,35 @@ function typeLabel(signalType: string): string {
  * `compact` = dense single-strip (Eval) — no stacked header/
  * body/footer chrome; full layout keeps the two-column metric panel.
  * Signal Detail omits this strip (score lives on Insights/Eval).
+ *
+ * Primary `score` is the review-window keep-set score (go/no-go). Optional
+ * `allTimeScore` is a quiet secondary (Eval only).
  */
 export function SignalScoreSummary({
   score,
   compact = false,
+  allTimeScore = null,
 }: {
   score: BackendSignalScore | null;
   compact?: boolean;
+  allTimeScore?: BackendSignalScore | null;
 }) {
   const online = score !== null;
   const primary = online ? formatPercent(score.signal_score) : "—";
   const byType = online ? score.by_signal_type : [];
+  const emptyWindow = online && score.reviewed_count === 0;
+
+  const allTimeLine =
+    allTimeScore != null ? (
+      <p className="tabular text-label-12 text-sio-fg-muted">
+        All-time pack{" "}
+        <span className="font-mono text-sio-fg-subtle">
+          {formatPercent(allTimeScore.signal_score)}
+        </span>
+        <span aria-hidden> · </span>
+        Reviewed {allTimeScore.reviewed_count}
+      </p>
+    ) : null;
 
   if (compact) {
     return (
@@ -40,7 +58,7 @@ export function SignalScoreSummary({
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
           <p className="eyebrow">Signal Score</p>
           <p className="text-label-12 text-sio-fg-muted">
-            {online ? "From Neon" : "Backend offline"}
+            {online ? "This window · Neon" : "Backend offline"}
           </p>
         </div>
 
@@ -87,12 +105,14 @@ export function SignalScoreSummary({
             </ul>
           ) : null}
 
-          {online && byType.length === 0 ? (
+          {emptyWindow ? (
             <p className="text-label-12 text-sio-fg-muted">
-              No reviews yet. Mark signals in Shadow Mode to build the score.
+              No reviews in this window. Mark signals in Shadow Mode to build
+              the week score.
             </p>
           ) : null}
         </div>
+        {allTimeLine ? <div className="mt-1">{allTimeLine}</div> : null}
       </section>
     );
   }
@@ -106,7 +126,7 @@ export function SignalScoreSummary({
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2 sm:px-4 sm:py-2.5">
         <p className="eyebrow">Signal Score</p>
         <p className="text-label-12 text-sio-fg-muted">
-          {online ? "From Neon" : "Backend offline"}
+          {online ? "This window · Neon" : "Backend offline"}
         </p>
       </div>
 
@@ -130,6 +150,7 @@ export function SignalScoreSummary({
                 <span aria-hidden> · </span>
                 Partially correct {score.partially_correct_count}
               </p>
+              {allTimeLine}
             </>
           ) : (
             <p className="mt-1.5 text-label-12 text-sio-fg-muted">
@@ -143,6 +164,11 @@ export function SignalScoreSummary({
           {!online ? (
             <p className="mt-2 text-copy-14 text-sio-fg-muted">
               Start the FastAPI backend to load Signal Score from Neon.
+            </p>
+          ) : emptyWindow ? (
+            <p className="mt-2 text-copy-14 text-sio-fg-muted">
+              No reviews in this window. Mark signals in Shadow Mode to build
+              the week score.
             </p>
           ) : byType.length === 0 ? (
             <p className="mt-2 text-copy-14 text-sio-fg-muted">

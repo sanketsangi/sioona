@@ -97,7 +97,11 @@ def _reviewed_query(
     signal_type: str | None,
     conversation_ids: frozenset[str] | None,
 ) -> Select:
-    """Build join of predictions with feedback for a tenant."""
+    """Build join of predictions with feedback for a tenant.
+
+    ``date_from`` / ``date_to`` bound ``SignalFeedback.reviewed_at`` (not
+    prediction ``created_at``) so week windows reflect when reviews happened.
+    """
     stmt = (
         select(SignalPrediction, SignalFeedback)
         .join(SignalFeedback, SignalFeedback.signal_id == SignalPrediction.id)
@@ -105,9 +109,9 @@ def _reviewed_query(
         .where(SignalFeedback.tenant_id == tenant_id)
     )
     if date_from is not None:
-        stmt = stmt.where(SignalPrediction.created_at >= date_from)
+        stmt = stmt.where(SignalFeedback.reviewed_at >= date_from)
     if date_to is not None:
-        stmt = stmt.where(SignalPrediction.created_at <= date_to)
+        stmt = stmt.where(SignalFeedback.reviewed_at <= date_to)
     if signal_type is not None:
         stmt = stmt.where(SignalPrediction.signal_type == signal_type)
     if conversation_ids is not None:

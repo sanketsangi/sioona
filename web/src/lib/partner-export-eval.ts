@@ -26,14 +26,21 @@ export const PARTNER_EXPORT_TEMPLATE_FILE =
   "real-partner-export.template.csv";
 
 /**
- * Local drop-in for Day-1 pilot chats (gitignored).
+ * Local drop-in for Day-1 / week-1 pilot chats (gitignored).
  * Copy the template, replace rows with redacted partner transcripts + ground_truth.
  */
 export const PARTNER_EXPORT_LOCAL_FILE = "real-partner-export.local.csv";
 
+/**
+ * Week-2 held-out drop-in (gitignored). Does not overwrite week-1 local.csv.
+ * Prefer via preferWeek2 / --week2 / PARTNER_EXPORT=week2.
+ */
+export const PARTNER_EXPORT_WEEK2_LOCAL_FILE =
+  "real-partner-export.week2.local.csv";
+
 const TENANT_ID = "tenant_demo";
 
-export type PartnerExportSource = "local" | "template";
+export type PartnerExportSource = "local" | "template" | "week2";
 
 export interface PartnerExportEvalResult {
   source: PartnerExportSource;
@@ -71,8 +78,24 @@ function skippedLlmStats(): LlmPassStats {
 export function resolvePartnerExportPath(
   samplesDir: string = SAMPLES_DIR,
   /** Force template (tests / CI). */
-  preferTemplate = false
+  preferTemplate = false,
+  /** Score week-2 held-out CSV only (never falls back to week-1). */
+  preferWeek2 = false
 ): { source: PartnerExportSource; filename: string; absolutePath: string } {
+  if (preferWeek2) {
+    const week2Path = path.join(samplesDir, PARTNER_EXPORT_WEEK2_LOCAL_FILE);
+    if (!existsSync(week2Path)) {
+      throw new Error(
+        `Missing week-2 partner export at ${week2Path}. Copy ${PARTNER_EXPORT_TEMPLATE_FILE} to ${PARTNER_EXPORT_WEEK2_LOCAL_FILE}, redact, label ground_truth, then re-run with --week2. Do not use week-1 ${PARTNER_EXPORT_LOCAL_FILE} as week-2.`
+      );
+    }
+    return {
+      source: "week2",
+      filename: PARTNER_EXPORT_WEEK2_LOCAL_FILE,
+      absolutePath: week2Path,
+    };
+  }
+
   const localPath = path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE);
   const templatePath = path.join(samplesDir, PARTNER_EXPORT_TEMPLATE_FILE);
 
@@ -107,28 +130,33 @@ function resolveEvalOverrides(
 ): TaxonomyOverrides | null {
   if (overrides === null) return null;
   if (overrides !== undefined) return overrides;
-  return source === "local" ? PARTNER_EXPORT_ADAPT_OVERRIDES : null;
+  return source === "local" || source === "week2"
+    ? PARTNER_EXPORT_ADAPT_OVERRIDES
+    : null;
 }
 
 /** Load CSV → ingest → heuristic detect → labeled metrics; optional hybrid pass 2. */
 export async function loadPartnerExportEval(options?: {
   samplesDir?: string;
   preferTemplate?: boolean;
+  /** Score week-2 held-out CSV (requires week2.local.csv; no week-1 fallback). */
+  preferWeek2?: boolean;
   tenantId?: string;
   classify?: LlmClassifyFn;
   maxCalls?: number;
   concurrency?: number;
   /**
    * Adapt terms for the second heuristic pass.
-   * Default: partner-export fixture when `source=local`; none for template.
-   * Pass `null` to skip Adapt even on local.csv.
+   * Default: partner-export fixture when `source=local` or `week2`; none for template.
+   * Pass `null` to skip Adapt even on local / week2 CSV.
    */
   overrides?: TaxonomyOverrides | null;
 }): Promise<PartnerExportEvalResult> {
   const tenantId = options?.tenantId ?? TENANT_ID;
   const resolved = resolvePartnerExportPath(
     options?.samplesDir ?? SAMPLES_DIR,
-    options?.preferTemplate ?? false
+    options?.preferTemplate ?? false,
+    options?.preferWeek2 ?? false
   );
   const content = readFileSync(resolved.absolutePath, "utf8");
   const doc = parseIngestDocument(resolved.filename, content);

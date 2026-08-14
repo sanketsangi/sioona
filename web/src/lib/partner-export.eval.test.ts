@@ -10,6 +10,7 @@ import {
   loadPartnerExportEval,
   PARTNER_EXPORT_LOCAL_FILE,
   PARTNER_EXPORT_TEMPLATE_FILE,
+  PARTNER_EXPORT_WEEK2_LOCAL_FILE,
   resolvePartnerExportPath,
 } from "./partner-export-eval";
 
@@ -244,5 +245,107 @@ describe("real partner export eval lane", () => {
     );
     expect(line).toContain("hybrid vs heuristic:");
     expect(line).toContain("llm attempted=");
+  });
+
+  it("prefers week2 drop-in when preferWeek2 and file present", async () => {
+    const samplesDir = makeSamplesDir();
+    writeFileSync(
+      path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE),
+      [
+        "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+        'w1_lead,customer,"Want to open a demat account — email [email]",W1,whatsapp,2026-08-06T13:00:00.000Z,lead',
+        "w1_lead,agent,Sharing onboarding.,,whatsapp,2026-08-06T13:01:00.000Z,lead",
+      ].join("\n"),
+      "utf8"
+    );
+    writeFileSync(
+      path.join(samplesDir, PARTNER_EXPORT_WEEK2_LOCAL_FILE),
+      [
+        "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+        'w2_ret,customer,"I may close my account if fees stay this high",W2,whatsapp,2026-08-13T10:00:00.000Z,retention',
+        "w2_ret,agent,Looking into it.,,whatsapp,2026-08-13T10:01:00.000Z,retention",
+        'w2_none,customer,"Please reset my password — OTP missing",W2b,in_app_chat,2026-08-13T14:00:00.000Z,none',
+        "w2_none,agent,Reset sent.,,in_app_chat,2026-08-13T14:01:00.000Z,none",
+      ].join("\n"),
+      "utf8"
+    );
+
+    const defaultResolved = resolvePartnerExportPath(samplesDir, false, false);
+    expect(defaultResolved.source).toBe("local");
+    expect(defaultResolved.filename).toBe(PARTNER_EXPORT_LOCAL_FILE);
+
+    const week2Resolved = resolvePartnerExportPath(samplesDir, false, true);
+    expect(week2Resolved.source).toBe("week2");
+    expect(week2Resolved.filename).toBe(PARTNER_EXPORT_WEEK2_LOCAL_FILE);
+
+    const result = await loadPartnerExportEval({
+      samplesDir,
+      preferWeek2: true,
+      overrides: null,
+    });
+    expect(result.source).toBe("week2");
+    expect(result.filename).toBe(PARTNER_EXPORT_WEEK2_LOCAL_FILE);
+    expect(result.adapted).toBeNull();
+    expect(result.metrics.labeledConversations).toBe(2);
+    expect(
+      result.metrics.byType.find((r) => r.type === "retention")?.labeledCount
+    ).toBe(1);
+    expect(formatPartnerExportEval(result)).toContain("source=week2");
+  });
+
+  it("throws a clear error when preferWeek2 and week2 file is missing", async () => {
+    const samplesDir = makeSamplesDir();
+    writeFileSync(
+      path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE),
+      [
+        "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+        'w1_lead,customer,"Want to open a demat account — email [email]",W1,whatsapp,2026-08-06T13:00:00.000Z,lead',
+        "w1_lead,agent,Sharing onboarding.,,whatsapp,2026-08-06T13:01:00.000Z,lead",
+      ].join("\n"),
+      "utf8"
+    );
+
+    expect(() => resolvePartnerExportPath(samplesDir, false, true)).toThrow(
+      PARTNER_EXPORT_WEEK2_LOCAL_FILE
+    );
+    expect(() => resolvePartnerExportPath(samplesDir, false, true)).toThrow(
+      PARTNER_EXPORT_LOCAL_FILE
+    );
+
+    await expect(
+      loadPartnerExportEval({ samplesDir, preferWeek2: true })
+    ).rejects.toThrow(PARTNER_EXPORT_WEEK2_LOCAL_FILE);
+  });
+
+  it("applies Adapt overrides by default on week2 local", async () => {
+    const samplesDir = makeSamplesDir();
+    writeFileSync(
+      path.join(samplesDir, PARTNER_EXPORT_WEEK2_LOCAL_FILE),
+      [
+        "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+        'upsell_pr,customer,"Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.",Ada,whatsapp,2026-08-13T09:00:00.000Z,upsell',
+        "upsell_pr,agent,Sharing notes.,,whatsapp,2026-08-13T09:01:00.000Z,upsell",
+        'ops_none,customer,"Please reset my password — OTP missing",Dev,in_app_chat,2026-08-13T14:00:00.000Z,none',
+        "ops_none,agent,Reset sent.,,in_app_chat,2026-08-13T14:01:00.000Z,none",
+      ].join("\n"),
+      "utf8"
+    );
+
+    const withAdapt = await loadPartnerExportEval({
+      samplesDir,
+      preferWeek2: true,
+    });
+    expect(withAdapt.source).toBe("week2");
+    expect(withAdapt.adapted).not.toBeNull();
+    expect(withAdapt.store.taxonomyOverrides).toEqual(
+      PARTNER_EXPORT_ADAPT_OVERRIDES
+    );
+
+    const withoutAdapt = await loadPartnerExportEval({
+      samplesDir,
+      preferWeek2: true,
+      overrides: null,
+    });
+    expect(withoutAdapt.adapted).toBeNull();
   });
 });

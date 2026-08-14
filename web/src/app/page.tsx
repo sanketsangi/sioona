@@ -19,6 +19,7 @@ import {
   shouldShowSyncFailureBanner,
 } from "@/lib/prediction-sync";
 import { hasMidWeekExport } from "@/lib/pilot-cadence";
+import { resolveSignalScoreDateFrom } from "@/lib/signal-score-window";
 import { readStore } from "@/lib/store";
 import {
   parsePage,
@@ -73,6 +74,7 @@ export default async function PlatformPage({
     llmAdded?: string;
     llmFailed?: string;
     preview?: string;
+    scoreFrom?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -97,12 +99,17 @@ export default async function PlatformPage({
   const store = await readStore();
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
+  const keepSetIds = store.conversations.map((c) => c.id);
+  const scoreDateFrom = resolveSignalScoreDateFrom({
+    scoreFrom: sp.scoreFrom,
+    envFrom: process.env.SIGNAL_SCORE_FROM,
+  });
 
-  const [backendScore, needsReview] = await Promise.all([
-    fetchSignalScoreSafe(
-      store.tenant.id,
-      store.conversations.map((c) => c.id)
-    ),
+  const [backendScore, allTimeScore, needsReview] = await Promise.all([
+    fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
+      dateFrom: scoreDateFrom,
+    }),
+    fetchSignalScoreSafe(store.tenant.id, keepSetIds),
     fetchNeedsReview(store.tenant.id),
   ]);
   const pendingCount = needsReview.ok
@@ -160,6 +167,7 @@ export default async function PlatformPage({
           convPageRaw={sp.convPage}
           adaptPageRaw={sp.adaptPage}
           backendScore={backendScore}
+          allTimeScore={allTimeScore}
         />
       ) : null}
       {view === "taxonomy" ? <TaxonomyView typePageRaw={sp.taxPage} /> : null}

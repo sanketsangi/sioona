@@ -165,16 +165,16 @@ def test_signal_score_filters_by_date_range(db: Session) -> None:
     old = _pred(db, conversation_id="c1")
     new = _pred(db, conversation_id="c2")
 
-    old.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    new.created_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
-    db.commit()
-
-    record_feedback(
+    old_fb = record_feedback(
         db, tenant_id="tenant_a", signal_id=old.id, feedback="incorrect", reviewed_by="r1"
     )
-    record_feedback(
+    new_fb = record_feedback(
         db, tenant_id="tenant_a", signal_id=new.id, feedback="correct", reviewed_by="r1"
     )
+
+    old_fb.reviewed_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    new_fb.reviewed_at = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    db.commit()
 
     result = calculate_signal_score(
         db,
@@ -184,6 +184,69 @@ def test_signal_score_filters_by_date_range(db: Session) -> None:
     )
     assert result.reviewed_count == 1
     assert result.signal_score == pytest.approx(1.0)
+
+
+def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
+    """In-window keep-set counts; out-of-window and orphan Partner Demo excluded."""
+    pack_in = _pred(db, conversation_id="pack_1")
+    pack_out = _pred(db, conversation_id="pack_2")
+    orphan = _pred(db, conversation_id="orphan_demo")
+
+    fb_in = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=pack_in.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    fb_out = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=pack_out.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    fb_orphan = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=orphan.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+
+    fb_in.reviewed_at = datetime(2026, 8, 10, tzinfo=timezone.utc)
+    fb_out.reviewed_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    fb_orphan.reviewed_at = datetime(2026, 8, 10, tzinfo=timezone.utc)
+    db.commit()
+
+    result = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        date_to=datetime(2026, 8, 31, tzinfo=timezone.utc),
+        conversation_ids=["pack_1", "pack_2"],
+    )
+    assert result.reviewed_count == 1
+    assert result.correct_count == 1
+    assert result.signal_score == pytest.approx(1.0)
+
+    empty_window = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        conversation_ids=["pack_1", "pack_2"],
+    )
+    assert empty_window.reviewed_count == 0
+    assert empty_window.signal_score is None
+
+    empty_keep = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        conversation_ids=[],
+    )
+    assert empty_keep.reviewed_count == 0
+    assert empty_keep.signal_score is None
 
 
 def test_record_feedback_rejects_invalid_label(db: Session) -> None:

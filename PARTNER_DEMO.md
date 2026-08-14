@@ -13,7 +13,7 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 3. Open a **retention** or **lead** card: summary, evidence, suggested action (display-only)
 4. **SignalScore** — mark ≥5 reviews (`correct` / `incorrect` / `partially_correct`)
 5. **Eval** — labeled P/R + Pilot Metrics (≥80% target, go/no-go) + set partner baseline for lift + Next Step copy
-6. Ask for a **7-day Shadow Mode pilot**: weekly export → Neon pending → SignalScore → Eval baseline / go-no-go
+6. Ask for a **2-week Shadow Mode pilot**: weekly export → Neon pending → SignalScore → Eval baseline / go-no-go
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
 
@@ -31,6 +31,8 @@ Cold open and **Reset Demo** also load the same showcase corpus (`testing.json`,
 Same strip on Upload, Insights, and Eval. No autonomous actions — suggested next steps stay display-only.
 
 **Hosted week-1 (sioona-demo):** set Eval baseline (dual-writes to Neon `pilot_settings`) + mid-week partner CSV re-upload with `replaced=false` (upsert by `externalId`, no Day-1 prune). Week-1 dry-run logged 2026-08-14: baseline 12, keep-set n=6 / precision 0.83 → go, lift 23. No new Detect engine.
+
+**Week-2 share-outs:** Eval / Insights SignalScore and go/no-go use the **review window** (`feedback.reviewed_at`, default last 7 days UTC) ∩ conversation keep-set — not the recycled week-1 n=6 alone. Empty window → 0 reviewed / null score / Insufficient Data until new reviews land. Override with `?scoreFrom=` or `SIGNAL_SCORE_FROM`.
 
 ## With a partner file
 

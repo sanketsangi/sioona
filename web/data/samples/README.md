@@ -7,7 +7,8 @@ Showcase conversations for cold open and **Run Partner Demo** come from **`testi
 | `testing.json` | Sioona-shaped JSON | ~41 labeled finance chats; cold open + Partner Demo + reset seed. Keep in sync with repo-root `testing.json`. |
 | `partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` | Messier partner-like multi-turn pack for labeled P/R vs synthetics |
 | `real-partner-export.template.csv` | Sioona CSV + `ground_truth` | Redacted template for Day-1 pilot exports (safe to commit) |
-| `real-partner-export.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** drop-in — paste redacted partner chats here |
+| `real-partner-export.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-1 drop-in — paste redacted partner chats here |
+| `real-partner-export.week2.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-2 held-out drop-in — does not overwrite week-1 |
 
 Upload still accepts partner CSV / Intercom JSON / WhatsApp `.txt` — those formats are parsers, not bundled showcase files.
 
@@ -102,3 +103,22 @@ Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts)
 This lane is a **measurement baseline** (not a P/R = 1.0 gate). Signal Score review precision remains FastAPI + Neon after upload/feedback.
 
 Optional UI: upload the same CSV via `/upload`, then read labeled metrics on Eval.
+
+## Week-2 held-out eval lane
+
+Score a second redacted partner drop without overwriting week-1 `real-partner-export.local.csv`.
+
+### Drop-in steps
+
+1. Copy the template (separate file from week-1):
+   ```bash
+   cp data/samples/real-partner-export.template.csv data/samples/real-partner-export.week2.local.csv
+   ```
+2. Replace rows with **redacted** week-2 partner transcripts. Keep the same columns and `ground_truth` label policy as week-1.
+3. Score from `web/`:
+   ```bash
+   npm run eval:partner-export -- --week2
+   # or: PARTNER_EXPORT=week2 npm run eval:partner-export
+   ```
+   Requires `real-partner-export.week2.local.csv`. Prints `source=week2` with heuristic (base) + **heuristic (adapt)** from the same [`partner-export-overrides.ts`](../../src/data/fixtures/partner-export-overrides.ts) fixture as week-1 local (not copied into `taxonomy.ts`). Missing week2 file → clear error (does **not** silently score week-1). Default `npm run eval:partner-export` still prefers week-1 `real-partner-export.local.csv`. **Never commit `*.local.csv` / PII.**
+

@@ -9,8 +9,9 @@ import {
 import { viewHref } from "@/lib/views";
 
 /**
- * Lightweight 7-day Shadow Mode checklist — one strip, not a card dashboard.
- * Extends the Day-1 path into week-1 rhythm (export → review → score → Eval).
+ * Lightweight Shadow Mode checklist — one strip, not a card dashboard.
+ * Extends the Day-1 path into week cadence (export → review → score → Eval).
+ * Week-2 go/no-go uses the review window (`reviewed_at`), not recycled week-1 n alone.
  */
 export function Week1PilotStrip({
   reviewedCount = 0,
@@ -41,7 +42,7 @@ export function Week1PilotStrip({
     return (
       <p
         className="min-w-0 text-label-13 text-sio-fg-subtle"
-        aria-label="7-day Shadow Mode pilot checklist"
+        aria-label="Shadow Mode pilot checklist"
       >
         <span className="text-sio-fg-base">
           Pilot {doneCount}/{steps.length}
@@ -55,12 +56,12 @@ export function Week1PilotStrip({
   return (
     <section
       className="metric-strip shrink-0"
-      aria-label="7-day Shadow Mode pilot checklist"
+      aria-label="Shadow Mode pilot checklist"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-4 py-2.5">
-        <p className="eyebrow">7-Day Pilot</p>
+        <p className="eyebrow">2-Week Pilot</p>
         <p className="text-label-12 text-sio-fg-subtle">
-          Week-1 Shadow Mode cadence
+          Shadow Mode cadence · week score = review window
         </p>
       </div>
       <div className="px-4 py-3">
@@ -199,7 +200,8 @@ function helperCopy(
       <Link href={viewHref("eval")} className="link-accent">
         Eval
       </Link>{" "}
-      for precision, lift, and go/no-go — then share the call with the partner.
+      for this week&apos;s review-window precision, lift, and go/no-go — not
+      recycled week-1 reviews alone.
     </>
   );
 }

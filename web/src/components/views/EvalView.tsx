@@ -54,13 +54,17 @@ export function EvalView({
   convPageRaw,
   adaptPageRaw,
   backendScore = null,
+  allTimeScore = null,
 }: {
   store: StoreData;
   panelRaw?: string | null;
   labeledRaw?: string | null;
   convPageRaw?: string | null;
   adaptPageRaw?: string | null;
+  /** Week-window SignalScore (drives go/no-go). */
   backendScore?: BackendSignalScore | null;
+  /** Keep-set all-time score (display only; not go/no-go). */
+  allTimeScore?: BackendSignalScore | null;
 }) {
   const panel = parseEvalPanel(panelRaw);
   const metrics = applyBackendSignalScore(
@@ -98,6 +102,7 @@ export function EvalView({
             metrics={metrics}
             pilot={pilot}
             backendScore={backendScore}
+            allTimeScore={allTimeScore}
             baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
             baselineNote={store.pilot?.baselineNote}
           />
@@ -127,18 +132,24 @@ function MetricsPanel({
   metrics,
   pilot,
   backendScore,
+  allTimeScore,
   baselineOpportunities,
   baselineNote,
 }: {
   metrics: EvalMetrics;
   pilot: PilotMetrics;
   backendScore: BackendSignalScore | null;
+  allTimeScore: BackendSignalScore | null;
   baselineOpportunities: number;
   baselineNote?: string;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <SignalScoreSummary score={backendScore} compact />
+      <SignalScoreSummary
+        score={backendScore}
+        allTimeScore={allTimeScore}
+        compact
+      />
 
       <div className="grid shrink-0 gap-3 lg:grid-cols-2">
         <section className="metric-strip">
