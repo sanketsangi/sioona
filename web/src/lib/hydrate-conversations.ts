@@ -2,9 +2,11 @@
  * Cold-start hydrate: pull conversations + messages from Neon when the JSON
  * store file is missing. Fail-soft — empty/down/404/500 → null (caller seeds
  * testing.json). Copies Neon ground_truth onto conversations + matching
- * signals; never invents GT or taxonomy.
+ * signals; never invents GT. Taxonomy stays JSON: union Adapt fixture into
+ * taxonomyOverrides before re-detect (same merge as Day-1 replace ingest).
  */
 
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   getConversations,
@@ -16,7 +18,7 @@ import {
   type BackendPredictionWithFeedback,
 } from "./backend-client";
 import { runHybridDetection } from "./detect-llm";
-import { writeStore } from "./store";
+import { mergeTaxonomyOverrides, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import type {
   Conversation,
@@ -218,6 +220,11 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
   const chats = await fetchHydrateConversations(tenantId);
   if (!chats) return null;
 
+  const taxonomyOverrides = mergeTaxonomyOverrides(
+    emptyShowcaseStore.taxonomyOverrides,
+    PARTNER_EXPORT_ADAPT_OVERRIDES
+  );
+
   let signals: Signal[] = [];
   const testSleep = process.env.VITEST
     ? { sleep: async () => undefined }
@@ -228,7 +235,7 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
       chats.conversations,
       chats.messages,
       tenantId,
-      emptyShowcaseStore.taxonomyOverrides
+      taxonomyOverrides
     );
     signals = detected.signals;
     const synced = await syncPredictionsToBackend(
@@ -258,6 +265,7 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
     conversations: chats.conversations,
     messages: chats.messages,
     signals,
+    taxonomyOverrides,
   };
   await writeStore(store);
   return store;

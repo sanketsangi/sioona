@@ -216,6 +216,9 @@ describe("readStore cold-start hydrate", () => {
     expect(store.conversations.some((c) => c.id === "conv_priya_sharma_22")).toBe(
       true
     );
+    expect(store.taxonomyOverrides).toEqual({});
+    expect(store.taxonomyOverrides?.lead?.negativePhrases).toBeUndefined();
+    expect(store.taxonomyOverrides?.upsell?.phrases).toBeUndefined();
     expect(getSpy).not.toHaveBeenCalled();
     expect(signalsSpy).not.toHaveBeenCalled();
   });
