@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { BackendClientError } from "./backend-client";
 import type { BackendConversation } from "./backend-client";
 import type { BackendPredictionWithFeedback } from "./backend-client";
+import { runDetection } from "./detect";
 import {
   applyConversationGroundTruthToSignals,
   applyNeonFeedbackToSignals,
@@ -13,10 +15,30 @@ import * as backendClient from "./backend-client";
 import * as detectLlm from "./detect-llm";
 import * as store from "./store";
 import * as syncPredictions from "./sync-predictions";
-import type { Signal } from "./types";
+import type { Signal, TaxonomyOverrides } from "./types";
 
 const NEON_UUID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 const MSG_UUID = "11111111-2222-3333-4444-555555555555";
+const ADAPT_CHAT_CONTENT =
+  "Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.";
+
+function expectAdaptOverrides(overrides: TaxonomyOverrides | undefined) {
+  expect(overrides?.lead?.negativePhrases).toEqual(
+    expect.arrayContaining([
+      "portfolio review",
+      "already doing sip",
+      "move my money",
+    ])
+  );
+  expect(overrides?.upsell?.phrases).toEqual(
+    expect.arrayContaining([
+      "portfolio review",
+      "already doing sip",
+      "increase investment",
+      "where do i even start",
+    ])
+  );
+}
 
 function partnerRow(
   overrides?: Partial<BackendConversation>
@@ -276,7 +298,7 @@ describe("tryHydrateStoreFromNeon", () => {
       partnerRow({ ground_truth: "retention" }),
     ]);
     const upsertSpy = vi.spyOn(backendClient, "upsertConversations");
-    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+    const detectSpy = vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
       signals: [detectedSignal],
       llm: {
         enabled: false,
@@ -310,7 +332,15 @@ describe("tryHydrateStoreFromNeon", () => {
     expect(result).not.toBeNull();
     expect(result?.conversations[0].id).toBe("conv_partner_upload_1");
     expect(result?.conversations[0].groundTruth).toBe("retention");
-    expect(result?.taxonomyOverrides).toEqual({});
+    expectAdaptOverrides(detectSpy.mock.calls[0]?.[3] as TaxonomyOverrides);
+    expectAdaptOverrides(result?.taxonomyOverrides);
+    expectAdaptOverrides(
+      (writeSpy.mock.calls[0]?.[0] as { taxonomyOverrides?: TaxonomyOverrides })
+        .taxonomyOverrides
+    );
+    expect(result?.taxonomyOverrides?.lead?.negativePhrases).toEqual(
+      PARTNER_EXPORT_ADAPT_OVERRIDES.lead?.negativePhrases
+    );
     expect(result?.pilot?.baselineOpportunities).toBe(0);
     expect(result?.signals[0].backendSignalId).toBe("pred-hydrated-1");
     expect(result?.signals[0].groundTruth).toBe("retention");
@@ -436,7 +466,7 @@ describe("tryHydrateStoreFromNeon", () => {
     expect(writeSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("still writes chats when detect throws after a successful GET", async () => {
+  it("still writes chats and Adapt overrides when detect throws after a successful GET", async () => {
     vi.spyOn(backendClient, "getConversations").mockResolvedValue([
       partnerRow(),
     ]);
@@ -452,8 +482,67 @@ describe("tryHydrateStoreFromNeon", () => {
     expect(result?.conversations[0].id).toBe("conv_partner_upload_1");
     expect(result?.messages[0].id).toBe("msg_partner_1");
     expect(result?.signals).toEqual([]);
+    expectAdaptOverrides(result?.taxonomyOverrides);
+    expectAdaptOverrides(
+      (writeSpy.mock.calls[0]?.[0] as { taxonomyOverrides?: TaxonomyOverrides })
+        .taxonomyOverrides
+    );
     expect(writeSpy).toHaveBeenCalledTimes(1);
     expect(syncSpy).not.toHaveBeenCalled();
+  });
+
+  it("hydrates with Adapt detect vs base on portfolio-review chat", async () => {
+    vi.stubEnv("DETECT_LLM", "");
+    const row = partnerRow({
+      conversation_id: "conv_upsell_pr",
+      external_id: "upsell_pr",
+      messages: [
+        {
+          id: MSG_UUID,
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_upsell_pr",
+          message_id: "msg_upsell_pr",
+          role: "customer",
+          content: ADAPT_CHAT_CONTENT,
+          timestamp: "2026-08-01T10:00:00.000Z",
+          created_at: "2026-08-01T10:00:00.000Z",
+        },
+      ],
+    });
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([row]);
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockImplementation(
+      async (signals) => ({
+        signals,
+        sync: {
+          attempted: signals.length,
+          created: 0,
+          updated: 0,
+          failed: 0,
+          skipped: 0,
+        },
+      })
+    );
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const mapped = mapBackendConversationsToStore([row], "tenant_demo");
+    const baseSignals = runDetection(
+      mapped.conversations,
+      mapped.messages,
+      "tenant_demo"
+    );
+    expect(baseSignals.some((signal) => signal.type === "lead")).toBe(true);
+    expect(baseSignals.some((signal) => signal.type === "upsell")).toBe(false);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expectAdaptOverrides(result?.taxonomyOverrides);
+    expect(result?.signals.some((signal) => signal.type === "upsell")).toBe(
+      true
+    );
+    expect(result?.signals.some((signal) => signal.type === "lead")).toBe(
+      false
+    );
   });
 
   it("returns null without writeStore when Neon is empty", async () => {

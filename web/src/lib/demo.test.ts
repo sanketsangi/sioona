@@ -30,6 +30,9 @@ describe("runPartnerDemo", () => {
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
     expect(result.opportunityLift).toBeGreaterThan(0);
+    expect(result.store.taxonomyOverrides).toEqual({});
+    expect(result.store.taxonomyOverrides?.lead?.negativePhrases).toBeUndefined();
+    expect(result.store.taxonomyOverrides?.upsell?.phrases).toBeUndefined();
 
     const afterReset = await readStore();
     expect(afterReset.conversations).toHaveLength(
