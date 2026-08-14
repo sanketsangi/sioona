@@ -1,4 +1,4 @@
-import { Desktop } from "@phosphor-icons/react/ssr";
+import { AgentBotIcon } from "@/components/icons/AgentBotIcon";
 import { Avatar, AvatarFallback } from "@/components/ui/Avatar";
 import {
   Bubble,
@@ -16,7 +16,7 @@ import type { Message as ChatMessage } from "@/lib/types";
 /**
  * Shared User/Agent transcript chrome (geistcn Message + Bubble).
  * Alignment lock: customer right (`align="end"`) / muted + initials;
- * agent left (`align="start"`) / default + Desktop icon. Message rows are
+ * agent left (`align="start"`) / default + bot icon. Message rows are
  * full-width so end packs to the right edge (see Message.tsx).
  */
 export function ConversationMessages({
@@ -53,7 +53,7 @@ export function ConversationMessages({
             <MessageAvatar>
               {isAgent ? (
                 <Avatar placeholder size={28}>
-                  <Desktop className="size-3.5" weight="regular" aria-hidden />
+                  <AgentBotIcon className="size-3.5 shrink-0" />
                 </Avatar>
               ) : (
                 <Avatar placeholder size={28}>

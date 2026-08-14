@@ -405,6 +405,29 @@
     background: var(--sio-bg-group);
   }
 
+  /*
+   * Chat bubbles — same radius ladder as panels; sio-* fills only.
+   * muted = customer (right); default = agent (left, panel-quiet).
+   */
+  .chat-bubble {
+    @apply min-w-0 max-w-full px-3 py-2 text-copy-14 leading-5 text-sio-fg-base;
+    border-radius: var(--radius-panel);
+  }
+
+  .chat-bubble--muted {
+    background: var(--sio-bg-muted);
+    border: 1px solid transparent;
+  }
+
+  .chat-bubble--default {
+    background: var(--sio-bg-base);
+    border: 1px solid var(--sio-border-base);
+  }
+
+  .chat-bubble-group {
+    @apply flex w-full flex-col gap-3;
+  }
+
   .metric-strip {
     overflow: hidden;
     border-radius: var(--radius-panel);
@@ -944,26 +967,25 @@
   }
 
   .conversation-drawer-panel {
-    @apply absolute flex flex-col bg-sio-bg-base;
+    @apply absolute flex flex-col overflow-hidden bg-sio-bg-base;
     overscroll-behavior: contain;
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* Mobile: bottom sheet */
-  .conversation-drawer-panel {
+    border: 1px solid var(--sio-border-base);
+    /* Mobile: bottom sheet — system panel radius on the open edge */
     inset-inline: 0;
     bottom: 0;
     top: auto;
     max-height: 85dvh;
-    border-top: 1px solid var(--sio-border-base);
-    border-radius: 0.75rem 0.75rem 0 0;
+    border-bottom: none;
+    border-radius: var(--radius-group) var(--radius-group) 0 0;
+    padding-top: 0;
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    padding-left: max(1rem, env(safe-area-inset-left));
     animation: sio-conversation-drawer-up 200ms ease-out both;
   }
 
   .conversation-drawer-handle {
-    @apply flex shrink-0 cursor-grab items-center justify-center pt-2 pb-1 active:cursor-grabbing md:hidden;
+    @apply flex shrink-0 cursor-grab items-center justify-center pt-2.5 pb-1.5 active:cursor-grabbing md:hidden;
     touch-action: none;
   }
 
@@ -973,15 +995,19 @@
 
   @media (min-width: 768px) {
     .conversation-drawer-panel {
-      inset: 0 0 0 auto;
-      top: 0;
-      bottom: 0;
-      width: min(100%, 28rem);
+      /* Desktop: inset chat sheet — radius + gutter on all sides */
+      top: 0.75rem;
+      right: 0.75rem;
+      bottom: 0.75rem;
+      left: auto;
+      width: min(calc(100% - 1.5rem), 28rem);
       max-height: none;
-      border-top: none;
-      border-radius: 0;
-      border-left: 1px solid var(--sio-border-base);
-      padding-top: env(safe-area-inset-top);
+      border-bottom: 1px solid var(--sio-border-base);
+      border-radius: var(--radius-panel);
+      padding-top: max(0.75rem, env(safe-area-inset-top));
+      padding-right: max(1rem, env(safe-area-inset-right));
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+      padding-left: max(1rem, env(safe-area-inset-left));
       animation: sio-conversation-drawer-right 200ms ease-out both;
     }
 

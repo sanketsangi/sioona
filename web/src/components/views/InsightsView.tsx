@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
-import { BoltIcon } from "@/components/icons/BoltIcon";
+import { IconInnerShadowTop } from "@/components/icons/IconInnerShadowTop";
 import { ExternalIcon } from "@/components/icons/ExternalIcon";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
@@ -20,9 +20,7 @@ import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 // Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
-import { applyBackendSignalScoreToPilot } from "@/lib/eval";
 import {
-  formatPercent,
   customerNameFromExternalId,
   queueSignalSummary,
   signalTypeLabel,
@@ -59,7 +57,6 @@ export function InsightsView({
   typeFilter,
   page,
   previewId = null,
-  backendScore = null,
   needsReview,
   scoreFrom = null,
   syncFailed = 0,
@@ -75,6 +72,7 @@ export function InsightsView({
   typeFilter: TypeFilter;
   page: number;
   previewId?: string | null;
+  /** Reserved for Eval / pilot chrome — not shown on this strip. */
   backendScore?: BackendSignalScore | null;
   needsReview: NeedsReviewResult;
   /** Preserve Eval `?scoreFrom=` across queue filters. */
@@ -84,7 +82,6 @@ export function InsightsView({
   llmAdded?: number;
   llmFailed?: number;
 }) {
-  const pilot = applyBackendSignalScoreToPilot(store, backendScore);
   const queueError = needsReview.ok ? null : needsReview.error;
   const pendingSignals = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals)
@@ -112,9 +109,6 @@ export function InsightsView({
       a.timestamp.localeCompare(b.timestamp),
     );
   }
-
-  const scoreLabel =
-    backendScore != null ? formatPercent(backendScore.signal_score) : null;
 
   const showImportBanner =
     importedCount != null &&
@@ -217,70 +211,18 @@ export function InsightsView({
         </div>
       ) : null}
 
-      <Note icon={<BoltIcon />}>
-        <NoteContent>
-          <p
-            className="min-w-0 truncate"
-            title={[
-              "Queue · Neon needs-review",
-              store.tenant.name,
-              scoreLabel ? `Window ${scoreLabel}` : null,
-              pilot.opportunityLift !== 0
-                ? `Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`
-                : null,
-              llmAdded > 0 ? `Hybrid +${llmAdded}` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          >
-            <span className="text-sio-fg-muted">Queue</span>
-            <span className="text-sio-fg-muted" aria-hidden>
-              {" "}
-              ·{" "}
-            </span>
-            Neon needs-review
-            <span className="text-sio-fg-muted" aria-hidden>
-              {" "}
-              ·{" "}
-            </span>
-            <span className="text-sio-fg-base" translate="no">
+      <Note>
+        <NoteContent className="text-sio-fg-base">
+          <div className="flex min-w-0 items-center gap-2">
+            <IconInnerShadowTop className="size-5 shrink-0 text-black" />
+            <span
+              className="min-w-0 truncate text-base font-semibold"
+              title={store.tenant.name}
+              translate="no"
+            >
               {store.tenant.name}
             </span>
-            {scoreLabel ? (
-              <>
-                <span className="text-sio-fg-muted" aria-hidden>
-                  {" "}
-                  ·{" "}
-                </span>
-                <span className="tabular text-sio-fg-base">
-                  Window {scoreLabel}
-                </span>
-              </>
-            ) : null}
-            {pilot.opportunityLift !== 0 ? (
-              <>
-                <span className="text-sio-fg-muted" aria-hidden>
-                  {" "}
-                  ·{" "}
-                </span>
-                <span className="tabular text-sio-fg-base">
-                  Lift {pilot.opportunityLift >= 0 ? "+" : ""}
-                  {pilot.opportunityLift}
-                </span>
-              </>
-            ) : null}
-            {llmAdded > 0 ? (
-              <>
-                <span className="text-sio-fg-muted" aria-hidden>
-                  {" "}
-                  ·{" "}
-                </span>
-                <span className="tabular text-sio-fg-base">
-                  Hybrid +{llmAdded}
-                </span>
-              </>
-            ) : null}
-          </p>
+          </div>
         </NoteContent>
         <NoteAction
           aria-label="Queue actions"
@@ -311,10 +253,7 @@ export function InsightsView({
         <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
           <div className="min-w-0">
             {reviewOpen && breadcrumbPageLabel ? (
-              <Breadcrumb
-                aria-label="Insights review"
-                className="scroll-mt-4"
-              >
+              <Breadcrumb aria-label="Insights review" className="scroll-mt-4">
                 <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2">
                   <BreadcrumbItem>
                     <BreadcrumbLink asChild>

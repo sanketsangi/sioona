@@ -6,16 +6,17 @@ import { SignalScoreChip } from "@/components/SignalScoreChip";
 import { SignalStatus } from "@/components/SignalStatus";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { SignalUser } from "@/components/SignalUser";
-import { primaryQuote } from "@/lib/format";
+import { primaryQuote, stripSummaryEvidenceQuote } from "@/lib/format";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /**
  * Shared with QueueColumnHeader — keep templates identical so columns line up.
- * User · Signal · Status · Score · Type (+ Evidence @ lg; Action outside the grid).
+ * sm: User · Signal · Status · Score · Type · Action
+ * lg: + Evidence before Action
  */
 export const QUEUE_GRID =
-  "sm:grid-cols-[2.25rem_minmax(0,1fr)_4.5rem_4rem_5.75rem] lg:grid-cols-[2.25rem_minmax(0,1.45fr)_5rem_4.75rem_6.5rem_minmax(0,1.35fr)]";
+  "sm:grid-cols-[2.25rem_minmax(0,1fr)_5.75rem_4.5rem_6.75rem_5rem] lg:grid-cols-[2.25rem_minmax(0,1.35fr)_5.75rem_4.5rem_6.75rem_minmax(0,1.25fr)_5rem]";
 
 type SignalQueueRowProps = {
   signal: Signal;
@@ -44,7 +45,8 @@ export function SignalQueueRow({
   const quote = primaryQuote(signal.evidence);
   const evidencePrimary = quote ? `“${quote}”` : "—";
   // Full stored summary (includes customer name) — name is avatar-only in User column.
-  const signalText = signal.summary?.trim() || "";
+  // Strip legacy quoteHint so Evidence / Why This Fired is the only quote surface.
+  const signalText = stripSummaryEvidenceQuote(signal.summary?.trim() || "");
   const summaryId = `signal-summary-${signal.id}`;
 
   const summaryClass = expandText
@@ -54,16 +56,13 @@ export function SignalQueueRow({
     ? "break-words text-pretty text-copy-14 text-sio-fg-subtle"
     : "truncate text-copy-14 text-sio-fg-subtle";
 
-  const cells = (
+  const dataCells = (
     <>
-      <div className="flex min-w-0 items-start gap-2.5 sm:contents">
+      <div className="flex min-w-0 items-center gap-2.5 sm:contents">
         <SignalUser
           name={customerName}
           showName={false}
-          className={cn(
-            "shrink-0 sm:min-w-0",
-            expandText ? "mt-0.5" : "mt-0.5 sm:mt-0",
-          )}
+          className="shrink-0 sm:min-w-0"
         />
 
         <div className="min-w-0 flex-1 sm:min-w-0">
@@ -93,50 +92,22 @@ export function SignalQueueRow({
         </div>
       </div>
 
-      <div
-        className={cn(
-          "hidden min-w-0 sm:flex",
-          expandText ? "sm:items-start sm:pt-0.5" : "sm:items-center",
-        )}
-      >
+      <div className="hidden min-w-0 sm:flex sm:items-center">
         <SignalStatus signal={signal} className="max-w-full" />
       </div>
 
-      <div
-        className={cn(
-          "hidden min-w-0 sm:block",
-          expandText && "sm:pt-0.5",
-        )}
-      >
+      <div className="hidden min-w-0 sm:flex sm:items-center">
         <SignalScoreChip score={signal.score} />
       </div>
 
-      <div
-        className={cn(
-          "hidden min-w-0 sm:block",
-          expandText && "sm:pt-0.5",
-        )}
-      >
+      <div className="hidden min-w-0 sm:flex sm:items-center">
         <SignalTypeChip type={signal.type} />
       </div>
 
-      <div
-        className={cn(
-          "hidden min-w-0 lg:block",
-          expandText && "lg:pt-0.5",
-        )}
-      >
+      <div className="hidden min-w-0 lg:flex lg:items-center">
         <p className={evidenceClass}>{evidencePrimary}</p>
       </div>
     </>
-  );
-
-  const gridClassName = cn(
-    "grid min-w-0 flex-1 grid-cols-1 gap-2.5 sm:gap-3 lg:gap-4",
-    QUEUE_GRID,
-    expandText ? "sm:items-start" : "sm:items-center",
-    previewHref &&
-      "touch-manipulation outline-none transition-[color,background-color] duration-150 focus-visible:bg-sio-bg-interactive-hover focus-visible:shadow-[inset_0_0_0_1px_var(--sio-focus-accent),inset_0_0_0_3px_color-mix(in_srgb,var(--sio-focus-accent)_35%,transparent)]",
   );
 
   return (
@@ -147,8 +118,8 @@ export function SignalQueueRow({
     >
       <div
         className={cn(
-          "flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:gap-3 sm:px-3.5 sm:py-2.5 lg:gap-4",
-          expandText ? "sm:items-start" : "sm:items-center",
+          "grid min-w-0 w-full grid-cols-1 items-center gap-2.5 px-3 py-3 sm:gap-3 sm:px-3.5 sm:py-2.5 lg:gap-4",
+          QUEUE_GRID,
         )}
       >
         {previewHref ? (
@@ -156,23 +127,21 @@ export function SignalQueueRow({
             href={previewHref}
             scroll={false}
             aria-label={previewAriaLabel}
-            className={gridClassName}
+            className="contents touch-manipulation outline-none focus-visible:[&>*]:bg-sio-bg-interactive-hover"
           >
-            {cells}
+            {dataCells}
           </Link>
         ) : (
-          <div className={gridClassName}>{cells}</div>
+          dataCells
         )}
+
         {action ? (
-          <div
-            className={cn(
-              "w-full shrink-0 sm:flex sm:w-[4.5rem] sm:justify-start",
-              expandText && "sm:pt-0.5",
-            )}
-          >
+          <div className="flex min-w-0 w-full items-center justify-start">
             {action}
           </div>
-        ) : null}
+        ) : (
+          <div className="hidden min-w-0 sm:block" aria-hidden />
+        )}
       </div>
     </div>
   );

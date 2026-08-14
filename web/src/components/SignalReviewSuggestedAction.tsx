@@ -9,18 +9,27 @@ type SignalReviewSuggestedActionProps = {
   className?: string;
 };
 
+/** ≤2 quote lines in Why This Fired (UI_DESIGN). */
+const MAX_WHY_QUOTES = 2;
+
 function EvidenceChip({ text }: { text: string }) {
   const sep = text.indexOf(" · ");
   const kindLabel = sep > 0 ? text.slice(0, sep) : null;
   const value = sep > 0 ? text.slice(sep + 3) : text;
 
   return (
-    <span className="inline-block max-w-full rounded-sm bg-sio-bg-muted px-2 py-0.5 text-label-12">
+    <span className="inline-flex max-w-full items-baseline gap-1.5 rounded-md border border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12 shadow-[0_0_0_1px_rgba(0,0,0,0.02)]">
       {kindLabel ? (
-        <span className="text-sio-fg-muted">{kindLabel}</span>
+        <span className="shrink-0 font-medium text-sio-fg-muted">
+          {kindLabel}
+        </span>
       ) : null}
-      {kindLabel ? <span className="text-sio-fg-muted"> · </span> : null}
-      <span className="break-words text-pretty text-sio-fg-base">{value}</span>
+      <span
+        className="min-w-0 break-words font-medium text-sio-fg-base"
+        translate="no"
+      >
+        {value}
+      </span>
     </span>
   );
 }
@@ -42,7 +51,9 @@ export function SignalReviewSuggestedAction({
     item,
     ...formatEvidenceItem(item),
   }));
-  const quotes = formatted.filter((entry) => entry.kind === "quote");
+  const quotes = formatted
+    .filter((entry) => entry.kind === "quote")
+    .slice(0, MAX_WHY_QUOTES);
   const matches = formatted.filter(
     (entry) => entry.kind === "match" || entry.kind === "suppressed",
   );
@@ -62,10 +73,10 @@ export function SignalReviewSuggestedAction({
         </h3>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col px-3 py-3">
+      <div className="flex min-w-0 flex-1 flex-col gap-3 px-3 py-3">
         <p
           className={cn(
-            "break-words text-pretty text-copy-14 font-medium",
+            "break-words text-pretty text-copy-14 font-medium leading-5",
             missingLocalJoin ? "text-sio-fg-muted" : "text-sio-fg-base",
           )}
         >
@@ -75,21 +86,24 @@ export function SignalReviewSuggestedAction({
         </p>
 
         <section
-          className="mt-3 border-t border-sio-border-base pt-3"
+          className="rounded-md border border-sio-border-base bg-sio-bg-muted/50 px-3 py-2.5"
           aria-labelledby={whyId}
         >
-          <h4 id={whyId} className="text-label-12 font-medium text-sio-fg-muted">
+          <h4
+            id={whyId}
+            className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
+          >
             Why This Fired
           </h4>
 
           {hasEvidence ? (
-            <div className="mt-1.5 flex flex-col gap-2">
+            <div className="mt-2.5 flex flex-col gap-2.5">
               {quotes.length > 0 ? (
                 <ul className="flex flex-col gap-2">
                   {quotes.map(({ item, text }) => (
                     <li key={item} className="min-w-0">
-                      <blockquote className="border-l border-sio-border-base pl-2.5">
-                        <p className="break-words text-pretty text-copy-14 text-sio-fg-subtle">
+                      <blockquote className="border-l-2 border-sio-fg-base/20 pl-3">
+                        <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
                           “{text}”
                         </p>
                       </blockquote>
@@ -99,17 +113,22 @@ export function SignalReviewSuggestedAction({
               ) : null}
 
               {matches.length > 0 ? (
-                <ul className="flex flex-wrap gap-1.5">
-                  {matches.map(({ item, text }) => (
-                    <li key={item} className="min-w-0 max-w-full">
-                      <EvidenceChip text={text} />
-                    </li>
-                  ))}
-                </ul>
+                <div className="min-w-0">
+                  <p className="text-label-12 font-medium text-sio-fg-muted">
+                    Matched
+                  </p>
+                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                    {matches.map(({ item, text }) => (
+                      <li key={item} className="min-w-0 max-w-full">
+                        <EvidenceChip text={text} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
             </div>
           ) : (
-            <p className="mt-1.5 break-words text-pretty text-copy-14 text-sio-fg-muted">
+            <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
               {isNeonStub
                 ? "No local evidence — detection join missing."
                 : "No local evidence."}

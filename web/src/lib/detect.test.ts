@@ -171,6 +171,7 @@ describe("runDetection", () => {
         true
       );
       expect(signals[0]?.summary.length).toBeGreaterThan(20);
+      expect(signals[0]?.summary).not.toMatch(/[“”]/);
       expect(signals[0]?.suggestedAction.length).toBeGreaterThan(10);
     }
   });

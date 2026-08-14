@@ -58,14 +58,14 @@ Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/sh
 
 | Role | Side | Bubble | Avatar |
 |---|---|---|---|
-| Customer (`role !== agent`, not system) | **Right** of the conversation container | Quiet muted (`sio-bg-muted`) | Initials |
-| Agent | **Left** | Primary-quiet (`sio-bg-subtle` + inset ring) | Desktop (computer) icon |
+| Customer (`role !== agent`, not system) | **Right** of the conversation container | `.chat-bubble--muted` (`sio-bg-muted`, `--radius-panel`) | Initials |
+| Agent | **Left** | `.chat-bubble--default` (`sio-bg-base` + `sio-border-base`, `--radius-panel`) | Bot mark (`AgentBotIcon`) |
 | System | Centered label | None | None |
 
 **Implementation lock (do not regress):**
 - Each `Message` row is `w-full`. End-aligned rows use `flex-row-reverse` + `justify-start` so the bubble+avatar group packs to the **right**; start rows pack to the **left**. Do not rely on shrink-wrapped `ms-auto` alone — that leaves the group on the left while only swapping avatar/bubble order.
 - `MessageContent` / bubble max-width: `min(24rem, calc(100% - 2.5rem))` with `min-w-0` + `break-words` so long text wraps on mobile without overflowing.
-- Tokens: `sio-*` only; quiet fills; no glass, neon, or heavy shadows.
+- Tokens: `sio-*` only via `.chat-bubble*`; `--radius-panel` (same ladder as `.panel`); quiet fills; no glass, neon, or heavy shadows.
 
 ### Insights in-queue review (accordion)
 
@@ -81,9 +81,9 @@ Smooth expand/collapse uses compositor-friendly `grid-template-rows` and honors 
 
 Shared `ConversationDrawer` → local `Drawer` shim. Accordion **Open Conversation** / **See Conversation** opens the full transcript in the drawer (not inline). Summary / type / feedback stay on the expanded row.
 
-- **Header:** visible quiet title **Conversation** (`DrawerTitle`) + optional customer subtitle (`DrawerDescription`, `translate="no"`, truncate). Dialog uses `aria-labelledby` on the title (not `aria-label` alone). Close lives in the header row (not absolute overlay); Escape, backdrop click, and focus return to the trigger unchanged.
-- **Layout:** shrink-0 header + flex-1 scroll body (`overscroll-behavior: contain`, safe-area on bottom / desktop top) + optional footer. Header/body/footer share horizontal inset `px-6` (24px) and a centered `max-w-md` content column so wide bottom sheets keep calm side gutters (bubbles/chrome don’t flush to the panel edge); vertical header/footer `py-2`. Same message alignment lock as above (customer right / agent left); identity via avatar only — no per-message name/**Agent** labels; no StatusDot on messages.
-- **Chrome:** desktop (`md+`) narrow right sheet `width: min(100%, 28rem)`, border-left only, radius 0; mobile bottom sheet `max-height: ~85dvh`, modest top radius (~12px), compact swipe handle. Panel `bg-sio-bg-base` + `sio-border-base`; backdrop `--sio-bg-overlay`; honor `prefers-reduced-motion`.
+- **Header:** chatbot-style lockup — bot avatar (`AgentBotIcon`) + title **Conversation** (`DrawerTitle`) + customer subtitle with quiet status dot and optional message count (`DrawerDescription`, `translate="no"`, truncate). Close on the right. Dialog uses `aria-labelledby` on the title. Escape, backdrop click, and focus return to the trigger unchanged.
+- **Layout:** shrink-0 header + flex-1 scroll body (`overscroll-behavior: contain`, safe-area on all sides) + optional footer. Panel outer padding + compact inner gutters; messages in a `max-w-md` column. Vertical header/footer `py-3`+. Same message alignment lock as above (customer right / agent left); identity via avatar only — no per-message name/**Agent** labels; no StatusDot on messages.
+- **Chrome:** desktop (`md+`) inset right sheet `width: min(calc(100% - 1.5rem), 28rem)` with `0.75rem` viewport gutter, full border, `border-radius: var(--radius-panel)` on all sides; mobile bottom sheet `max-height: ~85dvh`, top corners `var(--radius-group)`, compact swipe handle. Panel padding on all sides (safe-area aware) + inner header/body/footer gutters for chat density. Panel `bg-sio-bg-base` + `sio-border-base`; backdrop `--sio-bg-overlay`; honor `prefers-reduced-motion`.
 - **Empty:** same honesty as Neon stubs — “No messages stored” (no invented transcript).
 - **Footer:** omitted for Insights review (feedback lives in the expanded row). No toast.
 

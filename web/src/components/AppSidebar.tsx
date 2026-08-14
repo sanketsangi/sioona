@@ -8,6 +8,7 @@ import {
   Tag,
 } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { BookOpenIcon } from "@/components/icons/BookOpenIcon";
 import { LifebuoyIcon } from "@/components/icons/LifebuoyIcon";
@@ -107,10 +108,10 @@ function SidebarBrand() {
               }}
             >
               <span
-                className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-label-14 font-semibold text-sidebar-primary-foreground"
+                className="flex aspect-square size-8 shrink-0 items-center justify-center text-black"
                 aria-hidden
               >
-                S
+                <HexCubeIcon className="size-6 shrink-0" />
               </span>
               <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <SioonaLogotype height={28} />

@@ -259,7 +259,7 @@ function MetricsPanel({
         </p>
       </div>
 
-      <div className="mt-auto shrink-0">
+      <div className="shrink-0">
         <BaselineForm
           baselineOpportunities={baselineOpportunities}
           baselineNote={baselineNote}

@@ -9,6 +9,7 @@ import {
   scoreIconKind,
   signalReviewStatusLabel,
   signalStatusDot,
+  stripSummaryEvidenceQuote,
 } from "./format";
 
 describe("scoreIconKind", () => {
@@ -172,6 +173,28 @@ describe("initialsFromName", () => {
   });
 });
 
+describe("stripSummaryEvidenceQuote", () => {
+  it("removes a trailing curly-quoted evidence suffix", () => {
+    expect(
+      stripSummaryEvidenceQuote(
+        'Shalini Pandey (upload) may be drifting — check in before they leave. “I just saw an email…”'
+      )
+    ).toBe(
+      "Shalini Pandey (upload) may be drifting — check in before they leave."
+    );
+  });
+
+  it("leaves narrative-only summaries unchanged", () => {
+    expect(
+      stripSummaryEvidenceQuote(
+        "Shalini Pandey (upload) may be drifting — check in before they leave."
+      )
+    ).toBe(
+      "Shalini Pandey (upload) may be drifting — check in before they leave."
+    );
+  });
+});
+
 describe("queueSignalSummary", () => {
   it("strips name + optional channel and capitalizes the rest", () => {
     expect(
@@ -186,6 +209,15 @@ describe("queueSignalSummary", () => {
     expect(
       queueSignalSummary("Shalini Pandey may be drifting…", "Shalini Pandey")
     ).toBe("May be drifting…");
+  });
+
+  it("strips legacy quoteHint after name/channel", () => {
+    expect(
+      queueSignalSummary(
+        'Shalini Pandey (upload) may be drifting — check in before they leave. “I just saw an email…”',
+        "Shalini Pandey"
+      )
+    ).toBe("May be drifting — check in before they leave.");
   });
 
   it("leaves summaries without a name prefix unchanged", () => {

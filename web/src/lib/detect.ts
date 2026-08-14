@@ -177,47 +177,43 @@ export function pickAction(
   return actions[actions.length - 1] ?? actions[0];
 }
 
+/** Narrative-only; evidence quotes live on `signal.evidence` (Why This Fired). */
 function buildSummary(
   type: SignalType,
   conversation: Conversation,
-  score: number,
-  evidence: string[]
+  score: number
 ): string {
   const who = conversation.customerName ?? "Customer";
   const via = conversation.channel ? ` (${conversation.channel})` : "";
-  const quote = evidence.find((e) => e.startsWith("quote: "));
-  const quoteHint = quote
-    ? ` “${quote.replace(/^quote:\s*"|"$/g, "")}”`
-    : "";
 
   if (type === "lead") {
     if (score >= 0.75) {
-      return `${who}${via} shows strong buying intent.${quoteHint || " Prioritize outreach."}`;
+      return `${who}${via} shows strong buying intent. Prioritize outreach.`;
     }
     if (score >= 0.5) {
-      return `${who}${via} is exploring products or pricing — follow up soon.${quoteHint}`;
+      return `${who}${via} is exploring products or pricing — follow up soon.`;
     }
-    return `${who}${via} may be an early lead — worth a light touch.${quoteHint}`;
+    return `${who}${via} may be an early lead — worth a light touch.`;
   }
 
   if (type === "retention") {
     if (score >= 0.75) {
-      return `${who}${via} is at high churn risk — intervene today.${quoteHint}`;
+      return `${who}${via} is at high churn risk — intervene today.`;
     }
     if (score >= 0.5) {
-      return `${who}${via} shows frustration — run retention playbook.${quoteHint}`;
+      return `${who}${via} shows frustration — run retention playbook.`;
     }
-    return `${who}${via} may be drifting — check in before they leave.${quoteHint}`;
+    return `${who}${via} may be drifting — check in before they leave.`;
   }
 
   // upsell
   if (score >= 0.75) {
-    return `${who}${via} is asking about an adjacent product — sales opportunity.${quoteHint}`;
+    return `${who}${via} is asking about an adjacent product — sales opportunity.`;
   }
   if (score >= 0.5) {
-    return `${who}${via} may be open to a cross-sell — soft pitch.${quoteHint}`;
+    return `${who}${via} may be open to a cross-sell — soft pitch.`;
   }
-  return `${who}${via} hinted at another product — watch for upsell.${quoteHint}`;
+  return `${who}${via} hinted at another product — watch for upsell.`;
 }
 
 export function detectSignalsForConversation(
@@ -269,7 +265,7 @@ export function detectSignalsForConversation(
     type: r.type,
     score: Number(r.score.toFixed(3)),
     confidence: Number(r.score.toFixed(3)),
-    summary: buildSummary(r.type, conversation, r.score, r.evidence),
+    summary: buildSummary(r.type, conversation, r.score),
     suggestedAction: pickAction(r.type, r.score, overrides),
     evidence: r.evidence,
     status: "new" as const,

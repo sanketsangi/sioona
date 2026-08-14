@@ -745,7 +745,7 @@ const signals = runDetection(conversations, messages, tenantId);
 export const detectEvalStore: StoreData = {
   tenant: {
     id: tenantId,
-    name: "Demo Finance (India)",
+    name: "Acme Inc.",
     createdAt: "2026-07-01T00:00:00.000Z",
   },
   conversations,

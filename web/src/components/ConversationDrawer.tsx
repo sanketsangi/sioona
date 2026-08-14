@@ -2,7 +2,9 @@
 
 import type { ReactNode } from "react";
 import { X } from "@phosphor-icons/react/ssr";
+import { AgentBotIcon } from "@/components/icons/AgentBotIcon";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { Avatar } from "@/components/ui/Avatar";
 import {
   Drawer,
   DrawerClose,
@@ -38,12 +40,13 @@ export function ConversationDrawer({
   summary: string;
   /** Title Case trigger label. */
   triggerLabel?: "See Conversation" | "Open Conversation" | string;
-  /** Override trigger chrome; default matches Mark as Acted (`btn-secondary`). */
+  /** Override trigger chrome; default is `btn-secondary`. */
   triggerClassName?: string;
   /** Optional custom footer; default none (review lives in-queue). */
   footer?: ReactNode | null;
 }) {
   const who = customerName.trim() || "Customer";
+  const messageCount = messages.filter((m) => m.role !== "system").length;
 
   return (
     <Drawer>
@@ -53,15 +56,41 @@ export function ConversationDrawer({
 
       <DrawerContent>
         <DrawerHeader>
-          <div className="mx-auto flex w-full max-w-md min-w-0 items-center justify-between gap-3">
+          <div className="flex w-full min-w-0 items-center gap-3">
+            <Avatar
+              placeholder
+              size={40}
+              className="shrink-0 text-sio-fg-subtle"
+            >
+              <AgentBotIcon className="size-4 shrink-0" />
+            </Avatar>
+
             <div className="min-w-0 flex-1">
-              <DrawerTitle>Conversation</DrawerTitle>
-              <DrawerDescription translate="no" className="mt-0.5">
-                {who}
+              <DrawerTitle className="text-label-14 font-semibold leading-5">
+                Conversation
+              </DrawerTitle>
+              <DrawerDescription
+                translate="no"
+                className="mt-0.5 flex min-w-0 items-center gap-1.5"
+              >
+                <span className="status-dot status-dot-queued" aria-hidden>
+                  <span className="status-dot-indicator !size-1.5" />
+                </span>
+                <span className="min-w-0 truncate">
+                  {who}
+                  {messageCount > 0 ? (
+                    <span className="text-sio-fg-muted">
+                      {" "}
+                      · {messageCount}{" "}
+                      {messageCount === 1 ? "message" : "messages"}
+                    </span>
+                  ) : null}
+                </span>
               </DrawerDescription>
             </div>
+
             <DrawerClose
-              className="btn-tertiary size-11 min-h-11 shrink-0 px-0 md:size-9 md:min-h-0"
+              className="btn-tertiary size-11 min-h-11 shrink-0 rounded-[var(--radius-control)] px-0 md:size-9 md:min-h-0"
               aria-label="Close"
             >
               <X className="size-5" weight="bold" aria-hidden />
@@ -69,7 +98,7 @@ export function ConversationDrawer({
           </div>
         </DrawerHeader>
 
-        <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-3">
+        <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
           <div className="mx-auto w-full max-w-md">
             {messages.length === 0 ? (
               <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center">

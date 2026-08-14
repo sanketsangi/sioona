@@ -44,7 +44,7 @@ export function SignalReviewPanel({
           action={
             <button
               type="button"
-              className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:w-auto sm:px-3"
+              className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:max-w-full sm:px-2.5"
               onClick={() => {
                 const el = document.getElementById(bodyId);
                 if (!el) return;

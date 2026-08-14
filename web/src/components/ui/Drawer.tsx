@@ -260,7 +260,7 @@ export function DrawerHeader({
 }) {
   return (
     <div
-      className={`flex shrink-0 flex-col gap-0 border-b border-sio-border-base px-6 py-2 ${className}`}
+      className={`flex shrink-0 flex-col gap-0 border-b border-sio-border-base px-1 py-3 sm:px-2 sm:py-3.5 ${className}`}
     >
       {children}
     </div>
@@ -308,7 +308,7 @@ export function DrawerFooter({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`mt-auto flex shrink-0 flex-wrap gap-2 border-t border-sio-border-base px-6 py-2 ${className}`}
+      className={`mt-auto flex shrink-0 flex-wrap gap-2 border-t border-sio-border-base px-1 py-3 sm:px-2 sm:py-3.5 ${className}`}
       {...props}
     >
       {children}

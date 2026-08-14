@@ -209,22 +209,31 @@ export function initialsFromName(name?: string): string {
 }
 
 /**
+ * Strip a trailing curly-quoted evidence suffix baked into older summaries
+ * (legacy `buildSummary` quoteHint). Quotes belong under Evidence / Why This Fired.
+ */
+export function stripSummaryEvidenceQuote(summary: string): string {
+  return summary.replace(/\s*[“"][^”"]*[”"]\s*$/u, "").trimEnd();
+}
+
+/**
  * Queue Signal column: strip a leading customer name (+ optional channel)
- * so the cell does not repeat the User column.
+ * so the cell does not repeat the User column; also drop legacy quoteHints.
  * Does not mutate stored summaries / detect.ts.
  */
 export function queueSignalSummary(
   summary: string,
   customerName: string
 ): string {
+  const cleaned = stripSummaryEvidenceQuote(summary);
   const name = customerName.trim();
-  if (!name || !summary.startsWith(name)) return summary;
+  if (!name || !cleaned.startsWith(name)) return cleaned;
 
-  let rest = summary.slice(name.length);
+  let rest = cleaned.slice(name.length);
   rest = rest.replace(/^\s*\([^)]{1,40}\)/, "");
   rest = rest.replace(/^[\s—–\-:]+/, "");
 
-  if (!rest) return summary;
+  if (!rest) return cleaned;
 
   if (/^[a-z]/.test(rest)) {
     rest = rest.charAt(0).toUpperCase() + rest.slice(1);

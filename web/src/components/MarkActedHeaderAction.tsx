@@ -67,7 +67,7 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-primary"
               disabled={actedPending}
               aria-busy={actedPending}
               onClick={() => void setActed(!isActed)}

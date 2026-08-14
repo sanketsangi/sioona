@@ -28,6 +28,7 @@ import {
 } from "@/lib/format";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Signal } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -109,51 +110,50 @@ function buildQueueHref(
 function QueueColumnHeader() {
   return (
     <div
-      className="sticky top-0 z-10 hidden h-10 shrink-0 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 sm:flex lg:gap-4"
+      className={cn(
+        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 sm:grid lg:gap-4",
+        QUEUE_GRID,
+      )}
       role="row"
     >
-      <div
-        className={`grid min-w-0 flex-1 items-center gap-3 lg:gap-4 ${QUEUE_GRID}`}
-      >
-        <span
-          className="text-label-12 font-semibold text-sio-fg-base"
-          role="columnheader"
-        >
-          User
-        </span>
-        <span
-          className="text-label-12 font-semibold text-sio-fg-base"
-          role="columnheader"
-        >
-          Signal
-        </span>
-        <span
-          className="text-label-12 font-semibold text-sio-fg-base"
-          role="columnheader"
-        >
-          Status
-        </span>
-        <span
-          className="text-label-12 font-semibold text-sio-fg-base"
-          role="columnheader"
-        >
-          Score
-        </span>
-        <span
-          className="text-label-12 font-semibold text-sio-fg-base"
-          role="columnheader"
-        >
-          Type
-        </span>
-        <span
-          className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
-          role="columnheader"
-        >
-          Evidence
-        </span>
-      </div>
       <span
-        className="w-[4.5rem] shrink-0 text-left text-label-12 font-semibold text-sio-fg-base"
+        className="text-label-12 font-semibold text-sio-fg-base"
+        role="columnheader"
+      >
+        User
+      </span>
+      <span
+        className="text-label-12 font-semibold text-sio-fg-base"
+        role="columnheader"
+      >
+        Signal
+      </span>
+      <span
+        className="text-label-12 font-semibold text-sio-fg-base"
+        role="columnheader"
+      >
+        Status
+      </span>
+      <span
+        className="text-label-12 font-semibold text-sio-fg-base"
+        role="columnheader"
+      >
+        Score
+      </span>
+      <span
+        className="text-label-12 font-semibold text-sio-fg-base"
+        role="columnheader"
+      >
+        Type
+      </span>
+      <span
+        className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
+        role="columnheader"
+      >
+        Evidence
+      </span>
+      <span
+        className="text-left text-label-12 font-semibold text-sio-fg-base"
         role="columnheader"
       >
         Action
@@ -479,7 +479,7 @@ export function SignalQueue({
                         <Link
                           href={previewHref}
                           scroll={false}
-                          className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:w-auto sm:px-3"
+                          className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:max-w-full sm:px-2.5"
                         >
                           Review
                         </Link>
