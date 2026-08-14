@@ -276,7 +276,13 @@ export function applyBackendSignalScore(
   };
 }
 
-/** Recompute pilot go/no-go after overlaying backend SignalScore. */
+/**
+ * Recompute pilot go/no-go after overlaying backend SignalScore.
+ *
+ * When Neon score is present (including empty review window), go/no-go uses
+ * that window ∩ keep-set only — never the labeled-fixture shortcut, so week-2
+ * empty windows stay Insufficient Data instead of recycling week-1 Go.
+ */
 export function applyBackendSignalScoreToPilot(
   store: StoreData,
   score: BackendSignalScore | null
@@ -293,12 +299,6 @@ export function applyBackendSignalScoreToPilot(
   let goNoGo: PilotGoNoGo = "insufficient_data";
   if (reviewedCount >= MIN_REVIEWS_FOR_GO_NO_GO) {
     goNoGo = meetsReviewPrecisionTarget === true ? "go" : "hold";
-  } else if (
-    base.labeledOpportunities >= 10 &&
-    base.labeledPrecision !== null &&
-    base.labeledPrecision >= REVIEW_PRECISION_TARGET
-  ) {
-    goNoGo = "go";
   } else if (reviewedCount > 0 && meetsReviewPrecisionTarget === false) {
     goNoGo = "hold";
   }

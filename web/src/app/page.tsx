@@ -19,7 +19,7 @@ import {
   shouldShowSyncFailureBanner,
 } from "@/lib/prediction-sync";
 import { hasMidWeekExport } from "@/lib/pilot-cadence";
-import { resolveSignalScoreDateFrom } from "@/lib/signal-score-window";
+import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { readStore } from "@/lib/store";
 import {
   parsePage,
@@ -100,10 +100,11 @@ export default async function PlatformPage({
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
   const keepSetIds = store.conversations.map((c) => c.id);
-  const scoreDateFrom = resolveSignalScoreDateFrom({
+  const scoreWindow = inspectSignalScoreWindow({
     scoreFrom: sp.scoreFrom,
     envFrom: process.env.SIGNAL_SCORE_FROM,
   });
+  const scoreDateFrom = scoreWindow.resolvedFrom;
 
   const [backendScore, allTimeScore, needsReview] = await Promise.all([
     fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
@@ -148,6 +149,9 @@ export default async function PlatformPage({
           previewId={previewId}
           backendScore={backendScore}
           needsReview={needsReview}
+          scoreFrom={
+            scoreWindow.status === "custom" ? scoreWindow.dateInput : null
+          }
           syncFailed={syncFailed}
           syncCreated={syncCreated}
           llmAdded={parseLlmAddedParam(sp.llmAdded)}
@@ -168,6 +172,7 @@ export default async function PlatformPage({
           adaptPageRaw={sp.adaptPage}
           backendScore={backendScore}
           allTimeScore={allTimeScore}
+          scoreWindow={scoreWindow}
         />
       ) : null}
       {view === "taxonomy" ? <TaxonomyView typePageRaw={sp.taxPage} /> : null}

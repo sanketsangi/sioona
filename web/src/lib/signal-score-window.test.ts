@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  inspectSignalScoreWindow,
   resolveSignalScoreDateFrom,
   SIGNAL_SCORE_WINDOW_DAYS,
 } from "./signal-score-window";
@@ -35,5 +36,38 @@ describe("resolveSignalScoreDateFrom", () => {
       now,
     });
     expect(from).toBe("2026-08-07T12:00:00.000Z");
+  });
+});
+
+describe("inspectSignalScoreWindow", () => {
+  const now = new Date("2026-08-14T12:00:00.000Z");
+
+  it("labels the default last-7-days window", () => {
+    const window = inspectSignalScoreWindow({ now });
+    expect(window.status).toBe("default");
+    expect(window.label).toBe("Last 7 days");
+    expect(window.dateInput).toBe("2026-08-07");
+    expect(window.resolvedFrom).toBe("2026-08-07T12:00:00.000Z");
+  });
+
+  it("labels a custom scoreFrom date", () => {
+    const window = inspectSignalScoreWindow({
+      scoreFrom: "2026-08-20",
+      now,
+    });
+    expect(window.status).toBe("custom");
+    expect(window.label).toBe("From 20 Aug 2026");
+    expect(window.dateInput).toBe("2026-08-20");
+    expect(window.resolvedFrom).toBe("2026-08-20T00:00:00.000Z");
+  });
+
+  it("marks invalid scoreFrom and falls back to last 7 days", () => {
+    const window = inspectSignalScoreWindow({
+      scoreFrom: "not-a-date",
+      now,
+    });
+    expect(window.status).toBe("invalid");
+    expect(window.label).toBe("Last 7 days");
+    expect(window.resolvedFrom).toBe("2026-08-07T12:00:00.000Z");
   });
 });

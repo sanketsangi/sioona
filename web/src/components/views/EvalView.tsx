@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
+import { ScoreWindowControl } from "@/components/ScoreWindowControl";
 import { SignalScoreSummary } from "@/components/SignalScoreSummary";
 import { LabeledTables } from "@/components/views/LabeledTables";
 import type { BackendSignalScore } from "@/lib/backend-client";
@@ -12,11 +13,8 @@ import {
   type PilotMetrics,
 } from "@/lib/eval";
 import { formatPercent } from "@/lib/format";
-import {
-  parseEvalPanel,
-  viewHref,
-  type EvalPanel,
-} from "@/lib/views";
+import type { SignalScoreWindow } from "@/lib/signal-score-window";
+import { parseEvalPanel, viewHref, type EvalPanel } from "@/lib/views";
 import type { StoreData } from "@/lib/types";
 
 function goNoGoLabel(value: "go" | "hold" | "insufficient_data"): string {
@@ -55,6 +53,7 @@ export function EvalView({
   adaptPageRaw,
   backendScore = null,
   allTimeScore = null,
+  scoreWindow,
 }: {
   store: StoreData;
   panelRaw?: string | null;
@@ -65,6 +64,7 @@ export function EvalView({
   backendScore?: BackendSignalScore | null;
   /** Keep-set all-time score (display only; not go/no-go). */
   allTimeScore?: BackendSignalScore | null;
+  scoreWindow: SignalScoreWindow;
 }) {
   const panel = parseEvalPanel(panelRaw);
   const metrics = applyBackendSignalScore(
@@ -72,6 +72,8 @@ export function EvalView({
     backendScore
   );
   const pilot = applyBackendSignalScoreToPilot(store, backendScore);
+  const scoreFrom =
+    scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -85,7 +87,10 @@ export function EvalView({
           return (
             <Link
               key={item.id}
-              href={viewHref("eval", { panel: item.id })}
+              href={viewHref("eval", {
+                panel: item.id,
+                scoreFrom,
+              })}
               scroll={false}
               aria-current={active ? "page" : undefined}
               className={`nav-link flex-1 sm:flex-none ${active ? "nav-link-active" : ""}`}
@@ -105,6 +110,8 @@ export function EvalView({
             allTimeScore={allTimeScore}
             baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
             baselineNote={store.pilot?.baselineNote}
+            scoreWindow={scoreWindow}
+            scoreFrom={scoreFrom}
           />
         ) : null}
         {panel === "adapt" ? (
@@ -135,6 +142,8 @@ function MetricsPanel({
   allTimeScore,
   baselineOpportunities,
   baselineNote,
+  scoreWindow,
+  scoreFrom,
 }: {
   metrics: EvalMetrics;
   pilot: PilotMetrics;
@@ -142,6 +151,8 @@ function MetricsPanel({
   allTimeScore: BackendSignalScore | null;
   baselineOpportunities: number;
   baselineNote?: string;
+  scoreWindow: SignalScoreWindow;
+  scoreFrom: string | null;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -149,6 +160,9 @@ function MetricsPanel({
         score={backendScore}
         allTimeScore={allTimeScore}
         compact
+        windowLabel={scoreWindow.label}
+        windowInvalid={scoreWindow.status === "invalid"}
+        windowControl={<ScoreWindowControl window={scoreWindow} />}
       />
 
       <div className="grid shrink-0 gap-3 lg:grid-cols-2">
@@ -213,11 +227,15 @@ function MetricsPanel({
       <div className="surface-quiet shrink-0 px-3 py-2.5">
         <p className="line-clamp-2 text-pretty text-label-13 text-sio-fg-subtle">
           {pilot.offerSummary}
-          {pilot.reviewedCount < 5 ? (
+          {pilot.goNoGo === "insufficient_data" ||
+          pilot.reviewedCount < 5 ? (
             <>
               {" "}
-              Need ≥5 reviews — open{" "}
-              <Link href={viewHref("insights")} className="link-accent">
+              Need ≥5 reviews in this window — open{" "}
+              <Link
+                href={viewHref("insights", { scoreFrom })}
+                className="link-accent"
+              >
                 Insights
               </Link>
               .
