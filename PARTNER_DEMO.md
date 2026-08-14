@@ -30,6 +30,8 @@ Cold open and **Reset Demo** also load the same showcase corpus (`testing.json`,
 
 Same strip on Upload, Insights, and Eval. No autonomous actions — suggested next steps stay display-only.
 
+**Hosted week-1 (sioona-demo):** set Eval baseline (dual-writes to Neon `pilot_settings`) + mid-week partner CSV re-upload with `replaced=false` (upsert by `externalId`, no Day-1 prune). Week-1 dry-run logged 2026-08-14: baseline 12, keep-set n=6 / precision 0.83 → go, lift 23. No new Detect engine.
+
 ## With a partner file
 
 1. **Upload Partner Export** (or drop CSV / Intercom JSON / WhatsApp `.txt`)
