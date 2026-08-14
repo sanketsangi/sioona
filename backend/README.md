@@ -91,6 +91,8 @@ Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPL
 | `GET` | `/v1/tenants/{tenant_id}/signal-score` | Overall + per-type SignalScore (optional keep-set) |
 | `GET` | `/v1/tenants/{tenant_id}/signals` | Tenant predictions + optional feedback |
 | `GET` | `/v1/tenants/{tenant_id}/signals/needs-review` | Shadow Mode review queue |
+| `GET` | `/v1/tenants/{tenant_id}/pilot` | Pilot baseline + weekly export count (404 if never written) |
+| `PUT` | `/v1/tenants/{tenant_id}/pilot` | Upsert pilot settings (one row per tenant) |
 
 Query params for score: `date_from`, `date_to`, `signal_type`, repeated `conversation_id` (keep-set). Client ids win; else Neon `conversations` for the tenant if any; else tenant-wide. Empty `conversation_id=` → 0 reviewed.
 

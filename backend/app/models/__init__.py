@@ -9,6 +9,7 @@ from app.models.message import (
     MESSAGE_ROLES,
     Message,
 )
+from app.models.pilot_settings import PilotSettings
 from app.models.signal_feedback import (
     FEEDBACK_CORRECT,
     FEEDBACK_INCORRECT,
@@ -30,6 +31,7 @@ __all__ = [
     "MESSAGE_ROLE_SYSTEM",
     "MESSAGE_ROLES",
     "Message",
+    "PilotSettings",
     "SignalFeedback",
     "SignalPrediction",
 ]

@@ -18,6 +18,7 @@ import {
   pruneConversationsNotInBackend,
   syncConversationsToBackend,
 } from "@/lib/sync-conversations";
+import { syncPilotSettingsToBackend } from "@/lib/sync-pilot";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 
 function parseReplaceFlag(form: FormData): boolean {
@@ -127,6 +128,9 @@ export async function POST(request: Request) {
         ? { baselineNote: store.pilot.baselineNote }
         : {}),
     };
+
+    // Dual-write pilot to Neon so /tmp wipe does not reset mid-week gate.
+    await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
 
     const conversationPrune = replaceShowcase
       ? await pruneConversationsNotInBackend(

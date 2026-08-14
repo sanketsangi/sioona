@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as backendClient from "./backend-client";
 import { runPartnerDemo } from "./demo";
 import { resetStore, readStore } from "./store";
 import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
@@ -15,9 +16,11 @@ describe("runPartnerDemo", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("resets and loads only testing.json showcase corpus", async () => {
+    const putPilotSpy = vi.spyOn(backendClient, "putPilotSettings");
     const result = await runPartnerDemo();
 
     expect(result.samples).toEqual(["testing.json"]);
@@ -29,6 +32,8 @@ describe("runPartnerDemo", () => {
     expect(result.store.signals.length).toBe(result.newSignals);
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
+    expect(result.store.pilot?.weeklyExportCount).toBeUndefined();
+    expect(putPilotSpy).not.toHaveBeenCalled();
     expect(result.opportunityLift).toBeGreaterThan(0);
     expect(result.store.taxonomyOverrides).toEqual({});
     expect(result.store.taxonomyOverrides?.lead?.negativePhrases).toBeUndefined();
@@ -64,5 +69,7 @@ describe("runPartnerDemo", () => {
     expect(again.store.conversations.map((c) => c.id).sort()).toEqual(
       result.store.conversations.map((c) => c.id).sort()
     );
+    expect(again.store.pilot?.weeklyExportCount).toBeUndefined();
+    expect(putPilotSpy).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 import { runDetection } from "@/lib/detect";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
+import * as backendClient from "@/lib/backend-client";
+import { BackendClientError } from "@/lib/backend-client";
 import {
   readStore,
   resetStore,
@@ -47,6 +49,7 @@ describe("POST /api/ingest", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("replaces showcase chats on the first partner upload after reset", async () => {
@@ -300,5 +303,20 @@ describe("POST /api/ingest", () => {
     expect(after.conversations).toHaveLength(1);
     expect(after.conversations[0].externalId).toBe("wa-reupload-1");
     expect(after.pilot?.weeklyExportCount).toBe(2);
+  });
+
+  it("still increments weeklyExportCount when Neon pilot PUT fails", async () => {
+    vi.spyOn(backendClient, "putPilotSettings").mockRejectedValue(
+      new BackendClientError("database_unavailable", 500)
+    );
+
+    const response = await POST(
+      ingestRequest(csvFile("week1.csv", [LEAD_LINE]))
+    );
+    expect(response.status).toBe(200);
+
+    const after = await readStore();
+    expect(after.pilot?.weeklyExportCount).toBe(1);
+    expect(backendClient.putPilotSettings).toHaveBeenCalled();
   });
 });

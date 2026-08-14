@@ -446,3 +446,58 @@ export async function setPredictionActed(
     }
   );
 }
+
+export interface BackendPilotSettings {
+  id: string;
+  tenant_id: string;
+  baseline_opportunities: number;
+  baseline_note: string | null;
+  weekly_export_count: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BackendPilotSettingsInput {
+  baseline_opportunities: number;
+  baseline_note?: string | null;
+  weekly_export_count?: number | null;
+}
+
+/**
+ * Fetch tenant pilot settings. Returns null when no row exists (404).
+ */
+export async function getPilotSettings(
+  tenantId: string
+): Promise<BackendPilotSettings | null> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/pilot`;
+  try {
+    return await backendFetch<BackendPilotSettings>(tenantId, path);
+  } catch (err) {
+    if (err instanceof BackendClientError && err.status === 404) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function putPilotSettings(
+  tenantId: string,
+  input: BackendPilotSettingsInput
+): Promise<BackendPilotSettings> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/pilot`;
+  return backendFetch<BackendPilotSettings>(tenantId, path, {
+    method: "PUT",
+    body: JSON.stringify({
+      baseline_opportunities: Math.max(
+        0,
+        Math.floor(input.baseline_opportunities)
+      ),
+      baseline_note: input.baseline_note ?? null,
+      weekly_export_count:
+        input.weekly_export_count == null
+          ? null
+          : Math.max(0, Math.floor(input.weekly_export_count)),
+    }),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
+}
