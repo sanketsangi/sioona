@@ -7,6 +7,7 @@ import {
   upsertConversation,
 } from "./backend-client";
 import { toConversationSyncPayload } from "./sync-conversations";
+import { syncPilotSettingsToBackend } from "./sync-pilot";
 import type {
   AuditEvent,
   FeedbackLabel,
@@ -280,6 +281,7 @@ export async function setPilotBaseline(
   }
   store.pilot = pilot;
   await writeStore(store);
+  await syncPilotSettingsToBackend(store.tenant.id, pilot);
   return store;
 }
 

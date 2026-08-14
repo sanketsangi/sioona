@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { BackendClientError } from "./backend-client";
 import type { BackendConversation } from "./backend-client";
@@ -293,6 +293,10 @@ describe("applyConversationGroundTruthToSignals", () => {
 });
 
 describe("tryHydrateStoreFromNeon", () => {
+  beforeEach(() => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
+  });
+
   it("detects, syncs predictions, and writes store without conversation upsert", async () => {
     vi.spyOn(backendClient, "getConversations").mockResolvedValue([
       partnerRow({ ground_truth: "retention" }),
@@ -342,11 +346,104 @@ describe("tryHydrateStoreFromNeon", () => {
       PARTNER_EXPORT_ADAPT_OVERRIDES.lead?.negativePhrases
     );
     expect(result?.pilot?.baselineOpportunities).toBe(0);
+    expect(result?.pilot?.weeklyExportCount).toBeUndefined();
     expect(result?.signals[0].backendSignalId).toBe("pred-hydrated-1");
     expect(result?.signals[0].groundTruth).toBe("retention");
     expect(result?.signals[0].feedback).toBeUndefined();
     expect(writeSpy).toHaveBeenCalledTimes(1);
     expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  it("restores Neon pilot weeklyExportCount and baseline onto store", async () => {
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow(),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [detectedSignal],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, backendSignalId: "pred-hydrated-1" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-uuid-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: "partner agreed",
+      weekly_export_count: 2,
+      created_at: "2026-08-10T10:00:00.000Z",
+      updated_at: "2026-08-12T10:00:00.000Z",
+    });
+    const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expect(result?.pilot).toEqual({
+      baselineOpportunities: 12,
+      baselineNote: "partner agreed",
+      weeklyExportCount: 2,
+      updatedAt: "2026-08-12T10:00:00.000Z",
+    });
+    expect(writeSpy.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        pilot: expect.objectContaining({
+          baselineOpportunities: 12,
+          weeklyExportCount: 2,
+        }),
+      })
+    );
+  });
+
+  it("keeps shell pilot when pilot GET fails", async () => {
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow(),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [detectedSignal],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, backendSignalId: "pred-hydrated-1" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getPilotSettings").mockRejectedValue(
+      new BackendClientError("database_unavailable", 500)
+    );
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expect(result?.pilot?.baselineOpportunities).toBe(0);
+    expect(result?.pilot?.weeklyExportCount).toBeUndefined();
   });
 
   it("restores Neon feedback onto JSON signals after prediction sync", async () => {

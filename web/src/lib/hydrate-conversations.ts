@@ -10,6 +10,7 @@ import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-o
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   getConversations,
+  getPilotSettings,
   getTenantSignals,
   type BackendConversation,
   type BackendGroundTruth,
@@ -267,6 +268,25 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
     signals,
     taxonomyOverrides,
   };
+
+  try {
+    const remote = await getPilotSettings(tenantId);
+    if (remote) {
+      store.pilot = {
+        baselineOpportunities: remote.baseline_opportunities,
+        ...(remote.baseline_note
+          ? { baselineNote: remote.baseline_note }
+          : {}),
+        ...(remote.weekly_export_count != null
+          ? { weeklyExportCount: remote.weekly_export_count }
+          : {}),
+        updatedAt: remote.updated_at,
+      };
+    }
+  } catch {
+    // Fail-soft: keep emptyShowcaseStore.pilot (baseline 0, no export count).
+  }
+
   await writeStore(store);
   return store;
 }
