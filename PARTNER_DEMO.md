@@ -55,7 +55,8 @@ Partner upload / eval lanes (not the showcase seed):
 |------|--------|
 | `web/data/samples/partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` |
 | `web/data/samples/real-partner-export.template.csv` | Day-1 pilot template |
-| `web/data/samples/real-partner-export.local.csv` | Gitignored real export drop-in |
+| `web/data/samples/real-partner-export.local.csv` | Gitignored real export drop-in (week-1; default `npm run eval:partner-export`) |
+| `web/data/samples/real-partner-export.week2.local.csv` | Gitignored week-2 held-out drop-in (`--week2` / `PARTNER_EXPORT=week2`; never scores week-1 as week-2) |
 
 ## What not to promise on the call
 
