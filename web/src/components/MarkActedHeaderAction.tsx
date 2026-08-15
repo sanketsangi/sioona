@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowCounterClockwise, Check } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
@@ -86,6 +87,7 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
   }
 
   const label = isActed ? "Mark as Pending" : "Mark as Acted";
+  const ActionIcon = isActed ? ArrowCounterClockwise : Check;
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -104,7 +106,15 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
               aria-busy={actedPending}
               onClick={() => void setActed(!isActed)}
             >
-              {actedPending ? <ButtonSpinner /> : null}
+              {actedPending ? (
+                <ButtonSpinner />
+              ) : (
+                <ActionIcon
+                  className="size-3.5 shrink-0"
+                  weight="bold"
+                  aria-hidden
+                />
+              )}
               {label}
             </button>
           </TooltipTrigger>
