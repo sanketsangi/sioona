@@ -8,6 +8,7 @@ import {
   type IngestFormat,
 } from "./ingest-platforms";
 import { redactText } from "./redact";
+import { mapTestingLabelsToGroundTruth } from "./label-ground-truth";
 import type { Conversation, Message, SignalType } from "./types";
 
 export type {
@@ -217,12 +218,21 @@ function normalizeSioonaConversation(
   const externalId =
     asTrimmedString(conv.externalId) || asTrimmedString(conv.id) || undefined;
 
+  const explicitGt = normalizeGroundTruth(asTrimmedString(conv.groundTruth));
+  const labels = Array.isArray(conv.labels)
+    ? (conv.labels as { signal?: unknown }[])
+    : undefined;
+  // Partner testing.json-shaped exports use labels[]; map via SOURCE_TO_GT.
+  const groundTruth =
+    explicitGt ??
+    (labels ? mapTestingLabelsToGroundTruth(labels) : undefined);
+
   return {
     externalId,
     channel: asTrimmedString(conv.channel) || undefined,
     customerName: asTrimmedString(conv.customerName) || undefined,
     startedAt: asTrimmedString(conv.startedAt) || undefined,
-    groundTruth: normalizeGroundTruth(asTrimmedString(conv.groundTruth)),
+    groundTruth,
     messages,
   };
 }

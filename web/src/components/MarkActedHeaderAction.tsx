@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import {
   Tooltip,
@@ -9,6 +9,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  clearRecentFeedbackSaved,
+  FEEDBACK_SAVED_EVENT,
+  hasRecentFeedbackSaved,
+  type FeedbackSavedDetail,
+} from "@/lib/feedback-saved";
 import type { Signal } from "@/lib/types";
 
 const ACTED_TOOLTIP = "Does not send the suggested action.";
@@ -16,15 +22,41 @@ const ACTED_TOOLTIP = "Does not send the suggested action.";
 /**
  * Insights review header — single toggle beside Open Conversation.
  * Mark as Acted ↔ Mark as Pending (undo keeps feedback; status → reviewed).
- * Only when the signal already has SignalScore feedback (Shadow Mode).
+ * Stays available after feedback responds (optimistic + remount-safe).
  */
 export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
   const router = useRouter();
   const [actedPending, setActedPending] = useState(false);
   const [actedLocal, setActedLocal] = useState<boolean | null>(null);
+  const [feedbackLocal, setFeedbackLocal] = useState(() =>
+    hasRecentFeedbackSaved(signal.id),
+  );
   const [error, setError] = useState<string | null>(null);
 
-  const hasFeedback = Boolean(signal.feedback);
+  useEffect(() => {
+    setFeedbackLocal(hasRecentFeedbackSaved(signal.id));
+    setActedLocal(null);
+  }, [signal.id]);
+
+  const feedbackLabel = signal.feedback?.label;
+  useEffect(() => {
+    if (feedbackLabel) {
+      clearRecentFeedbackSaved(signal.id);
+      setFeedbackLocal(false);
+    }
+  }, [feedbackLabel, signal.id]);
+
+  useEffect(() => {
+    function onFeedbackSaved(event: Event) {
+      const detail = (event as CustomEvent<FeedbackSavedDetail>).detail;
+      if (detail?.signalId === signal.id) setFeedbackLocal(true);
+    }
+    window.addEventListener(FEEDBACK_SAVED_EVENT, onFeedbackSaved);
+    return () =>
+      window.removeEventListener(FEEDBACK_SAVED_EVENT, onFeedbackSaved);
+  }, [signal.id]);
+
+  const hasFeedback = Boolean(signal.feedback) || feedbackLocal;
   const isActed = actedLocal ?? signal.status === "acted";
 
   if (!hasFeedback) return null;

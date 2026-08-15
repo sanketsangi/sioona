@@ -102,14 +102,14 @@ export function toConversationSyncPayload(
   });
 }
 
-async function upsertConversationsWithRetry(
+/** Chunk size for /v1/conversations/bulk — Neon ~5–9s/chat; keep under client timeout. */
+export const CONVERSATION_SYNC_CHUNK_SIZE = 5;
+
+async function upsertConversationChunkWithRetry(
   tenantId: string,
-  conversations: Conversation[],
-  messages: Message[],
-  sleep: (ms: number) => Promise<void>,
-  options?: Pick<SyncConversationsOptions, "clearUnlabeledGroundTruth">
+  payload: BackendConversationInput[],
+  sleep: (ms: number) => Promise<void>
 ) {
-  const payload = toConversationSyncPayload(conversations, messages, options);
   let lastError: unknown;
   for (let attempt = 0; attempt < CONVERSATION_SYNC_MAX_ATTEMPTS; attempt++) {
     try {
@@ -129,6 +129,35 @@ async function upsertConversationsWithRetry(
   throw lastError instanceof Error
     ? lastError
     : new Error("upsertConversations failed after retries");
+}
+
+async function upsertConversationsWithRetry(
+  tenantId: string,
+  conversations: Conversation[],
+  messages: Message[],
+  sleep: (ms: number) => Promise<void>,
+  options?: Pick<SyncConversationsOptions, "clearUnlabeledGroundTruth">
+) {
+  const payload = toConversationSyncPayload(conversations, messages, options);
+  let created = 0;
+  let updated = 0;
+  let messages_created = 0;
+  let messages_updated = 0;
+
+  for (let i = 0; i < payload.length; i += CONVERSATION_SYNC_CHUNK_SIZE) {
+    const chunk = payload.slice(i, i + CONVERSATION_SYNC_CHUNK_SIZE);
+    const result = await upsertConversationChunkWithRetry(
+      tenantId,
+      chunk,
+      sleep
+    );
+    created += result.created;
+    updated += result.updated;
+    messages_created += result.messages_created;
+    messages_updated += result.messages_updated;
+  }
+
+  return { created, updated, messages_created, messages_updated };
 }
 
 /**

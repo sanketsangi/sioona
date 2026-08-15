@@ -112,6 +112,38 @@ describe("parseIngestFile", () => {
     expect(parsed[0].messages).toHaveLength(2);
   });
 
+  it("maps testing.json-shaped labels[] to groundTruth", () => {
+    const json = JSON.stringify({
+      conversations: [
+        {
+          externalId: "z_complaint",
+          labels: [{ signal: "complaint", confidence: "high" }],
+          messages: [{ role: "customer", content: "Kite is down" }],
+        },
+        {
+          externalId: "z_mixed",
+          labels: [
+            { signal: "complaint" },
+            { signal: "retention_risk" },
+          ],
+          messages: [{ role: "customer", content: "Closing my account after this" }],
+        },
+        {
+          externalId: "z_explicit_wins",
+          groundTruth: "lead",
+          labels: [{ signal: "fraud" }],
+          messages: [{ role: "customer", content: "Want to open demat" }],
+        },
+      ],
+    });
+    const parsed = parseIngestFile("batch_01.json", json);
+    expect(parsed.map((c) => c.groundTruth)).toEqual([
+      "none",
+      "retention",
+      "lead",
+    ]);
+  });
+
   it("accepts id as externalId and text as content", () => {
     const json = JSON.stringify({
       conversations: [

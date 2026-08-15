@@ -131,6 +131,37 @@ export function AdaptationPanel({
     }
   }
 
+  async function applyZerodhaBatch01Adapt() {
+    setError(null);
+    setSuccess(null);
+    setBusyId("apply-zerodha-adapt");
+    try {
+      const res = await fetch("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "apply_zerodha_batch01_adapt" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to apply Zerodha Adapt");
+      }
+      setSuccess(
+        `Applied Zerodha batch_01 Adapt and re-ran detection${
+          typeof data.redetectCount === "number"
+            ? ` (${data.redetectCount} signals)`
+            : ""
+        }.`
+      );
+      startTransition(() => router.refresh());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to apply Zerodha Adapt"
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function applyOverride(
     signal: Signal,
     field: OverrideField,
@@ -207,16 +238,28 @@ export function AdaptationPanel({
           Reject → Add Negative (stop false positives). Wrong reason / miss →
           Add Phrase. Each change re-detects immediately.
         </p>
-        <button
-          type="button"
-          className="btn-secondary mt-2"
-          disabled={pending || busyId !== null}
-          aria-busy={busyId === "apply-scored-adapt"}
-          onClick={() => void applyScoredAdapt()}
-        >
-          {busyId === "apply-scored-adapt" ? <ButtonSpinner /> : null}
-          Apply Scored Adapt
-        </button>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={pending || busyId !== null}
+            aria-busy={busyId === "apply-scored-adapt"}
+            onClick={() => void applyScoredAdapt()}
+          >
+            {busyId === "apply-scored-adapt" ? <ButtonSpinner /> : null}
+            Apply Scored Adapt
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={pending || busyId !== null}
+            aria-busy={busyId === "apply-zerodha-adapt"}
+            onClick={() => void applyZerodhaBatch01Adapt()}
+          >
+            {busyId === "apply-zerodha-adapt" ? <ButtonSpinner /> : null}
+            Apply Zerodha Adapt
+          </button>
+        </div>
       </div>
 
       <div aria-live="polite">

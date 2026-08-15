@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
+import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "@/data/fixtures/zerodha-batch01-overrides";
 import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
@@ -173,6 +174,28 @@ export async function POST(request: Request) {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Adapt apply failed";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
+  if (body.action === "apply_zerodha_batch01_adapt") {
+    try {
+      let store = await readStore();
+      store.taxonomyOverrides = mergeTaxonomyOverrides(
+        store.taxonomyOverrides,
+        ZERODHA_BATCH01_ADAPT_OVERRIDES
+      );
+      await writeStore(store);
+      const result = await redetectWithOverrides(store);
+      store = result.store;
+      return NextResponse.json({
+        ...store,
+        signals: sortSignals(store.signals),
+        redetectCount: result.redetectCount,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Zerodha Adapt apply failed";
       return NextResponse.json({ error: message }, { status: 400 });
     }
   }

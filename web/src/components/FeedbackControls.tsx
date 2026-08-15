@@ -8,6 +8,7 @@ import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
 import { GoodIcon } from "@/components/icons/GoodIcon";
 import { WarningIcon } from "@/components/icons/WarningIcon";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
+import { emitFeedbackSaved } from "@/lib/feedback-saved";
 import { viewHref } from "@/lib/views";
 import type { FeedbackLabel, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -103,6 +104,7 @@ export function FeedbackControls({
         throw new Error(data.error || "Failed to save feedback");
       }
       setJustSaved(label);
+      emitFeedbackSaved(signal.id);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save feedback");

@@ -4,28 +4,17 @@ import { runDetection } from "./detect";
 import { computeEvalMetrics, type EvalMetrics } from "./eval";
 import { customerNameFromExternalId } from "./format";
 import { toStoreRecords, type IngestConversationInput } from "./ingest";
+import { mapTestingLabelsToGroundTruth } from "./label-ground-truth";
 import type { SignalType, StoreData } from "./types";
 
 export { customerNameFromExternalId } from "./format";
+export {
+  mapTestingLabelsToGroundTruth,
+  SOURCE_TO_GT,
+} from "./label-ground-truth";
 
 const TENANT_ID = "tenant_demo";
 const TESTING_JSON_FILENAME = "testing.json";
-
-/** Product GT priority for multi-label rows (lower = preferred). */
-const PRODUCT_PRIORITY: Record<SignalType, number> = {
-  retention: 0,
-  upsell: 1,
-  lead: 2,
-};
-
-const SOURCE_TO_GT: Record<string, SignalType | "none"> = {
-  lead: "lead",
-  upsell: "upsell",
-  churn_risk: "retention",
-  retention_risk: "retention",
-  complaint: "none",
-  fraud: "none",
-};
 
 export const EXPECTED_TESTING_JSON = {
   conversations: 41,
@@ -110,27 +99,6 @@ function normalizeRole(value: unknown): "customer" | "agent" | "system" {
   }
   if (raw === "system") return "system";
   return "customer";
-}
-
-/**
- * Map testing.json `labels[].signal` → single product `groundTruth`.
- * Multi-label: first product signal by priority retention > upsell > lead.
- * Pure complaint/fraud → none.
- */
-export function mapTestingLabelsToGroundTruth(
-  labels: RawLabel[] | undefined
-): SignalType | "none" {
-  const product: SignalType[] = [];
-  for (const label of labels ?? []) {
-    const signal = asTrimmedString(label.signal).toLowerCase();
-    const mapped = SOURCE_TO_GT[signal];
-    if (mapped && mapped !== "none") {
-      product.push(mapped);
-    }
-  }
-  if (product.length === 0) return "none";
-  product.sort((a, b) => PRODUCT_PRIORITY[a] - PRODUCT_PRIORITY[b]);
-  return product[0];
 }
 
 function parseTestingConversation(

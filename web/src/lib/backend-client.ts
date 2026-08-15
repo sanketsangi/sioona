@@ -262,6 +262,9 @@ export interface BackendConversationBulkResult {
   messages_updated: number;
 }
 
+/** Bulk chat+message upserts are larger than single predictions (pilot ~100). */
+export const BACKEND_BULK_CONVERSATION_TIMEOUT_MS = 90_000;
+
 export async function upsertConversations(
   tenantId: string,
   conversations: BackendConversationInput[]
@@ -272,7 +275,7 @@ export async function upsertConversations(
     {
       method: "POST",
       body: JSON.stringify({ conversations }),
-      timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+      timeoutMs: BACKEND_BULK_CONVERSATION_TIMEOUT_MS,
     }
   );
 }
