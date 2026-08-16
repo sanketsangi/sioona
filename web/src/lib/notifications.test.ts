@@ -62,6 +62,20 @@ describe("buildHeaderNotifications", () => {
     expect(items[0]?.href).toContain("demo=1");
   });
 
+  it("includes wipe-failed when Neon wipe did not complete", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 0,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      wipeFailed: true,
+    });
+    expect(items.map((i) => i.id)).toEqual(["wipe-failed"]);
+    expect(items[0]?.tone).toBe("warning");
+    expect(items[0]?.href).toContain("wipeFailed=1");
+  });
+
   it("stacks demo ready ahead of sync failure", () => {
     const items = buildHeaderNotifications({
       pendingCount: 1,

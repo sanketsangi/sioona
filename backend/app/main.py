@@ -2,7 +2,15 @@
 
 from fastapi import FastAPI
 
-from app.api.routes import conversations, feedback, pilot, predictions, review, scores
+from app.api.routes import (
+    conversations,
+    feedback,
+    pilot,
+    predictions,
+    review,
+    scores,
+    tenant_data,
+)
 from app.config import get_settings
 
 settings = get_settings()
@@ -23,6 +31,7 @@ app.include_router(feedback.router)
 app.include_router(scores.router)
 app.include_router(review.router)
 app.include_router(pilot.router)
+app.include_router(tenant_data.router)
 
 
 @app.get("/health")

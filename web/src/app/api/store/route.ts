@@ -8,7 +8,7 @@ import {
   mergeTaxonomyOverrides,
   readStore,
   replaceSignalsPreservingFeedback,
-  resetStore,
+  resetStoreWithWipe,
   setPilotBaseline,
   writeStore,
   type TaxonomyOverrideField,
@@ -23,6 +23,14 @@ const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
   "keywords",
   "negativePhrases",
 ];
+
+function wipeExtras(wipe: { ok: boolean; error?: string }) {
+  if (wipe.ok) return {};
+  return {
+    wipeFailed: true as const,
+    wipeError: wipe.error ?? "Signal Score backend unreachable",
+  };
+}
 
 async function redetectWithOverrides(store: StoreData): Promise<{
   store: StoreData;
@@ -64,10 +72,11 @@ export async function POST(request: Request) {
   };
 
   if (body.action === "reset") {
-    const store = await resetStore();
+    const { store, wipe } = await resetStoreWithWipe();
     return NextResponse.json({
       ...store,
       signals: sortSignals(store.signals),
+      ...wipeExtras(wipe),
     });
   }
 
@@ -83,6 +92,7 @@ export async function POST(request: Request) {
         predictionSync: result.predictionSync,
         conversationSync: result.conversationSync,
         detectLlm: result.detectLlm,
+        ...wipeExtras(result.wipe),
       });
     } catch (error) {
       const message =

@@ -801,3 +801,123 @@ def test_conversation_ground_truth_upsert_list_and_patch(client: TestClient) -> 
     )
     assert cleared_flag.status_code == 201
     assert cleared_flag.json()["ground_truth"] is None
+
+
+def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
+    headers_a = {"X-Tenant-Id": "tenant_a"}
+    headers_b = {"X-Tenant-Id": "tenant_b"}
+
+    for tenant, headers, conv_id in (
+        ("tenant_a", headers_a, "conv_a"),
+        ("tenant_b", headers_b, "conv_b"),
+    ):
+        created = client.post(
+            "/v1/conversations",
+            headers=headers,
+            json={
+                "conversation_id": conv_id,
+                "channel": "whatsapp",
+                "customer_name": "Priya",
+                "started_at": "2026-08-01T10:00:00+00:00",
+                "messages": [
+                    {
+                        "message_id": f"msg_{conv_id}_0",
+                        "role": "customer",
+                        "content": "Close my account",
+                        "timestamp": "2026-08-01T10:00:00+00:00",
+                    }
+                ],
+            },
+        )
+        assert created.status_code == 201
+        pred = client.post(
+            "/v1/predictions",
+            headers=headers,
+            json={
+                "conversation_id": conv_id,
+                "signal_type": "retention",
+                "confidence": 0.9,
+                "summary": "Close account",
+            },
+        )
+        assert pred.status_code == 201
+        signal_id = pred.json()["id"]
+        feedback = client.post(
+            f"/v1/signals/{signal_id}/feedback",
+            headers=headers,
+            json={"feedback": "correct", "reviewed_by": "reviewer_1"},
+        )
+        assert feedback.status_code == 200
+        pilot = client.put(
+            f"/v1/tenants/{tenant}/pilot",
+            headers=headers,
+            json={
+                "baseline_opportunities": 4,
+                "baseline_note": "demo",
+                "weekly_export_count": 1,
+            },
+        )
+        assert pilot.status_code == 200
+
+    mismatch = client.delete(
+        "/v1/tenants/tenant_a/data",
+        headers=headers_b,
+    )
+    assert mismatch.status_code == 403
+
+    missing_header = client.delete("/v1/tenants/tenant_a/data")
+    assert missing_header.status_code == 400
+
+    wiped = client.delete(
+        "/v1/tenants/tenant_a/data",
+        headers=headers_a,
+    )
+    assert wiped.status_code == 200
+    assert wiped.json() == {
+        "conversations": 1,
+        "messages": 1,
+        "predictions": 1,
+        "feedback": 1,
+        "pilot_settings": 1,
+    }
+
+    listed_a = client.get(
+        "/v1/tenants/tenant_a/conversations",
+        headers=headers_a,
+    )
+    assert listed_a.status_code == 200
+    assert listed_a.json() == []
+
+    pilot_a = client.get(
+        "/v1/tenants/tenant_a/pilot",
+        headers=headers_a,
+    )
+    assert pilot_a.status_code == 404
+
+    listed_b = client.get(
+        "/v1/tenants/tenant_b/conversations",
+        headers=headers_b,
+    )
+    assert listed_b.status_code == 200
+    assert len(listed_b.json()) == 1
+    assert listed_b.json()[0]["conversation_id"] == "conv_b"
+
+    pilot_b = client.get(
+        "/v1/tenants/tenant_b/pilot",
+        headers=headers_b,
+    )
+    assert pilot_b.status_code == 200
+    assert pilot_b.json()["baseline_opportunities"] == 4
+
+    empty = client.delete(
+        "/v1/tenants/tenant_a/data",
+        headers=headers_a,
+    )
+    assert empty.status_code == 200
+    assert empty.json() == {
+        "conversations": 0,
+        "messages": 0,
+        "predictions": 0,
+        "feedback": 0,
+        "pilot_settings": 0,
+    }

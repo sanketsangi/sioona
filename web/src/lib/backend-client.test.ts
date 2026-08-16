@@ -14,6 +14,7 @@ import {
   submitFeedback,
   upsertConversation,
   upsertConversations,
+  wipeTenantData,
 } from "./backend-client";
 
 afterEach(() => {
@@ -195,6 +196,40 @@ describe("backendFetch timeout", () => {
       keep_conversation_ids: string[];
     };
     expect(body.keep_conversation_ids).toEqual(["conv_keep"]);
+  });
+
+  it("wipes all tenant Neon rows via DELETE /data", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        conversations: 3,
+        messages: 10,
+        predictions: 5,
+        feedback: 2,
+        pilot_settings: 1,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await wipeTenantData("tenant_demo");
+
+    expect(result).toEqual({
+      conversations: 3,
+      messages: 10,
+      predictions: 5,
+      feedback: 2,
+      pilot_settings: 1,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/tenants/tenant_demo/data"),
+      expect.objectContaining({
+        method: "DELETE",
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
   });
 
   it("upserts one conversation and patches ground_truth", async () => {

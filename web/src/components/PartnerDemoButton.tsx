@@ -43,6 +43,7 @@ export function PartnerDemoButton({
         error?: string;
         predictionSync?: unknown;
         detectLlm?: unknown;
+        wipeFailed?: boolean;
       };
       if (!res.ok) throw new Error(data.error || "Demo failed");
 
@@ -54,10 +55,15 @@ export function PartnerDemoButton({
       const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
       if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
       if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
+      if (data.wipeFailed) query.set("wipeFailed", "1");
 
       if (hasSyncFailures(sync) && sync) {
         setSyncWarning(
           `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon — pending queue may be empty until FastAPI is up. Opening Insights…`
+        );
+      } else if (data.wipeFailed) {
+        setSyncWarning(
+          "Demo loaded, but Neon wipe failed — leftover chats may remain until FastAPI is up. Opening Insights…"
         );
       }
 

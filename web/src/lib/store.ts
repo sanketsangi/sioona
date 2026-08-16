@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import os from "os";
 import path from "path";
 import { randomUUID } from "crypto";
+import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   patchConversationGroundTruth,
   upsertConversation,
@@ -18,6 +19,10 @@ import type {
   TaxonomyOverrides,
   TaxonomyTypeOverride,
 } from "./types";
+import {
+  wipeTenantDataFailSoft,
+  type TenantWipeStats,
+} from "./wipe-tenant";
 
 /** Seed showcase from testing.json (dynamic import avoids cycle with writeStore). */
 async function seedShowcaseStore(): Promise<StoreData> {
@@ -27,6 +32,21 @@ async function seedShowcaseStore(): Promise<StoreData> {
     syncPredictions: true,
   });
   return result.store;
+}
+
+export type ResetStoreResult = {
+  store: StoreData;
+  wipe: TenantWipeStats;
+};
+
+/**
+ * Wipe this tenant's Neon data (fail-soft), then reseed JSON from testing.json.
+ * Cold start uses seedShowcaseStore / hydrate — not this path.
+ */
+export async function resetStoreWithWipe(): Promise<ResetStoreResult> {
+  const wipe = await wipeTenantDataFailSoft(emptyShowcaseStore.tenant.id);
+  const store = await seedShowcaseStore();
+  return { store, wipe };
 }
 
 // Local dev writes the bundled data dir; serverless (Vercel) filesystems are
@@ -159,7 +179,8 @@ export async function writeStore(data: StoreData): Promise<void> {
 }
 
 export async function resetStore(): Promise<StoreData> {
-  return seedShowcaseStore();
+  const { store } = await resetStoreWithWipe();
+  return store;
 }
 
 /** Match key for carrying review state across re-detect runs. */

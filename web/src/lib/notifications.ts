@@ -14,6 +14,7 @@ export type HeaderNotification = {
 export const POPUP_NOTIFICATION_IDS = [
   "partner-demo-ready",
   "sync-failed",
+  "wipe-failed",
 ] as const;
 
 export function buildHeaderNotifications(input: {
@@ -23,6 +24,7 @@ export function buildHeaderNotifications(input: {
   syncCreated: number;
   scoreUnavailable: boolean;
   demoReady?: boolean;
+  wipeFailed?: boolean;
 }): HeaderNotification[] {
   const items: HeaderNotification[] = [];
 
@@ -34,6 +36,17 @@ export function buildHeaderNotifications(input: {
         "Review Neon needs-review below, then open Eval for precision and lift.",
       href: viewHref("insights", { status: "new", demo: "1" }),
       tone: "accent",
+    });
+  }
+
+  if (input.wipeFailed) {
+    items.push({
+      id: "wipe-failed",
+      title: "Neon Wipe Incomplete",
+      description:
+        "Demo reseeded in JSON, but FastAPI did not clear this tenant’s Neon rows. Leftover chats may remain until the API is up.",
+      href: viewHref("insights", { wipeFailed: "1" }),
+      tone: "warning",
     });
   }
 

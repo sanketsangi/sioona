@@ -75,6 +75,7 @@ export default async function PlatformPage({
     llmFailed?: string;
     preview?: string;
     scoreFrom?: string;
+    wipeFailed?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -99,6 +100,7 @@ export default async function PlatformPage({
   const store = await readStore();
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
+  const wipeFailed = sp.wipeFailed === "1";
   const keepSetIds = store.conversations.map((c) => c.id);
   const scoreWindow = inspectSignalScoreWindow({
     scoreFrom: sp.scoreFrom,
@@ -125,6 +127,7 @@ export default async function PlatformPage({
     syncCreated: hasSyncFailure ? syncCreated : 0,
     scoreUnavailable: backendScore == null,
     demoReady: sp.demo === "1",
+    wipeFailed,
   });
 
   const title = TITLES[view];

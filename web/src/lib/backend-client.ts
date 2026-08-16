@@ -504,3 +504,25 @@ export async function putPilotSettings(
     timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
   });
 }
+
+export interface BackendTenantDataWipeResult {
+  conversations: number;
+  messages: number;
+  predictions: number;
+  feedback: number;
+  pilot_settings: number;
+}
+
+/**
+ * Delete all Neon rows for this tenant (chats, messages, predictions,
+ * feedback, pilot_settings). Reset Demo / Partner Demo / partner deletion only.
+ */
+export async function wipeTenantData(
+  tenantId: string
+): Promise<BackendTenantDataWipeResult> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/data`;
+  return backendFetch<BackendTenantDataWipeResult>(tenantId, path, {
+    method: "DELETE",
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
+}

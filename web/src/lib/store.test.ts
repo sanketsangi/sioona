@@ -5,6 +5,7 @@ import {
   mergeTaxonomyOverrides,
   readStore,
   resetStore,
+  resetStoreWithWipe,
   setConversationGroundTruth,
   setSignalActed,
   setSignalFeedback,
@@ -205,11 +206,13 @@ describe("readStore cold-start hydrate", () => {
       "fetch",
       vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
     );
+    const wipeSpy = vi.spyOn(backendClient, "wipeTenantData");
     const getSpy = vi.spyOn(backendClient, "getConversations");
     const signalsSpy = vi.spyOn(backendClient, "getTenantSignals");
 
     const store = await resetStore();
 
+    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
     expect(store.conversations).toHaveLength(
       EXPECTED_TESTING_JSON.conversations
     );
@@ -221,6 +224,25 @@ describe("readStore cold-start hydrate", () => {
     expect(store.taxonomyOverrides?.upsell?.phrases).toBeUndefined();
     expect(getSpy).not.toHaveBeenCalled();
     expect(signalsSpy).not.toHaveBeenCalled();
+  });
+
+  it("resetStoreWithWipe reports wipeFailed when FastAPI is down", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    const wipeSpy = vi
+      .spyOn(backendClient, "wipeTenantData")
+      .mockRejectedValue(new Error("Signal Score backend unreachable"));
+
+    const { store, wipe } = await resetStoreWithWipe();
+
+    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    expect(wipe.ok).toBe(false);
+    expect(wipe.error).toMatch(/unreachable|unavailable/i);
+    expect(store.conversations).toHaveLength(
+      EXPECTED_TESTING_JSON.conversations
+    );
   });
 });
 

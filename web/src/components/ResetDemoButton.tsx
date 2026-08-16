@@ -19,13 +19,20 @@ export function ResetDemoButton() {
   async function reset() {
     setLoading(true);
     try {
-      await fetch("/api/store", {
+      const res = await fetch("/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reset" }),
       });
+      const data = (await res.json().catch(() => ({}))) as {
+        wipeFailed?: boolean;
+      };
       router.refresh();
-      router.push(viewHref("insights"));
+      router.push(
+        viewHref("insights", {
+          wipeFailed: data.wipeFailed ? "1" : undefined,
+        })
+      );
     } finally {
       setLoading(false);
       setConfirming(false);
@@ -36,7 +43,7 @@ export function ResetDemoButton() {
     return (
       <span className="inline-flex flex-wrap items-center gap-2">
         <span className="text-label-13 text-ds-gray-900" role="status">
-          Reset demo data?
+          Wipe this tenant’s Neon chats and reviews, then reseed the demo?
         </span>
         <button
           ref={confirmRef}

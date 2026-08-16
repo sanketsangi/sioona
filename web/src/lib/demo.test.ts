@@ -20,9 +20,20 @@ describe("runPartnerDemo", () => {
   });
 
   it("resets and loads only testing.json showcase corpus", async () => {
+    const wipeSpy = vi
+      .spyOn(backendClient, "wipeTenantData")
+      .mockResolvedValue({
+        conversations: 0,
+        messages: 0,
+        predictions: 0,
+        feedback: 0,
+        pilot_settings: 0,
+      });
     const putPilotSpy = vi.spyOn(backendClient, "putPilotSettings");
     const result = await runPartnerDemo();
 
+    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    expect(result.wipe.ok).toBe(true);
     expect(result.samples).toEqual(["testing.json"]);
     expect(result.importedConversations).toBe(EXPECTED_TESTING_JSON.conversations);
     expect(result.newSignals).toBeGreaterThan(0);
@@ -71,5 +82,6 @@ describe("runPartnerDemo", () => {
     );
     expect(again.store.pilot?.weeklyExportCount).toBeUndefined();
     expect(putPilotSpy).not.toHaveBeenCalled();
+    expect(wipeSpy).toHaveBeenCalledTimes(2);
   });
 });

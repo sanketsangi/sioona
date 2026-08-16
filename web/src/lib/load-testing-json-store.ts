@@ -52,7 +52,7 @@ export interface LoadTestingJsonOptions {
 /**
  * Load the showcase corpus (testing.json) into the JSON store:
  * parse → toStoreRecords → detect → optional dual-write (chats + predictions) → writeStore.
- * Used by cold open / resetStore and Run Partner Demo.
+ * Used by cold open (no wipe), resetStore (wipe then seed), and Run Partner Demo.
  */
 export async function loadTestingJsonIntoStore(
   options?: LoadTestingJsonOptions
