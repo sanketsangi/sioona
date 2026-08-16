@@ -1,4 +1,6 @@
 ---
+description: Geist / Vercel visual SoT — sio-* tokens, typography, materials
+globs: web/src/app/**/*.tsx,web/src/components/**/*.tsx,web/src/app/globals.css
 alwaysApply: false
 ---
 

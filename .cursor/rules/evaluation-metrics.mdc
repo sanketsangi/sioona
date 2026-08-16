@@ -3,11 +3,8 @@ alwaysApply: false
 ---
 
 # ============================================================
-
 # FEATURE: Evaluation Metrics – Signal Score
-
 # Priority: CRITICAL
-
 # ============================================================
 
 ## Why this feature is critical
@@ -25,37 +22,45 @@ This feature must be treated as high-priority, clean, and production-grade.
 
 ## Core Definition
 
-Signal Score = (Number of signals marked "correct" by humans) / (Total signals reviewed by humans)
+**Pilot win metric (SoT):** human **keep-set** SignalScore on the Eval **week window** (`reviewed_at` / `?scoreFrom=`) ≥80% — see `.cursor/docs/PROJECT_STATE.md`. Empty week window → Reviewed 0 / **Insufficient Data**, never a labeled-fixture Go.
+
+Signal types (only): `lead` | `retention` | `upsell`.
+
+Feedback labels (only): `correct` | `incorrect` | `partially_correct`.
+
+Keep-set SignalScore = correct / (correct + incorrect) among human-reviewed signals in the keep set for the selected week window (orphan Partner Demo rows excluded from the keep set, not deleted). Labeled precision/recall on fixtures is **not** the customer claim.
 
 We also track:
 
-- Per-signal-type breakdown (lead, upsell, retention_risk, churn_risk, fraud, etc.)
-- Basic support for Precision / Recall when labeled evaluation data is available
+- Per-signal-type breakdown (`lead`, `retention`, `upsell`)
+- Basic support for Precision / Recall when labeled evaluation data is available (pack / CLI only)
 
 ## Strict Rules for this feature
 
 ### Data & Models
 
 - Every prediction must be stored with: tenant_id, conversation_id, signal_type, confidence, summary, created_at
-- Every human feedback must be stored with: signal_id, feedback (correct / incorrect / partially_correct), optional note, reviewed_by, reviewed_at
+- Every human feedback must be stored with: signal_id, feedback (`correct` / `incorrect` / `partially_correct`), optional note, reviewed_by, reviewed_at
 - Always keep multi-tenancy (tenant_id) on every table/query
 - Never delete feedback data (it is valuable training signal)
+- Signal Score + pending queue SoT: FastAPI + Neon (`backend/`) — do not invent a parallel score path
 
 ### Calculation Rules
 
 - Signal Score must only be calculated from human-reviewed signals
-- Support filtering by: tenant, date range, signal_type
+- Pilot Eval uses keep-set + week window (not “all reviewed forever” as the go/no-go claim)
+- Support filtering by: tenant, date range / week window, signal_type
 - Keep the calculation simple and transparent
 - Avoid over-engineering (no complex weighting in v1)
 
 ### API & Service Rules
 
-- Create clean service functions for:
+- Prefer existing FastAPI services/endpoints for:
   - Recording a prediction
   - Recording human feedback
   - Calculating Signal Score
-- Expose clear FastAPI endpoints for feedback submission and score retrieval
 - All endpoints must be tenant-aware
+- Do **not** rebuild Signal Score / week-window / keep-set features already shipped
 
 ### Code Quality
 
@@ -67,26 +72,26 @@ We also track:
 
 ### What NOT to do in this feature
 
-- Do not build the full dashboard UI yet
+- Do not invent signal types (`retention_risk`, `churn_risk`, `fraud`, etc.)
+- Do not use legacy feedback names (`accept` / `reject` / `wrong_reason`)
+- Do not treat labeled P/R as the pilot go/no-go
 - Do not implement full Precision/Recall pipelines unless explicitly asked
 - Do not add complex ML evaluation frameworks
 - Do not weaken multi-tenancy
-- Do not hardcode signal types in a way that is difficult to extend
 
 ## Implementation Preference
 
-When asked to build this feature:
+When asked to change this feature:
 
-1. First outline the files and data models
-2. Then implement models
-3. Then services (especially Signal Score calculation)
-4. Then API routes
-5. Keep everything focused only on Evaluation Metrics / Signal Score
+1. Read `.cursor/docs/PROJECT_STATE.md` + existing `backend/` score/feedback services first
+2. Outline the files and data models if a real gap exists
+3. Extend services/API only — do not rebuild
+4. Keep everything focused only on Evaluation Metrics / Signal Score
 
 ## Success Criteria for this feature
 
 - We can record model predictions
-- Humans can mark signals as correct / incorrect
-- We can calculate and return Signal Score (overall + per signal type)
+- Humans can mark signals as `correct` / `incorrect` / `partially_correct`
+- We can calculate and return keep-set Signal Score (overall + per `lead` / `retention` / `upsell`) for a week window
 - The system is multi-tenant safe
 - The code is clean enough to extend later with Precision/Recall

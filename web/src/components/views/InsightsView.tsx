@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
-// Week1PilotStrip + SignalScoreSummary stay off Insights — quiet footer trust line only.
+// SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import {
   customerNameFromExternalId,

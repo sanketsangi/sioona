@@ -128,8 +128,8 @@ Concise rules for building accessible, fast, delightful UIs. Use MUST/SHOULD/NEV
 
 ## Dark Mode & Theming
 
-- MUST: `color-scheme: light` on `<html>` (product default is light)
-- SHOULD: `<meta name="theme-color">` matches page background (`#ffffff`)
+- MUST: `color-scheme: dark` on `<html>` for dark themes
+- SHOULD: `<meta name="theme-color">` matches page background
 - MUST: Native `<select>`: explicit `background-color` and `color` (Windows fix)
 
 ## Hydration

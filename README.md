@@ -3,7 +3,6 @@
 **Signals into Revenue** — overlay conversation intelligence for finance and high-volume chat teams.
 
 - Product brief: [PRODUCT.md](./PRODUCT.md)
-- Source blueprint: [Grok NLP Report.pdf](./Grok%20NLP%20Report.pdf)
 - App (Insights / Shadow Mode): [web/](./web/)
 - Signal Score API (FastAPI + Neon): [backend/](./backend/)
 

@@ -8,36 +8,37 @@ alwaysApply: false
 
 Sits on top of existing chat tools (Intercom, Zendesk, WhatsApp, etc.). **Not** a chatbot replacement.
 
-## Phase 1 MVP loop (build this)
+**Now:** 2-week Shadow Mode pilot — win = keep-set SignalScore ≥80% on Eval (week window), not labeled P/R and not more Adapt phrase tuning. Phase 1 loop is **largely built / hosted**; do not treat this rule as “build MVP from scratch.” Stack / blockers: `.cursor/docs/PROJECT_STATE.md`. North star: `.cursor/plans/sioona_product_context.md`.
 
-Ingest export → detect → Shadow Mode Insights → SignalScore feedback → pragmatic adapt (taxonomy overrides) → eval / lift vs baseline.
+## Phase 1 loop (largely built)
+
+Ingest export → detect → Shadow Mode Insights → SignalScore feedback → Adapt → Eval keep-set go/no-go vs partner baseline.
 
 Prove domain signal detection beats the customer’s current process with enough precision to earn trust.
 
-**Domain adaptation in Phase 1** = merge partner SignalScore feedback into store taxonomy overrides used by `detect.ts`. Detect v2 adds an optional Groq Qwen second pass (`DETECT_LLM=1`) — still not QLoRA / vLLM / LangGraph.
+**Adapt** = merge partner SignalScore into store taxonomy **overrides** used by `detect.ts` — not taxonomy expansion, not more phrase packs unless Eval proves a gap. Detect v2 (heuristics + optional Groq miss-pass) is **closed** — do not reopen Detect / phrase-tuning. Still not QLoRA / vLLM / LangGraph.
 
-## In scope
+## In play (shipped for pilot)
 
 - Chat ingest (Sioona CSV/JSON, Intercom JSON export, WhatsApp Business `.txt`)
-- Core signals: `lead`, `retention`, `upsell`
+- Core signals: `lead`, `retention`, `upsell` (primary Detect wedge: **retention**)
 - Scoring, summaries, suggested actions (**display-only**)
 - Insights dashboard + Shadow Mode review queue
-- SignalScore feedback (`accept` / `reject` / `wrong_reason`)
-- Taxonomy overrides from rejects / wrong_reason; partner baseline + lift
-- Conversation `groundTruth` labeling for partner eval
-- Basic eval (labeled + human-review precision, ≥80% go/no-go)
+- SignalScore feedback; Adapt overrides; partner baseline + lift
+- Conversation `groundTruth` + Eval (keep-set ≥80% go)
 
 ## Out of scope unless explicitly asked
 
-- Autonomous actions, computer-use, agent swarm
-- Auth0 / Neon / pgvector / vLLM / LangGraph / QLoRA scaffolds
+- Autonomous actions / Action Mode outbound, computer-use, agent swarm
+- Auth0 / pgvector / vLLM / LangGraph / QLoRA scaffolds
 - Live Intercom/WhatsApp webhooks
 - Outcome-based billing, on-prem, chatbot replacement
+- Taxonomy expansion / more Adapt phrase tuning to chase recall
 - Navy+cyan or Slash/gold branding (UI SoT is Geist rule)
 
 ## Agent sources of truth
 
 - **Current work / stack / blockers:** `.cursor/docs/PROJECT_STATE.md` (update when heading changes)
 - Code: `web/` + `backend/`
-- Locked brief: `.cursor/plans/sioona_product_context.md`
-- `Grok NLP Report.pdf` is image-only — do not rely on grepping it
+- Locked brief (company construction / north star): `.cursor/plans/sioona_product_context.md`
+- Grok NLP Report PDF retired — north star absorbed into that construction file

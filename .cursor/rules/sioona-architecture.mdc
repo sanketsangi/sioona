@@ -7,17 +7,19 @@ alwaysApply: true
 
 Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages/`. Do not apply parent Expo RN rules.
 
+**Living stack / blockers / Neon pilot detail:** `.cursor/docs/PROJECT_STATE.md` (hydrate, week-scoped SignalScore, Adapt/pilot restore — not duplicated here).
+
 ## Stack (current ≠ target)
 
 | Layer | Current (code) | Do not assume until asked |
 |-------|----------------|---------------------------|
 | App | Next.js 15 App Router, React 19, Tailwind, Geist (`web/`) | — |
 | API | FastAPI Signal Score (`backend/`) | Auth0-gated multi-tenant API |
-| Detect | Keyword heuristics (`detect.ts`) + optional Groq Qwen pass 2 (`detect-llm.ts`, `DETECT_LLM=1`) | vLLM / LangGraph / QLoRA |
-| Data | JSON file store for chats/messages/taxonomy (`store.ts`) + **Neon** for SignalScore + Shadow Mode queue + dual-written conversations/messages + conversation `ground_truth` | Full Neon chat SoT + taxonomy + pgvector |
-| Auth | None (`X-Tenant-Id` header to backend) | Auth0 |
+| Detect | Heuristics (`detect.ts`) + optional Groq pass 2 (`detect-llm.ts`; **Detect v2 closed / hosted**) | vLLM / LangGraph / QLoRA |
+| Data | JSON `store.ts` for chats/taxonomy (UI SoT when file exists) + **Neon** for SignalScore, needs-review queue, dual-written conversations/messages, `ground_truth`, Acted, pilot settings + hydrate | Full Neon chat SoT + taxonomy + pgvector |
+| Auth | `X-Tenant-Id` header (`tenant_demo`) | Auth0 |
 
-**Signal Score + pending queue SoT:** FastAPI + Neon (`backend/`). Insights pending list uses `GET …/needs-review` joined to JSON signals for evidence. JSON `reviewPrecision` is a legacy mirror when the backend is unreachable.
+**Signal Score + pending queue SoT:** FastAPI + Neon (`backend/`). Insights pending: `GET …/needs-review` → `join-needs-review.ts`. JSON `reviewPrecision` is a legacy mirror when the backend is unreachable.
 
 ## Layout
 
@@ -34,9 +36,8 @@ Path alias: `@/*` → `./src/*` (web).
 
 - Types: `web/src/lib/types.ts`
 - Taxonomy SoT: `web/src/lib/taxonomy.ts` (not `taxonomy.json`)
-- Detect / ingest / eval / format / store: matching files in `web/src/lib/`
+- Detect / ingest / eval / format / store / hydrate / sync: matching files in `web/src/lib/`
 - Detect v2 (hybrid): `web/src/lib/detect-llm.ts` — heuristics first; Groq only on misses; off without `DETECT_LLM=1` + `GROQ_API_KEY`
-- Agent project state: `.cursor/docs/PROJECT_STATE.md` (update on milestones)
 - Signal Score client: `web/src/lib/backend-client.ts`
 - Backend models/services: `backend/app/`
 - Tokens + utilities: `web/src/app/globals.css`

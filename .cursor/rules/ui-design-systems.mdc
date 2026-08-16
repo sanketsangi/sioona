@@ -6,6 +6,10 @@ alwaysApply: true
 
 When working on frontend UI, follow a Vercel-like design language.
 
+**Tokens / typography / focus:** prefer semantic `sio-*` / `--sio-*` in `web/src/app/globals.css`. Full token layers and component rules: `.cursor/rules/geist-design-system.mdc` (open when shipping UI chrome — not every turn).
+
+**Locked signal chrome:** reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser` — do not invent parallel status/score/type UI.
+
 ## Visual direction
 
 - Clean, minimal, calm, product-focused
@@ -59,7 +63,7 @@ When working on frontend UI, follow a Vercel-like design language.
 
 ## Do NOT
 
-- Make it look like a consumer consumer AI toy
+- Make it look like a consumer AI toy
 - Use glassmorphism, neon glows, or heavy gradients
 - Overuse icons
 - Create inconsistent button styles

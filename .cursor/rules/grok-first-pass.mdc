@@ -29,9 +29,9 @@ Use this structure. Drop a section only if it truly does not apply.
 - **Goal:** one sentence outcome (what works when they click through).
 - **Users:** who this is for (default: founder + partner reviewers on Shadow Mode).
 - **Must-work interactions (3–5):** infer from the sketch; include empty, error, and dense if UI.
-- **Visual language:** existing Vercel / shadcn / Geist / zinc in `web/`. No new design system, no toy-AI chrome.
-- **Stack / constraints:** Next.js `web/` + FastAPI `backend/`. Taxonomy SoT `web/src/lib/taxonomy.ts`. Insights pending = FastAPI `needs-review` + `join-needs-review.ts`. Detect = heuristics + optional Groq. Dual-write predictions. Never commit `*.local.csv` / PII / `store.json`.
-- **Non-goals unless they named them:** Auth0, vLLM, LangGraph, pgvector, Action Mode, taxonomy expansion to fake recall, live outbound send.
+- **Visual language:** existing Vercel / shadcn / Geist / zinc in `web/`. No new design system, no toy-AI chrome. Locked signal chrome: reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser` — do not invent parallel status/score/type/avatar UI.
+- **Stack / constraints:** Next.js `web/` + FastAPI `backend/`. Taxonomy SoT `web/src/lib/taxonomy.ts`. Insights pending = FastAPI `needs-review` + `join-needs-review.ts`. Detect = heuristics + optional Groq. Dual-write predictions. Pilot win = keep-set SignalScore ≥80% (week window), not labeled P/R. Never commit `*.local.csv` / PII / `store.json`.
+- **Non-goals unless they named them:** Auth0, vLLM, LangGraph, pgvector, Action Mode, taxonomy expansion to fake recall, more Adapt phrase tuning, FastAPI classify, Groq rate-limit scaffolding, live outbound send.
 - **Pass 1:** research just enough → ship structure + visual language + core interactions in one pass → run tests/typecheck → stop with real vs stubbed.
 - **Follow-ups:** iteration, not a rewrite.
 
@@ -40,6 +40,7 @@ Use this structure. Drop a section only if it truly does not apply.
 - First pass = substantial working version, not a plan-only reply.
 - Stay on the job: tools → check → fix → continue. Self-verify before stopping (tests, typecheck, or the UI path you can run).
 - Match existing files and patterns. Do not add a parallel data path or design language.
+- If the change alters heading, stack, or blockers, update `.cursor/docs/PROJECT_STATE.md`.
 - End with: files changed, what is real vs stubbed, commands run, what to click.
 
 ## Tiny sketch → expanded (example)
