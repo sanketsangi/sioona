@@ -6,21 +6,153 @@ import {
 } from "@/lib/backend-client";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
 import { readStore, setSignalFeedback, writeStore } from "@/lib/store";
-import type { FeedbackLabel, Signal } from "@/lib/types";
+import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
 
 const LABELS: FeedbackLabel[] = ["correct", "incorrect", "partially_correct"];
+const KNOWN_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 const DEFAULT_REVIEWER = "shadow_reviewer";
+
+type FeedbackBody = {
+  label?: FeedbackLabel;
+  note?: string;
+  reviewed_by?: string;
+  /** Neon prediction UUID when JSON id drifted across Vercel instances. */
+  backendSignalId?: string;
+  conversationId?: string;
+  type?: SignalType;
+  confidence?: number;
+  summary?: string;
+};
+
+function asSignalType(raw: unknown): SignalType | null {
+  if (typeof raw !== "string") return null;
+  return KNOWN_TYPES.has(raw as SignalType) ? (raw as SignalType) : null;
+}
+
+/**
+ * Resolve JSON signal when URL id is stale (hydrate / ephemeral /tmp drift).
+ * Prefer exact id, then Neon UUID, then conversation+type from the client body.
+ */
+export function resolveFeedbackSignal(
+  signals: Signal[],
+  id: string,
+  body: Pick<FeedbackBody, "backendSignalId" | "conversationId" | "type">
+): Signal | undefined {
+  const byId = signals.find((s) => s.id === id);
+  if (byId) return byId;
+
+  const backendId = body.backendSignalId?.trim();
+  if (backendId) {
+    const byBackend = signals.find((s) => s.backendSignalId === backendId);
+    if (byBackend) return byBackend;
+  }
+
+  const conversationId = body.conversationId?.trim();
+  const type = asSignalType(body.type);
+  if (conversationId && type) {
+    return signals.find(
+      (s) => s.conversationId === conversationId && s.type === type
+    );
+  }
+
+  return undefined;
+}
+
+function isPredictionMissingError(err: unknown): boolean {
+  return err instanceof BackendClientError && err.status === 404;
+}
+
+function feedbackPayload(
+  label: FeedbackLabel,
+  body: FeedbackBody
+): {
+  feedback: FeedbackLabel;
+  reviewed_by: string;
+  note?: string;
+} {
+  return {
+    feedback: label,
+    reviewed_by: body.reviewed_by?.trim() || DEFAULT_REVIEWER,
+    note: body.note,
+  };
+}
+
+/**
+ * Submit feedback; if the stored Neon UUID is stale (wipe / instance drift),
+ * upsert prediction by conversation+type and retry once.
+ */
+async function submitFeedbackRecoveringStaleId(opts: {
+  tenantId: string;
+  predictionId: string | undefined;
+  conversationId: string;
+  signalType: SignalType;
+  confidence: number;
+  summary: string;
+  label: FeedbackLabel;
+  body: FeedbackBody;
+}): Promise<string> {
+  const payload = feedbackPayload(opts.label, opts.body);
+  let predictionId = opts.predictionId?.trim() || undefined;
+  const canRecreate =
+    Boolean(opts.conversationId.trim()) && Boolean(opts.signalType);
+
+  if (predictionId) {
+    try {
+      await submitFeedback(opts.tenantId, predictionId, payload);
+      return predictionId;
+    } catch (err) {
+      if (!isPredictionMissingError(err) || !canRecreate) throw err;
+      // Stale UUID — fall through to upsert + retry.
+    }
+  } else if (!canRecreate) {
+    throw new BackendClientError("Signal not found", 404);
+  }
+
+  const created = await createPrediction(opts.tenantId, {
+    conversation_id: opts.conversationId,
+    signal_type: opts.signalType,
+    confidence: opts.confidence,
+    summary: opts.summary,
+  });
+  predictionId = created.id;
+  await submitFeedback(opts.tenantId, predictionId, payload);
+  return predictionId;
+}
+
+function neonOnlyResponse(
+  tenantId: string,
+  id: string,
+  backendSignalId: string,
+  label: FeedbackLabel,
+  note?: string
+): Signal {
+  return {
+    id,
+    tenantId,
+    conversationId: "",
+    type: "lead",
+    score: 0,
+    confidence: 0,
+    summary: "",
+    suggestedAction: "",
+    evidence: [],
+    status: "reviewed",
+    createdAt: new Date().toISOString(),
+    backendSignalId,
+    feedback: {
+      label,
+      note,
+      reviewedAt: new Date().toISOString(),
+    },
+  };
+}
 
 export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const body = (await request.json()) as {
-    label?: FeedbackLabel;
-    note?: string;
-    reviewed_by?: string;
-  };
+  const body = (await request.json()) as FeedbackBody;
 
   if (!body.label || !LABELS.includes(body.label)) {
     return NextResponse.json(
@@ -34,18 +166,50 @@ export async function POST(
 
   const store = await readStore();
   const neonStubId = neonPredictionIdFromStubSignalId(id);
-  const existing = store.signals.find((s) => s.id === id);
-  const mirrorByBackendId = neonStubId
-    ? store.signals.find((s) => s.backendSignalId === neonStubId)
-    : undefined;
+  const bodyBackendId = body.backendSignalId?.trim() || undefined;
+  const existing = resolveFeedbackSignal(store.signals, id, body);
+  const bodyConversationId = body.conversationId?.trim() || undefined;
+  const bodyType = asSignalType(body.type);
 
-  // Neon stub with no JSON row: submit feedback by prediction UUID only.
-  if (neonStubId && !existing) {
+  // Neon-only: stub / client UUID when JSON row is missing (hosted drift).
+  if (!existing) {
+    const canRecreate = Boolean(bodyConversationId && bodyType);
+    const predictionId = neonStubId || bodyBackendId;
+
+    if (!predictionId && !canRecreate) {
+      return NextResponse.json({ error: "Signal not found" }, { status: 404 });
+    }
+
     try {
-      await submitFeedback(store.tenant.id, neonStubId, {
-        feedback: body.label,
-        reviewed_by: body.reviewed_by?.trim() || DEFAULT_REVIEWER,
-        note: body.note,
+      const liveId = await submitFeedbackRecoveringStaleId({
+        tenantId: store.tenant.id,
+        predictionId,
+        conversationId: bodyConversationId ?? "",
+        signalType: bodyType ?? "lead",
+        confidence:
+          typeof body.confidence === "number" && Number.isFinite(body.confidence)
+            ? body.confidence
+            : 0,
+        summary: typeof body.summary === "string" ? body.summary : "",
+        label: body.label,
+        body,
+      });
+
+      const mirror = store.signals.find((s) => s.backendSignalId === liveId);
+      if (mirror) {
+        const signal = await setSignalFeedback(mirror.id, body.label, body.note);
+        return NextResponse.json({ signal, neonOnly: false });
+      }
+
+      return NextResponse.json({
+        signal: neonOnlyResponse(
+          store.tenant.id,
+          id,
+          liveId,
+          body.label,
+          body.note
+        ),
+        neonOnly: true,
       });
     } catch (err) {
       const message =
@@ -56,69 +220,24 @@ export async function POST(
         err instanceof BackendClientError && err.status === 404 ? 404 : 503;
       return NextResponse.json({ error: message }, { status });
     }
-
-    if (mirrorByBackendId) {
-      const signal = await setSignalFeedback(
-        mirrorByBackendId.id,
-        body.label,
-        body.note
-      );
-      return NextResponse.json({ signal, neonOnly: false });
-    }
-
-    const neonOnlySignal: Signal = {
-      id,
-      tenantId: store.tenant.id,
-      conversationId: "",
-      type: "lead",
-      score: 0,
-      confidence: 0,
-      summary: "",
-      suggestedAction: "",
-      evidence: [],
-      status: "reviewed",
-      createdAt: new Date().toISOString(),
-      backendSignalId: neonStubId,
-      feedback: {
-        label: body.label,
-        note: body.note,
-        reviewedAt: new Date().toISOString(),
-      },
-    };
-    return NextResponse.json({ signal: neonOnlySignal, neonOnly: true });
-  }
-
-  if (!existing) {
-    return NextResponse.json({ error: "Signal not found" }, { status: 404 });
-  }
-
-  let backendSignalId = existing.backendSignalId;
-  if (!backendSignalId) {
-    try {
-      const created = await createPrediction(store.tenant.id, {
-        conversation_id: existing.conversationId,
-        signal_type: existing.type,
-        confidence: existing.confidence,
-        summary: existing.summary,
-      });
-      backendSignalId = created.id;
-      existing.backendSignalId = backendSignalId;
-      await writeStore(store);
-    } catch (err) {
-      const message =
-        err instanceof BackendClientError
-          ? err.message
-          : "Failed to register prediction with Signal Score backend";
-      return NextResponse.json({ error: message }, { status: 503 });
-    }
   }
 
   try {
-    await submitFeedback(store.tenant.id, backendSignalId, {
-      feedback: body.label,
-      reviewed_by: body.reviewed_by?.trim() || DEFAULT_REVIEWER,
-      note: body.note,
+    const liveId = await submitFeedbackRecoveringStaleId({
+      tenantId: store.tenant.id,
+      predictionId: existing.backendSignalId || bodyBackendId,
+      conversationId: existing.conversationId,
+      signalType: existing.type,
+      confidence: existing.confidence,
+      summary: existing.summary,
+      label: body.label,
+      body,
     });
+
+    if (existing.backendSignalId !== liveId) {
+      existing.backendSignalId = liveId;
+      await writeStore(store);
+    }
   } catch (err) {
     const message =
       err instanceof BackendClientError
@@ -129,7 +248,7 @@ export async function POST(
     return NextResponse.json({ error: message }, { status });
   }
 
-  const signal = await setSignalFeedback(id, body.label, body.note);
+  const signal = await setSignalFeedback(existing.id, body.label, body.note);
   if (!signal) {
     return NextResponse.json({ error: "Signal not found" }, { status: 404 });
   }

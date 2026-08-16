@@ -91,7 +91,19 @@ export function FeedbackControls({
       const res = await fetch(`/api/signals/${signal.id}/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label, note: note.trim() || undefined }),
+        body: JSON.stringify({
+          label,
+          note: note.trim() || undefined,
+          // Hosted /tmp drift: API resolves by Neon UUID or conversation+type
+          // when the JSON signal id from this card is missing on the instance.
+          ...(signal.backendSignalId
+            ? { backendSignalId: signal.backendSignalId }
+            : {}),
+          conversationId: signal.conversationId,
+          type: signal.type,
+          confidence: signal.confidence,
+          summary: signal.summary,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };

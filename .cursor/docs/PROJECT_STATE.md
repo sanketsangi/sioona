@@ -14,10 +14,13 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
 
+**This week (ops, 2026-08-16):** Cleanup/docs closed — back to pilot only. Hosted health OK (`sioona-api` `/health`, Insights pending **6**, Eval This Week From **2026-08-09** → Reviewed **0** / **Insufficient Data**). Cadence: mid-week upsert `replaced=false` → ≥5 keep-set reviews in window → Eval `?scoreFrom=` go ≥80%. Do not start Auth0 / vLLM / Adapt phrases / UI polish.
+
 | Gate | Result |
 | --- | --- |
 | Week-1 keep-set (sioona-demo) | n=6 / correct=5 / incorrect=1 / **0.83 → go**; baseline **12**; lift **23** |
 | Week-2 keep-set (sioona-demo) | n=7 / correct=7 / incorrect=0 / **1.00 → go**; baseline **12**; lift **6** (18−12). Not week-1 0.83 |
+| This week keep-set (sioona-demo) | **open** — Reviewed 0 in window (2026-08-16 check) |
 | Week-1 labeled Adapt CLI | P **1.00** / R **1.00** (23 labeled) — pack only; **not** a customer claim |
 | Week-2 held-out Adapt CLI | P **0.89** / R **0.55** (34 labeled) — not week-1 1.00 |
 
@@ -85,6 +88,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Week-scoped SignalScore + empty-window Insufficient Data — **hosted** (PR #34 + #37)
 - Week-1 / Week-2 dry-runs logged (go above); week-2 held-out CLI scored; Zerodha Adapt shipped 2026-08-15 (stop phrase tuning)
 - Insights chrome 2026-08-15 (dashboard header, Performance metrics, Mark Acted, Eval export panel)
+- Feedback stale-UUID recovery 2026-08-16 — resolve by Neon id / conversation+type; upsert+retry on 404 (hosted Correct without “not found for tenant”)
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 
 ---
