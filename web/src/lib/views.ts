@@ -1,3 +1,8 @@
+import {
+  cadenceActionView,
+  type PilotCadenceAction,
+} from "@/lib/pilot-cadence";
+
 export type PlatformView = "insights" | "upload" | "eval" | "taxonomy";
 
 export type EvalPanel = "metrics" | "adapt" | "labeled" | "export";
@@ -61,4 +66,40 @@ export function viewHref(
     }
   }
   return `/?${params.toString()}`;
+}
+
+/** Cadence CTA href — Acted deep-links to the first Correct review panel. */
+export function cadenceActionHref(
+  action: PilotCadenceAction,
+  extras?: { scoreFrom?: string | null; preview?: string | null }
+): string {
+  if (action.id === "acted") {
+    return viewHref("insights", {
+      scoreFrom: extras?.scoreFrom,
+      status: "reviewed",
+      preview: extras?.preview,
+    });
+  }
+  return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom });
+}
+
+/**
+ * After Mark as Acted on a Correct review: next Correct panel, or Insights
+ * queue (next-week upsert) when none remain. Null → stay and refresh.
+ */
+export function afterMarkActedHref(opts: {
+  acted: boolean;
+  feedbackLabel?: string | null;
+  nextPreviewId?: string | null;
+  scoreFrom?: string | null;
+}): string | null {
+  if (!opts.acted || opts.feedbackLabel !== "correct") return null;
+  if (opts.nextPreviewId) {
+    return viewHref("insights", {
+      scoreFrom: opts.scoreFrom,
+      status: "reviewed",
+      preview: opts.nextPreviewId,
+    });
+  }
+  return viewHref("insights", { scoreFrom: opts.scoreFrom });
 }

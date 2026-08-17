@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
+  cadenceActionCta,
+  cadenceActionView,
   computePilotCadenceSteps,
+  countUnactedCorrect,
+  firstUnactedCorrectId,
   hasMidWeekExport,
   hasPilotBaseline,
+  nextPilotCadenceAction,
   nextPilotCadenceStep,
+  nextUnactedCorrectId,
   PILOT_MIN_REVIEWS,
+  pilotCadenceHelperCopy,
 } from "./pilot-cadence";
 
 describe("computePilotCadenceSteps", () => {
@@ -56,6 +63,13 @@ describe("computePilotCadenceSteps", () => {
     });
     expect(afterBaseline.every((s) => s.done)).toBe(true);
     expect(nextPilotCadenceStep(afterBaseline)).toBeNull();
+    expect(nextPilotCadenceAction(afterBaseline)).toEqual({
+      id: "nextweek",
+      label: "Next week — re-upload weekly export",
+    });
+    expect(
+      nextPilotCadenceAction(afterBaseline, { unactedCorrectCount: 3 }).id
+    ).toBe("acted");
   });
 
   it("does not mark go/no-go before reviews and baseline", () => {
@@ -75,6 +89,107 @@ describe("computePilotCadenceSteps", () => {
         hasBaseline: false,
       }).find((s) => s.id === "gonogo")?.done
     ).toBe(false);
+  });
+});
+
+describe("nextPilotCadenceAction", () => {
+  it("points incomplete checklists at the first open step", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: 2,
+      hasBaseline: true,
+    });
+    expect(nextPilotCadenceAction(steps).id).toBe("reviews");
+    expect(cadenceActionView(nextPilotCadenceAction(steps))).toBe("insights");
+    expect(cadenceActionCta(nextPilotCadenceAction(steps))).toBe("Open Insights");
+  });
+
+  it("after go/no-go, Mark Acted on remaining Correct before next-week upsert", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: PILOT_MIN_REVIEWS,
+      hasBaseline: true,
+    });
+    const acted = nextPilotCadenceAction(steps, { unactedCorrectCount: 2 });
+    expect(acted.id).toBe("acted");
+    expect(cadenceActionView(acted)).toBe("insights");
+    expect(cadenceActionCta(acted)).toBe("Mark as Acted");
+    expect(pilotCadenceHelperCopy("insights", acted)).toMatch(/does not send/i);
+    expect(pilotCadenceHelperCopy("eval", acted)).toMatch(/Mark Acted/);
+  });
+
+  it("after go/no-go, next action is next week’s upsert not a dead end", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: PILOT_MIN_REVIEWS,
+      hasBaseline: true,
+    });
+    const action = nextPilotCadenceAction(steps);
+    expect(action.id).toBe("nextweek");
+    expect(cadenceActionView(action)).toBe("upload");
+    expect(cadenceActionCta(action)).toBe("Upload Weekly Export");
+    expect(pilotCadenceHelperCopy("insights", action)).toMatch(/Eval/);
+    expect(pilotCadenceHelperCopy("insights", action)).toMatch(/upsert/i);
+    expect(pilotCadenceHelperCopy("upload", action)).toMatch(/replaced=false|upsert/i);
+    expect(pilotCadenceHelperCopy("eval", action)).toMatch(/next week/i);
+  });
+});
+
+describe("countUnactedCorrect", () => {
+  it("counts Correct reviews that are not Acted", () => {
+    expect(
+      countUnactedCorrect([
+        { status: "reviewed", feedback: { label: "correct" } },
+        { status: "acted", feedback: { label: "correct" } },
+        { status: "reviewed", feedback: { label: "incorrect" } },
+        { status: "new" },
+      ])
+    ).toBe(1);
+  });
+});
+
+describe("firstUnactedCorrectId", () => {
+  it("returns the first Correct-not-Acted id", () => {
+    expect(
+      firstUnactedCorrectId([
+        { id: "acted", status: "acted", feedback: { label: "correct" } },
+        { id: "keep", status: "reviewed", feedback: { label: "correct" } },
+        { id: "later", status: "reviewed", feedback: { label: "correct" } },
+      ])
+    ).toBe("keep");
+    expect(
+      firstUnactedCorrectId([
+        { id: "acted", status: "acted", feedback: { label: "correct" } },
+      ])
+    ).toBeNull();
+  });
+});
+
+describe("nextUnactedCorrectId", () => {
+  const signals = [
+    { id: "a", status: "reviewed", feedback: { label: "correct" } },
+    { id: "skip", status: "reviewed", feedback: { label: "incorrect" } },
+    { id: "b", status: "reviewed", feedback: { label: "correct" } },
+    { id: "done", status: "acted", feedback: { label: "correct" } },
+    { id: "c", status: "reviewed", feedback: { label: "correct" } },
+  ];
+
+  it("walks to the next Correct-not-Acted and wraps", () => {
+    expect(nextUnactedCorrectId(signals, "a")).toBe("b");
+    expect(nextUnactedCorrectId(signals, "b")).toBe("c");
+    expect(nextUnactedCorrectId(signals, "c")).toBe("a");
+  });
+
+  it("returns null when no other Correct-not-Acted remains", () => {
+    expect(
+      nextUnactedCorrectId(
+        [{ id: "only", status: "reviewed", feedback: { label: "correct" } }],
+        "only"
+      )
+    ).toBeNull();
   });
 });
 

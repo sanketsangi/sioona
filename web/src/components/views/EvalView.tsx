@@ -16,8 +16,13 @@ import {
 } from "@/lib/eval";
 import { formatPercent } from "@/lib/format";
 import type { SignalScoreWindow } from "@/lib/signal-score-window";
-import { parseEvalPanel, viewHref, type EvalPanel } from "@/lib/views";
+import { parseEvalPanel, viewHref, cadenceActionHref, type EvalPanel } from "@/lib/views";
 import type { StoreData } from "@/lib/types";
+import {
+  cadenceActionCta,
+  pilotCadenceHelperCopy,
+  type PilotCadenceAction,
+} from "@/lib/pilot-cadence";
 
 function goNoGoLabel(value: "go" | "hold" | "insufficient_data"): string {
   switch (value) {
@@ -57,6 +62,8 @@ export function EvalView({
   backendScore = null,
   allTimeScore = null,
   scoreWindow,
+  cadenceAction,
+  cadencePreviewId = null,
 }: {
   store: StoreData;
   panelRaw?: string | null;
@@ -68,6 +75,8 @@ export function EvalView({
   /** Keep-set all-time score (display only; not go/no-go). */
   allTimeScore?: BackendSignalScore | null;
   scoreWindow: SignalScoreWindow;
+  cadenceAction: PilotCadenceAction;
+  cadencePreviewId?: string | null;
 }) {
   const panel = parseEvalPanel(panelRaw);
   const metrics = applyBackendSignalScore(
@@ -115,6 +124,8 @@ export function EvalView({
             baselineNote={store.pilot?.baselineNote}
             scoreWindow={scoreWindow}
             scoreFrom={scoreFrom}
+            cadenceAction={cadenceAction}
+            cadencePreviewId={cadencePreviewId}
           />
         ) : null}
         {panel === "adapt" ? (
@@ -148,6 +159,8 @@ function MetricsPanel({
   baselineNote,
   scoreWindow,
   scoreFrom,
+  cadenceAction,
+  cadencePreviewId = null,
 }: {
   metrics: EvalMetrics;
   pilot: PilotMetrics;
@@ -157,6 +170,8 @@ function MetricsPanel({
   baselineNote?: string;
   scoreWindow: SignalScoreWindow;
   scoreFrom: string | null;
+  cadenceAction: PilotCadenceAction;
+  cadencePreviewId?: string | null;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -229,7 +244,7 @@ function MetricsPanel({
       </div>
 
       <div className="surface-quiet shrink-0 px-3 py-2.5">
-        <p className="line-clamp-2 text-pretty text-label-13 text-sio-fg-subtle">
+        <p className="line-clamp-3 text-pretty text-label-13 text-sio-fg-subtle">
           {pilot.offerSummary}
           {pilot.goNoGo === "insufficient_data" ||
           pilot.reviewedCount < 5 ? (
@@ -251,7 +266,16 @@ function MetricsPanel({
               <span className="text-sio-fg-base">
                 {formatPercent(pilot.reviewPrecision)} Signal Score
               </span>
-              .
+              . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
+              <Link
+                href={cadenceActionHref(cadenceAction, {
+                  scoreFrom,
+                  preview: cadencePreviewId,
+                })}
+                className="link-accent"
+              >
+                {cadenceActionCta(cadenceAction)}
+              </Link>
             </>
           ) : (
             <> Hold until precision ≥80% — use Adapt, then re-review.</>

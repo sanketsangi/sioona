@@ -83,6 +83,12 @@ type SignalQueueProps = {
   queryExtras?: Record<string, string | undefined | null>;
   /** When false, filters are rendered by the parent (e.g. Insights header). */
   showFilters?: boolean;
+  /** Pending-empty (status=new) next step after a closed week — not “upload to populate”. */
+  pendingClear?: {
+    description: string;
+    href: string;
+    label: string;
+  } | null;
 };
 
 function buildQueueHref(
@@ -245,6 +251,7 @@ export function SignalQueue({
   previewId = null,
   queryExtras,
   showFilters = true,
+  pendingClear = null,
 }: SignalQueueProps) {
   const { pendingCount, reviewedCount, allCount, filtered } = useQueueList({
     pendingSignals,
@@ -430,16 +437,25 @@ export function SignalQueue({
               : "No Matching Signals"}
           </p>
           <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            {statusFilter === "new"
-              ? "Upload chats or re-run detection to dual-write predictions to Neon."
-              : "Try another filter, or clear filters to see the full queue."}
+            {statusFilter === "new" && pendingClear
+              ? pendingClear.description
+              : statusFilter === "new"
+                ? "Upload chats or re-run detection to dual-write predictions to Neon."
+                : "Try another filter, or clear filters to see the full queue."}
           </p>
-          <Link
-            href={queueHref({ status: "all", type: "all", page: 1 })}
-            className="btn-secondary mt-4"
-          >
-            Clear Filters
-          </Link>
+          {statusFilter === "new" && pendingClear ? (
+            <Link href={pendingClear.href} className="btn-primary mt-4">
+              {pendingClear.label}
+              <ArrowRight className="size-3.5" weight="bold" aria-hidden />
+            </Link>
+          ) : (
+            <Link
+              href={queueHref({ status: "all", type: "all", page: 1 })}
+              className="btn-secondary mt-4"
+            >
+              Clear Filters
+            </Link>
+          )}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">

@@ -17,6 +17,7 @@ import {
   type FeedbackSavedDetail,
 } from "@/lib/feedback-saved";
 import type { Signal } from "@/lib/types";
+import { afterMarkActedHref } from "@/lib/views";
 
 const ACTED_TOOLTIP = "Does not send the suggested action.";
 
@@ -25,7 +26,16 @@ const ACTED_TOOLTIP = "Does not send the suggested action.";
  * Mark as Acted ↔ Mark as Pending (undo keeps feedback; status → reviewed).
  * Stays available after feedback responds (optimistic + remount-safe).
  */
-export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
+export function MarkActedHeaderAction({
+  signal,
+  nextPreviewId = null,
+  scoreFrom = null,
+}: {
+  signal: Signal;
+  /** Next Correct-not-Acted after this panel (wraps; excludes current). */
+  nextPreviewId?: string | null;
+  scoreFrom?: string | null;
+}) {
   const router = useRouter();
   const [actedPending, setActedPending] = useState(false);
   const [actedLocal, setActedLocal] = useState<boolean | null>(null);
@@ -75,6 +85,16 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
         const data = (await res.json()) as { error?: string };
         throw new Error(data.error || "Failed to update acted status");
       }
+      const href = afterMarkActedHref({
+        acted,
+        feedbackLabel: signal.feedback?.label,
+        nextPreviewId,
+        scoreFrom,
+      });
+      if (href) {
+        router.push(href);
+        return;
+      }
       setActedLocal(acted);
       router.refresh();
     } catch (err) {
@@ -90,7 +110,7 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
   const ActionIcon = isActed ? ArrowCounterClockwise : Check;
 
   return (
-    <TooltipProvider delayDuration={0}>
+    <TooltipProvider delayDuration={400}>
       <div className="flex flex-wrap items-center gap-2">
         <p className="sr-only" aria-live="polite">
           {isActed
@@ -99,24 +119,26 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
         </p>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={actedPending}
-              aria-busy={actedPending}
-              onClick={() => void setActed(!isActed)}
-            >
-              {actedPending ? (
-                <ButtonSpinner />
-              ) : (
-                <ActionIcon
-                  className="size-3.5 shrink-0"
-                  weight="bold"
-                  aria-hidden
-                />
-              )}
-              {label}
-            </button>
+            <span className="inline-flex">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={actedPending}
+                aria-busy={actedPending}
+                onClick={() => void setActed(!isActed)}
+              >
+                {actedPending ? (
+                  <ButtonSpinner />
+                ) : (
+                  <ActionIcon
+                    className="size-3.5 shrink-0"
+                    weight="bold"
+                    aria-hidden
+                  />
+                )}
+                {label}
+              </button>
+            </span>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center">
             {ACTED_TOOLTIP}

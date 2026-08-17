@@ -91,11 +91,11 @@ export function UploadForm({
           `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — Neon sync incomplete`
         );
         setSyncWarning(
-          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights. 7-day pilot checklist continues there.`
+          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights.`
         );
       } else {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights for the 7-day pilot checklist…`
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights…`
         );
       }
       if (data.hint) setHint(data.hint);

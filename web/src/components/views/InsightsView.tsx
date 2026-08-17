@@ -32,8 +32,14 @@ import {
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
-import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
+import { cadenceActionHref, viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Message, StoreData } from "@/lib/types";
+import {
+  cadenceActionCta,
+  nextUnactedCorrectId,
+  pilotCadenceHelperCopy,
+  type PilotCadenceAction,
+} from "@/lib/pilot-cadence";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -63,6 +69,8 @@ export function InsightsView({
   syncCreated = 0,
   llmAdded = 0,
   llmFailed = 0,
+  cadenceAction,
+  cadencePreviewId = null,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -81,6 +89,9 @@ export function InsightsView({
   syncCreated?: number;
   llmAdded?: number;
   llmFailed?: number;
+  cadenceAction: PilotCadenceAction;
+  /** First Correct-not-Acted signal for cadence Mark Acted deep links. */
+  cadencePreviewId?: string | null;
 }) {
   const queueError = needsReview.ok ? null : needsReview.error;
   const pendingSignals = needsReview.ok
@@ -170,6 +181,10 @@ export function InsightsView({
     type: typeFilter === "all" ? null : typeFilter,
     page: page > 1 ? String(page) : null,
     preview: null,
+  });
+  const cadenceHref = cadenceActionHref(cadenceAction, {
+    scoreFrom,
+    preview: cadencePreviewId,
   });
 
   return (
@@ -277,9 +292,27 @@ export function InsightsView({
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-            ) : (
+            ) : pendingSignals.length > 0 ? (
               <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                 Conversation that needs your attention
+              </h2>
+            ) : reviewedSignals.length > 0 ? (
+              <div className="min-w-0">
+                <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                  {cadenceAction.id === "acted"
+                    ? "Mark Acted on Correct Reviews"
+                    : "No Conversations Need Review"}
+                </h2>
+                <p className="mt-1 max-w-xl text-pretty text-label-13 text-sio-fg-subtle">
+                  {pilotCadenceHelperCopy("insights", cadenceAction)}{" "}
+                  <Link href={cadenceHref} className="link-accent">
+                    {cadenceActionCta(cadenceAction)}
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                Shadow Mode Queue
               </h2>
             )}
           </div>
@@ -292,7 +325,14 @@ export function InsightsView({
                   typeLabel={signalTypeLabel(previewSignal.type)}
                   summary={previewSignal.summary || ""}
                 />
-                <MarkActedHeaderAction signal={previewSignal} />
+                <MarkActedHeaderAction
+                  signal={previewSignal}
+                  nextPreviewId={nextUnactedCorrectId(
+                    reviewedSignals,
+                    previewSignal.id,
+                  )}
+                  scoreFrom={scoreFrom}
+                />
               </>
             ) : (
               <SignalQueueFilters
@@ -322,6 +362,18 @@ export function InsightsView({
             previewId={previewId}
             queryExtras={queryExtras}
             showFilters={false}
+            pendingClear={
+              cadenceAction.id === "reviews"
+                ? null
+                : {
+                    description: pilotCadenceHelperCopy(
+                      "insights",
+                      cadenceAction,
+                    ),
+                    href: cadenceHref,
+                    label: cadenceActionCta(cadenceAction),
+                  }
+            }
           />
         </div>
       </div>
