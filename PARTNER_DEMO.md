@@ -34,6 +34,8 @@ Same strip on Upload, Insights, and Eval. No autonomous actions — suggested ne
 
 **Week-2 dry-run (2026-08-14):** CLI `--week2` scored held-out `week2.local.csv` (34 labeled; base P 0.75 / R 0.31; adapt P 0.89 / R 0.55 — not week-1 1.00). sioona-demo mid-week upsert `replaced=false` (34 chats / 18 signals / sync failed=0). **Week-window SignalScore logged:** keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **6** (18 − 12). Not week-1 n=6 / 0.83. Do not expand `taxonomy.ts`. Never commit `*.local.csv`.
 
+**This week keep-set (2026-08-17):** sioona-demo Day-1 replace of `partner-shaped-labeled.csv` (16 / 10) → mid-week **`replaced=false`** (`weekly_export_count` 2; sync failed=0) → **6** Correct reviews → Eval `?scoreFrom=2026-08-17` keep-set **n=6 / correct=6 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **−2** (10 − 12). Not week-1 0.83 / not week-2 n=7.
+
 **Week-2 share-outs:** Eval / Insights SignalScore and go/no-go use the **review window** (`feedback.reviewed_at`, default last 7 days UTC) ∩ conversation keep-set — not the recycled week-1 n=6 alone. Empty window → 0 reviewed / null score / **Insufficient Data** until new reviews land (hosted verified PR #37 on sioona-demo — no labeled-fixture Go shortcut). On Eval Metrics, pick **This Week** or a From date (`?scoreFrom=`); Insights preserves the param; `SIGNAL_SCORE_FROM` remains a server override.
 
 ## With a partner file
