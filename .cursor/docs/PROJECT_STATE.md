@@ -65,6 +65,7 @@ Template hybrid (historical): heuristic P 0.92 / R 0.41 → hybrid P 0.93 / R 0.
 
 ## 4. Repo map
 
+**Architecture (Ask SoT):** [`.cursor/docs/architecture.md`](./architecture.md) — topology, dual SoT, Detect, backend surface, seams.  
 Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib/`. Backend: `backend/app/`. Signal chrome locked: `SignalStatus` / `SignalScoreChip` / `SignalTypeChip` / `SignalUser`. Rules: `sioona-architecture.mdc`, `sioona-domain.mdc`, `sioona-product.mdc`, `architect.mdc`. Alias `@/*` → `web/src/*`.
 
 ---
@@ -108,6 +109,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 ## 8. How to work
 
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
+- Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && pytest`.
-- Update **this file** when heading, stack, or blockers change.
+- Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
