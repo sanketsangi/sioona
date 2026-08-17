@@ -110,7 +110,7 @@ export function MarkActedHeaderAction({
   const ActionIcon = isActed ? ArrowCounterClockwise : Check;
 
   return (
-    <TooltipProvider delayDuration={0}>
+    <TooltipProvider delayDuration={400}>
       <div className="flex flex-wrap items-center gap-2">
         <p className="sr-only" aria-live="polite">
           {isActed
@@ -119,24 +119,26 @@ export function MarkActedHeaderAction({
         </p>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={actedPending}
-              aria-busy={actedPending}
-              onClick={() => void setActed(!isActed)}
-            >
-              {actedPending ? (
-                <ButtonSpinner />
-              ) : (
-                <ActionIcon
-                  className="size-3.5 shrink-0"
-                  weight="bold"
-                  aria-hidden
-                />
-              )}
-              {label}
-            </button>
+            <span className="inline-flex">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={actedPending}
+                aria-busy={actedPending}
+                onClick={() => void setActed(!isActed)}
+              >
+                {actedPending ? (
+                  <ButtonSpinner />
+                ) : (
+                  <ActionIcon
+                    className="size-3.5 shrink-0"
+                    weight="bold"
+                    aria-hidden
+                  />
+                )}
+                {label}
+              </button>
+            </span>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center">
             {ACTED_TOOLTIP}
