@@ -17,6 +17,7 @@ import {
   type FeedbackSavedDetail,
 } from "@/lib/feedback-saved";
 import type { Signal } from "@/lib/types";
+import { afterMarkActedHref } from "@/lib/views";
 
 const ACTED_TOOLTIP = "Does not send the suggested action.";
 
@@ -25,7 +26,16 @@ const ACTED_TOOLTIP = "Does not send the suggested action.";
  * Mark as Acted ↔ Mark as Pending (undo keeps feedback; status → reviewed).
  * Stays available after feedback responds (optimistic + remount-safe).
  */
-export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
+export function MarkActedHeaderAction({
+  signal,
+  nextPreviewId = null,
+  scoreFrom = null,
+}: {
+  signal: Signal;
+  /** Next Correct-not-Acted after this panel (wraps; excludes current). */
+  nextPreviewId?: string | null;
+  scoreFrom?: string | null;
+}) {
   const router = useRouter();
   const [actedPending, setActedPending] = useState(false);
   const [actedLocal, setActedLocal] = useState<boolean | null>(null);
@@ -74,6 +84,16 @@ export function MarkActedHeaderAction({ signal }: { signal: Signal }) {
       if (!res.ok) {
         const data = (await res.json()) as { error?: string };
         throw new Error(data.error || "Failed to update acted status");
+      }
+      const href = afterMarkActedHref({
+        acted,
+        feedbackLabel: signal.feedback?.label,
+        nextPreviewId,
+        scoreFrom,
+      });
+      if (href) {
+        router.push(href);
+        return;
       }
       setActedLocal(acted);
       router.refresh();

@@ -204,15 +204,38 @@ export function countUnactedCorrect(
   return signals.filter(isUnactedCorrect).length;
 }
 
+type UnactedCorrectSignal = {
+  id: string;
+  status: string;
+  feedback?: { label: string } | null;
+};
+
 /** First Correct-not-Acted id for cadence `?preview=` deep links. */
 export function firstUnactedCorrectId(
-  signals: Array<{
-    id: string;
-    status: string;
-    feedback?: { label: string } | null;
-  }>
+  signals: Array<UnactedCorrectSignal>
 ): string | null {
   return signals.find(isUnactedCorrect)?.id ?? null;
+}
+
+/**
+ * Next Correct-not-Acted after `currentId` (wraps). Used after Mark as Acted.
+ * Excludes current even if it is still unacted (caller has just persisted Acted).
+ */
+export function nextUnactedCorrectId(
+  signals: Array<UnactedCorrectSignal>,
+  currentId: string
+): string | null {
+  const n = signals.length;
+  if (n === 0) return null;
+  const start = signals.findIndex((s) => s.id === currentId);
+  const from = start >= 0 ? start : 0;
+  for (let i = 1; i <= n; i++) {
+    const signal = signals[(from + i) % n];
+    if (signal.id !== currentId && isUnactedCorrect(signal)) {
+      return signal.id;
+    }
+  }
+  return null;
 }
 
 export function hasPilotBaseline(

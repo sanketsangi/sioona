@@ -82,3 +82,24 @@ export function cadenceActionHref(
   }
   return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom });
 }
+
+/**
+ * After Mark as Acted on a Correct review: next Correct panel, or Insights
+ * queue (next-week upsert) when none remain. Null → stay and refresh.
+ */
+export function afterMarkActedHref(opts: {
+  acted: boolean;
+  feedbackLabel?: string | null;
+  nextPreviewId?: string | null;
+  scoreFrom?: string | null;
+}): string | null {
+  if (!opts.acted || opts.feedbackLabel !== "correct") return null;
+  if (opts.nextPreviewId) {
+    return viewHref("insights", {
+      scoreFrom: opts.scoreFrom,
+      status: "reviewed",
+      preview: opts.nextPreviewId,
+    });
+  }
+  return viewHref("insights", { scoreFrom: opts.scoreFrom });
+}

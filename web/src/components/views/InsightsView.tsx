@@ -36,6 +36,7 @@ import { cadenceActionHref, viewHref, type StatusFilter, type TypeFilter } from 
 import type { Conversation, Message, StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
+  nextUnactedCorrectId,
   pilotCadenceHelperCopy,
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
@@ -324,7 +325,14 @@ export function InsightsView({
                   typeLabel={signalTypeLabel(previewSignal.type)}
                   summary={previewSignal.summary || ""}
                 />
-                <MarkActedHeaderAction signal={previewSignal} />
+                <MarkActedHeaderAction
+                  signal={previewSignal}
+                  nextPreviewId={nextUnactedCorrectId(
+                    reviewedSignals,
+                    previewSignal.id,
+                  )}
+                  scoreFrom={scoreFrom}
+                />
               </>
             ) : (
               <SignalQueueFilters

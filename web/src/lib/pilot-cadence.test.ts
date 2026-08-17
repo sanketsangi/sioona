@@ -9,6 +9,7 @@ import {
   hasPilotBaseline,
   nextPilotCadenceAction,
   nextPilotCadenceStep,
+  nextUnactedCorrectId,
   PILOT_MIN_REVIEWS,
   pilotCadenceHelperCopy,
 } from "./pilot-cadence";
@@ -163,6 +164,31 @@ describe("firstUnactedCorrectId", () => {
       firstUnactedCorrectId([
         { id: "acted", status: "acted", feedback: { label: "correct" } },
       ])
+    ).toBeNull();
+  });
+});
+
+describe("nextUnactedCorrectId", () => {
+  const signals = [
+    { id: "a", status: "reviewed", feedback: { label: "correct" } },
+    { id: "skip", status: "reviewed", feedback: { label: "incorrect" } },
+    { id: "b", status: "reviewed", feedback: { label: "correct" } },
+    { id: "done", status: "acted", feedback: { label: "correct" } },
+    { id: "c", status: "reviewed", feedback: { label: "correct" } },
+  ];
+
+  it("walks to the next Correct-not-Acted and wraps", () => {
+    expect(nextUnactedCorrectId(signals, "a")).toBe("b");
+    expect(nextUnactedCorrectId(signals, "b")).toBe("c");
+    expect(nextUnactedCorrectId(signals, "c")).toBe("a");
+  });
+
+  it("returns null when no other Correct-not-Acted remains", () => {
+    expect(
+      nextUnactedCorrectId(
+        [{ id: "only", status: "reviewed", feedback: { label: "correct" } }],
+        "only"
+      )
     ).toBeNull();
   });
 });

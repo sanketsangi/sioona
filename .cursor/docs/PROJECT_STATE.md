@@ -14,7 +14,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
 
-**This week (ops, 2026-08-17):** Keep-set **closed** on sioona-demo. Day-1 replace of `partner-shaped-labeled.csv` (16 chats / 10 signals) → mid-week **`replaced=false`** (`weekly_export_count` **2**; sync failed=0) → **6** Insights Correct reviews (`?scoreFrom=2026-08-17`) → n=6 / 1.00 → go; baseline **12**; lift **−2**. Remaining loop = **Mark Acted on Correct** (display-only) then next week’s mid-week upsert — not a dead “needs your attention.” No Auth0 / vLLM / Adapt phrases / UI polish.
+**This week (ops, 2026-08-17):** Keep-set **closed** on sioona-demo. Day-1 replace of `partner-shaped-labeled.csv` (16 chats / 10 signals) → mid-week **`replaced=false`** (`weekly_export_count` **2**; sync failed=0) → **6** Insights Correct reviews (`?scoreFrom=2026-08-17`) → n=6 / 1.00 → go; baseline **12**; lift **−2**. Remaining loop = **Mark Acted on Correct** (display-only; advances to the next Correct, then next-week upsert) — not a dead “needs your attention.” No Auth0 / vLLM / Adapt phrases / UI polish.
 
 | Gate | Result |
 | --- | --- |

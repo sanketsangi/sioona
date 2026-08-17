@@ -9,7 +9,7 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 ## Cold demo (no partner data)
 
 1. Open http://localhost:3000 (or https://sioona-demo.vercel.app) → **Start Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` / hosted FastAPI per `web/DEPLOY.md`, then Re-run Detection)
-2. **Insights** — Neon pending queue (not JSON-only pending). Empty pending after go offers next week’s export / Eval share — not a dead heading.
+2. **Insights** — Neon pending queue (not JSON-only pending). Empty pending after go: **Mark Acted** on Correct (advances to the next; does not send), then next week’s export — not a dead heading.
 3. Open a **retention** or **lead** card: summary, evidence, suggested action (display-only)
 4. **SignalScore** — mark ≥5 reviews (`correct` / `incorrect` / `partially_correct`)
 5. **Eval** — labeled P/R + Pilot Metrics (≥80% target, go/no-go) + set partner baseline for lift + Next Step copy
