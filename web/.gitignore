@@ -20,10 +20,13 @@
 # local runtime store (seeded from fixtures on first run)
 /data/store.json
 
-# Day-1 / week-1 and week-2 pilot drop-ins (redacted partner export; never commit real PII)
+# Day-1 / week-N pilot drop-ins (redacted partner export; never commit real PII)
 /data/samples/real-partner-export.local.csv
 /data/samples/real-partner-export.week2.local.csv
 /data/samples/*.week2.local.csv
+/data/samples/real-partner-export.week3.local.csv
+/data/samples/*.week3.local.csv
+/data/samples/*.local.csv
 
 # production
 /build

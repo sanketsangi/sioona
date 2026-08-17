@@ -42,7 +42,7 @@ async function redetectWithOverrides(store: StoreData): Promise<{
     store.tenant.id,
     store.taxonomyOverrides
   );
-  let updated = await replaceSignalsPreservingFeedback(detected);
+  const updated = await replaceSignalsPreservingFeedback(detected);
   const synced = await syncPredictionsToBackend(
     updated.signals,
     store.tenant.id

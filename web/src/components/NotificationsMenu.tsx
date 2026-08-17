@@ -96,8 +96,10 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
   const autoOpenAttempted = useRef(false);
 
   useEffect(() => {
-    setSeenIds(readIdSet(SEEN_STORAGE_KEY));
-    setHydrated(true);
+    queueMicrotask(() => {
+      setSeenIds(readIdSet(SEEN_STORAGE_KEY));
+      setHydrated(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
 
     // Open once to surface the alert; skip delayed open when reduced motion.
     if (reducedMotion) {
-      setOpen(true);
+      queueMicrotask(() => setOpen(true));
       return;
     }
 

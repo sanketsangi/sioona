@@ -169,7 +169,6 @@ export function ExportEvalPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetch("/api/eval/partner-export?week2=1")
       .then(async (res) => {
         const json = (await res.json()) as PartnerExportEvalApiResponse;

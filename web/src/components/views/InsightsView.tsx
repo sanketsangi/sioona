@@ -326,6 +326,7 @@ export function InsightsView({
                   summary={previewSignal.summary || ""}
                 />
                 <MarkActedHeaderAction
+                  key={previewSignal.id}
                   signal={previewSignal}
                   nextPreviewId={nextUnactedCorrectId(
                     reviewedSignals,

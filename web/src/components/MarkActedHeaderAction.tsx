@@ -44,16 +44,10 @@ export function MarkActedHeaderAction({
   );
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setFeedbackLocal(hasRecentFeedbackSaved(signal.id));
-    setActedLocal(null);
-  }, [signal.id]);
-
   const feedbackLabel = signal.feedback?.label;
   useEffect(() => {
     if (feedbackLabel) {
       clearRecentFeedbackSaved(signal.id);
-      setFeedbackLocal(false);
     }
   }, [feedbackLabel, signal.id]);
 
