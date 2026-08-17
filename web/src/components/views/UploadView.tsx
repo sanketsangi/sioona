@@ -32,9 +32,11 @@ const samples = [
 export function UploadView({
   hasPartnerExport = false,
   cadenceAction,
+  cadencePreviewId = null,
 }: {
   hasPartnerExport?: boolean;
   cadenceAction: PilotCadenceAction;
+  cadencePreviewId?: string | null;
 }) {
   return (
     <ViewFrame className="overflow-y-auto overscroll-contain lg:overflow-hidden">
@@ -94,7 +96,9 @@ export function UploadView({
               <>
                 {" "}
                 <Link
-                  href={cadenceActionHref(cadenceAction)}
+                  href={cadenceActionHref(cadenceAction, {
+                    preview: cadencePreviewId,
+                  })}
                   className="link-accent"
                 >
                   {cadenceActionCta(cadenceAction)}

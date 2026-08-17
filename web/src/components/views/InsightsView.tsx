@@ -69,6 +69,7 @@ export function InsightsView({
   llmAdded = 0,
   llmFailed = 0,
   cadenceAction,
+  cadencePreviewId = null,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -88,6 +89,8 @@ export function InsightsView({
   llmAdded?: number;
   llmFailed?: number;
   cadenceAction: PilotCadenceAction;
+  /** First Correct-not-Acted signal for cadence Mark Acted deep links. */
+  cadencePreviewId?: string | null;
 }) {
   const queueError = needsReview.ok ? null : needsReview.error;
   const pendingSignals = needsReview.ok
@@ -178,12 +181,9 @@ export function InsightsView({
     page: page > 1 ? String(page) : null,
     preview: null,
   });
-  const firstUnactedCorrect = reviewedSignals.find(
-    (s) => s.feedback?.label === "correct" && s.status !== "acted",
-  );
   const cadenceHref = cadenceActionHref(cadenceAction, {
     scoreFrom,
-    preview: firstUnactedCorrect?.id,
+    preview: cadencePreviewId,
   });
 
   return (

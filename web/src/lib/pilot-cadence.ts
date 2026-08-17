@@ -190,13 +190,29 @@ export function pilotCadenceHelperCopy(
   }
 }
 
+function isUnactedCorrect(signal: {
+  status: string;
+  feedback?: { label: string } | null;
+}): boolean {
+  return signal.feedback?.label === "correct" && signal.status !== "acted";
+}
+
 /** Correct reviews not yet Mark Acted (Shadow Mode display-only). */
 export function countUnactedCorrect(
   signals: Array<{ status: string; feedback?: { label: string } | null }>
 ): number {
-  return signals.filter(
-    (s) => s.feedback?.label === "correct" && s.status !== "acted"
-  ).length;
+  return signals.filter(isUnactedCorrect).length;
+}
+
+/** First Correct-not-Acted id for cadence `?preview=` deep links. */
+export function firstUnactedCorrectId(
+  signals: Array<{
+    id: string;
+    status: string;
+    feedback?: { label: string } | null;
+  }>
+): string | null {
+  return signals.find(isUnactedCorrect)?.id ?? null;
 }
 
 export function hasPilotBaseline(

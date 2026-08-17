@@ -4,6 +4,7 @@ import {
   cadenceActionView,
   computePilotCadenceSteps,
   countUnactedCorrect,
+  firstUnactedCorrectId,
   hasMidWeekExport,
   hasPilotBaseline,
   nextPilotCadenceAction,
@@ -146,6 +147,23 @@ describe("countUnactedCorrect", () => {
         { status: "new" },
       ])
     ).toBe(1);
+  });
+});
+
+describe("firstUnactedCorrectId", () => {
+  it("returns the first Correct-not-Acted id", () => {
+    expect(
+      firstUnactedCorrectId([
+        { id: "acted", status: "acted", feedback: { label: "correct" } },
+        { id: "keep", status: "reviewed", feedback: { label: "correct" } },
+        { id: "later", status: "reviewed", feedback: { label: "correct" } },
+      ])
+    ).toBe("keep");
+    expect(
+      firstUnactedCorrectId([
+        { id: "acted", status: "acted", feedback: { label: "correct" } },
+      ])
+    ).toBeNull();
   });
 });
 

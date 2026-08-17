@@ -21,6 +21,7 @@ import {
 import {
   computePilotCadenceSteps,
   countUnactedCorrect,
+  firstUnactedCorrectId,
   hasMidWeekExport,
   hasPilotBaseline,
   nextPilotCadenceAction,
@@ -136,6 +137,7 @@ export default async function PlatformPage({
     wipeFailed,
   });
 
+  const cadencePreviewId = firstUnactedCorrectId(store.signals);
   const cadenceAction = nextPilotCadenceAction(
     computePilotCadenceSteps({
       hasDay1: store.conversations.length > 0,
@@ -181,12 +183,14 @@ export default async function PlatformPage({
           llmAdded={parseLlmAddedParam(sp.llmAdded)}
           llmFailed={parseLlmFailedParam(sp.llmFailed)}
           cadenceAction={cadenceAction}
+          cadencePreviewId={cadencePreviewId}
         />
       ) : null}
       {view === "upload" ? (
         <UploadView
           hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
           cadenceAction={cadenceAction}
+          cadencePreviewId={cadencePreviewId}
         />
       ) : null}
       {view === "eval" ? (
@@ -200,6 +204,7 @@ export default async function PlatformPage({
           allTimeScore={allTimeScore}
           scoreWindow={scoreWindow}
           cadenceAction={cadenceAction}
+          cadencePreviewId={cadencePreviewId}
         />
       ) : null}
       {view === "taxonomy" ? <TaxonomyView typePageRaw={sp.taxPage} /> : null}

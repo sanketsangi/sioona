@@ -63,6 +63,7 @@ export function EvalView({
   allTimeScore = null,
   scoreWindow,
   cadenceAction,
+  cadencePreviewId = null,
 }: {
   store: StoreData;
   panelRaw?: string | null;
@@ -75,6 +76,7 @@ export function EvalView({
   allTimeScore?: BackendSignalScore | null;
   scoreWindow: SignalScoreWindow;
   cadenceAction: PilotCadenceAction;
+  cadencePreviewId?: string | null;
 }) {
   const panel = parseEvalPanel(panelRaw);
   const metrics = applyBackendSignalScore(
@@ -123,6 +125,7 @@ export function EvalView({
             scoreWindow={scoreWindow}
             scoreFrom={scoreFrom}
             cadenceAction={cadenceAction}
+            cadencePreviewId={cadencePreviewId}
           />
         ) : null}
         {panel === "adapt" ? (
@@ -157,6 +160,7 @@ function MetricsPanel({
   scoreWindow,
   scoreFrom,
   cadenceAction,
+  cadencePreviewId = null,
 }: {
   metrics: EvalMetrics;
   pilot: PilotMetrics;
@@ -167,6 +171,7 @@ function MetricsPanel({
   scoreWindow: SignalScoreWindow;
   scoreFrom: string | null;
   cadenceAction: PilotCadenceAction;
+  cadencePreviewId?: string | null;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
@@ -263,7 +268,10 @@ function MetricsPanel({
               </span>
               . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
               <Link
-                href={cadenceActionHref(cadenceAction, { scoreFrom })}
+                href={cadenceActionHref(cadenceAction, {
+                  scoreFrom,
+                  preview: cadencePreviewId,
+                })}
                 className="link-accent"
               >
                 {cadenceActionCta(cadenceAction)}
