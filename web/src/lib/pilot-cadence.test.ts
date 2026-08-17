@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  cadenceActionCta,
+  cadenceActionView,
   computePilotCadenceSteps,
   hasMidWeekExport,
   hasPilotBaseline,
+  nextPilotCadenceAction,
   nextPilotCadenceStep,
   PILOT_MIN_REVIEWS,
+  pilotCadenceHelperCopy,
 } from "./pilot-cadence";
 
 describe("computePilotCadenceSteps", () => {
@@ -56,6 +60,10 @@ describe("computePilotCadenceSteps", () => {
     });
     expect(afterBaseline.every((s) => s.done)).toBe(true);
     expect(nextPilotCadenceStep(afterBaseline)).toBeNull();
+    expect(nextPilotCadenceAction(afterBaseline)).toEqual({
+      id: "nextweek",
+      label: "Next week — re-upload weekly export",
+    });
   });
 
   it("does not mark go/no-go before reviews and baseline", () => {
@@ -75,6 +83,37 @@ describe("computePilotCadenceSteps", () => {
         hasBaseline: false,
       }).find((s) => s.id === "gonogo")?.done
     ).toBe(false);
+  });
+});
+
+describe("nextPilotCadenceAction", () => {
+  it("points incomplete checklists at the first open step", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: 2,
+      hasBaseline: true,
+    });
+    expect(nextPilotCadenceAction(steps).id).toBe("reviews");
+    expect(cadenceActionView(nextPilotCadenceAction(steps))).toBe("insights");
+    expect(cadenceActionCta(nextPilotCadenceAction(steps))).toBe("Open Insights");
+  });
+
+  it("after go/no-go, next action is next week’s upsert not a dead end", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: PILOT_MIN_REVIEWS,
+      hasBaseline: true,
+    });
+    const action = nextPilotCadenceAction(steps);
+    expect(action.id).toBe("nextweek");
+    expect(cadenceActionView(action)).toBe("upload");
+    expect(cadenceActionCta(action)).toBe("Upload Weekly Export");
+    expect(pilotCadenceHelperCopy("insights", action)).toMatch(/Eval/);
+    expect(pilotCadenceHelperCopy("insights", action)).toMatch(/upsert/i);
+    expect(pilotCadenceHelperCopy("upload", action)).toMatch(/replaced=false|upsert/i);
+    expect(pilotCadenceHelperCopy("eval", action)).toMatch(/next week/i);
   });
 });
 

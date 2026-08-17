@@ -18,7 +18,12 @@ import {
   parseSyncFailedParam,
   shouldShowSyncFailureBanner,
 } from "@/lib/prediction-sync";
-import { hasMidWeekExport } from "@/lib/pilot-cadence";
+import {
+  computePilotCadenceSteps,
+  hasMidWeekExport,
+  hasPilotBaseline,
+  nextPilotCadenceAction,
+} from "@/lib/pilot-cadence";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { readStore } from "@/lib/store";
 import {
@@ -130,6 +135,20 @@ export default async function PlatformPage({
     wipeFailed,
   });
 
+  const cadenceAction = nextPilotCadenceAction(
+    computePilotCadenceSteps({
+      hasDay1: store.conversations.length > 0,
+      hasMidWeekUpload: hasMidWeekExport(store.pilot?.weeklyExportCount),
+      reviewedCount:
+        backendScore?.reviewed_count ??
+        store.signals.filter((s) => s.feedback).length,
+      hasBaseline: hasPilotBaseline(
+        store.pilot?.baselineOpportunities ?? 0,
+        store.pilot?.baselineNote
+      ),
+    })
+  );
+
   const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
@@ -159,11 +178,13 @@ export default async function PlatformPage({
           syncCreated={syncCreated}
           llmAdded={parseLlmAddedParam(sp.llmAdded)}
           llmFailed={parseLlmFailedParam(sp.llmFailed)}
+          cadenceAction={cadenceAction}
         />
       ) : null}
       {view === "upload" ? (
         <UploadView
           hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
+          cadenceAction={cadenceAction}
         />
       ) : null}
       {view === "eval" ? (
@@ -176,6 +197,7 @@ export default async function PlatformPage({
           backendScore={backendScore}
           allTimeScore={allTimeScore}
           scoreWindow={scoreWindow}
+          cadenceAction={cadenceAction}
         />
       ) : null}
       {view === "taxonomy" ? <TaxonomyView typePageRaw={sp.taxPage} /> : null}

@@ -4,6 +4,12 @@ import { ResetDemoButton } from "@/components/ResetDemoButton";
 import { UploadForm } from "@/components/UploadForm";
 import { ViewFrame } from "@/components/ViewFrame";
 import { viewHref } from "@/lib/views";
+import {
+  cadenceActionCta,
+  cadenceActionView,
+  pilotCadenceHelperCopy,
+  type PilotCadenceAction,
+} from "@/lib/pilot-cadence";
 
 const samples = [
   {
@@ -25,8 +31,10 @@ const samples = [
 
 export function UploadView({
   hasPartnerExport = false,
+  cadenceAction,
 }: {
   hasPartnerExport?: boolean;
+  cadenceAction: PilotCadenceAction;
 }) {
   return (
     <ViewFrame className="overflow-y-auto overscroll-contain lg:overflow-hidden">
@@ -81,19 +89,19 @@ export function UploadView({
           </section>
 
           <p className="shrink-0 text-label-13 text-sio-fg-subtle">
-            Cadence:{" "}
-            <Link href={viewHref("upload")} className="link-accent">
-              Upload
-            </Link>
-            {" → "}
-            <Link href={viewHref("insights")} className="link-accent">
-              Insights
-            </Link>
-            {" → "}
-            <Link href={viewHref("eval")} className="link-accent">
-              Eval
-            </Link>
-            . Actions stay display-only.
+            {pilotCadenceHelperCopy("upload", cadenceAction)}
+            {cadenceActionView(cadenceAction) !== "upload" ? (
+              <>
+                {" "}
+                <Link
+                  href={viewHref(cadenceActionView(cadenceAction))}
+                  className="link-accent"
+                >
+                  {cadenceActionCta(cadenceAction)}
+                </Link>
+              </>
+            ) : null}{" "}
+            Actions stay display-only.
           </p>
         </aside>
       </div>

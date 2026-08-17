@@ -34,6 +34,12 @@ import {
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Message, StoreData } from "@/lib/types";
+import {
+  cadenceActionCta,
+  cadenceActionView,
+  pilotCadenceHelperCopy,
+  type PilotCadenceAction,
+} from "@/lib/pilot-cadence";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -63,6 +69,7 @@ export function InsightsView({
   syncCreated = 0,
   llmAdded = 0,
   llmFailed = 0,
+  cadenceAction,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -81,6 +88,7 @@ export function InsightsView({
   syncCreated?: number;
   llmAdded?: number;
   llmFailed?: number;
+  cadenceAction: PilotCadenceAction;
 }) {
   const queueError = needsReview.ok ? null : needsReview.error;
   const pendingSignals = needsReview.ok
@@ -277,9 +285,30 @@ export function InsightsView({
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
-            ) : (
+            ) : pendingSignals.length > 0 ? (
               <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                 Conversation that needs your attention
+              </h2>
+            ) : reviewedSignals.length > 0 ? (
+              <div className="min-w-0">
+                <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                  No Conversations Need Review
+                </h2>
+                <p className="mt-1 max-w-xl text-pretty text-label-13 text-sio-fg-subtle">
+                  {pilotCadenceHelperCopy("insights", cadenceAction)}{" "}
+                  <Link
+                    href={viewHref(cadenceActionView(cadenceAction), {
+                      scoreFrom,
+                    })}
+                    className="link-accent"
+                  >
+                    {cadenceActionCta(cadenceAction)}
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                Shadow Mode Queue
               </h2>
             )}
           </div>
@@ -322,6 +351,20 @@ export function InsightsView({
             previewId={previewId}
             queryExtras={queryExtras}
             showFilters={false}
+            pendingClear={
+              cadenceAction.id === "reviews"
+                ? null
+                : {
+                    description: pilotCadenceHelperCopy(
+                      "insights",
+                      cadenceAction,
+                    ),
+                    href: viewHref(cadenceActionView(cadenceAction), {
+                      scoreFrom,
+                    }),
+                    label: cadenceActionCta(cadenceAction),
+                  }
+            }
           />
         </div>
       </div>

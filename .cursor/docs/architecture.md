@@ -119,7 +119,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - **Win:** human keep-set SignalScore ≥80% on Eval **week window** — not labeled Detect P/R.
 - Formula: `correct / reviewed` (incorrect + partially_correct in denominator only).
 - Empty window → Reviewed 0 / **Insufficient Data** — never a labeled Go.
-- Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go).
+- Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go). After share-out, next action is **next week’s mid-week upsert** (`nextweek`) — not a dead end.
 - Adapt = taxonomy **overrides** for heuristics — stop phrase chasing unless Eval proves a gap.
 
 ---
