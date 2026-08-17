@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-17  
+**Last updated:** 2026-08-18  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main`
 
@@ -14,13 +14,14 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
 
-**This week (ops, 2026-08-17):** Keep-set **closed** on sioona-demo. Day-1 replace of `partner-shaped-labeled.csv` (16 chats / 10 signals) → mid-week **`replaced=false`** (`weekly_export_count` **2**; sync failed=0) → **6** Insights Correct reviews (`?scoreFrom=2026-08-17`) → n=6 / 1.00 → go; baseline **12**; lift **−2**. **Mark Acted on Correct done** (display-only; 7/7 window Corrects `acted`, including one later Correct after the n=6 share-out; no outbound). Next-week ingest **skipped** — no next-week export on disk (week-1 / week-2 `.local.csv` only). Remaining loop = **next-week upsert `replaced=false` when a new export exists**. No Auth0 / vLLM / Adapt phrases / UI polish.
+**This week (ops, 2026-08-18):** Next-week keep-set **closed** on sioona-demo. Groww Batch-01 JSON upsert **`replaced=false`** (100 chats / 7 signals / sync failed=0; file not copied into the repo, not `*.local.csv`) → `weekly_export_count` **3** → **7** Insights reviews after ingest (`?scoreFrom=2026-08-17T19:34:00.000Z`; date-only `2026-08-18` is UTC midnight and would still be empty) → n=7 / correct=6 / incorrect=1 / **0.86 → go**; baseline **12**; lift **18** (30−12). **Mark Acted on Correct done** (display-only; 6/6 window Corrects `acted`; the Incorrect left unacted; no outbound). Closed 2026-08-17 n=6 / 1.00 not reused. Remaining loop = next weekly upsert `replaced=false` when another export exists. No Auth0 / vLLM / Adapt phrases / UI polish.
 
 | Gate | Result |
 | --- | --- |
 | Week-1 keep-set (sioona-demo) | n=6 / correct=5 / incorrect=1 / **0.83 → go**; baseline **12**; lift **23** |
 | Week-2 keep-set (sioona-demo) | n=7 / correct=7 / incorrect=0 / **1.00 → go**; baseline **12**; lift **6** (18−12). Not week-1 0.83 |
 | This week keep-set (sioona-demo) | **logged 2026-08-17** — n=6 / correct=6 / incorrect=0 / **1.00 → go**; baseline **12**; lift **−2** (10−12). Pack: partner-shaped 16 chats / 10 signals; mid-week `replaced=false`; `?scoreFrom=2026-08-17`. **Acted 7/7** window Corrects (display-only) |
+| Next-week keep-set (sioona-demo) | **logged 2026-08-18** — n=7 / correct=6 / incorrect=1 / **0.86 → go**; baseline **12**; lift **18** (30−12). Pack: Groww Batch-01 upsert `replaced=false` (100/7; sync failed=0); `weekly_export_count` **3**; `?scoreFrom=2026-08-17T19:34:00.000Z`. **Acted 6/6** window Corrects (display-only). Not the closed 2026-08-17 n=6 / 1.00 |
 | Week-1 labeled Adapt CLI | P **1.00** / R **1.00** (23 labeled) — pack only; **not** a customer claim |
 | Week-2 held-out Adapt CLI | P **0.89** / R **0.55** (34 labeled) — not week-1 1.00 |
 
@@ -72,7 +73,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 ## 5. Hosted pointers
 
-- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env; Partner Demo / Adapt / keep-set / week window / pilot restore verified (PRs #22–#37; Production `625b9a0` for empty-window Eval). **This week keep-set logged 2026-08-17:** partner-shaped pack live (16 chats / 10 signals); Eval `?scoreFrom=2026-08-17` → n=6 / 1.00 / **Go**; window Corrects **Acted 7/7**; Neon `GET …/pilot` baseline **12**, `weekly_export_count` **2** (next-week upsert skipped — no file)
+- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env; Partner Demo / Adapt / keep-set / week window / pilot restore verified (PRs #22–#37; Production `625b9a0` for empty-window Eval). **Next-week keep-set logged 2026-08-18:** Groww Batch-01 upsert live (`replaced=false`, 100/7); Eval `?scoreFrom=2026-08-17T19:34:00.000Z` → n=7 / 0.86 / **Go**; window Corrects **Acted 6/6**; Neon `GET …/pilot` baseline **12**, `weekly_export_count` **3**
 - API: https://sioona-api.onrender.com/health → ok (free; cold ~15m). Auto-deploy `main`; `alembic upgrade head`
 - Neon head: `006_pilot_settings` (`002`–`006` applied). Vercel `/tmp` ephemeral — hydrate restores chats + Adapt union + pilot + feedback/Acted/GT
 - Vercel token: `web/.env` `VERCEL_TOKEN` (gitignored)
@@ -89,6 +90,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Week-scoped SignalScore + empty-window Insufficient Data — **hosted** (PR #34 + #37)
 - Week-1 / Week-2 dry-runs logged (go above); week-2 held-out CLI scored; Zerodha Adapt shipped 2026-08-15 (stop phrase tuning)
 - **This week keep-set logged 2026-08-17** — mid-week `replaced=false`; n=6 / 1.00 → go; baseline 12; lift −2 (partner-shaped pack); **Mark Acted** on window Corrects (7/7); next-week upsert skipped (no file)
+- **Next-week keep-set logged 2026-08-18** — Groww Batch-01 upsert `replaced=false` (100/7; sync failed=0); n=7 / 0.86 → go; baseline 12; lift 18; **Mark Acted** on window Corrects (6/6); not `*.local.csv` / not the closed 2026-08-17 window
 - Insights chrome 2026-08-15 (dashboard header, Performance metrics, Mark Acted, Eval export panel)
 - Feedback stale-UUID recovery 2026-08-16 — resolve by Neon id / conversation+type; upsert+retry on 404 (hosted Correct without “not found for tenant”)
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
