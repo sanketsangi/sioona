@@ -39,13 +39,14 @@ Prefer the next step from `.cursor/docs/PROJECT_STATE.md` when the user says “
 
 ## Project priorities (never forget)
 
+- Stack map for Ask: `.cursor/docs/architecture.md` (durable topology / SoT / seams). Living heading/gates: `.cursor/docs/PROJECT_STATE.md`
 - FastAPI + Neon is the source of truth for Signal Score; Next.js is the frontend
 - Shadow Mode + Insights first; heading = **2-week Shadow Mode pilot** (see `.cursor/docs/PROJECT_STATE.md`)
 - Pilot win = human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** Adapt phrase tuning / taxonomy expansion
 - Tenancy today = `X-Tenant-Id` (`tenant_demo`); do **not** start Auth0 / real multi-tenant isolation
 - Prefer small focused steps
 - Signal chrome is locked: reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`; do not reinvent status/score/type/avatar in prompts or diffs
-- Update `.cursor/docs/PROJECT_STATE.md` when milestones or blockers change
+- Update `.cursor/docs/PROJECT_STATE.md` when milestones or blockers change; update `.cursor/docs/architecture.md` when stack topology / SoT / seams change
 
 ## Style
 

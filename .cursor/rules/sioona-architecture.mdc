@@ -7,7 +7,7 @@ alwaysApply: true
 
 Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages/`. Do not apply parent Expo RN rules.
 
-**Living stack / blockers / Neon pilot detail:** `.cursor/docs/PROJECT_STATE.md` (hydrate, week-scoped SignalScore, Adapt/pilot restore — not duplicated here).
+**Full Ask/Architect map:** `.cursor/docs/architecture.md`. **Living stack / blockers / Neon pilot detail:** `.cursor/docs/PROJECT_STATE.md` (hydrate, week-scoped SignalScore, Adapt/pilot restore — not duplicated here).
 
 ## Stack (current ≠ target)
 

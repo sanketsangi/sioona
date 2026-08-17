@@ -38,6 +38,7 @@ Prove domain signal detection beats the customer’s current process with enough
 
 ## Agent sources of truth
 
+- **Architecture (Ask map):** `.cursor/docs/architecture.md`
 - **Current work / stack / blockers:** `.cursor/docs/PROJECT_STATE.md` (update when heading changes)
 - Code: `web/` + `backend/`
 - Locked brief (company construction / north star): `.cursor/plans/sioona_product_context.md`
