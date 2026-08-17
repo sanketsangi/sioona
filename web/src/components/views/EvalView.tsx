@@ -16,11 +16,10 @@ import {
 } from "@/lib/eval";
 import { formatPercent } from "@/lib/format";
 import type { SignalScoreWindow } from "@/lib/signal-score-window";
-import { parseEvalPanel, viewHref, type EvalPanel } from "@/lib/views";
+import { parseEvalPanel, viewHref, cadenceActionHref, type EvalPanel } from "@/lib/views";
 import type { StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
-  cadenceActionView,
   pilotCadenceHelperCopy,
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
@@ -264,7 +263,7 @@ function MetricsPanel({
               </span>
               . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
               <Link
-                href={viewHref(cadenceActionView(cadenceAction), { scoreFrom })}
+                href={cadenceActionHref(cadenceAction, { scoreFrom })}
                 className="link-accent"
               >
                 {cadenceActionCta(cadenceAction)}

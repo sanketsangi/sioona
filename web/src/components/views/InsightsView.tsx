@@ -32,11 +32,10 @@ import {
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
-import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
+import { cadenceActionHref, viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Message, StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
-  cadenceActionView,
   pilotCadenceHelperCopy,
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
@@ -179,6 +178,13 @@ export function InsightsView({
     page: page > 1 ? String(page) : null,
     preview: null,
   });
+  const firstUnactedCorrect = reviewedSignals.find(
+    (s) => s.feedback?.label === "correct" && s.status !== "acted",
+  );
+  const cadenceHref = cadenceActionHref(cadenceAction, {
+    scoreFrom,
+    preview: firstUnactedCorrect?.id,
+  });
 
   return (
     <ViewFrame>
@@ -292,16 +298,13 @@ export function InsightsView({
             ) : reviewedSignals.length > 0 ? (
               <div className="min-w-0">
                 <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                  No Conversations Need Review
+                  {cadenceAction.id === "acted"
+                    ? "Mark Acted on Correct Reviews"
+                    : "No Conversations Need Review"}
                 </h2>
                 <p className="mt-1 max-w-xl text-pretty text-label-13 text-sio-fg-subtle">
                   {pilotCadenceHelperCopy("insights", cadenceAction)}{" "}
-                  <Link
-                    href={viewHref(cadenceActionView(cadenceAction), {
-                      scoreFrom,
-                    })}
-                    className="link-accent"
-                  >
+                  <Link href={cadenceHref} className="link-accent">
                     {cadenceActionCta(cadenceAction)}
                   </Link>
                 </p>
@@ -359,9 +362,7 @@ export function InsightsView({
                       "insights",
                       cadenceAction,
                     ),
-                    href: viewHref(cadenceActionView(cadenceAction), {
-                      scoreFrom,
-                    }),
+                    href: cadenceHref,
                     label: cadenceActionCta(cadenceAction),
                   }
             }

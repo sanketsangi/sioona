@@ -20,6 +20,7 @@ import {
 } from "@/lib/prediction-sync";
 import {
   computePilotCadenceSteps,
+  countUnactedCorrect,
   hasMidWeekExport,
   hasPilotBaseline,
   nextPilotCadenceAction,
@@ -146,7 +147,8 @@ export default async function PlatformPage({
         store.pilot?.baselineOpportunities ?? 0,
         store.pilot?.baselineNote
       ),
-    })
+    }),
+    { unactedCorrectCount: countUnactedCorrect(store.signals) }
   );
 
   const title = TITLES[view];

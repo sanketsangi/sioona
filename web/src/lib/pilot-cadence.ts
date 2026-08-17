@@ -1,7 +1,7 @@
 /**
  * Week-1 Shadow Mode pilot cadence — display-only checklist state.
  * FastAPI/Neon remains SoT for reviews; JSON holds chats + pilot baseline.
- * After go/no-go, the next action is next week’s mid-week upsert — not a dead end.
+ * After go/no-go: Mark Acted on Correct reviews (display-only), then next week’s upsert.
  */
 
 export const PILOT_MIN_REVIEWS = 5;
@@ -15,8 +15,8 @@ export type PilotCadenceStepId =
   | "baseline"
   | "gonogo";
 
-/** Incomplete checklist step, or next week after share-out. */
-export type PilotCadenceActionId = PilotCadenceStepId | "nextweek";
+/** Incomplete checklist step, Acted follow-up after go, or next week. */
+export type PilotCadenceActionId = PilotCadenceStepId | "acted" | "nextweek";
 
 export interface PilotCadenceStep {
   id: PilotCadenceStepId;
@@ -84,16 +84,32 @@ export function nextPilotCadenceStep(
   return steps.find((s) => !s.done) ?? null;
 }
 
+const ACTED_ACTION: PilotCadenceAction = {
+  id: "acted",
+  label: "Mark Acted on Correct reviews",
+};
+
 const NEXT_WEEK_ACTION: PilotCadenceAction = {
   id: "nextweek",
   label: "Next week — re-upload weekly export",
 };
 
-/** Incomplete step, or next week’s upsert once go/no-go is shareable. */
+export interface NextCadenceActionOpts {
+  /** Correct reviews not yet Mark Acted (Shadow Mode; no outbound). */
+  unactedCorrectCount?: number;
+}
+
+/**
+ * Incomplete step; else Mark Acted on remaining Correct; else next week’s upsert.
+ */
 export function nextPilotCadenceAction(
-  steps: PilotCadenceStep[]
+  steps: PilotCadenceStep[],
+  opts?: NextCadenceActionOpts
 ): PilotCadenceAction {
-  return nextPilotCadenceStep(steps) ?? NEXT_WEEK_ACTION;
+  const next = nextPilotCadenceStep(steps);
+  if (next) return next;
+  if ((opts?.unactedCorrectCount ?? 0) > 0) return ACTED_ACTION;
+  return NEXT_WEEK_ACTION;
 }
 
 export function cadenceActionView(
@@ -101,6 +117,7 @@ export function cadenceActionView(
 ): PilotCadenceSurface {
   switch (action.id) {
     case "reviews":
+    case "acted":
       return "insights";
     case "baseline":
     case "gonogo":
@@ -121,6 +138,8 @@ export function cadenceActionCta(action: PilotCadenceAction): string {
       return "Upload Weekly Export";
     case "reviews":
       return "Open Insights";
+    case "acted":
+      return "Mark as Acted";
     case "baseline":
       return "Set Baseline";
     case "gonogo":
@@ -133,6 +152,17 @@ export function pilotCadenceHelperCopy(
   surface: PilotCadenceSurface,
   action: PilotCadenceAction
 ): string {
+  if (action.id === "acted") {
+    switch (surface) {
+      case "insights":
+        return "Correct reviews still need Mark Acted (does not send the suggested action).";
+      case "upload":
+        return "Mark Acted on Correct reviews in Insights first (does not send), then re-upload next week.";
+      case "eval":
+        return "Then Mark Acted on Correct reviews in Insights (does not send).";
+    }
+  }
+
   if (action.id === "nextweek") {
     switch (surface) {
       case "insights":
@@ -158,6 +188,15 @@ export function pilotCadenceHelperCopy(
     case "gonogo":
       return "Open Eval to share this window’s go/no-go.";
   }
+}
+
+/** Correct reviews not yet Mark Acted (Shadow Mode display-only). */
+export function countUnactedCorrect(
+  signals: Array<{ status: string; feedback?: { label: string } | null }>
+): number {
+  return signals.filter(
+    (s) => s.feedback?.label === "correct" && s.status !== "acted"
+  ).length;
 }
 
 export function hasPilotBaseline(

@@ -3,7 +3,7 @@ import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ResetDemoButton } from "@/components/ResetDemoButton";
 import { UploadForm } from "@/components/UploadForm";
 import { ViewFrame } from "@/components/ViewFrame";
-import { viewHref } from "@/lib/views";
+import { cadenceActionHref } from "@/lib/views";
 import {
   cadenceActionCta,
   cadenceActionView,
@@ -94,7 +94,7 @@ export function UploadView({
               <>
                 {" "}
                 <Link
-                  href={viewHref(cadenceActionView(cadenceAction))}
+                  href={cadenceActionHref(cadenceAction)}
                   className="link-accent"
                 >
                   {cadenceActionCta(cadenceAction)}

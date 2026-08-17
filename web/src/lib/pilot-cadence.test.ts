@@ -3,6 +3,7 @@ import {
   cadenceActionCta,
   cadenceActionView,
   computePilotCadenceSteps,
+  countUnactedCorrect,
   hasMidWeekExport,
   hasPilotBaseline,
   nextPilotCadenceAction,
@@ -64,6 +65,9 @@ describe("computePilotCadenceSteps", () => {
       id: "nextweek",
       label: "Next week — re-upload weekly export",
     });
+    expect(
+      nextPilotCadenceAction(afterBaseline, { unactedCorrectCount: 3 }).id
+    ).toBe("acted");
   });
 
   it("does not mark go/no-go before reviews and baseline", () => {
@@ -99,6 +103,21 @@ describe("nextPilotCadenceAction", () => {
     expect(cadenceActionCta(nextPilotCadenceAction(steps))).toBe("Open Insights");
   });
 
+  it("after go/no-go, Mark Acted on remaining Correct before next-week upsert", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: PILOT_MIN_REVIEWS,
+      hasBaseline: true,
+    });
+    const acted = nextPilotCadenceAction(steps, { unactedCorrectCount: 2 });
+    expect(acted.id).toBe("acted");
+    expect(cadenceActionView(acted)).toBe("insights");
+    expect(cadenceActionCta(acted)).toBe("Mark as Acted");
+    expect(pilotCadenceHelperCopy("insights", acted)).toMatch(/does not send/i);
+    expect(pilotCadenceHelperCopy("eval", acted)).toMatch(/Mark Acted/);
+  });
+
   it("after go/no-go, next action is next week’s upsert not a dead end", () => {
     const steps = computePilotCadenceSteps({
       hasDay1: true,
@@ -114,6 +133,19 @@ describe("nextPilotCadenceAction", () => {
     expect(pilotCadenceHelperCopy("insights", action)).toMatch(/upsert/i);
     expect(pilotCadenceHelperCopy("upload", action)).toMatch(/replaced=false|upsert/i);
     expect(pilotCadenceHelperCopy("eval", action)).toMatch(/next week/i);
+  });
+});
+
+describe("countUnactedCorrect", () => {
+  it("counts Correct reviews that are not Acted", () => {
+    expect(
+      countUnactedCorrect([
+        { status: "reviewed", feedback: { label: "correct" } },
+        { status: "acted", feedback: { label: "correct" } },
+        { status: "reviewed", feedback: { label: "incorrect" } },
+        { status: "new" },
+      ])
+    ).toBe(1);
   });
 });
 
