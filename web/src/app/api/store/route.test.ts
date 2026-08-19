@@ -69,4 +69,31 @@ describe("POST /api/store reset", () => {
     expect(body.wipeFailed).toBeUndefined();
     expect(body.conversations).toHaveLength(EXPECTED_TESTING_JSON.conversations);
   });
+
+  it("rejects unknown actions and invalid baseline values", async () => {
+    const unknown = await POST(
+      new Request("http://localhost/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "wipe_all_tenants" }),
+      })
+    );
+    expect(unknown.status).toBe(400);
+    await expect(unknown.json()).resolves.toEqual({ error: "Unknown action" });
+
+    const invalid = await POST(
+      new Request("http://localhost/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set_baseline",
+          baselineOpportunities: -1,
+        }),
+      })
+    );
+    expect(invalid.status).toBe(400);
+    await expect(invalid.json()).resolves.toEqual({
+      error: "baselineOpportunities must be a non-negative number",
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readStore, resetStore, setSignalFeedback } from "@/lib/store";
+import * as backendClient from "@/lib/backend-client";
+import { readStore, resetStore, setSignalFeedback, writeStore } from "@/lib/store";
 import { POST } from "./route";
 
 function actedRequest(acted: unknown) {
@@ -21,6 +22,7 @@ describe("POST /api/signals/[id]/acted", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("returns 404 when the signal is missing", async () => {
@@ -72,5 +74,59 @@ describe("POST /api/signals/[id]/acted", () => {
 
     const after = await readStore();
     expect(after.signals.find((s) => s.id === target.id)?.status).toBe("acted");
+  });
+
+  it("dual-writes Acted to FastAPI when backendSignalId exists", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    const actedSpy = vi.spyOn(backendClient, "setPredictionActed").mockResolvedValue({
+      id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      tenant_id: "tenant_demo",
+      conversation_id: target.conversationId,
+      signal_type: target.type,
+      confidence: target.confidence,
+      summary: target.summary,
+      created_at: target.createdAt,
+      acted: true,
+      feedback: null,
+    });
+
+    const res = await POST(actedRequest(true), {
+      params: Promise.resolve({ id: target.id }),
+    });
+    expect(res.status).toBe(200);
+    expect(actedSpy).toHaveBeenCalledWith(
+      "tenant_demo",
+      "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      true
+    );
+  });
+
+  it("still persists JSON Acted when FastAPI dual-write fails", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    vi.spyOn(backendClient, "setPredictionActed").mockRejectedValue(
+      new Error("Signal Score backend unreachable")
+    );
+
+    const res = await POST(actedRequest(true), {
+      params: Promise.resolve({ id: target.id }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { signal: { status: string } };
+    expect(body.signal.status).toBe("acted");
+    expect(
+      (await readStore()).signals.find((s) => s.id === target.id)?.status
+    ).toBe("acted");
   });
 });
