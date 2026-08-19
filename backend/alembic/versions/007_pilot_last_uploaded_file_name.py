@@ -10,7 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "007_pilot_last_uploaded_file_name"
+revision: str = "007_pilot_upload_name"
 down_revision: Union[str, None] = "006_pilot_settings"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
