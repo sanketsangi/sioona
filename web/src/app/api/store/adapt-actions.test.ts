@@ -104,7 +104,7 @@ describe("POST /api/store Adapt actions", () => {
     );
 
     const after = await readStore();
-    expect(after.taxonomyOverrides.lead?.phrases).toEqual(
+    expect(after.taxonomyOverrides?.lead?.phrases).toEqual(
       expect.arrayContaining(["keep existing phrase", "open zerodha"])
     );
   });
@@ -227,7 +227,7 @@ describe("POST /api/store add_taxonomy_override", () => {
     );
 
     const after = await readStore();
-    expect(after.taxonomyOverrides.retention?.phrases).toEqual(
+    expect(after.taxonomyOverrides?.retention?.phrases).toEqual(
       expect.arrayContaining(["thinking of leaving"])
     );
   });
