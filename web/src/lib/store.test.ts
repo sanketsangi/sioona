@@ -216,7 +216,9 @@ describe("readStore cold-start hydrate", () => {
     expect(store.conversations).toHaveLength(
       EXPECTED_TESTING_JSON.conversations
     );
-    expect(store.conversations.some((c) => c.id === "conv_priya_sharma_22")).toBe(
+    expect(
+      store.conversations.some((c) => c.id === "conv_eeshan_kulkarni_41")
+    ).toBe(
       true
     );
     expect(store.taxonomyOverrides).toEqual({});

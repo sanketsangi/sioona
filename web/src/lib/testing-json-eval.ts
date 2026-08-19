@@ -17,11 +17,11 @@ const TENANT_ID = "tenant_demo";
 const TESTING_JSON_FILENAME = "testing.json";
 
 export const EXPECTED_TESTING_JSON = {
-  conversations: 41,
-  lead: 8,
-  retention: 14,
-  upsell: 5,
-  none: 14,
+  conversations: 100,
+  lead: 16,
+  retention: 28,
+  upsell: 12,
+  none: 44,
 } as const;
 
 export type ConfusionKind = "false_positive" | "false_negative";

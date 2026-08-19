@@ -34,7 +34,7 @@ describe("runPartnerDemo", () => {
 
     expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
     expect(result.wipe.ok).toBe(true);
-    expect(result.samples).toEqual(["testing.json"]);
+    expect(result.samples).toEqual(["Groww_batch_02"]);
     expect(result.importedConversations).toBe(EXPECTED_TESTING_JSON.conversations);
     expect(result.newSignals).toBeGreaterThan(0);
     expect(result.store.conversations).toHaveLength(
@@ -44,8 +44,13 @@ describe("runPartnerDemo", () => {
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.weeklyExportCount).toBeUndefined();
-    expect(result.store.pilot?.lastUploadedFileName).toBeUndefined();
-    expect(putPilotSpy).not.toHaveBeenCalled();
+    expect(result.store.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+    expect(putPilotSpy).toHaveBeenCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        last_uploaded_file_name: "Groww_batch_02",
+      })
+    );
     expect(result.opportunityLift).toBeGreaterThan(0);
     expect(result.store.taxonomyOverrides).toEqual({});
     expect(result.store.taxonomyOverrides?.lead?.negativePhrases).toBeUndefined();
@@ -82,8 +87,8 @@ describe("runPartnerDemo", () => {
       result.store.conversations.map((c) => c.id).sort()
     );
     expect(again.store.pilot?.weeklyExportCount).toBeUndefined();
-    expect(again.store.pilot?.lastUploadedFileName).toBeUndefined();
-    expect(putPilotSpy).not.toHaveBeenCalled();
+    expect(again.store.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+    expect(putPilotSpy).toHaveBeenCalledTimes(2);
     expect(wipeSpy).toHaveBeenCalledTimes(2);
   });
 });

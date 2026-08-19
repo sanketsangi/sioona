@@ -16,6 +16,7 @@ describe("syncPilotSettingsToBackend", () => {
       baseline_opportunities: 12,
       baseline_note: "note",
       weekly_export_count: 1,
+      last_uploaded_file_name: null,
       created_at: "2026-08-14T00:00:00.000Z",
       updated_at: "2026-08-14T00:00:00.000Z",
     });
@@ -31,6 +32,7 @@ describe("syncPilotSettingsToBackend", () => {
       baseline_opportunities: 12,
       baseline_note: "note",
       weekly_export_count: 1,
+      last_uploaded_file_name: null,
     });
   });
 
@@ -77,6 +79,7 @@ describe("setPilotBaseline", () => {
       baseline_opportunities: 12,
       baseline_note: "eval baseline",
       weekly_export_count: 2,
+      last_uploaded_file_name: "groww_batch_02.csv",
       created_at: "2026-08-14T00:00:00.000Z",
       updated_at: "2026-08-14T00:00:00.000Z",
     });
@@ -93,11 +96,8 @@ describe("setPilotBaseline", () => {
         baseline_opportunities: 12,
         baseline_note: "eval baseline",
         weekly_export_count: 2,
+        last_uploaded_file_name: "groww_batch_02.csv",
       })
-    );
-    expect(putSpy.mock.calls[0]?.[1]).not.toHaveProperty("lastUploadedFileName");
-    expect(putSpy.mock.calls[0]?.[1]).not.toHaveProperty(
-      "last_uploaded_file_name"
     );
   });
 
