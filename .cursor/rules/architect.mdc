@@ -53,3 +53,12 @@ Prefer the next step from `.cursor/docs/PROJECT_STATE.md` when the user says “
 - Be direct and specific
 - Prefer high-leverage next steps
 - Protect architectural decisions already made
+
+## Rule routing
+
+Pointers only — do not copy taste/a11y into this file or the sketch. Do not rewrite grok-first-pass.
+
+- Always: `.cursor/docs/architecture.md` + `ui-design-systems.mdc`
+- UI edit: `sioona-ui-app.mdc` + `geist-design-system.mdc` (globs on `web/src/app/**/*.tsx`, `web/src/components/**/*.tsx`, `web/src/app/globals.css`)
+- On request only: `/web-interface-guidelines`
+- Never daily: `docs/UI_DESIGN.md`, `agents-ui.mdc` (stub)

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 type AvatarProps = {
   /** Initials or short letter mark when no children. */
@@ -31,11 +32,13 @@ export function Avatar({
 
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full text-label-12 font-semibold ${
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full text-label-12 font-semibold",
         placeholder
           ? "bg-sio-bg-muted text-sio-fg-subtle"
-          : "bg-sio-bg-subtle text-sio-fg-muted"
-      } ${className}`}
+          : "bg-sio-bg-subtle text-sio-fg-muted",
+        className,
+      )}
       style={{ width: size, height: size }}
       aria-hidden
     >

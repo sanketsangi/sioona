@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import { SignalTypeChip } from "@/components/SignalTypeChip";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import type { SignalType } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const KNOWN_TYPES = new Set<string>(["lead", "retention", "upsell"]);
 
@@ -16,8 +18,9 @@ function typeLabel(signalType: string): string {
  * Neon-backed Signal Score panel. When score is null, shows offline/empty —
  * never presents JSON review precision as Signal Score.
  *
- * `compact` = dense single-strip (Eval) — no stacked header/
- * body/footer chrome; full layout keeps the two-column metric panel.
+ * `compact` = dense Eval Metrics strip: header + window toolbar, five KPI
+ * cells in one row (Labeled Eval density), type chips + all-time secondary.
+ * Full layout keeps the two-column metric panel.
  * Signal Detail omits this strip (score lives on Insights/Eval).
  *
  * Primary `score` is the review-window keep-set score (go/no-go). Optional
@@ -47,7 +50,12 @@ export function SignalScoreSummary({
 
   const allTimeLine =
     allTimeScore != null ? (
-      <p className="tabular text-label-12 text-sio-fg-muted">
+      <p
+        className={cn(
+          "tabular text-label-12 text-sio-fg-muted",
+          compact && "ml-auto shrink-0",
+        )}
+      >
         All-time pack{" "}
         <span className="font-mono text-sio-fg-subtle">
           {formatPercent(allTimeScore.signal_score)}
@@ -58,77 +66,101 @@ export function SignalScoreSummary({
     ) : null;
 
   if (compact) {
+    const kpis: CompactKpi[] = online
+      ? [
+          { label: "Overall", value: primary, mono: true },
+          { label: "Reviewed", value: score.reviewed_count },
+          { label: "Correct", value: score.correct_count },
+          { label: "Incorrect", value: score.incorrect_count, muted: true },
+          { label: "Partial", value: score.partially_correct_count, muted: true },
+        ]
+      : [
+          { label: "Overall", value: "—", mono: true },
+          { label: "Reviewed", value: "—" },
+          { label: "Correct", value: "—" },
+          { label: "Incorrect", value: "—", muted: true },
+          { label: "Partial", value: "—", muted: true },
+        ];
+
+    const showFoot =
+      !online ||
+      emptyWindow ||
+      byType.length > 0 ||
+      allTimeScore != null;
+
     return (
       <section
-        className="metric-strip metric-strip--compact shrink-0"
+        className="metric-strip metric-strip--compact w-full shrink-0"
         aria-label="Signal Score"
         aria-live="polite"
       >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-          <p className="eyebrow">Signal Score</p>
-          <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
+        <div className="metric-strip-head">
+          <div className="min-w-0">
+            <p className="eyebrow">Signal Score</p>
+            <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
+          </div>
+          {windowControl || windowInvalid ? (
+            <div className="metric-strip-window min-w-0">
+              {windowControl}
+              {windowInvalid ? (
+                <p
+                  className="mt-1.5 text-label-12 text-sio-fg-subtle"
+                  role="alert"
+                >
+                  Invalid from date — using last 7 days. Enter a calendar date
+                  and Apply Window.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
-        {windowControl ? (
-          <div className="mt-2 min-w-0">{windowControl}</div>
-        ) : null}
-        {windowInvalid ? (
-          <p className="mt-1.5 text-label-12 text-sio-fg-subtle" role="alert">
-            Invalid from date — using last 7 days. Enter a calendar date and
-            Apply Window.
-          </p>
-        ) : null}
 
-        <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="metric-label">Overall</span>
-            <span className="font-mono tabular text-heading-16 text-sio-fg-base">
-              {primary}
-            </span>
-            {online ? (
-              <p className="tabular text-label-12 text-sio-fg-base">
-                Reviewed{" "}
-                <span className="font-medium">{score.reviewed_count}</span>
-                <span className="text-sio-fg-subtle"> · </span>
-                Correct{" "}
-                <span className="font-medium">{score.correct_count}</span>
-                <span className="text-sio-fg-muted">
-                  {" "}
-                  · Incorrect {score.incorrect_count}
-                  <span aria-hidden> · </span>
-                  Partial {score.partially_correct_count}
-                </span>
-              </p>
-            ) : (
-              <p className="text-label-12 text-sio-fg-muted">
+        <dl className="metric-strip-kpis">
+          {kpis.map((kpi) => (
+            <CompactStat key={kpi.label} {...kpi} />
+          ))}
+        </dl>
+
+        {showFoot ? (
+          <div className="metric-strip-foot">
+            {!online ? (
+              <p className="w-full text-label-12 text-sio-fg-muted">
                 Backend offline — score unavailable
               </p>
-            )}
+            ) : null}
+            {emptyWindow ? (
+              <p className="w-full text-label-12 text-sio-fg-muted">
+                No reviews in this window. Mark signals in Shadow Mode to build
+                the week score.
+              </p>
+            ) : null}
+            {online && byType.length > 0 ? (
+              <ul className="m-0 flex min-w-0 list-none flex-wrap items-center gap-x-6 gap-y-2 p-0">
+                {byType.map((row) => (
+                  <li
+                    key={row.signal_type}
+                    className="flex min-w-0 items-center gap-2"
+                  >
+                    {KNOWN_TYPES.has(row.signal_type) ? (
+                      <SignalTypeChip type={row.signal_type as SignalType} />
+                    ) : (
+                      <span className="text-label-12 font-medium text-sio-fg-base">
+                        {typeLabel(row.signal_type)}
+                      </span>
+                    )}
+                    <span className="font-mono tabular text-label-12 text-sio-fg-subtle">
+                      {formatPercent(row.signal_score)}
+                      <span className="ml-1.5 text-sio-fg-muted">
+                        ({row.correct_count}/{row.reviewed_count})
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {allTimeLine}
           </div>
-
-          {online && byType.length > 0 ? (
-            <ul className="flex min-w-0 flex-wrap gap-x-3 gap-y-0.5 text-label-12 text-sio-fg-subtle">
-              {byType.map((row) => (
-                <li key={row.signal_type} className="font-mono tabular">
-                  <span className="font-sans text-sio-fg-base">
-                    {typeLabel(row.signal_type)}
-                  </span>{" "}
-                  {formatPercent(row.signal_score)}
-                  <span className="ml-1 text-label-12 text-sio-fg-muted">
-                    ({row.correct_count}/{row.reviewed_count})
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {emptyWindow ? (
-            <p className="text-label-12 text-sio-fg-muted">
-              No reviews in this window. Mark signals in Shadow Mode to build
-              the week score.
-            </p>
-          ) : null}
-        </div>
-        {allTimeLine ? <div className="mt-1">{allTimeLine}</div> : null}
+        ) : null}
       </section>
     );
   }
@@ -158,7 +190,7 @@ export function SignalScoreSummary({
       <div className="grid min-w-0 grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] sm:divide-x sm:divide-sio-border-base">
         <div className="metric-cell">
           <div className="metric-label">Overall</div>
-          <div className="font-mono tabular mt-0.5 text-heading-24 text-sio-fg-base">
+          <div className="font-mono tabular mt-0.5 text-heading-16 text-sio-fg-base">
             {primary}
           </div>
           {online ? (
@@ -224,5 +256,30 @@ export function SignalScoreSummary({
         </div>
       </div>
     </section>
+  );
+}
+
+type CompactKpi = {
+  label: string;
+  value: string | number;
+  muted?: boolean;
+  mono?: boolean;
+};
+
+function CompactStat({
+  label,
+  value,
+  muted = false,
+  mono = false,
+}: CompactKpi) {
+  return (
+    <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
+      <dt className="metric-label break-words">{label}</dt>
+      <dd
+        className={`tabular mt-0.5 text-heading-16 ${mono ? "font-mono" : ""} ${muted ? "text-sio-fg-subtle" : "text-sio-fg-base"}`}
+      >
+        {value}
+      </dd>
+    </div>
   );
 }

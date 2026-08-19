@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useRef, type ReactNode } from "react";
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { FilterIcon } from "@/components/icons/FilterIcon";
 import { SignalQueueRow, QUEUE_GRID } from "@/components/SignalQueueRow";
@@ -29,6 +29,58 @@ import {
 import { viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
 import type { Conversation, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+type InsightsMode = "list" | "review";
+
+/**
+ * Overlay Insights queue list and preview review.
+ * Both panes stay mounted; `data-insights-mode` transitions opacity/transform.
+ * Holds the last review tree after `?preview=` clears so the exit fade still has content.
+ * First paint uses resting styles — no enter animation on deep links.
+ */
+export function InsightsModeSwap({
+  mode,
+  reviewKey = null,
+  list,
+  review,
+}: {
+  mode: InsightsMode;
+  /** Preview id while review is open; null on the list. */
+  reviewKey?: string | null;
+  list: ReactNode;
+  review: ReactNode;
+}) {
+  const heldReviewRef = useRef(review);
+  const reviewActive = mode === "review";
+
+  /* eslint-disable react-hooks/refs -- snapshot last review pane for exit fade */
+  if (reviewActive && reviewKey) {
+    heldReviewRef.current = review;
+  }
+  const reviewNode = reviewActive ? review : heldReviewRef.current;
+  /* eslint-enable react-hooks/refs */
+
+  const listActive = mode === "list";
+
+  return (
+    <div className="insights-mode-swap" data-insights-mode={mode}>
+      <div
+        className="insights-mode-pane insights-mode-pane-list"
+        aria-hidden={!listActive}
+        inert={!listActive ? true : undefined}
+      >
+        {list}
+      </div>
+      <div
+        className="insights-mode-pane insights-mode-pane-review"
+        aria-hidden={!reviewActive}
+        inert={!reviewActive ? true : undefined}
+      >
+        {reviewNode}
+      </div>
+    </div>
+  );
+}
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -279,8 +331,7 @@ export function SignalQueue({
     );
   }, [previewId, pendingSignals, reviewedSignals]);
 
-  const showPendingError =
-    Boolean(queueError) && (statusFilter === "new" || statusFilter === "all");
+  const showPendingError = Boolean(queueError) && statusFilter === "new";
 
   if (previewId) {
     const previewConversation = previewSignal
@@ -306,7 +357,7 @@ export function SignalQueue({
     );
 
     return (
-      <div className="scroll-region flex min-h-0 flex-1 flex-col gap-3">
+      <div className="scroll-region flex h-full min-h-0 flex-1 flex-col gap-3">
         {showFilters ? (
           <QueueFilters
             statusFilter={statusFilter}
@@ -324,12 +375,12 @@ export function SignalQueue({
         {previewSignal ? (
           <div
             id={`signal-review-body-${previewSignal.id}`}
-            className="grid shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
+            className="grid min-w-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
             aria-labelledby={`signal-review-heading-${previewSignal.id}`}
           >
             <SignalReviewSuggestedAction
               signal={previewSignal}
-              className="min-w-0 lg:h-full"
+              className="min-w-0 lg:col-span-2"
             />
             <FeedbackControls
               signal={previewSignal}
@@ -339,7 +390,7 @@ export function SignalQueue({
               <GroundTruthControl
                 conversationId={previewConversation.id}
                 groundTruth={previewConversation.groundTruth}
-                className="min-w-0 lg:col-span-2"
+                className="min-w-0 lg:h-full"
               />
             ) : null}
           </div>
@@ -402,7 +453,7 @@ export function SignalQueue({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
       {showFilters ? (
         <QueueFilters
           statusFilter={statusFilter}
@@ -412,21 +463,6 @@ export function SignalQueue({
           allCount={allCount}
           queueHref={queueHref}
         />
-      ) : null}
-
-      {showPendingError ? (
-        <div
-          className="status-banner status-banner-warning shrink-0"
-          role="alert"
-        >
-          <p className="text-copy-14 text-sio-fg-base">
-            Neon needs-review queue unavailable
-          </p>
-          <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
-            Showing local keep-set signals. Start FastAPI to load needs-review
-            from Neon.
-          </p>
-        </div>
       ) : null}
 
       {filtered.length === 0 ? (

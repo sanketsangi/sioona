@@ -29,7 +29,7 @@ export default function RootLayout({
       lang="en"
       className={`theme h-full overflow-hidden font-sans ${GeistSans.variable} ${GeistMono.variable}`}
     >
-      <body className="h-full overflow-hidden bg-background font-sans text-foreground antialiased">
+      <body className="h-full overflow-hidden bg-muted font-sans text-foreground antialiased">
         {children}
         <SpeedInsights />
         <Analytics />

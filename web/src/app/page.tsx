@@ -39,7 +39,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const TITLES: Record<PlatformView, string> = {
-  insights: "Signal Insights",
+  insights: "Insights",
   upload: "Upload Chats",
   eval: "Eval & SignalScore",
   taxonomy: "Signal Taxonomy",
@@ -127,16 +127,6 @@ export default async function PlatformPage({
     : store.signals.filter((s) => !s.feedback).length;
   const queueError = needsReview.ok ? null : needsReview.error;
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
-  const notifications = buildHeaderNotifications({
-    pendingCount,
-    queueError,
-    syncFailed: hasSyncFailure ? syncFailed : 0,
-    syncCreated: hasSyncFailure ? syncCreated : 0,
-    scoreUnavailable: backendScore == null,
-    demoReady: sp.demo === "1",
-    wipeFailed,
-  });
-
   const cadencePreviewId = firstUnactedCorrectId(store.signals);
   const cadenceAction = nextPilotCadenceAction(
     computePilotCadenceSteps({
@@ -152,6 +142,17 @@ export default async function PlatformPage({
     }),
     { unactedCorrectCount: countUnactedCorrect(store.signals) }
   );
+  const scoreFromQuery =
+    scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
+  const notifications = buildHeaderNotifications({
+    pendingCount,
+    queueError,
+    syncFailed: hasSyncFailure ? syncFailed : 0,
+    syncCreated: hasSyncFailure ? syncCreated : 0,
+    scoreUnavailable: backendScore == null,
+    demoReady: sp.demo === "1",
+    wipeFailed,
+  });
 
   const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
@@ -175,9 +176,7 @@ export default async function PlatformPage({
           previewId={previewId}
           backendScore={backendScore}
           needsReview={needsReview}
-          scoreFrom={
-            scoreWindow.status === "custom" ? scoreWindow.dateInput : null
-          }
+          scoreFrom={scoreFromQuery}
           syncFailed={syncFailed}
           syncCreated={syncCreated}
           llmAdded={parseLlmAddedParam(sp.llmAdded)}

@@ -167,7 +167,7 @@ function normalizeGroundTruth(
 
 /** Shown when import succeeds but detection finds nothing. */
 export const ZERO_SIGNAL_HINT =
-  "No lead/retention/upsell matches. Detection looks for support phrases (open account, switch, upgrade)—forum-style posts often score zero. Try Run Partner Demo or a real support export.";
+  "No lead/retention/upsell matches. Detection looks for support phrases (open account, switch, upgrade)—forum-style posts often score zero. Try Upload or a real support export.";
 
 function asTrimmedString(value: unknown): string {
   if (typeof value === "string") return value.trim();

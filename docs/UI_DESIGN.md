@@ -26,9 +26,18 @@ Shell uses shadcn Sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarInse
 - **Tokens:** `--sidebar-*` (and related shadcn HSL channels) alias to sio neutrals in `globals.css` — light theme / `color-scheme: light`; do not invent a second palette.
 - **Width:** `--sidebar-width: 240px`; icon rail `--sidebar-width-icon: 3rem` (Tailwind uses `w-[var(--sidebar-width)]`).
 - **Brand:** `SioonaLogotype` + compact “S” mark in the sidebar header (no Acme `TeamSwitcher`).
-- **Nav:** Workspace — Insights, Upload, Eval, Taxonomy via `viewHref` / Phosphor + local icons; Help / Guidance disabled; Create Account stub (no fake user avatars / Auth0).
+- **Nav:** Workspace — Insights, Upload, Eval, Taxonomy via `viewHref` / Phosphor + local icons; Help / Guidance disabled; `NavUser` identity in the footer (initials avatar + name / tenant id — not a menu; no Account / Billing / Notifications / Log Out).
 - **Header:** existing `AppHeader` title + mode toggle + actions; `SidebarTrigger` for desktop collapse and mobile sheet.
 - **Out of product:** do not ship the sidebar-07 demo dashboard as the home route.
+
+## Upload (two panels)
+
+Upload Chats body stays inside existing `page-frame` / `ViewFrame` — not a `/login` route and not login-04 page chrome (`min-h-svh`, centered `max-w-*`, single wrapping `Card`).
+
+- **Left:** white `.panel` with `UploadForm` (file + confirm-replace + errors/sync). Copy stays Import / Chat Export. File control is a flex-1 dashed drop zone (`FileArrowUp` Bold + native `input type=file` overlay; `min-h-44`, focus-within `--focus-ring`).
+- **Right:** independent panel — `rounded-[var(--radius-panel)]` + `border-sio-border-base` + `bg-sio-bg-base` (white, same as left `.panel`) — Partner Sample Pack. Visible at every breakpoint (do not hide on mobile). No `placeholder.svg` / Acme copy.
+- **Fill:** `md:grid-cols-2` with `gap-3 sm:gap-4`; both columns `min-h-0 min-w-0 flex-1` like Taxonomy’s type panel. Page canvas stays `bg-muted`; sidebar unchanged.
+- **Footer:** cadence helper under both panels.
 
 ## Concrete rules
 
@@ -50,7 +59,11 @@ Shell uses shadcn Sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarInse
 ### Signal Score chrome
 
 - **Full** (`SignalScoreSummary`): stacked header + overall cell + by-type column (Eval overview when not compact).
-- **Compact** (`compact` on Eval strips): single `.metric-strip--compact` block — eyebrow + Overall % + Reviewed/Correct + type chips inline; tight padding (~70–90px vs ~175px stacked). Neon SoT unchanged. Insights in-queue review omits the score strip (score lives on Insights queue chrome / Eval).
+- **Compact** (`compact` on Eval Metrics): full-width `.metric-strip--compact` matching Labeled Eval density — header (eyebrow + window source + This Week / From / Apply Window via `.btn-*` + `input-field`) · five equal KPI cells in one row (Overall % · Reviewed · Correct · Incorrect · Partial, tabular) · type chips via `SignalTypeChip` + percent with open 24px clusters, all-time trailing. `--radius-panel`, `sio-border-base`. Neon SoT unchanged. Insights in-queue review omits the score strip (score lives on Insights queue chrome / Eval).
+
+### Eval / labeled segmented tabs
+
+Shared `SegmentedTabs` (Eval panels + Labeled tables): hairline `sio-border-base` track on `sio-bg-muted`, sliding thumb (`translateX` via `--seg-index`; transform/opacity only). Real `Link`s; active = thumb fill + medium weight (not color-only). Modest `rounded-sm` nested radius — not pills-on-pills. Honor `prefers-reduced-motion` (no slide).
 
 ### Conversation transcript (alignment lock)
 

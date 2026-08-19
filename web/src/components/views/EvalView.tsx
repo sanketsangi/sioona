@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
 import { ScoreWindowControl } from "@/components/ScoreWindowControl";
+import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { SignalScoreSummary } from "@/components/SignalScoreSummary";
 import { ViewFrame } from "@/components/ViewFrame";
 import { ExportEvalPanel } from "@/components/views/ExportEvalPanel";
@@ -89,29 +90,18 @@ export function EvalView({
 
   return (
     <ViewFrame className="gap-3 md:gap-4">
-      <div
-        className="flex min-w-0 shrink-0 flex-wrap gap-0.5 rounded-sm border border-sio-border-base bg-sio-bg-base p-0.5"
-        role="group"
-        aria-label="Eval panels"
-      >
-        {PANELS.map((item) => {
-          const active = panel === item.id;
-          return (
-            <Link
-              key={item.id}
-              href={viewHref("eval", {
-                panel: item.id,
-                scoreFrom,
-              })}
-              scroll={false}
-              aria-current={active ? "page" : undefined}
-              className={`nav-link flex-1 sm:flex-none ${active ? "nav-link-active" : ""}`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
+      <SegmentedTabs
+        label="Eval panels"
+        activeId={panel}
+        items={PANELS.map((item) => ({
+          id: item.id,
+          label: item.label,
+          href: viewHref("eval", {
+            panel: item.id,
+            scoreFrom,
+          }),
+        }))}
+      />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {panel === "metrics" ? (

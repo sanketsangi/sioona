@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
-import { IconInnerShadowTop } from "@/components/icons/IconInnerShadowTop";
-import { ExternalIcon } from "@/components/icons/ExternalIcon";
-import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
-import { SignalQueue, SignalQueueFilters } from "@/components/SignalQueue";
+import {
+  InsightsModeSwap,
+  SignalQueue,
+  SignalQueueFilters,
+} from "@/components/SignalQueue";
 import { ViewFrame } from "@/components/ViewFrame";
 import {
   Breadcrumb,
@@ -16,7 +17,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
@@ -186,6 +186,29 @@ export function InsightsView({
     scoreFrom,
     preview: cadencePreviewId,
   });
+  const showQuietReDetect =
+    Boolean(queueError) || pendingSignals.length === 0;
+
+  const queueProps = {
+    pendingSignals,
+    reviewedSignals,
+    customerNames,
+    conversationsById,
+    queueError,
+    statusFilter,
+    typeFilter,
+    page,
+    queryExtras,
+    showFilters: false as const,
+    pendingClear:
+      cadenceAction.id === "reviews"
+        ? null
+        : {
+            description: pilotCadenceHelperCopy("insights", cadenceAction),
+            href: cadenceHref,
+            label: cadenceActionCta(cadenceAction),
+          },
+  };
 
   return (
     <ViewFrame>
@@ -216,7 +239,7 @@ export function InsightsView({
             </p>
             {zeroSignalsImport ? (
               <div className="mt-2.5 flex flex-wrap gap-2">
-                <PartnerDemoButton label="Run Partner Demo" />
+                <ReDetectButton />
                 <Link href={viewHref("upload")} className="btn-secondary">
                   Upload Another File
                 </Link>
@@ -226,158 +249,112 @@ export function InsightsView({
         </div>
       ) : null}
 
-      <Note>
-        <NoteContent className="text-sio-fg-base">
-          <div className="flex min-w-0 items-center gap-2">
-            <IconInnerShadowTop className="size-5 shrink-0 text-black" />
-            <span
-              className="min-w-0 truncate text-base font-semibold"
-              title={store.tenant.name}
-              translate="no"
-            >
-              {store.tenant.name}
-            </span>
-          </div>
-        </NoteContent>
-        <NoteAction
-          aria-label="Queue actions"
-          className="flex-col items-stretch md:flex-row md:items-center"
-        >
-          <PartnerDemoButton
-            className="btn-secondary w-full md:w-auto md:border-transparent md:bg-sio-bg-inverse md:text-sio-fg-on-color md:hover:border-transparent md:hover:bg-black md:disabled:border-transparent md:disabled:bg-sio-bg-disabled md:disabled:text-sio-fg-muted"
-            label="Run Partner Demo"
-          />
-          <ReDetectButton className="w-full md:w-auto" />
-          <Link
-            href={viewHref("eval", { scoreFrom })}
-            className="btn-secondary w-full md:w-auto"
-          >
-            <ExternalIcon className="size-3.5 shrink-0" />
-            Open Eval
-          </Link>
-        </NoteAction>
-      </Note>
-
-      <InsightsQueueMetrics
-        conversationCount={store.conversations.length}
-        signals={store.signals}
-        pendingSignals={pendingSignals}
-      />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
-          <div className="min-w-0">
-            {reviewOpen && breadcrumbPageLabel ? (
-              <Breadcrumb aria-label="Insights review" className="scroll-mt-4">
-                <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2">
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link
-                        href={backToQueueHref}
-                        scroll={false}
-                        className="rounded-sm font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[0_0_0_2px_var(--sio-bg-base),0_0_0_4px_var(--sio-focus-accent)]"
-                      >
-                        Insights Queue
-                      </Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage
-                      className="max-w-[16rem] truncate font-medium text-sio-fg-base sm:max-w-xs"
-                      translate="no"
-                    >
-                      {breadcrumbPageLabel}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-            ) : pendingSignals.length > 0 ? (
-              <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                Conversation that needs your attention
-              </h2>
-            ) : reviewedSignals.length > 0 ? (
+      <InsightsModeSwap
+        mode={reviewOpen ? "review" : "list"}
+        reviewKey={reviewOpen ? previewId : null}
+        list={
+          <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
+            <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                  {cadenceAction.id === "acted"
-                    ? "Mark Acted on Correct Reviews"
-                    : "No Conversations Need Review"}
+                  Conversation that needs your attention
                 </h2>
-                <p className="mt-1 max-w-xl text-pretty text-label-13 text-sio-fg-subtle">
-                  {pilotCadenceHelperCopy("insights", cadenceAction)}{" "}
-                  <Link href={cadenceHref} className="link-accent">
-                    {cadenceActionCta(cadenceAction)}
-                  </Link>
-                </p>
               </div>
-            ) : (
-              <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                Shadow Mode Queue
-              </h2>
-            )}
-          </div>
-          <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
-            {previewSignal && previewCustomerName != null ? (
-              <>
-                <OpenConversationHeaderAction
-                  messages={previewMessages}
-                  customerName={previewCustomerName}
-                  typeLabel={signalTypeLabel(previewSignal.type)}
-                  summary={previewSignal.summary || ""}
+              <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
+                <SignalQueueFilters
+                  pendingSignals={pendingSignals}
+                  reviewedSignals={reviewedSignals}
+                  queueError={queueError}
+                  statusFilter={statusFilter}
+                  typeFilter={typeFilter}
+                  page={page}
+                  previewId={reviewOpen ? null : previewId}
+                  queryExtras={queryExtras}
                 />
-                <MarkActedHeaderAction
-                  key={previewSignal.id}
-                  signal={previewSignal}
-                  nextPreviewId={nextUnactedCorrectId(
-                    reviewedSignals,
-                    previewSignal.id,
-                  )}
-                  scoreFrom={scoreFrom}
-                />
-              </>
-            ) : (
-              <SignalQueueFilters
-                pendingSignals={pendingSignals}
-                reviewedSignals={reviewedSignals}
-                queueError={queueError}
-                statusFilter={statusFilter}
-                typeFilter={typeFilter}
-                page={page}
-                previewId={previewId}
-                queryExtras={queryExtras}
+                {showQuietReDetect && !zeroSignalsImport ? (
+                  <ReDetectButton />
+                ) : null}
+              </div>
+            </div>
+            <InsightsQueueMetrics
+              conversationCount={store.conversations.length}
+              signals={store.signals}
+              pendingSignals={pendingSignals}
+            />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <SignalQueue
+                {...queueProps}
+                previewId={reviewOpen ? null : previewId}
               />
-            )}
+            </div>
           </div>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <SignalQueue
-            pendingSignals={pendingSignals}
-            reviewedSignals={reviewedSignals}
-            customerNames={customerNames}
-            conversationsById={conversationsById}
-            queueError={queueError}
-            statusFilter={statusFilter}
-            typeFilter={typeFilter}
-            page={page}
-            previewId={previewId}
-            queryExtras={queryExtras}
-            showFilters={false}
-            pendingClear={
-              cadenceAction.id === "reviews"
-                ? null
-                : {
-                    description: pilotCadenceHelperCopy(
-                      "insights",
-                      cadenceAction,
-                    ),
-                    href: cadenceHref,
-                    label: cadenceActionCta(cadenceAction),
-                  }
-            }
-          />
-        </div>
-      </div>
+        }
+        review={
+          <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
+            <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
+              <div className="min-w-0">
+                {breadcrumbPageLabel ? (
+                  <Breadcrumb
+                    aria-label="Insights review"
+                    className="scroll-mt-4"
+                  >
+                    <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2">
+                      <BreadcrumbItem>
+                        <BreadcrumbLink asChild>
+                          <Link
+                            href={backToQueueHref}
+                            scroll={false}
+                            className="rounded-sm font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[0_0_0_2px_var(--sio-bg-base),0_0_0_4px_var(--sio-focus-accent)]"
+                          >
+                            Insights Queue
+                          </Link>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
+                      <BreadcrumbItem>
+                        <BreadcrumbPage
+                          className="max-w-[16rem] truncate font-medium text-sio-fg-base sm:max-w-xs"
+                          translate="no"
+                        >
+                          {breadcrumbPageLabel}
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
+                ) : (
+                  <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                    Conversation that needs your attention
+                  </h2>
+                )}
+              </div>
+              <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
+                {previewSignal && previewCustomerName != null ? (
+                  <>
+                    <OpenConversationHeaderAction
+                      messages={previewMessages}
+                      customerName={previewCustomerName}
+                      typeLabel={signalTypeLabel(previewSignal.type)}
+                      summary={previewSignal.summary || ""}
+                    />
+                    <MarkActedHeaderAction
+                      key={previewSignal.id}
+                      signal={previewSignal}
+                      nextPreviewId={nextUnactedCorrectId(
+                        reviewedSignals,
+                        previewSignal.id,
+                      )}
+                      scoreFrom={scoreFrom}
+                    />
+                  </>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <SignalQueue {...queueProps} previewId={previewId} />
+            </div>
+          </div>
+        }
+      />
     </ViewFrame>
   );
 }

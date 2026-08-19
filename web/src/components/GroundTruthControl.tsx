@@ -154,66 +154,65 @@ export function GroundTruthControl({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
-        <p className="text-label-12 text-sio-fg-muted">
-          Label this conversation so Eval can compute labeled precision and
-          recall for Lead, Retention, Upsell, or None.
-        </p>
+        <div className="mt-auto flex flex-col gap-2.5">
+          <p className="text-label-12 text-sio-fg-muted">
+            Label this conversation so Eval can compute labeled precision and
+            recall for Lead, Retention, Upsell, or None.
+          </p>
 
-        <div
-          id={groupId}
-          role="radiogroup"
-          aria-labelledby={headingId}
-          aria-disabled={pending || undefined}
-          className="mt-2.5 flex flex-wrap items-center gap-2"
-        >
-          {OPTIONS.map((opt, index) => {
-            const selected = value === opt.value;
-            const { Icon } = opt;
-            return (
-              <button
-                key={opt.label}
-                ref={(el) => {
-                  optionRefs.current[index] = el;
-                }}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                title={opt.hint}
-                tabIndex={selected ? 0 : -1}
-                disabled={pending}
-                aria-busy={pending && selected}
-                onClick={() => void onSelect(opt.value)}
-                onKeyDown={(e) => onRadioKeyDown(e, index)}
-                className={cn(
-                  selected ? "btn-primary" : "btn-secondary",
-                  pending && "cursor-wait",
-                )}
-              >
-                {pending && selected ? (
-                  <ButtonSpinner />
-                ) : Icon ? (
-                  <Icon className="size-3.5 shrink-0" />
-                ) : null}
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
+          <div
+            id={groupId}
+            role="radiogroup"
+            aria-labelledby={headingId}
+            aria-disabled={pending || undefined}
+            className="flex flex-wrap items-center gap-2"
+          >
+            {OPTIONS.map((opt, index) => {
+              const selected = value === opt.value;
+              const { Icon } = opt;
+              return (
+                <button
+                  key={opt.label}
+                  ref={(el) => {
+                    optionRefs.current[index] = el;
+                  }}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  title={opt.hint}
+                  tabIndex={selected ? 0 : -1}
+                  disabled={pending}
+                  aria-busy={pending && selected}
+                  onClick={() => void onSelect(opt.value)}
+                  onKeyDown={(e) => onRadioKeyDown(e, index)}
+                  className={cn(
+                    selected ? "btn-primary" : "btn-secondary",
+                    pending && "cursor-wait",
+                  )}
+                >
+                  {pending && selected ? (
+                    <ButtonSpinner />
+                  ) : Icon ? (
+                    <Icon className="size-3.5 shrink-0" />
+                  ) : null}
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
 
-        <div aria-live="polite">
           {pending ? (
-            <p className="mt-2.5 text-label-12 text-sio-fg-muted">Saving…</p>
+            <p className="text-label-12 text-sio-fg-muted" aria-live="polite">
+              Saving…
+            </p>
+          ) : null}
+
+          {error ? (
+            <p className="text-label-12 text-sio-status-danger-fg" role="alert">
+              {error}. Try again or refresh the page.
+            </p>
           ) : null}
         </div>
-
-        {error ? (
-          <p
-            className="mt-2.5 text-label-12 text-sio-status-danger-fg"
-            role="alert"
-          >
-            {error}. Try again or refresh the page.
-          </p>
-        ) : null}
       </div>
     </section>
   );

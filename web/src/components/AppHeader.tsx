@@ -1,17 +1,13 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import {
-  ChartLineUp,
-  ListChecks,
-  LockSimple,
-  Tag,
-} from "@phosphor-icons/react/ssr";
+import { LockSimple, Tag } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
+import { ChartLineUpIcon } from "@/components/icons/ChartLineUpIcon";
+import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
-import { SparklesIcon } from "@/components/icons/SparklesIcon";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -26,8 +22,6 @@ import type { PlatformView } from "@/lib/views";
 import { cn } from "@/lib/utils";
 
 const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
-  insights: ChartLineUp,
-  eval: ListChecks,
   taxonomy: Tag,
 };
 
@@ -59,11 +53,21 @@ export function AppHeader({
   notifications = [],
 }: AppHeaderProps) {
   const TitleIcon =
-    title && !detailOpen && activeView !== "upload"
+    title &&
+    !detailOpen &&
+    activeView !== "upload" &&
+    activeView !== "insights" &&
+    activeView !== "eval"
       ? TITLE_ICONS[activeView]
       : null;
   const showUploadTitleIcon = Boolean(
     title && !detailOpen && activeView === "upload",
+  );
+  const showInsightsTitleIcon = Boolean(
+    title && !detailOpen && activeView === "insights",
+  );
+  const showEvalTitleIcon = Boolean(
+    title && !detailOpen && activeView === "eval",
   );
 
   return (
@@ -78,7 +82,11 @@ export function AppHeader({
 
           {title ? (
             <h1 className="flex min-w-0 items-center gap-2 text-balance text-heading-20 text-sio-fg-base">
-              {showUploadTitleIcon ? (
+              {showInsightsTitleIcon ? (
+                <ChartLineUpIcon className="size-5 shrink-0 text-sio-fg-base" />
+              ) : showEvalTitleIcon ? (
+                <ListChecksIcon className="size-5 shrink-0 text-sio-fg-base" />
+              ) : showUploadTitleIcon ? (
                 <ArrowCircleUpIcon className="size-5 shrink-0" />
               ) : TitleIcon ? (
                 <TitleIcon
@@ -95,29 +103,6 @@ export function AppHeader({
         <div className="app-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
           <ModeToggle />
           <NotificationsMenu notifications={notifications} />
-
-          {/* Dead Action Mode chrome — desktop only so phone reviewers keep header clear. */}
-          <button
-            type="button"
-            className="btn-secondary hidden size-9 shrink-0 gap-1.5 px-0 lg:inline-flex lg:w-auto lg:px-3.5"
-            aria-label="Export"
-            disabled
-            title="Export (coming later)"
-          >
-            <ArrowCircleUpIcon className="size-3.5 shrink-0" />
-            <span>Export</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-primary hidden size-9 shrink-0 gap-1.5 px-0 disabled:bg-sio-bg-inverse disabled:text-sio-fg-on-color lg:inline-flex lg:h-9 lg:w-auto lg:px-3.5"
-            aria-label="Create Campaign"
-            disabled
-            title="Create Campaign (coming later)"
-          >
-            <SparklesIcon className="size-3.5 shrink-0" />
-            <span>Create Campaign</span>
-          </button>
         </div>
       </div>
     </header>
@@ -162,11 +147,7 @@ function ModeToggle() {
         >
           <PlayCircleIcon className="size-3.5 shrink-0" />
           {!unlocked ? (
-            <LockSimple
-              className="size-3 shrink-0"
-              weight="bold"
-              aria-hidden
-            />
+            <LockSimple className="size-3 shrink-0" weight="bold" aria-hidden />
           ) : null}
         </ModeToggleItem>
       </ToggleGroup>
@@ -205,11 +186,7 @@ function ModeToggleItem({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        {disabled ? (
-          <span className="inline-flex">{item}</span>
-        ) : (
-          item
-        )}
+        {disabled ? <span className="inline-flex">{item}</span> : item}
       </TooltipTrigger>
       <TooltipContent side="bottom" align="center">
         {tooltip}

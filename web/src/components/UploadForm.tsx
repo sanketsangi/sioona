@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
+import { FolderIcon } from "@/components/icons/FolderIcon";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   llmQueryExtras,
   parseLlmPassStats,
@@ -23,11 +26,11 @@ const FORMAT_LABELS: Record<string, string> = {
   whatsapp_txt: "WhatsApp chat",
 };
 
+const FILE_ACCEPT = ".csv,.json,.txt,text/csv,application/json,text/plain";
+
 export function UploadForm({
-  compact = false,
   hasPartnerExport = false,
 }: {
-  compact?: boolean;
   hasPartnerExport?: boolean;
 }) {
   const router = useRouter();
@@ -123,113 +126,126 @@ export function UploadForm({
   return (
     <form
       onSubmit={onSubmit}
-      className={`panel flex h-full flex-col ${compact ? "p-4 sm:p-5" : "p-6 sm:p-8"}`}
+      className="flex h-full min-h-0 flex-col gap-6 p-4 sm:p-5 lg:p-6"
     >
-      <p className="eyebrow shrink-0">Import</p>
-      <label
-        htmlFor="chat-export"
-        className="mt-1 block shrink-0 text-heading-16 text-ds-gray-1000"
-      >
-        Chat Export
-      </label>
-      <p className="mt-2 shrink-0 text-copy-14 text-ds-gray-900">
-        CSV, JSON, or WhatsApp .txt. Best results: support chats with lead,
-        churn, or upgrade language.
-      </p>
-      <input
-        ref={fileRef}
-        id="chat-export"
-        name="file"
-        type="file"
-        accept=".csv,.json,.txt,text/csv,application/json,text/plain"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="mt-4 block w-full shrink-0 text-base text-ds-gray-900 file:mr-4 file:rounded-sm file:border-0 file:bg-ds-gray-100 file:px-3 file:py-2 file:text-base file:font-medium file:text-ds-gray-1000 sm:text-sm sm:file:text-sm"
-      />
-      {confirming && !hasPartnerExport ? (
-        <div className="mt-4 flex shrink-0 flex-col gap-3">
-          <p className="text-copy-14 text-ds-gray-1000" role="status">
-            Replace current chats with this file. Later re-uploads update
-            matching conversations.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              ref={confirmRef}
-              type="submit"
-              disabled={loading}
-              aria-busy={loading}
-              className="btn-primary"
-            >
-              {loading ? <ButtonSpinner /> : null}
-              Confirm Replace
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setConfirming(false);
-                submitRef.current?.focus();
-              }}
-              disabled={loading}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          ref={submitRef}
-          type="submit"
-          disabled={loading}
-          aria-busy={loading}
-          className="btn-primary mt-4 shrink-0"
+      <div className="flex shrink-0 flex-col gap-2">
+        <p className="eyebrow">Import</p>
+        <Label
+          htmlFor="chat-export"
+          className="text-heading-16 font-medium text-sio-fg-base"
         >
-          {loading ? (
-            <ButtonSpinner />
-          ) : (
-            <ArrowCircleUpIcon className="size-3.5 shrink-0" />
-          )}
-          Upload & Detect
-        </button>
-      )}
-      <div className="sr-only" aria-live="polite">
-        {loading ? "Uploading…" : status ?? ""}
+          Chat Export
+        </Label>
+        <p className="text-copy-14 text-balance text-sio-fg-subtle">
+          CSV, JSON, or WhatsApp .txt. Best results: support chats with lead,
+          churn, or upgrade language.
+        </p>
       </div>
-      {status ? (
+
+      <div className="relative flex min-h-44 flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-panel)] border border-dashed border-sio-border-base bg-sio-bg-muted/60 px-4 py-8 text-center touch-manipulation hover:bg-sio-bg-interactive focus-within:shadow-[var(--focus-ring)]">
+        <FolderIcon className="size-16 shrink-0 text-sio-fg-subtle" />
+        <p className="text-copy-14 text-sio-fg-base">
+          {file ? "File selected" : "Choose a file or drop it here"}
+        </p>
         <p
-          className={`mt-3 shrink-0 text-copy-14 ${
-            syncWarning ? "text-ds-gray-1000" : "text-ds-green-900"
-          }`}
+          className="max-w-full truncate text-label-13 text-sio-fg-subtle"
+          translate={file ? "no" : undefined}
         >
-          {status}
+          {file ? file.name : "CSV, JSON, or WhatsApp .txt…"}
         </p>
-      ) : null}
-      {syncWarning ? (
-        <div
-          className="status-banner status-banner-warning mt-3 shrink-0"
-          role="alert"
-        >
-          <p className="text-copy-14 text-ds-gray-1000">{syncWarning}</p>
+        <Input
+          ref={fileRef}
+          id="chat-export"
+          name="file"
+          type="file"
+          accept={FILE_ACCEPT}
+          aria-invalid={error ? true : undefined}
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="absolute inset-0 z-10 h-full min-h-full w-full cursor-pointer rounded-[var(--radius-panel)] border-0 bg-transparent p-0 opacity-0 file:hidden focus-visible:border-0 focus-visible:ring-0"
+        />
+      </div>
+
+      <div className="flex shrink-0 flex-col gap-3">
+        {confirming && !hasPartnerExport ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-copy-14 text-sio-fg-base" role="status">
+              Replace current chats with this file. Later re-uploads update
+              matching conversations.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                ref={confirmRef}
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className="btn-primary"
+              >
+                {loading ? <ButtonSpinner /> : null}
+                Confirm Replace
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirming(false);
+                  submitRef.current?.focus();
+                }}
+                disabled={loading}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            ref={submitRef}
+            type="submit"
+            disabled={loading}
+            aria-busy={loading}
+            className="btn-primary"
+          >
+            {loading ? (
+              <ButtonSpinner />
+            ) : (
+              <ArrowCircleUpIcon className="size-3.5 shrink-0" />
+            )}
+            Upload & Detect
+          </button>
+        )}
+        <div className="sr-only" aria-live="polite">
+          {loading ? "Uploading…" : status ?? ""}
         </div>
-      ) : null}
-      {hint ? (
-        <div
-          className="status-banner status-banner-warning mt-3 shrink-0"
-          role="status"
-        >
-          <p className="text-copy-14 text-ds-gray-1000">{hint}</p>
-          <p className="mt-2 text-label-13 text-ds-gray-900">
-            <Link href={viewHref("insights")} className="link-accent">
-              Start Partner Demo
-            </Link>{" "}
-            for sample support chats that already score.
+        {status ? (
+          <p
+            className={`text-copy-14 ${
+              syncWarning ? "text-sio-fg-base" : "text-sio-status-success-fg"
+            }`}
+          >
+            {status}
           </p>
-        </div>
-      ) : null}
-      {error ? (
-        <p className="mt-3 shrink-0 text-copy-14 text-ds-red-900" role="alert">
-          {error}. Check the file format and try again.
-        </p>
-      ) : null}
+        ) : null}
+        {syncWarning ? (
+          <div className="status-banner status-banner-warning" role="alert">
+            <p className="text-copy-14 text-sio-fg-base">{syncWarning}</p>
+          </div>
+        ) : null}
+        {hint ? (
+          <div className="status-banner status-banner-warning" role="status">
+            <p className="text-copy-14 text-sio-fg-base">{hint}</p>
+            <p className="mt-2 text-label-13 text-sio-fg-subtle">
+              <Link href={viewHref("insights")} className="link-accent">
+                Start Partner Demo
+              </Link>{" "}
+              for sample support chats that already score.
+            </p>
+          </div>
+        ) : null}
+        {error ? (
+          <p className="text-copy-14 text-sio-status-danger-fg" role="alert">
+            {error}. Check the file format and try again.
+          </p>
+        ) : null}
+      </div>
     </form>
   );
 }

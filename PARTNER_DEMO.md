@@ -8,8 +8,8 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 ## Cold demo (no partner data)
 
-1. Open http://localhost:3000 (or https://sioona-demo.vercel.app) → **Start Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` / hosted FastAPI per `web/DEPLOY.md`, then Re-run Detection)
-2. **Insights** — Neon pending queue (not JSON-only pending). Empty pending after go: **Mark Acted** on Correct (advances to the next; does not send), then next week’s export — not a dead heading.
+1. Open http://localhost:3000 (or https://sioona-demo.vercel.app) → **Upload → Run Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` / hosted FastAPI per `web/DEPLOY.md`, then Re-run Detection). Seed is also in the header notifications menu.
+2. **Insights** — Neon pending queue (not JSON-only pending). Empty pending after go: cadence helper in the queue empty state (**Mark Acted** on Correct, then next week’s export) — not a dead heading and not the header bell.
 3. Open a **retention** or **lead** card: summary, evidence, suggested action (display-only)
 4. **SignalScore** — mark ≥5 reviews (`correct` / `incorrect` / `partially_correct`)
 5. **Eval** — labeled P/R + Pilot Metrics (≥80% target, go/no-go) + set partner baseline for lift + Next Step copy
@@ -28,7 +28,7 @@ Cold open and **Reset Demo** also load the same showcase corpus (`testing.json`,
 | Ongoing | Mark ≥5 SignalScore reviews | Insights |
 | Before share-out | Set baseline + read go/no-go | Eval |
 
-Same strip on Upload, Insights, and Eval. No autonomous actions — suggested next steps stay display-only.
+Cadence helper on Insights empty queue, Upload, and Eval — not in the header bell. Partner Demo is Upload only. No autonomous actions — suggested next steps stay display-only.
 
 **Hosted week-1 (sioona-demo):** set Eval baseline (dual-writes to Neon `pilot_settings`) + mid-week partner CSV re-upload with `replaced=false` (upsert by `externalId`, no Day-1 prune). Week-1 dry-run logged 2026-08-14: baseline 12, keep-set n=6 / precision 0.83 → go, lift 23. No new Detect engine.
 
@@ -37,6 +37,12 @@ Same strip on Upload, Insights, and Eval. No autonomous actions — suggested ne
 **This week keep-set (2026-08-17):** sioona-demo Day-1 replace of `partner-shaped-labeled.csv` (16 / 10) → mid-week **`replaced=false`** (`weekly_export_count` 2; sync failed=0) → **6** Correct reviews → Eval `?scoreFrom=2026-08-17` keep-set **n=6 / correct=6 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **−2** (10 − 12). Not week-1 0.83 / not week-2 n=7.
 
 **Next-week keep-set (2026-08-18):** sioona-demo Groww Batch-01 JSON upsert **`replaced=false`** (100 chats / 7 signals / sync failed=0; not `*.local.csv`) → `weekly_export_count` **3** → **7** reviews → Eval `?scoreFrom=2026-08-17T19:34:00.000Z` keep-set **n=7 / correct=6 / incorrect=1 / precision 0.86 → go**; baseline **12**; lift **18** (30 − 12). Window Corrects **Acted 6/6**. Not the closed 2026-08-17 n=6 / 1.00.
+
+**Batch-02 rehearsal keep-set (2026-08-18):** sioona-demo Groww Batch-02 JSON upsert **`replaced=false`** (100 chats / 14 signals / sync failed=0; file not copied; not the manifest / not `*.local.csv`) → `weekly_export_count` **4** → **7** Correct reviews → Eval `?scoreFrom=2026-08-18T14:37:31.774Z` keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+23** (35 − 12). Window Corrects **Acted 7/7**. Rehearsal, not a live partner dump. Not the closed Batch-01 n=7 / 0.86.
+
+**Real weekly partner export (2026-08-18 evening):** **skipped** — no unused real dump on disk (Groww / CS / `partner-shaped` / already-logged week-1 / week-2 `.local.csv` excluded; file not copied). Neon `weekly_export_count` still **4**; baseline **12**; last keep-set remains Batch-02 n=7 / 1.00. Not a Day-1 replace.
+
+**Local Day-1 replace (2026-08-18):** customer-support `batch_001.csv` on localhost **`replaced=true`** (200 chats / 0 signals / sync failed=0; GT **200 lead**; file not copied) → Eval `?scoreFrom=2026-08-18T12:25:07.682Z` keep-set **n=0 / Insufficient Data**; baseline **12**; lift **−12** (0 − 12). Reviews still human — not labeled go / not Groww upsert / not Adapt.
 
 **Week-2 share-outs:** Eval / Insights SignalScore and go/no-go use the **review window** (`feedback.reviewed_at`, default last 7 days UTC) ∩ conversation keep-set — not the recycled week-1 n=6 alone. Empty window → 0 reviewed / null score / **Insufficient Data** until new reviews land (hosted verified PR #37 on sioona-demo — no labeled-fixture Go shortcut). On Eval Metrics, pick **This Week** or a From date (`?scoreFrom=`); Insights preserves the param; `SIGNAL_SCORE_FROM` remains a server override.
 

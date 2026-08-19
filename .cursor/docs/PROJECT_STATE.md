@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-18  
+**Last updated:** 2026-08-19  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main`
 
@@ -14,7 +14,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
 
-**This week (ops, 2026-08-18):** Next-week keep-set **closed** on sioona-demo. Groww Batch-01 JSON upsert **`replaced=false`** (100 chats / 7 signals / sync failed=0; file not copied into the repo, not `*.local.csv`) → `weekly_export_count` **3** → **7** Insights reviews after ingest (`?scoreFrom=2026-08-17T19:34:00.000Z`; date-only `2026-08-18` is UTC midnight and would still be empty) → n=7 / correct=6 / incorrect=1 / **0.86 → go**; baseline **12**; lift **18** (30−12). **Mark Acted on Correct done** (display-only; 6/6 window Corrects `acted`; the Incorrect left unacted; no outbound). Closed 2026-08-17 n=6 / 1.00 not reused. Groww Batch-02 exists locally (Synthetic-Data `groww/Batch-02`; Vitest pack contract / ≥5 heuristic signals; not copied into the repo). Remaining loop = hosted upsert `replaced=false` of that pack (not Adapt / not labeled P/R go). No Auth0 / vLLM / Adapt phrases / UI polish.
+**This week (ops, 2026-08-18):** Groww Batch-02 **rehearsal** keep-set **closed** on sioona-demo (upsert, not a live partner dump). Hosted JSON was still Groww (125 chats / 21 signals), not localhost CS `batch_001`. Batch-02 JSON upsert **`replaced=false`** (100 chats / 14 signals / sync failed=0; not copied; not `*.local.csv` / not the manifest) → `weekly_export_count` **4** → **7** Insights Correct reviews → Eval `?scoreFrom=2026-08-18T14:37:31.774Z` keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+23** (35−12). Window Corrects **Acted 7/7** (display-only). Cold-demo baseline 4 on Neon was restored to **12** before share-out. Not the closed Batch-01 n=7 / 0.86; labeled P/R is measurement only (local heuristic P 1.00 / R 0.25, 14 TP). Local CS `batch_001` replace stays a negative example (200/0). **Real weekly partner upsert skipped 2026-08-18 evening** — no unused dump on disk (Groww / CS / `partner-shaped` rehearsal and already-logged week-1 / week-2 `.local.csv` excluded; file not copied). Neon `weekly_export_count` still **4**; baseline still **12**. Remaining leftover = wait for a **real** weekly partner export, then mid-week `replaced=false`. No Auth0 / vLLM / Adapt phrases. Partner-facing leftover chrome pass (dead CTAs / shadcn→Geist / Insights demote) is **not** the keep-set win.
 
 | Gate | Result |
 | --- | --- |
@@ -22,12 +22,15 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Week-2 keep-set (sioona-demo) | n=7 / correct=7 / incorrect=0 / **1.00 → go**; baseline **12**; lift **6** (18−12). Not week-1 0.83 |
 | This week keep-set (sioona-demo) | **logged 2026-08-17** — n=6 / correct=6 / incorrect=0 / **1.00 → go**; baseline **12**; lift **−2** (10−12). Pack: partner-shaped 16 chats / 10 signals; mid-week `replaced=false`; `?scoreFrom=2026-08-17`. **Acted 7/7** window Corrects (display-only) |
 | Next-week keep-set (sioona-demo) | **logged 2026-08-18** — n=7 / correct=6 / incorrect=1 / **0.86 → go**; baseline **12**; lift **18** (30−12). Pack: Groww Batch-01 upsert `replaced=false` (100/7; sync failed=0); `weekly_export_count` **3**; `?scoreFrom=2026-08-17T19:34:00.000Z`. **Acted 6/6** window Corrects (display-only). Not the closed 2026-08-17 n=6 / 1.00 |
+| Batch-02 rehearsal keep-set (sioona-demo) | **logged 2026-08-18** — n=7 / correct=7 / incorrect=0 / **1.00 → go**; baseline **12**; lift **+23** (35−12). Pack: Groww Batch-02 JSON upsert `replaced=false` (100/14; sync failed=0); `weekly_export_count` **4**; `?scoreFrom=2026-08-18T14:37:31.774Z`. **Acted 7/7** window Corrects (display-only). Rehearsal, not a live partner dump. Not the closed Batch-01 n=7 / 0.86 |
+| Real weekly partner export (sioona-demo) | **skipped 2026-08-18 evening** — no unused real dump on disk. Did not ingest Groww / CS / `partner-shaped` / week-1 / week-2 `.local.csv`. Hosted `weekly_export_count` **4**; baseline **12**; last keep-set remains Batch-02 n=7 / 1.00. Not a Day-1 replace |
+| Local Day-1 replace (batch_001) | **logged 2026-08-18** — customer-support `batch_001.csv` replace `replaced=true` (200 chats / 0 signals / sync failed=0; GT 200 lead; file not copied). Eval `?scoreFrom=2026-08-18T12:25:07.682Z` → n=0 / **Insufficient Data**; baseline **12**; lift **−12**. Reviews still human — not labeled go. Not Groww upsert |
 | Week-1 labeled Adapt CLI | P **1.00** / R **1.00** (23 labeled) — pack only; **not** a customer claim |
 | Week-2 held-out Adapt CLI | P **0.89** / R **0.55** (34 labeled) — not week-1 1.00 |
 
 **Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `006`). Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
 
-**Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, more Geist polish, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon, taxonomy expansion to fake recall, more Adapt phrase tuning.
+**Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, further design-language work after the leftover chrome pass, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon, taxonomy expansion to fake recall, more Adapt phrase tuning.
 
 ---
 
@@ -73,7 +76,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 ## 5. Hosted pointers
 
-- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env; Partner Demo / Adapt / keep-set / week window / pilot restore verified (PRs #22–#37; Production `625b9a0` for empty-window Eval). **Next-week keep-set logged 2026-08-18:** Groww Batch-01 upsert live (`replaced=false`, 100/7); Eval `?scoreFrom=2026-08-17T19:34:00.000Z` → n=7 / 0.86 / **Go**; window Corrects **Acted 6/6**; Neon `GET …/pilot` baseline **12**, `weekly_export_count` **3**
+- App: https://sioona-demo.vercel.app — Production `BACKEND_URL` + Detect v2 env; Partner Demo / Adapt / keep-set / week window / pilot restore verified (PRs #22–#37; Production `625b9a0` for empty-window Eval). **Batch-02 rehearsal keep-set logged 2026-08-18:** Groww Batch-02 upsert (`replaced=false`, 100/14); Eval `?scoreFrom=2026-08-18T14:37:31.774Z` → n=7 / 1.00 / **Go**; window Corrects **Acted 7/7**; Neon `weekly_export_count` **4**, baseline **12**. Rehearsal, not a live partner dump. **Real weekly partner upsert skipped 2026-08-18 evening** (no unused dump; count still **4**). **Prior next-week (Batch-01) logged 2026-08-18:** 100/7; `?scoreFrom=2026-08-17T19:34:00.000Z` → n=7 / 0.86. **Local Day-1 replace** of CS `batch_001` (200/0) remains localhost-only.
 - API: https://sioona-api.onrender.com/health → ok (free; cold ~15m). Auto-deploy `main`; `alembic upgrade head`
 - Neon head: `006_pilot_settings` (`002`–`006` applied). Vercel `/tmp` ephemeral — hydrate restores chats + Adapt union + pilot + feedback/Acted/GT
 - Vercel token: `web/.env` `VERCEL_TOKEN` (gitignored)
@@ -91,7 +94,11 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Week-1 / Week-2 dry-runs logged (go above); week-2 held-out CLI scored; Zerodha Adapt shipped 2026-08-15 (stop phrase tuning)
 - **This week keep-set logged 2026-08-17** — mid-week `replaced=false`; n=6 / 1.00 → go; baseline 12; lift −2 (partner-shaped pack); **Mark Acted** on window Corrects (7/7); next-week upsert skipped (no file)
 - **Next-week keep-set logged 2026-08-18** — Groww Batch-01 upsert `replaced=false` (100/7; sync failed=0); n=7 / 0.86 → go; baseline 12; lift 18; **Mark Acted** on window Corrects (6/6); not `*.local.csv` / not the closed 2026-08-17 window
+- **Batch-02 rehearsal keep-set logged 2026-08-18** — Groww Batch-02 JSON upsert `replaced=false` (100/14; sync failed=0); n=7 / 1.00 → go; baseline 12; lift +23; **Mark Acted** on window Corrects (7/7); `weekly_export_count` **4**; `?scoreFrom=2026-08-18T14:37:31.774Z`; not a live partner dump / not CS `batch_001` / not the closed Batch-01 window
+- **Real weekly partner upsert skipped 2026-08-18 evening** — no unused real dump on disk (Groww / CS / `partner-shaped` / week-1 / week-2 `.local.csv` excluded); Neon `weekly_export_count` still **4**; last keep-set remains Batch-02 n=7 / 1.00
+- **Local Day-1 replace logged 2026-08-18** — customer-support `batch_001.csv` `replaced=true` (200/0; sync failed=0; GT 200 lead; file not copied); Eval `?scoreFrom=2026-08-18T12:25:07.682Z` n=0 / Insufficient Data; baseline 12; lift −12; no human reviews; not Adapt / not Groww upsert
 - Insights chrome 2026-08-15 (dashboard header, Performance metrics, Mark Acted, Eval export panel)
+- Partner leftover chrome 2026-08-19 — Help/Guidance disabled; `NavUser` identity-only (no Account / Billing / Notifications / Log Out); Demo workspace; Export/Create Campaign hidden at all breakpoints; Insights first fold = ops queue + Performance metric-strip; bell exceptions-only (no queue-clear); Partner Demo on Upload; shadcn bound to `sio-*` (not keep-set)
 - Feedback stale-UUID recovery 2026-08-16 — resolve by Neon id / conversation+type; upsert+retry on 404 (hosted Correct without “not found for tenant”)
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 
@@ -102,7 +109,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Auth0 / real tenant isolation
 - vLLM, QLoRA, LangGraph, pgvector
 - Live Intercom / WhatsApp webhooks
-- Action Mode / Export / Create Campaign (dead chrome — leave locked)
+- Action Mode / Export / Create Campaign (unshipped — hidden, not overflow)
 - Outcome billing, computer-use, GPU
 - Taxonomy expansion / more Adapt phrase chasing / classify-on-FastAPI / 429 retries / Groq project limits / taxonomy-on-Neon
 

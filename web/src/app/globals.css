@@ -340,11 +340,12 @@
 
   /*
    * Viewport-locked main column: chrome stays put; views scroll inside panels.
+   * Canvas is the previous muted fill (`--muted`); sidebar keeps `--sidebar`.
    * Do not use overflow-y-auto here or the whole page scrolls under the header.
    */
   .page-main {
     @apply relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
-    background: var(--sio-bg-subtle);
+    background: var(--sio-bg-muted);
   }
 
   /* Skip-link landing needs a visible target, but only for keyboard users */
@@ -373,6 +374,63 @@
   .scroll-region {
     @apply min-h-0 min-w-0 overflow-x-clip overflow-y-auto;
     overscroll-behavior: contain;
+  }
+
+  /* Insights list ↔ preview — opacity / translateX only */
+  .insights-mode-swap {
+    position: relative;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .insights-mode-pane {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex-direction: column;
+    overflow: hidden;
+    transition-property: opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .insights-mode-pane-list,
+  .insights-mode-pane-review {
+    position: absolute;
+    inset: 0;
+  }
+
+  [data-insights-mode="list"] .insights-mode-pane-list,
+  [data-insights-mode="review"] .insights-mode-pane-review {
+    z-index: 1;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  [data-insights-mode="list"] .insights-mode-pane-review {
+    z-index: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(12px);
+  }
+
+  [data-insights-mode="review"] .insights-mode-pane-list {
+    z-index: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-12px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .insights-mode-pane {
+      transition-duration: 0.01ms;
+      transition-property: none;
+    }
   }
 
   /* Surface ladder: flush → quiet border → panel */
@@ -436,9 +494,31 @@
     min-width: 0;
   }
 
-  /* Dense strip for Signal Detail / Eval — ~1–2 rows vs stacked header/body/footer */
+  /*
+   * Dense Eval Metrics Signal Score — full-width quiet strip matching
+   * Labeled Eval: header (eyebrow + window toolbar) · 5 KPI cells ·
+   * type chips / all-time. Inherits overflow:hidden from .metric-strip
+   * so radius clips; header padding keeps date-field focus rings inside.
+   */
   .metric-strip--compact {
-    @apply px-3 py-1.5 sm:px-3.5 sm:py-2;
+    padding: 0;
+    width: 100%;
+  }
+
+  .metric-strip--compact .metric-strip-head {
+    @apply flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-sio-border-base px-3 py-2 sm:px-4;
+  }
+
+  .metric-strip--compact .metric-strip-window {
+    @apply min-w-0 max-w-full;
+  }
+
+  .metric-strip--compact .metric-strip-kpis {
+    @apply grid min-w-0 w-full grid-cols-5 divide-x divide-sio-border-base overflow-hidden;
+  }
+
+  .metric-strip--compact .metric-strip-foot {
+    @apply flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 border-t border-sio-border-base px-3 py-2.5 sm:px-4 sm:py-3;
   }
 
   /*
@@ -716,6 +796,66 @@
     }
   }
 
+  /*
+   * Slider segmented control (Eval panels + Labeled tables).
+   * Thumb slides with translateX keyed off --seg-index; equal CSS grid columns.
+   */
+  .segmented-tabs {
+    --seg-pad: 0.125rem;
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-columns: repeat(var(--seg-count, 1), minmax(0, 1fr));
+    min-width: 0;
+    width: 100%;
+    flex-shrink: 0;
+    padding: var(--seg-pad);
+    border: 1px solid var(--sio-border-base);
+    border-radius: calc(var(--radius) - 2px);
+    background: var(--sio-bg-muted);
+  }
+
+  .segmented-tabs-thumb {
+    pointer-events: none;
+    position: absolute;
+    z-index: 0;
+    top: var(--seg-pad);
+    left: var(--seg-pad);
+    height: calc(100% - (2 * var(--seg-pad)));
+    width: calc((100% - (2 * var(--seg-pad))) / var(--seg-count, 1));
+    border-radius: calc(var(--radius) - 4px);
+    background: var(--sio-bg-base);
+    box-shadow: 0 1px 1px oklch(0 0 0 / 0.04);
+    transform: translateX(calc(var(--seg-index, 0) * 100%));
+    transform-origin: left center;
+    opacity: 1;
+    transition:
+      transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 150ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .segmented-tabs-thumb {
+      transition: none;
+    }
+  }
+
+  .segmented-tabs-link {
+    @apply relative z-[1] inline-flex min-h-11 min-w-0 items-center justify-center truncate px-2.5 text-center text-label-14 text-sio-fg-subtle md:min-h-8;
+    border-radius: calc(var(--radius) - 4px);
+    transition-property: color;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .segmented-tabs-link:hover {
+    color: var(--sio-fg-base);
+  }
+
+  .segmented-tabs-link-active {
+    @apply font-medium text-sio-fg-base;
+  }
+
   /* Segmented filter — bordered track, quiet active fill */
   .filter-toggle {
     @apply inline-flex max-w-full flex-wrap items-center rounded-sm border border-sio-border-base p-0.5;
@@ -865,7 +1005,7 @@
 
   /* Main-column header — full-bleed bar; inner row shares max-width + gutters with `.page-frame`. */
   .app-header {
-    @apply relative z-30 flex shrink-0 items-center border-b border-sio-border-base bg-sio-bg-base;
+    @apply relative z-30 flex shrink-0 items-center bg-sio-bg-muted;
     height: calc(var(--header-height) + env(safe-area-inset-top));
     min-height: calc(var(--header-height) + env(safe-area-inset-top));
     padding-top: env(safe-area-inset-top);

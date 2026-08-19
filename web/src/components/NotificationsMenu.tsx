@@ -107,7 +107,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
 
     const popupIds = new Set<string>(POPUP_NOTIFICATION_IDS);
     const unreadPopup = notifications.filter(
-      (n) => popupIds.has(n.id) && !seenIds.has(n.id),
+      (n) => popupIds.has(n.id) && (n.sticky || !seenIds.has(n.id)),
     );
     if (unreadPopup.length === 0) return;
 
@@ -136,7 +136,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
 
   const unreadCount = useMemo(() => {
     if (!hydrated) return notifications.length;
-    return notifications.filter((n) => !seenIds.has(n.id)).length;
+    return notifications.filter((n) => n.sticky || !seenIds.has(n.id)).length;
   }, [hydrated, notifications, seenIds]);
 
   const hasUnread = unreadCount > 0;
@@ -151,7 +151,9 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       onOpenChange={(next) => {
         if (!next && open && notifications.length > 0) {
           const nextSeen = new Set(seenIds);
-          for (const n of notifications) nextSeen.add(n.id);
+          for (const n of notifications) {
+            if (!n.sticky) nextSeen.add(n.id);
+          }
           setSeenIds(nextSeen);
           writeIdSet(SEEN_STORAGE_KEY, nextSeen);
         }
@@ -219,20 +221,25 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
           >
             {notifications.map((item, index) => {
               const tone = toneClasses(item.tone);
-              const unread = hydrated ? !seenIds.has(item.id) : true;
+              const unread = item.sticky || (hydrated ? !seenIds.has(item.id) : true);
+              const rowClass = cn(
+                "flex w-full items-start gap-3 px-3.5 py-3 text-left",
+                index > 0 && "border-t border-sio-border-base",
+              );
+
               return (
                 <DropdownMenuItem
                   key={item.id}
                   asChild
-                  className={cn(
-                    "cursor-pointer rounded-none px-0 py-0 focus:bg-transparent data-[highlighted]:bg-transparent",
-                    index > 0 && "border-t border-sio-border-base",
-                  )}
+                  className="cursor-pointer rounded-none px-0 py-0 focus:bg-transparent data-[highlighted]:bg-transparent"
                 >
                   <Link
                     href={item.href}
                     role="listitem"
-                    className="group flex w-full items-start gap-3 px-3.5 py-3 text-left no-underline outline-none transition-colors duration-150 hover:bg-sio-bg-interactive focus-visible:bg-sio-bg-interactive"
+                    className={cn(
+                      rowClass,
+                      "group no-underline outline-none transition-colors duration-150 hover:bg-sio-bg-interactive focus-visible:bg-sio-bg-interactive",
+                    )}
                   >
                     <span
                       className={cn(

@@ -21,7 +21,7 @@ export function AppShell({
 }) {
   return (
     <SidebarProvider
-      className="flex !min-h-0 h-dvh overflow-hidden bg-background text-foreground"
+      className="flex !min-h-0 h-dvh overflow-hidden bg-muted text-foreground"
       style={
         {
           "--sidebar-width": "240px",

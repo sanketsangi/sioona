@@ -8,11 +8,19 @@ export type HeaderNotification = {
   description: string;
   href: string;
   tone: HeaderNotificationTone;
+  /** Stays unread (and in the tray) while the condition is still true. */
+  sticky?: boolean;
 };
+
+export const QUEUE_UNAVAILABLE_TITLE =
+  "Neon needs-review queue unavailable";
+export const QUEUE_UNAVAILABLE_DESCRIPTION =
+  "Showing local keep-set signals. Start FastAPI to load needs-review from Neon.";
 
 /** Notification ids that briefly auto-open the header menu when unread. */
 export const POPUP_NOTIFICATION_IDS = [
   "partner-demo-ready",
+  "queue-unavailable",
   "sync-failed",
   "wipe-failed",
 ] as const;
@@ -53,10 +61,11 @@ export function buildHeaderNotifications(input: {
   if (input.queueError) {
     items.push({
       id: "queue-unavailable",
-      title: "Needs-review queue unavailable",
-      description: input.queueError,
+      title: QUEUE_UNAVAILABLE_TITLE,
+      description: QUEUE_UNAVAILABLE_DESCRIPTION,
       href: viewHref("insights", { status: "new" }),
       tone: "warning",
+      sticky: true,
     });
   } else if (input.pendingCount > 0) {
     items.push({

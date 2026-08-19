@@ -195,44 +195,36 @@ export function InsightsQueueMetrics({
   }
 
   return (
-    <div className={cn("flex shrink-0 flex-col gap-3", className)}>
-      {/* Same header rhythm as Insights queue title + Filters row */}
-      <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
-        <div className="min-w-0">
-          <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-            Performance
-          </h2>
-        </div>
-      </div>
-
-      <section
-        aria-label="Queue metrics"
-        className="grid shrink-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-3"
-      >
-        <MetricCard
-          title="Conversations"
-          value={String(conversationCount)}
-          icon={<ChatBubbleIcon className="size-3.5 text-black" />}
-          compare={
-            <FoundVsTotal
-              found={foundConversations}
-              total={conversationCount}
-            />
-          }
-        />
-        <MetricCard
-          title="Signals"
-          value={String(signalCount)}
-          icon={<LayersIcon className="size-3.5 text-black" />}
-          compare={<SignalTypeCounts counts={typeCounts} />}
-        />
-        <MetricCard
-          title="Pending"
-          value={String(pendingConversationCount)}
-          icon={<ClockIcon className="size-3.5 text-black" />}
-          compare={<SignalStatusCounts counts={statusCounts} />}
-        />
-      </section>
-    </div>
+    <section
+      aria-label="Queue metrics"
+      className={cn(
+        "grid shrink-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-3",
+        className,
+      )}
+    >
+      <MetricCard
+        title="Conversations"
+        value={String(conversationCount)}
+        icon={<ChatBubbleIcon className="size-3.5 text-black" />}
+        compare={
+          <FoundVsTotal
+            found={foundConversations}
+            total={conversationCount}
+          />
+        }
+      />
+      <MetricCard
+        title="Signals"
+        value={String(signalCount)}
+        icon={<LayersIcon className="size-3.5 text-black" />}
+        compare={<SignalTypeCounts counts={typeCounts} />}
+      />
+      <MetricCard
+        title="Pending"
+        value={String(pendingConversationCount)}
+        icon={<ClockIcon className="size-3.5 text-black" />}
+        compare={<SignalStatusCounts counts={statusCounts} />}
+      />
+    </section>
   );
 }

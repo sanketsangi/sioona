@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-08-17
+**Last updated:** 2026-08-19
 
 ---
 
@@ -29,13 +29,13 @@ Partner export / Partner Demo
               needs-review queue + Signal Score
 ```
 
-| Concern | Source of truth |
-| --- | --- |
-| Chats + taxonomy overrides (UI when file exists) | JSON `store.ts` |
-| Pending Insights queue | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
-| Signal Score / keep-set reviews | FastAPI + Neon (`reviewed_at` week window) |
-| Taxonomy base phrases | `web/src/lib/taxonomy.ts` (never Neon) |
-| Auth | Soft header `X-Tenant-Id` (`tenant_demo`) — not Auth0 |
+| Concern                                          | Source of truth                                            |
+| ------------------------------------------------ | ---------------------------------------------------------- |
+| Chats + taxonomy overrides (UI when file exists) | JSON `store.ts`                                            |
+| Pending Insights queue                           | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
+| Signal Score / keep-set reviews                  | FastAPI + Neon (`reviewed_at` week window)                 |
+| Taxonomy base phrases                            | `web/src/lib/taxonomy.ts` (never Neon)                     |
+| Auth                                             | Soft header `X-Tenant-Id` (`tenant_demo`) — not Auth0      |
 
 Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sioona-api` + Neon `sioona`. Hydrate + Adapt union + pilot restore survive wipe.
 
@@ -43,16 +43,16 @@ Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sio
 
 ## 3. Repo map
 
-| Path | Role |
-| --- | --- |
-| `web/src/app/` | App Router hub `/?view=` + BFF `api/*` |
-| `web/src/components/` | UI (Insights / Upload / Eval / Taxonomy); locked signal chrome |
-| `web/src/lib/` | Domain logic (prefer edits here) |
-| `web/data/` | Runtime store + samples — **never commit `store.json`** |
-| `backend/app/` | FastAPI routes, models, services |
-| `backend/alembic/versions/` | `001`–`006` (head = pilot settings) |
-| `.cursor/docs/PROJECT_STATE.md` | Heading, gates, do-not-start |
-| `.cursor/rules/sioona-architecture.mdc` | Always-on short stack rules |
+| Path                                    | Role                                                           |
+| --------------------------------------- | -------------------------------------------------------------- |
+| `web/src/app/`                          | App Router hub `/?view=` + BFF `api/*`                         |
+| `web/src/components/`                   | UI (Insights / Upload / Eval / Taxonomy); locked signal chrome |
+| `web/src/lib/`                          | Domain logic (prefer edits here)                               |
+| `web/data/`                             | Runtime store + samples — **never commit `store.json`**        |
+| `backend/app/`                          | FastAPI routes, models, services                               |
+| `backend/alembic/versions/`             | `001`–`006` (head = pilot settings)                            |
+| `.cursor/docs/PROJECT_STATE.md`         | Heading, gates, do-not-start                                   |
+| `.cursor/rules/sioona-architecture.mdc` | Always-on short stack rules                                    |
 
 Alias: `@/*` → `web/src/*`.
 
@@ -62,15 +62,15 @@ Alias: `@/*` → `web/src/*`.
 
 Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 
-| View | URL | Purpose |
-| --- | --- | --- |
-| Insights | `/?view=insights` | Shadow Mode queue + review + Mark Acted |
-| Upload | `/?view=upload` | Ingest + Partner Demo / Reset |
-| Eval | `/?view=eval` | Keep-set Signal Score, baseline, Adapt / labeled / export panels |
-| Taxonomy | `/?view=taxonomy` | Read-only base taxonomy |
+| View     | URL               | Purpose                                                          |
+| -------- | ----------------- | ---------------------------------------------------------------- |
+| Insights | `/?view=insights` | Shadow Mode queue + review + Mark Acted                          |
+| Upload   | `/?view=upload`   | Ingest + Partner Demo / Reset                                    |
+| Eval     | `/?view=eval`     | Keep-set Signal Score, baseline, Adapt / labeled / export panels |
+| Taxonomy | `/?view=taxonomy` | Read-only base taxonomy                                          |
 
 **Locked chrome (do not reinvent):** `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`.  
-**Dead / locked product chrome:** Action Mode outbound, Export, Create Campaign — leave as-is.
+**Dead / locked product chrome:** Action Mode outbound; Export / Create Campaign are unshipped and hidden (not overflow); Help / Guidance disabled; `NavUser` is identity-only (no Auth0 account actions).
 
 ### BFF routes (high level)
 
@@ -98,15 +98,15 @@ Primary wedge type: **retention**.
 
 `backend/app/main.py` — `/health` + `/v1/*` requiring `X-Tenant-Id`.
 
-| Area | Endpoints (summary) |
-| --- | --- |
-| Predictions | `POST /v1/predictions` |
-| Conversations | bulk/upsert/list/prune/delete; `PATCH` ground_truth |
-| Feedback / Acted | `POST /v1/signals/{id}/feedback`, `…/acted` |
-| Queue / hydrate | `GET …/signals/needs-review`, `GET …/signals` |
-| Score | `GET …/signal-score` — `correct/reviewed`; optional keep-set + `date_from`/`date_to` on `reviewed_at` |
-| Pilot | `GET`/`PUT …/pilot` |
-| Wipe | `DELETE …/data` |
+| Area             | Endpoints (summary)                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| Predictions      | `POST /v1/predictions`                                                                                |
+| Conversations    | bulk/upsert/list/prune/delete; `PATCH` ground_truth                                                   |
+| Feedback / Acted | `POST /v1/signals/{id}/feedback`, `…/acted`                                                           |
+| Queue / hydrate  | `GET …/signals/needs-review`, `GET …/signals`                                                         |
+| Score            | `GET …/signal-score` — `correct/reviewed`; optional keep-set + `date_from`/`date_to` on `reviewed_at` |
+| Pilot            | `GET`/`PUT …/pilot`                                                                                   |
+| Wipe             | `DELETE …/data`                                                                                       |
 
 Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/messages → `004` acted → `005` ground_truth → `006` pilot_settings.
 
@@ -119,7 +119,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - **Win:** human keep-set SignalScore ≥80% on Eval **week window** — not labeled Detect P/R.
 - Formula: `correct / reviewed` (incorrect + partially_correct in denominator only).
 - Empty window → Reviewed 0 / **Insufficient Data** — never a labeled Go.
-- Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go). After share-out: **Mark Acted** on Correct (display-only, no outbound; advances to the next Correct panel) then **next week’s mid-week upsert** (`nextweek`) — not a dead end.
+- Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go). Insights empty queue + Upload/Eval — not the header bell (exceptions only). After share-out: **Mark Acted** on Correct (display-only, no outbound; advances to the next Correct panel) then **next week’s mid-week upsert** (`nextweek`) — not a dead end.
 - Adapt = taxonomy **overrides** for heuristics — stop phrase chasing unless Eval proves a gap.
 
 ---

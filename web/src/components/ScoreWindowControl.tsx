@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { SignalScoreWindow } from "@/lib/signal-score-window";
+import { cn } from "@/lib/utils";
 import { viewHref } from "@/lib/views";
 
 /**
@@ -9,9 +10,11 @@ import { viewHref } from "@/lib/views";
 export function ScoreWindowControl({
   window,
   panel,
+  className,
 }: {
   window: SignalScoreWindow;
   panel?: string | null;
+  className?: string;
 }) {
   const thisWeekHref = viewHref("eval", {
     panel: panel && panel !== "metrics" ? panel : null,
@@ -20,12 +23,17 @@ export function ScoreWindowControl({
   const thisWeek = window.status === "default";
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+    <div
+      className={cn(
+        "flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 sm:justify-end",
+        className,
+      )}
+    >
       <Link
         href={thisWeekHref}
         scroll={false}
         aria-current={thisWeek ? "page" : undefined}
-        className={`nav-link ${thisWeek ? "nav-link-active" : ""}`}
+        className={thisWeek ? "btn-secondary" : "btn-tertiary"}
       >
         This Week
       </Link>
@@ -47,7 +55,7 @@ export function ScoreWindowControl({
             defaultValue={window.dateInput}
             required
             autoComplete="off"
-            className="input-field h-11 min-h-11 w-full min-w-0 max-w-[11rem] px-2 py-0 md:h-8 md:min-h-0"
+            className="input-field w-full min-w-0 max-w-[11rem] px-2.5"
           />
         </label>
         <button type="submit" className="btn-secondary shrink-0">

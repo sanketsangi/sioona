@@ -2,17 +2,15 @@
 
 import Link from "next/link";
 import type { ComponentProps } from "react";
-import {
-  ChartLineUp,
-  ListChecks,
-  Tag,
-} from "@phosphor-icons/react/ssr";
+import { Tag } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
+import { ChartLineUpIcon } from "@/components/icons/ChartLineUpIcon";
+import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { BookOpenIcon } from "@/components/icons/BookOpenIcon";
 import { LifebuoyIcon } from "@/components/icons/LifebuoyIcon";
-import { UserIcon } from "@/components/icons/UserIcon";
+import { NavUser } from "@/components/NavUser";
 import { SioonaLogotype } from "@/components/SioonaLogotype";
 import {
   Sidebar,
@@ -31,9 +29,9 @@ import {
 import { viewHref, type PlatformView } from "@/lib/views";
 
 const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
-  { view: "insights", label: "Insights", icon: ChartLineUp },
+  { view: "insights", label: "Insights", icon: null },
   { view: "upload", label: "Upload", icon: null },
-  { view: "eval", label: "Eval", icon: ListChecks },
+  { view: "eval", label: "Eval", icon: null },
   { view: "taxonomy", label: "Taxonomy", icon: Tag },
 ];
 
@@ -75,7 +73,11 @@ function WorkspaceNav({
                     if (isMobile) setOpenMobile(false);
                   }}
                 >
-                  {Icon ? (
+                  {item.view === "insights" ? (
+                    <ChartLineUpIcon className="size-4 shrink-0 text-sio-fg-base" />
+                  ) : item.view === "eval" ? (
+                    <ListChecksIcon className="size-4 shrink-0 text-sio-fg-base" />
+                  ) : Icon ? (
                     <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
                   ) : (
                     <ArrowCircleUpIcon className="size-4 shrink-0" />
@@ -108,10 +110,10 @@ function SidebarBrand() {
               }}
             >
               <span
-                className="flex aspect-square size-8 shrink-0 items-center justify-center text-black"
+                className="flex aspect-square size-7 shrink-0 items-center justify-center text-black"
                 aria-hidden
               >
-                <HexCubeIcon className="size-6 shrink-0" />
+                <HexCubeIcon className="size-7 shrink-0" />
               </span>
               <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <SioonaLogotype height={28} />
@@ -137,7 +139,11 @@ function AppSidebarFooter() {
           const { Icon } = item;
           return (
             <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton tooltip={item.label}>
+              <SidebarMenuButton
+                disabled
+                aria-disabled="true"
+                tooltip={`${item.label} (unavailable)`}
+              >
                 <Icon className="size-4 shrink-0" />
                 <span>{item.label}</span>
               </SidebarMenuButton>
@@ -145,21 +151,12 @@ function AppSidebarFooter() {
           );
         })}
       </SidebarMenu>
-      <SidebarMenu className="mt-1.5">
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            size="lg"
-            tooltip="Create Account"
-            aria-label="Create Account"
-            className="border border-sidebar-border bg-background group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:!p-2 group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent"
-          >
-            <UserIcon className="size-4 shrink-0" />
-            <span className="group-data-[collapsible=icon]:hidden">
-              Create Account
-            </span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      <NavUser
+        user={{
+          name: "Demo Operator",
+          email: "tenant_demo",
+        }}
+      />
     </>
   );
 }

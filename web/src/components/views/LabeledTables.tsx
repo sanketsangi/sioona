@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Pager } from "@/components/Pager";
+import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import {
   parseLabeledTab,
@@ -65,28 +66,19 @@ export function LabeledTables({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <div
-        className="flex shrink-0 flex-wrap gap-0.5 rounded-sm border border-sio-border-base bg-sio-bg-base p-0.5"
-        role="group"
-        aria-label="Labeled tables"
-      >
-        <Link
-          href={tabHref("byType")}
-          scroll={false}
-          aria-current={table === "byType" ? "page" : undefined}
-          className={`nav-link ${table === "byType" ? "nav-link-active" : ""}`}
-        >
-          By Type
-        </Link>
-        <Link
-          href={tabHref("conversations")}
-          scroll={false}
-          aria-current={table === "conversations" ? "page" : undefined}
-          className={`nav-link ${table === "conversations" ? "nav-link-active" : ""}`}
-        >
-          Conversations
-        </Link>
-      </div>
+      <SegmentedTabs
+        label="Labeled tables"
+        activeId={table}
+        className="w-fit max-w-full"
+        items={[
+          { id: "byType", label: "By Type", href: tabHref("byType") },
+          {
+            id: "conversations",
+            label: "Conversations",
+            href: tabHref("conversations"),
+          },
+        ]}
+      />
 
       {table === "byType" ? (
         <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
