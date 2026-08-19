@@ -1,0 +1,252 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
+import type { StoreData } from "@/lib/types";
+
+vi.mock("@/components/AppShell", () => ({
+  AppShell: vi.fn(() => null),
+}));
+
+vi.mock("@/components/views/InsightsView", () => ({
+  InsightsView: () => null,
+}));
+
+vi.mock("@/components/views/UploadView", () => ({
+  UploadView: () => null,
+}));
+
+vi.mock("@/components/views/EvalView", () => ({
+  EvalView: () => null,
+}));
+
+vi.mock("@/components/views/TaxonomyView", () => ({
+  TaxonomyView: () => null,
+}));
+
+vi.mock("@/lib/store", () => ({
+  readStore: vi.fn(),
+}));
+
+vi.mock("@/lib/fetch-needs-review", () => ({
+  fetchNeedsReview: vi.fn(),
+}));
+
+vi.mock("@/lib/fetch-signal-score", () => ({
+  fetchSignalScoreSafe: vi.fn(),
+}));
+
+import PlatformPage from "./page";
+import { fetchNeedsReview } from "@/lib/fetch-needs-review";
+import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
+import { readStore } from "@/lib/store";
+
+function pageShellProps(result: ReactElement) {
+  return result.props as {
+    activeView: string;
+    title: string;
+    notifications: { id: string; title?: string }[];
+  };
+}
+
+function mockStore(
+  signals: StoreData["signals"] = [
+    {
+      id: "sig_unsynced",
+      tenantId: "tenant_demo",
+      conversationId: "conv_1",
+      type: "lead",
+      score: 0.9,
+      confidence: 0.9,
+      summary: "Buying intent",
+      suggestedAction: "Follow up",
+      evidence: ["quote"],
+      status: "new",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    },
+    {
+      id: "sig_synced",
+      tenantId: "tenant_demo",
+      conversationId: "conv_2",
+      type: "retention",
+      score: 0.8,
+      confidence: 0.8,
+      summary: "Churn risk",
+      suggestedAction: "Retain",
+      evidence: ["quote"],
+      status: "new",
+      createdAt: "2026-08-01T00:00:00.000Z",
+      backendSignalId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    },
+  ]
+): StoreData {
+  return {
+    tenant: {
+      id: "tenant_demo",
+      name: "Demo",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    },
+    conversations: [
+      {
+        id: "conv_1",
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+      {
+        id: "conv_2",
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+    ],
+    messages: [],
+    signals,
+    pilot: { baselineOpportunities: 0 },
+  };
+}
+
+describe("PlatformPage deploy reliability", () => {
+  beforeEach(() => {
+    vi.mocked(readStore).mockResolvedValue(mockStore());
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: false,
+      error: "ECONNREFUSED",
+    });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("surfaces queue-unavailable, sync-failed, and score-unreachable when backend is down", async () => {
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({
+        view: "insights",
+        syncFailed: "2",
+        syncCreated: "1",
+      }),
+    })) as ReactElement;
+
+    const { notifications } = pageShellProps(result);
+    expect(notifications.map((n) => n.id)).toEqual([
+      "queue-unavailable",
+      "sync-failed",
+      "score-unavailable",
+    ]);
+  });
+
+  it("hides sync-failed when URL is stale but store is fully dual-written", async () => {
+    vi.mocked(readStore).mockResolvedValue(
+      mockStore([
+        {
+          id: "sig_a",
+          tenantId: "tenant_demo",
+          conversationId: "conv_1",
+          type: "lead",
+          score: 0.9,
+          confidence: 0.9,
+          summary: "Buying intent",
+          suggestedAction: "Follow up",
+          evidence: [],
+          status: "new",
+          createdAt: "2026-08-01T00:00:00.000Z",
+          backendSignalId: "uuid-a",
+        },
+        {
+          id: "sig_b",
+          tenantId: "tenant_demo",
+          conversationId: "conv_2",
+          type: "retention",
+          score: 0.8,
+          confidence: 0.8,
+          summary: "Churn",
+          suggestedAction: "Retain",
+          evidence: [],
+          status: "new",
+          createdAt: "2026-08-01T00:00:00.000Z",
+          backendSignalId: "uuid-b",
+        },
+      ])
+    );
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({
+        view: "insights",
+        syncFailed: "2",
+        syncCreated: "1",
+      }),
+    })) as ReactElement;
+
+    const { notifications } = pageShellProps(result);
+    expect(notifications.map((n) => n.id)).toEqual([
+      "queue-unavailable",
+      "score-unavailable",
+    ]);
+  });
+
+  it("falls back to local unreviewed count when needs-review fails", async () => {
+    vi.mocked(readStore).mockResolvedValue(
+      mockStore([
+        {
+          id: "sig_reviewed",
+          tenantId: "tenant_demo",
+          conversationId: "conv_1",
+          type: "lead",
+          score: 0.9,
+          confidence: 0.9,
+          summary: "Done",
+          suggestedAction: "",
+          evidence: [],
+          status: "reviewed",
+          createdAt: "2026-08-01T00:00:00.000Z",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-08-02T00:00:00.000Z",
+          },
+        },
+        {
+          id: "sig_open",
+          tenantId: "tenant_demo",
+          conversationId: "conv_2",
+          type: "retention",
+          score: 0.8,
+          confidence: 0.8,
+          summary: "Open",
+          suggestedAction: "",
+          evidence: [],
+          status: "new",
+          createdAt: "2026-08-01T00:00:00.000Z",
+          backendSignalId: "uuid-b",
+        },
+      ])
+    );
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    })) as ReactElement;
+
+    const { notifications } = pageShellProps(result);
+    expect(notifications[0]?.id).toBe("queue-unavailable");
+    expect(notifications.some((n) => n.id === "pending-review")).toBe(false);
+  });
+
+  it("loads upload and eval views without throwing when backend is unreachable", async () => {
+    const upload = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "upload" }),
+    })) as ReactElement;
+    expect(pageShellProps(upload)).toMatchObject({
+      activeView: "upload",
+      title: "Upload Chats",
+    });
+
+    const evalView = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "eval" }),
+    })) as ReactElement;
+    expect(pageShellProps(evalView)).toMatchObject({
+      activeView: "eval",
+      title: "Eval & SignalScore",
+    });
+  });
+});
