@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as backendClient from "./backend-client";
 import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
 import {
+  addTaxonomyOverride,
   mergeTaxonomyOverrides,
   readStore,
   resetStore,
@@ -265,5 +266,33 @@ describe("mergeTaxonomyOverrides", () => {
     expect(merged.lead?.phrases).toEqual(["Demat account"]);
     expect(merged.lead?.negativePhrases).toEqual(["foo", "bar"]);
     expect(merged.upsell?.phrases).toEqual(["portfolio review"]);
+  });
+});
+
+describe("addTaxonomyOverride", () => {
+  beforeEach(async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects blank values before writing", async () => {
+    await expect(addTaxonomyOverride("lead", "phrases", "  ")).rejects.toThrow(
+      "Override value is required"
+    );
+    const after = await readStore();
+    expect(after.taxonomyOverrides).toEqual({});
+  });
+
+  it("trims and persists a phrase onto the store overrides", async () => {
+    await addTaxonomyOverride("upsell", "negativePhrases", "  first time  ");
+    const after = await readStore();
+    expect(after.taxonomyOverrides.upsell?.negativePhrases).toEqual(["first time"]);
   });
 });
