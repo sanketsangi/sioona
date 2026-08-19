@@ -293,6 +293,6 @@ describe("addTaxonomyOverride", () => {
   it("trims and persists a phrase onto the store overrides", async () => {
     await addTaxonomyOverride("upsell", "negativePhrases", "  first time  ");
     const after = await readStore();
-    expect(after.taxonomyOverrides.upsell?.negativePhrases).toEqual(["first time"]);
+    expect(after.taxonomyOverrides?.upsell?.negativePhrases).toEqual(["first time"]);
   });
 });

@@ -127,8 +127,11 @@ export async function loadTestingJsonIntoStore(
   }
 
   // Populate breadcrumb + “last uploaded” chrome for showcase resets.
+  // `StoreData.pilot` is optional, so spreading it would make
+  // `baselineOpportunities` optional and fail `next build` typecheck.
   store.pilot = {
     ...store.pilot,
+    baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
     lastUploadedFileName: SHOWCASE_SAMPLE_NAME,
   };
 
