@@ -100,6 +100,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Insights chrome 2026-08-15 (dashboard header, Performance metrics, Mark Acted, Eval export panel)
 - Partner leftover chrome 2026-08-19 — Help/Guidance disabled; `NavUser` identity-only (no Account / Billing / Notifications / Log Out); Demo workspace; Export/Create Campaign hidden at all breakpoints; Insights first fold = ops queue + Performance metric-strip; bell exceptions-only (no queue-clear); Partner Demo on Upload; shadcn bound to `sio-*` (not keep-set)
 - Feedback stale-UUID recovery 2026-08-16 — resolve by Neon id / conversation+type; upsert+retry on 404 (hosted Correct without “not found for tenant”)
+- Acted stale-id recovery 2026-08-19 — Mark as Acted reuses feedback resolve (Neon UUID / conversation+type / `sig_neon_` stub); JSON fail-soft; neon-only `setPredictionActed` when the row is missing or unreviewed (hosted Correct → Acted without “Signal not found”)
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 
 ---
@@ -119,6 +120,50 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
-- Tests: `cd web && npm test`; `cd backend && pytest`.
+- Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
+
+### Deploy gate (every deploy)
+
+Full copy-paste block: [`web/DEPLOY.md`](../../web/DEPLOY.md#deploy-gate-every-deploy). Render free-tier may cold-start (~15m idle); if `/health` fails, retry once after ~30s.
+
+**Before each deploy**
+
+```bash
+cd web && npm test
+cd backend && .venv/bin/python -m pytest
+```
+
+Both must pass before pushing/deploying.
+
+**After each deploy** — 7-step curl smoke (`BACKEND_URL` / `VERCEL_URL` / `TENANT`):
+
+```bash
+export BACKEND_URL="https://sioona-api.onrender.com"   # Render FastAPI
+export VERCEL_URL="https://sioona-demo.vercel.app"     # Vercel web
+export TENANT="tenant_demo"
+
+# 1. Backend boot
+curl -sS "$BACKEND_URL/health"
+# expect: {"status":"ok"}
+
+# 2. Critical UI routes (SSR must not 500)
+curl -sS -o /dev/null -w "insights=%{http_code}\n" "$VERCEL_URL/?view=insights"
+curl -sS -o /dev/null -w "upload=%{http_code}\n" "$VERCEL_URL/?view=upload"
+curl -sS -o /dev/null -w "eval=%{http_code}\n" "$VERCEL_URL/?view=eval"
+
+# 3. Legacy signal deep-link redirect
+curl -sS -D- -o /dev/null "$VERCEL_URL/insights/sig_test" | rg -i "^location:"
+# expect: Location: /?view=insights&preview=sig_test
+
+# 4. Shadow Mode queue API
+curl -sS "$BACKEND_URL/v1/tenants/$TENANT/signals/needs-review" \
+  -H "X-Tenant-Id: $TENANT"
+# expect: JSON array (may be empty)
+
+# 5. Signal Score API
+curl -sS "$BACKEND_URL/v1/tenants/$TENANT/signal-score" \
+  -H "X-Tenant-Id: $TENANT"
+# expect: reviewed_count, signal_score fields
+```

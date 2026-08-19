@@ -14,8 +14,8 @@ import {
 const samples = [
   {
     file: "testing.json",
-    label: "Showcase Corpus",
-    use: "41 labeled finance chats — cold open + Run Partner Demo",
+    label: "Groww Batch 02",
+    use: "100 labeled Groww chats — cold open + Run Partner Demo",
   },
   {
     file: "partner-shaped-labeled.csv",
@@ -51,11 +51,15 @@ export function UploadView({
             No export yet?
           </h2>
           <p className="mt-2 shrink-0 text-copy-14 text-sio-fg-subtle">
-            Showcase corpus is{" "}
+            Showcase corpus is Groww batch 02 (
+            <code className="font-mono text-sio-signal-lead-fg" translate="no">
+              Groww_batch_02
+            </code>
+            , stored as{" "}
             <code className="font-mono text-sio-signal-lead-fg" translate="no">
               testing.json
             </code>{" "}
-            (also under{" "}
+            under{" "}
             <code className="font-mono text-sio-signal-lead-fg" translate="no">
               web/data/samples/
             </code>

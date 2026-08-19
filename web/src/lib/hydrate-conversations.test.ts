@@ -386,6 +386,7 @@ describe("tryHydrateStoreFromNeon", () => {
       baseline_opportunities: 12,
       baseline_note: "partner agreed",
       weekly_export_count: 2,
+      last_uploaded_file_name: "Groww_batch_02",
       created_at: "2026-08-10T10:00:00.000Z",
       updated_at: "2026-08-12T10:00:00.000Z",
     });
@@ -397,6 +398,7 @@ describe("tryHydrateStoreFromNeon", () => {
       baselineOpportunities: 12,
       baselineNote: "partner agreed",
       weeklyExportCount: 2,
+      lastUploadedFileName: "Groww_batch_02",
       updatedAt: "2026-08-12T10:00:00.000Z",
     });
     expect(writeSpy.mock.calls[0]?.[0]).toEqual(
@@ -404,6 +406,7 @@ describe("tryHydrateStoreFromNeon", () => {
         pilot: expect.objectContaining({
           baselineOpportunities: 12,
           weeklyExportCount: 2,
+          lastUploadedFileName: "Groww_batch_02",
         }),
       })
     );

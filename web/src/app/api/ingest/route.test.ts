@@ -65,7 +65,7 @@ describe("POST /api/ingest", () => {
     await writeStore(before);
 
     const first = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE]))
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
     expect(first.status).toBe(200);
     const firstBody = (await first.json()) as {
@@ -84,7 +84,9 @@ describe("POST /api/ingest", () => {
     ).toBe(true);
     expect(afterFirst.conversations[0].externalId).toBe("wa-reupload-1");
     expect(afterFirst.pilot?.weeklyExportCount).toBe(1);
-    expect(afterFirst.pilot?.lastUploadedFileName).toBe("week1.csv");
+    expect(afterFirst.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.local.csv"
+    );
     expect(afterFirst.pilot?.baselineOpportunities).toBe(12);
     expect(afterFirst.pilot?.baselineNote).toBe("partner agreed");
     expect(afterFirst.taxonomyOverrides?.lead?.phrases).toEqual(["demat account"]);
@@ -108,7 +110,7 @@ describe("POST /api/ingest", () => {
 
     const first = await POST(
       ingestRequest(
-        csvFile("partner-week1.csv", [
+        csvFile("real-partner-export.template.csv", [
           'upsell_pr,customer,"Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.",Ada,whatsapp,upsell',
         ])
       )
@@ -149,7 +151,7 @@ describe("POST /api/ingest", () => {
 
   it("upserts the same conversation_id instead of appending a duplicate", async () => {
     const first = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE]))
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
     expect(first.status).toBe(200);
 
@@ -169,7 +171,9 @@ describe("POST /api/ingest", () => {
     ).toBe(true);
 
     const second = await POST(
-      ingestRequest(csvFile("week2.csv", [LEAD_LINE_UPDATED]))
+      ingestRequest(
+        csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED])
+      )
     );
     expect(second.status).toBe(200);
     const secondBody = (await second.json()) as { replaced?: boolean };
@@ -197,12 +201,14 @@ describe("POST /api/ingest", () => {
       updatedMessages.some((message) => message.content.includes("this week"))
     ).toBe(false);
     expect(afterSecond.pilot?.weeklyExportCount).toBe(2);
-    expect(afterSecond.pilot?.lastUploadedFileName).toBe("week2.csv");
+    expect(afterSecond.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.week2.local.csv"
+    );
   });
 
   it("keeps SignalScore feedback and Acted across re-upload", async () => {
     const first = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE]))
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
     expect(first.status).toBe(200);
 
@@ -221,7 +227,9 @@ describe("POST /api/ingest", () => {
     expect(acted.ok).toBe(true);
 
     const second = await POST(
-      ingestRequest(csvFile("week2.csv", [LEAD_LINE_UPDATED]))
+      ingestRequest(
+        csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED])
+      )
     );
     expect(second.status).toBe(200);
 
@@ -237,19 +245,21 @@ describe("POST /api/ingest", () => {
 
   it("appends a new externalId and still increments weeklyExportCount", async () => {
     const first = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE]))
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
     expect(first.status).toBe(200);
     expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
 
     const second = await POST(
-      ingestRequest(csvFile("week2.csv", [LEAD_LINE_UPDATED]))
+      ingestRequest(
+        csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED])
+      )
     );
     expect(second.status).toBe(200);
     expect((await readStore()).pilot?.weeklyExportCount).toBe(2);
 
     const third = await POST(
-      ingestRequest(csvFile("week3.csv", [NEW_CONV_LINE]))
+      ingestRequest(csvFile("partner-shaped-labeled.csv", [NEW_CONV_LINE]))
     );
     expect(third.status).toBe(200);
 
@@ -270,13 +280,17 @@ describe("POST /api/ingest", () => {
 
   it("does not delete unmatched chats on the merge path", async () => {
     const first = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE, NEW_CONV_LINE]))
+      ingestRequest(
+        csvFile("real-partner-export.local.csv", [LEAD_LINE, NEW_CONV_LINE])
+      )
     );
     expect(first.status).toBe(200);
     expect((await readStore()).conversations).toHaveLength(2);
 
     const second = await POST(
-      ingestRequest(csvFile("week2.csv", [LEAD_LINE_UPDATED]))
+      ingestRequest(
+        csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED])
+      )
     );
     expect(second.status).toBe(200);
 
@@ -289,13 +303,18 @@ describe("POST /api/ingest", () => {
 
   it("explicit replace=true drops chats not in the file after a prior export", async () => {
     const first = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE, NEW_CONV_LINE]))
+      ingestRequest(
+        csvFile("real-partner-export.local.csv", [LEAD_LINE, NEW_CONV_LINE])
+      )
     );
     expect(first.status).toBe(200);
     expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
 
     const second = await POST(
-      ingestRequest(csvFile("week2.csv", [LEAD_LINE_UPDATED]), true)
+      ingestRequest(
+        csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED]),
+        true
+      )
     );
     expect(second.status).toBe(200);
     const body = (await second.json()) as { replaced?: boolean };
@@ -307,27 +326,89 @@ describe("POST /api/ingest", () => {
     expect(after.pilot?.weeklyExportCount).toBe(2);
   });
 
+  it("non-partner uploads replace always (no showcase overlap)", async () => {
+    // Establish a prior partner ingest so weeklyExportCount=1.
+    const partnerFirst = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(partnerFirst.status).toBe(200);
+
+    const afterPartner = await readStore();
+    expect(afterPartner.conversations).toHaveLength(1);
+    expect(afterPartner.pilot?.weeklyExportCount).toBe(1);
+    const priorConversationId = afterPartner.conversations[0].id;
+
+    // Now upload a "non-partner" file (filename not in the Partner Sample Pack).
+    // Even without replace=true, we should do a full replace: only the uploaded
+    // file's conversations/signals remain.
+    const nonPartnerFirst = await POST(
+      ingestRequest(csvFile("user-upload.csv", [NEW_CONV_LINE]))
+    );
+    expect(nonPartnerFirst.status).toBe(200);
+
+    const nonPartnerFirstBody = (await nonPartnerFirst.json()) as {
+      replaced?: boolean;
+    };
+    expect(nonPartnerFirstBody.replaced).toBe(true);
+
+    const afterNonPartnerFirst = await readStore();
+    expect(afterNonPartnerFirst.conversations).toHaveLength(1);
+    expect(afterNonPartnerFirst.conversations[0].externalId).toBe("wa-reupload-2");
+    expect(
+      afterNonPartnerFirst.signals.every(
+        (signal) =>
+          signal.conversationId === afterNonPartnerFirst.conversations[0].id
+      )
+    ).toBe(true);
+    expect(
+      afterNonPartnerFirst.signals.every(
+        (signal) => signal.conversationId !== priorConversationId
+      )
+    ).toBe(true);
+    expect(afterNonPartnerFirst.pilot?.weeklyExportCount).toBe(1);
+    expect(afterNonPartnerFirst.pilot?.lastUploadedFileName).toBe("user-upload.csv");
+
+    // Subsequent non-partner uploads also replace (never merge overlap).
+    const nonPartnerSecond = await POST(
+      ingestRequest(csvFile("user-upload-2.csv", [LEAD_LINE_UPDATED]))
+    );
+    expect(nonPartnerSecond.status).toBe(200);
+
+    const nonPartnerSecondBody = (await nonPartnerSecond.json()) as {
+      replaced?: boolean;
+    };
+    expect(nonPartnerSecondBody.replaced).toBe(true);
+
+    const afterNonPartnerSecond = await readStore();
+    expect(afterNonPartnerSecond.conversations).toHaveLength(1);
+    expect(afterNonPartnerSecond.conversations[0].externalId).toBe("wa-reupload-1");
+    expect(afterNonPartnerSecond.pilot?.weeklyExportCount).toBe(1);
+    expect(afterNonPartnerSecond.pilot?.lastUploadedFileName).toBe("user-upload-2.csv");
+  });
+
   it("still increments weeklyExportCount when Neon pilot PUT fails", async () => {
     vi.spyOn(backendClient, "putPilotSettings").mockRejectedValue(
       new BackendClientError("database_unavailable", 500)
     );
 
     const response = await POST(
-      ingestRequest(csvFile("week1.csv", [LEAD_LINE]))
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
     expect(response.status).toBe(200);
 
     const after = await readStore();
     expect(after.pilot?.weeklyExportCount).toBe(1);
-    expect(after.pilot?.lastUploadedFileName).toBe("week1.csv");
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.local.csv"
+    );
     expect(backendClient.putPilotSettings).toHaveBeenCalledWith(
       "tenant_demo",
       expect.objectContaining({
         weekly_export_count: 1,
+        last_uploaded_file_name: "real-partner-export.local.csv",
       })
     );
     const putBody = vi.mocked(backendClient.putPilotSettings).mock.calls[0]?.[1];
     expect(putBody).not.toHaveProperty("lastUploadedFileName");
-    expect(putBody).not.toHaveProperty("last_uploaded_file_name");
   });
 });

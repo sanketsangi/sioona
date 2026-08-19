@@ -639,6 +639,7 @@ describe("setPredictionActed / pilot settings client", () => {
       baseline_opportunities: 0,
       baseline_note: null,
       weekly_export_count: 0,
+      last_uploaded_file_name: null,
     });
   });
 });

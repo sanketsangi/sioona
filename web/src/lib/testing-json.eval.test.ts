@@ -29,9 +29,11 @@ describe("testing.json synthetic eval", () => {
     expect(mapTestingLabelsToGroundTruth([{ signal: "lead" }])).toBe("lead");
   });
 
-  it("derives customerName from externalId (rahul_mehta_29 → Rahul Mehta)", () => {
+  it("derives customerName from externalId (eeshan_kulkarni_41 → Eeshan Kulkarni)", () => {
+    expect(customerNameFromExternalId("eeshan_kulkarni_41")).toBe(
+      "Eeshan Kulkarni"
+    );
     expect(customerNameFromExternalId("rahul_mehta_29")).toBe("Rahul Mehta");
-    expect(customerNameFromExternalId("priya_sharma_22")).toBe("Priya Sharma");
     expect(customerNameFromExternalId("wa-1001")).toBeNull();
     expect(customerNameFromExternalId("")).toBeNull();
 
@@ -39,11 +41,13 @@ describe("testing.json synthetic eval", () => {
     const named = result.store.conversations.filter((c) => c.customerName);
     expect(named.length).toBe(EXPECTED_TESTING_JSON.conversations);
     expect(
-      result.store.conversations.find((c) => c.externalId === "rahul_mehta_29")
+      result.store.conversations.find(
+        (c) => c.externalId === "eeshan_kulkarni_41"
+      )
         ?.customerName
-    ).toBe("Rahul Mehta");
+    ).toBe("Eeshan Kulkarni");
     expect(result.store.signals[0]?.summary).toMatch(
-      /^(Rahul|Priya|Amit|[A-Z][a-z]+)/
+      /^(Eeshan|Rahul|Priya|Amit|[A-Z][a-z]+)/
     );
   });
 
@@ -87,7 +91,7 @@ describe("testing.json synthetic eval", () => {
     console.log("\n=== top false positives ===\n" + topFp);
     console.log("\n=== top false negatives ===\n" + topFn + "\n");
 
-    expect(summary).toContain("labeled=41");
+    expect(summary).toContain("labeled=100");
     expect(summary).toContain("lead:");
     expect(summary).toContain("retention:");
     expect(summary).toContain("upsell:");

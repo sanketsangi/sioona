@@ -10,12 +10,14 @@ describe("syncPilotSettingsToBackend", () => {
   });
 
   it("returns the backend row on success", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
     vi.spyOn(backendClient, "putPilotSettings").mockResolvedValue({
       id: "pilot-1",
       tenant_id: "tenant_demo",
       baseline_opportunities: 12,
       baseline_note: "note",
       weekly_export_count: 1,
+      last_uploaded_file_name: null,
       created_at: "2026-08-14T00:00:00.000Z",
       updated_at: "2026-08-14T00:00:00.000Z",
     });
@@ -31,10 +33,12 @@ describe("syncPilotSettingsToBackend", () => {
       baseline_opportunities: 12,
       baseline_note: "note",
       weekly_export_count: 1,
+      last_uploaded_file_name: null,
     });
   });
 
   it("fail-softs and returns null when PUT fails", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
     vi.spyOn(backendClient, "putPilotSettings").mockRejectedValue(
       new BackendClientError("down", 500)
     );
@@ -45,6 +49,41 @@ describe("syncPilotSettingsToBackend", () => {
         weeklyExportCount: 1,
       })
     ).resolves.toBeNull();
+  });
+
+  it("merges weeklyExportCount and filename from Neon when local pilot omits them", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 4,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "Groww_batch_02",
+      created_at: "2026-08-14T00:00:00.000Z",
+      updated_at: "2026-08-14T00:00:00.000Z",
+    });
+    const putSpy = vi.spyOn(backendClient, "putPilotSettings").mockResolvedValue({
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 4,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "Groww_batch_02",
+      created_at: "2026-08-14T00:00:00.000Z",
+      updated_at: "2026-08-14T00:00:00.000Z",
+    });
+
+    await syncPilotSettingsToBackend("tenant_demo", {
+      baselineOpportunities: 4,
+      lastUploadedFileName: "Groww_batch_02",
+    });
+
+    expect(putSpy).toHaveBeenCalledWith("tenant_demo", {
+      baseline_opportunities: 4,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "Groww_batch_02",
+    });
   });
 });
 
@@ -77,9 +116,11 @@ describe("setPilotBaseline", () => {
       baseline_opportunities: 12,
       baseline_note: "eval baseline",
       weekly_export_count: 2,
+      last_uploaded_file_name: "groww_batch_02.csv",
       created_at: "2026-08-14T00:00:00.000Z",
       updated_at: "2026-08-14T00:00:00.000Z",
     });
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
 
     const after = await setPilotBaseline(12, "eval baseline");
 
@@ -93,15 +134,13 @@ describe("setPilotBaseline", () => {
         baseline_opportunities: 12,
         baseline_note: "eval baseline",
         weekly_export_count: 2,
+        last_uploaded_file_name: "groww_batch_02.csv",
       })
-    );
-    expect(putSpy.mock.calls[0]?.[1]).not.toHaveProperty("lastUploadedFileName");
-    expect(putSpy.mock.calls[0]?.[1]).not.toHaveProperty(
-      "last_uploaded_file_name"
     );
   });
 
   it("still saves JSON baseline when Neon PUT fails", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
     vi.spyOn(backendClient, "putPilotSettings").mockRejectedValue(
       new BackendClientError("down", 500)
     );

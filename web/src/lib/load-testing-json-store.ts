@@ -19,13 +19,14 @@ import {
   syncPredictionsToBackend,
   type PredictionSyncStats,
 } from "./sync-predictions";
+import { syncPilotSettingsToBackend } from "./sync-pilot";
 import {
   parseTestingJsonDocument,
   resolveTestingJsonPath,
 } from "./testing-json-eval";
 import type { StoreData } from "./types";
 
-const SHOWCASE_SAMPLE_NAME = "testing.json";
+const SHOWCASE_SAMPLE_NAME = "Groww_batch_02";
 
 export interface LoadTestingJsonResult {
   store: StoreData;
@@ -125,7 +126,17 @@ export async function loadTestingJsonIntoStore(
     };
   }
 
+  // Populate breadcrumb + “last uploaded” chrome for showcase resets.
+  store.pilot = {
+    ...store.pilot,
+    lastUploadedFileName: SHOWCASE_SAMPLE_NAME,
+  };
+
   await writeStore(store);
+
+  if (store.pilot) {
+    await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
+  }
 
   return {
     store,

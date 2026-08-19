@@ -76,6 +76,7 @@ def test_put_get_upsert_stable_id(client: TestClient) -> None:
             "baseline_opportunities": 12,
             "baseline_note": "partner agreed",
             "weekly_export_count": 1,
+            "last_uploaded_file_name": "groww_batch_02.csv",
         },
     )
     assert created.status_code == 200
@@ -84,12 +85,14 @@ def test_put_get_upsert_stable_id(client: TestClient) -> None:
     assert body["baseline_opportunities"] == 12
     assert body["baseline_note"] == "partner agreed"
     assert body["weekly_export_count"] == 1
+    assert body["last_uploaded_file_name"] == "groww_batch_02.csv"
     pilot_id = body["id"]
 
     fetched = client.get("/v1/tenants/tenant_demo/pilot", headers=headers)
     assert fetched.status_code == 200
     assert fetched.json()["id"] == pilot_id
     assert fetched.json()["weekly_export_count"] == 1
+    assert fetched.json()["last_uploaded_file_name"] == "groww_batch_02.csv"
 
     updated = client.put(
         "/v1/tenants/tenant_demo/pilot",
@@ -98,11 +101,13 @@ def test_put_get_upsert_stable_id(client: TestClient) -> None:
             "baseline_opportunities": 12,
             "baseline_note": "partner agreed",
             "weekly_export_count": 2,
+            "last_uploaded_file_name": "week2.csv",
         },
     )
     assert updated.status_code == 200
     assert updated.json()["id"] == pilot_id
     assert updated.json()["weekly_export_count"] == 2
+    assert updated.json()["last_uploaded_file_name"] == "week2.csv"
 
 
 def test_put_clears_note_and_trims(client: TestClient) -> None:
@@ -114,6 +119,7 @@ def test_put_clears_note_and_trims(client: TestClient) -> None:
             "baseline_opportunities": 4,
             "baseline_note": "  keep me  ",
             "weekly_export_count": 1,
+            "last_uploaded_file_name": "  week1.csv  ",
         },
     )
     cleared = client.put(
@@ -123,10 +129,26 @@ def test_put_clears_note_and_trims(client: TestClient) -> None:
             "baseline_opportunities": 4,
             "baseline_note": None,
             "weekly_export_count": 1,
+            "last_uploaded_file_name": None,
         },
     )
     assert cleared.status_code == 200
     assert cleared.json()["baseline_note"] is None
+    assert cleared.json()["last_uploaded_file_name"] is None
+
+
+def test_put_trims_empty_filename_to_null(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    response = client.put(
+        "/v1/tenants/tenant_demo/pilot",
+        headers=headers,
+        json={
+            "baseline_opportunities": 0,
+            "last_uploaded_file_name": "   ",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["last_uploaded_file_name"] is None
 
 
 def test_pilot_tenant_isolation(client: TestClient) -> None:

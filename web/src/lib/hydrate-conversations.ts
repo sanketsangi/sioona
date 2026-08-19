@@ -280,6 +280,9 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
         ...(remote.weekly_export_count != null
           ? { weeklyExportCount: remote.weekly_export_count }
           : {}),
+        ...(remote.last_uploaded_file_name
+          ? { lastUploadedFileName: remote.last_uploaded_file_name }
+          : {}),
         updatedAt: remote.updated_at,
       };
     }

@@ -456,6 +456,7 @@ export interface BackendPilotSettings {
   baseline_opportunities: number;
   baseline_note: string | null;
   weekly_export_count: number | null;
+  last_uploaded_file_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -464,6 +465,7 @@ export interface BackendPilotSettingsInput {
   baseline_opportunities: number;
   baseline_note?: string | null;
   weekly_export_count?: number | null;
+  last_uploaded_file_name?: string | null;
 }
 
 /**
@@ -500,6 +502,7 @@ export async function putPilotSettings(
         input.weekly_export_count == null
           ? null
           : Math.max(0, Math.floor(input.weekly_export_count)),
+      last_uploaded_file_name: input.last_uploaded_file_name ?? null,
     }),
     timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
   });

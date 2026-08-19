@@ -27,6 +27,13 @@ function parseReplaceFlag(form: FormData): boolean {
   return value === "true" || value === "1";
 }
 
+const PARTNER_SAMPLE_PACK_BASENAMES = new Set<string>([
+  "partner-shaped-labeled.csv",
+  "real-partner-export.template.csv",
+  "real-partner-export.local.csv",
+  "real-partner-export.week2.local.csv",
+]);
+
 export async function POST(request: Request) {
   try {
     const form = await request.formData();
@@ -62,8 +69,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const priorExports = store.pilot?.weeklyExportCount ?? 0;
-    const replaceShowcase = parseReplaceFlag(form) || priorExports === 0;
+    const uploadedBasename = lastUploadedFileName(file.name);
+    const isPartnerSamplePackUpload = uploadedBasename
+      ? PARTNER_SAMPLE_PACK_BASENAMES.has(uploadedBasename.toLowerCase())
+      : false;
+
+    const priorWeeklyExportCount = store.pilot?.weeklyExportCount;
+    const priorExports = priorWeeklyExportCount ?? 0;
+
+    // Partner sample pack keeps the existing showcase overlap behavior:
+    // - day-1 (first partner ingest after reset): replace
+    // - mid-week re-uploads: merge/upsert (keep unmatched showcase chats)
+    //
+    // Any other upload is treated as a "normal" replace: conversations,
+    // messages, and signals match only the uploaded file (no overlap).
+    const replaceShowcase = isPartnerSamplePackUpload
+      ? parseReplaceFlag(form) || priorExports === 0
+      : true;
     const priorSignals = store.signals;
 
     let ingestedConversations = incoming.conversations;
@@ -72,10 +94,12 @@ export async function POST(request: Request) {
     if (replaceShowcase) {
       store.conversations = incoming.conversations;
       store.messages = incoming.messages;
-      store.taxonomyOverrides = mergeTaxonomyOverrides(
-        store.taxonomyOverrides,
-        PARTNER_EXPORT_ADAPT_OVERRIDES
-      );
+      if (isPartnerSamplePackUpload) {
+        store.taxonomyOverrides = mergeTaxonomyOverrides(
+          store.taxonomyOverrides,
+          PARTNER_EXPORT_ADAPT_OVERRIDES
+        );
+      }
     } else {
       const merged = mergeConversationsByExternalId(store, incoming);
       store.conversations = merged.conversations;
@@ -120,17 +144,17 @@ export async function POST(request: Request) {
       ];
     }
 
-    const uploadedName = lastUploadedFileName(file.name);
-
-    // Partner file ingest advances week-1 mid-week cadence (cold demo does not).
+    // Partner sample pack ingest advances week-1 mid-week cadence (cold demo does not).
     store.pilot = {
       baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
       updatedAt: new Date().toISOString(),
-      weeklyExportCount: priorExports + 1,
+      weeklyExportCount: isPartnerSamplePackUpload
+        ? priorExports + 1
+        : priorWeeklyExportCount,
       ...(store.pilot?.baselineNote
         ? { baselineNote: store.pilot.baselineNote }
         : {}),
-      ...(uploadedName ? { lastUploadedFileName: uploadedName } : {}),
+      ...(uploadedBasename ? { lastUploadedFileName: uploadedBasename } : {}),
     };
 
     // Dual-write pilot to Neon so /tmp wipe does not reset mid-week gate.
