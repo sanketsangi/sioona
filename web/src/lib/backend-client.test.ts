@@ -8,9 +8,12 @@ import {
   createPrediction,
   getConversations,
   getSignalScore,
+  getPilotSettings,
   getTenantSignals,
   patchConversationGroundTruth,
   pruneConversations,
+  putPilotSettings,
+  setPredictionActed,
   submitFeedback,
   upsertConversation,
   upsertConversations,
@@ -553,5 +556,90 @@ describe("getSignalScore keep-set", () => {
     expect(url).toContain("date_from=2026-08-07T12%3A00%3A00.000Z");
     expect(url).toContain("date_to=2026-08-14T12%3A00%3A00.000Z");
     expect(url).toContain("conversation_id=pack_1");
+  });
+});
+
+describe("setPredictionActed / pilot settings client", () => {
+  it("POSTs acted to FastAPI with X-Tenant-Id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+        tenant_id: "tenant_demo",
+        conversation_id: "conv_1",
+        signal_type: "retention",
+        confidence: 0.9,
+        summary: "Churn risk",
+        created_at: "2026-08-01T00:00:00.000Z",
+        acted: true,
+        feedback: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await setPredictionActed(
+      "tenant_demo",
+      "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      true
+    );
+    expect(result.acted).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/v1/signals/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/acted"
+      ),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      acted: true,
+    });
+  });
+
+  it("returns null when GET pilot settings is 404", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: "Not Found",
+        json: async () => ({ detail: "not found" }),
+      })
+    );
+
+    await expect(getPilotSettings("tenant_demo")).resolves.toBeNull();
+  });
+
+  it("floors negative baseline and weekly_export_count on PUT", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "pilot-1",
+        tenant_id: "tenant_demo",
+        baseline_opportunities: 0,
+        baseline_note: null,
+        weekly_export_count: 0,
+        created_at: "2026-08-14T00:00:00.000Z",
+        updated_at: "2026-08-14T00:00:00.000Z",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await putPilotSettings("tenant_demo", {
+      baseline_opportunities: -3.9,
+      weekly_export_count: -2.2,
+    });
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      baseline_opportunities: 0,
+      baseline_note: null,
+      weekly_export_count: 0,
+      last_uploaded_file_name: null,
+    });
   });
 });

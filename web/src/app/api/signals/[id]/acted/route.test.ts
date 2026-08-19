@@ -114,6 +114,50 @@ describe("POST /api/signals/[id]/acted", () => {
     expect(after.signals.find((s) => s.id === target.id)?.status).toBe("acted");
   });
 
+  it("dual-writes Acted to FastAPI when backendSignalId exists", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    const res = await POST(actedRequest({ acted: true }), {
+      params: Promise.resolve({ id: target.id }),
+    });
+    expect(res.status).toBe(200);
+    expect(setPredictionActed).toHaveBeenCalledWith(
+      store.tenant.id,
+      "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+      true
+    );
+    const body = (await res.json()) as { signal: Signal };
+    expect(body.signal.status).toBe("acted");
+  });
+
+  it("still persists JSON Acted when FastAPI dual-write fails", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    setPredictionActed.mockRejectedValueOnce(
+      new Error("Signal Score backend unreachable")
+    );
+
+    const res = await POST(actedRequest({ acted: true }), {
+      params: Promise.resolve({ id: target.id }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { signal: { status: string } };
+    expect(body.signal.status).toBe("acted");
+    expect(
+      (await readStore()).signals.find((s) => s.id === target.id)?.status
+    ).toBe("acted");
+  });
+
   it("saves via backendSignalId when JSON URL id is stale", async () => {
     const store = await readStore();
     const target = store.signals[0];

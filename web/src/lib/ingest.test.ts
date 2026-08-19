@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseIngestDocument, parseIngestFile, toStoreRecords } from "./ingest";
+import {
+  parseIngestDocument,
+  parseIngestFile,
+  stableConversationId,
+  toStoreRecords,
+} from "./ingest";
 
 /** Minimal Intercom-shaped fixture (showcase sample files removed). */
 const INTERCOM_FIXTURE = JSON.stringify({
@@ -194,6 +199,55 @@ describe("parseIngestFile", () => {
     ).toBe(true);
   });
 
+  it("ignores invalid CSV ground_truth so unlabeled rows stay unlabeled", () => {
+    const csv = [
+      "conversation_id,role,content,ground_truth",
+      "wa-1,customer,Want to open a demat account,churn",
+      "wa-1,agent,Happy to help,churn",
+    ].join("\n");
+    const parsed = parseIngestFile("bad-gt.csv", csv);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].groundTruth).toBeUndefined();
+  });
+
+  it("unescapes doubled quotes inside CSV fields", () => {
+    const csv = [
+      "conversation_id,role,content",
+      'q-1,customer,"She said ""close my account"" today"',
+    ].join("\n");
+    const parsed = parseIngestFile("quotes.csv", csv);
+    expect(parsed[0].messages[0].content).toBe(
+      'She said "close my account" today'
+    );
+  });
+
+  it("maps JSON admin/support/bot roles to agent", () => {
+    const json = JSON.stringify([
+      {
+        id: "roles-1",
+        messages: [
+          { role: "admin", content: "How can I help?" },
+          { sender: "support", content: "Sharing the KYC link" },
+          { author: "bot", content: "Auto-reply" },
+          { role: "customer", content: "Thanks" },
+        ],
+      },
+    ]);
+    const parsed = parseIngestFile("roles.json", json);
+    expect(parsed[0].messages.map((m) => m.role)).toEqual([
+      "agent",
+      "agent",
+      "agent",
+      "customer",
+    ]);
+  });
+
+  it("sniffs WhatsApp exports even without a .txt filename", () => {
+    const doc = parseIngestDocument("week2-export", WHATSAPP_FIXTURE);
+    expect(doc.format).toBe("whatsapp_txt");
+    expect(doc.conversations[0].channel).toBe("whatsapp");
+  });
+
   it("parses WhatsApp Business .txt exports", () => {
     const doc = parseIngestDocument("partner-whatsapp.txt", WHATSAPP_FIXTURE);
     expect(doc.format).toBe("whatsapp_txt");
@@ -267,5 +321,18 @@ describe("toStoreRecords", () => {
     );
     expect(first.conversations[0].id).toBe("conv_priya_sharma_22");
     expect(second.conversations[0].id).toBe("conv_priya_sharma_22");
+  });
+
+  it("suffixes colliding stable ids so dual-write joins stay unique", () => {
+    const used = new Set<string>();
+    expect(stableConversationId("priya_sharma_22", used)).toBe(
+      "conv_priya_sharma_22"
+    );
+    expect(stableConversationId("priya_sharma_22", used)).toBe(
+      "conv_priya_sharma_22_2"
+    );
+    expect(stableConversationId("Priya Sharma 22", used)).toBe(
+      "conv_priya_sharma_22_3"
+    );
   });
 });
