@@ -77,7 +77,7 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 - `POST /api/ingest` — parse → merge/replace → hybrid detect → dual-write
 - `POST /api/detect` — re-detect preserving feedback
 - `POST /api/signals/[id]/feedback` — FastAPI then JSON mirror (+ stale-UUID recovery)
-- `POST /api/signals/[id]/acted` — Mark Acted (no outbound)
+- `POST /api/signals/[id]/acted` — Mark Acted (no outbound; same stale-id recovery as feedback)
 - `GET /api/eval` — pilot metrics + backend score overlay (`scoreFrom`)
 - `POST /api/store` — reset / partner_demo / baseline / Adapt applies
 
