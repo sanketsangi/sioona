@@ -128,7 +128,8 @@ export async function loadTestingJsonIntoStore(
 
   // Populate breadcrumb + “last uploaded” chrome for showcase resets.
   store.pilot = {
-    ...store.pilot,
+    baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
+    ...(store.pilot ?? {}),
     lastUploadedFileName: SHOWCASE_SAMPLE_NAME,
   };
 
