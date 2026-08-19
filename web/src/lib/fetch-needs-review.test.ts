@@ -33,6 +33,32 @@ describe("fetchNeedsReview", () => {
       expect(result.predictions).toHaveLength(1);
       expect(result.predictions[0].id).toBe("pred-1");
     }
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/v1/tenants/tenant_demo/signals/needs-review?limit=20"
+      ),
+      expect.anything()
+    );
+  });
+
+  it("requests the backend max limit=100 by default", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      })
+    );
+
+    const result = await fetchNeedsReview("tenant_demo");
+    expect(result.ok).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/v1/tenants/tenant_demo/signals/needs-review?limit=100"
+      ),
+      expect.anything()
+    );
   });
 
   it("returns explicit error when backend is unreachable", async () => {

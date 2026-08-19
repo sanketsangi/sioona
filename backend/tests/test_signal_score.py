@@ -491,3 +491,13 @@ def test_signal_score_neon_keep_set_is_tenant_scoped(db: Session) -> None:
     result = calculate_signal_score(db, "tenant_a")
     assert result.reviewed_count == 1
     assert result.signal_score == pytest.approx(1.0)
+
+
+def test_needs_review_clamps_limit(db: Session) -> None:
+    for index in range(105):
+        _pred(db, conversation_id=f"c_clamp_{index}")
+
+    assert len(list_signals_needing_review(db, "tenant_a", limit=0)) == 1
+    assert len(list_signals_needing_review(db, "tenant_a", limit=50)) == 50
+    assert len(list_signals_needing_review(db, "tenant_a", limit=101)) == 100
+
