@@ -20,6 +20,7 @@ import {
 } from "@/lib/sync-conversations";
 import { syncPilotSettingsToBackend } from "@/lib/sync-pilot";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
+import { lastUploadedFileName } from "@/lib/upload-filename";
 
 function parseReplaceFlag(form: FormData): boolean {
   const value = form.get("replace");
@@ -119,6 +120,8 @@ export async function POST(request: Request) {
       ];
     }
 
+    const uploadedName = lastUploadedFileName(file.name);
+
     // Partner file ingest advances week-1 mid-week cadence (cold demo does not).
     store.pilot = {
       baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
@@ -127,6 +130,7 @@ export async function POST(request: Request) {
       ...(store.pilot?.baselineNote
         ? { baselineNote: store.pilot.baselineNote }
         : {}),
+      ...(uploadedName ? { lastUploadedFileName: uploadedName } : {}),
     };
 
     // Dual-write pilot to Neon so /tmp wipe does not reset mid-week gate.

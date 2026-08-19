@@ -61,6 +61,8 @@ export interface PilotSettings {
   updatedAt?: string;
   /** Successful partner file ingests (not cold demo) — mid-week cadence. */
   weeklyExportCount?: number;
+  /** Last partner ingest `File.name` (JSON only; not Neon). */
+  lastUploadedFileName?: string;
 }
 
 /** Additive terms merged into base taxonomy for pragmatic domain adaptation. */

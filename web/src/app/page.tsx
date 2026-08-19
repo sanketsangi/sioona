@@ -163,7 +163,12 @@ export default async function PlatformPage({
   const page = parsePage(sp.page);
 
   return (
-    <AppShell activeView={view} title={title} notifications={notifications}>
+    <AppShell
+      activeView={view}
+      title={title}
+      lastUploadedFileName={store.pilot?.lastUploadedFileName}
+      notifications={notifications}
+    >
       {view === "insights" ? (
         <InsightsView
           store={store}

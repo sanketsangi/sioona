@@ -8,7 +8,15 @@ import { ChartLineUpIcon } from "@/components/icons/ChartLineUpIcon";
 import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
+import { NavActions } from "@/components/NavActions";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
@@ -27,6 +35,7 @@ const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
 
 type AppHeaderProps = {
   title?: string;
+  lastUploadedFileName?: string;
   activeView: PlatformView;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
@@ -48,6 +57,7 @@ function isActionModeUnlocked(): boolean {
  */
 export function AppHeader({
   title,
+  lastUploadedFileName,
   activeView,
   detailOpen = false,
   notifications = [],
@@ -98,11 +108,33 @@ export function AppHeader({
               <span className="min-w-0 truncate">{title}</span>
             </h1>
           ) : null}
+          {title && lastUploadedFileName ? (
+            <>
+              <Separator
+                orientation="vertical"
+                className="h-4 w-px self-center bg-sio-border-strong data-[orientation=vertical]:h-4"
+              />
+              <Breadcrumb className="min-w-0">
+                <BreadcrumbList className="min-w-0">
+                  <BreadcrumbItem className="min-w-0">
+                    <BreadcrumbPage
+                      className="min-w-0 truncate line-clamp-1"
+                      title={lastUploadedFileName}
+                      translate="no"
+                    >
+                      {lastUploadedFileName}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </>
+          ) : null}
         </div>
 
         <div className="app-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
           <ModeToggle />
           <NotificationsMenu notifications={notifications} />
+          <NavActions />
         </div>
       </div>
     </header>
@@ -141,14 +173,24 @@ function ModeToggle() {
         </ModeToggleItem>
         <ModeToggleItem
           value="action"
-          tooltip={unlocked ? "Action Mode" : "Action Mode (locked)"}
+          tooltip={
+            unlocked ? (
+              "Action Mode"
+            ) : (
+              <>
+                <LockSimple
+                  className="size-3 shrink-0"
+                  weight="bold"
+                  aria-hidden
+                />
+                Action Mode (locked)
+              </>
+            )
+          }
           aria-label={unlocked ? "Action Mode" : "Action Mode (locked)"}
           disabled={!unlocked}
         >
           <PlayCircleIcon className="size-3.5 shrink-0" />
-          {!unlocked ? (
-            <LockSimple className="size-3 shrink-0" weight="bold" aria-hidden />
-          ) : null}
         </ModeToggleItem>
       </ToggleGroup>
     </TooltipProvider>
@@ -163,7 +205,7 @@ function ModeToggleItem({
   children,
 }: {
   value: WorkspaceMode;
-  tooltip: string;
+  tooltip: ReactNode;
   disabled?: boolean;
   "aria-label": string;
   children: ReactNode;

@@ -9,12 +9,14 @@ import type { PlatformView } from "@/lib/views";
 export function AppShell({
   children,
   title,
+  lastUploadedFileName,
   activeView,
   detailOpen = false,
   notifications = [],
 }: {
   children: React.ReactNode;
   title?: string;
+  lastUploadedFileName?: string;
   activeView: PlatformView;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
@@ -45,6 +47,7 @@ export function AppShell({
       >
         <AppHeader
           title={title}
+          lastUploadedFileName={lastUploadedFileName}
           activeView={activeView}
           detailOpen={detailOpen}
           notifications={notifications}

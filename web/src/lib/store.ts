@@ -300,6 +300,9 @@ export async function setPilotBaseline(
   if (store.pilot?.weeklyExportCount != null) {
     pilot.weeklyExportCount = store.pilot.weeklyExportCount;
   }
+  if (store.pilot?.lastUploadedFileName) {
+    pilot.lastUploadedFileName = store.pilot.lastUploadedFileName;
+  }
   store.pilot = pilot;
   await writeStore(store);
   await syncPilotSettingsToBackend(store.tenant.id, pilot);

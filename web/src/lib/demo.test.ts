@@ -44,6 +44,7 @@ describe("runPartnerDemo", () => {
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.weeklyExportCount).toBeUndefined();
+    expect(result.store.pilot?.lastUploadedFileName).toBeUndefined();
     expect(putPilotSpy).not.toHaveBeenCalled();
     expect(result.opportunityLift).toBeGreaterThan(0);
     expect(result.store.taxonomyOverrides).toEqual({});
@@ -81,6 +82,7 @@ describe("runPartnerDemo", () => {
       result.store.conversations.map((c) => c.id).sort()
     );
     expect(again.store.pilot?.weeklyExportCount).toBeUndefined();
+    expect(again.store.pilot?.lastUploadedFileName).toBeUndefined();
     expect(putPilotSpy).not.toHaveBeenCalled();
     expect(wipeSpy).toHaveBeenCalledTimes(2);
   });

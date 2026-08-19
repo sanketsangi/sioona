@@ -84,6 +84,7 @@ describe("POST /api/ingest", () => {
     ).toBe(true);
     expect(afterFirst.conversations[0].externalId).toBe("wa-reupload-1");
     expect(afterFirst.pilot?.weeklyExportCount).toBe(1);
+    expect(afterFirst.pilot?.lastUploadedFileName).toBe("week1.csv");
     expect(afterFirst.pilot?.baselineOpportunities).toBe(12);
     expect(afterFirst.pilot?.baselineNote).toBe("partner agreed");
     expect(afterFirst.taxonomyOverrides?.lead?.phrases).toEqual(["demat account"]);
@@ -196,6 +197,7 @@ describe("POST /api/ingest", () => {
       updatedMessages.some((message) => message.content.includes("this week"))
     ).toBe(false);
     expect(afterSecond.pilot?.weeklyExportCount).toBe(2);
+    expect(afterSecond.pilot?.lastUploadedFileName).toBe("week2.csv");
   });
 
   it("keeps SignalScore feedback and Acted across re-upload", async () => {
@@ -317,6 +319,15 @@ describe("POST /api/ingest", () => {
 
     const after = await readStore();
     expect(after.pilot?.weeklyExportCount).toBe(1);
-    expect(backendClient.putPilotSettings).toHaveBeenCalled();
+    expect(after.pilot?.lastUploadedFileName).toBe("week1.csv");
+    expect(backendClient.putPilotSettings).toHaveBeenCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        weekly_export_count: 1,
+      })
+    );
+    const putBody = vi.mocked(backendClient.putPilotSettings).mock.calls[0]?.[1];
+    expect(putBody).not.toHaveProperty("lastUploadedFileName");
+    expect(putBody).not.toHaveProperty("last_uploaded_file_name");
   });
 });

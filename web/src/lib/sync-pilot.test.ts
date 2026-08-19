@@ -67,6 +67,7 @@ describe("setPilotBaseline", () => {
     store.pilot = {
       baselineOpportunities: 0,
       weeklyExportCount: 2,
+      lastUploadedFileName: "groww_batch_02.csv",
     };
     await writeStore(store);
 
@@ -85,6 +86,7 @@ describe("setPilotBaseline", () => {
     expect(after.pilot?.baselineOpportunities).toBe(12);
     expect(after.pilot?.baselineNote).toBe("eval baseline");
     expect(after.pilot?.weeklyExportCount).toBe(2);
+    expect(after.pilot?.lastUploadedFileName).toBe("groww_batch_02.csv");
     expect(putSpy).toHaveBeenCalledWith(
       "tenant_demo",
       expect.objectContaining({
@@ -92,6 +94,10 @@ describe("setPilotBaseline", () => {
         baseline_note: "eval baseline",
         weekly_export_count: 2,
       })
+    );
+    expect(putSpy.mock.calls[0]?.[1]).not.toHaveProperty("lastUploadedFileName");
+    expect(putSpy.mock.calls[0]?.[1]).not.toHaveProperty(
+      "last_uploaded_file_name"
     );
   });
 
