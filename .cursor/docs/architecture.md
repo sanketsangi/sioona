@@ -40,7 +40,7 @@ Partner export (Upload)
 | Taxonomy base phrases                            | `web/src/lib/taxonomy.ts` (never Neon)                     |
 | Auth                                             | Soft header `X-Tenant-Id` (`tenant_demo`) — not Auth0      |
 
-Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sioona-api` + Neon `sioona`. Hydrate + Adapt union + pilot restore survive wipe.
+Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sioona-api` + Neon `sioona`. Hydrate + Adapt union + pilot restore survive wipe. Platform SSR also overlays `store.pilot` from Neon (heal stale `/tmp` after Partner Demo / cross-instance `set_baseline`). Partner Demo restores a prior partner baseline after wipe (cold-demo 4 only when none exists).
 
 ---
 
