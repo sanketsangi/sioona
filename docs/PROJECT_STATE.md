@@ -8,7 +8,7 @@ Do not maintain a second narrative here. New agent windows and current heading l
 
 | Suite | Result |
 | --- | --- |
-| Live Playwright smoke (`cd web && npm run test:smoke`) vs `https://sioona-demo.vercel.app` | **3 failed** — `page.goto: net::ERR_CONNECTION_CLOSED` (agent egress; host not allowlisted). Not an app crash overlay. |
+| Live Playwright smoke (`cd web && npm run test:smoke`) vs `https://sioona-demo.vercel.app` | **skipped** — user declined adding `sioona-demo.vercel.app` to agent egress. `net::ERR_CONNECTION_CLOSED` / TLS reset → skip + reason, not a product crash. |
 | Same suite vs `http://127.0.0.1:3000` (`SMOKE_CHANNEL=chrome`) | **3 passed** (home Insights, Upload Partner Demo CTA, Insights route). |
 
 **Auth-gated:** none observed (connection never reached Vercel from this agent).
