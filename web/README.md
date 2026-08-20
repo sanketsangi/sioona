@@ -35,5 +35,6 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 - `npm run start` — start production server
 - `npm run lint` — ESLint
 - `npm test` — Vitest (`detect` / `ingest` / `eval`)
+- `npm run test:smoke` — Playwright live-demo smoke (`https://sioona-demo.vercel.app`; override with `SMOKE_BASE_URL`; `SMOKE_CHANNEL=chrome` uses system Chrome)
 
 Product brief: [`../PRODUCT.md`](../PRODUCT.md).

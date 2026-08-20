@@ -30,6 +30,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Week-1 labeled Adapt CLI | P **1.00** / R **1.00** (23 labeled) — pack only; **not** a customer claim |
 | Week-2 held-out Adapt CLI | P **0.89** / R **0.55** (34 labeled) — not week-1 1.00 |
 | Deploy gate (2026-08-19) | web **331** / backend **56** pass; hosted 7-step smoke **all green** (Insights/Upload/Eval **200**); tenant-wide SignalScore **n=13**; keep-set Eval **n=0 → Insufficient Data** = Partner Demo JSON ids ∩ Neon Groww ids (**data**, not `/signal-score` error); **007** applied; `/pilot` **200** + `last_uploaded_file_name` |
+| Live Playwright smoke (2026-08-20) | Suite added (`web/e2e/live-demo.smoke.spec.ts`). **Live URL failed in this agent:** 3/3 `net::ERR_CONNECTION_CLOSED` to `https://sioona-demo.vercel.app` (egress allowlist; not a product crash / not auth). Local sanity `SMOKE_BASE_URL=http://127.0.0.1:3000` **3 passed**. Does not click Run Partner Demo (Neon wipe). |
 
 **Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
 
@@ -131,6 +132,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
+- Live-demo smoke: `cd web && npx playwright install chromium && npm run test:smoke` (default `https://sioona-demo.vercel.app`; `SMOKE_CHANNEL=chrome` uses system Chrome).
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

@@ -9,6 +9,7 @@
     "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:smoke": "playwright test",
     "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts"
   },
   "dependencies": {
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
