@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BackendPrediction } from "./backend-client";
 import {
+  doneQueueSignals,
   joinNeedsReviewPredictions,
   pendingQueueSignals,
   predictionToStubSignal,
@@ -187,5 +188,78 @@ describe("pendingQueueSignals", () => {
 
     const pending = pendingQueueSignals(preds, json);
     expect(pending.map((s) => s.id)).toEqual(["sig_a", "sig_b"]);
+  });
+});
+
+describe("doneQueueSignals", () => {
+  it("joins Neon feedback onto keep-set JSON and overlays Acted", () => {
+    const rows = [
+      {
+        ...prediction({ id: "neon-done" }),
+        acted: true,
+        feedback: {
+          id: "fb-1",
+          tenant_id: "tenant_demo",
+          signal_id: "neon-done",
+          feedback: "correct" as const,
+          note: "clear",
+          reviewed_by: "shadow_reviewer",
+          reviewed_at: "2026-08-02T00:00:00.000Z",
+        },
+      },
+    ];
+    const json: Signal[] = [{ ...baseSignal, id: "sig_keep" }];
+
+    const done = doneQueueSignals(rows, json);
+    expect(done).toHaveLength(1);
+    expect(done[0].id).toBe("sig_keep");
+    expect(done[0].status).toBe("acted");
+    expect(done[0].backendSignalId).toBe("neon-done");
+    expect(done[0].feedback).toEqual({
+      label: "correct",
+      note: "clear",
+      reviewedAt: "2026-08-02T00:00:00.000Z",
+    });
+  });
+
+  it("omits leftover Groww Neon reviews with no local Zerodha chat", () => {
+    const rows = [
+      {
+        ...prediction({
+          id: "groww-leftover",
+          conversation_id: "conv_eeshan_kulkarni_41",
+        }),
+        acted: false,
+        feedback: {
+          id: "fb-g",
+          tenant_id: "tenant_demo",
+          signal_id: "groww-leftover",
+          feedback: "correct" as const,
+          note: null,
+          reviewed_by: "shadow_reviewer",
+          reviewed_at: "2026-08-18T00:00:00.000Z",
+        },
+      },
+    ];
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        id: "sig_zrdh",
+        conversationId: "conv_zrdh_eeshan_kulkarni_41",
+      },
+    ];
+
+    expect(doneQueueSignals(rows, json)).toEqual([]);
+  });
+
+  it("omits unreviewed tenant rows (those belong in Follow-up)", () => {
+    const rows = [
+      {
+        ...prediction({ id: "pending" }),
+        acted: false,
+        feedback: null,
+      },
+    ];
+    expect(doneQueueSignals(rows, [baseSignal])).toEqual([]);
   });
 });

@@ -1,10 +1,11 @@
 # Partner sample pack
 
-Showcase conversations for cold open and **Run Partner Demo** come from **`testing.json`** only (repo root canonical; deployable copy here for Vercel).
+Showcase conversations: **Run Partner Demo** loads **`zerodha_batch_02.json`**. Cold open and Reset Demo seed **`testing.json`** (repo root canonical; deployable copies here for Vercel).
 
 | File | Format | Notes |
 |------|--------|--------|
-| `testing.json` | Sioona-shaped JSON | ~41 labeled finance chats; cold open + Partner Demo + reset seed. Keep in sync with repo-root `testing.json`. |
+| `zerodha_batch_02.json` | Sioona-shaped JSON | 100 labeled Zerodha chats; **Run Partner Demo** seed (wipe + dual-write). Distinct `zrdh_*` ids so Eval keep-set is not Groww JSON ∩ leftover Neon reviews. |
+| `testing.json` | Sioona-shaped JSON | 100 labeled Groww chats; cold open + Reset Demo seed. Keep in sync with repo-root `testing.json`. |
 | `partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` | Messier partner-like multi-turn pack for labeled P/R vs synthetics |
 | `real-partner-export.template.csv` | Sioona CSV + `ground_truth` | Redacted template for Day-1 pilot exports (safe to commit) |
 | `real-partner-export.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-1 drop-in — paste redacted partner chats here |

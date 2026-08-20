@@ -17,7 +17,7 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
 
-Cold open and **Reset Demo** also load the same showcase corpus (`testing.json`, ~41 conversations).
+Cold open and **Reset Demo** load `testing.json` (Groww). **Run Partner Demo** wipes Neon and loads `zerodha_batch_02.json`.
 
 ## Week-1 pilot rhythm (visible in the strip)
 
@@ -56,10 +56,11 @@ Cadence helper on Insights empty queue, Upload, and Eval — not in the header b
 
 | File | Role |
 |------|------|
-| Repo-root `testing.json` | Canonical labeled corpus (eval measurement) |
-| `web/data/samples/testing.json` | Deployable copy for Next/Vercel runtime (keep in sync with root) |
+| Repo-root `testing.json` | Canonical Groww labeled corpus (eval measurement; cold open / Reset) |
+| `web/data/samples/testing.json` | Deployable Groww copy for Next/Vercel runtime |
+| `web/data/samples/zerodha_batch_02.json` | Partner Demo seed (wipe + dual-write) |
 
-**Run Partner Demo** resets the store and loads only `testing.json`, dual-writes predictions to FastAPI/Neon, and sets the cold-demo baseline.
+**Run Partner Demo** wipes Neon (fail-soft) and loads only `web/data/samples/zerodha_batch_02.json`, dual-writes predictions to FastAPI/Neon, and sets the cold-demo baseline. Cold open and **Reset Demo** still seed `testing.json` (Groww showcase).
 
 Partner upload / eval lanes (not the showcase seed):
 

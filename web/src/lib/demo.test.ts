@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as backendClient from "./backend-client";
 import { runPartnerDemo } from "./demo";
 import { resetStore, readStore } from "./store";
-import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
+import {
+  EXPECTED_ZERODHA_BATCH02,
+  ZERODHA_BATCH02_FILENAME,
+} from "./zerodha-batch02";
 
 describe("runPartnerDemo", () => {
   beforeEach(async () => {
@@ -19,7 +22,7 @@ describe("runPartnerDemo", () => {
     vi.restoreAllMocks();
   });
 
-  it("resets and loads only testing.json showcase corpus", async () => {
+  it("wipes then loads only zerodha_batch_02.json", async () => {
     const wipeSpy = vi
       .spyOn(backendClient, "wipeTenantData")
       .mockResolvedValue({
@@ -34,21 +37,31 @@ describe("runPartnerDemo", () => {
 
     expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
     expect(result.wipe.ok).toBe(true);
-    expect(result.samples).toEqual(["Groww_batch_02"]);
-    expect(result.importedConversations).toBe(EXPECTED_TESTING_JSON.conversations);
+    expect(result.samples).toEqual([ZERODHA_BATCH02_FILENAME]);
+    expect(result.importedConversations).toBe(
+      EXPECTED_ZERODHA_BATCH02.conversations
+    );
     expect(result.newSignals).toBeGreaterThan(0);
     expect(result.store.conversations).toHaveLength(
-      EXPECTED_TESTING_JSON.conversations
+      EXPECTED_ZERODHA_BATCH02.conversations
+    );
+    expect(
+      result.store.conversations.every((c) => c.id.startsWith("conv_zrdh_"))
+    ).toBe(true);
+    expect(result.store.messages.some((m) => /groww/i.test(m.content))).toBe(
+      false
     );
     expect(result.store.signals.length).toBe(result.newSignals);
     expect(result.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.baselineOpportunities).toBe(4);
     expect(result.store.pilot?.weeklyExportCount).toBeUndefined();
-    expect(result.store.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+    expect(result.store.pilot?.lastUploadedFileName).toBe(
+      ZERODHA_BATCH02_FILENAME
+    );
     expect(putPilotSpy).toHaveBeenCalledWith(
       "tenant_demo",
       expect.objectContaining({
-        last_uploaded_file_name: "Groww_batch_02",
+        last_uploaded_file_name: ZERODHA_BATCH02_FILENAME,
       })
     );
     expect(result.opportunityLift).toBeGreaterThan(0);
@@ -58,8 +71,11 @@ describe("runPartnerDemo", () => {
 
     const afterReset = await readStore();
     expect(afterReset.conversations).toHaveLength(
-      EXPECTED_TESTING_JSON.conversations
+      EXPECTED_ZERODHA_BATCH02.conversations
     );
+    expect(
+      afterReset.conversations.every((c) => c.id.startsWith("conv_zrdh_"))
+    ).toBe(true);
 
     expect(result.predictionSync).toEqual(
       expect.objectContaining({
@@ -75,8 +91,8 @@ describe("runPartnerDemo", () => {
     ).toBeGreaterThan(0);
     expect(result.conversationSync).toEqual(
       expect.objectContaining({
-        attempted: EXPECTED_TESTING_JSON.conversations,
-        failed: EXPECTED_TESTING_JSON.conversations,
+        attempted: EXPECTED_ZERODHA_BATCH02.conversations,
+        failed: EXPECTED_ZERODHA_BATCH02.conversations,
         created: 0,
       })
     );
@@ -87,7 +103,9 @@ describe("runPartnerDemo", () => {
       result.store.conversations.map((c) => c.id).sort()
     );
     expect(again.store.pilot?.weeklyExportCount).toBeUndefined();
-    expect(again.store.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+    expect(again.store.pilot?.lastUploadedFileName).toBe(
+      ZERODHA_BATCH02_FILENAME
+    );
     expect(putPilotSpy).toHaveBeenCalledTimes(2);
     expect(wipeSpy).toHaveBeenCalledTimes(2);
   });

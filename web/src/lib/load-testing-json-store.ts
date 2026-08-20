@@ -48,16 +48,19 @@ export interface LoadTestingJsonOptions {
   syncConversations?: boolean;
   repoRoot?: string;
   absolutePath?: string;
+  /** Breadcrumb / `samples[]` name (default Groww showcase). */
+  sampleName?: string;
 }
 
 /**
- * Load the showcase corpus (testing.json) into the JSON store:
+ * Load a Sioona-shaped JSON corpus into the store:
  * parse → toStoreRecords → detect → optional dual-write (chats + predictions) → writeStore.
- * Used by cold open (no wipe), resetStore (wipe then seed), and Run Partner Demo.
+ * Cold open / reset default to testing.json; Partner Demo passes zerodha_batch_02.json.
  */
 export async function loadTestingJsonIntoStore(
   options?: LoadTestingJsonOptions
 ): Promise<LoadTestingJsonResult> {
+  const sampleName = options?.sampleName ?? SHOWCASE_SAMPLE_NAME;
   const absolutePath =
     options?.absolutePath ?? resolveTestingJsonPath(options?.repoRoot);
   const content = await fs.readFile(absolutePath, "utf8");
@@ -132,7 +135,7 @@ export async function loadTestingJsonIntoStore(
   store.pilot = {
     ...store.pilot,
     baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
-    lastUploadedFileName: SHOWCASE_SAMPLE_NAME,
+    lastUploadedFileName: sampleName,
   };
 
   await writeStore(store);
@@ -145,7 +148,7 @@ export async function loadTestingJsonIntoStore(
     store,
     importedConversations: conversations.length,
     newSignals: signals.length,
-    samples: [SHOWCASE_SAMPLE_NAME],
+    samples: [sampleName],
     absolutePath,
     predictionSync,
     conversationSync,

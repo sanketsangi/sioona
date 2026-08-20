@@ -27,7 +27,9 @@ import {
 } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
+import type { TenantSignalsResult } from "@/lib/fetch-tenant-signals";
 import {
+  doneQueueSignals,
   pendingQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
@@ -64,6 +66,7 @@ export function InsightsView({
   page,
   previewId = null,
   needsReview,
+  tenantSignals,
   scoreFrom = null,
   syncFailed = 0,
   syncCreated = 0,
@@ -83,6 +86,8 @@ export function InsightsView({
   /** Reserved for Eval / pilot chrome — not shown on this strip. */
   backendScore?: BackendSignalScore | null;
   needsReview: NeedsReviewResult;
+  /** Neon tenant signals + feedback (Insights Done). */
+  tenantSignals: TenantSignalsResult;
   /** Preserve Eval `?scoreFrom=` across queue filters. */
   scoreFrom?: string | null;
   syncFailed?: number;
@@ -97,7 +102,9 @@ export function InsightsView({
   const pendingSignals = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals)
     : store.signals.filter((s) => !s.feedback);
-  const reviewedSignals = reviewedSignalsFromStore(store.signals);
+  const reviewedSignals = tenantSignals.ok
+    ? doneQueueSignals(tenantSignals.predictions, store.signals)
+    : reviewedSignalsFromStore(store.signals);
   const customerNames: Record<string, string> = {};
   const conversationsById: Record<string, Conversation> = {};
   for (const conversation of store.conversations) {

@@ -3,8 +3,11 @@
  * Order follows the backend queue (newest-first).
  */
 
-import type { BackendPrediction } from "./backend-client";
-import type { Signal, SignalType } from "./types";
+import type {
+  BackendPrediction,
+  BackendPredictionWithFeedback,
+} from "./backend-client";
+import type { FeedbackLabel, Signal, SignalType } from "./types";
 
 const KNOWN_TYPES = new Set<string>(["lead", "retention", "upsell"]);
 
@@ -89,6 +92,53 @@ export function joinNeedsReviewPredictions(
 /** JSON signals that already have human feedback (reviewed filter). */
 export function reviewedSignalsFromStore(jsonSignals: Signal[]): Signal[] {
   return jsonSignals.filter((s) => Boolean(s.feedback));
+}
+
+function asFeedbackLabel(raw: string): FeedbackLabel | null {
+  if (
+    raw === "correct" ||
+    raw === "incorrect" ||
+    raw === "partially_correct"
+  ) {
+    return raw as FeedbackLabel;
+  }
+  return null;
+}
+
+/**
+ * Insights Done tree: Neon tenant signals that already have feedback, joined
+ * to JSON keep-set chats. Leftover Groww (or other pack) Neon reviews with no
+ * local conversation are omitted — same join rule as Follow-up / needs-review.
+ */
+export function doneQueueSignals(
+  rows: BackendPredictionWithFeedback[],
+  jsonSignals: Signal[]
+): Signal[] {
+  const seenJsonIds = new Set<string>();
+  const joined: Signal[] = [];
+
+  for (const row of rows) {
+    if (!row.feedback) continue;
+    const label = asFeedbackLabel(row.feedback.feedback);
+    if (!label) continue;
+    const matched = findJsonSignal(row, jsonSignals);
+    if (!matched) continue;
+    if (seenJsonIds.has(matched.id)) continue;
+    seenJsonIds.add(matched.id);
+    const note = row.feedback.note?.trim();
+    joined.push({
+      ...matched,
+      backendSignalId: matched.backendSignalId ?? row.id,
+      status: row.acted ? "acted" : "reviewed",
+      feedback: {
+        label,
+        ...(note ? { note } : {}),
+        reviewedAt: row.feedback.reviewed_at,
+      },
+    });
+  }
+
+  return joined;
 }
 
 /**
