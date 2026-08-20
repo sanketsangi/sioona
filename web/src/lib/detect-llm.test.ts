@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeEvalMetrics } from "./eval";
 import {
   applyLlmSecondPass,
+  classifyConversationWithGroq,
+  DEFAULT_DETECT_LLM_MODEL,
   DETECT_LLM_CONCURRENCY,
   DETECT_LLM_MAX_CALLS,
   isDetectLlmEnabled,
@@ -278,6 +280,207 @@ describe("applyLlmSecondPass", () => {
         optionsConcurrency: 3,
       })
     ).toBe(3);
+  });
+});
+
+describe("classifyConversationWithGroq", () => {
+  const customerMessages: Message[] = [
+    {
+      id: "m1",
+      conversationId: conv.id,
+      role: "customer",
+      content: "I want to close my account and move my portfolio this week.",
+      timestamp: "2026-08-01T00:00:00.000Z",
+    },
+  ];
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("returns null without calling Groq when the key is missing", async () => {
+    vi.stubEnv("GROQ_API_KEY", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      classifyConversationWithGroq({
+        conversation: conv,
+        customerMessages,
+      })
+    ).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null when there is no customer text", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      classifyConversationWithGroq({
+        conversation: conv,
+        customerMessages: [
+          {
+            ...customerMessages[0],
+            role: "agent",
+            content: "How can I help?",
+          },
+        ],
+      })
+    ).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("returns null on HTTP errors, invalid JSON, and unknown types", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("aborted"))
+    );
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).resolves.toBeNull();
+
+    const httpFail = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: async () => ({ error: "rate limited" }),
+    });
+    vi.stubGlobal("fetch", httpFail);
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).resolves.toBeNull();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: "not-json" } }],
+        }),
+      })
+    );
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).resolves.toBeNull();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  type: "churn",
+                  confidence: 0.9,
+                  summary: "Leaving",
+                  quotes: ["close my account"],
+                }),
+              },
+            },
+          ],
+        }),
+      })
+    );
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).resolves.toBeNull();
+  });
+
+  it("parses a valid Groq payload, clamps confidence, and keeps two string quotes", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MODEL", "qwen/test-model");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                type: " Retention ",
+                confidence: 1.8,
+                summary: "  Asha is leaving  ",
+                quotes: [
+                  "close my account",
+                  "move my portfolio",
+                  "third quote dropped",
+                  12,
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await classifyConversationWithGroq({
+      conversation: conv,
+      customerMessages,
+    });
+
+    expect(result).toEqual({
+      type: "retention",
+      confidence: 1,
+      summary: "Asha is leaving",
+      quotes: ["close my account", "move my portfolio"],
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.groq.com/openai/v1/chat/completions",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer gsk_test",
+        }),
+      })
+    );
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
+      model: string;
+    };
+    expect(body.model).toBe("qwen/test-model");
+  });
+
+  it("defaults missing confidence to 0.55 and uses the default model", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MODEL", "");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                type: "none",
+                summary: "Ops chat",
+                quotes: [],
+              }),
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await classifyConversationWithGroq({
+      conversation: conv,
+      customerMessages,
+    });
+    expect(result).toEqual({
+      type: "none",
+      confidence: 0.55,
+      summary: "Ops chat",
+      quotes: [],
+    });
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
+      model: string;
+    };
+    expect(body.model).toBe(DEFAULT_DETECT_LLM_MODEL);
   });
 });
 

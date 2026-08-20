@@ -412,3 +412,83 @@ describe("POST /api/ingest", () => {
     expect(putBody).not.toHaveProperty("lastUploadedFileName");
   });
 });
+
+describe("POST /api/ingest validation", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("rejects a request with no file", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/ingest", {
+        method: "POST",
+        body: new FormData(),
+      })
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "file is required" });
+  });
+
+  it("rejects a header-only CSV with no conversations", async () => {
+    const res = await POST(
+      ingestRequest(
+        csvFile("empty-pack.csv", [])
+      )
+    );
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "No conversations found in file",
+    });
+  });
+
+  it("rejects CSV missing required columns as 400", async () => {
+    const file = new File(
+      ["id,text\n1,hello"],
+      "bad.csv",
+      { type: "text/csv" }
+    );
+    const res = await POST(ingestRequest(file));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/conversation_id, role, content/i);
+  });
+
+  it("rejects JSON that is not a conversation list as 400", async () => {
+    const file = new File(['{"ok":true}'], "export.json", {
+      type: "application/json",
+    });
+    const res = await POST(ingestRequest(file));
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toMatch(/conversations/i);
+  });
+
+  it("treats replace=1 as a full replace after a prior partner export", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+
+    const first = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE, NEW_CONV_LINE]))
+    );
+    expect(first.status).toBe(200);
+    expect((await readStore()).conversations).toHaveLength(2);
+
+    const form = new FormData();
+    form.append(
+      "file",
+      csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED])
+    );
+    form.append("replace", "1");
+    const second = await POST(
+      new Request("http://localhost/api/ingest", { method: "POST", body: form })
+    );
+    expect(second.status).toBe(200);
+    const body = (await second.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(true);
+    expect((await readStore()).conversations).toHaveLength(1);
+  });
+});

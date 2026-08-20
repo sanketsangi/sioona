@@ -412,6 +412,52 @@ describe("tryHydrateStoreFromNeon", () => {
     );
   });
 
+  it("does not invent lastUploadedFileName when Neon filename is null", async () => {
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow(),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [detectedSignal],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, backendSignalId: "pred-hydrated-1" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-uuid-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 1,
+      last_uploaded_file_name: null,
+      created_at: "2026-08-10T10:00:00.000Z",
+      updated_at: "2026-08-12T10:00:00.000Z",
+    });
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expect(result?.pilot?.baselineOpportunities).toBe(12);
+    expect(result?.pilot?.weeklyExportCount).toBe(1);
+    expect(result?.pilot?.lastUploadedFileName).toBeUndefined();
+    expect(result?.pilot?.baselineNote).toBeUndefined();
+  });
+
   it("keeps shell pilot when pilot GET fails", async () => {
     vi.spyOn(backendClient, "getConversations").mockResolvedValue([
       partnerRow(),

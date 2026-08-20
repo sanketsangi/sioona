@@ -225,6 +225,9 @@ describe("readStore cold-start hydrate", () => {
     expect(store.taxonomyOverrides).toEqual({});
     expect(store.taxonomyOverrides?.lead?.negativePhrases).toBeUndefined();
     expect(store.taxonomyOverrides?.upsell?.phrases).toBeUndefined();
+    // Reset Demo must not apply the Partner Demo lift baseline (4).
+    expect(store.pilot?.baselineOpportunities).toBe(0);
+    expect(store.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
     expect(getSpy).not.toHaveBeenCalled();
     expect(signalsSpy).not.toHaveBeenCalled();
   });
