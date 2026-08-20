@@ -42,6 +42,8 @@ export type SyncConversationsOptions = {
   sleep?: (ms: number) => Promise<void>;
   /** Day-1 replace: unlabeled file chats clear leftover Neon GT. */
   clearUnlabeledGroundTruth?: boolean;
+  /** Real chunk ticks: 0 then N after each bulk upsert. */
+  onProgress?: (done: number, total: number) => void | Promise<void>;
 };
 
 export type ConversationPruneStats = {
@@ -136,7 +138,10 @@ async function upsertConversationsWithRetry(
   conversations: Conversation[],
   messages: Message[],
   sleep: (ms: number) => Promise<void>,
-  options?: Pick<SyncConversationsOptions, "clearUnlabeledGroundTruth">
+  options?: Pick<
+    SyncConversationsOptions,
+    "clearUnlabeledGroundTruth" | "onProgress"
+  >
 ) {
   const payload = toConversationSyncPayload(conversations, messages, options);
   let created = 0;
@@ -155,6 +160,10 @@ async function upsertConversationsWithRetry(
     updated += result.updated;
     messages_created += result.messages_created;
     messages_updated += result.messages_updated;
+    await options?.onProgress?.(
+      Math.min(i + chunk.length, payload.length),
+      payload.length
+    );
   }
 
   return { created, updated, messages_created, messages_updated };
@@ -169,6 +178,7 @@ export async function syncConversationsToBackend(
   tenantId: string,
   options?: SyncConversationsOptions
 ): Promise<ConversationSyncStats> {
+  await options?.onProgress?.(0, conversations.length);
   if (conversations.length === 0) {
     return emptyConversationSyncStats();
   }

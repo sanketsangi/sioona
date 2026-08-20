@@ -27,9 +27,8 @@ function parseReplaceFlag(form: FormData): boolean {
   return value === "true" || value === "1";
 }
 
+/** Gitignored weekly partner drop-ins — Day-1 replace, mid-week upsert. */
 const PARTNER_SAMPLE_PACK_BASENAMES = new Set<string>([
-  "partner-shaped-labeled.csv",
-  "real-partner-export.template.csv",
   "real-partner-export.local.csv",
   "real-partner-export.week2.local.csv",
 ]);
@@ -77,12 +76,12 @@ export async function POST(request: Request) {
     const priorWeeklyExportCount = store.pilot?.weeklyExportCount;
     const priorExports = priorWeeklyExportCount ?? 0;
 
-    // Partner sample pack keeps the existing showcase overlap behavior:
+    // Weekly partner drop-ins keep showcase-overlap behavior:
     // - day-1 (first partner ingest after reset): replace
-    // - mid-week re-uploads: merge/upsert (keep unmatched showcase chats)
+    // - mid-week re-uploads: merge/upsert (keep unmatched chats)
     //
-    // Any other upload is treated as a "normal" replace: conversations,
-    // messages, and signals match only the uploaded file (no overlap).
+    // Any other upload (including former eval CSVs) is a full replace:
+    // conversations, messages, and signals match only the uploaded file.
     const replaceShowcase = isPartnerSamplePackUpload
       ? parseReplaceFlag(form) || priorExports === 0
       : true;
@@ -144,7 +143,7 @@ export async function POST(request: Request) {
       ];
     }
 
-    // Partner sample pack ingest advances week-1 mid-week cadence (cold demo does not).
+    // Weekly partner drop-in ingest advances week-1 mid-week cadence (cold demo does not).
     store.pilot = {
       baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
       updatedAt: new Date().toISOString(),

@@ -4,13 +4,14 @@ import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import type { HeaderNotification } from "@/lib/notifications";
-import type { PlatformView } from "@/lib/views";
+import type { PlatformView, WorkspaceMode } from "@/lib/views";
 
 export function AppShell({
   children,
   title,
   lastUploadedFileName,
   activeView,
+  workspaceMode = "shadow",
   detailOpen = false,
   notifications = [],
 }: {
@@ -18,6 +19,7 @@ export function AppShell({
   title?: string;
   lastUploadedFileName?: string;
   activeView: PlatformView;
+  workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
 }) {
@@ -49,6 +51,7 @@ export function AppShell({
           title={title}
           lastUploadedFileName={lastUploadedFileName}
           activeView={activeView}
+          workspaceMode={workspaceMode}
           detailOpen={detailOpen}
           notifications={notifications}
         />

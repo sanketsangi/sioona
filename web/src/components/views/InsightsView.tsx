@@ -29,12 +29,24 @@ import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import type { TenantSignalsResult } from "@/lib/fetch-tenant-signals";
 import {
-  doneQueueSignals,
+  mergeOverlayChats,
+  type HydratedChats,
+} from "@/lib/hydrate-conversations";
+import {
+  applyChatEvidenceToSignals,
   pendingQueueSignals,
+  reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
-import { cadenceActionHref, viewHref, type StatusFilter, type TypeFilter } from "@/lib/views";
+import {
+  cadenceActionHref,
+  statusQueryValue,
+  viewHref,
+  type StatusFilter,
+  type TypeFilter,
+  type WorkspaceMode,
+} from "@/lib/views";
 import type { Conversation, Message, StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
@@ -56,6 +68,22 @@ function resolveCustomerName(
   return "Customer";
 }
 
+/** Next pending id after `currentId` (wraps; excludes current). */
+function nextPendingId(
+  pending: { id: string }[],
+  currentId: string,
+): string | null {
+  const n = pending.length;
+  if (n === 0) return null;
+  const start = pending.findIndex((s) => s.id === currentId);
+  const from = start >= 0 ? start : 0;
+  for (let i = 1; i <= n; i++) {
+    const signal = pending[(from + i) % n];
+    if (signal.id !== currentId) return signal.id;
+  }
+  return null;
+}
+
 export function InsightsView({
   store,
   demo,
@@ -67,6 +95,7 @@ export function InsightsView({
   previewId = null,
   needsReview,
   tenantSignals,
+  overlayChats = null,
   scoreFrom = null,
   syncFailed = 0,
   syncCreated = 0,
@@ -74,6 +103,7 @@ export function InsightsView({
   llmFailed = 0,
   cadenceAction,
   cadencePreviewId = null,
+  workspaceMode = "shadow",
 }: {
   store: StoreData;
   demo?: boolean;
@@ -86,8 +116,9 @@ export function InsightsView({
   /** Reserved for Eval / pilot chrome — not shown on this strip. */
   backendScore?: BackendSignalScore | null;
   needsReview: NeedsReviewResult;
-  /** Neon tenant signals + feedback (Insights Done). */
   tenantSignals: TenantSignalsResult;
+  /** Request-scoped Neon chats when JSON misses conversation rows. */
+  overlayChats?: HydratedChats | null;
   /** Preserve Eval `?scoreFrom=` across queue filters. */
   scoreFrom?: string | null;
   syncFailed?: number;
@@ -97,17 +128,30 @@ export function InsightsView({
   cadenceAction: PilotCadenceAction;
   /** First Correct-not-Acted signal for cadence Mark Acted deep links. */
   cadencePreviewId?: string | null;
+  /** Action Mode keeps Follow-up Act queue in the URL. */
+  workspaceMode?: WorkspaceMode;
 }) {
   const queueError = needsReview.ok ? null : needsReview.error;
+  const tenantSignalsError = tenantSignals.ok ? null : tenantSignals.error;
   const pendingSignals = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals)
     : store.signals.filter((s) => !s.feedback);
-  const reviewedSignals = tenantSignals.ok
-    ? doneQueueSignals(tenantSignals.predictions, store.signals)
+  const reviewedJoined = tenantSignals.ok
+    ? reviewedQueueSignals(tenantSignals.rows, store.signals)
     : reviewedSignalsFromStore(store.signals);
+  const chats = mergeOverlayChats(
+    store.conversations,
+    store.messages,
+    overlayChats,
+  );
+  const reviewedSignals = applyChatEvidenceToSignals(
+    reviewedJoined,
+    chats,
+    store.taxonomyOverrides,
+  );
   const customerNames: Record<string, string> = {};
   const conversationsById: Record<string, Conversation> = {};
-  for (const conversation of store.conversations) {
+  for (const conversation of chats.conversations) {
     conversationsById[conversation.id] = conversation;
     const name =
       conversation.customerName?.trim() ||
@@ -117,7 +161,7 @@ export function InsightsView({
     }
   }
   const messagesByConversationId: Record<string, Message[]> = {};
-  for (const message of store.messages) {
+  for (const message of chats.messages) {
     const list = messagesByConversationId[message.conversationId] ?? [];
     list.push(message);
     messagesByConversationId[message.conversationId] = list;
@@ -152,6 +196,7 @@ export function InsightsView({
     llmAdded: llmAdded > 0 ? String(llmAdded) : null,
     llmFailed: llmFailed > 0 ? String(llmFailed) : null,
     scoreFrom,
+    mode: workspaceMode === "action" ? "action" : null,
   };
 
   // Same resolution as SignalQueue — deep links ignore active filters.
@@ -181,10 +226,10 @@ export function InsightsView({
       "Signal"
     );
   })();
-  // Clear `?preview=` while preserving filters / banners.
+  // Clear `?preview=` while preserving filters / banners / Action Mode.
   const backToQueueHref = viewHref("insights", {
     ...queryExtras,
-    status: statusFilter === "all" ? null : statusFilter,
+    status: statusQueryValue(statusFilter, workspaceMode),
     type: typeFilter === "all" ? null : typeFilter,
     page: page > 1 ? String(page) : null,
     preview: null,
@@ -193,28 +238,54 @@ export function InsightsView({
     scoreFrom,
     preview: cadencePreviewId,
   });
+  const followUpHref = viewHref("insights", {
+    ...queryExtras,
+    status: "followup",
+  });
+  const pendingHref = viewHref("insights", {
+    ...queryExtras,
+    status: "new",
+  });
   const showQuietReDetect =
     Boolean(queueError) || pendingSignals.length === 0;
 
+  const cadenceEmpty = {
+    description: pilotCadenceHelperCopy("insights", cadenceAction),
+    href: cadenceHref,
+    label: cadenceActionCta(cadenceAction),
+  };
+  // Pending empty next step (mid-week Upload, etc.) — also used when Correct is
+  // empty and there is nothing pending to review (same panel copy).
+  const pendingClear =
+    cadenceAction.id === "reviews" ? null : cadenceEmpty;
+  const followUpEmpty =
+    pendingSignals.length > 0
+      ? {
+          description: "Review pending detections first.",
+          href: pendingHref,
+          label: "Review Pending",
+        }
+      : pendingClear;
   const queueProps = {
     pendingSignals,
     reviewedSignals,
     customerNames,
     conversationsById,
     queueError,
+    tenantSignalsError,
     statusFilter,
     typeFilter,
     page,
     queryExtras,
     showFilters: false as const,
-    pendingClear:
-      cadenceAction.id === "reviews"
-        ? null
-        : {
-            description: pilotCadenceHelperCopy("insights", cadenceAction),
-            href: cadenceHref,
-            label: cadenceActionCta(cadenceAction),
-          },
+    pendingClear,
+    followUpEmpty,
+    doneEmpty: {
+      description:
+        "Mark Acted on Correct reviews to complete the suggested step (does not send).",
+      href: followUpHref,
+      label: "Needs Follow-Up",
+    },
   };
 
   return (
@@ -284,8 +355,13 @@ export function InsightsView({
               </div>
             </div>
             <InsightsQueueMetrics
-              conversationCount={store.conversations.length}
-              signals={store.signals}
+              conversationCount={chats.conversations.length}
+              signals={[
+                ...pendingSignals,
+                ...reviewedSignals.filter(
+                  (signal) => !pendingSignals.some((pending) => pending.id === signal.id),
+                ),
+              ]}
               pendingSignals={pendingSignals}
             />
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -350,7 +426,13 @@ export function InsightsView({
                         reviewedSignals,
                         previewSignal.id,
                       )}
+                      nextPendingPreviewId={nextPendingId(
+                        pendingSignals,
+                        previewSignal.id,
+                      )}
+                      statusFilter={statusFilter}
                       scoreFrom={scoreFrom}
+                      mode={workspaceMode}
                     />
                   </>
                 ) : null}

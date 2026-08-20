@@ -1,9 +1,9 @@
 import type { StoreData } from "@/lib/types";
 
 /**
- * Empty runtime shell. Conversations come from JSON via
- * `loadTestingJsonIntoStore` (cold start / reset: testing.json;
- * Partner Demo: zerodha_batch_02.json).
+ * Empty runtime shell. Conversations come from testing.json via
+ * `loadTestingJsonIntoStore` (cold start, Reset Demo) or Zerodha Batch-02
+ * via `loadZerodhaBatch02IntoStore` (Partner Demo after Neon wipe).
  * Labeled P/R=1.0 fixtures live in `detect-eval-fixtures.ts` (tests only).
  */
 export const emptyShowcaseStore: StoreData = {

@@ -156,6 +156,61 @@ describe("syncConversationsToBackend", () => {
     expect(body.conversations).toHaveLength(1);
   });
 
+  it("reports 0 then per-chunk counts", async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body)) as {
+          conversations: unknown[];
+        };
+        const n = body.conversations.length;
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            conversations: [],
+            created: n,
+            updated: 0,
+            messages_created: n,
+            messages_updated: 0,
+          }),
+        };
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const rows = Array.from({ length: 6 }, (_, i) => ({
+      conversation: {
+        ...conversation,
+        id: `conv_${i}`,
+        messageIds: [`msg_${i}`],
+      },
+      message: {
+        ...message,
+        id: `msg_${i}`,
+        conversationId: `conv_${i}`,
+      },
+    }));
+    const ticks: Array<{ done: number; total: number }> = [];
+
+    await syncConversationsToBackend(
+      rows.map((row) => row.conversation),
+      rows.map((row) => row.message),
+      "tenant_demo",
+      {
+        onProgress: (done, total) => {
+          ticks.push({ done, total });
+        },
+      }
+    );
+
+    expect(ticks).toEqual([
+      { done: 0, total: 6 },
+      { done: 5, total: 6 },
+      { done: 6, total: 6 },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("counts updates when Neon already has the rows", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       okResponse({

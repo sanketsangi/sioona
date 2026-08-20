@@ -1,6 +1,7 @@
 /**
  * Test-only labeled conversations for the detect/eval P/R = 1.0 gate.
- * Runtime showcase (cold open + Partner Demo) uses testing.json — not this pack.
+ * Runtime showcase: cold open / Reset use testing.json; Partner Demo uses
+ * zerodha_batch_02.json — not this pack.
  */
 import type { StoreData } from "@/lib/types";
 import { runDetection } from "@/lib/detect";

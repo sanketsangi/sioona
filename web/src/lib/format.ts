@@ -51,6 +51,7 @@ export function scoreIconClass(score: number): string {
  * Pending until the operator leaves feedback.
  * Acted signals already have feedback, so they leave this bucket.
  * URL filter `status=new` remains the Neon needs-review queue.
+ * Follow-up is `status=followup` (`correct`, not acted); Done is `status=acted`.
  */
 export function isSignalNeedsReview(
   signal: Pick<Signal, "status" | "feedback">

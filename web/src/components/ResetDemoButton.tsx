@@ -1,20 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { ResetDemoIcon } from "@/components/icons/ResetDemoIcon";
 import { viewHref } from "@/lib/views";
 
 export function ResetDemoButton() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const confirmRef = useRef<HTMLButtonElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (confirming) confirmRef.current?.focus();
-  }, [confirming]);
 
   async function reset() {
     setLoading(true);
@@ -35,50 +29,22 @@ export function ResetDemoButton() {
       );
     } finally {
       setLoading(false);
-      setConfirming(false);
     }
-  }
-
-  if (confirming) {
-    return (
-      <span className="inline-flex flex-wrap items-center gap-2">
-        <span className="text-label-13 text-ds-gray-900" role="status">
-          Wipe this tenant’s Neon chats and reviews, then reseed the demo?
-        </span>
-        <button
-          ref={confirmRef}
-          type="button"
-          onClick={reset}
-          disabled={loading}
-          aria-busy={loading}
-          className="btn-primary"
-        >
-          {loading ? <ButtonSpinner /> : null}
-          Confirm Reset
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setConfirming(false);
-            triggerRef.current?.focus();
-          }}
-          disabled={loading}
-          className="btn-secondary"
-        >
-          Cancel
-        </button>
-      </span>
-    );
   }
 
   return (
     <button
-      ref={triggerRef}
       type="button"
-      onClick={() => setConfirming(true)}
+      onClick={reset}
       disabled={loading}
-      className="btn-secondary"
+      aria-busy={loading}
+      className="btn-secondary rounded-[var(--radius-panel)]"
     >
+      {loading ? (
+        <ButtonSpinner />
+      ) : (
+        <ResetDemoIcon className="size-3.5 shrink-0" />
+      )}
       Reset Demo Data…
     </button>
   );

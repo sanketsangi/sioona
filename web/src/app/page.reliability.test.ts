@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { StoreData } from "@/lib/types";
 
 vi.mock("@/components/AppShell", () => ({
@@ -38,6 +38,10 @@ vi.mock("@/lib/fetch-signal-score", () => ({
   fetchSignalScoreSafe: vi.fn(),
 }));
 
+vi.mock("@/lib/hydrate-conversations", () => ({
+  fetchOverlayConversations: vi.fn().mockResolvedValue(null),
+}));
+
 import PlatformPage from "./page";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
@@ -49,7 +53,32 @@ function pageShellProps(result: ReactElement) {
     activeView: string;
     title: string;
     notifications: { id: string; title?: string }[];
+    children?: ReactNode;
   };
+}
+
+function insightsViewProps(result: ReactElement): {
+  tenantSignals: { ok: boolean; rows?: { id: string }[] };
+  cadencePreviewId: string | null | undefined;
+} {
+  const { children } = pageShellProps(result);
+  const list = Array.isArray(children) ? children : [children];
+  for (const child of list) {
+    if (
+      child &&
+      typeof child === "object" &&
+      "props" in child &&
+      child.props &&
+      typeof child.props === "object" &&
+      "tenantSignals" in child.props
+    ) {
+      return child.props as {
+        tenantSignals: { ok: boolean; rows?: { id: string }[] };
+        cadencePreviewId: string | null | undefined;
+      };
+    }
+  }
+  throw new Error("InsightsView props not found in AppShell children");
 }
 
 function mockStore(
@@ -133,6 +162,7 @@ describe("PlatformPage deploy reliability", () => {
     const result = (await PlatformPage({
       searchParams: Promise.resolve({
         view: "insights",
+        status: "new",
         syncFailed: "2",
         syncCreated: "1",
       }),
@@ -183,6 +213,7 @@ describe("PlatformPage deploy reliability", () => {
     const result = (await PlatformPage({
       searchParams: Promise.resolve({
         view: "insights",
+        status: "new",
         syncFailed: "2",
         syncCreated: "1",
       }),
@@ -257,5 +288,116 @@ describe("PlatformPage deploy reliability", () => {
       activeView: "eval",
       title: "Eval & SignalScore",
     });
+  });
+
+  it("passes Neon tenantSignals and cadencePreviewId from Correct not Acted", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({ ok: true, predictions: [] });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({
+      ok: true,
+      rows: [
+        {
+          id: "pred-follow",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_1",
+          signal_type: "lead",
+          confidence: 0.9,
+          summary: "Buying intent",
+          acted: false,
+          created_at: "2026-08-01T00:00:00.000Z",
+          feedback: {
+            id: "fb-1",
+            tenant_id: "tenant_demo",
+            signal_id: "pred-follow",
+            feedback: "correct",
+            note: null,
+            reviewed_by: "shadow_reviewer",
+            reviewed_at: "2026-08-02T00:00:00.000Z",
+          },
+        },
+        {
+          id: "pred-acted",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_2",
+          signal_type: "retention",
+          confidence: 0.8,
+          summary: "Churn",
+          acted: true,
+          created_at: "2026-08-01T00:00:00.000Z",
+          feedback: {
+            id: "fb-2",
+            tenant_id: "tenant_demo",
+            signal_id: "pred-acted",
+            feedback: "correct",
+            note: null,
+            reviewed_by: "shadow_reviewer",
+            reviewed_at: "2026-08-02T00:00:00.000Z",
+          },
+        },
+      ],
+    });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue({
+      tenant_id: "tenant_demo",
+      signal_score: 1,
+      reviewed_count: 2,
+      correct_count: 2,
+      incorrect_count: 0,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    vi.mocked(readStore).mockResolvedValue(
+      mockStore([
+        {
+          id: "sig_follow",
+          tenantId: "tenant_demo",
+          conversationId: "conv_1",
+          type: "lead",
+          score: 0.9,
+          confidence: 0.9,
+          summary: "Buying intent",
+          suggestedAction: "Follow up",
+          evidence: ["quote"],
+          status: "reviewed",
+          createdAt: "2026-08-01T00:00:00.000Z",
+          backendSignalId: "pred-follow",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-08-02T00:00:00.000Z",
+          },
+        },
+        {
+          id: "sig_acted",
+          tenantId: "tenant_demo",
+          conversationId: "conv_2",
+          type: "retention",
+          score: 0.8,
+          confidence: 0.8,
+          summary: "Churn",
+          suggestedAction: "Retain",
+          evidence: ["quote"],
+          status: "acted",
+          createdAt: "2026-08-01T00:00:00.000Z",
+          backendSignalId: "pred-acted",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-08-02T00:00:00.000Z",
+          },
+        },
+      ])
+    );
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    })) as ReactElement;
+
+    expect(fetchTenantSignals).toHaveBeenCalledWith("tenant_demo");
+    const props = insightsViewProps(result);
+    expect(props.tenantSignals.ok).toBe(true);
+    if (props.tenantSignals.ok) {
+      expect(props.tenantSignals.rows?.map((r) => r.id)).toEqual([
+        "pred-follow",
+        "pred-acted",
+      ]);
+    }
+    expect(props.cadencePreviewId).toBe("sig_follow");
   });
 });

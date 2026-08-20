@@ -1,14 +1,13 @@
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
-import { loadTestingJsonIntoStore } from "./load-testing-json-store";
+import { loadZerodhaBatch02IntoStore } from "./load-testing-json-store";
 import {
-  resolveZerodhaBatch02Path,
-  ZERODHA_BATCH02_FILENAME,
-} from "./zerodha-batch02";
-import {
-  DEMO_BASELINE_NOTE,
   DEMO_BASELINE_OPPORTUNITIES,
 } from "./demo-baseline";
 import type { LlmPassStats } from "./detect-llm";
+import type {
+  PartnerDemoCompleteEvent,
+  PartnerDemoProgress,
+} from "./partner-demo-progress";
 import type { ConversationSyncStats } from "./sync-conversations";
 import type { PredictionSyncStats } from "./sync-predictions";
 import type { StoreData } from "./types";
@@ -35,19 +34,27 @@ export interface PartnerDemoResult {
   wipe: TenantWipeStats;
 }
 
+export interface PartnerDemoOptions {
+  onProgress?: (event: PartnerDemoProgress) => void | Promise<void>;
+}
+
 /**
- * Wipe Neon for this tenant (fail-soft), then load zerodha_batch_02.json,
- * dual-write chats + predictions, and set the cold-demo baseline so lift /
- * “missed opportunities” is visible immediately. No Adapt on this path.
- * Reset / cold open still seed testing.json (Groww showcase).
+ * Wipe Neon for this tenant (fail-soft), then replace the JSON store with
+ * committed Zerodha Batch-02 only (never merge with Groww testing.json).
+ * Dual-writes chats + predictions and sets the cold-demo baseline.
+ * No Zerodha Adapt on this path.
  */
-export async function runPartnerDemo(): Promise<PartnerDemoResult> {
+export async function runPartnerDemo(
+  options?: PartnerDemoOptions
+): Promise<PartnerDemoResult> {
+  const report = options?.onProgress;
+  await report?.({ step: "wipe", done: 0, total: 1 });
   const wipe = await wipeTenantDataFailSoft(emptyShowcaseStore.tenant.id);
-  const loaded = await loadTestingJsonIntoStore({
+  await report?.({ step: "wipe", done: 1, total: 1 });
+  const loaded = await loadZerodhaBatch02IntoStore({
     applyDemoBaseline: true,
     syncPredictions: true,
-    absolutePath: resolveZerodhaBatch02Path(),
-    sampleName: ZERODHA_BATCH02_FILENAME,
+    onProgress: report,
   });
 
   const sioonaOpportunities = new Set(
@@ -66,4 +73,23 @@ export async function runPartnerDemo(): Promise<PartnerDemoResult> {
     detectLlm: loaded.detectLlm,
     wipe,
   };
+}
+
+export function partnerDemoCompleteEvent(
+  result: PartnerDemoResult
+): PartnerDemoCompleteEvent {
+  const event: PartnerDemoCompleteEvent = {
+    type: "complete",
+    importedConversations: result.importedConversations,
+    newSignals: result.newSignals,
+    samples: result.samples,
+    predictionSync: result.predictionSync,
+    conversationSync: result.conversationSync,
+    detectLlm: result.detectLlm,
+  };
+  if (!result.wipe.ok) {
+    event.wipeFailed = true;
+    event.wipeError = result.wipe.error ?? "Signal Score backend unreachable";
+  }
+  return event;
 }

@@ -15,6 +15,12 @@ export {
 
 const TENANT_ID = "tenant_demo";
 const TESTING_JSON_FILENAME = "testing.json";
+const ZERODHA_BATCH02_FILENAME = "zerodha_batch_02.json";
+
+/** Cold-open / Reset Demo chrome name for Groww testing.json. */
+export const GROWW_SHOWCASE_SAMPLE_NAME = "Groww_batch_02";
+/** Partner Demo chrome name for committed Zerodha Batch-02 JSON. */
+export const ZERODHA_BATCH02_SAMPLE_NAME = "Zerodha_batch_02";
 
 export const EXPECTED_TESTING_JSON = {
   conversations: 100,
@@ -23,6 +29,15 @@ export const EXPECTED_TESTING_JSON = {
   upsell: 12,
   none: 44,
 } as const;
+
+export const EXPECTED_ZERODHA_BATCH02 = {
+  conversations: 100,
+} as const;
+
+/** First conversation in Groww testing.json — used to prove packs do not mix. */
+export const GROWW_TESTING_JSON_EXTERNAL_ID = "eeshan_kulkarni_41";
+/** First conversation in committed Zerodha Batch-02 JSON. */
+export const ZERODHA_BATCH02_EXTERNAL_ID = "zrdh_eeshan_kulkarni_41";
 
 export type ConfusionKind = "false_positive" | "false_negative";
 
@@ -77,6 +92,35 @@ export function resolveTestingJsonPath(repoRoot?: string): string {
   if (existsSync(fromRepoCwd)) return fromRepoCwd;
 
   // Default expectation when none exist yet (clearer error from caller).
+  return samplesCopy;
+}
+
+/**
+ * Resolve committed Zerodha Batch-02 JSON for Partner Demo (Vercel samples copy).
+ */
+export function resolveZerodhaBatch02Path(repoRoot?: string): string {
+  const cwd = process.cwd();
+  const samplesCopy = path.join(
+    cwd,
+    "data",
+    "samples",
+    ZERODHA_BATCH02_FILENAME
+  );
+  if (existsSync(samplesCopy)) return samplesCopy;
+
+  if (repoRoot) {
+    return path.join(repoRoot, "web", "data", "samples", ZERODHA_BATCH02_FILENAME);
+  }
+
+  const fromRepoCwd = path.join(
+    cwd,
+    "web",
+    "data",
+    "samples",
+    ZERODHA_BATCH02_FILENAME
+  );
+  if (existsSync(fromRepoCwd)) return fromRepoCwd;
+
   return samplesCopy;
 }
 

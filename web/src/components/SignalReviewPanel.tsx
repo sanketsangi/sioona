@@ -101,7 +101,7 @@ export function SignalReviewMissing({
         Signal Not Found
       </h2>
       <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-        This preview is missing from the needs-review queue. Return to the list
+        This preview is missing from the Insights queue. Return to the list
         or try another filter.
       </p>
       <Link href={queueHref} scroll={false} className="btn-secondary mt-4">

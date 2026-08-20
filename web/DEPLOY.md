@@ -138,11 +138,10 @@ After every production deploy, also run the **After each deploy** 7-step curl sm
 ## Notes
 
 - `web/data/store.json` is **runtime data** and must not be committed or shipped
-  as source; on Vercel the store re-seeds from `testing.json`
+  as source; on Vercel the store re-seeds from Groww `testing.json`
   (`web/data/samples/testing.json` → `loadTestingJsonIntoStore`).
-- Use **Start Partner Demo** in the UI to wipe Neon and load `zerodha_batch_02.json` for a
-  cold demo (requires reachable FastAPI for Neon dual-write). Reset Demo still seeds
-  `testing.json`.
+- **Start Partner Demo** wipes Neon then loads `zerodha_batch_02.json` only
+  (requires reachable FastAPI for Neon dual-write). Reset Demo returns Groww.
 
 ## CI / token-based deploy (optional)
 

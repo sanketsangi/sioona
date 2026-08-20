@@ -1,6 +1,7 @@
 /**
  * CLI: heuristic + optional hybrid Detect v2 on partner export CSV.
- * Prefers gitignored real-partner-export.local.csv, else the committed template.
+ * Prefers gitignored real-partner-export.local.csv under data/samples/,
+ * else the committed template in src/data/fixtures/.
  * Week-2 held-out: --week2 or PARTNER_EXPORT=week2 → real-partner-export.week2.local.csv
  * (no week-1 fallback). Live Groq only when DETECT_LLM=1 and GROQ_API_KEY are already set
  * (no dotenv).

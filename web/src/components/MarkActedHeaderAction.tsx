@@ -17,7 +17,11 @@ import {
   type FeedbackSavedDetail,
 } from "@/lib/feedback-saved";
 import type { Signal } from "@/lib/types";
-import { afterMarkActedHref } from "@/lib/views";
+import {
+  afterMarkActedHref,
+  type StatusFilter,
+  type WorkspaceMode,
+} from "@/lib/views";
 
 const ACTED_TOOLTIP = "Does not send the suggested action.";
 
@@ -29,12 +33,21 @@ const ACTED_TOOLTIP = "Does not send the suggested action.";
 export function MarkActedHeaderAction({
   signal,
   nextPreviewId = null,
+  nextPendingPreviewId = null,
+  statusFilter = "all",
   scoreFrom = null,
+  mode = "shadow",
 }: {
   signal: Signal;
-  /** Next Correct-not-Acted after this panel (wraps; excludes current). */
+  /** Next Correct-not-Acted after this panel (Follow-up Act queue). */
   nextPreviewId?: string | null;
+  /** Next needs-review id after this panel (Pending return path). */
+  nextPendingPreviewId?: string | null;
+  /** Current Insights status filter — Follow-up vs Pending return. */
+  statusFilter?: StatusFilter;
   scoreFrom?: string | null;
+  /** Preserve Action Mode on next Follow-up deep links. */
+  mode?: WorkspaceMode;
 }) {
   const router = useRouter();
   const [actedPending, setActedPending] = useState(false);
@@ -92,7 +105,10 @@ export function MarkActedHeaderAction({
         acted,
         feedbackLabel: signal.feedback?.label,
         nextPreviewId,
+        nextPendingPreviewId,
+        statusFilter,
         scoreFrom,
+        mode,
       });
       if (href) {
         router.push(href);

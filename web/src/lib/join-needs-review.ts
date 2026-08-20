@@ -1,13 +1,24 @@
 /**
- * Join Neon needs-review predictions to JSON store signals for Shadow Mode cards.
- * Order follows the backend queue (newest-first).
+ * Join Neon predictions to JSON store signals for Shadow Mode cards.
+ * Pending: needs-review order, unmatched Neon rows omitted (stale demo ids).
+ * Follow-up / Done: tenant signals, unmatched kept as stubs (JSON drift).
  */
 
 import type {
+  BackendFeedbackLabel,
   BackendPrediction,
   BackendPredictionWithFeedback,
 } from "./backend-client";
-import type { FeedbackLabel, Signal, SignalType } from "./types";
+import { pickAction } from "./detect";
+import type { StatusFilter, TypeFilter } from "./views";
+import type {
+  Conversation,
+  FeedbackLabel,
+  Message,
+  Signal,
+  SignalType,
+  TaxonomyOverrides,
+} from "./types";
 
 const KNOWN_TYPES = new Set<string>(["lead", "retention", "upsell"]);
 
@@ -89,62 +100,15 @@ export function joinNeedsReviewPredictions(
   return joined;
 }
 
-/** JSON signals that already have human feedback (reviewed filter). */
+/** JSON signals that already have human feedback (JSON fallback). */
 export function reviewedSignalsFromStore(jsonSignals: Signal[]): Signal[] {
   return jsonSignals.filter((s) => Boolean(s.feedback));
-}
-
-function asFeedbackLabel(raw: string): FeedbackLabel | null {
-  if (
-    raw === "correct" ||
-    raw === "incorrect" ||
-    raw === "partially_correct"
-  ) {
-    return raw as FeedbackLabel;
-  }
-  return null;
-}
-
-/**
- * Insights Done tree: Neon tenant signals that already have feedback, joined
- * to JSON keep-set chats. Leftover Groww (or other pack) Neon reviews with no
- * local conversation are omitted — same join rule as Follow-up / needs-review.
- */
-export function doneQueueSignals(
-  rows: BackendPredictionWithFeedback[],
-  jsonSignals: Signal[]
-): Signal[] {
-  const seenJsonIds = new Set<string>();
-  const joined: Signal[] = [];
-
-  for (const row of rows) {
-    if (!row.feedback) continue;
-    const label = asFeedbackLabel(row.feedback.feedback);
-    if (!label) continue;
-    const matched = findJsonSignal(row, jsonSignals);
-    if (!matched) continue;
-    if (seenJsonIds.has(matched.id)) continue;
-    seenJsonIds.add(matched.id);
-    const note = row.feedback.note?.trim();
-    joined.push({
-      ...matched,
-      backendSignalId: matched.backendSignalId ?? row.id,
-      status: row.acted ? "acted" : "reviewed",
-      feedback: {
-        label,
-        ...(note ? { note } : {}),
-        reviewedAt: row.feedback.reviewed_at,
-      },
-    });
-  }
-
-  return joined;
 }
 
 /**
  * Shadow Mode pending list for Insights: Neon needs-review join first, then
  * keep-set JSON unreviewed rows Neon did not return (id drift / stale queue).
- * Reviewed (feedback) rows stay out — they belong in the reviewed filter.
+ * Reviewed (feedback) rows stay out — they belong in Follow-Up / Done.
  */
 export function pendingQueueSignals(
   predictions: BackendPrediction[],
@@ -160,4 +124,225 @@ export function pendingQueueSignals(
     localOnly.push(signal);
   }
   return [...fromNeon, ...localOnly];
+}
+
+const FEEDBACK_LABELS = new Set<BackendFeedbackLabel>([
+  "correct",
+  "incorrect",
+  "partially_correct",
+]);
+
+function feedbackFromRow(
+  row: BackendPredictionWithFeedback
+): Signal["feedback"] | undefined {
+  const raw = row.feedback;
+  if (!raw || !FEEDBACK_LABELS.has(raw.feedback)) return undefined;
+  const note = raw.note?.trim();
+  return {
+    label: raw.feedback as FeedbackLabel,
+    ...(note ? { note } : {}),
+    reviewedAt: raw.reviewed_at,
+  };
+}
+
+function reviewedMatchKey(signal: Pick<Signal, "conversationId" | "type">): string {
+  return `${signal.conversationId}:${signal.type}`;
+}
+
+/**
+ * Map Neon tenant signals (feedback + Acted) to display Signals.
+ * Prefers JSON match for evidence / suggestedAction. Unmatched rows become
+ * stubs so Follow-Up / Done survive JSON drift. Skips unreviewed rows.
+ */
+export function joinTenantSignals(
+  rows: BackendPredictionWithFeedback[],
+  jsonSignals: Signal[]
+): Signal[] {
+  const seenIds = new Set<string>();
+  const seenKeys = new Set<string>();
+  const joined: Signal[] = [];
+
+  for (const row of rows) {
+    const feedback = feedbackFromRow(row);
+    if (!feedback) continue;
+    const status = row.acted ? ("acted" as const) : ("reviewed" as const);
+    const matched = findJsonSignal(row, jsonSignals);
+    if (matched) {
+      if (seenIds.has(matched.id)) continue;
+      const key = reviewedMatchKey(matched);
+      if (seenKeys.has(key)) continue;
+      seenIds.add(matched.id);
+      seenKeys.add(key);
+      joined.push({
+        ...matched,
+        backendSignalId: matched.backendSignalId ?? row.id,
+        status,
+        feedback,
+      });
+      continue;
+    }
+
+    const stub: Signal = {
+      ...predictionToStubSignal(row),
+      status,
+      feedback,
+    };
+    if (seenIds.has(stub.id)) continue;
+    const key = reviewedMatchKey(stub);
+    if (seenKeys.has(key)) continue;
+    seenIds.add(stub.id);
+    seenKeys.add(key);
+    joined.push(stub);
+  }
+
+  return joined;
+}
+
+/**
+ * Neon-joined reviewed list, then JSON reviewed rows Neon missed (dual-write).
+ */
+export function reviewedQueueSignals(
+  rows: BackendPredictionWithFeedback[],
+  jsonSignals: Signal[]
+): Signal[] {
+  const fromNeon = joinTenantSignals(rows, jsonSignals);
+  const seenIds = new Set(fromNeon.map((s) => s.id));
+  const seenKeys = new Set(fromNeon.map(reviewedMatchKey));
+  const seenBackend = new Set(
+    fromNeon.map((s) => s.backendSignalId).filter((id): id is string => Boolean(id))
+  );
+  const localOnly: Signal[] = [];
+  for (const signal of reviewedSignalsFromStore(jsonSignals)) {
+    if (seenIds.has(signal.id)) continue;
+    if (signal.backendSignalId && seenBackend.has(signal.backendSignalId)) {
+      continue;
+    }
+    const key = reviewedMatchKey(signal);
+    if (seenKeys.has(key)) continue;
+    seenIds.add(signal.id);
+    seenKeys.add(key);
+    localOnly.push(signal);
+  }
+  return [...fromNeon, ...localOnly];
+}
+
+/** Needs follow-up: Correct reviews not yet Mark Acted. */
+export function followUpSignals(reviewed: Signal[]): Signal[] {
+  return reviewed.filter(
+    (signal) =>
+      signal.feedback?.label === "correct" && signal.status !== "acted"
+  );
+}
+
+/** Done: Mark Acted (display-only). */
+export function doneSignals(reviewed: Signal[]): Signal[] {
+  return reviewed.filter((signal) => signal.status === "acted");
+}
+
+export function queueSignalsForFilter(opts: {
+  pending: Signal[];
+  reviewed: Signal[];
+  status: StatusFilter;
+  type: TypeFilter;
+}): {
+  filtered: Signal[];
+  pendingCount: number;
+  followUpCount: number;
+  doneCount: number;
+  allCount: number;
+} {
+  const followUp = followUpSignals(opts.reviewed);
+  const done = doneSignals(opts.reviewed);
+  const pendingIds = new Set(opts.pending.map((s) => s.id));
+  const reviewedOnly = opts.reviewed.filter((s) => !pendingIds.has(s.id));
+  const all = [...opts.pending, ...reviewedOnly];
+
+  let list: Signal[];
+  if (opts.status === "new") {
+    list = opts.pending;
+  } else if (opts.status === "followup") {
+    list = followUp;
+  } else if (opts.status === "acted") {
+    list = done;
+  } else {
+    list = all;
+  }
+  if (opts.type !== "all") {
+    list = list.filter((signal) => signal.type === opts.type);
+  }
+
+  return {
+    filtered: list,
+    pendingCount: opts.pending.length,
+    followUpCount: followUp.length,
+    doneCount: done.length,
+    allCount: all.length,
+  };
+}
+
+/** Conversation ids on queue rows that are missing from the JSON store. */
+export function missingConversationIds(
+  signals: Signal[],
+  conversations: Conversation[]
+): string[] {
+  const have = new Set(conversations.map((conversation) => conversation.id));
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  for (const signal of signals) {
+    const id = signal.conversationId;
+    if (!id || have.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    missing.push(id);
+  }
+  return missing;
+}
+
+const QUOTE_MAX = 140;
+
+function clipQuote(text: string, max = QUOTE_MAX): string {
+  const cleaned = text.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= max) return cleaned;
+  return `${cleaned.slice(0, max - 1).trimEnd()}…`;
+}
+
+/** Last 1–2 customer utterances as Why This Fired quotes. */
+export function quotesFromCustomerMessages(messages: Message[]): string[] {
+  const customer = messages
+    .filter((message) => message.role === "customer" && message.content.trim())
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  return customer
+    .slice(-2)
+    .map((message) => `quote: "${clipQuote(message.content)}"`);
+}
+
+/**
+ * Fill empty evidence / suggestedAction from overlay chats (JSON match wins).
+ */
+export function applyChatEvidenceToSignals(
+  signals: Signal[],
+  chats: { conversations: Conversation[]; messages: Message[] },
+  overrides?: TaxonomyOverrides | null
+): Signal[] {
+  const messagesByConv = new Map<string, Message[]>();
+  for (const message of chats.messages) {
+    const list = messagesByConv.get(message.conversationId) ?? [];
+    list.push(message);
+    messagesByConv.set(message.conversationId, list);
+  }
+
+  return signals.map((signal) => {
+    const needsEvidence = signal.evidence.length === 0;
+    const needsAction = !signal.suggestedAction;
+    if (!needsEvidence && !needsAction) return signal;
+    const msgs = messagesByConv.get(signal.conversationId) ?? [];
+    return {
+      ...signal,
+      suggestedAction: needsAction
+        ? pickAction(signal.type, signal.score, overrides)
+        : signal.suggestedAction,
+      evidence: needsEvidence
+        ? quotesFromCustomerMessages(msgs)
+        : signal.evidence,
+    };
+  });
 }

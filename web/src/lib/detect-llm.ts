@@ -6,6 +6,7 @@
 import {
   pickAction,
   runDetection,
+  runDetectionWithProgress,
   SCORE_THRESHOLD,
 } from "./detect";
 import type {
@@ -75,6 +76,8 @@ export type HybridDetectOptions = {
   classify?: LlmClassifyFn;
   maxCalls?: number;
   concurrency?: number;
+  /** Real heuristic ticks: 0 then 1…N conversations. */
+  onProgress?: (done: number, total: number) => void | Promise<void>;
 };
 
 function emptyStats(enabled: boolean): LlmPassStats {
@@ -394,12 +397,15 @@ export async function runHybridDetection(
   overrides?: TaxonomyOverrides | null,
   options?: HybridDetectOptions
 ): Promise<HybridDetectResult> {
-  const heuristic = runDetection(
-    conversations,
-    messages,
-    tenantId,
-    overrides
-  );
+  const heuristic = options?.onProgress
+    ? await runDetectionWithProgress(
+        conversations,
+        messages,
+        tenantId,
+        overrides,
+        options.onProgress
+      )
+    : runDetection(conversations, messages, tenantId, overrides);
   return applyLlmSecondPass(
     conversations,
     messages,

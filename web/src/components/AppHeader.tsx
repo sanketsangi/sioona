@@ -1,6 +1,16 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { LockSimple, Tag } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
@@ -26,7 +36,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { HeaderNotification } from "@/lib/notifications";
-import type { PlatformView } from "@/lib/views";
+import {
+  actionModeHref,
+  isActionModeUnlocked,
+  parseView,
+  type PlatformView,
+  type WorkspaceMode,
+} from "@/lib/views";
 import { cn } from "@/lib/utils";
 
 const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
@@ -37,17 +53,10 @@ type AppHeaderProps = {
   title?: string;
   lastUploadedFileName?: string;
   activeView: PlatformView;
+  workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
 };
-
-type WorkspaceMode = "shadow" | "action";
-
-/** Unlocked locally / via flag so you can design Action Mode; prod stays locked. */
-function isActionModeUnlocked(): boolean {
-  if (process.env.NEXT_PUBLIC_ACTION_MODE_UNLOCKED === "true") return true;
-  return process.env.NODE_ENV === "development";
-}
 
 /**
  * Main-column header — sits parallel to the sidebar logo row.
@@ -59,6 +68,7 @@ export function AppHeader({
   title,
   lastUploadedFileName,
   activeView,
+  workspaceMode = "shadow",
   detailOpen = false,
   notifications = [],
 }: AppHeaderProps) {
@@ -132,7 +142,13 @@ export function AppHeader({
         </div>
 
         <div className="app-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <ModeToggle />
+          <Suspense
+            fallback={
+              <ModeToggleFallback workspaceMode={workspaceMode} />
+            }
+          >
+            <ModeToggle workspaceMode={workspaceMode} />
+          </Suspense>
           <NotificationsMenu notifications={notifications} />
           <NavActions />
         </div>
@@ -141,94 +157,296 @@ export function AppHeader({
   );
 }
 
-const modeItemClass =
-  "size-11 min-w-11 px-0 md:size-9 md:min-w-9 disabled:pointer-events-none";
+/** One Notifications-style outline; cells stay borderless; thumb is the selected fill. */
+const modeTrackClass = cn(
+  "relative isolate shrink-0 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-base",
+  "shadow-[0_1px_1px_oklch(0_0_0_/_0.02)]",
+);
 
-function ModeToggle() {
+const modeItemClass = cn(
+  "relative z-[1] size-11 shrink-0 touch-manipulation rounded-none border-0 bg-transparent px-0",
+  "inline-flex items-center justify-center text-sio-fg-subtle shadow-none outline-none transition-colors duration-150",
+  "hover:bg-transparent hover:text-sio-fg-base",
+  "focus-visible:z-10 focus-visible:border-transparent focus-visible:shadow-[var(--focus-ring)] focus-visible:ring-0",
+  "data-[state=on]:border-0 data-[state=on]:bg-transparent data-[state=on]:font-medium data-[state=on]:text-sio-fg-base data-[state=on]:shadow-none",
+  "group-data-[spacing=0]/toggle-group:px-0",
+  "group-data-[orientation=horizontal]/toggle-group:data-[spacing=0]:first:rounded-l-[var(--radius-control)]",
+  "group-data-[orientation=horizontal]/toggle-group:data-[spacing=0]:last:rounded-r-[var(--radius-control)]",
+  "md:size-9",
+);
+
+const modeLinkClass = cn(
+  modeItemClass,
+  "first:rounded-l-[var(--radius-control)] last:rounded-r-[var(--radius-control)]",
+);
+
+const LOCKED_ACTION_ANNOUNCE = "Action Mode is locked";
+const LOCKED_ACTION_TOOLTIP = "Action Mode is locked for now";
+const MODE_TOOLTIP_DELAY_MS = 400;
+const BOUNCE_HOLD_MS = 180;
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function modeTrackStyle(mode: WorkspaceMode): CSSProperties {
+  return {
+    "--gap": 0,
+    "--seg-count": 2,
+    "--seg-index": mode === "action" ? 1 : 0,
+    "--seg-pad": "0.125rem",
+    "--seg-thumb-bg": "var(--sio-bg-interactive)",
+    "--seg-thumb-radius": "calc(var(--radius-control) - 2px)",
+  } as CSSProperties;
+}
+
+/** Shadow href = current query with `mode` stripped (keeps view/filters). */
+function shadowModeHref(searchParams: URLSearchParams): string {
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete("mode");
+  const view = parseView(params.get("view"));
+  params.set("view", view);
+  const qs = params.toString();
+  return qs ? `/?${qs}` : "/?view=insights";
+}
+
+function ModeToggleFallback({
+  workspaceMode,
+}: {
+  workspaceMode: WorkspaceMode;
+}) {
+  return (
+    <div
+      className={cn(modeTrackClass, "flex w-fit flex-row items-center")}
+      style={modeTrackStyle(workspaceMode)}
+      aria-hidden
+    >
+      <span className="segmented-tabs-thumb" aria-hidden />
+      <span className={modeLinkClass} />
+      <span className={modeLinkClass} />
+    </div>
+  );
+}
+
+function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
   const unlocked = isActionModeUnlocked();
-  const [mode, setMode] = useState<WorkspaceMode>("shadow");
+  const searchParams = useSearchParams();
+  const shadowHref = useMemo(
+    () => shadowModeHref(searchParams),
+    [searchParams],
+  );
+  const actionHref = useMemo(
+    () =>
+      actionModeHref({
+        scoreFrom: searchParams.get("scoreFrom"),
+        demo: searchParams.get("demo"),
+      }),
+    [searchParams],
+  );
+
+  /** UI selection; when locked, Action is only shown briefly then reverts. */
+  const [mode, setMode] = useState<WorkspaceMode>(workspaceMode);
+  const [bounceAction, setBounceAction] = useState(false);
+  const [liveMessage, setLiveMessage] = useState("");
+  const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const liveClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setMode(workspaceMode);
+  }, [workspaceMode]);
+
+  useEffect(() => {
+    return () => {
+      if (bounceTimerRef.current) clearTimeout(bounceTimerRef.current);
+      if (liveClearRef.current) clearTimeout(liveClearRef.current);
+    };
+  }, []);
+
+  function clearBounceTimers() {
+    if (bounceTimerRef.current) {
+      clearTimeout(bounceTimerRef.current);
+      bounceTimerRef.current = null;
+    }
+    if (liveClearRef.current) {
+      clearTimeout(liveClearRef.current);
+      liveClearRef.current = null;
+    }
+  }
+
+  function bounceBackToShadow() {
+    clearBounceTimers();
+    setMode("action");
+    setLiveMessage(LOCKED_ACTION_ANNOUNCE);
+    const reduced = prefersReducedMotion();
+    setBounceAction(false);
+    if (!reduced) {
+      requestAnimationFrame(() => setBounceAction(true));
+    }
+
+    const holdMs = reduced ? 0 : BOUNCE_HOLD_MS;
+    bounceTimerRef.current = setTimeout(() => {
+      setMode("shadow");
+      setBounceAction(false);
+      bounceTimerRef.current = null;
+    }, holdMs);
+
+    liveClearRef.current = setTimeout(() => {
+      setLiveMessage("");
+      liveClearRef.current = null;
+    }, Math.max(holdMs + 400, 800));
+  }
+
+  if (unlocked) {
+    return (
+      <TooltipProvider delayDuration={MODE_TOOLTIP_DELAY_MS}>
+        <div className="relative shrink-0">
+          <div
+            role="group"
+            aria-label="Workspace mode"
+            className={cn(modeTrackClass, "flex w-fit flex-row items-center")}
+            style={modeTrackStyle(workspaceMode)}
+          >
+            <span className="segmented-tabs-thumb" aria-hidden />
+            <ModeToggleLink
+              href={shadowHref}
+              active={workspaceMode === "shadow"}
+              tooltip="Shadow Mode"
+              aria-label="Shadow Mode"
+            >
+              <EyeOffIcon className="size-4 shrink-0" />
+            </ModeToggleLink>
+            <ModeToggleLink
+              href={actionHref}
+              active={workspaceMode === "action"}
+              tooltip="Action Mode"
+              aria-label="Action Mode"
+            >
+              <PlayCircleIcon className="size-4 shrink-0" />
+            </ModeToggleLink>
+          </div>
+        </div>
+      </TooltipProvider>
+    );
+  }
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <ToggleGroup
-        type="single"
-        variant="outline"
-        size="lg"
-        spacing={0}
-        value={mode}
-        onValueChange={(next) => {
-          if (!next) return;
-          if (next === "action" && !unlocked) return;
-          setMode(next as WorkspaceMode);
-        }}
-        aria-label="Workspace mode"
-        className="shrink-0"
-      >
-        <ModeToggleItem
-          value="shadow"
-          tooltip="Shadow Mode"
-          aria-label="Shadow Mode"
+    <TooltipProvider delayDuration={MODE_TOOLTIP_DELAY_MS}>
+      <div className="relative shrink-0">
+        <ToggleGroup
+          type="single"
+          variant="default"
+          size="lg"
+          value={mode}
+          onValueChange={(next) => {
+            if (!next) return;
+            if (next === "action") {
+              bounceBackToShadow();
+              return;
+            }
+            clearBounceTimers();
+            setBounceAction(false);
+            setLiveMessage("");
+            setMode("shadow");
+          }}
+          aria-label="Workspace mode"
+          spacing={0}
+          className={modeTrackClass}
+          style={modeTrackStyle(mode)}
         >
-          <EyeOffIcon className="size-3.5 shrink-0" />
-        </ModeToggleItem>
-        <ModeToggleItem
-          value="action"
-          tooltip={
-            unlocked ? (
-              "Action Mode"
-            ) : (
+          <span className="segmented-tabs-thumb" aria-hidden />
+          <ModeToggleItem
+            value="shadow"
+            tooltip="Shadow Mode"
+            aria-label="Shadow Mode"
+          >
+            <EyeOffIcon className="size-4 shrink-0" />
+          </ModeToggleItem>
+          <ModeToggleItem
+            value="action"
+            tooltip={
               <>
                 <LockSimple
                   className="size-3 shrink-0"
                   weight="bold"
                   aria-hidden
                 />
-                Action Mode (locked)
+                {LOCKED_ACTION_TOOLTIP}
               </>
-            )
-          }
-          aria-label={unlocked ? "Action Mode" : "Action Mode (locked)"}
-          disabled={!unlocked}
-        >
-          <PlayCircleIcon className="size-3.5 shrink-0" />
-        </ModeToggleItem>
-      </ToggleGroup>
+            }
+            aria-label={LOCKED_ACTION_TOOLTIP}
+            bounce={bounceAction}
+          >
+            <PlayCircleIcon className="size-4 shrink-0" />
+          </ModeToggleItem>
+        </ToggleGroup>
+        <p className="sr-only" aria-live="polite">
+          {liveMessage || null}
+        </p>
+      </div>
     </TooltipProvider>
+  );
+}
+
+function ModeToggleLink({
+  href,
+  active,
+  tooltip,
+  "aria-label": ariaLabel,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  tooltip: ReactNode;
+  "aria-label": string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          href={href}
+          scroll={false}
+          aria-label={ariaLabel}
+          aria-current={active ? "page" : undefined}
+          className={cn(
+            modeLinkClass,
+            active && "font-medium text-sio-fg-base",
+          )}
+        >
+          {children}
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" align="center">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
 function ModeToggleItem({
   value,
   tooltip,
-  disabled,
+  bounce,
   "aria-label": ariaLabel,
   children,
 }: {
   value: WorkspaceMode;
   tooltip: ReactNode;
-  disabled?: boolean;
+  bounce?: boolean;
   "aria-label": string;
   children: ReactNode;
 }) {
-  const item = (
-    <ToggleGroupItem
-      value={value}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      className={cn(
-        modeItemClass,
-        disabled && "disabled:pointer-events-none disabled:opacity-50",
-      )}
-    >
-      {children}
-    </ToggleGroupItem>
-  );
-
-  /* Match SidebarMenuButton: label lives in tooltip only (icon control). */
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        {disabled ? <span className="inline-flex">{item}</span> : item}
+        <ToggleGroupItem
+          value={value}
+          aria-label={ariaLabel}
+          className={cn(modeItemClass, bounce && "mode-toggle-bounce")}
+        >
+          {children}
+        </ToggleGroupItem>
       </TooltipTrigger>
       <TooltipContent side="bottom" align="center">
         {tooltip}

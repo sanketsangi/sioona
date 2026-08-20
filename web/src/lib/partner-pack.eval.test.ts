@@ -8,7 +8,7 @@ import type { StoreData } from "./types";
 
 const PACK_PATH = path.join(
   process.cwd(),
-  "data/samples/partner-shaped-labeled.csv"
+  "src/data/fixtures/partner-shaped-labeled.csv"
 );
 
 const TENANT_ID = "tenant_demo";

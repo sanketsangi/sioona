@@ -61,11 +61,7 @@ function WorkspaceNav({
           const Icon = item.icon;
           return (
             <SidebarMenuItem key={item.view}>
-              <SidebarMenuButton
-                asChild
-                isActive={active}
-                tooltip={item.label}
-              >
+              <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                 <Link
                   href={viewHref(item.view)}
                   aria-current={active ? "page" : undefined}
@@ -78,7 +74,11 @@ function WorkspaceNav({
                   ) : item.view === "eval" ? (
                     <ListChecksIcon className="size-4 shrink-0 text-sio-fg-base" />
                   ) : Icon ? (
-                    <Icon className="size-4 shrink-0" weight="bold" aria-hidden />
+                    <Icon
+                      className="size-4 shrink-0"
+                      weight="bold"
+                      aria-hidden
+                    />
                   ) : (
                     <ArrowCircleUpIcon className="size-4 shrink-0" />
                   )}
@@ -110,10 +110,10 @@ function SidebarBrand() {
               }}
             >
               <span
-                className="flex aspect-square size-7 shrink-0 items-center justify-center text-black"
+                className="flex aspect-square size-9 shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-control)] group-data-[collapsible=icon]:size-8"
                 aria-hidden
               >
-                <HexCubeIcon className="size-7 shrink-0" />
+                <HexCubeIcon className="size-9 shrink-0 group-data-[collapsible=icon]:size-8" />
               </span>
               <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                 <SioonaLogotype height={28} />
@@ -153,8 +153,8 @@ function AppSidebarFooter() {
       </SidebarMenu>
       <NavUser
         user={{
-          name: "Demo Operator",
-          email: "tenant_demo",
+          name: "Maya Chen",
+          email: "maya.chen@acme.com",
         }}
       />
     </>

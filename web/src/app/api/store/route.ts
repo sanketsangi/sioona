@@ -13,9 +13,17 @@ import {
   writeStore,
   type TaxonomyOverrideField,
 } from "@/lib/store";
-import { runPartnerDemo } from "@/lib/demo";
+import { partnerDemoCompleteEvent, runPartnerDemo } from "@/lib/demo";
+import {
+  encodePartnerDemoNdjsonLine,
+  PARTNER_DEMO_NDJSON_CONTENT_TYPE,
+  type PartnerDemoStreamEvent,
+} from "@/lib/partner-demo-progress";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 import type { SignalType, StoreData } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
 const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
@@ -81,24 +89,43 @@ export async function POST(request: Request) {
   }
 
   if (body.action === "partner_demo") {
-    try {
-      const result = await runPartnerDemo();
-      return NextResponse.json({
-        ...result.store,
-        signals: sortSignals(result.store.signals),
-        importedConversations: result.importedConversations,
-        newSignals: result.newSignals,
-        samples: result.samples,
-        predictionSync: result.predictionSync,
-        conversationSync: result.conversationSync,
-        detectLlm: result.detectLlm,
-        ...wipeExtras(result.wipe),
-      });
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Partner demo failed";
-      return NextResponse.json({ error: message }, { status: 500 });
-    }
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (event: PartnerDemoStreamEvent) => {
+          controller.enqueue(
+            encoder.encode(encodePartnerDemoNdjsonLine(event))
+          );
+        };
+        try {
+          const result = await runPartnerDemo({
+            onProgress: async (event) => {
+              send({ type: "progress", ...event });
+              if (event.step === "detect") {
+                await new Promise<void>((resolve) => {
+                  setImmediate(resolve);
+                });
+              }
+            },
+          });
+          send(partnerDemoCompleteEvent(result));
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Partner demo failed";
+          send({ type: "error", error: message });
+        } finally {
+          controller.close();
+        }
+      },
+    });
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": PARTNER_DEMO_NDJSON_CONTENT_TYPE,
+        "Cache-Control": "no-cache, no-transform",
+        "X-Accel-Buffering": "no",
+      },
+    });
   }
 
   if (body.action === "set_baseline") {

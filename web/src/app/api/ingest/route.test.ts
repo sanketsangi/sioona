@@ -110,7 +110,7 @@ describe("POST /api/ingest", () => {
 
     const first = await POST(
       ingestRequest(
-        csvFile("real-partner-export.template.csv", [
+        csvFile("real-partner-export.local.csv", [
           'upsell_pr,customer,"Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.",Ada,whatsapp,upsell',
         ])
       )
@@ -251,20 +251,12 @@ describe("POST /api/ingest", () => {
     expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
 
     const second = await POST(
-      ingestRequest(
-        csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED])
-      )
+      ingestRequest(csvFile("real-partner-export.week2.local.csv", [NEW_CONV_LINE]))
     );
     expect(second.status).toBe(200);
-    expect((await readStore()).pilot?.weeklyExportCount).toBe(2);
-
-    const third = await POST(
-      ingestRequest(csvFile("partner-shaped-labeled.csv", [NEW_CONV_LINE]))
-    );
-    expect(third.status).toBe(200);
 
     const after = await readStore();
-    expect(after.pilot?.weeklyExportCount).toBe(3);
+    expect(after.pilot?.weeklyExportCount).toBe(2);
     expect(after.conversations).toHaveLength(2);
     expect(
       after.conversations.filter(
@@ -384,6 +376,27 @@ describe("POST /api/ingest", () => {
     expect(afterNonPartnerSecond.conversations[0].externalId).toBe("wa-reupload-1");
     expect(afterNonPartnerSecond.pilot?.weeklyExportCount).toBe(1);
     expect(afterNonPartnerSecond.pilot?.lastUploadedFileName).toBe("user-upload-2.csv");
+  });
+
+  it("former eval pack CSVs replace instead of merging with the showcase", async () => {
+    const partnerFirst = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(partnerFirst.status).toBe(200);
+    expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
+
+    const dropped = await POST(
+      ingestRequest(csvFile("partner-shaped-labeled.csv", [NEW_CONV_LINE]))
+    );
+    expect(dropped.status).toBe(200);
+    const droppedBody = (await dropped.json()) as { replaced?: boolean };
+    expect(droppedBody.replaced).toBe(true);
+
+    const after = await readStore();
+    expect(after.conversations).toHaveLength(1);
+    expect(after.conversations[0].externalId).toBe("wa-reupload-2");
+    expect(after.pilot?.weeklyExportCount).toBe(1);
+    expect(after.pilot?.lastUploadedFileName).toBe("partner-shaped-labeled.csv");
   });
 
   it("still increments weeklyExportCount when Neon pilot PUT fails", async () => {

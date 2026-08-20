@@ -40,8 +40,9 @@ export type ResetStoreResult = {
 };
 
 /**
- * Wipe this tenant's Neon data (fail-soft), then reseed JSON from testing.json.
- * Cold start uses seedShowcaseStore / hydrate — not this path.
+ * Wipe this tenant's Neon data (fail-soft), then reseed JSON from Groww
+ * testing.json. Cold start uses seedShowcaseStore / hydrate — not this path.
+ * Partner Demo is a separate wipe + Zerodha Batch-02 load.
  */
 export async function resetStoreWithWipe(): Promise<ResetStoreResult> {
   const wipe = await wipeTenantDataFailSoft(emptyShowcaseStore.tenant.id);

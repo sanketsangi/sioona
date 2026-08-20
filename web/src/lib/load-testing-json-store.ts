@@ -10,6 +10,7 @@ import {
   DEMO_BASELINE_OPPORTUNITIES,
 } from "./demo-baseline";
 import { writeStore } from "./store";
+import type { PartnerDemoStep } from "./partner-demo-progress";
 import {
   emptyConversationSyncStats,
   syncConversationsToBackend,
@@ -21,12 +22,13 @@ import {
 } from "./sync-predictions";
 import { syncPilotSettingsToBackend } from "./sync-pilot";
 import {
+  GROWW_SHOWCASE_SAMPLE_NAME,
+  ZERODHA_BATCH02_SAMPLE_NAME,
   parseTestingJsonDocument,
   resolveTestingJsonPath,
+  resolveZerodhaBatch02Path,
 } from "./testing-json-eval";
 import type { StoreData } from "./types";
-
-const SHOWCASE_SAMPLE_NAME = "Groww_batch_02";
 
 export interface LoadTestingJsonResult {
   store: StoreData;
@@ -48,21 +50,28 @@ export interface LoadTestingJsonOptions {
   syncConversations?: boolean;
   repoRoot?: string;
   absolutePath?: string;
-  /** Breadcrumb / `samples[]` name (default Groww showcase). */
-  sampleName?: string;
+  /** Real pipeline ticks (detect → sync chats → sync signals). */
+  onProgress?: (event: {
+    step: Exclude<PartnerDemoStep, "wipe">;
+    done: number;
+    total: number;
+  }) => void | Promise<void>;
+}
+
+interface LoadShowcaseJsonOptions extends LoadTestingJsonOptions {
+  sampleName: string;
+  resolvePath: (repoRoot?: string) => string;
 }
 
 /**
- * Load a Sioona-shaped JSON corpus into the store:
- * parse → toStoreRecords → detect → optional dual-write (chats + predictions) → writeStore.
- * Cold open / reset default to testing.json; Partner Demo passes zerodha_batch_02.json.
+ * Replace the JSON store with one labeled JSON corpus (wipe is the caller’s job).
+ * Uses empty taxonomyOverrides — no Adapt on this path.
  */
-export async function loadTestingJsonIntoStore(
-  options?: LoadTestingJsonOptions
+async function loadShowcaseJsonIntoStore(
+  options: LoadShowcaseJsonOptions
 ): Promise<LoadTestingJsonResult> {
-  const sampleName = options?.sampleName ?? SHOWCASE_SAMPLE_NAME;
   const absolutePath =
-    options?.absolutePath ?? resolveTestingJsonPath(options?.repoRoot);
+    options.absolutePath ?? options.resolvePath(options.repoRoot);
   const content = await fs.readFile(absolutePath, "utf8");
   const inputs = parseTestingJsonDocument(content);
 
@@ -70,11 +79,18 @@ export async function loadTestingJsonIntoStore(
   const { conversations, messages } = toStoreRecords(inputs, tenantId, {
     stableIds: true,
   });
+  const report = options.onProgress;
   const { signals, llm } = await runHybridDetection(
     conversations,
     messages,
     tenantId,
-    emptyShowcaseStore.taxonomyOverrides
+    emptyShowcaseStore.taxonomyOverrides,
+    report
+      ? {
+          onProgress: (done, total) =>
+            report({ step: "detect", done, total }),
+        }
+      : undefined
   );
 
   const store: StoreData = {
@@ -96,32 +112,60 @@ export async function loadTestingJsonIntoStore(
     ? { sleep: async () => undefined }
     : undefined;
 
-  const syncJobs: Promise<void>[] = [];
-  if (options?.syncConversations !== false) {
-    syncJobs.push(
-      syncConversationsToBackend(
+  if (report) {
+    if (options.syncConversations !== false) {
+      conversationSync = await syncConversationsToBackend(
         store.conversations,
         store.messages,
         store.tenant.id,
-        testSleep
-      ).then((stats) => {
-        conversationSync = stats;
-      })
-    );
-  }
-  if (options?.syncPredictions !== false) {
-    syncJobs.push(
-      syncPredictionsToBackend(store.signals, store.tenant.id, testSleep).then(
-        (synced) => {
-          store.signals = synced.signals;
-          predictionSync = synced.sync;
+        {
+          ...testSleep,
+          onProgress: (done, total) =>
+            report({ step: "sync_chats", done, total }),
         }
-      )
-    );
+      );
+    }
+    if (options.syncPredictions !== false) {
+      const synced = await syncPredictionsToBackend(
+        store.signals,
+        store.tenant.id,
+        {
+          ...testSleep,
+          onProgress: (done, total) =>
+            report({ step: "sync_signals", done, total }),
+        }
+      );
+      store.signals = synced.signals;
+      predictionSync = synced.sync;
+    }
+  } else {
+    const syncJobs: Promise<void>[] = [];
+    if (options.syncConversations !== false) {
+      syncJobs.push(
+        syncConversationsToBackend(
+          store.conversations,
+          store.messages,
+          store.tenant.id,
+          testSleep
+        ).then((stats) => {
+          conversationSync = stats;
+        })
+      );
+    }
+    if (options.syncPredictions !== false) {
+      syncJobs.push(
+        syncPredictionsToBackend(store.signals, store.tenant.id, testSleep).then(
+          (synced) => {
+            store.signals = synced.signals;
+            predictionSync = synced.sync;
+          }
+        )
+      );
+    }
+    await Promise.all(syncJobs);
   }
-  await Promise.all(syncJobs);
 
-  if (options?.applyDemoBaseline) {
+  if (options.applyDemoBaseline) {
     store.pilot = {
       baselineOpportunities: DEMO_BASELINE_OPPORTUNITIES,
       baselineNote: DEMO_BASELINE_NOTE,
@@ -135,7 +179,7 @@ export async function loadTestingJsonIntoStore(
   store.pilot = {
     ...store.pilot,
     baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
-    lastUploadedFileName: sampleName,
+    lastUploadedFileName: options.sampleName,
   };
 
   await writeStore(store);
@@ -148,10 +192,39 @@ export async function loadTestingJsonIntoStore(
     store,
     importedConversations: conversations.length,
     newSignals: signals.length,
-    samples: [sampleName],
+    samples: [options.sampleName],
     absolutePath,
     predictionSync,
     conversationSync,
     detectLlm: llm,
   };
+}
+
+/**
+ * Load Groww testing.json into the JSON store:
+ * parse → toStoreRecords → detect → optional dual-write → writeStore.
+ * Used by cold open (no wipe) and resetStore (wipe then seed). Not Partner Demo.
+ */
+export async function loadTestingJsonIntoStore(
+  options?: LoadTestingJsonOptions
+): Promise<LoadTestingJsonResult> {
+  return loadShowcaseJsonIntoStore({
+    ...options,
+    sampleName: GROWW_SHOWCASE_SAMPLE_NAME,
+    resolvePath: resolveTestingJsonPath,
+  });
+}
+
+/**
+ * Load committed Zerodha Batch-02 JSON into the JSON store (replace, not merge).
+ * Used by Run Partner Demo after a Neon wipe. Does not apply Zerodha Adapt.
+ */
+export async function loadZerodhaBatch02IntoStore(
+  options?: LoadTestingJsonOptions
+): Promise<LoadTestingJsonResult> {
+  return loadShowcaseJsonIntoStore({
+    ...options,
+    sampleName: ZERODHA_BATCH02_SAMPLE_NAME,
+    resolvePath: resolveZerodhaBatch02Path,
+  });
 }

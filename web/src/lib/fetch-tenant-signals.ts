@@ -1,5 +1,5 @@
 /**
- * Fetch this tenant's predictions + feedback from FastAPI (Insights Done tree).
+ * Fetch tenant predictions (feedback + Acted) from FastAPI.
  * Returns explicit ok/error — never a silent empty list on failure.
  */
 
@@ -10,15 +10,15 @@ import {
 } from "./backend-client";
 
 export type TenantSignalsResult =
-  | { ok: true; predictions: BackendPredictionWithFeedback[] }
+  | { ok: true; rows: BackendPredictionWithFeedback[] }
   | { ok: false; error: string };
 
 export async function fetchTenantSignals(
   tenantId: string
 ): Promise<TenantSignalsResult> {
   try {
-    const predictions = await getTenantSignals(tenantId);
-    return { ok: true, predictions };
+    const rows = await getTenantSignals(tenantId);
+    return { ok: true, rows };
   } catch (err) {
     const message =
       err instanceof BackendClientError

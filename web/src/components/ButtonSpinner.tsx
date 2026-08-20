@@ -1,8 +1,12 @@
-import { CircleNotch } from "@phosphor-icons/react/ssr";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 /** Spinner for loading buttons — keep the original label beside this. */
 export function ButtonSpinner({ className = "btn-spinner" }: { className?: string }) {
   return (
-    <CircleNotch className={className} weight="regular" aria-hidden />
+    <Spinner
+      className={cn("size-3.5 shrink-0", className)}
+      aria-hidden
+    />
   );
 }

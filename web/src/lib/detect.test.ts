@@ -3,6 +3,7 @@ import { detectEvalStore as sampleStore } from "@/data/fixtures/detect-eval-fixt
 import {
   detectSignalsForConversation,
   runDetection,
+  runDetectionWithProgress,
   scoreType,
   textIncludesTerm,
 } from "./detect";
@@ -448,4 +449,39 @@ describe("runDetection", () => {
     expect(scoreType("UPI is working again.", "lead").score).toBe(0);
   });
 
+});
+
+describe("runDetectionWithProgress", () => {
+  it("emits 0 then per-conversation counts", async () => {
+    const a = conv("c_a", "lead", "I want to open a demat account");
+    const b = conv("c_b", "none", "Please send the monthly statement");
+    const ticks: Array<{ done: number; total: number }> = [];
+
+    const signals = await runDetectionWithProgress(
+      [a.conversation, b.conversation],
+      [...a.messages, ...b.messages],
+      "tenant_demo",
+      null,
+      async (done, total) => {
+        ticks.push({ done, total });
+      }
+    );
+
+    expect(ticks).toEqual([
+      { done: 0, total: 2 },
+      { done: 1, total: 2 },
+      { done: 2, total: 2 },
+    ]);
+    const baseline = runDetection(
+      [a.conversation, b.conversation],
+      [...a.messages, ...b.messages],
+      "tenant_demo"
+    );
+    expect(signals.map((signal) => signal.id)).toEqual(
+      baseline.map((signal) => signal.id)
+    );
+    expect(signals.map((signal) => signal.type)).toEqual(
+      baseline.map((signal) => signal.type)
+    );
+  });
 });

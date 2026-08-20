@@ -13,7 +13,7 @@ export const PREDICTION_SYNC_MAX_RETRIES = 2;
 export const PREDICTION_SYNC_MAX_ATTEMPTS = 1 + PREDICTION_SYNC_MAX_RETRIES;
 /** Backoff after each failed attempt (ms), before the next try. */
 export const PREDICTION_SYNC_BACKOFF_MS = [200, 800] as const;
-/** Parallel POSTs so Partner Demo (~27 signals) does not sit on a 30s sequential chain. */
+/** Parallel POSTs so Partner Demo (~100 chats) does not sit on a 30s sequential chain. */
 export const PREDICTION_SYNC_CONCURRENCY = 6;
 
 export type PredictionSyncStats = {
@@ -32,6 +32,8 @@ export type PredictionSyncResult = {
 export type SyncPredictionsOptions = {
   /** Injectable for tests; defaults to real setTimeout sleep. */
   sleep?: (ms: number) => Promise<void>;
+  /** Real dual-write ticks: 0 then 1…N as each prediction settles. */
+  onProgress?: (done: number, total: number) => void | Promise<void>;
 };
 
 async function defaultSleep(ms: number): Promise<void> {
@@ -110,6 +112,9 @@ export async function syncPredictionsToBackend(
   options?: SyncPredictionsOptions
 ): Promise<PredictionSyncResult> {
   const sleep = options?.sleep ?? defaultSleep;
+  const total = signals.length;
+  await options?.onProgress?.(0, total);
+  let completed = 0;
 
   const rows = await mapWithConcurrency(
     signals,
@@ -137,6 +142,9 @@ export async function syncPredictionsToBackend(
           updated: false,
           failed: true,
         };
+      } finally {
+        completed += 1;
+        await options?.onProgress?.(completed, total);
       }
     }
   );

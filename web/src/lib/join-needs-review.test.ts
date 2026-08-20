@@ -1,13 +1,31 @@
 import { describe, expect, it } from "vitest";
-import type { BackendPrediction } from "./backend-client";
+import type {
+  BackendPrediction,
+  BackendPredictionWithFeedback,
+} from "./backend-client";
 import {
-  doneQueueSignals,
+  applyChatEvidenceToSignals,
+  doneSignals,
+  followUpSignals,
   joinNeedsReviewPredictions,
+  joinTenantSignals,
+  missingConversationIds,
   pendingQueueSignals,
   predictionToStubSignal,
+  queueSignalsForFilter,
+  quotesFromCustomerMessages,
+  reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "./join-needs-review";
-import type { Signal } from "./types";
+import {
+  GROWW_TESTING_JSON_EXTERNAL_ID,
+  ZERODHA_BATCH02_EXTERNAL_ID,
+} from "./testing-json-eval";
+import type { Conversation, Message, Signal } from "./types";
+
+/** Stable ids from Groww testing.json vs Zerodha Batch-02 (Partner Demo pack split). */
+const GROWW_CONV_ID = `conv_${GROWW_TESTING_JSON_EXTERNAL_ID}`;
+const ZERODHA_CONV_ID = `conv_${ZERODHA_BATCH02_EXTERNAL_ID}`;
 
 const prediction = (
   overrides: Partial<BackendPrediction> & Pick<BackendPrediction, "id">
@@ -191,75 +209,368 @@ describe("pendingQueueSignals", () => {
   });
 });
 
-describe("doneQueueSignals", () => {
-  it("joins Neon feedback onto keep-set JSON and overlays Acted", () => {
-    const rows = [
-      {
-        ...prediction({ id: "neon-done" }),
-        acted: true,
-        feedback: {
-          id: "fb-1",
-          tenant_id: "tenant_demo",
-          signal_id: "neon-done",
-          feedback: "correct" as const,
-          note: "clear",
-          reviewed_by: "shadow_reviewer",
-          reviewed_at: "2026-08-02T00:00:00.000Z",
-        },
-      },
-    ];
-    const json: Signal[] = [{ ...baseSignal, id: "sig_keep" }];
+const tenantRow = (
+  overrides: Partial<BackendPredictionWithFeedback> &
+    Pick<BackendPredictionWithFeedback, "id">
+): BackendPredictionWithFeedback => ({
+  tenant_id: "tenant_demo",
+  conversation_id: "conv_1",
+  signal_type: "lead",
+  confidence: 0.9,
+  summary: "Buying intent",
+  created_at: "2026-08-01T00:00:00.000Z",
+  acted: false,
+  feedback: {
+    id: "fb-1",
+    tenant_id: "tenant_demo",
+    signal_id: overrides.id,
+    feedback: "correct",
+    note: null,
+    reviewed_by: "shadow_reviewer",
+    reviewed_at: "2026-08-02T00:00:00.000Z",
+  },
+  ...overrides,
+});
 
-    const done = doneQueueSignals(rows, json);
-    expect(done).toHaveLength(1);
-    expect(done[0].id).toBe("sig_keep");
-    expect(done[0].status).toBe("acted");
-    expect(done[0].backendSignalId).toBe("neon-done");
-    expect(done[0].feedback).toEqual({
-      label: "correct",
-      note: "clear",
-      reviewedAt: "2026-08-02T00:00:00.000Z",
-    });
+describe("joinTenantSignals", () => {
+  it("keeps Neon-only Correct-not-Acted as a stub", () => {
+    const rows = [
+      tenantRow({
+        id: "orphan",
+        conversation_id: "conv_x",
+        summary: "Neon only",
+      }),
+    ];
+    const joined = joinTenantSignals(rows, [baseSignal]);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].id).toBe("sig_neon_orphan");
+    expect(joined[0].feedback?.label).toBe("correct");
+    expect(joined[0].status).toBe("reviewed");
+    expect(joined[0].evidence).toEqual([]);
   });
 
-  it("omits leftover Groww Neon reviews with no local Zerodha chat", () => {
-    const rows = [
-      {
-        ...prediction({
-          id: "groww-leftover",
-          conversation_id: "conv_eeshan_kulkarni_41",
-        }),
-        acted: false,
-        feedback: {
-          id: "fb-g",
-          tenant_id: "tenant_demo",
-          signal_id: "groww-leftover",
-          feedback: "correct" as const,
-          note: null,
-          reviewed_by: "shadow_reviewer",
-          reviewed_at: "2026-08-18T00:00:00.000Z",
-        },
-      },
-    ];
+  it("prefers JSON evidence when ids match", () => {
+    const rows = [tenantRow({ id: "aaa" })];
     const json: Signal[] = [
       {
         ...baseSignal,
-        id: "sig_zrdh",
-        conversationId: "conv_zrdh_eeshan_kulkarni_41",
+        backendSignalId: "aaa",
+        evidence: ["quote: \"local\""],
+        suggestedAction: "Call back",
+        feedback: {
+          label: "correct",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+        status: "reviewed",
       },
     ];
-
-    expect(doneQueueSignals(rows, json)).toEqual([]);
+    const [joined] = joinTenantSignals(rows, json);
+    expect(joined.id).toBe("sig_local_1");
+    expect(joined.evidence).toEqual(["quote: \"local\""]);
+    expect(joined.suggestedAction).toBe("Call back");
+    expect(joined.backendSignalId).toBe("aaa");
   });
 
-  it("omits unreviewed tenant rows (those belong in Follow-up)", () => {
-    const rows = [
+  it("skips unreviewed Neon rows", () => {
+    const rows = [tenantRow({ id: "open", feedback: null })];
+    expect(joinTenantSignals(rows, [baseSignal])).toHaveLength(0);
+  });
+
+  it("sets acted status from Neon", () => {
+    const rows = [tenantRow({ id: "done", acted: true })];
+    const [joined] = joinTenantSignals(rows, [
+      { ...baseSignal, backendSignalId: "done" },
+    ]);
+    expect(joined.status).toBe("acted");
+    expect(joined.feedback?.label).toBe("correct");
+  });
+});
+
+describe("followUpSignals / doneSignals", () => {
+  it("keeps Correct-not-Acted in follow-up and Acted in done", () => {
+    const follow: Signal = {
+      ...baseSignal,
+      id: "sig_follow",
+      status: "reviewed",
+      feedback: { label: "correct", reviewedAt: "2026-08-02T00:00:00.000Z" },
+    };
+    const acted: Signal = {
+      ...baseSignal,
+      id: "sig_done",
+      status: "acted",
+      feedback: { label: "correct", reviewedAt: "2026-08-02T00:00:00.000Z" },
+    };
+    const wrong: Signal = {
+      ...baseSignal,
+      id: "sig_wrong",
+      status: "reviewed",
+      feedback: { label: "incorrect", reviewedAt: "2026-08-02T00:00:00.000Z" },
+    };
+    expect(followUpSignals([follow, acted, wrong]).map((s) => s.id)).toEqual([
+      "sig_follow",
+    ]);
+    expect(doneSignals([follow, acted, wrong]).map((s) => s.id)).toEqual([
+      "sig_done",
+    ]);
+  });
+});
+
+describe("reviewedQueueSignals", () => {
+  it("appends JSON reviewed rows Neon missed", () => {
+    const rows = [tenantRow({ id: "aaa" })];
+    const json: Signal[] = [
+      { ...baseSignal, backendSignalId: "aaa" },
       {
-        ...prediction({ id: "pending" }),
-        acted: false,
-        feedback: null,
+        ...baseSignal,
+        id: "sig_local_reviewed",
+        conversationId: "conv_local",
+        feedback: {
+          label: "incorrect",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+        status: "reviewed",
       },
     ];
-    expect(doneQueueSignals(rows, [baseSignal])).toEqual([]);
+    expect(reviewedQueueSignals(rows, json).map((s) => s.id)).toEqual([
+      "sig_local_1",
+      "sig_local_reviewed",
+    ]);
+  });
+});
+
+describe("Groww Neon vs Zerodha JSON keep-set mismatch", () => {
+  /** JSON after Partner Demo (Zerodha only); Neon still has leftover Groww reviews. */
+  const zerodhaJson: Signal[] = [
+    {
+      ...baseSignal,
+      id: "sig_zerodha",
+      conversationId: ZERODHA_CONV_ID,
+      type: "retention",
+      backendSignalId: "zerodha-pred",
+    },
+  ];
+
+  it("pending omits Groww Neon rows that do not intersect Zerodha JSON", () => {
+    const preds = [
+      prediction({
+        id: "groww-stale",
+        conversation_id: GROWW_CONV_ID,
+        signal_type: "lead",
+      }),
+    ];
+    const pending = pendingQueueSignals(preds, zerodhaJson);
+    // Unmatched Neon omitted; keep-set local Zerodha still surfaces.
+    expect(pending.map((s) => s.id)).toEqual(["sig_zerodha"]);
+    expect(pending.every((s) => s.conversationId === ZERODHA_CONV_ID)).toBe(
+      true
+    );
+  });
+
+  it("Follow-up keeps Groww Neon Correct as a stub (not filtered by JSON keep-set)", () => {
+    const rows = [
+      tenantRow({
+        id: "groww-correct",
+        conversation_id: GROWW_CONV_ID,
+        signal_type: "lead",
+        summary: "Leftover Groww review",
+      }),
+    ];
+    const reviewed = reviewedQueueSignals(rows, zerodhaJson);
+    const followUp = followUpSignals(reviewed);
+    expect(followUp).toHaveLength(1);
+    expect(followUp[0].id).toBe("sig_neon_groww-correct");
+    expect(followUp[0].conversationId).toBe(GROWW_CONV_ID);
+    expect(followUp[0].feedback?.label).toBe("correct");
+    expect(followUp[0].status).toBe("reviewed");
+    const zerodhaOnlyChats: Conversation[] = [
+      {
+        id: ZERODHA_CONV_ID,
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+    ];
+    expect(missingConversationIds(followUp, zerodhaOnlyChats)).toEqual([
+      GROWW_CONV_ID,
+    ]);
+  });
+});
+
+describe("queueSignalsForFilter", () => {
+  const pending: Signal[] = [{ ...baseSignal, id: "sig_p" }];
+  const follow: Signal = {
+    ...baseSignal,
+    id: "sig_follow",
+    type: "retention",
+    status: "reviewed",
+    feedback: { label: "correct", reviewedAt: "2026-08-02T00:00:00.000Z" },
+  };
+  const acted: Signal = {
+    ...baseSignal,
+    id: "sig_done",
+    status: "acted",
+    feedback: { label: "correct", reviewedAt: "2026-08-02T00:00:00.000Z" },
+  };
+  const reviewed = [follow, acted];
+
+  it("splits follow-up and done", () => {
+    expect(
+      queueSignalsForFilter({
+        pending,
+        reviewed,
+        status: "followup",
+        type: "all",
+      }).filtered.map((s) => s.id)
+    ).toEqual(["sig_follow"]);
+    expect(
+      queueSignalsForFilter({
+        pending,
+        reviewed,
+        status: "acted",
+        type: "all",
+      }).filtered.map((s) => s.id)
+    ).toEqual(["sig_done"]);
+  });
+
+  it("counts pending, follow-up, done, and all", () => {
+    const counts = queueSignalsForFilter({
+      pending,
+      reviewed,
+      status: "all",
+      type: "all",
+    });
+    expect(counts.pendingCount).toBe(1);
+    expect(counts.followUpCount).toBe(1);
+    expect(counts.doneCount).toBe(1);
+    expect(counts.allCount).toBe(3);
+    expect(counts.filtered.map((s) => s.id)).toEqual([
+      "sig_p",
+      "sig_follow",
+      "sig_done",
+    ]);
+  });
+
+  it("applies type filter on follow-up", () => {
+    expect(
+      queueSignalsForFilter({
+        pending,
+        reviewed,
+        status: "followup",
+        type: "lead",
+      }).filtered
+    ).toHaveLength(0);
+    expect(
+      queueSignalsForFilter({
+        pending,
+        reviewed,
+        status: "followup",
+        type: "retention",
+      }).filtered.map((s) => s.id)
+    ).toEqual(["sig_follow"]);
+  });
+});
+
+describe("missingConversationIds / chat evidence", () => {
+  const conv: Conversation = {
+    id: "conv_1",
+    tenantId: "tenant_demo",
+    channel: "whatsapp",
+    startedAt: "2026-08-01T00:00:00.000Z",
+    messageIds: ["msg_1"],
+  };
+
+  it("lists ids that are not in the JSON store", () => {
+    expect(
+      missingConversationIds(
+        [
+          { ...baseSignal, conversationId: "conv_1" },
+          { ...baseSignal, id: "sig_x", conversationId: "conv_x" },
+        ],
+        [conv]
+      )
+    ).toEqual(["conv_x"]);
+  });
+
+  it("builds quote evidence from the last customer messages", () => {
+    const messages: Message[] = [
+      {
+        id: "m1",
+        conversationId: "conv_x",
+        role: "agent",
+        content: "How can I help?",
+        timestamp: "2026-08-01T00:00:00.000Z",
+      },
+      {
+        id: "m2",
+        conversationId: "conv_x",
+        role: "customer",
+        content: "I want to close my account",
+        timestamp: "2026-08-01T00:01:00.000Z",
+      },
+    ];
+    expect(quotesFromCustomerMessages(messages)).toEqual([
+      'quote: "I want to close my account"',
+    ]);
+  });
+
+  it("fills empty stub evidence and action from overlay chats", () => {
+    const stub: Signal = {
+      ...predictionToStubSignal(
+        prediction({ id: "orphan", conversation_id: "conv_x" })
+      ),
+      status: "reviewed",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    const filled = applyChatEvidenceToSignals(
+      [stub],
+      {
+        conversations: [
+          {
+            ...conv,
+            id: "conv_x",
+            customerName: "Priya",
+          },
+        ],
+        messages: [
+          {
+            id: "m2",
+            conversationId: "conv_x",
+            role: "customer",
+            content: "I want to close my account",
+            timestamp: "2026-08-01T00:01:00.000Z",
+          },
+        ],
+      }
+    );
+    expect(filled[0].evidence).toEqual([
+      'quote: "I want to close my account"',
+    ]);
+    expect(filled[0].suggestedAction.length).toBeGreaterThan(0);
+  });
+
+  it("does not overwrite JSON evidence", () => {
+    const local: Signal = {
+      ...baseSignal,
+      evidence: ['quote: "keep me"'],
+      suggestedAction: "Keep this",
+    };
+    const filled = applyChatEvidenceToSignals([local], {
+      conversations: [conv],
+      messages: [
+        {
+          id: "m2",
+          conversationId: "conv_1",
+          role: "customer",
+          content: "I want to close my account",
+          timestamp: "2026-08-01T00:01:00.000Z",
+        },
+      ],
+    });
+    expect(filled[0].evidence).toEqual(['quote: "keep me"']);
+    expect(filled[0].suggestedAction).toBe("Keep this");
   });
 });

@@ -1,15 +1,15 @@
 # Partner sample pack
 
-Showcase conversations: **Run Partner Demo** loads **`zerodha_batch_02.json`**. Cold open and Reset Demo seed **`testing.json`** (repo root canonical; deployable copies here for Vercel).
+Live showcase files in this directory:
 
 | File | Format | Notes |
 |------|--------|--------|
-| `zerodha_batch_02.json` | Sioona-shaped JSON | 100 labeled Zerodha chats; **Run Partner Demo** seed (wipe + dual-write). Distinct `zrdh_*` ids so Eval keep-set is not Groww JSON ∩ leftover Neon reviews. |
-| `testing.json` | Sioona-shaped JSON | 100 labeled Groww chats; cold open + Reset Demo seed. Keep in sync with repo-root `testing.json`. |
-| `partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` | Messier partner-like multi-turn pack for labeled P/R vs synthetics |
-| `real-partner-export.template.csv` | Sioona CSV + `ground_truth` | Redacted template for Day-1 pilot exports (safe to commit) |
+| `testing.json` | Sioona-shaped JSON | Groww Batch 02 (~100 labeled chats). Cold open + Reset Demo. Keep in sync with repo-root `testing.json`. |
+| `zerodha_batch_02.json` | Sioona-shaped JSON | Zerodha Batch 02 (100 labeled chats). **Run Partner Demo** wipes Neon then loads this file only — never merged with Groww. |
 | `real-partner-export.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-1 drop-in — paste redacted partner chats here |
 | `real-partner-export.week2.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-2 held-out drop-in — does not overwrite week-1 |
+
+Eval-only CSVs live in [`src/data/fixtures/`](../../src/data/fixtures/) (`partner-shaped-labeled.csv`, `real-partner-export.template.csv`) — not listed on Upload, not merged into Insights.
 
 Upload still accepts partner CSV / Intercom JSON / WhatsApp `.txt` — those formats are parsers, not bundled showcase files.
 
@@ -30,7 +30,7 @@ After upload, review signals on `/insights`, then precision on `/eval`. Start Fa
 
 ## Partner-shaped labeled pack (eval baseline)
 
-`partner-shaped-labeled.csv` is a **measurement** pack (not a P/R = 1.0 gate). It mirrors partner exports: multi-turn noise, soft phrasing, support suppressors, broking + fintech CS, PII-shaped values redacted on ingest.
+`src/data/fixtures/partner-shaped-labeled.csv` is a **measurement** pack (not a P/R = 1.0 gate). It mirrors partner exports: multi-turn noise, soft phrasing, support suppressors, broking + fintech CS, PII-shaped values redacted on ingest.
 
 | Mix | Count |
 |-----|------:|
@@ -52,7 +52,7 @@ Synthetic fixture gate (still must stay at 1.0) — test-only pack in `src/data/
 npx vitest run src/lib/eval.test.ts src/lib/detect.test.ts
 ```
 
-Root corpus `testing.json` (41 labeled finance chats; measurement, not a 1.0 gate):
+Root corpus `testing.json` (100 labeled Groww chats; measurement, not a 1.0 gate):
 
 ```bash
 npx vitest run src/lib/testing-json.eval.test.ts
@@ -79,7 +79,7 @@ Use this when a partner sends a chat export. **Never commit real PII** — redac
 
 1. Copy the template:
    ```bash
-   cp data/samples/real-partner-export.template.csv data/samples/real-partner-export.local.csv
+   cp src/data/fixtures/real-partner-export.template.csv data/samples/real-partner-export.local.csv
    ```
 2. Replace rows with **redacted** partner transcripts. Keep columns:
    `conversation_id,role,content,customer_name,channel,timestamp,ground_truth`
@@ -99,7 +99,7 @@ Use this when a partner sends a chat export. **Never commit real PII** — redac
    console.log(formatPartnerExportEval(result));
    ```
 
-Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts) — ingest → heuristic detect → optional Adapt overrides (local.csv) → optional `runHybridDetection` → `computeEvalMetrics`. Prefers `real-partner-export.local.csv`, else the committed template. Eval is measurement only (no Neon dual-write).
+Loader: [`src/lib/partner-export-eval.ts`](../../src/lib/partner-export-eval.ts) — ingest → heuristic detect → optional Adapt overrides (local.csv) → optional `runHybridDetection` → `computeEvalMetrics`. Prefers `real-partner-export.local.csv` under `data/samples/`, else the committed template in `src/data/fixtures/`. Eval is measurement only (no Neon dual-write).
 
 This lane is a **measurement baseline** (not a P/R = 1.0 gate). Signal Score review precision remains FastAPI + Neon after upload/feedback.
 
@@ -113,7 +113,7 @@ Score a second redacted partner drop without overwriting week-1 `real-partner-ex
 
 1. Copy the template (separate file from week-1):
    ```bash
-   cp data/samples/real-partner-export.template.csv data/samples/real-partner-export.week2.local.csv
+   cp src/data/fixtures/real-partner-export.template.csv data/samples/real-partner-export.week2.local.csv
    ```
 2. Replace rows with **redacted** week-2 partner transcripts. Keep the same columns and `ground_truth` label policy as week-1.
 3. Score from `web/`:

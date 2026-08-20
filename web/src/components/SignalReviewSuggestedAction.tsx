@@ -44,8 +44,9 @@ export function SignalReviewSuggestedAction({
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
   const whyId = useId();
+  const isActed = signal.status === "acted";
+  const missingAction = !signal.suggestedAction;
   const isNeonStub = isNeonStubSignalId(signal.id);
-  const missingLocalJoin = isNeonStub || !signal.suggestedAction;
 
   const formatted = signal.evidence.map((item) => ({
     item,
@@ -74,13 +75,18 @@ export function SignalReviewSuggestedAction({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-3 px-3 py-3">
+        {isActed ? (
+          <p className="text-pretty text-label-13 text-sio-fg-muted">
+            Marked as Acted — not sent.
+          </p>
+        ) : null}
         <p
           className={cn(
             "break-words text-pretty text-copy-14 font-medium leading-5",
-            missingLocalJoin ? "text-sio-fg-muted" : "text-sio-fg-base",
+            missingAction ? "text-sio-fg-muted" : "text-sio-fg-base",
           )}
         >
-          {missingLocalJoin
+          {missingAction
             ? "Unavailable — local detection join missing."
             : signal.suggestedAction}
         </p>

@@ -14,7 +14,9 @@
 ## 2. Process topology
 
 ```text
-Partner export / Partner Demo
+Cold open / Reset (Groww testing.json)
+Partner Demo (wipe Neon → Zerodha Batch-02 JSON)
+Partner export (Upload)
         │
         ▼
   Next.js BFF (web/) ── ingest / detect / store mutations
@@ -32,8 +34,8 @@ Partner export / Partner Demo
 | Concern                                          | Source of truth                                            |
 | ------------------------------------------------ | ---------------------------------------------------------- |
 | Chats + taxonomy overrides (UI when file exists) | JSON `store.ts`                                            |
-| Pending Insights queue (Follow-up)               | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
-| Done Insights tree (reviewed / Acted)            | Neon `GET …/signals` → `fetch-tenant-signals.ts` + `doneQueueSignals` (JSON keep-set join; leftover other-pack Neon reviews omitted) |
+| Pending Insights queue                           | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
+| Follow-up / Done                                 | Neon `GET …/signals` (`correct` ¬acted / `acted`) + join   |
 | Signal Score / keep-set reviews                  | FastAPI + Neon (`reviewed_at` week window)                 |
 | Taxonomy base phrases                            | `web/src/lib/taxonomy.ts` (never Neon)                     |
 | Auth                                             | Soft header `X-Tenant-Id` (`tenant_demo`) — not Auth0      |
@@ -65,13 +67,13 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 
 | View     | URL               | Purpose                                                          |
 | -------- | ----------------- | ---------------------------------------------------------------- |
-| Insights | `/?view=insights` | Shadow Mode queue + review + Mark Acted                          |
-| Upload   | `/?view=upload`   | Ingest + Partner Demo / Reset                                    |
+| Insights | `/?view=insights` | Shadow Mode pending + Needs Follow-Up (`correct` ¬acted) + Done (`acted`). Omitted status lands on Pending (`status=new`) when Follow-up is empty and Pending > 0. Unlocked Action Mode: `/?mode=action` (Follow-up Act queue when Follow-up has rows; same pending landing when Follow-up empty; Suggested Next Action + Mark Acted; no outbound). Locked prod strips `mode=action`. |
+| Upload   | `/?view=upload`   | Ingest + Partner Demo (Zerodha wipe-replace) / Reset (Groww) |
 | Eval     | `/?view=eval`     | Keep-set Signal Score, baseline, Adapt / labeled / export panels |
 | Taxonomy | `/?view=taxonomy` | Read-only base taxonomy                                          |
 
 **Locked chrome (do not reinvent):** `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`.  
-**Dead / locked product chrome:** Action Mode outbound; Export / Create Campaign are unshipped and hidden (not overflow); Help / Guidance disabled; `NavUser` is identity-only (no Auth0 account actions).
+**Dead / locked product chrome:** Action Mode outbound send (unlocked Action Mode is display-only Act queue only); Export / Create Campaign are unshipped and hidden (not overflow); Help / Guidance disabled; `NavUser` is identity-only (no Auth0 account actions).
 
 ### BFF routes (high level)
 
@@ -80,7 +82,7 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 - `POST /api/signals/[id]/feedback` — FastAPI then JSON mirror (+ stale-UUID recovery)
 - `POST /api/signals/[id]/acted` — Mark Acted (no outbound; same stale-id recovery as feedback)
 - `GET /api/eval` — pilot metrics + backend score overlay (`scoreFrom`)
-- `POST /api/store` — reset / partner_demo / baseline / Adapt applies
+- `POST /api/store` — reset / **partner_demo (NDJSON pipeline events)** / baseline / Adapt applies
 
 ---
 
@@ -120,7 +122,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - **Win:** human keep-set SignalScore ≥80% on Eval **week window** — not labeled Detect P/R.
 - Formula: `correct / reviewed` (incorrect + partially_correct in denominator only).
 - Empty window → Reviewed 0 / **Insufficient Data** — never a labeled Go.
-- Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go). Insights empty queue + Upload/Eval — not the header bell (exceptions only). After share-out: **Mark Acted** on Correct (display-only, no outbound; advances to the next Correct panel) then **next week’s mid-week upsert** (`nextweek`) — not a dead end.
+- Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go). Insights empty queue + Upload/Eval — not the header bell (exceptions only). After share-out: **Mark Acted** on Correct in Needs Follow-Up (`status=followup`; display-only, no outbound; advances to the next Correct panel) then **next week’s mid-week upsert** (`nextweek`) — not a dead end.
 - Adapt = taxonomy **overrides** for heuristics — stop phrase chasing unless Eval proves a gap.
 
 ---
@@ -131,14 +133,14 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - Vercel `/tmp` ephemeral — rely on hydrate, not local files.
 - Render free cold starts (~15m) → queue/score timeouts.
 - Soft tenancy (spoofable header).
-- Neon queue rows without local chat are dropped at join (stale demo ids).
+- Neon **pending** rows without a matching JSON **signal** are dropped at join (stale demo ids). Follow-up / Done keep unmatched Neon rows and overlay chat/evidence from `GET …/conversations` for that request (not written to JSON).
 - Message upsert does not delete omitted messages until prune/wipe.
 
 ---
 
 ## 9. Explicit non-goals (unless named)
 
-Auth0, pgvector, vLLM / QLoRA / LangGraph, live webhooks, Action Mode outbound, FastAPI classify, Groq rate-limit scaffolding, taxonomy-on-Neon, taxonomy expansion to fake recall, more Adapt phrase packs.
+Auth0, pgvector, vLLM / QLoRA / LangGraph, live webhooks, Action Mode outbound send, FastAPI classify, Groq rate-limit scaffolding, taxonomy-on-Neon, taxonomy expansion to fake recall, more Adapt phrase packs.
 
 ---
 

@@ -20,8 +20,9 @@ import type { StoreData, TaxonomyOverrides } from "./types";
 export { PARTNER_EXPORT_ADAPT_OVERRIDES };
 
 const SAMPLES_DIR = path.join(process.cwd(), "data/samples");
+const FIXTURES_DIR = path.join(process.cwd(), "src/data/fixtures");
 
-/** Committed redacted template — safe for the repo. */
+/** Committed redacted template — eval/CLI only, not the live Upload pack. */
 export const PARTNER_EXPORT_TEMPLATE_FILE =
   "real-partner-export.template.csv";
 
@@ -75,6 +76,14 @@ function skippedLlmStats(): LlmPassStats {
   };
 }
 
+function resolveTemplatePath(samplesDir: string): string | null {
+  const candidates = [
+    path.join(samplesDir, PARTNER_EXPORT_TEMPLATE_FILE),
+    path.join(FIXTURES_DIR, PARTNER_EXPORT_TEMPLATE_FILE),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
 export function resolvePartnerExportPath(
   samplesDir: string = SAMPLES_DIR,
   /** Force template (tests / CI). */
@@ -97,7 +106,7 @@ export function resolvePartnerExportPath(
   }
 
   const localPath = path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE);
-  const templatePath = path.join(samplesDir, PARTNER_EXPORT_TEMPLATE_FILE);
+  const templatePath = resolveTemplatePath(samplesDir);
 
   if (!preferTemplate && existsSync(localPath)) {
     return {
@@ -107,9 +116,9 @@ export function resolvePartnerExportPath(
     };
   }
 
-  if (!existsSync(templatePath)) {
+  if (!templatePath) {
     throw new Error(
-      `Missing partner export template at ${templatePath}. Expected ${PARTNER_EXPORT_TEMPLATE_FILE} under data/samples/.`
+      `Missing partner export template at ${path.join(FIXTURES_DIR, PARTNER_EXPORT_TEMPLATE_FILE)}. Expected ${PARTNER_EXPORT_TEMPLATE_FILE} under src/data/fixtures/.`
     );
   }
 

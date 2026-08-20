@@ -26,18 +26,17 @@ Shell uses shadcn Sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarInse
 - **Tokens:** `--sidebar-*` (and related shadcn HSL channels) alias to sio neutrals in `globals.css` — light theme / `color-scheme: light`; do not invent a second palette.
 - **Width:** `--sidebar-width: 240px`; icon rail `--sidebar-width-icon: 3rem` (Tailwind uses `w-[var(--sidebar-width)]`).
 - **Brand:** `SioonaLogotype` + compact “S” mark in the sidebar header (no Acme `TeamSwitcher`).
-- **Nav:** Workspace — Insights, Upload, Eval, Taxonomy via `viewHref` / Phosphor + local icons; Help / Guidance disabled; `NavUser` identity in the footer (initials avatar + name / tenant id — not a menu; no Account / Billing / Notifications / Log Out).
-- **Header:** existing `AppHeader` title + mode toggle + actions; `SidebarTrigger` for desktop collapse and mobile sheet.
+- **Nav:** Workspace — Insights, Upload, Eval, Taxonomy via `viewHref` / Phosphor + local icons; Help / Guidance disabled; `NavUser` identity in the footer (initials avatar + name / email — not a menu; no Account / Billing / Notifications / Log Out).
+- **Header:** existing `AppHeader` title + mode toggle + actions; `SidebarTrigger` for desktop collapse and mobile sheet. Shadow/Action ModeToggle is one bordered track matching Notifications chrome (`border-sio-border-subtle`, `--radius-control`, `size-11` / `md:size-9`, `size-4` icons); items `border-0` with spacing 0. Selected highlight is the shared `.segmented-tabs-thumb` (`translateX` via `--seg-index` / `--seg-count`; transform/opacity only; interactive fill) plus `sio-fg-base` (unselected `sio-fg-subtle`, not a per-item border). Honor `prefers-reduced-motion` (no slide). Action locked in prod (tooltip “Action Mode is locked for now” + polite live “Action Mode is locked”); click briefly selects Action then bounces back to Shadow (compositor-only; snap under reduced-motion). Unlock via `NEXT_PUBLIC_ACTION_MODE_UNLOCKED` or local `next dev`. When unlocked, Action is a real `Link` to `/?view=insights&mode=action&status=followup` (Insights Follow-up Act queue — Suggested Next Action + Mark Acted, Neon Acted SoT). No outbound send.
 - **Out of product:** do not ship the sidebar-07 demo dashboard as the home route.
 
-## Upload (two panels)
+## Upload (one panel)
 
-Upload Chats body stays inside existing `page-frame` / `ViewFrame` — not a `/login` route and not login-04 page chrome (`min-h-svh`, centered `max-w-*`, single wrapping `Card`).
+Upload Chats body stays inside existing `page-frame` / `ViewFrame` — not a `/login` route and not login-04 page chrome (`min-h-svh`, shadcn `Card`).
 
-- **Left:** white `.panel` with `UploadForm` (file + confirm-replace + errors/sync). Copy stays Import / Chat Export. File control is a flex-1 dashed drop zone (`FileArrowUp` Bold + native `input type=file` overlay; `min-h-44`, focus-within `--focus-ring`).
-- **Right:** independent panel — `rounded-[var(--radius-panel)]` + `border-sio-border-base` + `bg-sio-bg-base` (white, same as left `.panel`) — Partner Sample Pack. Visible at every breakpoint (do not hide on mobile). No `placeholder.svg` / Acme copy.
-- **Fill:** `md:grid-cols-2` with `gap-3 sm:gap-4`; both columns `min-h-0 min-w-0 flex-1` like Taxonomy’s type panel. Page canvas stays `bg-muted`; sidebar unchanged.
-- **Footer:** cadence helper under both panels.
+- **Panel:** centered Geist `.panel` (`max-w-5xl` ≈1024px; `lg:min-h-[435px]`; full-width below) with `UploadForm`. Heading **Get started with Sioona** (`text-center` at all breakpoints; `translate="no"` on the brand). No helper subtitle under the heading. Roomy dashed drop zone (`FolderIcon` + native `input type=file` overlay labeled via drop-zone prompt; `min-h-56` + `flex-1` from `lg`; nested `--radius-control`; quiet dashed border) — not a flex-fill strip.
+- **Actions:** three hug-width actions in one row on desktop — **Upload & Detect**, **Run Partner Demo**, **Reset Demo Data…** (`flex-wrap` + `justify-center`; secondary uses `--radius-panel`; Reset uses Phosphor `ArrowClockwise`, one-click wipe with spinner — no confirm). Upload primary hugs content (not `w-full`). Wrap / stack on small screens without stretching. **Upload & Detect** ingests on first submit (no Confirm Replace / Cancel). Day-1 (`!hasPartnerExport`) still sends `replace=true`; mid-week partner export upserts without that flag. Upload error is an overlay pill (`absolute`, `rounded-full`, bold `sio-status-danger-fg` on `sio-status-danger-bg`, `aria-live`) so it does not shift the row. **Run Partner Demo** keeps Get started visible and swaps its button icon/label for `ButtonSpinner` + NDJSON step copy (`Uploading…` → `Finding signals…` → `Extracting…` — no overlay pill, no theater timers); complete opens Insights; failure shows an in-panel error with the same button as retry.
+- **Layout:** horizontally centered; optically above vertical center (`items-start` + modest `pt-*`). No Partner Sample Pack aside / samples list; no ~60% height strip. Canvas is card-only — no cadence helper under the panel.
 
 ## Concrete rules
 

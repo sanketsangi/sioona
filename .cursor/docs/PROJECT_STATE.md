@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-19  
+**Last updated:** 2026-08-20  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main`
 
@@ -15,6 +15,8 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
 
 **This week (ops, 2026-08-18):** Groww Batch-02 **rehearsal** keep-set **closed** on sioona-demo (upsert, not a live partner dump). Hosted JSON was still Groww (125 chats / 21 signals), not localhost CS `batch_001`. Batch-02 JSON upsert **`replaced=false`** (100 chats / 14 signals / sync failed=0; not copied; not `*.local.csv` / not the manifest) → `weekly_export_count` **4** → **7** Insights Correct reviews → Eval `?scoreFrom=2026-08-18T14:37:31.774Z` keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+23** (35−12). Window Corrects **Acted 7/7** (display-only). Cold-demo baseline 4 on Neon was restored to **12** before share-out. Not the closed Batch-01 n=7 / 0.86; labeled P/R is measurement only (local heuristic P 1.00 / R 0.25, 14 TP). Local CS `batch_001` replace stays a negative example (200/0). **Real weekly partner upsert skipped 2026-08-18 evening** — no unused dump on disk (Groww / CS / `partner-shaped` rehearsal and already-logged week-1 / week-2 `.local.csv` excluded; file not copied). Neon `weekly_export_count` still **4**; baseline still **12**. Remaining leftover = wait for a **real** weekly partner export, then mid-week `replaced=false`. No Auth0 / vLLM / Adapt phrases. Partner-facing leftover chrome pass (dead CTAs / shadcn→Geist / Insights demote) is **not** the keep-set win.
+
+**Local-complete (working tree, 2026-08-20) — not on origin/hosted yet:** Partner Demo wipe→`zerodha_batch_02.json` only (no Groww merge) + Insights Follow-up/Done from Neon `GET …/signals`. That closes the Groww∩demo keep-set id mismatch **locally** when FastAPI wipe succeeds. **Origin/hosted** still: cold-open Groww JSON ∩ leftover Neon Groww reviews → Eval keep-set **n=0 Insufficient Data** (data, not `/signal-score` error) until this tree deploys. Not a keep-set win / not Auth0.
 
 | Gate | Result |
 | --- | --- |
@@ -52,11 +54,11 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Auth | `X-Tenant-Id` (`tenant_demo`) | Auth0 |
 | Hosting | Vercel `sioona-demo.vercel.app` + Render `sioona-api.onrender.com` (free, sleeps) + Neon `sioona` | Render Starter / Neon Launch if sleep hurts |
 | Score SoT | FastAPI + Neon | — |
-| Queue SoT | `GET …/signals/needs-review` → `join-needs-review.ts` | — |
+| Queue SoT | Pending: `GET …/signals/needs-review`. Follow-up / Done: `GET …/signals` (`correct` ¬acted / `acted`) | — |
 
 **Unused:** Render `sioona` / `sioona.onrender.com` — **deleted** (404). Keep **`sioona-api`** `/health` ok.
 
-**Autonomy:** Shadow Mode only. Suggested actions display-only. `status: acted` never executes outbound.
+**Autonomy:** Shadow Mode default. Unlocked Action Mode = Insights Follow-up Act queue (Suggested Next Action + Mark Acted; display-only). `status: acted` never executes outbound. Prod locks Action Mode.
 
 ---
 
@@ -100,8 +102,13 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - **Local Day-1 replace logged 2026-08-18** — customer-support `batch_001.csv` `replaced=true` (200/0; sync failed=0; GT 200 lead; file not copied); Eval `?scoreFrom=2026-08-18T12:25:07.682Z` n=0 / Insufficient Data; baseline 12; lift −12; no human reviews; not Adapt / not Groww upsert
 - Insights chrome 2026-08-15 (dashboard header, Performance metrics, Mark Acted, Eval export panel)
 - Partner leftover chrome 2026-08-19 — Help/Guidance disabled; `NavUser` identity-only (no Account / Billing / Notifications / Log Out); Demo workspace; Export/Create Campaign hidden at all breakpoints; Insights first fold = ops queue + Performance metric-strip; bell exceptions-only (no queue-clear); Partner Demo on Upload; shadcn bound to `sio-*` (not keep-set)
+- Partner Demo / sample pack split 2026-08-20 — **local-complete** (working tree; not origin/hosted): cold open + Reset stay Groww `testing.json`; **Run Partner Demo** wipes Neon then loads only committed `zerodha_batch_02.json` (no Adapt, no Groww merge); `partner-shaped-labeled.csv` + `real-partner-export.template.csv` moved to fixtures (eval/CLI only, unlist from Upload pack). Hosted keep-set n=0 footgun remains until deploy.
 - Feedback stale-UUID recovery 2026-08-16 — resolve by Neon id / conversation+type; upsert+retry on 404 (hosted Correct without “not found for tenant”)
 - Acted stale-id recovery 2026-08-19 — Mark as Acted reuses feedback resolve (Neon UUID / conversation+type / `sig_neon_` stub); JSON fail-soft; neon-only `setPredictionActed` when the row is missing or unreviewed (hosted Correct → Acted without “Signal not found”)
+- Insights follow-up lists 2026-08-20 — **local-complete** (working tree; not origin/hosted): Needs Follow-Up (`correct` ¬acted) and Done (`acted`) from Neon `GET …/signals`; request-scoped chat overlay when JSON misses the conversation; Mark Acted still display-only. Not a keep-set win / not Auth0
+- Unlocked Action Mode 2026-08-20 — **local-complete**: `?mode=action` deep-links Insights Follow-up Act queue (Suggested Next Action + Mark Acted; FastAPI+Neon Acted SoT; nothing sent). Prod stays locked (ModeToggle bounce + strip `mode=action`). Unlock via local `next dev` or `NEXT_PUBLIC_ACTION_MODE_UNLOCKED`. Export/Create Campaign stay hidden. Not outbound / not Auth0
+- Insights pending landing 2026-08-20 — **local-complete**: omitted status with Follow-up empty + Pending > 0 lands `status=new` (lists Neon needs-review under the attention heading); explicit empty Follow-up stays compact + Review Pending (not a flex-1 dead panel). Not a keep-set win / not outbound
+- Mark Acted Pending return 2026-08-20 — **local-complete**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 
@@ -112,7 +119,8 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Auth0 / real tenant isolation
 - vLLM, QLoRA, LangGraph, pgvector
 - Live Intercom / WhatsApp webhooks
-- Action Mode / Export / Create Campaign (unshipped — hidden, not overflow)
+- Action Mode outbound send (unlocked Action Mode = Insights Act queue only; prod locked)
+- Export / Create Campaign (unshipped — hidden, not overflow)
 - Outcome billing, computer-use, GPU
 - Taxonomy expansion / more Adapt phrase chasing / classify-on-FastAPI / 429 retries / Groq project limits / taxonomy-on-Neon
 

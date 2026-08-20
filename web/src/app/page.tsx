@@ -8,7 +8,14 @@ import { UploadView } from "@/components/views/UploadView";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
-import { pendingQueueSignals } from "@/lib/join-needs-review";
+import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
+import {
+  followUpSignals,
+  missingConversationIds,
+  pendingQueueSignals,
+  reviewedQueueSignals,
+  reviewedSignalsFromStore,
+} from "@/lib/join-needs-review";
 import { buildHeaderNotifications } from "@/lib/notifications";
 import {
   parseLlmAddedParam,
@@ -21,7 +28,6 @@ import {
 } from "@/lib/prediction-sync";
 import {
   computePilotCadenceSteps,
-  countUnactedCorrect,
   firstUnactedCorrectId,
   hasMidWeekExport,
   hasPilotBaseline,
@@ -30,10 +36,14 @@ import {
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { readStore } from "@/lib/store";
 import {
+  isActionModeUnlocked,
+  parseMode,
   parsePage,
-  parseStatusFilter,
   parseTypeFilter,
   parseView,
+  resolveInsightsStatusFilter,
+  resolveWorkspaceMode,
+  statusQueryValue,
   type PlatformView,
 } from "@/lib/views";
 
@@ -84,11 +94,28 @@ export default async function PlatformPage({
     preview?: string;
     scoreFrom?: string;
     wipeFailed?: string;
+    mode?: string;
   }>;
 }) {
   const sp = await searchParams;
   const view = parseView(sp.view);
   const signalId = sp.signal ?? null;
+  const unlocked = isActionModeUnlocked();
+
+  // Locked prod: `?mode=action` deep-links bounce to Shadow (strip mode).
+  if (parseMode(sp.mode) === "action" && !unlocked) {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(sp)) {
+      if (key === "mode") continue;
+      if (typeof value === "string" && value !== "") {
+        params.set(key, value);
+      }
+    }
+    if (!params.has("view")) params.set("view", view);
+    redirect(`/?${params.toString()}`);
+  }
+
+  const workspaceMode = resolveWorkspaceMode(sp.mode, unlocked);
 
   // Legacy `?signal=` → in-queue expand via `?preview=`
   if (signalId) {
@@ -129,8 +156,12 @@ export default async function PlatformPage({
     ? pendingQueueSignals(needsReview.predictions, store.signals).length
     : store.signals.filter((s) => !s.feedback).length;
   const queueError = needsReview.ok ? null : needsReview.error;
+  const reviewedForCadence = tenantSignals.ok
+    ? reviewedQueueSignals(tenantSignals.rows, store.signals)
+    : reviewedSignalsFromStore(store.signals);
+  const followUp = followUpSignals(reviewedForCadence);
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
-  const cadencePreviewId = firstUnactedCorrectId(store.signals);
+  const cadencePreviewId = firstUnactedCorrectId(followUp);
   const cadenceAction = nextPilotCadenceAction(
     computePilotCadenceSteps({
       hasDay1: store.conversations.length > 0,
@@ -143,8 +174,15 @@ export default async function PlatformPage({
         store.pilot?.baselineNote
       ),
     }),
-    { unactedCorrectCount: countUnactedCorrect(store.signals) }
+    { unactedCorrectCount: followUp.length }
   );
+  const overlayChats =
+    view === "insights"
+      ? await fetchOverlayConversations(
+          store.tenant.id,
+          missingConversationIds(reviewedForCadence, store.conversations)
+        )
+      : null;
   const scoreFromQuery =
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
   const notifications = buildHeaderNotifications({
@@ -160,14 +198,44 @@ export default async function PlatformPage({
   const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
-  // Insights default: status=all + type=all (URL omits both when default)
-  const statusFilter = parseStatusFilter(sp.status);
+  // Insights landing: omitted status → Pending when Follow-up empty + pending > 0;
+  // else Shadow all / Action followup. Explicit status (Filters) always wins.
+  const statusFilter = resolveInsightsStatusFilter({
+    raw: sp.status,
+    mode: workspaceMode,
+    pendingCount,
+    followUpCount: followUp.length,
+  });
   const typeFilter = parseTypeFilter(sp.type);
   const page = parsePage(sp.page);
+
+  if (view === "insights" && !previewId) {
+    const expectedStatus = statusQueryValue(statusFilter, workspaceMode);
+    const currentStatus =
+      typeof sp.status === "string" && sp.status !== "" ? sp.status : null;
+    const statusMatches =
+      currentStatus === expectedStatus ||
+      (currentStatus === "reviewed" && expectedStatus === "followup");
+    if (!statusMatches) {
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(sp)) {
+        if (key === "status") continue;
+        if (typeof value === "string" && value !== "") {
+          params.set(key, value);
+        }
+      }
+      params.set("view", "insights");
+      if (expectedStatus != null) {
+        params.set("status", expectedStatus);
+      }
+      redirect(`/?${params.toString()}`);
+    }
+  }
 
   return (
     <AppShell
       activeView={view}
+      workspaceMode={workspaceMode}
       title={title}
       lastUploadedFileName={store.pilot?.lastUploadedFileName}
       notifications={notifications}
@@ -185,6 +253,7 @@ export default async function PlatformPage({
           backendScore={backendScore}
           needsReview={needsReview}
           tenantSignals={tenantSignals}
+          overlayChats={overlayChats}
           scoreFrom={scoreFromQuery}
           syncFailed={syncFailed}
           syncCreated={syncCreated}
@@ -192,6 +261,7 @@ export default async function PlatformPage({
           llmFailed={parseLlmFailedParam(sp.llmFailed)}
           cadenceAction={cadenceAction}
           cadencePreviewId={cadencePreviewId}
+          workspaceMode={workspaceMode}
         />
       ) : null}
       {view === "upload" ? (

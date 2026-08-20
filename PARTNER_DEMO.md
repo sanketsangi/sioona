@@ -17,7 +17,7 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
 
-Cold open and **Reset Demo** load `testing.json` (Groww). **Run Partner Demo** wipes Neon and loads `zerodha_batch_02.json`.
+Cold open and **Reset Demo** load Groww `testing.json` (~100 conversations). **Run Partner Demo** wipes this tenant on Neon, then loads only `zerodha_batch_02.json` — it does not merge Groww + Zerodha and does not apply Zerodha Adapt.
 
 ## Week-1 pilot rhythm (visible in the strip)
 
@@ -56,18 +56,18 @@ Cadence helper on Insights empty queue, Upload, and Eval — not in the header b
 
 | File | Role |
 |------|------|
-| Repo-root `testing.json` | Canonical Groww labeled corpus (eval measurement; cold open / Reset) |
-| `web/data/samples/testing.json` | Deployable Groww copy for Next/Vercel runtime |
-| `web/data/samples/zerodha_batch_02.json` | Partner Demo seed (wipe + dual-write) |
+| Repo-root `testing.json` | Canonical Groww labeled corpus (eval + cold open / Reset) |
+| `web/data/samples/testing.json` | Deployable Groww copy for Next/Vercel runtime (keep in sync with root) |
+| `web/data/samples/zerodha_batch_02.json` | Committed Zerodha Batch-02 — Partner Demo only |
 
-**Run Partner Demo** wipes Neon (fail-soft) and loads only `web/data/samples/zerodha_batch_02.json`, dual-writes predictions to FastAPI/Neon, and sets the cold-demo baseline. Cold open and **Reset Demo** still seed `testing.json` (Groww showcase).
+**Run Partner Demo** wipes Neon, then loads only `zerodha_batch_02.json`, dual-writes predictions to FastAPI/Neon, and sets the cold-demo baseline. No Zerodha Adapt on that click. **Reset Demo** returns Groww `testing.json`.
 
-Partner upload / eval lanes (not the showcase seed):
+Eval lanes (not listed on Upload; not merged into Insights):
 
 | File | Format |
 |------|--------|
-| `web/data/samples/partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` |
-| `web/data/samples/real-partner-export.template.csv` | Day-1 pilot template |
+| `web/src/data/fixtures/partner-shaped-labeled.csv` | Sioona CSV + `ground_truth` |
+| `web/src/data/fixtures/real-partner-export.template.csv` | Day-1 pilot template |
 | `web/data/samples/real-partner-export.local.csv` | Gitignored real export drop-in (week-1; default `npm run eval:partner-export`) |
 | `web/data/samples/real-partner-export.week2.local.csv` | Gitignored week-2 held-out drop-in (`--week2` / `PARTNER_EXPORT=week2`; never scores week-1 as week-2) |
 

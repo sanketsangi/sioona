@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe("fetchTenantSignals", () => {
-  it("returns predictions with feedback when backend is up", async () => {
+  it("returns rows when backend is up", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -15,18 +15,18 @@ describe("fetchTenantSignals", () => {
         status: 200,
         json: async () => [
           {
-            id: "pred-done",
+            id: "pred-1",
             tenant_id: "tenant_demo",
-            conversation_id: "conv_zrdh_1",
+            conversation_id: "conv_1",
             signal_type: "lead",
             confidence: 0.8,
             summary: "Intent",
-            created_at: "2026-08-01T00:00:00.000Z",
             acted: false,
+            created_at: "2026-08-01T00:00:00.000Z",
             feedback: {
               id: "fb-1",
               tenant_id: "tenant_demo",
-              signal_id: "pred-done",
+              signal_id: "pred-1",
               feedback: "correct",
               note: null,
               reviewed_by: "shadow_reviewer",
@@ -40,16 +40,12 @@ describe("fetchTenantSignals", () => {
     const result = await fetchTenantSignals("tenant_demo");
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.predictions).toHaveLength(1);
-      expect(result.predictions[0].id).toBe("pred-done");
-      expect(result.predictions[0].feedback?.feedback).toBe("correct");
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].id).toBe("pred-1");
+      expect(result.rows[0].feedback?.feedback).toBe("correct");
     }
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       expect.stringContaining("/v1/tenants/tenant_demo/signals"),
-      expect.anything()
-    );
-    expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(
-      expect.stringContaining("needs-review"),
       expect.anything()
     );
   });

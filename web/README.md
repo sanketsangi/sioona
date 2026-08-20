@@ -18,15 +18,15 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 - **Upload** — Sioona CSV/JSON, Intercom JSON, WhatsApp `.txt` ingest + auto-detect
 - **Eval** — labeled P/R, per-type metrics, SignalScore review precision, pilot go/no-go
 - **Taxonomy** — MVP signal definitions
-- Demo fixtures: Partner Demo seed from `zerodha_batch_02.json`; cold open / reset from `testing.json`
+- Demo fixtures: cold open / Reset from Groww `testing.json`; Partner Demo wipes Neon then loads `zerodha_batch_02.json`
 
 ## Showcase corpus
 
-- Repo-root `testing.json` — canonical Groww labeled corpus (cold open / reset)
-- `data/samples/zerodha_batch_02.json` — Partner Demo seed (wipe + dual-write)
-- `data/samples/testing.json` — deployable Groww copy used at runtime (Vercel); keep in sync with root
+- Repo-root `testing.json` — canonical labeled corpus
+- `data/samples/testing.json` — Groww Batch 02; cold open + Reset (keep in sync with repo root)
+- `data/samples/zerodha_batch_02.json` — Zerodha Batch 02; Run Partner Demo only (wipe then replace)
 - Upload still accepts partner CSV / Intercom JSON / WhatsApp `.txt`
-- Eval lanes: `partner-shaped-labeled.csv`, `real-partner-export.template.csv`
+- Eval lanes (not Upload pack): `src/data/fixtures/partner-shaped-labeled.csv`, `src/data/fixtures/real-partner-export.template.csv`
 
 ## Scripts
 

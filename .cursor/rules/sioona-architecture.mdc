@@ -19,7 +19,7 @@ Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages
 | Data | JSON `store.ts` for chats/taxonomy (UI SoT when file exists) + **Neon** for SignalScore, needs-review queue, dual-written conversations/messages, `ground_truth`, Acted, pilot settings + hydrate | Full Neon chat SoT + taxonomy + pgvector |
 | Auth | `X-Tenant-Id` header (`tenant_demo`) | Auth0 |
 
-**Signal Score + pending queue SoT:** FastAPI + Neon (`backend/`). Insights pending: `GET …/needs-review` → `join-needs-review.ts`. JSON `reviewPrecision` is a legacy mirror when the backend is unreachable.
+**Signal Score + pending queue SoT:** FastAPI + Neon (`backend/`). Insights pending: `GET …/needs-review` → `join-needs-review.ts`. Follow-up / Done: `GET …/signals` (correct ¬acted / acted). JSON `reviewPrecision` is a legacy mirror when the backend is unreachable.
 
 ## Layout
 
@@ -49,4 +49,5 @@ Path alias: `@/*` → `./src/*` (web).
 - Data pages: `export const dynamic = "force-dynamic"`
 - Detect/ingest dual-write predictions to FastAPI (`backendSignalId` on signals; upsert on tenant+conversation+type; multi-retry + short backoff + `predictionSync` stats)
 - Insights pending queue: `fetchNeedsReview` → join via `join-needs-review.ts` (not JSON `status===new` as SoT)
+- Insights Follow-up / Done: `fetchTenantSignals` → join (`correct` ¬acted / `acted`); overlay Neon chats when JSON misses the row
 - Feedback proxies to FastAPI (`correct` / `incorrect` / `partially_correct`) and mirrors into JSON for reviewed filter / detail

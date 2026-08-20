@@ -184,6 +184,29 @@ describe("syncPredictionsToBackend", () => {
     expect(sync.created).toBe(3);
   });
 
+  it("reports 0 then per-signal counts as rows settle", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(okResponse()));
+    const ticks: Array<{ done: number; total: number }> = [];
+
+    await syncPredictionsToBackend(
+      [
+        { ...baseSignal, id: "a" },
+        { ...baseSignal, id: "b" },
+        { ...baseSignal, id: "c" },
+      ],
+      "tenant_demo",
+      {
+        onProgress: (done, total) => {
+          ticks.push({ done, total });
+        },
+      }
+    );
+
+    expect(ticks[0]).toEqual({ done: 0, total: 3 });
+    expect(ticks.at(-1)).toEqual({ done: 3, total: 3 });
+    expect(ticks.map((tick) => tick.done)).toEqual([0, 1, 2, 3]);
+  });
+
   it("leaves signal unchanged and counts one failure after all retries", async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
     vi.stubGlobal("fetch", fetchMock);

@@ -274,19 +274,25 @@ export function detectSignalsForConversation(
   }));
 }
 
-export function runDetection(
-  conversations: Conversation[],
-  messages: Message[],
-  tenantId: string,
-  overrides?: TaxonomyOverrides | null
-): Signal[] {
+function messagesByConversation(
+  messages: Message[]
+): Map<string, Message[]> {
   const byConversation = new Map<string, Message[]>();
   for (const message of messages) {
     const list = byConversation.get(message.conversationId) ?? [];
     list.push(message);
     byConversation.set(message.conversationId, list);
   }
+  return byConversation;
+}
 
+export function runDetection(
+  conversations: Conversation[],
+  messages: Message[],
+  tenantId: string,
+  overrides?: TaxonomyOverrides | null
+): Signal[] {
+  const byConversation = messagesByConversation(messages);
   return conversations.flatMap((conversation) =>
     detectSignalsForConversation(
       conversation,
@@ -295,4 +301,32 @@ export function runDetection(
       overrides
     )
   );
+}
+
+/** Same as runDetection, reporting real per-chat ticks (0 then 1…N). */
+export async function runDetectionWithProgress(
+  conversations: Conversation[],
+  messages: Message[],
+  tenantId: string,
+  overrides: TaxonomyOverrides | null | undefined,
+  onProgress: (done: number, total: number) => void | Promise<void>
+): Promise<Signal[]> {
+  const byConversation = messagesByConversation(messages);
+  const total = conversations.length;
+  await onProgress(0, total);
+  const signals: Signal[] = [];
+  for (let i = 0; i < conversations.length; i++) {
+    const conversation = conversations[i];
+    if (!conversation) continue;
+    signals.push(
+      ...detectSignalsForConversation(
+        conversation,
+        byConversation.get(conversation.id) ?? [],
+        tenantId,
+        overrides
+      )
+    );
+    await onProgress(i + 1, total);
+  }
+  return signals;
 }

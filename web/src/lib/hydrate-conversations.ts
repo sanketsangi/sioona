@@ -212,6 +212,57 @@ export async function fetchHydrateConversations(
   }
 }
 
+/** Keep only the conversation ids Insights still needs for the review panel. */
+export function filterHydratedChats(
+  chats: HydratedChats,
+  keepConversationIds: string[]
+): HydratedChats {
+  const keep = new Set(keepConversationIds.filter(Boolean));
+  const conversations = chats.conversations.filter((row) => keep.has(row.id));
+  const kept = new Set(conversations.map((row) => row.id));
+  const messages = chats.messages.filter((message) =>
+    kept.has(message.conversationId)
+  );
+  return { conversations, messages };
+}
+
+/**
+ * Request-scoped chat overlay for Follow-Up / Done when JSON misses the row.
+ * Does not write the store (avoids mixing leftover Neon packs into JSON).
+ */
+export async function fetchOverlayConversations(
+  tenantId: string,
+  keepConversationIds: string[]
+): Promise<HydratedChats | null> {
+  if (keepConversationIds.length === 0) return null;
+  const all = await fetchHydrateConversations(tenantId);
+  if (!all) return null;
+  const filtered = filterHydratedChats(all, keepConversationIds);
+  if (filtered.conversations.length === 0) return null;
+  return filtered;
+}
+
+/** Merge overlay chats under existing store rows (store wins on id). */
+export function mergeOverlayChats(
+  conversations: Conversation[],
+  messages: Message[],
+  overlay: HydratedChats | null
+): HydratedChats {
+  if (!overlay) return { conversations, messages };
+  const haveConv = new Set(conversations.map((row) => row.id));
+  const haveMsg = new Set(messages.map((row) => row.id));
+  return {
+    conversations: [
+      ...conversations,
+      ...overlay.conversations.filter((row) => !haveConv.has(row.id)),
+    ],
+    messages: [
+      ...messages,
+      ...overlay.messages.filter((row) => !haveMsg.has(row.id)),
+    ],
+  };
+}
+
 /**
  * Build a JSON store from Neon chats, re-detect, dual-write predictions, persist.
  * Returns null when Neon has no rows or is unreachable.

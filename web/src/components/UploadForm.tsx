@@ -2,16 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { FolderIcon } from "@/components/icons/FolderIcon";
+import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
+import { PartnerDemoButton } from "@/components/PartnerDemoButton";
+import { ResetDemoButton } from "@/components/ResetDemoButton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  llmQueryExtras,
-  parseLlmPassStats,
-} from "@/lib/detect-llm-query";
+import { llmQueryExtras, parseLlmPassStats } from "@/lib/detect-llm-query";
 import {
   hasSyncFailures,
   parsePredictionSync,
@@ -35,35 +35,28 @@ export function UploadForm({
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const submitRef = useRef<HTMLButtonElement>(null);
-  const confirmRef = useRef<HTMLButtonElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [demoError, setDemoError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => {
-    if (confirming) confirmRef.current?.focus();
-  }, [confirming]);
+  const onDemoErrorChange = useCallback((message: string | null) => {
+    setDemoError(message);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
-      setConfirming(false);
       fileRef.current?.focus();
-      return;
-    }
-    if (!hasPartnerExport && !confirming) {
-      setError(null);
-      setConfirming(true);
       return;
     }
     setLoading(true);
     setError(null);
+    setDemoError(null);
     setStatus(null);
     setHint(null);
     setSyncWarning(null);
@@ -91,14 +84,14 @@ export function UploadForm({
 
       if (syncFailed && sync) {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — Neon sync incomplete`
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — Neon sync incomplete`,
         );
         setSyncWarning(
-          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights.`
+          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights.`,
         );
       } else {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights…`
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights…`,
         );
       }
       if (data.hint) setHint(data.hint);
@@ -117,7 +110,6 @@ export function UploadForm({
       setTimeout(() => router.push(`/?${query.toString()}`), 900);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
-      setConfirming(false);
     } finally {
       setLoading(false);
     }
@@ -126,27 +118,34 @@ export function UploadForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex h-full min-h-0 flex-col gap-6 p-4 sm:p-5 lg:p-6"
+      className="flex h-full min-h-0 flex-col gap-5 px-4 py-6 sm:gap-6 sm:px-5 sm:py-8 lg:px-6 lg:py-10"
     >
-      <div className="flex shrink-0 flex-col gap-2">
-        <p className="eyebrow">Import</p>
-        <Label
-          htmlFor="chat-export"
-          className="text-heading-16 font-medium text-sio-fg-base"
+      <div className="flex shrink-0 flex-col items-center gap-4 text-center">
+        <div
+          className="flex size-[60px] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base"
+          aria-hidden
         >
-          Chat Export
-        </Label>
-        <p className="text-copy-14 text-balance text-sio-fg-subtle">
-          CSV, JSON, or WhatsApp .txt. Best results: support chats with lead,
-          churn, or upgrade language.
-        </p>
+          <HexCubeIcon variant="large" className="size-[58px] shrink-0" />
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="text-balance text-center text-heading-20 text-sio-fg-base">
+            Get started with <span translate="no">Sioona</span>
+          </h2>
+          <p className="text-center text-copy-14 text-sio-fg-base">
+            Upload a chat export to detect signals you can review in{" "}
+            <span translate="no">Sioona</span> Insights.
+          </p>
+        </div>
       </div>
 
-      <div className="relative flex min-h-44 flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-panel)] border border-dashed border-sio-border-base bg-sio-bg-muted/60 px-4 py-8 text-center touch-manipulation hover:bg-sio-bg-interactive focus-within:shadow-[var(--focus-ring)]">
+      <div className="relative flex min-h-56 flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-control)] border border-dashed border-sio-border-subtle bg-sio-bg-muted/60 px-4 py-10 text-center touch-manipulation hover:bg-sio-bg-interactive focus-within:shadow-[var(--focus-ring)]">
         <FolderIcon className="size-16 shrink-0 text-sio-fg-subtle" />
-        <p className="text-copy-14 text-sio-fg-base">
+        <Label
+          htmlFor="chat-export"
+          className="cursor-pointer text-copy-14 font-normal text-sio-fg-base"
+        >
           {file ? "File selected" : "Choose a file or drop it here"}
-        </p>
+        </Label>
         <p
           className="max-w-full truncate text-label-13 text-sio-fg-subtle"
           translate={file ? "no" : undefined}
@@ -161,48 +160,17 @@ export function UploadForm({
           accept={FILE_ACCEPT}
           aria-invalid={error ? true : undefined}
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="absolute inset-0 z-10 h-full min-h-full w-full cursor-pointer rounded-[var(--radius-panel)] border-0 bg-transparent p-0 opacity-0 file:hidden focus-visible:border-0 focus-visible:ring-0"
+          className="absolute inset-0 z-10 h-full min-h-full w-full cursor-pointer rounded-[var(--radius-control)] border-0 bg-transparent p-0 opacity-0 file:hidden focus-visible:border-0 focus-visible:ring-0"
         />
       </div>
 
       <div className="flex shrink-0 flex-col gap-3">
-        {confirming && !hasPartnerExport ? (
-          <div className="flex flex-col gap-3">
-            <p className="text-copy-14 text-sio-fg-base" role="status">
-              Replace current chats with this file. Later re-uploads update
-              matching conversations.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                ref={confirmRef}
-                type="submit"
-                disabled={loading}
-                aria-busy={loading}
-                className="btn-primary"
-              >
-                {loading ? <ButtonSpinner /> : null}
-                Confirm Replace
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirming(false);
-                  submitRef.current?.focus();
-                }}
-                disabled={loading}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
+        <div className="relative flex flex-wrap items-center justify-center gap-2">
           <button
-            ref={submitRef}
             type="submit"
             disabled={loading}
             aria-busy={loading}
-            className="btn-primary"
+            className="btn-primary rounded-[var(--radius-panel)]"
           >
             {loading ? (
               <ButtonSpinner />
@@ -211,9 +179,36 @@ export function UploadForm({
             )}
             Upload & Detect
           </button>
-        )}
+          <PartnerDemoButton
+            label="Run Partner Demo"
+            className="btn-secondary rounded-[var(--radius-panel)]"
+            onErrorChange={onDemoErrorChange}
+          />
+          <ResetDemoButton />
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-full z-20 mb-2 flex justify-center"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {error ? (
+              <p
+                role="alert"
+                className="max-w-[min(100%,20rem)] rounded-full bg-sio-status-danger-bg px-3 py-1 text-center text-copy-14 font-bold text-pretty text-sio-status-danger-fg"
+              >
+                {error}. Check the file format and try again.
+              </p>
+            ) : null}
+          </div>
+        </div>
+        {demoError ? (
+          <div className="status-banner status-banner-warning" role="alert">
+            <p className="text-copy-14 text-sio-fg-base" aria-live="polite">
+              {demoError}. Try Run Partner Demo again.
+            </p>
+          </div>
+        ) : null}
         <div className="sr-only" aria-live="polite">
-          {loading ? "Uploading…" : status ?? ""}
+          {loading ? "Uploading…" : (status ?? "")}
         </div>
         {status ? (
           <p
@@ -239,11 +234,6 @@ export function UploadForm({
               for sample support chats that already score.
             </p>
           </div>
-        ) : null}
-        {error ? (
-          <p className="text-copy-14 text-sio-status-danger-fg" role="alert">
-            {error}. Check the file format and try again.
-          </p>
         ) : null}
       </div>
     </form>

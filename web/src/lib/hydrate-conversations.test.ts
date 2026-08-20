@@ -8,7 +8,10 @@ import {
   applyConversationGroundTruthToSignals,
   applyNeonFeedbackToSignals,
   fetchHydrateConversations,
+  fetchOverlayConversations,
+  filterHydratedChats,
   mapBackendConversationsToStore,
+  mergeOverlayChats,
   tryHydrateStoreFromNeon,
 } from "./hydrate-conversations";
 import * as backendClient from "./backend-client";
@@ -699,5 +702,96 @@ describe("tryHydrateStoreFromNeon", () => {
     await expect(tryHydrateStoreFromNeon()).resolves.toBeNull();
     expect(writeSpy).not.toHaveBeenCalled();
     expect(detectSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("overlay chats (request-scoped)", () => {
+  it("filters hydrated chats to the missing conversation ids", () => {
+    const chats = mapBackendConversationsToStore(
+      [
+        partnerRow(),
+        partnerRow({
+          conversation_id: "conv_other",
+          messages: [
+            {
+              id: "22222222-2222-3333-4444-555555555555",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_other",
+              message_id: "msg_other",
+              role: "customer",
+              content: "Hello",
+              timestamp: "2026-08-01T10:00:00.000Z",
+              created_at: "2026-08-01T10:00:00.000Z",
+            },
+          ],
+        }),
+      ],
+      "tenant_demo"
+    );
+    const filtered = filterHydratedChats(chats, ["conv_partner_upload_1"]);
+    expect(filtered.conversations.map((c) => c.id)).toEqual([
+      "conv_partner_upload_1",
+    ]);
+    expect(
+      filtered.messages.every(
+        (m) => m.conversationId === "conv_partner_upload_1"
+      )
+    ).toBe(true);
+  });
+
+  it("merges overlay under store rows without replacing ids", () => {
+    const storeConv = {
+      id: "conv_keep",
+      tenantId: "tenant_demo",
+      channel: "whatsapp",
+      startedAt: "2026-08-01T00:00:00.000Z",
+      messageIds: ["msg_keep"],
+    };
+    const merged = mergeOverlayChats(
+      [storeConv],
+      [
+        {
+          id: "msg_keep",
+          conversationId: "conv_keep",
+          role: "customer",
+          content: "Keep",
+          timestamp: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+      {
+        conversations: [
+          { ...storeConv, customerName: "Should not win" },
+          {
+            id: "conv_new",
+            tenantId: "tenant_demo",
+            channel: "whatsapp",
+            startedAt: "2026-08-01T00:00:00.000Z",
+            messageIds: ["msg_new"],
+          },
+        ],
+        messages: [
+          {
+            id: "msg_new",
+            conversationId: "conv_new",
+            role: "customer",
+            content: "Overlay",
+            timestamp: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+      }
+    );
+    expect(merged.conversations.map((c) => c.id)).toEqual([
+      "conv_keep",
+      "conv_new",
+    ]);
+    expect(merged.conversations[0].customerName).toBeUndefined();
+  });
+
+  it("fetchOverlayConversations returns null when keep set is empty", async () => {
+    const spy = vi.spyOn(backendClient, "getConversations");
+    await expect(
+      fetchOverlayConversations("tenant_demo", [])
+    ).resolves.toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 });
