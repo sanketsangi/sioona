@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-08-19
+**Last updated:** 2026-08-20
 
 ---
 
@@ -32,7 +32,8 @@ Partner export / Partner Demo
 | Concern                                          | Source of truth                                            |
 | ------------------------------------------------ | ---------------------------------------------------------- |
 | Chats + taxonomy overrides (UI when file exists) | JSON `store.ts`                                            |
-| Pending Insights queue                           | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
+| Pending Insights queue (Follow-up)               | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
+| Done Insights tree (reviewed / Acted)            | Neon `GET …/signals` → `fetch-tenant-signals.ts` + `doneQueueSignals` (JSON keep-set join; leftover other-pack Neon reviews omitted) |
 | Signal Score / keep-set reviews                  | FastAPI + Neon (`reviewed_at` week window)                 |
 | Taxonomy base phrases                            | `web/src/lib/taxonomy.ts` (never Neon)                     |
 | Auth                                             | Soft header `X-Tenant-Id` (`tenant_demo`) — not Auth0      |

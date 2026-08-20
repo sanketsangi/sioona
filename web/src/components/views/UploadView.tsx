@@ -13,9 +13,14 @@ import {
 
 const samples = [
   {
+    file: "zerodha_batch_02.json",
+    label: "Zerodha Batch 02",
+    use: "100 labeled Zerodha chats — Run Partner Demo (wipe + dual-write)",
+  },
+  {
     file: "testing.json",
     label: "Groww Batch 02",
-    use: "100 labeled Groww chats — cold open + Run Partner Demo",
+    use: "100 labeled Groww chats — cold open + Reset Demo",
   },
   {
     file: "partner-shaped-labeled.csv",
@@ -51,19 +56,15 @@ export function UploadView({
             No export yet?
           </h2>
           <p className="mt-2 shrink-0 text-copy-14 text-sio-fg-subtle">
-            Showcase corpus is Groww batch 02 (
+            Partner Demo wipes Neon then loads{" "}
             <code className="font-mono text-sio-signal-lead-fg" translate="no">
-              Groww_batch_02
+              zerodha_batch_02.json
             </code>
-            , stored as{" "}
+            . Cold open and Reset Demo still seed Groww{" "}
             <code className="font-mono text-sio-signal-lead-fg" translate="no">
               testing.json
-            </code>{" "}
-            under{" "}
-            <code className="font-mono text-sio-signal-lead-fg" translate="no">
-              web/data/samples/
             </code>
-            ). Or upload a partner CSV / Intercom JSON / WhatsApp{" "}
+            . Or upload a partner CSV / Intercom JSON / WhatsApp{" "}
             <span translate="no">.txt</span>. First partner upload replaces the
             showcase. Mid-week: re-upload updates matching chats.
           </p>

@@ -6,6 +6,7 @@ import { InsightsView } from "@/components/views/InsightsView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { UploadView } from "@/components/views/UploadView";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
+import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { pendingQueueSignals } from "@/lib/join-needs-review";
 import { buildHeaderNotifications } from "@/lib/notifications";
@@ -115,13 +116,15 @@ export default async function PlatformPage({
   });
   const scoreDateFrom = scoreWindow.resolvedFrom;
 
-  const [backendScore, allTimeScore, needsReview] = await Promise.all([
-    fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
-      dateFrom: scoreDateFrom,
-    }),
-    fetchSignalScoreSafe(store.tenant.id, keepSetIds),
-    fetchNeedsReview(store.tenant.id),
-  ]);
+  const [backendScore, allTimeScore, needsReview, tenantSignals] =
+    await Promise.all([
+      fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
+        dateFrom: scoreDateFrom,
+      }),
+      fetchSignalScoreSafe(store.tenant.id, keepSetIds),
+      fetchNeedsReview(store.tenant.id),
+      fetchTenantSignals(store.tenant.id),
+    ]);
   const pendingCount = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals).length
     : store.signals.filter((s) => !s.feedback).length;
@@ -181,6 +184,7 @@ export default async function PlatformPage({
           previewId={previewId}
           backendScore={backendScore}
           needsReview={needsReview}
+          tenantSignals={tenantSignals}
           scoreFrom={scoreFromQuery}
           syncFailed={syncFailed}
           syncCreated={syncCreated}

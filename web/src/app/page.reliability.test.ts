@@ -30,12 +30,17 @@ vi.mock("@/lib/fetch-needs-review", () => ({
   fetchNeedsReview: vi.fn(),
 }));
 
+vi.mock("@/lib/fetch-tenant-signals", () => ({
+  fetchTenantSignals: vi.fn(),
+}));
+
 vi.mock("@/lib/fetch-signal-score", () => ({
   fetchSignalScoreSafe: vi.fn(),
 }));
 
 import PlatformPage from "./page";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
+import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { readStore } from "@/lib/store";
 
@@ -110,6 +115,10 @@ describe("PlatformPage deploy reliability", () => {
   beforeEach(() => {
     vi.mocked(readStore).mockResolvedValue(mockStore());
     vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: false,
+      error: "ECONNREFUSED",
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({
       ok: false,
       error: "ECONNREFUSED",
     });
