@@ -1,8 +1,8 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-20  
+**Last updated:** 2026-08-21  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main`
+**Branch:** `main` (= `origin/main` @ `06057fa` / #51)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -14,7 +14,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
 
-**Hosted now (2026-08-20):** Partner Demo **deployed + run** on sioona-demo — breadcrumb `Zerodha_batch_02`; Neon signals `conv_zrdh_*` (**14** needs-review, **0** reviews); tenant-wide SignalScore **reviewed_count=0**; Eval keep-set **Insufficient Data** = empty review window (not Groww∩demo id mismatch). Pilot row recreated at Partner Demo time with cold-demo baseline **4** / `weekly_export_count` null. **Next (ops):** restore Eval baseline **12** (Partner Demo now preserves a prior partner baseline after wipe) → human Insights Correct reviews on the 14 Zerodha pendings (≥5 in window) → log keep-set `?scoreFrom=` for this wipe. **Still blocked:** real weekly partner export (no unused dump). Not Auth0 / not Adapt phrases.
+**Hosted now (2026-08-21):** Local `main` fast-forwarded to **#51** (`06057fa`). DEPLOY.md 7-step smoke **green** (health ok; Insights **307→200** `status=new`; Upload/Eval **200**; legacy redirect ok; needs-review **14** `conv_zrdh_*`; SignalScore `reviewed_count=0`). Re-ran Partner Demo wipe on sioona-demo — **100** chats / **14** signals / sync failed=0; breadcrumb `Zerodha_batch_02`; **#51 baseline preserve** kept Neon baseline **12** (Lift **+2**). Eval `?scoreFrom=2026-08-20T23:44:44.000Z` keep-set **n=0 / Insufficient Data** = **empty review window** (0 human reviews) — **not** Groww∩JSON id mismatch (Groww footgun closed). **Next (ops):** ≥5 Insights Correct on the 14 Zerodha pendings → log keep-set go for this wipe. **Still blocked:** real weekly partner export (no unused dump; mid-week `replaced=false` only with a real dump). Not Auth0 / not Adapt phrases.
 
 **This week (ops, 2026-08-18):** Groww Batch-02 **rehearsal** keep-set **closed** on sioona-demo (upsert, not a live partner dump). Batch-02 JSON upsert **`replaced=false`** (100/14; sync failed=0) → `weekly_export_count` **4** → keep-set **n=7 / 1.00 → go**; baseline **12**; lift **+23**. **Real weekly partner upsert skipped 2026-08-18 evening**. Local CS `batch_001` replace stays a negative example (200/0).
 
@@ -29,10 +29,11 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Batch-02 rehearsal keep-set (sioona-demo) | **logged 2026-08-18** — n=7 / correct=7 / incorrect=0 / **1.00 → go**; baseline **12**; lift **+23** (35−12). Pack: Groww Batch-02 JSON upsert `replaced=false` (100/14; sync failed=0); `weekly_export_count` **4**; `?scoreFrom=2026-08-18T14:37:31.774Z`. **Acted 7/7** window Corrects (display-only). Rehearsal, not a live partner dump. Not the closed Batch-01 n=7 / 0.86 |
 | Real weekly partner export (sioona-demo) | **skipped 2026-08-18 evening** — no unused real dump on disk. Did not ingest Groww / CS / `partner-shaped` / week-1 / week-2 `.local.csv`. Hosted `weekly_export_count` **4**; baseline **12**; last keep-set remains Batch-02 n=7 / 1.00. Not a Day-1 replace |
 | Local Day-1 replace (batch_001) | **logged 2026-08-18** — customer-support `batch_001.csv` replace `replaced=true` (200 chats / 0 signals / sync failed=0; GT 200 lead; file not copied). Eval `?scoreFrom=2026-08-18T12:25:07.682Z` → n=0 / **Insufficient Data**; baseline **12**; lift **−12**. Reviews still human — not labeled go. Not Groww upsert |
-| Hosted Partner Demo Zerodha (sioona-demo) | **verified 2026-08-20** — wipe+seed live; `last_uploaded_file_name=Zerodha_batch_02`; needs-review **14**; reviews **0** → keep-set Insufficient Data (empty window). Neon + store baseline restored to **12**. Next = human Insights reviews on the 14 Zerodha pendings |
+| Hosted Partner Demo Zerodha (sioona-demo) | **re-verified 2026-08-21** (#51) — wipe+seed; `Zerodha_batch_02`; needs-review **14**; reviews **0**; baseline **12** preserved across wipe; Lift **+2**. Keep-set **n=0 Insufficient Data** = empty window only (Groww∩JSON mismatch closed). Next = human Insights reviews |
 | Week-1 labeled Adapt CLI | P **1.00** / R **1.00** (23 labeled) — pack only; **not** a customer claim |
 | Week-2 held-out Adapt CLI | P **0.89** / R **0.55** (34 labeled) — not week-1 1.00 |
 | Deploy gate (2026-08-19) | web **331** / backend **56** pass; hosted 7-step smoke **all green** (Insights/Upload/Eval **200**); tenant-wide SignalScore **n=13**; keep-set Eval **n=0 → Insufficient Data** = Partner Demo JSON ids ∩ Neon Groww ids (**data**, not `/signal-score` error); **007** applied; `/pilot` **200** + `last_uploaded_file_name` |
+| Deploy gate (2026-08-21 / #51) | local = origin `06057fa`; hosted 7-step smoke **green** (Insights raw **307** → follow **200** `status=new`); Partner Demo wipe ok; keep-set **n=0** = empty window (**not** Groww∩JSON); baseline **12** / Lift **+2**. Not a keep-set go |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
 
 **Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
@@ -117,6 +118,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Insights pending landing 2026-08-20 — **shipped**: omitted status with Follow-up empty + Pending > 0 lands `status=new`; explicit empty Follow-up stays compact + Review Pending. Not a keep-set win / not outbound
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
+- Deploy gate **logged 2026-08-21** (#51) — local = origin; hosted smoke green; Partner Demo wipe re-run; keep-set n=0 = empty window only (Groww∩JSON closed); baseline 12 / Lift +2 preserved across wipe
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 
 ---
