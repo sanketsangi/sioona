@@ -32,6 +32,7 @@ vi.mock("@/components/views/TaxonomyView", () => ({
 
 vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
+  writeStore: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/fetch-needs-review", () => ({
@@ -48,6 +49,10 @@ vi.mock("@/lib/fetch-signal-score", () => ({
 
 vi.mock("@/lib/hydrate-conversations", () => ({
   fetchOverlayConversations: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("@/lib/sync-pilot", () => ({
+  refreshStorePilotFromNeon: vi.fn(async (store: StoreData) => store),
 }));
 
 vi.mock("@/lib/views", async () => {

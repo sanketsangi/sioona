@@ -34,7 +34,8 @@ import {
   nextPilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
-import { readStore } from "@/lib/store";
+import { readStore, writeStore } from "@/lib/store";
+import { refreshStorePilotFromNeon } from "@/lib/sync-pilot";
 import {
   isActionModeUnlocked,
   parseMode,
@@ -132,27 +133,31 @@ export default async function PlatformPage({
   }
 
   const previewId = sp.preview ?? null;
-  const store = await readStore();
+  const storeRaw = await readStore();
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
   const wipeFailed = sp.wipeFailed === "1";
-  const keepSetIds = store.conversations.map((c) => c.id);
+  const keepSetIds = storeRaw.conversations.map((c) => c.id);
   const scoreWindow = inspectSignalScoreWindow({
     scoreFrom: sp.scoreFrom,
     envFrom: process.env.SIGNAL_SCORE_FROM,
   });
   const scoreDateFrom = scoreWindow.resolvedFrom;
 
-  const [backendScore, allTimeScore, needsReview, tenantSignals] =
+  const [store, backendScore, allTimeScore, needsReview, tenantSignals] =
     await Promise.all([
-      fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
+      refreshStorePilotFromNeon(storeRaw),
+      fetchSignalScoreSafe(storeRaw.tenant.id, keepSetIds, {
         dateFrom: scoreDateFrom,
       }),
-      fetchSignalScoreSafe(store.tenant.id, keepSetIds),
-      fetchNeedsReview(store.tenant.id),
-      fetchTenantSignals(store.tenant.id),
+      fetchSignalScoreSafe(storeRaw.tenant.id, keepSetIds),
+      fetchNeedsReview(storeRaw.tenant.id),
+      fetchTenantSignals(storeRaw.tenant.id),
     ]);
-  const pendingCount = needsReview.ok
+  if (store !== storeRaw) {
+    // Heal this instance's ephemeral JSON so lift/breadcrumb match Neon SoT.
+    await writeStore(store);
+  }  const pendingCount = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals).length
     : store.signals.filter((s) => !s.feedback).length;
   const queueError = needsReview.ok ? null : needsReview.error;
