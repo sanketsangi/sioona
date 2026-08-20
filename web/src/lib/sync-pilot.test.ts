@@ -150,3 +150,51 @@ describe("setPilotBaseline", () => {
     expect(after.pilot?.baselineNote).toBe("local only");
   });
 });
+
+describe("overlayPilotFromRemote", () => {
+  it("replaces stale JSON baseline with Neon partner baseline", async () => {
+    const { overlayPilotFromRemote } = await import("./sync-pilot");
+    const store = await readStore();
+    store.pilot = {
+      baselineOpportunities: 4,
+      baselineNote: "Cold-demo estimate",
+      lastUploadedFileName: "Zerodha_batch_02",
+      updatedAt: "2026-08-20T00:00:00.000Z",
+    };
+    const next = overlayPilotFromRemote(store, {
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: "partner agreed",
+      weekly_export_count: null,
+      last_uploaded_file_name: "Zerodha_batch_02",
+      created_at: "2026-08-20T00:00:00.000Z",
+      updated_at: "2026-08-20T22:00:00.000Z",
+    });
+    expect(next).not.toBe(store);
+    expect(next.pilot?.baselineOpportunities).toBe(12);
+    expect(next.pilot?.baselineNote).toBe("partner agreed");
+    expect(next.pilot?.lastUploadedFileName).toBe("Zerodha_batch_02");
+  });
+
+  it("returns the same store when Neon matches JSON", async () => {
+    const { overlayPilotFromRemote } = await import("./sync-pilot");
+    const store = await readStore();
+    store.pilot = {
+      baselineOpportunities: 12,
+      baselineNote: "partner agreed",
+      updatedAt: "2026-08-20T22:00:00.000Z",
+    };
+    const next = overlayPilotFromRemote(store, {
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: "partner agreed",
+      weekly_export_count: null,
+      last_uploaded_file_name: null,
+      created_at: "2026-08-20T00:00:00.000Z",
+      updated_at: "2026-08-20T22:00:00.000Z",
+    });
+    expect(next).toBe(store);
+  });
+});

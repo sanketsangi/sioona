@@ -17,7 +17,7 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
 
-Cold open and **Reset Demo** load Groww `testing.json` (~100 conversations). **Run Partner Demo** wipes this tenant on Neon, then loads only `zerodha_batch_02.json` — it does not merge Groww + Zerodha and does not apply Zerodha Adapt.
+Cold open and **Reset Demo** load Groww `testing.json` (~100 conversations). **Run Partner Demo** wipes this tenant on Neon, then loads only `zerodha_batch_02.json` — it does not merge Groww + Zerodha and does not apply Zerodha Adapt. Cold first run sets baseline **4**; a prior **partner** baseline on Neon (e.g. share-out **12**) is restored after wipe so lift does not regress to cold-demo. `weekly_export_count` still resets.
 
 ## Week-1 pilot rhythm (visible in the strip)
 

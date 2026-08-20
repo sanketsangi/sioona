@@ -181,4 +181,74 @@ describe("runPartnerDemo", () => {
     expect(hasExternalId(restored, ZERODHA_BATCH02_EXTERNAL_ID)).toBe(false);
     expect(restored.taxonomyOverrides).toEqual({});
   });
+
+  it("restores a partner baseline after wipe instead of forcing cold-demo 4", async () => {
+    vi.spyOn(backendClient, "wipeTenantData").mockResolvedValue({
+      conversations: 1,
+      messages: 1,
+      predictions: 1,
+      feedback: 1,
+      pilot_settings: 1,
+    });
+    vi.spyOn(backendClient, "getPilotSettings")
+      .mockResolvedValueOnce({
+        id: "pilot-1",
+        tenant_id: "tenant_demo",
+        baseline_opportunities: 12,
+        baseline_note: "partner agreed",
+        weekly_export_count: 4,
+        last_uploaded_file_name: "Groww_batch_02",
+        created_at: "2026-08-18T00:00:00.000Z",
+        updated_at: "2026-08-18T00:00:00.000Z",
+      })
+      // Post-wipe syncs: no remote pilot (or cold seed already written).
+      .mockResolvedValue(null);
+    const putPilotSpy = vi.spyOn(backendClient, "putPilotSettings");
+
+    const result = await runPartnerDemo();
+
+    expect(result.baselineOpportunities).toBe(12);
+    expect(result.store.pilot?.baselineOpportunities).toBe(12);
+    expect(result.store.pilot?.baselineNote).toBe("partner agreed");
+    expect(result.store.pilot?.weeklyExportCount).toBeUndefined();
+    expect(result.store.pilot?.lastUploadedFileName).toBe(
+      ZERODHA_BATCH02_SAMPLE_NAME
+    );
+    expect(result.opportunityLift).toBe(
+      new Set(result.store.signals.map((s) => s.conversationId)).size - 12
+    );
+    expect(putPilotSpy).toHaveBeenCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        baseline_opportunities: 12,
+        baseline_note: "partner agreed",
+        last_uploaded_file_name: ZERODHA_BATCH02_SAMPLE_NAME,
+      })
+    );
+  });
+
+  it("keeps cold-demo baseline when Neon pilot is still the cold-demo pair", async () => {
+    vi.spyOn(backendClient, "wipeTenantData").mockResolvedValue({
+      conversations: 0,
+      messages: 0,
+      predictions: 0,
+      feedback: 0,
+      pilot_settings: 0,
+    });
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-cold",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 4,
+      baseline_note:
+        "Cold-demo estimate: what a busy desk typically flags without Shadow Mode. Replace with the partner’s real count on Eval.",
+      weekly_export_count: null,
+      last_uploaded_file_name: "Zerodha_batch_02",
+      created_at: "2026-08-20T00:00:00.000Z",
+      updated_at: "2026-08-20T00:00:00.000Z",
+    });
+
+    const result = await runPartnerDemo();
+    expect(result.baselineOpportunities).toBe(4);
+    expect(result.store.pilot?.baselineOpportunities).toBe(4);
+  });
 });
