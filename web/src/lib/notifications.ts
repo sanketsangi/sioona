@@ -12,10 +12,13 @@ export type HeaderNotification = {
   sticky?: boolean;
 };
 
-export const QUEUE_UNAVAILABLE_TITLE =
-  "Neon needs-review queue unavailable";
+export const QUEUE_UNAVAILABLE_TITLE = "Review queue unavailable";
 export const QUEUE_UNAVAILABLE_DESCRIPTION =
-  "Showing local keep-set signals. Start FastAPI to load needs-review from Neon.";
+  "Showing saved signals. Refresh in a moment to load the live review queue.";
+
+export const SCORE_UNAVAILABLE_TITLE = "Signal Score unavailable";
+export const SCORE_UNAVAILABLE_DESCRIPTION =
+  "Signal Score could not be loaded. Refresh in a moment to retry.";
 
 /** Notification ids that briefly auto-open the header menu when unread. */
 export const POPUP_NOTIFICATION_IDS = [
@@ -94,12 +97,12 @@ export function buildHeaderNotifications(input: {
     });
   }
 
-  if (input.scoreUnavailable) {
+  // Same FastAPI miss as queue-unavailable — do not stack a second score card.
+  if (input.scoreUnavailable && !input.queueError) {
     items.push({
       id: "score-unavailable",
-      title: "Signal Score unreachable",
-      description:
-        "FastAPI/Neon Signal Score could not be loaded. Check BACKEND_URL and the API.",
+      title: SCORE_UNAVAILABLE_TITLE,
+      description: SCORE_UNAVAILABLE_DESCRIPTION,
       href: viewHref("eval", { panel: "metrics" }),
       tone: "warning",
     });

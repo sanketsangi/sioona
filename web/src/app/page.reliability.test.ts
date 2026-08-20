@@ -158,7 +158,7 @@ describe("PlatformPage deploy reliability", () => {
     vi.clearAllMocks();
   });
 
-  it("surfaces queue-unavailable, sync-failed, and score-unreachable when backend is down", async () => {
+  it("surfaces queue-unavailable and sync-failed when backend is down (no duplicate score card)", async () => {
     const result = (await PlatformPage({
       searchParams: Promise.resolve({
         view: "insights",
@@ -172,8 +172,8 @@ describe("PlatformPage deploy reliability", () => {
     expect(notifications.map((n) => n.id)).toEqual([
       "queue-unavailable",
       "sync-failed",
-      "score-unavailable",
     ]);
+    expect(notifications.some((n) => n.id === "score-unavailable")).toBe(false);
   });
 
   it("hides sync-failed when URL is stale but store is fully dual-written", async () => {
@@ -220,10 +220,8 @@ describe("PlatformPage deploy reliability", () => {
     })) as ReactElement;
 
     const { notifications } = pageShellProps(result);
-    expect(notifications.map((n) => n.id)).toEqual([
-      "queue-unavailable",
-      "score-unavailable",
-    ]);
+    expect(notifications.map((n) => n.id)).toEqual(["queue-unavailable"]);
+    expect(notifications.some((n) => n.id === "score-unavailable")).toBe(false);
   });
 
   it("falls back to local unreviewed count when needs-review fails", async () => {

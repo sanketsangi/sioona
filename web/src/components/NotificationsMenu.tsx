@@ -102,6 +102,26 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     });
   }, []);
 
+  // Drop autoOpened ids that are no longer present so a later cold-open can popup again.
+  useEffect(() => {
+    if (!hydrated) return;
+    const present = new Set(notifications.map((n) => n.id));
+    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY);
+    let changed = false;
+    const nextOpened = new Set<string>();
+    for (const id of alreadyOpened) {
+      if (present.has(id)) {
+        nextOpened.add(id);
+      } else {
+        changed = true;
+      }
+    }
+    if (changed) {
+      writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened);
+      autoOpenAttempted.current = false;
+    }
+  }, [hydrated, notifications]);
+
   useEffect(() => {
     if (!hydrated || autoOpenAttempted.current || open) return;
 
