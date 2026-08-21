@@ -11,7 +11,12 @@ import {
   setSignalFeedback,
   writeStore,
 } from "@/lib/store";
-import { EXPECTED_TESTING_JSON } from "@/lib/testing-json-eval";
+import { EXPECTED_TESTING_JSON, ZERODHA_BATCH02_SAMPLE_NAME } from "@/lib/testing-json-eval";
+import {
+  CONFIRM_PARTNER_DEMO_REPLACE_FIELD,
+  PARTNER_DEMO_REPLACE_CONFIRM_CODE,
+  PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
+} from "@/lib/partner-demo-replace-guard";
 
 const LEAD_LINE =
   'wa-reupload-1,customer,"Hi, I want to open a demat account this week",Asha,whatsapp,lead';
@@ -28,10 +33,16 @@ function csvFile(name: string, rows: string[]) {
   return new File([csv], name, { type: "text/csv" });
 }
 
-function ingestRequest(file: File, replace?: boolean) {
+function ingestRequest(
+  file: File,
+  options?: { replace?: boolean; confirmPartnerDemoReplace?: boolean }
+) {
   const body = new FormData();
   body.append("file", file);
-  if (replace) body.append("replace", "true");
+  if (options?.replace) body.append("replace", "true");
+  if (options?.confirmPartnerDemoReplace) {
+    body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
+  }
   return new Request("http://localhost/api/ingest", {
     method: "POST",
     body,
@@ -206,6 +217,40 @@ describe("POST /api/ingest", () => {
     );
   });
 
+  it("mid-week upserts week3 partner pack and bumps weeklyExportCount", async () => {
+    const first = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(first.status).toBe(200);
+    expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
+
+    const second = await POST(
+      ingestRequest(
+        csvFile("real-partner-export.week3.local.csv", [LEAD_LINE_UPDATED])
+      )
+    );
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as { replaced?: boolean };
+    expect(secondBody.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.pilot?.weeklyExportCount).toBe(2);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.week3.local.csv"
+    );
+    const conversationId = after.conversations.find(
+      (conversation) => conversation.externalId === "wa-reupload-1"
+    )?.id;
+    expect(conversationId).toBeTruthy();
+    expect(
+      after.messages.some(
+        (message) =>
+          message.conversationId === conversationId &&
+          message.content.includes("today please")
+      )
+    ).toBe(true);
+  });
+
   it("keeps SignalScore feedback and Acted across re-upload", async () => {
     const first = await POST(
       ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
@@ -305,7 +350,7 @@ describe("POST /api/ingest", () => {
     const second = await POST(
       ingestRequest(
         csvFile("real-partner-export.week2.local.csv", [LEAD_LINE_UPDATED]),
-        true
+        { replace: true }
       )
     );
     expect(second.status).toBe(200);
@@ -397,6 +442,69 @@ describe("POST /api/ingest", () => {
     expect(after.conversations[0].externalId).toBe("wa-reupload-2");
     expect(after.pilot?.weeklyExportCount).toBe(1);
     expect(after.pilot?.lastUploadedFileName).toBe("partner-shaped-labeled.csv");
+  });
+
+  it("returns 409 when Partner Demo Zerodha would be replaced without confirm", async () => {
+    const before = await readStore();
+    const priorCount = before.conversations.length;
+    before.pilot = {
+      baselineOpportunities: before.pilot?.baselineOpportunities ?? 12,
+      updatedAt: new Date().toISOString(),
+      lastUploadedFileName: ZERODHA_BATCH02_SAMPLE_NAME,
+    };
+    await writeStore(before);
+
+    const blocked = await POST(
+      ingestRequest(csvFile("Groww_batch_02.csv", [LEAD_LINE]))
+    );
+    expect(blocked.status).toBe(409);
+    await expect(blocked.json()).resolves.toEqual({
+      error: PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
+      code: PARTNER_DEMO_REPLACE_CONFIRM_CODE,
+    });
+
+    const afterBlocked = await readStore();
+    expect(afterBlocked.conversations).toHaveLength(priorCount);
+    expect(afterBlocked.pilot?.lastUploadedFileName).toBe(
+      ZERODHA_BATCH02_SAMPLE_NAME
+    );
+  });
+
+  it("replaces Partner Demo Zerodha when confirm_partner_demo_replace is set", async () => {
+    const before = await readStore();
+    before.pilot = {
+      baselineOpportunities: before.pilot?.baselineOpportunities ?? 12,
+      updatedAt: new Date().toISOString(),
+      lastUploadedFileName: ZERODHA_BATCH02_SAMPLE_NAME,
+    };
+    await writeStore(before);
+
+    const confirmed = await POST(
+      ingestRequest(csvFile("Groww_batch_02.csv", [LEAD_LINE]), {
+        confirmPartnerDemoReplace: true,
+      })
+    );
+    expect(confirmed.status).toBe(200);
+    const body = (await confirmed.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(true);
+
+    const after = await readStore();
+    expect(after.conversations).toHaveLength(1);
+    expect(after.conversations[0].externalId).toBe("wa-reupload-1");
+    expect(after.pilot?.lastUploadedFileName).toBe("Groww_batch_02.csv");
+  });
+
+  it("Day-1 Groww last upload replaces without Partner Demo confirm", async () => {
+    const before = await readStore();
+    expect(before.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+
+    const response = await POST(
+      ingestRequest(csvFile("user-day1.csv", [LEAD_LINE]))
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(true);
+    expect((await readStore()).conversations).toHaveLength(1);
   });
 
   it("still increments weeklyExportCount when Neon pilot PUT fails", async () => {

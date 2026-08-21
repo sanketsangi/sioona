@@ -272,6 +272,7 @@ export default async function PlatformPage({
       {view === "upload" ? (
         <UploadView
           hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
+          lastUploadedFileName={store.pilot?.lastUploadedFileName}
           cadenceAction={cadenceAction}
           cadencePreviewId={cadencePreviewId}
         />

@@ -20,6 +20,12 @@ import {
 } from "@/lib/sync-conversations";
 import { syncPilotSettingsToBackend } from "@/lib/sync-pilot";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
+import {
+  PARTNER_DEMO_REPLACE_CONFIRM_CODE,
+  PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
+  parseConfirmPartnerDemoReplace,
+  requiresPartnerDemoReplaceConfirm,
+} from "@/lib/partner-demo-replace-guard";
 import { lastUploadedFileName } from "@/lib/upload-filename";
 
 function parseReplaceFlag(form: FormData): boolean {
@@ -31,6 +37,7 @@ function parseReplaceFlag(form: FormData): boolean {
 const PARTNER_SAMPLE_PACK_BASENAMES = new Set<string>([
   "real-partner-export.local.csv",
   "real-partner-export.week2.local.csv",
+  "real-partner-export.week3.local.csv",
 ]);
 
 export async function POST(request: Request) {
@@ -85,6 +92,23 @@ export async function POST(request: Request) {
     const replaceShowcase = isPartnerSamplePackUpload
       ? parseReplaceFlag(form) || priorExports === 0
       : true;
+
+    if (
+      requiresPartnerDemoReplaceConfirm({
+        lastUploadedFileName: store.pilot?.lastUploadedFileName,
+        willReplace: replaceShowcase,
+        confirmed: parseConfirmPartnerDemoReplace(form),
+      })
+    ) {
+      return NextResponse.json(
+        {
+          error: PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
+          code: PARTNER_DEMO_REPLACE_CONFIRM_CODE,
+        },
+        { status: 409 }
+      );
+    }
+
     const priorSignals = store.signals;
 
     let ingestedConversations = incoming.conversations;

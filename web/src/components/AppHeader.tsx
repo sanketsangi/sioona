@@ -18,7 +18,6 @@ import { ChartLineUpIcon } from "@/components/icons/ChartLineUpIcon";
 import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
-import { NavActions } from "@/components/NavActions";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
 import {
   Breadcrumb,
@@ -150,7 +149,6 @@ export function AppHeader({
             <ModeToggle workspaceMode={workspaceMode} />
           </Suspense>
           <NotificationsMenu notifications={notifications} />
-          <NavActions />
         </div>
       </div>
     </header>

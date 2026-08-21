@@ -40,7 +40,9 @@ Cadence helper on Insights empty queue, Upload, and Eval — not in the header b
 
 **Batch-02 rehearsal keep-set (2026-08-18):** sioona-demo Groww Batch-02 JSON upsert **`replaced=false`** (100 chats / 14 signals / sync failed=0; file not copied; not the manifest / not `*.local.csv`) → `weekly_export_count` **4** → **7** Correct reviews → Eval `?scoreFrom=2026-08-18T14:37:31.774Z` keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+23** (35 − 12). Window Corrects **Acted 7/7**. Rehearsal, not a live partner dump. Not the closed Batch-01 n=7 / 0.86.
 
-**Real weekly partner export (2026-08-18 evening):** **skipped** — no unused real dump on disk (Groww / CS / `partner-shaped` / already-logged week-1 / week-2 `.local.csv` excluded; file not copied). Neon `weekly_export_count` still **4**; baseline **12**; last keep-set remains Batch-02 n=7 / 1.00. Not a Day-1 replace.
+**Real weekly partner export (2026-08-18 evening):** **skipped** — no unused dump then; count stayed **4**. Superseded by week3 below.
+
+**Real weekly partner week3 (2026-08-21):** unused Groww Batch-02 `real-partner-export.week3.local.csv` mid-week upsert **`replaced=false`** (100 chats / 14 signals / sync failed=0; file not copied) → `weekly_export_count` **5** → **7** Correct reviews → Eval `?scoreFrom=2026-08-21T10:43:47.000Z` keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+3** (15 − 12). Window Corrects **Acted 7/7**. Not Partner Demo wipe / not Adapt / not week-1/week-2 `.local.csv` / not Batch-02 JSON rehearsal.
 
 **Local Day-1 replace (2026-08-18):** customer-support `batch_001.csv` on localhost **`replaced=true`** (200 chats / 0 signals / sync failed=0; GT **200 lead**; file not copied) → Eval `?scoreFrom=2026-08-18T12:25:07.682Z` keep-set **n=0 / Insufficient Data**; baseline **12**; lift **−12** (0 − 12). Reviews still human — not labeled go / not Groww upsert / not Adapt.
 

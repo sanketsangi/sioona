@@ -13,6 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { llmQueryExtras, parseLlmPassStats } from "@/lib/detect-llm-query";
 import {
+  CONFIRM_PARTNER_DEMO_REPLACE_FIELD,
+  isPartnerDemoKeepSetActive,
+  PARTNER_DEMO_REPLACE_CONFIRM_CODE,
+  PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
+} from "@/lib/partner-demo-replace-guard";
+import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
@@ -30,8 +36,10 @@ const FILE_ACCEPT = ".csv,.json,.txt,text/csv,application/json,text/plain";
 
 export function UploadForm({
   hasPartnerExport = false,
+  lastUploadedFileName,
 }: {
   hasPartnerExport?: boolean;
+  lastUploadedFileName?: string;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -42,13 +50,22 @@ export function UploadForm({
   const [error, setError] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [pendingPartnerDemoReplace, setPendingPartnerDemoReplace] =
+    useState(false);
+
+  const partnerDemoActive = isPartnerDemoKeepSetActive(lastUploadedFileName);
+  /** Full-replace path (Day-1 / non–mid-week) can wipe Partner Demo keep-set. */
+  const wouldReplace = !hasPartnerExport;
 
   const onDemoErrorChange = useCallback((message: string | null) => {
     setDemoError(message);
   }, []);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function clearPendingConfirm() {
+    setPendingPartnerDemoReplace(false);
+  }
+
+  async function runIngest(opts?: { confirmPartnerDemoReplace?: boolean }) {
     if (!file) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
       fileRef.current?.focus();
@@ -64,9 +81,13 @@ export function UploadForm({
       const body = new FormData();
       body.append("file", file);
       if (!hasPartnerExport) body.append("replace", "true");
+      if (opts?.confirmPartnerDemoReplace) {
+        body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
+      }
       const res = await fetch("/api/ingest", { method: "POST", body });
       const data = (await res.json()) as {
         error?: string;
+        code?: string;
         format?: string;
         importedConversations?: number;
         newSignals?: number;
@@ -74,7 +95,16 @@ export function UploadForm({
         predictionSync?: unknown;
         detectLlm?: unknown;
       };
+      if (
+        res.status === 409 &&
+        data.code === PARTNER_DEMO_REPLACE_CONFIRM_CODE
+      ) {
+        setPendingPartnerDemoReplace(true);
+        setError(null);
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Upload failed");
+      setPendingPartnerDemoReplace(false);
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
@@ -113,6 +143,31 @@ export function UploadForm({
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!file) {
+      setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
+      fileRef.current?.focus();
+      return;
+    }
+    if (
+      partnerDemoActive &&
+      wouldReplace &&
+      !pendingPartnerDemoReplace
+    ) {
+      setError(null);
+      setDemoError(null);
+      setStatus(null);
+      setHint(null);
+      setSyncWarning(null);
+      setPendingPartnerDemoReplace(true);
+      return;
+    }
+    await runIngest({
+      confirmPartnerDemoReplace: pendingPartnerDemoReplace && partnerDemoActive,
+    });
   }
 
   return (
@@ -159,32 +214,59 @@ export function UploadForm({
           type="file"
           accept={FILE_ACCEPT}
           aria-invalid={error ? true : undefined}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            clearPendingConfirm();
+          }}
           className="absolute inset-0 z-10 h-full min-h-full w-full cursor-pointer rounded-[var(--radius-control)] border-0 bg-transparent p-0 opacity-0 file:hidden focus-visible:border-0 focus-visible:ring-0"
         />
       </div>
 
       <div className="flex shrink-0 flex-col gap-3">
         <div className="relative flex flex-wrap items-center justify-center gap-2">
-          <button
-            type="submit"
-            disabled={loading}
-            aria-busy={loading}
-            className="btn-primary rounded-[var(--radius-panel)]"
-          >
-            {loading ? (
-              <ButtonSpinner />
-            ) : (
-              <ArrowCircleUpIcon className="size-3.5 shrink-0" />
-            )}
-            Upload & Detect
-          </button>
-          <PartnerDemoButton
-            label="Run Partner Demo"
-            className="btn-secondary rounded-[var(--radius-panel)]"
-            onErrorChange={onDemoErrorChange}
-          />
-          <ResetDemoButton />
+          {pendingPartnerDemoReplace ? (
+            <>
+              <button
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className="btn-primary rounded-[var(--radius-panel)]"
+              >
+                {loading ? <ButtonSpinner /> : null}
+                Confirm Replace
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={clearPendingConfirm}
+                className="btn-secondary rounded-[var(--radius-panel)]"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className="btn-primary rounded-[var(--radius-panel)]"
+              >
+                {loading ? (
+                  <ButtonSpinner />
+                ) : (
+                  <ArrowCircleUpIcon className="size-3.5 shrink-0" />
+                )}
+                Upload & Detect
+              </button>
+              <PartnerDemoButton
+                label="Run Partner Demo"
+                className="btn-secondary rounded-[var(--radius-panel)]"
+                onErrorChange={onDemoErrorChange}
+              />
+              <ResetDemoButton />
+            </>
+          )}
           <div
             className="pointer-events-none absolute inset-x-0 bottom-full z-20 mb-2 flex justify-center"
             aria-live="polite"
@@ -200,6 +282,13 @@ export function UploadForm({
             ) : null}
           </div>
         </div>
+        {pendingPartnerDemoReplace ? (
+          <div className="status-banner status-banner-warning" role="alert">
+            <p className="text-copy-14 text-sio-fg-base" aria-live="polite">
+              {PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE}
+            </p>
+          </div>
+        ) : null}
         {demoError ? (
           <div className="status-banner status-banner-warning" role="alert">
             <p className="text-copy-14 text-sio-fg-base" aria-live="polite">

@@ -19,8 +19,8 @@ const ZERODHA_BATCH02_FILENAME = "zerodha_batch_02.json";
 
 /** Cold-open / Reset Demo chrome name for Groww testing.json. */
 export const GROWW_SHOWCASE_SAMPLE_NAME = "Groww_batch_02";
-/** Partner Demo chrome name for committed Zerodha Batch-02 JSON. */
-export const ZERODHA_BATCH02_SAMPLE_NAME = "Zerodha_batch_02";
+/** Partner Demo chrome name — re-export from client-safe guard (avoid fs on client). */
+export { ZERODHA_BATCH02_SAMPLE_NAME } from "./partner-demo-replace-guard";
 
 export const EXPECTED_TESTING_JSON = {
   conversations: 100,
