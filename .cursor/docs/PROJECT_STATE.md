@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-21  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` (= `origin/main` @ `06057fa` / #51)
+**Branch:** `main` (= `origin/main` @ `73081cd`)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -38,6 +38,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Week-2 held-out Adapt CLI | P **0.89** / R **0.55** (34 labeled) — not week-1 1.00 |
 | Deploy gate (2026-08-19) | web **331** / backend **56** pass; hosted 7-step smoke **all green** (Insights/Upload/Eval **200**); tenant-wide SignalScore **n=13**; keep-set Eval **n=0 → Insufficient Data** = Partner Demo JSON ids ∩ Neon Groww ids (**data**, not `/signal-score` error); **007** applied; `/pilot` **200** + `last_uploaded_file_name` |
 | Deploy gate (2026-08-21 / #51) | local = origin `06057fa`; hosted 7-step smoke **green** (Insights raw **307** → follow **200** `status=new`); Partner Demo wipe ok; keep-set **n=0** = empty window (**not** Groww∩JSON); baseline **12** / Lift **+2**. Not a keep-set go |
+| Deploy gate (2026-08-21 / replace guard) | origin `73081cd`; web Vitest **426** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200**; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Partner Demo Confirm Replace shipped. Not a keep-set go / not Partner Demo wipe |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
 
 **Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
@@ -124,6 +125,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
 - Deploy gate **logged 2026-08-21** (#51) — local = origin; hosted smoke green; Partner Demo wipe re-run; keep-set n=0 = empty window only (Groww∩JSON closed); baseline 12 / Lift +2 preserved across wipe
+- Deploy gate **logged 2026-08-21** (`73081cd` replace guard) — web 426 / backend 56 pass; hosted 7-step smoke green (Insights 307→200; Upload/Eval 200; needs-review 14); Confirm Replace on Partner Demo keep-set live; not a keep-set go / not wipe
 - Partner Demo keep-set re-query **stopped 2026-08-21** — `scoreFrom=2026-08-20T23:44:44.000Z`; `zrdh_*` n=0 / no go; Groww_batch_02 overwrite (14 Correct ignored); remaining `zrdh_*` pending 0
 - Partner Demo keep-set **closed 2026-08-21 (sioona-demo, fresh)** — wipe→Zerodha_batch_02 (100/14; sync failed=0); 5 Correct + Acted 5/5 on `zrdh_*`; `?scoreFrom=2026-08-20T23:44:44.000Z` → n=5 / 1.00 → go; baseline 0 / lift 14; pending 9; Groww ignored; no Adapt / no outbound
 - Prior same-day Partner Demo keep-set (pending 3; concurrent Groww overwrite) and local rehearsal (`scoreFrom=2026-08-21T10:36:10.000Z`) — **superseded** by hosted close above
@@ -149,7 +151,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-20, this tree):** web **416** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. Residual failures: **none**.
+- **Tests status (2026-08-21, this tree / `73081cd`):** web **426** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. Residual failures: **none**.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
