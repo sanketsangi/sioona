@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-21  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` (= `origin/main`; Partner Demo replace-guard feature `73081cd`)
+**Branch:** `main` (= `origin/main`; leftover chrome `23e0b65`)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -39,6 +39,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Deploy gate (2026-08-19) | web **331** / backend **56** pass; hosted 7-step smoke **all green** (Insights/Upload/Eval **200**); tenant-wide SignalScore **n=13**; keep-set Eval **n=0 → Insufficient Data** = Partner Demo JSON ids ∩ Neon Groww ids (**data**, not `/signal-score` error); **007** applied; `/pilot` **200** + `last_uploaded_file_name` |
 | Deploy gate (2026-08-21 / #51) | local = origin `06057fa`; hosted 7-step smoke **green** (Insights raw **307** → follow **200** `status=new`); Partner Demo wipe ok; keep-set **n=0** = empty window (**not** Groww∩JSON); baseline **12** / Lift **+2**. Not a keep-set go |
 | Deploy gate (2026-08-21 / replace guard) | origin `73081cd`; web Vitest **426** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200**; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Partner Demo Confirm Replace shipped. Not a keep-set go / not Partner Demo wipe |
+| Deploy gate (2026-08-21 / leftover chrome) | origin `23e0b65`; web Vitest **428** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200** `status=new`; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Help/Guidance local dialogs + Upload tips shipped. Not a keep-set go / not Partner Demo wipe |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
 
 **Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
@@ -113,6 +114,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - **Local Day-1 replace logged 2026-08-18** — customer-support `batch_001.csv` `replaced=true` (200/0; sync failed=0; GT 200 lead; file not copied); Eval `?scoreFrom=2026-08-18T12:25:07.682Z` n=0 / Insufficient Data; baseline 12; lift −12; no human reviews; not Adapt / not Groww upsert
 - Insights chrome 2026-08-15 (dashboard header, Performance metrics, Mark Acted, Eval export panel)
 - Partner leftover chrome 2026-08-19 — Help/Guidance disabled; `NavUser` identity-only (no Account / Billing / Notifications / Log Out); Demo workspace; Export/Create Campaign hidden at all breakpoints; Insights first fold = ops queue + Performance metric-strip; bell exceptions-only (no queue-clear); Partner Demo on Upload; shadcn bound to `sio-*` (not keep-set)
+- Leftover chrome Help/Guidance **shipped 2026-08-21** (`23e0b65`) — local sidebar dialogs (Shadow Mode FAQ / pilot cadence) + Upload tips + score-window calendar; `NavUser` still identity-only. Not Auth0 / not a keep-set go / not wipe
 - Hosted FastAPI-down bell 2026-08-20 — one partner-safe sticky `queue-unavailable` (no FastAPI/BACKEND_URL copy; no second `score-unavailable` for the same outage); not a Signal Score SoT change
 - Partner Demo / sample pack split 2026-08-20 — **shipped + hosted verified**: cold open + Reset stay Groww `testing.json`; **Run Partner Demo** wipes Neon then loads only committed `zerodha_batch_02.json` (no Adapt, no Groww merge); fixtures unlisted from Upload pack. Hosted breadcrumb Zerodha; keep-set empty because **0 reviews** after wipe (not Groww∩demo mismatch).
 - Partner Demo preserves partner baseline 2026-08-20 — snapshot Neon baseline before wipe; restore after Zerodha seed when not cold-demo 4 (share-out 12→4 footgun closed). `weekly_export_count` still resets. Cold first run stays baseline 4.
@@ -126,6 +128,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
 - Deploy gate **logged 2026-08-21** (#51) — local = origin; hosted smoke green; Partner Demo wipe re-run; keep-set n=0 = empty window only (Groww∩JSON closed); baseline 12 / Lift +2 preserved across wipe
 - Deploy gate **logged 2026-08-21** (`73081cd` replace guard) — web 426 / backend 56 pass; hosted 7-step smoke green (Insights 307→200; Upload/Eval 200; needs-review 14); Confirm Replace on Partner Demo keep-set live; not a keep-set go / not wipe
+- Deploy gate **logged 2026-08-21** (`23e0b65` leftover chrome) — web 428 / backend 56 pass; hosted 7-step smoke green (Insights 307→200 `status=new`; Upload/Eval 200; needs-review 14); Help/Guidance dialogs + Upload tips live on sioona-demo; not a keep-set go / not wipe
 - Partner Demo keep-set re-query **stopped 2026-08-21** — `scoreFrom=2026-08-20T23:44:44.000Z`; `zrdh_*` n=0 / no go; Groww_batch_02 overwrite (14 Correct ignored); remaining `zrdh_*` pending 0
 - Partner Demo keep-set **closed 2026-08-21 (sioona-demo, fresh)** — wipe→Zerodha_batch_02 (100/14; sync failed=0); 5 Correct + Acted 5/5 on `zrdh_*`; `?scoreFrom=2026-08-20T23:44:44.000Z` → n=5 / 1.00 → go; baseline 0 / lift 14; pending 9; Groww ignored; no Adapt / no outbound
 - Prior same-day Partner Demo keep-set (pending 3; concurrent Groww overwrite) and local rehearsal (`scoreFrom=2026-08-21T10:36:10.000Z`) — **superseded** by hosted close above
@@ -151,7 +154,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-21, this tree / `73081cd`):** web **426** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. Residual failures: **none**.
+- **Tests status (2026-08-21, this tree / `23e0b65`):** web **428** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. Residual failures: **none**.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
