@@ -280,6 +280,13 @@
     color: var(--sio-fg-base);
   }
 
+  /* Kill Tailwind preflight’s default blue --tw-ring-color */
+  *,
+  *::before,
+  *::after {
+    --tw-ring-color: var(--sio-focus-accent);
+  }
+
   :focus-visible {
     outline: none;
     box-shadow: var(--focus-ring);
@@ -821,6 +828,7 @@
 
   /*
    * Slider segmented control (Eval panels + Labeled tables + ModeToggle thumb).
+   * Track/thumb colors match ModeToggle (base track + interactive thumb).
    * Thumb slides with translateX keyed off --seg-index; equal CSS grid columns
    * (ModeToggle is flex; same --seg-* vars).
    */
@@ -834,9 +842,10 @@
     width: 100%;
     flex-shrink: 0;
     padding: var(--seg-pad);
-    border: 1px solid var(--sio-border-base);
+    border: 1px solid var(--sio-border-subtle);
     border-radius: calc(var(--radius) - 2px);
-    background: var(--sio-bg-muted);
+    background: var(--sio-bg-base);
+    box-shadow: 0 1px 1px oklch(0 0 0 / 0.02);
   }
 
   .segmented-tabs-thumb {
@@ -848,7 +857,7 @@
     height: calc(100% - (2 * var(--seg-pad, 0.125rem)));
     width: calc((100% - (2 * var(--seg-pad, 0.125rem))) / var(--seg-count, 1));
     border-radius: var(--seg-thumb-radius, calc(var(--radius) - 4px));
-    background: var(--seg-thumb-bg, var(--sio-bg-base));
+    background: var(--seg-thumb-bg, var(--sio-bg-interactive));
     box-shadow: 0 1px 1px oklch(0 0 0 / 0.04);
     transform: translateX(calc(var(--seg-index, 0) * 100%));
     transform-origin: left center;
@@ -1141,6 +1150,30 @@
     }
     to {
       opacity: 1;
+    }
+  }
+
+  /* Upload tips — word-appear (transform + opacity only).
+     Use fill-mode `both` only — no static opacity:0 (that left tip body invisible
+     when animation lagged or mid-stagger looked nearly blank). */
+  @keyframes sio-word-appear {
+    from {
+      opacity: 0;
+      transform: translateY(0.25em);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .sio-word-appear {
+    animation: sio-word-appear 280ms ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sio-word-appear {
+      animation: none;
     }
   }
 

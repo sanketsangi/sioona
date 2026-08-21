@@ -8,8 +8,7 @@ import {
 } from "@/components/ui/sidebar";
 import { initialsFromName } from "@/lib/format";
 
-const avatarClassName =
-  "rounded-[25px] border border-sio-border-base bg-sio-bg-muted text-sio-fg-subtle";
+const avatarClassName = "rounded-[25px] bg-sio-border-base text-sio-fg-subtle";
 
 export function NavUser({
   user,

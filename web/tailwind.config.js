@@ -158,6 +158,10 @@ module.exports = {
         ],
         mono: ["var(--font-geist-mono)", "ui-monospace", "monospace"],
       },
+      /* Neutral focus rings — never Tailwind’s default blue-500 */
+      ringColor: {
+        DEFAULT: "var(--sio-focus-accent)",
+      },
       borderRadius: {
         sm: "calc(var(--radius) - 2px)",
         md: "var(--radius)",

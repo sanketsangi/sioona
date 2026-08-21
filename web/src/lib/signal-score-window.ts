@@ -7,7 +7,7 @@ export interface SignalScoreWindow {
   status: SignalScoreWindowStatus;
   /** ISO UTC `date_from` sent to FastAPI. */
   resolvedFrom: string;
-  /** `YYYY-MM-DD` for `<input type="date">`. */
+  /** `YYYY-MM-DD` for the scoreFrom picker / `?scoreFrom=` query. */
   dateInput: string;
   /** Short chrome label (This week vs From …). */
   label: string;

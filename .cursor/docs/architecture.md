@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-08-20
+**Last updated:** 2026-08-21
 
 ---
 
@@ -73,7 +73,7 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 | Taxonomy | `/?view=taxonomy` | Read-only base taxonomy                                          |
 
 **Locked chrome (do not reinvent):** `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`.  
-**Dead / locked product chrome:** Action Mode outbound send (unlocked Action Mode is display-only Act queue only); Export / Create Campaign are unshipped and hidden (not overflow); Help / Guidance disabled; `NavUser` is identity-only (no Auth0 account actions).
+**Dead / locked product chrome:** Action Mode outbound send (unlocked Action Mode is display-only Act queue only); Export / Create Campaign are unshipped and hidden (not overflow). **Shipped chrome:** Help / Guidance are local sidebar dialogs (Shadow Mode FAQ / pilot cadence — not Auth0, not a new route). `NavUser` is identity-only (no Account / Billing / Notifications / Log Out).
 
 ### BFF routes (high level)
 

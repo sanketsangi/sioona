@@ -152,11 +152,7 @@ export function UploadForm({
       fileRef.current?.focus();
       return;
     }
-    if (
-      partnerDemoActive &&
-      wouldReplace &&
-      !pendingPartnerDemoReplace
-    ) {
+    if (partnerDemoActive && wouldReplace && !pendingPartnerDemoReplace) {
       setError(null);
       setDemoError(null);
       setStatus(null);
@@ -275,7 +271,7 @@ export function UploadForm({
             {error ? (
               <p
                 role="alert"
-                className="max-w-[min(100%,20rem)] rounded-full bg-sio-status-danger-bg px-3 py-1 text-center text-copy-14 font-bold text-pretty text-sio-status-danger-fg"
+                className="max-w-[min(100%,20rem)] rounded-full bg-sio-status-danger-bg px-3 py-1 text-center font-sans font-medium text-copy-14 text-pretty text-sio-status-danger-fg"
               >
                 {error}. Check the file format and try again.
               </p>

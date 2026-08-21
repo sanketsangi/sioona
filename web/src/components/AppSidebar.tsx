@@ -8,8 +8,9 @@ import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { ChartLineUpIcon } from "@/components/icons/ChartLineUpIcon";
 import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
-import { BookOpenIcon } from "@/components/icons/BookOpenIcon";
-import { LifebuoyIcon } from "@/components/icons/LifebuoyIcon";
+import { FeedbackDialog } from "@/components/FeedbackDialog";
+import { GuidanceDialog } from "@/components/GuidanceDialog";
+import { HelpDialog } from "@/components/HelpDialog";
 import { NavUser } from "@/components/NavUser";
 import { SioonaLogotype } from "@/components/SioonaLogotype";
 import {
@@ -33,14 +34,6 @@ const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
   { view: "upload", label: "Upload", icon: null },
   { view: "eval", label: "Eval", icon: null },
   { view: "taxonomy", label: "Taxonomy", icon: Tag },
-];
-
-const footerLinks: {
-  label: string;
-  Icon: typeof LifebuoyIcon | typeof BookOpenIcon;
-}[] = [
-  { label: "Help", Icon: LifebuoyIcon },
-  { label: "Guidance", Icon: BookOpenIcon },
 ];
 
 function WorkspaceNav({
@@ -134,23 +127,9 @@ function SidebarBrand() {
 function AppSidebarFooter() {
   return (
     <>
-      <SidebarMenu>
-        {footerLinks.map((item) => {
-          const { Icon } = item;
-          return (
-            <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton
-                disabled
-                aria-disabled="true"
-                tooltip={`${item.label} (unavailable)`}
-              >
-                <Icon className="size-4 shrink-0" />
-                <span>{item.label}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          );
-        })}
-      </SidebarMenu>
+      <HelpDialog />
+      <GuidanceDialog />
+      <FeedbackDialog />
       <NavUser
         user={{
           name: "Maya Chen",

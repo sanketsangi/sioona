@@ -1,0 +1,93 @@
+"use client";
+
+import { useState } from "react";
+import { BookOpenIcon } from "@/components/icons/BookOpenIcon";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+
+const CADENCE_STEPS: { title: string; detail: string }[] = [
+  {
+    title: "Day 1 — Upload or Partner Demo",
+    detail: "Start on Upload, then review the queue in Insights.",
+  },
+  {
+    title: "Mid-week — Re-upload weekly export",
+    detail: "Upsert by external id; matching chats update without a Day-1 replace.",
+  },
+  {
+    title: "Ongoing — Mark ≥5 SignalScore reviews",
+    detail: "Confirm or correct detections in Insights pending.",
+  },
+  {
+    title: "Before share-out — Set baseline + go/no-go",
+    detail: "Set the partner baseline on Eval, then share this window’s call.",
+  },
+  {
+    title: "After go — Mark Acted, then next week",
+    detail:
+      "Mark Acted on Correct reviews (does not send), then re-upload next week’s export.",
+  },
+];
+
+export function GuidanceDialog() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DialogTrigger asChild>
+            <SidebarMenuButton tooltip="Guidance">
+              <BookOpenIcon className="size-4 shrink-0" />
+              <span>Guidance</span>
+            </SidebarMenuButton>
+          </DialogTrigger>
+        </SidebarMenuItem>
+      </SidebarMenu>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Pilot Guidance</DialogTitle>
+          <DialogDescription>
+            Two-week Shadow Mode pilot. Win = keep-set Signal Score ≥80% on
+            Eval for the week window.
+          </DialogDescription>
+        </DialogHeader>
+        <ol className="max-h-[min(60vh,24rem)] list-decimal space-y-4 overflow-y-auto overscroll-contain pl-5 pr-1">
+          {CADENCE_STEPS.map((step) => (
+            <li key={step.title} className="space-y-1 pl-1">
+              <h3 className="text-sm font-medium text-sio-fg-base">
+                {step.title}
+              </h3>
+              <p className="text-sm text-sio-fg-subtle">{step.detail}</p>
+            </li>
+          ))}
+        </ol>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
+            >
+              Cancel
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
