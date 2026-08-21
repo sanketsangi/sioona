@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-21  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` (= `origin/main` @ `73081cd`)
+**Branch:** `main` (= `origin/main` @ `30d9c71`; feature `73081cd`)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
