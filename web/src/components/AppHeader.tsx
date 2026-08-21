@@ -373,9 +373,17 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
               </>
             }
             aria-label={LOCKED_ACTION_TOOLTIP}
+            aria-disabled
             bounce={bounceAction}
           >
-            <PlayCircleIcon className="size-4 shrink-0" />
+            <span className="relative inline-flex size-4 shrink-0 items-center justify-center">
+              <PlayCircleIcon className="size-4 shrink-0 text-sio-fg-muted" />
+              <LockSimple
+                className="absolute -bottom-0.5 -right-1 size-2.5 text-sio-fg-base"
+                weight="fill"
+                aria-hidden
+              />
+            </span>
           </ModeToggleItem>
         </ToggleGroup>
         <p className="sr-only" aria-live="polite">
@@ -427,12 +435,14 @@ function ModeToggleItem({
   tooltip,
   bounce,
   "aria-label": ariaLabel,
+  "aria-disabled": ariaDisabled,
   children,
 }: {
   value: WorkspaceMode;
   tooltip: ReactNode;
   bounce?: boolean;
   "aria-label": string;
+  "aria-disabled"?: boolean | "true" | "false";
   children: ReactNode;
 }) {
   return (
@@ -441,12 +451,17 @@ function ModeToggleItem({
         <ToggleGroupItem
           value={value}
           aria-label={ariaLabel}
-          className={cn(modeItemClass, bounce && "mode-toggle-bounce")}
+          aria-disabled={ariaDisabled}
+          className={cn(
+            modeItemClass,
+            bounce && "mode-toggle-bounce",
+            ariaDisabled && "cursor-not-allowed",
+          )}
         >
           {children}
         </ToggleGroupItem>
       </TooltipTrigger>
-      <TooltipContent side="bottom" align="center">
+      <TooltipContent side="bottom" align="center" className="flex items-center gap-1.5">
         {tooltip}
       </TooltipContent>
     </Tooltip>
