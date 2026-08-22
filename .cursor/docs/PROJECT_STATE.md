@@ -154,7 +154,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-21, this tree / `23e0b65`):** web **428** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. Residual failures: **none**.
+- **Tests status (2026-08-22, this tree / `19ca542`):** web **428** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. `npm run test:smoke` **not present**. Residual failures: **none**. No test code changes.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
