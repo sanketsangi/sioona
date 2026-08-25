@@ -5,6 +5,7 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -921,3 +922,41 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "feedback": 0,
         "pilot_settings": 0,
     }
+
+
+def test_needs_review_returns_database_unavailable_on_sqlalchemy_error(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise SQLAlchemyError("pool timeout")
+
+    monkeypatch.setattr(
+        "app.api.routes.review.list_signals_needing_review",
+        _boom,
+    )
+    response = client.get(
+        "/v1/tenants/tenant_demo/signals/needs-review",
+        headers={"X-Tenant-Id": "tenant_demo"},
+    )
+    assert response.status_code == 500
+    assert response.json() == {"detail": "database_unavailable"}
+
+
+def test_signal_score_returns_database_unavailable_on_sqlalchemy_error(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise SQLAlchemyError("pool timeout")
+
+    monkeypatch.setattr(
+        "app.api.routes.scores.calculate_signal_score",
+        _boom,
+    )
+    response = client.get(
+        "/v1/tenants/tenant_demo/signal-score",
+        headers={"X-Tenant-Id": "tenant_demo"},
+    )
+    assert response.status_code == 500
+    assert response.json() == {"detail": "database_unavailable"}

@@ -45,5 +45,8 @@ def get_signals_needing_review(
 ) -> list[PredictionResponse]:
     """Return recent predictions that still need human review."""
     assert_tenant_match(tenant_id, header_tenant_id)
-    rows = list_signals_needing_review(db, tenant_id, limit=limit)
+    try:
+        rows = list_signals_needing_review(db, tenant_id, limit=limit)
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=500, detail="database_unavailable") from exc
     return [PredictionResponse.model_validate(row) for row in rows]

@@ -3,7 +3,8 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.deps import assert_tenant_match, require_tenant_id
@@ -35,14 +36,17 @@ def get_signal_score(
     Present but empty (``conversation_id=``) → 0 reviewed, not tenant-wide.
     """
     assert_tenant_match(tenant_id, header_tenant_id)
-    result = calculate_signal_score(
-        db,
-        tenant_id,
-        date_from=date_from,
-        date_to=date_to,
-        signal_type=signal_type,
-        conversation_ids=conversation_id,
-    )
+    try:
+        result = calculate_signal_score(
+            db,
+            tenant_id,
+            date_from=date_from,
+            date_to=date_to,
+            signal_type=signal_type,
+            conversation_ids=conversation_id,
+        )
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=500, detail="database_unavailable") from exc
     return SignalScoreResponse(
         tenant_id=result.tenant_id,
         signal_score=result.signal_score,

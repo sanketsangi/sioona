@@ -154,7 +154,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-22, this tree / `19ca542`):** web **428** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **56** passed. `npm run test:smoke` **not present**. Residual failures: **none**. No test code changes.
+- **Tests status (2026-08-25, this tree):** web **428** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **58** passed; eslint **clean**. Local smoke + `verify_signal_score_flow.py` **PASS** (SQLite). Residual failures: **none**. Not a hosted deploy. Code: needs-review/signal-score `database_unavailable` wrappers + eslint ModeToggle/drawer cleanup.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
