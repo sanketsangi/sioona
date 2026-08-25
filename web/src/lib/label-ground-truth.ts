@@ -11,8 +11,10 @@ const PRODUCT_PRIORITY: Record<SignalType, number> = {
 export const SOURCE_TO_GT: Record<string, SignalType | "none"> = {
   lead: "lead",
   upsell: "upsell",
+  upsell_opportunity: "upsell",
   churn_risk: "retention",
   retention_risk: "retention",
+  lead_intent: "lead",
   complaint: "none",
   fraud: "none",
 };
