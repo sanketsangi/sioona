@@ -29,21 +29,72 @@ const QUOTE_MAX = 140;
 
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-const SYSTEM_PROMPT = `You classify one customer chat for an Indian finance / broking / fintech support desk.
+/**
+ * Compact classifier prompt for small Qwen models (json_object mode).
+ * Canonical `type` values match product SignalType; corpus aliases are listed
+ * so models that emit retention_risk / upsell_opportunity / lead_intent still parse.
+ */
+export const SYSTEM_PROMPT = `You classify one Indian finance / broking / fintech support chat for Shadow Mode.
 
-Return JSON only:
-{"type":"retention"|"upsell"|"lead"|"none","confidence":0.0,"summary":"1-2 sentences","quotes":["verbatim customer quote"]}
+Return ONE JSON object. No markdown, no <think>, no extra keys, no prose.
 
-Rules:
-- Primary signal is RETENTION: churn, account closure, cancel card, shifting broker/portfolio, deleting account, "thinking of leaving".
-- lead = new buying intent (open account, first product, first credit card).
-- upsell = existing customer wanting more (top-up, upgrade, invest more).
-- none = ops, KYC, password/OTP, statements, polite chat, complaints without leave intent, fraud.
-- If unsure between a revenue signal and ops, return none (protect precision).
-- quotes must be verbatim substrings of customer messages (max 2).
-- Never invent products, names, or quotes.`;
+{"type":"retention"|"upsell"|"lead"|"none","confidence":0.0,"summary":"1-2 sentences","quotes":["verbatim customer span"]}
+
+Canonical type (use these strings). Corpus aliases in parentheses are the SAME class — if you emit an alias, still fill type with the canonical value:
+- retention (retention_risk, churn_risk): leave / close / delete account or card, shift broker or portfolio, withdraw everything, switch or uninstall the app, "thinking of leaving", "if this isn't fixed I'm gone". Frustration counts ONLY with leave/switch intent.
+- upsell (upsell_opportunity): EXISTING customer wants a DISTINCT extra product — insurance, FD, loan against shares, F&O/margin, PMS/AIF, family/joint account, dedicated RM, invest more, top-up loan. Same-product upgrade (premium tier, higher limit, add-on card) is lead, not upsell.
+- lead (lead_intent): new buying intent — open account/wallet/card/loan, first product, pricing with buy intent — OR same-product expansion (upgrade, limit raise, add-on card).
+- none: password/OTP/login, KYC ops, statements, order status, polite chat, complaint or fraud WITHOUT leave intent.
+
+Priority if two could apply: retention > upsell > lead. If unsure vs ops, type=none (protect precision).
+Never invent products, names, or quotes.
+
+Evidence (quotes) — required when type is not none:
+- Copy 1-2 verbatim substrings from CUSTOMER messages that prove the type.
+- Copy characters exactly (same words, order, spelling). Do not paraphrase or add "Customer:".
+- Prefer the shortest span that contains the intent (8-140 chars).
+- If you cannot copy a real customer span, return type=none and quotes=[].
+- Max 2 quotes. Use [] only when type is none.
+
+Examples:
+Customer: "I am thinking of closing my account and moving my portfolio."
+{"type":"retention","confidence":0.86,"summary":"Customer intends to close and shift the portfolio.","quotes":["closing my account and moving my portfolio"]}
+
+Customer: "I already trade equity with you — do you offer loan against shares?"
+{"type":"upsell","confidence":0.8,"summary":"Existing equity customer asking for LAS, a distinct add-on.","quotes":["already trade equity with you","do you offer loan against shares"]}
+
+Customer: "I want to open a demat account. What are your account opening charges?"
+{"type":"lead","confidence":0.84,"summary":"New-account buying intent with a pricing question.","quotes":["want to open a demat account"]}
+
+Customer: "Please resend the login OTP to my registered mobile."
+{"type":"none","confidence":0.95,"summary":"Login OTP is ops, not a revenue signal.","quotes":[]}`;
 
 export type LlmSignalType = SignalType | "none";
+
+/** Corpus / small-model labels → product SignalType (or none). */
+const LLM_TYPE_ALIASES: Record<string, LlmSignalType> = {
+  none: "none",
+  no_signal: "none",
+  nosignal: "none",
+  ops: "none",
+  other: "none",
+  n_a: "none",
+  na: "none",
+  null: "none",
+  complaint: "none",
+  fraud: "none",
+  retention: "retention",
+  retention_risk: "retention",
+  churn: "retention",
+  churn_risk: "retention",
+  upsell: "upsell",
+  upsell_opportunity: "upsell",
+  cross_sell: "upsell",
+  crosssell: "upsell",
+  lead: "lead",
+  lead_intent: "lead",
+  qualified_lead: "lead",
+};
 
 export type LlmClassification = {
   type: LlmSignalType;
@@ -105,8 +156,12 @@ function positiveEnvNumber(raw: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function collapseWs(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
 function clipQuote(text: string, max = QUOTE_MAX): string {
-  const cleaned = text.replace(/\s+/g, " ").trim();
+  const cleaned = collapseWs(text);
   if (cleaned.length <= max) return cleaned;
   return `${cleaned.slice(0, max - 1).trimEnd()}…`;
 }
@@ -124,42 +179,199 @@ function truncate(text: string, max: number): string {
   return `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-function quoteIsGrounded(quote: string, source: string): boolean {
-  const needle = quote.replace(/\s+/g, " ").trim().toLowerCase();
-  if (needle.length < 8) return false;
-  const hay = source.replace(/\s+/g, " ").toLowerCase();
-  return hay.includes(needle);
+function stripSpeakerPrefix(quote: string): string {
+  return quote.replace(/^(customer|user|client)\s*:\s*/i, "").trim();
+}
+
+/** Fold punctuation so small-model quotes still match customer text. */
+function foldText(text: string): string {
+  return collapseWs(text)
+    .toLowerCase()
+    .replace(/[\u2018\u2019\u201A\u201B`]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g, '"')
+    .replace(/[\u2013\u2014\u2026.,!?;:#*~_/=+|\\[\]{}()<>"'-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function spanFromFoldedIndex(
+  pairs: { word: string; folded: string }[],
+  foldedCharIndex: number,
+  foldedLen: number
+): string | null {
+  let cursor = 0;
+  let startPair = -1;
+  let endPair = -1;
+  const end = foldedCharIndex + foldedLen;
+  for (let i = 0; i < pairs.length; i++) {
+    const tokenLen = pairs[i].folded.length;
+    const tokenStart = cursor;
+    const tokenEnd = cursor + tokenLen;
+    if (startPair < 0 && tokenEnd > foldedCharIndex) startPair = i;
+    if (tokenStart < end) endPair = i;
+    cursor = tokenEnd + 1;
+  }
+  if (startPair < 0 || endPair < startPair) return null;
+  return pairs
+    .slice(startPair, endPair + 1)
+    .map((p) => p.word)
+    .join(" ");
+}
+
+/**
+ * Recover a verbatim customer span from a model quote.
+ * Accepts exact, punctuation-folded, and ≥4-token consecutive runs.
+ */
+export function recoverGroundedQuote(
+  quote: string,
+  source: string
+): string | null {
+  const needle = collapseWs(stripSpeakerPrefix(quote)).replace(
+    /^["'\u201C\u201D]+|["'\u201C\u201D]+$/g,
+    ""
+  );
+  if (needle.length < 8) return null;
+  const hay = collapseWs(source);
+  if (!hay) return null;
+
+  const exact = hay.toLowerCase().indexOf(needle.toLowerCase());
+  if (exact >= 0) return hay.slice(exact, exact + needle.length);
+
+  const foldedNeedle = foldText(needle);
+  if (foldedNeedle.length < 8) return null;
+
+  const words = hay.split(" ");
+  const pairs: { word: string; folded: string }[] = [];
+  for (const word of words) {
+    const folded = foldText(word);
+    if (folded) pairs.push({ word, folded });
+  }
+  if (pairs.length === 0) return null;
+
+  const foldedJoined = pairs.map((p) => p.folded).join(" ");
+  const foldedIdx = foldedJoined.indexOf(foldedNeedle);
+  if (foldedIdx >= 0) {
+    const span = spanFromFoldedIndex(pairs, foldedIdx, foldedNeedle.length);
+    if (span && span.length >= 8) return span;
+  }
+
+  const needleToks = foldedNeedle.split(" ").filter(Boolean);
+  if (needleToks.length < 4) return null;
+  for (let len = needleToks.length; len >= 4; len--) {
+    for (let start = 0; start + len <= needleToks.length; start++) {
+      const run = needleToks.slice(start, start + len).join(" ");
+      const at = foldedJoined.indexOf(run);
+      if (at < 0) continue;
+      const span = spanFromFoldedIndex(pairs, at, run.length);
+      if (span && span.length >= 8) return span;
+    }
+  }
+  return null;
+}
+
+function firstString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "";
+}
+
+function quoteFromUnknown(item: unknown): string | null {
+  if (typeof item === "string") {
+    const text = collapseWs(item);
+    return text || null;
+  }
+  if (!item || typeof item !== "object") return null;
+  const rec = item as Record<string, unknown>;
+  const nested = firstString(rec.quote, rec.text, rec.span, rec.evidence);
+  return nested || null;
+}
+
+function collectQuotes(...buckets: unknown[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const bucket of buckets) {
+    const items = Array.isArray(bucket)
+      ? bucket
+      : bucket === undefined || bucket === null
+        ? []
+        : [bucket];
+    for (const item of items) {
+      const quote = quoteFromUnknown(item);
+      if (!quote) continue;
+      const key = quote.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(quote);
+      if (out.length >= 2) return out;
+    }
+  }
+  return out;
+}
+
+function normalizeTypeKey(raw: string): string {
+  return raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function resolveLlmType(...values: unknown[]): LlmSignalType | null {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const mapped = LLM_TYPE_ALIASES[normalizeTypeKey(value)];
+    if (mapped) return mapped;
+    const lowered = value.trim().toLowerCase();
+    if (SIGNAL_TYPES.has(lowered as SignalType)) return lowered as SignalType;
+  }
+  return null;
 }
 
 function parseClassification(raw: unknown): LlmClassification | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
-  const typeRaw = typeof o.type === "string" ? o.type.trim().toLowerCase() : "";
-  const type: LlmSignalType | null =
-    typeRaw === "none"
-      ? "none"
-      : SIGNAL_TYPES.has(typeRaw as SignalType)
-        ? (typeRaw as SignalType)
-        : null;
+  const type = resolveLlmType(o.type, o.signal, o.label, o.category);
   if (!type) return null;
 
-  const confidenceRaw = Number(o.confidence);
+  const confidenceRaw = Number(
+    o.confidence ?? o.score ?? o.confidence_score
+  );
   const confidence = Number.isFinite(confidenceRaw)
     ? Math.min(1, Math.max(0, confidenceRaw))
     : 0.55;
 
-  const summary =
-    typeof o.summary === "string" ? o.summary.replace(/\s+/g, " ").trim() : "";
+  const summary = collapseWs(
+    firstString(o.summary, o.reason, o.rationale, o.explanation)
+  );
 
-  const quotes = Array.isArray(o.quotes)
-    ? o.quotes
-        .filter((q): q is string => typeof q === "string")
-        .map((q) => q.replace(/\s+/g, " ").trim())
-        .filter(Boolean)
-        .slice(0, 2)
-    : [];
+  const quotes = collectQuotes(o.quotes, o.evidence, o.quote, o.spans);
 
   return { type, confidence, summary, quotes };
+}
+
+/** Parse small-model chat content: think tags, markdown fences, first JSON object. */
+export function parseLlmClassificationJson(
+  content: string
+): LlmClassification | null {
+  const stripped = content.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  if (!stripped) return null;
+
+  const fenced = stripped.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = (fenced?.[1] ?? stripped).trim();
+
+  const attempts = [body];
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    attempts.push(body.slice(start, end + 1));
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = parseClassification(JSON.parse(attempt) as unknown);
+      if (parsed) return parsed;
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 async function mapWithConcurrency<T, R>(
@@ -197,7 +409,7 @@ export async function classifyConversationWithGroq(input: {
 
   const who = input.conversation.customerName ?? "Customer";
   const channel = input.conversation.channel || "chat";
-  const userPrompt = `Customer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
+  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
 
   const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
   let response: Response;
@@ -237,11 +449,7 @@ export async function classifyConversationWithGroq(input: {
   const content = payload.choices?.[0]?.message?.content;
   if (!content) return null;
 
-  try {
-    return parseClassification(JSON.parse(content));
-  } catch {
-    return null;
-  }
+  return parseLlmClassificationJson(content);
 }
 
 function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
@@ -260,9 +468,18 @@ function signalFromClassification(
   if (classification.type === "none") return null;
   if (classification.confidence < SCORE_THRESHOLD) return null;
 
-  const groundedQuotes = classification.quotes
-    .filter((q) => quoteIsGrounded(q, sourceText))
-    .map((q) => `quote: "${clipQuote(q)}"`);
+  const groundedQuotes: string[] = [];
+  const seenQuotes = new Set<string>();
+  for (const quote of classification.quotes) {
+    const recovered = recoverGroundedQuote(quote, sourceText);
+    if (!recovered) continue;
+    const clipped = clipQuote(recovered);
+    const key = clipped.toLowerCase();
+    if (seenQuotes.has(key)) continue;
+    seenQuotes.add(key);
+    groundedQuotes.push(`quote: "${clipped}"`);
+    if (groundedQuotes.length >= 2) break;
+  }
 
   const summary = classification.summary.trim();
   if (groundedQuotes.length === 0 && summary.length < 20) return null;

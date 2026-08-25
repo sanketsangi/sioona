@@ -7,7 +7,10 @@ import {
   DETECT_LLM_CONCURRENCY,
   DETECT_LLM_MAX_CALLS,
   isDetectLlmEnabled,
+  parseLlmClassificationJson,
+  recoverGroundedQuote,
   runHybridDetection,
+  SYSTEM_PROMPT,
 } from "./detect-llm";
 import { loadTestingJsonEval } from "./testing-json-eval";
 import type { Conversation, Message } from "./types";
@@ -48,6 +51,105 @@ describe("isDetectLlmEnabled", () => {
     expect(isDetectLlmEnabled()).toBe(false);
     vi.stubEnv("GROQ_API_KEY", "gsk_test");
     expect(isDetectLlmEnabled()).toBe(true);
+  });
+});
+
+describe("SYSTEM_PROMPT", () => {
+  it("pins canonical JSON plus corpus aliases and verbatim evidence rules", () => {
+    expect(SYSTEM_PROMPT).toContain(
+      '"type":"retention"|"upsell"|"lead"|"none"'
+    );
+    expect(SYSTEM_PROMPT).toContain("retention_risk");
+    expect(SYSTEM_PROMPT).toContain("upsell_opportunity");
+    expect(SYSTEM_PROMPT).toContain("lead_intent");
+    expect(SYSTEM_PROMPT).toContain("verbatim");
+    expect(SYSTEM_PROMPT).toContain("quotes");
+    expect(SYSTEM_PROMPT).toContain("If you cannot copy a real customer span");
+  });
+});
+
+describe("parseLlmClassificationJson", () => {
+  it("maps retention_risk, upsell_opportunity, and lead_intent to product types", () => {
+    expect(
+      parseLlmClassificationJson(
+        JSON.stringify({
+          type: "retention_risk",
+          confidence: 0.9,
+          summary: "Churn",
+          quotes: ["close my account"],
+        })
+      )?.type
+    ).toBe("retention");
+    expect(
+      parseLlmClassificationJson(
+        JSON.stringify({
+          type: "Upsell Opportunity",
+          confidence: 0.7,
+          summary: "LAS ask",
+          quotes: ["loan against shares"],
+        })
+      )?.type
+    ).toBe("upsell");
+    expect(
+      parseLlmClassificationJson(
+        JSON.stringify({
+          signal: "lead_intent",
+          summary: "New demat",
+          evidence: ["open a demat account"],
+        })
+      )
+    ).toEqual({
+      type: "lead",
+      confidence: 0.55,
+      summary: "New demat",
+      quotes: ["open a demat account"],
+    });
+  });
+
+  it("maps complaint to none and rejects unknown types", () => {
+    expect(
+      parseLlmClassificationJson(
+        JSON.stringify({ type: "complaint", quotes: [] })
+      )?.type
+    ).toBe("none");
+    expect(
+      parseLlmClassificationJson(JSON.stringify({ type: "foobar", quotes: [] }))
+    ).toBeNull();
+  });
+});
+
+describe("recoverGroundedQuote", () => {
+  const source =
+    "I am thinking of closing my account and moving my portfolio.";
+
+  it("returns the original span for exact and punctuation-folded quotes", () => {
+    expect(recoverGroundedQuote("closing my account", source)).toBe(
+      "closing my account"
+    );
+    expect(
+      recoverGroundedQuote(
+        'Customer: "closing my account, and moving my portfolio"',
+        source
+      )
+    ).toBe("closing my account and moving my portfolio.");
+  });
+
+  it("recovers a consecutive token run from a paraphrased prefix", () => {
+    expect(
+      recoverGroundedQuote(
+        "I am planning on closing my account and moving my portfolio soon",
+        source
+      )
+    ).toBe("closing my account and moving my portfolio.");
+  });
+
+  it("rejects invented quotes that are not in the customer text", () => {
+    expect(
+      recoverGroundedQuote(
+        "I want to open a demat account today please",
+        "Thanks, that otp worked and I am logged in now."
+      )
+    ).toBeNull();
   });
 });
 
@@ -189,6 +291,43 @@ describe("applyLlmSecondPass", () => {
     expect(signals[0].id).toContain("_llm");
     expect(signals[0].evidence.some((e) => e.startsWith("quote: "))).toBe(true);
     expect(signals[0].evidence.some((e) => e.startsWith("llm: "))).toBe(true);
+  });
+
+  it("recovers slightly mangled quotes as Why This Fired evidence", async () => {
+    const quiet: Conversation = { ...conv, id: "conv_mangled" };
+    const quietMsgs: Message[] = [
+      {
+        ...messages[0],
+        conversationId: "conv_mangled",
+        content:
+          "Please send the monthly account statement to my email when you can.",
+      },
+    ];
+
+    const { signals } = await applyLlmSecondPass(
+      [quiet],
+      quietMsgs,
+      "tenant_demo",
+      [],
+      null,
+      {
+        classify: async () => ({
+          type: "retention",
+          confidence: 0.7,
+          summary: "Customer asked for a statement after a fee issue.",
+          quotes: [
+            'Customer: "Please send the monthly account statement, to my email"',
+          ],
+        }),
+      }
+    );
+
+    expect(signals).toHaveLength(1);
+    expect(
+      signals[0].evidence.some((e) =>
+        e.includes("Please send the monthly account statement")
+      )
+    ).toBe(true);
   });
 
   it("drops ungrounded quotes and rejects empty hallucinated hits", async () => {
@@ -377,7 +516,7 @@ describe("classifyConversationWithGroq", () => {
             {
               message: {
                 content: JSON.stringify({
-                  type: "churn",
+                  type: "foobar",
                   confidence: 0.9,
                   summary: "Leaving",
                   quotes: ["close my account"],
@@ -444,6 +583,11 @@ describe("classifyConversationWithGroq", () => {
       model: string;
     };
     expect(body.model).toBe("qwen/test-model");
+    expect(String(fetchMock.mock.calls[0][1].body)).toContain("retention_risk");
+    expect(String(fetchMock.mock.calls[0][1].body)).toContain(
+      "upsell_opportunity"
+    );
+    expect(String(fetchMock.mock.calls[0][1].body)).toContain("lead_intent");
   });
 
   it("defaults missing confidence to 0.55 and uses the default model", async () => {
@@ -481,6 +625,32 @@ describe("classifyConversationWithGroq", () => {
       model: string;
     };
     expect(body.model).toBe(DEFAULT_DETECT_LLM_MODEL);
+  });
+
+  it("parses fenced JSON and corpus type aliases from a small Qwen payload", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: `<think>maybe retention</think>\n\`\`\`json\n{"signal":"retention_risk","score":0.81,"reason":"Leaving the broker.","evidence":[{"quote":"close my account"}]}\n\`\`\``,
+            },
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).resolves.toEqual({
+      type: "retention",
+      confidence: 0.81,
+      summary: "Leaving the broker.",
+      quotes: ["close my account"],
+    });
   });
 });
 

@@ -41,12 +41,19 @@ describe("mapTestingLabelsToGroundTruth", () => {
         { signal: "upsell" },
       ])
     ).toBe("retention");
-    expect(mapTestingLabelsToGroundTruth([{ signal: "lead" }])).toBe("lead");
+    expect(
+      mapTestingLabelsToGroundTruth([{ signal: "lead_intent" }])
+    ).toBe("lead");
+    expect(
+      mapTestingLabelsToGroundTruth([{ signal: "upsell_opportunity" }])
+    ).toBe("upsell");
   });
 
   it("maps every SOURCE_TO_GT key the ingest/eval adapters rely on", () => {
     expect(SOURCE_TO_GT.lead).toBe("lead");
+    expect(SOURCE_TO_GT.lead_intent).toBe("lead");
     expect(SOURCE_TO_GT.upsell).toBe("upsell");
+    expect(SOURCE_TO_GT.upsell_opportunity).toBe("upsell");
     expect(SOURCE_TO_GT.churn_risk).toBe("retention");
     expect(SOURCE_TO_GT.retention_risk).toBe("retention");
     expect(SOURCE_TO_GT.complaint).toBe("none");
