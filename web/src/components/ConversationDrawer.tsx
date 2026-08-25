@@ -26,8 +26,6 @@ import { cn } from "@/lib/utils";
 export function ConversationDrawer({
   messages,
   customerName,
-  typeLabel: _typeLabel,
-  summary: _summary,
   triggerLabel = "See Conversation",
   triggerClassName,
   footer = null,

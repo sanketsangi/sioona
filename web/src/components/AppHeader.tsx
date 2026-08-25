@@ -245,14 +245,11 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
 
   /** UI selection; when locked, Action is only shown briefly then reverts. */
   const [mode, setMode] = useState<WorkspaceMode>(workspaceMode);
+  const [prevWorkspaceMode, setPrevWorkspaceMode] = useState(workspaceMode);
   const [bounceAction, setBounceAction] = useState(false);
   const [liveMessage, setLiveMessage] = useState("");
   const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const liveClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setMode(workspaceMode);
-  }, [workspaceMode]);
 
   useEffect(() => {
     return () => {
@@ -260,6 +257,11 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
       if (liveClearRef.current) clearTimeout(liveClearRef.current);
     };
   }, []);
+
+  if (workspaceMode !== prevWorkspaceMode) {
+    setPrevWorkspaceMode(workspaceMode);
+    setMode(workspaceMode);
+  }
 
   function clearBounceTimers() {
     if (bounceTimerRef.current) {
