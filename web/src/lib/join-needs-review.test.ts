@@ -6,6 +6,7 @@ import type {
 import {
   applyChatEvidenceToSignals,
   doneSignals,
+  filterPendingWithChat,
   followUpSignals,
   joinNeedsReviewPredictions,
   joinTenantSignals,
@@ -94,7 +95,7 @@ describe("joinNeedsReviewPredictions", () => {
     expect(joined.evidence).toEqual(["quote"]);
   });
 
-  it("omits unmatched Neon predictions (stale demo / no local chat)", () => {
+  it("keeps unmatched Neon predictions as stubs", () => {
     const preds = [
       prediction({
         id: "orphan",
@@ -103,7 +104,10 @@ describe("joinNeedsReviewPredictions", () => {
       }),
     ];
     const joined = joinNeedsReviewPredictions(preds, [baseSignal]);
-    expect(joined).toHaveLength(0);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].id).toBe("sig_neon_orphan");
+    expect(joined[0].conversationId).toBe("conv_x");
+    expect(joined[0].summary).toBe("Neon only");
   });
 
   it("omits JSON matches that already have feedback", () => {
@@ -192,7 +196,7 @@ describe("pendingQueueSignals", () => {
     expect(pending.map((s) => s.id)).toEqual(["sig_neon", "sig_local_only"]);
   });
 
-  it("surfaces keep-set locals when Neon queue has no overlapping chats", () => {
+  it("surfaces keep-set locals after unmatched Neon stubs", () => {
     const preds = [
       prediction({
         id: "stale",
@@ -205,7 +209,63 @@ describe("pendingQueueSignals", () => {
     ];
 
     const pending = pendingQueueSignals(preds, json);
-    expect(pending.map((s) => s.id)).toEqual(["sig_a", "sig_b"]);
+    expect(pending.map((s) => s.id)).toEqual([
+      "sig_neon_stale",
+      "sig_a",
+      "sig_b",
+    ]);
+  });
+});
+
+describe("filterPendingWithChat", () => {
+  it("drops Neon stubs whose conversation is missing", () => {
+    const pending = pendingQueueSignals(
+      [prediction({ id: "stale", conversation_id: "conv_other_pack" })],
+      [
+        { ...baseSignal, id: "sig_a" },
+        { ...baseSignal, id: "sig_b", conversationId: "conv_2", type: "retention" },
+      ]
+    );
+    const filtered = filterPendingWithChat(pending, [
+      {
+        id: "conv_1",
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+      {
+        id: "conv_2",
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+    ]);
+    expect(filtered.map((s) => s.id)).toEqual(["sig_a", "sig_b"]);
+  });
+
+  it("keeps Neon stubs when overlay/store has the conversation", () => {
+    const pending = pendingQueueSignals(
+      [
+        prediction({
+          id: "hydrate",
+          conversation_id: "conv_hydrated",
+          summary: "After /tmp wipe",
+        }),
+      ],
+      []
+    );
+    const filtered = filterPendingWithChat(pending, [
+      {
+        id: "conv_hydrated",
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+    ]);
+    expect(filtered.map((s) => s.id)).toEqual(["sig_neon_hydrate"]);
   });
 });
 
@@ -350,7 +410,7 @@ describe("Groww Neon vs Zerodha JSON keep-set mismatch", () => {
     },
   ];
 
-  it("pending omits Groww Neon rows that do not intersect Zerodha JSON", () => {
+  it("pending drops Groww Neon stubs that have no Zerodha chat", () => {
     const preds = [
       prediction({
         id: "groww-stale",
@@ -358,8 +418,17 @@ describe("Groww Neon vs Zerodha JSON keep-set mismatch", () => {
         signal_type: "lead",
       }),
     ];
-    const pending = pendingQueueSignals(preds, zerodhaJson);
-    // Unmatched Neon omitted; keep-set local Zerodha still surfaces.
+    const joined = pendingQueueSignals(preds, zerodhaJson);
+    expect(joined.map((s) => s.id)).toEqual(["sig_neon_groww-stale", "sig_zerodha"]);
+    const pending = filterPendingWithChat(joined, [
+      {
+        id: ZERODHA_CONV_ID,
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+    ]);
     expect(pending.map((s) => s.id)).toEqual(["sig_zerodha"]);
     expect(pending.every((s) => s.conversationId === ZERODHA_CONV_ID)).toBe(
       true
