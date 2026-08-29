@@ -303,6 +303,29 @@ export function queueSignalsForFilter(opts: {
   };
 }
 
+/**
+ * Eval keep-set conversation ids: JSON store ∪ request-scoped overlay.
+ * Overlay-only chats (pending stubs after /tmp wipe) must count toward
+ * week-window SignalScore. Does not write leftover packs into store.json.
+ */
+export function keepSetConversationIds(
+  storeConversations: Conversation[],
+  overlayConversations?: Conversation[] | null
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const row of [
+    ...storeConversations,
+    ...(overlayConversations ?? []),
+  ]) {
+    const id = row.id?.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
 /** Conversation ids on queue rows that are missing from the JSON store. */
 export function missingConversationIds(
   signals: Signal[],

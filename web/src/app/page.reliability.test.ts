@@ -405,6 +405,47 @@ describe("PlatformPage deploy reliability", () => {
     expect(props.cadencePreviewId).toBe("sig_follow");
   });
 
+  it("scopes SignalScore keep-set to store plus overlay conversation ids", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [
+        {
+          id: "hydrate-pred",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_hydrated",
+          signal_type: "retention",
+          confidence: 0.81,
+          summary: "After wipe",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(fetchOverlayConversations).mockResolvedValue({
+      conversations: [
+        {
+          id: "conv_hydrated",
+          tenantId: "tenant_demo",
+          channel: "whatsapp",
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+        },
+      ],
+      messages: [],
+    });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+    vi.mocked(readStore).mockResolvedValue(mockStore([]));
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "eval" }),
+    });
+
+    const keepSet = ["conv_1", "conv_2", "conv_hydrated"];
+    expect(
+      vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
+    ).toEqual([keepSet, keepSet]);
+  });
+
   it("requests overlay chats for unmatched pending conversation ids", async () => {
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
@@ -433,7 +474,7 @@ describe("PlatformPage deploy reliability", () => {
     ]);
   });
 
-  it("does not fetch overlay chats on Upload or Eval", async () => {
+  it("fetches overlay chats on Eval so keep-set can include stub ids", async () => {
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
       predictions: [
@@ -452,12 +493,11 @@ describe("PlatformPage deploy reliability", () => {
     vi.mocked(readStore).mockResolvedValue(mockStore([]));
 
     await PlatformPage({
-      searchParams: Promise.resolve({ view: "upload" }),
-    });
-    await PlatformPage({
       searchParams: Promise.resolve({ view: "eval" }),
     });
 
-    expect(fetchOverlayConversations).not.toHaveBeenCalled();
+    expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
+      "conv_hydrated",
+    ]);
   });
 });
