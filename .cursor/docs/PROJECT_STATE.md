@@ -158,7 +158,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** overlay-by-id pass in progress — see commit. Prior on `49bc92d`: web **441** passed / **5** skipped; backend **58** passed. Not a hosted deploy.
+- **Tests status (2026-08-29, this tree):** web **444** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **60** passed. Overlay-by-id + Insights-only fetch. Not a hosted deploy (this VM could not reach sioona-demo / sioona-api). Prior on `49bc92d`: web 441 / backend 58.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
