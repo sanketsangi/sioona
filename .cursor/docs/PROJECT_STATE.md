@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-29  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/insights-pending-overlay-9a2c` (pending queue overlay; base `main` = `5b6f7a7`)
+**Branch:** `cursor/eval-keepset-overlay-588c` (Eval keep-set ∪ overlay; base `main` = `49bc92d`)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -18,7 +18,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-21):** Week-3 real partner CSV upsert **closed** on shared Neon (localhost ingest → FastAPI). Count **4→5**. Local CS `batch_001` replace stays a negative example (200/0).
 
-**Shipped this pass (2026-08-29):** Insights pending join keeps Neon needs-review stubs when store/overlay still has the chat (`filterPendingWithChat`) so Shadow Mode survives `/tmp` wipe / JSON drift. Stale Partner Demo pack ids with no chat stay omitted. Overlay fetch now includes pending conversation ids (not only Follow-up / Done). Skill: `.cursor/skills/insights-queue-join/SKILL.md`. Not a keep-set go / not Adapt / not taxonomy.
+**Shipped this pass (2026-08-29):** Eval keep-set SignalScore unions request-scoped overlay conversation ids (`keepSetConversationIds`) so reviews on Neon pending stubs after `/tmp` wipe / JSON drift count toward the week-window go. Insights pending overlay join (`filterPendingWithChat`) already on `main` (`49bc92d` / #55–#56). Does not write leftover packs into `store.json`. Not a keep-set go / not Adapt / not taxonomy.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
@@ -125,6 +125,8 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Acted stale-id recovery 2026-08-19 — Mark as Acted reuses feedback resolve (Neon UUID / conversation+type / `sig_neon_` stub); JSON fail-soft; neon-only `setPredictionActed` when the row is missing or unreviewed (hosted Correct → Acted without “Signal not found”)
 - Insights follow-up lists 2026-08-20 — **shipped**: Needs Follow-Up (`correct` ¬acted) and Done (`acted`) from Neon `GET …/signals`; request-scoped chat overlay when JSON misses the conversation; Mark Acted still display-only. Not a keep-set win / not Auth0
 - Unlocked Action Mode 2026-08-20 — **shipped**: `?mode=action` deep-links Insights Follow-up Act queue (Suggested Next Action + Mark Acted; FastAPI+Neon Acted SoT; nothing sent). Prod stays locked (ModeToggle bounce + strip `mode=action`). Unlock via local `next dev` or `NEXT_PUBLIC_ACTION_MODE_UNLOCKED`. Export/Create Campaign stay hidden. Not outbound / not Auth0
+- Insights pending overlay 2026-08-29 — **shipped** (#55/#56): pending stubs + `filterPendingWithChat`; overlay includes pending ids
+- Eval keep-set ∪ overlay 2026-08-29 — **this pass**: SignalScore keep-set unions overlay conversation ids so stub reviews count; overlay still not written to JSON
 - Insights pending landing 2026-08-20 — **shipped**: omitted status with Follow-up empty + Pending > 0 lands `status=new`; explicit empty Follow-up stays compact + Review Pending. Not a keep-set win / not outbound
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
@@ -157,7 +159,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** web **441** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip). Pending overlay join + InsightsView / page reliability coverage. Not a hosted deploy. Prior (2026-08-25): web 428 / backend 58 / eslint clean.
+- **Tests status (2026-08-29, this tree):** web **444** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **58** passed. Eval keep-set ∪ overlay coverage. Not a hosted deploy. Prior (2026-08-29 overlay): web 441.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

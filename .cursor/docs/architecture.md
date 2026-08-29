@@ -134,6 +134,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - Render free cold starts (~15m) → queue/score timeouts.
 - Soft tenancy (spoofable header).
 - Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations`, not written to JSON). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
+- Eval keep-set SignalScore is JSON conversation ids ∪ overlay ids so stub reviews count toward the week window. Overlay stays request-scoped (not written to JSON).
 - Message upsert does not delete omitted messages until prune/wipe.
 
 ---
