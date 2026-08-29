@@ -126,7 +126,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Insights follow-up lists 2026-08-20 — **shipped**: Needs Follow-Up (`correct` ¬acted) and Done (`acted`) from Neon `GET …/signals`; request-scoped chat overlay when JSON misses the conversation; Mark Acted still display-only. Not a keep-set win / not Auth0
 - Unlocked Action Mode 2026-08-20 — **shipped**: `?mode=action` deep-links Insights Follow-up Act queue (Suggested Next Action + Mark Acted; FastAPI+Neon Acted SoT; nothing sent). Prod stays locked (ModeToggle bounce + strip `mode=action`). Unlock via local `next dev` or `NEXT_PUBLIC_ACTION_MODE_UNLOCKED`. Export/Create Campaign stay hidden. Not outbound / not Auth0
 - Insights pending overlay 2026-08-29 — **shipped** (#55/#56): pending stubs + `filterPendingWithChat`; overlay includes pending ids
-- Eval keep-set ∪ overlay 2026-08-29 — **this pass**: SignalScore keep-set unions overlay conversation ids so stub reviews count; overlay still not written to JSON
+- Eval keep-set ∪ overlay 2026-08-29 — **shipped** (#57): SignalScore keep-set unions overlay conversation ids so stub reviews count; overlay still not written to JSON
 - Insights pending landing 2026-08-20 — **shipped**: omitted status with Follow-up empty + Pending > 0 lands `status=new`; explicit empty Follow-up stays compact + Review Pending. Not a keep-set win / not outbound
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
@@ -160,7 +160,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** web **449+** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **58** passed; eslint **clean**. Residual failures: **none**. Not a hosted deploy. Code: Render wake BFF + `QueueWakeRetry` + partner-safe Insights queue-miss copy, merged onto #57 Eval keep-set ∪ overlay.
+- **Tests status (2026-08-29, this tree):** web **457** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **58** passed. Residual failures: **none**. Not a hosted deploy. Code: Render wake BFF + `QueueWakeRetry` + partner-safe Insights queue-miss copy, merged onto #57 Eval keep-set ∪ overlay.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

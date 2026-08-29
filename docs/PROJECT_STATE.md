@@ -8,7 +8,7 @@ Do not maintain a second narrative here. New agent windows and current heading l
 
 | Suite | Result |
 | --- | --- |
-| Web Vitest (`cd web && npm test`) | **449+** passed / **5** skipped (merged onto #57 keep-set overlay) |
+| Web Vitest (`cd web && npm test`) | **457** passed / **5** skipped (merged onto #57 keep-set overlay) |
 | Backend pytest (`cd backend && .venv/bin/python -m pytest`) | **58** passed |
 | ESLint (`cd web && npm run lint`) | **clean** |
 | Local smoke (localhost web + FastAPI SQLite) | health / Insights / Upload / Eval / Taxonomy **200**; `/api/backend-health` **200**; legacy Location ok |
