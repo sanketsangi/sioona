@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -127,11 +127,18 @@ def get_tenant_conversations(
     tenant_id: str,
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
+    conversation_id: Annotated[list[str] | None, Query()] = None,
 ) -> list[ConversationResponse]:
-    """List this tenant's conversations. Insights still reads JSON; this is API-only."""
+    """List this tenant's conversations. Insights still reads JSON; this is API-only.
+
+    Repeat ``conversation_id`` to return only those rows (request-scoped
+    overlay). Omitted → full tenant list (cold-start hydrate).
+    """
     assert_tenant_match(tenant_id, header_tenant_id)
     try:
-        rows = list_conversations(db, tenant_id)
+        rows = list_conversations(
+            db, tenant_id, conversation_ids=conversation_id
+        )
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
     return [_to_response(conversation, messages) for conversation, messages in rows]

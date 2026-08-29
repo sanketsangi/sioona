@@ -104,7 +104,7 @@ Primary wedge type: **retention**.
 | Area             | Endpoints (summary)                                                                                   |
 | ---------------- | ----------------------------------------------------------------------------------------------------- |
 | Predictions      | `POST /v1/predictions`                                                                                |
-| Conversations    | bulk/upsert/list/prune/delete; `PATCH` ground_truth                                                   |
+| Conversations    | bulk/upsert/list/prune/delete; `PATCH` ground_truth; list accepts repeat `conversation_id` (overlay) |
 | Feedback / Acted | `POST /v1/signals/{id}/feedback`, `…/acted`                                                           |
 | Queue / hydrate  | `GET …/signals/needs-review`, `GET …/signals`                                                         |
 | Score            | `GET …/signal-score` — `correct/reviewed`; optional keep-set + `date_from`/`date_to` on `reviewed_at` |
@@ -133,7 +133,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - Vercel `/tmp` ephemeral — rely on hydrate, not local files.
 - Render free cold starts (~15m) → queue/score timeouts.
 - Soft tenancy (spoofable header).
-- Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations`, not written to JSON). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
+- Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations?conversation_id=`, not written to JSON; Insights only). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
 - Message upsert does not delete omitted messages until prune/wipe.
 
 ---

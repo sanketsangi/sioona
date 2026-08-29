@@ -183,13 +183,16 @@ export default async function PlatformPage({
     }),
     { unactedCorrectCount: followUp.length }
   );
-  const overlayChats = await fetchOverlayConversations(
-    store.tenant.id,
-    missingConversationIds(
-      [...pendingRaw, ...reviewedForCadence],
-      store.conversations
-    )
-  );
+  const overlayChats =
+    view === "insights"
+      ? await fetchOverlayConversations(
+          store.tenant.id,
+          missingConversationIds(
+            [...pendingRaw, ...reviewedForCadence],
+            store.conversations
+          )
+        )
+      : null;
   const pendingCount = filterPendingWithChat(pendingRaw, [
     ...store.conversations,
     ...(overlayChats?.conversations ?? []),

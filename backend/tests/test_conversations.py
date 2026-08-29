@@ -157,6 +157,39 @@ def test_tenant_isolation_same_conversation_id(db: Session) -> None:
     assert empty == []
 
 
+def test_list_conversations_filters_by_conversation_ids(db: Session) -> None:
+    upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            conversation_id="conv_keep",
+            messages=[
+                MessageUpsert(
+                    message_id="msg_keep_0",
+                    role="customer",
+                    content="Need a callback",
+                    timestamp=_ts(11),
+                )
+            ],
+        ),
+    )
+    upsert_conversation(
+        db,
+        tenant_id="tenant_b",
+        payload=_payload(conversation_id="conv_keep"),
+    )
+
+    listed = list_conversations(
+        db, "tenant_a", conversation_ids=["conv_keep", "conv_missing"]
+    )
+    assert [row[0].conversation_id for row in listed] == ["conv_keep"]
+    assert [m.content for m in listed[0][1]] == ["Need a callback"]
+
+    assert list_conversations(db, "tenant_a", conversation_ids=[]) == []
+    assert list_conversations(db, "tenant_a", conversation_ids=[""]) == []
+
+
 def test_list_conversations_does_not_leak_other_tenant_messages(db: Session) -> None:
     upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
     upsert_conversation(
