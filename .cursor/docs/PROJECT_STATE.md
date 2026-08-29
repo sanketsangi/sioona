@@ -157,7 +157,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** pending overlay join + InsightsView / page reliability coverage. Run `cd web && npm test` after this pass. Prior (2026-08-25): web **428** passed / **5** skipped; backend pytest **58** passed; eslint **clean**. Not a hosted deploy.
+- **Tests status (2026-08-29, this tree):** web **441** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip). Pending overlay join + InsightsView / page reliability coverage. Not a hosted deploy. Prior (2026-08-25): web 428 / backend 58 / eslint clean.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

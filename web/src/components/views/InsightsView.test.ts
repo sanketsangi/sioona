@@ -292,7 +292,7 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
-    expect(html).toContain("No Signals Need Review");
+    expect(html).toContain("No Signals Yet");
     expect(html).not.toContain("Leftover Groww pending");
   });
 });
