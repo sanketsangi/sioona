@@ -34,6 +34,7 @@ import {
 } from "@/lib/hydrate-conversations";
 import {
   applyChatEvidenceToSignals,
+  filterPendingWithChat,
   pendingQueueSignals,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
@@ -133,7 +134,7 @@ export function InsightsView({
 }) {
   const queueError = needsReview.ok ? null : needsReview.error;
   const tenantSignalsError = tenantSignals.ok ? null : tenantSignals.error;
-  const pendingSignals = needsReview.ok
+  const pendingJoined = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals)
     : store.signals.filter((s) => !s.feedback);
   const reviewedJoined = tenantSignals.ok
@@ -143,6 +144,11 @@ export function InsightsView({
     store.conversations,
     store.messages,
     overlayChats,
+  );
+  const pendingSignals = applyChatEvidenceToSignals(
+    filterPendingWithChat(pendingJoined, chats.conversations),
+    chats,
+    store.taxonomyOverrides,
   );
   const reviewedSignals = applyChatEvidenceToSignals(
     reviewedJoined,

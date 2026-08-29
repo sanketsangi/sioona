@@ -10,7 +10,9 @@ import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
 import {
+  filterPendingWithChat,
   followUpSignals,
+  keepSetConversationIds,
   missingConversationIds,
   pendingQueueSignals,
   reviewedQueueSignals,
@@ -137,34 +139,46 @@ export default async function PlatformPage({
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
   const wipeFailed = sp.wipeFailed === "1";
-  const keepSetIds = storeRaw.conversations.map((c) => c.id);
   const scoreWindow = inspectSignalScoreWindow({
     scoreFrom: sp.scoreFrom,
     envFrom: process.env.SIGNAL_SCORE_FROM,
   });
   const scoreDateFrom = scoreWindow.resolvedFrom;
 
-  const [store, backendScore, allTimeScore, needsReview, tenantSignals] =
-    await Promise.all([
-      refreshStorePilotFromNeon(storeRaw),
-      fetchSignalScoreSafe(storeRaw.tenant.id, keepSetIds, {
-        dateFrom: scoreDateFrom,
-      }),
-      fetchSignalScoreSafe(storeRaw.tenant.id, keepSetIds),
-      fetchNeedsReview(storeRaw.tenant.id),
-      fetchTenantSignals(storeRaw.tenant.id),
-    ]);
+  const [store, needsReview, tenantSignals] = await Promise.all([
+    refreshStorePilotFromNeon(storeRaw),
+    fetchNeedsReview(storeRaw.tenant.id),
+    fetchTenantSignals(storeRaw.tenant.id),
+  ]);
   if (store !== storeRaw) {
     // Heal this instance's ephemeral JSON so lift/breadcrumb match Neon SoT.
     await writeStore(store);
-  }  const pendingCount = needsReview.ok
-    ? pendingQueueSignals(needsReview.predictions, store.signals).length
-    : store.signals.filter((s) => !s.feedback).length;
+  }
+  const pendingRaw = needsReview.ok
+    ? pendingQueueSignals(needsReview.predictions, store.signals)
+    : store.signals.filter((s) => !s.feedback);
   const queueError = needsReview.ok ? null : needsReview.error;
   const reviewedForCadence = tenantSignals.ok
     ? reviewedQueueSignals(tenantSignals.rows, store.signals)
     : reviewedSignalsFromStore(store.signals);
   const followUp = followUpSignals(reviewedForCadence);
+  const overlayChats = await fetchOverlayConversations(
+    store.tenant.id,
+    missingConversationIds(
+      [...pendingRaw, ...reviewedForCadence],
+      store.conversations
+    )
+  );
+  const keepSetIds = keepSetConversationIds(
+    store.conversations,
+    overlayChats?.conversations
+  );
+  const [backendScore, allTimeScore] = await Promise.all([
+    fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
+      dateFrom: scoreDateFrom,
+    }),
+    fetchSignalScoreSafe(store.tenant.id, keepSetIds),
+  ]);
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
   const cadencePreviewId = firstUnactedCorrectId(followUp);
   const cadenceAction = nextPilotCadenceAction(
@@ -181,13 +195,10 @@ export default async function PlatformPage({
     }),
     { unactedCorrectCount: followUp.length }
   );
-  const overlayChats =
-    view === "insights"
-      ? await fetchOverlayConversations(
-          store.tenant.id,
-          missingConversationIds(reviewedForCadence, store.conversations)
-        )
-      : null;
+  const pendingCount = filterPendingWithChat(pendingRaw, [
+    ...store.conversations,
+    ...(overlayChats?.conversations ?? []),
+  ]).length;
   const scoreFromQuery =
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
   const notifications = buildHeaderNotifications({

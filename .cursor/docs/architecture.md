@@ -133,7 +133,8 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - Vercel `/tmp` ephemeral — rely on hydrate, not local files.
 - Render free cold starts (~15m) → queue/score timeouts. Insights/Eval auto-wake `/api/backend-health` once, then refresh (cooldown; partner-safe copy).
 - Soft tenancy (spoofable header).
-- Neon **pending** rows without a matching JSON **signal** are dropped at join (stale demo ids). Follow-up / Done keep unmatched Neon rows and overlay chat/evidence from `GET …/conversations` for that request (not written to JSON).
+- Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations`, not written to JSON). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
+- Eval keep-set SignalScore is JSON conversation ids ∪ overlay ids so stub reviews count toward the week window. Overlay stays request-scoped (not written to JSON).
 - Message upsert does not delete omitted messages until prune/wipe.
 
 ---

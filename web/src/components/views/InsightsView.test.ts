@@ -256,3 +256,89 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
   });
 });
+
+describe("InsightsView Neon pending overlay", () => {
+  it("lists a Neon-only pending stub when overlay has the chat", () => {
+    const store = storeFromSignals([]);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: [
+            {
+              id: "hydrate-pred",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_hydrated",
+              signal_type: "retention",
+              confidence: 0.81,
+              summary: "Priya (WhatsApp) asked to pause SIP",
+              created_at: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+        tenantSignals: { ok: true, rows: [] },
+        overlayChats: {
+          conversations: [
+            {
+              id: "conv_hydrated",
+              tenantId: "tenant_demo",
+              channel: "whatsapp",
+              startedAt: "2026-08-01T00:00:00.000Z",
+              messageIds: ["msg_1"],
+              customerName: "Priya",
+            },
+          ],
+          messages: [
+            {
+              id: "msg_1",
+              conversationId: "conv_hydrated",
+              role: "customer",
+              content: "Please pause my SIP this month",
+              timestamp: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Priya");
+    expect(html).toContain("pause SIP");
+    expect(html).not.toContain("No Signals Need Review");
+  });
+
+  it("omits a Neon-only pending stub when overlay has no chat", () => {
+    const store = storeFromSignals([]);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: [
+            {
+              id: "stale-pred",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_other_pack",
+              signal_type: "lead",
+              confidence: 0.7,
+              summary: "Leftover Groww pending",
+              created_at: "2026-08-01T00:00:00.000Z",
+            },
+          ],
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("No Signals Yet");
+    expect(html).not.toContain("Leftover Groww pending");
+  });
+});
