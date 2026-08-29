@@ -51,6 +51,7 @@ import PlatformPage from "./page";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
+import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
 import { readStore } from "@/lib/store";
 
 function pageShellProps(result: ReactElement) {
@@ -402,5 +403,33 @@ describe("PlatformPage deploy reliability", () => {
       ]);
     }
     expect(props.cadencePreviewId).toBe("sig_follow");
+  });
+
+  it("requests overlay chats for unmatched pending conversation ids", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [
+        {
+          id: "hydrate-pred",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_hydrated",
+          signal_type: "retention",
+          confidence: 0.81,
+          summary: "After wipe",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+    vi.mocked(readStore).mockResolvedValue(mockStore([]));
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights", status: "new" }),
+    });
+
+    expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
+      "conv_hydrated",
+    ]);
   });
 });

@@ -1,6 +1,7 @@
 /**
  * Join Neon predictions to JSON store signals for Shadow Mode cards.
- * Pending: needs-review order, unmatched Neon rows omitted (stale demo ids).
+ * Pending: needs-review order; unmatched kept as stubs when a chat exists
+ * (JSON or overlay). Stale pack ids with no chat are dropped later.
  * Follow-up / Done: tenant signals, unmatched kept as stubs (JSON drift).
  */
 
@@ -10,6 +11,7 @@ import type {
   BackendPredictionWithFeedback,
 } from "./backend-client";
 import { pickAction } from "./detect";
+import { isNeonStubSignalId } from "./prediction-sync";
 import type { StatusFilter, TypeFilter } from "./views";
 import type {
   Conversation,
@@ -62,8 +64,8 @@ function findJsonSignal(
 /**
  * Map each needs-review prediction to a display Signal, preserving Neon order.
  * Prefers JSON match (evidence / local conversation). Unmatched Neon rows
- * (stale Partner Demo runs with different conversation ids) are omitted so
- * Insights never opens a card with no local chat.
+ * become stubs so `/tmp` wipe / JSON drift still surfaces the queue; callers
+ * must drop stubs with no store or overlay chat (`filterPendingWithChat`).
  * Dedupes by JSON signal id when multiple Neon rows match the same local
  * signal (re-detect / dual-write races) so queue React keys stay unique.
  */
@@ -77,6 +79,10 @@ export function joinNeedsReviewPredictions(
   for (const prediction of predictions) {
     const matched = findJsonSignal(prediction, jsonSignals);
     if (!matched) {
+      const stub = predictionToStubSignal(prediction);
+      if (seenJsonIds.has(stub.id)) continue;
+      seenJsonIds.add(stub.id);
+      joined.push(stub);
       continue;
     }
     if (seenJsonIds.has(matched.id)) {
@@ -100,14 +106,31 @@ export function joinNeedsReviewPredictions(
   return joined;
 }
 
+/**
+ * Hide Neon pending stubs that have no conversation in the JSON store or
+ * request-scoped overlay. JSON-backed rows stay (local evidence). Stale
+ * Partner Demo pack ids without a chat stay off the Shadow Mode queue.
+ */
+export function filterPendingWithChat(
+  pending: Signal[],
+  conversations: Conversation[]
+): Signal[] {
+  const have = new Set(conversations.map((conversation) => conversation.id));
+  return pending.filter((signal) => {
+    if (!isNeonStubSignalId(signal.id)) return true;
+    return Boolean(signal.conversationId) && have.has(signal.conversationId);
+  });
+}
+
 /** JSON signals that already have human feedback (JSON fallback). */
 export function reviewedSignalsFromStore(jsonSignals: Signal[]): Signal[] {
   return jsonSignals.filter((s) => Boolean(s.feedback));
 }
 
 /**
- * Shadow Mode pending list for Insights: Neon needs-review join first, then
- * keep-set JSON unreviewed rows Neon did not return (id drift / stale queue).
+ * Shadow Mode pending list for Insights: Neon needs-review join first
+ * (JSON match or stub), then keep-set JSON unreviewed rows Neon missed.
+ * Callers must `filterPendingWithChat` after overlay merge.
  * Reviewed (feedback) rows stay out — they belong in Follow-Up / Done.
  */
 export function pendingQueueSignals(

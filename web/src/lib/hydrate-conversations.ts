@@ -227,8 +227,9 @@ export function filterHydratedChats(
 }
 
 /**
- * Request-scoped chat overlay for Follow-Up / Done when JSON misses the row.
- * Does not write the store (avoids mixing leftover Neon packs into JSON).
+ * Request-scoped chat overlay for Insights when JSON misses the row
+ * (pending stubs + Follow-Up / Done). Does not write the store (avoids
+ * mixing leftover Neon packs into JSON).
  */
 export async function fetchOverlayConversations(
   tenantId: string,
