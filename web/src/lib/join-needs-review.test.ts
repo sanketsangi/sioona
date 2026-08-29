@@ -9,6 +9,7 @@ import {
   filterPendingWithChat,
   followUpSignals,
   joinNeedsReviewPredictions,
+  keepSetConversationIds,
   joinTenantSignals,
   missingConversationIds,
   pendingQueueSignals,
@@ -559,6 +560,23 @@ describe("missingConversationIds / chat evidence", () => {
         [conv]
       )
     ).toEqual(["conv_x"]);
+  });
+
+  it("unions overlay conversation ids into the Eval keep-set", () => {
+    const overlay: Conversation = {
+      id: "conv_hydrated",
+      tenantId: "tenant_demo",
+      channel: "whatsapp",
+      startedAt: "2026-08-01T00:00:00.000Z",
+      messageIds: [],
+    };
+    expect(keepSetConversationIds([conv], [overlay, conv])).toEqual([
+      "conv_1",
+      "conv_hydrated",
+    ]);
+    expect(keepSetConversationIds([], [overlay])).toEqual(["conv_hydrated"]);
+    expect(keepSetConversationIds([conv], null)).toEqual(["conv_1"]);
+    expect(keepSetConversationIds([], null)).toEqual([]);
   });
 
   it("builds quote evidence from the last customer messages", () => {

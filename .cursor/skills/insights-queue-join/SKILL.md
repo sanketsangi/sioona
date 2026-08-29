@@ -21,6 +21,10 @@ Stale Partner Demo pack ids (Groww leftovers vs Zerodha JSON) stay hidden: no ov
 
 Unmatched Neon reviewed rows stay as stubs even without JSON. Overlay is request-scoped (do not write leftover packs into `store.json`).
 
+## Eval keep-set
+
+Week-window SignalScore keep-set is JSON store conversation ids ∪ overlay ids (`keepSetConversationIds`). Stub reviews after `/tmp` wipe count toward go. Still do not persist overlay into `store.json`.
+
 ## Do not
 
 - Redesign Insights flows or invent signal chrome

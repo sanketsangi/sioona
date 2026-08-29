@@ -69,6 +69,33 @@ describe("GET /api/eval", () => {
     );
   });
 
+  it("unions overlay conversation ids into the keep-set", async () => {
+    const hydrate = await import("@/lib/hydrate-conversations");
+    vi.spyOn(hydrate, "fetchOverlayConversations").mockResolvedValue({
+      conversations: [
+        {
+          id: "conv_hydrated",
+          tenantId: "tenant_demo",
+          channel: "whatsapp",
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+        },
+      ],
+      messages: [],
+    });
+    const scoreSpy = vi
+      .spyOn(fetchSignalScore, "fetchSignalScoreSafe")
+      .mockResolvedValue(emptyWindowScore);
+
+    const store = await readStore();
+    const res = await GET(new Request("http://localhost/api/eval"));
+    expect(res.status).toBe(200);
+    expect(scoreSpy.mock.calls[0]?.[1]).toEqual([
+      ...store.conversations.map((c) => c.id),
+      "conv_hydrated",
+    ]);
+  });
+
   it("falls back to json_legacy when FastAPI is unreachable", async () => {
     vi.spyOn(fetchSignalScore, "fetchSignalScoreSafe").mockResolvedValue(null);
 
