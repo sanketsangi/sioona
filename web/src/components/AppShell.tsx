@@ -2,7 +2,9 @@
 
 import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
+import { QueueWakeRetry } from "@/components/QueueWakeRetry";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { shouldWakeBackendFromNotifications } from "@/lib/backend-wake";
 import type { HeaderNotification } from "@/lib/notifications";
 import type { PlatformView, WorkspaceMode } from "@/lib/views";
 
@@ -54,6 +56,9 @@ export function AppShell({
           workspaceMode={workspaceMode}
           detailOpen={detailOpen}
           notifications={notifications}
+        />
+        <QueueWakeRetry
+          active={shouldWakeBackendFromNotifications(notifications)}
         />
 
         {/* dashboard-01 main column: flex → @container/main → padded frame */}

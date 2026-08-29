@@ -1,8 +1,8 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-21  
+**Last updated:** 2026-08-29  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` (= `origin/main`; leftover chrome `23e0b65`)
+**Branch:** `cursor/render-cold-start-queue-wake-cc60` (Render wake + partner-safe queue miss)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -17,6 +17,8 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 **Hosted now (2026-08-21):** Real weekly partner export **closed** — mid-week upsert of unused Groww Batch-02 `real-partner-export.week3.local.csv` (`replaced=false`, 100/14; sync failed=0; file not copied) → Neon `weekly_export_count` **5** → **7** Insights Corrects + **Acted 7/7** (display-only) → Eval `?scoreFrom=2026-08-21T10:43:47.000Z` keep-set **n=7 / correct=7 / incorrect=0 / 1.00 → go**; baseline **12**; lift **+3** (15−12). Not Partner Demo wipe / not Adapt / not week-1/week-2 `.local.csv` / not Batch-02 JSON rehearsal. Prior same-day Partner Demo `zrdh_*` close remains logged below (superseded as heading by this weekly export).
 
 **This week (ops, 2026-08-21):** Week-3 real partner CSV upsert **closed** on shared Neon (localhost ingest → FastAPI). Count **4→5**. Local CS `batch_001` replace stays a negative example (200/0).
+
+**This pass (code, 2026-08-29):** Render free-tier sleep was emptying Insights on first load (10s GET timeout). Shipped one automatic `/api/backend-health` wake + refresh on `queue-unavailable` / `score-unavailable`, plus partner-safe queue-miss copy. Not Detect / not Auth0 / not a keep-set go.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
@@ -42,7 +44,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Deploy gate (2026-08-21 / leftover chrome) | origin `23e0b65`; web Vitest **428** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200** `status=new`; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Help/Guidance local dialogs + Upload tips shipped. Not a keep-set go / not Partner Demo wipe |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
 
-**Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
+**Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. **Render wake (2026-08-29):** Insights/Eval queue or score miss auto-pings `GET /api/backend-health` (FastAPI `/health`, 25s) then one `router.refresh()` (60s cooldown) so free-tier sleep does not empty the review queue; panel copy is partner-safe (no “Start FastAPI”). Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
 
 **Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, further design-language work after the leftover chrome pass, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon, taxonomy expansion to fake recall, more Adapt phrase tuning.
 
@@ -134,6 +136,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Prior same-day Partner Demo keep-set (pending 3; concurrent Groww overwrite) and local rehearsal (`scoreFrom=2026-08-21T10:36:10.000Z`) — **superseded** by hosted close above
 - Partner Demo Groww overwrite guard **shipped 2026-08-21** — ingest 409 + UploadForm Confirm Replace when last upload is `Zerodha_batch_02`; Day-1 Groww/Reset replace unchanged
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
+- Render free-tier wake **shipped 2026-08-29** — `QueueWakeRetry` on `queue-unavailable` / `score-unavailable`; BFF `/api/backend-health`; Insights error panels drop “Start FastAPI”. Not a keep-set go / not Auth0 / not Detect
 
 ---
 
@@ -154,7 +157,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-25, this tree):** web **428** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **58** passed; eslint **clean**. Local smoke + `verify_signal_score_flow.py` **PASS** (SQLite). Residual failures: **none**. Not a hosted deploy. Code: needs-review/signal-score `database_unavailable` wrappers + eslint ModeToggle/drawer cleanup.
+- **Tests status (2026-08-29, this tree):** Render wake + partner-safe queue miss in progress — run `cd web && npm test` after this pass. Prior (2026-08-25): web **428** passed / **5** skipped; backend **58** passed; eslint **clean**. Not a hosted deploy.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

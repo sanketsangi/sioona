@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-08-21
+**Last updated:** 2026-08-29
 
 ---
 
@@ -131,7 +131,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 
 - Dual SoT: JSON can drift ahead of Neon if dual-write fails (`syncFailed` banners).
 - Vercel `/tmp` ephemeral — rely on hydrate, not local files.
-- Render free cold starts (~15m) → queue/score timeouts.
+- Render free cold starts (~15m) → queue/score timeouts. Insights/Eval auto-wake `/api/backend-health` once, then refresh (cooldown; partner-safe copy).
 - Soft tenancy (spoofable header).
 - Neon **pending** rows without a matching JSON **signal** are dropped at join (stale demo ids). Follow-up / Done keep unmatched Neon rows and overlay chat/evidence from `GET …/conversations` for that request (not written to JSON).
 - Message upsert does not delete omitted messages until prune/wipe.

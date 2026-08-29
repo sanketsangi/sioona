@@ -13,6 +13,8 @@ const DEFAULT_BACKEND_URL = "http://localhost:8000";
 export const BACKEND_FETCH_TIMEOUT_MS = 10_000;
 /** createPrediction / submitFeedback — Neon commits can exceed read latency. */
 export const BACKEND_MUTATION_TIMEOUT_MS = 15_000;
+/** Render free cold-start /health — first request often exceeds the 10s read budget. */
+export const BACKEND_HEALTH_TIMEOUT_MS = 25_000;
 const MUTATION_RETRY_BACKOFF_MS = [250, 800] as const;
 const MUTATION_MAX_ATTEMPTS = 2;
 
@@ -361,6 +363,13 @@ export async function submitFeedback(
   throw lastError instanceof Error
     ? lastError
     : new BackendClientError("Failed to save feedback to Signal Score backend");
+}
+
+/** Liveness probe — used to wake Render before Insights/Eval refresh. */
+export async function getBackendHealth(): Promise<{ status: string }> {
+  return backendFetch<{ status: string }>("tenant_demo", "/health", {
+    timeoutMs: BACKEND_HEALTH_TIMEOUT_MS,
+  });
 }
 
 export async function getSignalScore(

@@ -6,6 +6,8 @@ import {
   VERCEL_BACKEND_MISCONFIG_MESSAGE,
   assertBackendUrlConfigured,
   createPrediction,
+  BACKEND_HEALTH_TIMEOUT_MS,
+  getBackendHealth,
   getConversations,
   getSignalScore,
   getPilotSettings,
@@ -461,6 +463,29 @@ describe("backendFetch timeout", () => {
       message: VERCEL_BACKEND_MISCONFIG_MESSAGE,
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("getBackendHealth", () => {
+  it("GETs /health with the cold-start timeout", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "ok" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(getBackendHealth()).resolves.toEqual({ status: "ok" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:8000/health",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+      })
+    );
+    expect(BACKEND_HEALTH_TIMEOUT_MS).toBe(25_000);
   });
 });
 
