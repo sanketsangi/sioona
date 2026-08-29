@@ -315,15 +315,24 @@ def patch_conversation_ground_truth(
 def list_conversations(
     db: Session,
     tenant_id: str,
+    conversation_ids: list[str] | None = None,
 ) -> list[tuple[Conversation, list[Message]]]:
-    """Return this tenant's conversations with messages, newest started_at first."""
-    convos = list(
-        db.scalars(
-            select(Conversation)
-            .where(Conversation.tenant_id == tenant_id)
-            .order_by(Conversation.started_at.desc())
-        ).all()
+    """Return this tenant's conversations with messages, newest started_at first.
+
+    ``conversation_ids`` scopes the list (Insights overlay). Omitted → all
+    tenant rows (hydrate). Present but empty / blank ids → [].
+    """
+    stmt = (
+        select(Conversation)
+        .where(Conversation.tenant_id == tenant_id)
+        .order_by(Conversation.started_at.desc())
     )
+    if conversation_ids is not None:
+        keep = [cid for cid in conversation_ids if cid]
+        if not keep:
+            return []
+        stmt = stmt.where(Conversation.conversation_id.in_(keep))
+    convos = list(db.scalars(stmt).all())
     if not convos:
         return []
 

@@ -236,11 +236,18 @@ export async function fetchOverlayConversations(
   keepConversationIds: string[]
 ): Promise<HydratedChats | null> {
   if (keepConversationIds.length === 0) return null;
-  const all = await fetchHydrateConversations(tenantId);
-  if (!all) return null;
-  const filtered = filterHydratedChats(all, keepConversationIds);
-  if (filtered.conversations.length === 0) return null;
-  return filtered;
+  try {
+    const rows = await getConversations(tenantId, {
+      conversationIds: keepConversationIds,
+    });
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+    const chats = mapBackendConversationsToStore(rows, tenantId);
+    const filtered = filterHydratedChats(chats, keepConversationIds);
+    if (filtered.conversations.length === 0) return null;
+    return filtered;
+  } catch {
+    return null;
+  }
 }
 
 /** Merge overlay chats under existing store rows (store wins on id). */

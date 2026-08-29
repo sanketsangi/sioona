@@ -404,9 +404,29 @@ export async function getNeedsReview(
 }
 
 export async function getConversations(
-  tenantId: string
+  tenantId: string,
+  opts?: {
+    /** Insights overlay keep-set. Empty array → no rows (not the full tenant). */
+    conversationIds?: string[];
+  }
 ): Promise<BackendConversation[]> {
-  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations`;
+  const params = new URLSearchParams();
+  if (opts?.conversationIds !== undefined) {
+    if (opts.conversationIds.length === 0) {
+      params.append("conversation_id", "");
+    } else {
+      for (const id of opts.conversationIds) {
+        if (id) params.append("conversation_id", id);
+      }
+      if (!params.has("conversation_id")) {
+        params.append("conversation_id", "");
+      }
+    }
+  }
+  const qs = params.toString();
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations${
+    qs ? `?${qs}` : ""
+  }`;
   return backendFetch<BackendConversation[]>(tenantId, path);
 }
 

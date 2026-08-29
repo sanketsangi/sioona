@@ -794,4 +794,22 @@ describe("overlay chats (request-scoped)", () => {
     ).resolves.toBeNull();
     expect(spy).not.toHaveBeenCalled();
   });
+
+  it("fetchOverlayConversations requests only the missing conversation ids", async () => {
+    const spy = vi
+      .spyOn(backendClient, "getConversations")
+      .mockResolvedValue([partnerRow()]);
+
+    const overlay = await fetchOverlayConversations("tenant_demo", [
+      "conv_partner_upload_1",
+      "conv_missing",
+    ]);
+
+    expect(spy).toHaveBeenCalledWith("tenant_demo", {
+      conversationIds: ["conv_partner_upload_1", "conv_missing"],
+    });
+    expect(overlay?.conversations.map((row) => row.id)).toEqual([
+      "conv_partner_upload_1",
+    ]);
+  });
 });
