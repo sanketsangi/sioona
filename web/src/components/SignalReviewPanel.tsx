@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { SignalQueueRow } from "@/components/SignalQueueRow";
+import {
+  QUEUE_REVIEW_ACTION_CLASS,
+  SignalQueueRow,
+} from "@/components/SignalQueueRow";
 import { queueSignalSummary } from "@/lib/format";
 import type { Signal } from "@/lib/types";
 
@@ -44,7 +47,7 @@ export function SignalReviewPanel({
           action={
             <button
               type="button"
-              className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:max-w-full sm:px-2.5"
+              className={QUEUE_REVIEW_ACTION_CLASS}
               onClick={() => {
                 const el = document.getElementById(bodyId);
                 if (!el) return;
@@ -92,15 +95,15 @@ export function SignalReviewMissing({
   }, [previewId]);
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12">
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="text-heading-16 text-sio-fg-base outline-none"
+        className="text-balance text-heading-16 text-sio-fg-base outline-none"
       >
         Signal Not Found
       </h2>
-      <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
+      <p className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
         This preview is missing from the Insights queue. Return to the list
         or try another filter.
       </p>

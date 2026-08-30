@@ -440,6 +440,124 @@
     }
   }
 
+  /*
+   * Insights review: one panel. Phone/tablet stack Why → transcript →
+   * Feedback (outer pane scrolls). Laptop+ splits when the review column
+   * is ≥56rem so the rail is not a squeezed 26rem next to the sidebar.
+   */
+  .insights-review {
+    container-type: inline-size;
+    container-name: review;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .insights-review-split {
+    display: grid;
+    min-height: 0;
+    min-width: 0;
+    flex: 1 1 auto;
+    grid-template-areas:
+      "why"
+      "transcript"
+      "feedback";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(min-content, auto) minmax(12rem, 42dvh) minmax(min-content, auto);
+    overflow-x: clip;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .insights-review-rail {
+    display: contents;
+  }
+
+  /* Descendant (not >) so display:contents rail children still get areas. */
+  .insights-review-split [data-review-slot="why"] {
+    grid-area: why;
+    min-width: 0;
+    min-height: min-content;
+  }
+
+  .insights-review-split [data-review-slot="transcript"] {
+    grid-area: transcript;
+    min-width: 0;
+    min-height: 0;
+    border-top: 1px solid var(--sio-border-base);
+    border-bottom: 1px solid var(--sio-border-base);
+  }
+
+  .insights-review-split [data-review-slot="feedback"] {
+    grid-area: feedback;
+    min-width: 0;
+    min-height: min-content;
+  }
+
+  .insights-review-pane {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    background: var(--sio-bg-base);
+  }
+
+  .insights-review-feedback {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .insights-review-feedback > * + * {
+    border-top: 1px solid var(--sio-border-base);
+  }
+
+  @container review (33.75rem <= width < 56rem) {
+    .insights-review-feedback {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .insights-review-feedback > * + * {
+      border-top: none;
+      border-left: 1px solid var(--sio-border-base);
+    }
+  }
+
+  @container review (min-width: 56rem) {
+    .insights-review-split {
+      flex: 1 1 0%;
+      grid-template-areas: "transcript rail";
+      grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 24rem);
+      grid-template-rows: minmax(0, 1fr);
+      overflow: hidden;
+    }
+
+    .insights-review-rail {
+      display: flex;
+      grid-area: rail;
+      min-width: 0;
+      min-height: 0;
+      flex-direction: column;
+      overflow-x: clip;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-left: 1px solid var(--sio-border-base);
+    }
+
+    .insights-review-split [data-review-slot="transcript"] {
+      min-height: 0;
+      border-top: none;
+      border-bottom: none;
+    }
+
+    .insights-review-rail > [data-review-slot="why"] {
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--sio-border-base);
+    }
+  }
+
   /* Surface ladder: flush → quiet border → panel */
   .surface-flush {
     @apply bg-transparent;
@@ -489,9 +607,10 @@
     border: 1px solid var(--sio-border-base);
   }
 
-  /* Why This Fired landing — quiet ring, not a second accent language. */
+  /* Why This Fired landing — quiet ring + interactive fill, not a second accent. */
   .chat-bubble--evidence {
     border-color: var(--sio-border-strong);
+    background: var(--sio-bg-interactive);
     box-shadow:
       0 0 0 2px var(--sio-bg-base),
       0 0 0 4px color-mix(in srgb, var(--sio-focus-accent) 40%, transparent);

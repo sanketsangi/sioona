@@ -48,10 +48,7 @@ describe("messageIdForEvidence", () => {
 
   it("prefers the latest customer message for a quote", () => {
     expect(
-      messageIdForEvidence(
-        'quote: "I want to close my account today"',
-        messages,
-      ),
+      messageIdForEvidence('quote: "I want to close my account today"', messages),
     ).toBe("msg_fire");
   });
 

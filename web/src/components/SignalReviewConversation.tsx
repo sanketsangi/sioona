@@ -36,7 +36,11 @@ export function SignalReviewConversation({
 
   return (
     <section
-      className={cn("flex min-h-0 min-w-0 flex-col bg-sio-bg-subtle", className)}
+      data-review-slot="transcript"
+      className={cn(
+        "insights-review-pane flex min-h-0 min-w-0 flex-col bg-sio-bg-subtle",
+        className,
+      )}
       aria-labelledby={headingId}
     >
       <div className="flex min-w-0 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3 py-2">

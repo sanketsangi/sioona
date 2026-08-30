@@ -10,6 +10,14 @@ export type EvalPanel = "metrics" | "adapt" | "labeled" | "export";
 export type WorkspaceMode = "shadow" | "action";
 
 export type StatusFilter = "all" | "new" | "followup" | "acted";
+
+export type SignalReviewTriage = {
+  isPendingReview: boolean;
+  nextPendingPreviewId: string | null;
+  scoreFrom?: string | null;
+  mode?: WorkspaceMode;
+};
+
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
 export type LabeledTab = "byType" | "conversations";
 
@@ -172,6 +180,64 @@ export function cadenceActionHref(
   return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom });
 }
 
+/** Next needs-review id after `currentId` (wraps; excludes current). */
+export function nextPendingPreviewId(
+  pending: { id: string }[],
+  currentId: string,
+): string | null {
+  const n = pending.length;
+  if (n === 0) return null;
+  const start = pending.findIndex((s) => s.id === currentId);
+  if (start < 0) return null;
+  for (let i = 1; i <= n; i++) {
+    const signal = pending[(start + i) % n];
+    if (signal.id !== currentId) return signal.id;
+  }
+  return null;
+}
+
+/** Insights pending queue deep-link after feedback or Mark Acted. */
+function pendingReviewQueueHref(opts: {
+  nextPreviewId?: string | null;
+  scoreFrom?: string | null;
+  mode?: WorkspaceMode | null;
+}): string {
+  const modeExtra =
+    opts.mode === "action" ? ({ mode: "action" } as const) : {};
+  if (opts.nextPreviewId) {
+    return viewHref("insights", {
+      ...modeExtra,
+      scoreFrom: opts.scoreFrom,
+      status: "new",
+      preview: opts.nextPreviewId,
+    });
+  }
+  return viewHref("insights", {
+    ...modeExtra,
+    scoreFrom: opts.scoreFrom,
+    status: "new",
+  });
+}
+
+/**
+ * After SignalScore feedback on a pending review.
+ * Advances to the next needs-review panel, or Pending list when empty.
+ * Null when the reviewer should stay (re-edit, Follow-up / Done origin).
+ */
+export function afterFeedbackHref(opts: {
+  wasPending: boolean;
+  nextPendingPreviewId?: string | null;
+  scoreFrom?: string | null;
+  mode?: WorkspaceMode | null;
+}): string | null {
+  if (!opts.wasPending) return null;
+  return pendingReviewQueueHref({
+    nextPreviewId: opts.nextPendingPreviewId,
+    scoreFrom: opts.scoreFrom,
+    mode: opts.mode,
+  });
+}
+
 /**
  * After Mark as Acted on a Correct review.
  * Follow-up Act queue (`statusFilter=followup`): next Correct panel, or Follow-up list.
@@ -206,16 +272,14 @@ export function afterMarkActedHref(opts: {
     });
   }
   if (opts.nextPendingPreviewId) {
-    return viewHref("insights", {
-      ...modeExtra,
+    return pendingReviewQueueHref({
+      nextPreviewId: opts.nextPendingPreviewId,
       scoreFrom: opts.scoreFrom,
-      status: "new",
-      preview: opts.nextPendingPreviewId,
+      mode: opts.mode,
     });
   }
-  return viewHref("insights", {
-    ...modeExtra,
+  return pendingReviewQueueHref({
     scoreFrom: opts.scoreFrom,
-    status: "new",
+    mode: opts.mode,
   });
 }
