@@ -23,6 +23,8 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Prior pass (code, 2026-08-31):** Feedback drops the Acted-does-not-send Note; Feedback action Buttons icon+label aligned. Mark as Acted stays on Suggested Next Action. Not outbound / not Detect / not a keep-set go.
 
+**Prior pass (code, 2026-08-31):** Suggested Next Action CardTitle sits on the same header baseline as Conversation/Feedback; Mark as Acted unchanged. Not outbound / not Detect / not a keep-set go.
+
 **Prior pass (code, 2026-08-31):** Suggested Next Action title sits on the same header baseline as Conversation/Feedback (`evalCardHeader`). Mark as Acted / Pending chip unchanged. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-31):** Insights review bubbles hug content (`w-fit`) with shadcn/Geist `gap-2` between rows and avatar. Shared `ConversationMessages` / `.chat-bubble*` keep the drawer in sync. Why jumps, evidence ring, empty Upload, timestamps off, left/right lock unchanged. Not outbound / not Detect / not a keep-set go.

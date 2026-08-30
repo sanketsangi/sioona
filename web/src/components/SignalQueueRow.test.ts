@@ -51,15 +51,16 @@ describe("SignalQueueRow", () => {
     );
 
     expect(html).toContain("Priya");
-    expect(html).toContain("pause SIP");
-    expect(html).toContain("Please pause my SIP this month");
+    expect(html).toContain("Asked to pause SIP");
+    expect(html).toContain("truncate");
     expect(html).toContain(">Review</a>");
     expect(html).toContain("list-row");
     expect(html).not.toContain("data-expand-text");
-    expect(html).not.toContain("aria-current");
+    expect(html).not.toContain("data-selected");
+    expect(html).not.toContain("Please pause my SIP this month");
   });
 
-  it("renders a selected review identity without table columns or Review", () => {
+  it("renders a selected table row with expanded summary and no Review", () => {
     const html = renderToStaticMarkup(
       createElement(SignalQueueRow, {
         signal: signal(),
@@ -70,12 +71,13 @@ describe("SignalQueueRow", () => {
     );
 
     expect(html).toContain("Priya");
-    expect(html).toContain("pause SIP");
-    expect(html).toContain("Please pause my SIP this month");
+    expect(html).toContain("Asked to pause SIP");
+    expect(html).toContain("whitespace-normal");
     expect(html).toContain('data-expand-text="true"');
-    expect(html).toContain('aria-current="true"');
-    expect(html).not.toContain("list-row");
+    expect(html).toContain('data-selected="true"');
+    expect(html).toContain("list-row");
     expect(html).not.toContain("Review");
     expect(html).not.toContain("columnheader");
+    expect(html).not.toContain("Please pause my SIP this month");
   });
 });
