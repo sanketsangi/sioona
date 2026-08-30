@@ -130,10 +130,10 @@ export function SignalReviewSuggestedAction({
               : "Display only — not sent."}
           </p>
           <p
-            className={cn(
-              "break-words text-pretty text-heading-16 font-semibold leading-6 tracking-normal",
-              missingAction ? "text-sio-fg-muted" : "text-sio-fg-base",
-            )}
+            className={
+              "text-heading-16 break-words text-pretty font-semibold leading-6 tracking-normal " +
+              (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
+            }
           >
             {missingAction
               ? "Unavailable — local detection join missing."
