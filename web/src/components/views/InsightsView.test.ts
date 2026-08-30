@@ -111,6 +111,9 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Queue metrics");
     expect(html).toContain("Pending signal 1");
     expect(html).toContain("Pending signal 10");
+    expect(html).toContain('data-slot="card"');
+    expect(html).toContain("preview=sig_1");
+    expect(html).toContain(">Review</a>");
     expect(html).not.toContain("No Signals Need Follow-Up");
   });
 
@@ -205,8 +208,9 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("No Signals Need Review");
     expect(html).toContain("Upload Weekly Export");
     expect(html).toMatch(/upsert/i);
+    expect(html).toContain('data-slot="card"');
     expect(html).toContain(
-      "panel flex flex-1 flex-col items-center justify-center",
+      "flex flex-1 flex-col items-center justify-center",
     );
     expect(html).not.toContain("Review Pending");
   });
@@ -231,6 +235,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Review Queue Unavailable");
     expect(html).toContain("the service may be waking up");
     expect(html).toContain("Retry Queue");
+    expect(html).toContain('data-slot="card"');
+    expect(html).toContain('role="alert"');
     expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
   });
 
@@ -254,6 +260,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Follow-Up Queue Unavailable");
     expect(html).toContain("the service may be waking up");
     expect(html).toContain("Retry Queue");
+    expect(html).toContain('data-slot="card"');
+    expect(html).toContain('role="alert"');
     expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
   });
 
