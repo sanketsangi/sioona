@@ -38,6 +38,12 @@ import {
   type TypeFilter,
   type WorkspaceMode,
 } from "@/lib/views";
+import {
+  FOLLOWUP_UNAVAILABLE_PANEL_BODY,
+  FOLLOWUP_UNAVAILABLE_PANEL_TITLE,
+  QUEUE_UNAVAILABLE_PANEL_BODY,
+  QUEUE_UNAVAILABLE_PANEL_TITLE,
+} from "@/lib/backend-wake";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
 import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -464,11 +470,10 @@ export function SignalQueue({
           role="alert"
         >
           <p className="text-heading-16 text-sio-fg-base">
-            Needs-Review Queue Unavailable
+            {QUEUE_UNAVAILABLE_PANEL_TITLE}
           </p>
           <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            Signal Score backend unavailable — needs-review queue cannot load
-            from Neon. Start FastAPI and refresh.
+            {QUEUE_UNAVAILABLE_PANEL_BODY}
           </p>
           {queueError ? (
             <p className="mt-2 max-w-sm break-words text-label-12 text-sio-fg-muted">
@@ -500,11 +505,10 @@ export function SignalQueue({
           role="alert"
         >
           <p className="text-heading-16 text-sio-fg-base">
-            Follow-Up Queue Unavailable
+            {FOLLOWUP_UNAVAILABLE_PANEL_TITLE}
           </p>
           <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            Signal Score backend unavailable — Follow-Up and Done cannot load
-            from Neon. Start FastAPI and refresh.
+            {FOLLOWUP_UNAVAILABLE_PANEL_BODY}
           </p>
           {tenantSignalsError ? (
             <p className="mt-2 max-w-sm break-words text-label-12 text-sio-fg-muted">

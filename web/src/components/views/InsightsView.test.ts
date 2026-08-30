@@ -210,6 +210,52 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
     expect(html).not.toContain("Review Pending");
   });
+
+  it("pending queue miss uses partner-safe wake copy", () => {
+    const store = storeFromSignals([]);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: false,
+          error: "Signal Score backend unreachable: timed out after 10000ms",
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      })
+    );
+
+    expect(html).toContain("Review Queue Unavailable");
+    expect(html).toContain("the service may be waking up");
+    expect(html).toContain("Retry Queue");
+    expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
+  });
+
+  it("Follow-up queue miss uses partner-safe wake copy", () => {
+    const store = storeFromSignals([]);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "followup",
+        typeFilter: "all",
+        page: 1,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: false,
+          error: "Signal Score backend unreachable: timed out after 10000ms",
+        },
+        cadenceAction: cadenceReviews,
+      })
+    );
+
+    expect(html).toContain("Follow-Up Queue Unavailable");
+    expect(html).toContain("the service may be waking up");
+    expect(html).toContain("Retry Queue");
+    expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
+  });
 });
 
 describe("InsightsView Neon pending overlay", () => {

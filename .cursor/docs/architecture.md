@@ -131,7 +131,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 
 - Dual SoT: JSON can drift ahead of Neon if dual-write fails (`syncFailed` banners).
 - Vercel `/tmp` ephemeral — rely on hydrate, not local files.
-- Render free cold starts (~15m) → queue/score timeouts.
+- Render free cold starts (~15m) → queue/score timeouts. Insights/Eval auto-wake `/api/backend-health` once, then refresh (cooldown; partner-safe copy).
 - Soft tenancy (spoofable header).
 - Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations?conversation_id=`, not written to JSON). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
 - Eval keep-set SignalScore is JSON conversation ids ∪ overlay ids so stub reviews count toward the week window. Overlay stays request-scoped (not written to JSON).

@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/overlay-conversations-by-id-08d4` (overlay by conversation id; base `main` = `8825925` / #57)
+**Branch:** `cursor/insights-queue-review-responsive` (responsive Insights queue + in-queue review; merged onto `main` / #58 Render wake)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,7 +19,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**Shipped this pass (2026-08-29):** Insights overlay `GET …/conversations` takes repeat `conversation_id` (missing pending + Follow-up ids only) so `/tmp` wipe stubs do not pull the full Neon pack. Eval keep-set ∪ overlay from #57 stays: Insights and Eval still fetch overlay (by id, not the full tenant list). Pending stub + `filterPendingWithChat` from #55/#56 unchanged. Not a keep-set go / not Adapt / not taxonomy.
+**This pass (code, 2026-08-30):** Insights queue + in-queue review is responsive (container-query Why → transcript → Feedback; wide = transcript | rail). Render wake (#58) is already on `main` and stays in the queue-miss panels. Overlay-by-id (#59) and Eval keep-set ∪ overlay (#57) are already on `main`. Not Detect / not Auth0 / not a keep-set go.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
@@ -46,7 +46,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Deploy gate (2026-08-21 / leftover chrome) | origin `23e0b65`; web Vitest **428** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200** `status=new`; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Help/Guidance local dialogs + Upload tips shipped. Not a keep-set go / not Partner Demo wipe |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
 
-**Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
+**Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. **Render wake (2026-08-29):** Insights/Eval queue or score miss auto-pings `GET /api/backend-health` (FastAPI `/health`, 25s) then one `router.refresh()` (60s cooldown) so free-tier sleep does not empty the review queue; panel copy is partner-safe (no “Start FastAPI”). Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
 
 **Do not:** Auth0, pgvector, vLLM/QLoRA/LangGraph, live webhooks, autonomous actions, further design-language work after the leftover chrome pass, FastAPI classify, Groq project rate limits, 429 retries, taxonomy/signals on Neon, taxonomy expansion to fake recall, more Adapt phrase tuning.
 
@@ -129,8 +129,8 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Insights follow-up lists 2026-08-20 — **shipped**: Needs Follow-Up (`correct` ¬acted) and Done (`acted`) from Neon `GET …/signals`; request-scoped chat overlay when JSON misses the conversation; Mark Acted still display-only. Not a keep-set win / not Auth0
 - Unlocked Action Mode 2026-08-20 — **shipped**: `?mode=action` deep-links Insights Follow-up Act queue (Suggested Next Action + Mark Acted; FastAPI+Neon Acted SoT; nothing sent). Prod stays locked (ModeToggle bounce + strip `mode=action`). Unlock via local `next dev` or `NEXT_PUBLIC_ACTION_MODE_UNLOCKED`. Export/Create Campaign stay hidden. Not outbound / not Auth0
 - Insights pending overlay 2026-08-29 — **shipped** (#55/#56): pending stubs + `filterPendingWithChat`; overlay includes pending ids
-- Eval keep-set ∪ overlay 2026-08-29 — **this pass**: SignalScore keep-set unions overlay conversation ids so stub reviews count; overlay still not written to JSON
-- Insights pending landing 2026-08-20 — **shipped**: omitted status with Follow-up empty + Pending > 0 lands Pending (`status=new` via `resolveInsightsStatusFilter`); **first SSR 200** (no post-FastAPI `redirect` / 307). Address bar may canonicalize with client `history.replaceState` only. Explicit Filters unchanged. Not a keep-set win / not outbound
+- Eval keep-set ∪ overlay 2026-08-29 — **shipped** (#57): SignalScore keep-set unions overlay conversation ids so stub reviews count; overlay still not written to JSON
+- Insights pending landing 2026-08-20 — **shipped**: omitted status with Follow-up empty + Pending > 0 lands Pending (`status=new` via `resolveInsightsStatusFilter`); **first SSR 200** (no post-FastAPI `redirect` / 307). Address bar may canonicalize with client `history.replaceState` only. Explicit empty Follow-up stays compact + Review Pending. Not a keep-set win / not outbound
 - Insights queue + in-queue review responsive 2026-08-30 — **this pass**: container-query split (Why → transcript → Feedback; wide = transcript | rail), drawer-matched `max-w-md` chat column, Why This Fired jump, honest empty transcript; no new palette
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
@@ -143,7 +143,8 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Partner Demo Groww overwrite guard **shipped 2026-08-21** — ingest 409 + UploadForm Confirm Replace when last upload is `Zerodha_batch_02`; Day-1 Groww/Reset replace unchanged
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 - Insights pending overlay **shipped 2026-08-29** — Neon needs-review stubs kept when store/overlay has the chat; stale pack ids without chat still omitted; overlay fetch includes pending ids. Skill `.cursor/skills/insights-queue-join/SKILL.md`. Not a keep-set go / not wipe
-- Insights overlay by conversation id **this pass (2026-08-29)** — `GET …/conversations?conversation_id=` keep-set (not full tenant list). Insights + Eval still fetch overlay so #57 keep-set SignalScore includes stub chats; Upload is a cheap by-id GET when ids are missing. Protects pending stubs from Render timeout → empty queue. Not a keep-set go / not wipe
+- Insights overlay by conversation id **shipped 2026-08-29** (#59) — `GET …/conversations?conversation_id=` keep-set (not full tenant list). Insights + Eval still fetch overlay so #57 keep-set SignalScore includes stub chats. Not a keep-set go / not wipe
+- Render free-tier wake **this pass (2026-08-29)** — `QueueWakeRetry` on `queue-unavailable` / `score-unavailable`; BFF `/api/backend-health`; Insights error panels drop “Start FastAPI”. Not a keep-set go / not Auth0 / not Detect
 
 ---
 
@@ -164,7 +165,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** web **447** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **60** passed. Overlay-by-id + Eval keep-set ∪ overlay. Not a hosted deploy. Prior on `8825925` / #57: web 444 / backend 58.
+- **Tests status (2026-08-30, this tree):** web **460** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **60** passed. Residual failures: **none**. Not a hosted deploy. Code: Render wake BFF + `QueueWakeRetry` + partner-safe Insights queue-miss copy, merged onto #59 overlay-by-id + #57 Eval keep-set ∪ overlay.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
