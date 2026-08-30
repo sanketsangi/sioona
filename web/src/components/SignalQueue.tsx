@@ -15,8 +15,7 @@ import {
   SignalReviewMissing,
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
-import { SignalReviewConversation } from "@/components/SignalReviewConversation";
-import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
+import { SignalReviewPair } from "@/components/SignalReviewPair";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -429,33 +428,30 @@ export function SignalQueue({
         {previewSignal ? (
           <div
             id={`signal-review-body-${previewSignal.id}`}
-            className="grid min-w-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
+            className="flex min-w-0 shrink-0 flex-col gap-3"
             aria-labelledby={`signal-review-heading-${previewSignal.id}`}
           >
-            <SignalReviewConversation
+            <SignalReviewPair
+              key={previewSignal.id}
+              signal={previewSignal}
               messages={
                 messagesByConversationId[previewSignal.conversationId] ?? []
               }
               customerName={previewCustomerName ?? "Customer"}
-              typeLabel={signalTypeLabel(previewSignal.type)}
-              summary={previewSignal.summary || ""}
-              className="min-w-0 lg:h-full"
             />
-            <SignalReviewSuggestedAction
-              signal={previewSignal}
-              className="min-w-0 lg:h-full"
-            />
-            <FeedbackControls
-              signal={previewSignal}
-              className="min-w-0 lg:h-full"
-            />
-            {previewConversation ? (
-              <GroundTruthControl
-                conversationId={previewConversation.id}
-                groundTruth={previewConversation.groundTruth}
+            <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2">
+              <FeedbackControls
+                signal={previewSignal}
                 className="min-w-0 lg:h-full"
               />
-            ) : null}
+              {previewConversation ? (
+                <GroundTruthControl
+                  conversationId={previewConversation.id}
+                  groundTruth={previewConversation.groundTruth}
+                  className="min-w-0 lg:h-full"
+                />
+              ) : null}
+            </div>
           </div>
         ) : null}
       </div>

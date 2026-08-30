@@ -3,7 +3,6 @@ import { useId } from "react";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { ConversationMessages } from "@/components/ConversationMessages";
 import { SignalUser } from "@/components/SignalUser";
-import { previewTranscriptMessages } from "@/lib/format";
 import type { Message as ChatMessage } from "@/lib/types";
 import { viewHref } from "@/lib/views";
 import { cn } from "@/lib/utils";
@@ -13,32 +12,34 @@ type SignalReviewConversationProps = {
   customerName: string;
   typeLabel: string;
   summary: string;
+  highlightedMessageId?: string | null;
   className?: string;
 };
 
 /**
- * Insights review conversation — metric-strip preview beside Suggested Next Action.
- * Full transcript stays in ConversationDrawer. Empty is honest (no invented chat).
+ * Insights review conversation — chat well beside Suggested Next Action.
+ * Full transcript scrolls here; drawer stays for the same column. Empty is
+ * honest (no invented chat).
  */
 export function SignalReviewConversation({
   messages,
   customerName,
   typeLabel,
   summary,
+  highlightedMessageId = null,
   className,
 }: SignalReviewConversationProps) {
   const headingId = useId();
   const who = customerName.trim() || "Customer";
-  const { preview, hiddenCount, total } = previewTranscriptMessages(messages);
   const messageCount = messages.filter((m) => m.role !== "system").length;
   const hasMessages = messages.length > 0;
 
   return (
     <section
-      className={cn("metric-strip flex min-h-0 flex-col", className)}
+      className={cn("flex min-h-0 min-w-0 flex-col bg-sio-bg-subtle", className)}
       aria-labelledby={headingId}
     >
-      <div className="flex min-w-0 items-center gap-3 border-b border-sio-border-base px-3 py-2">
+      <div className="flex min-w-0 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3 py-2">
         <div className="min-w-0 flex-1">
           <h3
             id={headingId}
@@ -63,21 +64,24 @@ export function SignalReviewConversation({
             typeLabel={typeLabel}
             summary={summary}
             triggerLabel="See Conversation"
-            triggerClassName="min-h-11 shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:px-2.5"
+            triggerClassName="btn-tertiary shrink-0"
             footer={null}
           />
         ) : null}
       </div>
 
-      <div className="scroll-region min-h-[12rem] flex-1 overflow-y-auto overscroll-contain px-2 py-3 sm:px-3 lg:min-h-[18rem]">
+      <div className="scroll-region min-h-[14rem] flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5 lg:min-h-[20rem]">
         {hasMessages ? (
-          <ConversationMessages
-            messages={preview}
-            customerName={who}
-            showTimestamps
-          />
+          <div className="mx-auto w-full max-w-md">
+            <ConversationMessages
+              messages={messages}
+              customerName={who}
+              highlightedMessageId={highlightedMessageId}
+              showTimestamps
+            />
+          </div>
         ) : (
-          <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center lg:min-h-[18rem]">
+          <div className="flex min-h-[14rem] flex-col items-center justify-center px-3 text-center lg:min-h-[20rem]">
             <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
             <p className="mt-1 max-w-xs text-pretty text-label-13 text-sio-fg-muted">
               Re-upload or re-detect to attach the transcript. No invented chat.
@@ -88,12 +92,6 @@ export function SignalReviewConversation({
           </div>
         )}
       </div>
-
-      {hiddenCount > 0 ? (
-        <p className="border-t border-sio-border-base px-3 py-2 text-label-12 text-sio-fg-muted">
-          Showing last {preview.length} of {total} messages
-        </p>
-      ) : null}
     </section>
   );
 }

@@ -67,7 +67,7 @@ Shared `SegmentedTabs` (Eval panels + Labeled tables): hairline `sio-border-subt
 
 ### Conversation transcript (alignment lock)
 
-Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/shadcn-aligned API; no fake `/avatars/*.png`). Used as the full list in `ConversationDrawer` (Insights accordion).
+Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/shadcn-aligned API; no fake `/avatars/*.png`). Used as the full list in `SignalReviewConversation` (inline chat well) and `ConversationDrawer`. Why This Fired jumps add `.chat-bubble--evidence` on the matched bubble.
 
 | Role | Side | Bubble | Avatar |
 |---|---|---|---|
@@ -85,14 +85,14 @@ Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/sh
 Operator review happens **in the queue**, not on a full-page Signal Detail screen and not in a right split preview pane. Clicking a `SignalQueueRow` (or **Review**) toggles expand for that signal via `?preview=<signalId>` (one open at a time). Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body sits under the same row chrome inside the list item:
 
 1. **Signal cell (in-row):** row chrome stays identical open or closed — truncated Signal summary (no unwrap, no selected fill / `aria-current` bar). Full text and evidence live in the expand body; no duplicate full-signal block there beyond Why This Fired.
-2. **Conversation + Suggested Next Action** — two-column review body (`lg:grid-cols-2`): conversation metric-strip (preview + **See Conversation**) beside Suggested Next Action / Why This Fired (two-cell strip; display-only action note; ≤2 why lines / honesty for Neon stubs). Acted uses `SignalStatus`. Review panels open downward only.
+2. **Conversation + Suggested Next Action** — one paired `metric-strip` (`SignalReviewPair`): conversation chat well (`SignalUser`, full transcript in a `max-w-md` column, quiet `sio-bg-subtle` fill, **See Conversation** tertiary) beside stacked Suggested Next Action / Why This Fired (display-only note; action as `heading-16`; ≤2 why lines / honesty for Neon stubs). Why quotes and match chips that join a stored message jump to a highlighted bubble. Acted uses `SignalStatus`. Feedback / Ground Truth stay on the row below. Review panels open downward only.
 3. **Feedback → Ground Truth** — `FeedbackControls` then `GroundTruthControl` when a local conversation exists. Header still has **Open Conversation** + Mark Acted. Full transcript stays in `ConversationDrawer` (including Neon stubs that still join a local transcript). No **Open Full Detail** / **Add Feedback** links. Neon stubs without local evidence: quiet empty copy in Action/Why (no yellow status banner); Upload Chats when no local messages.
 
 Smooth expand/collapse uses compositor-friendly `grid-template-rows` and honors `prefers-reduced-motion`. Expanded row keeps `aria-expanded` / `aria-controls` / `data-expanded` (no `aria-current` highlight). Legacy `?signal=` and `/insights/[id]` redirect to `?view=insights&preview=<id>`.
 
 ### Conversation drawer (Insights)
 
-Shared `ConversationDrawer` → local `Drawer` shim. Review body shows an inline preview (`SignalReviewConversation`, last 8 messages); **Open Conversation** / **See Conversation** opens the full transcript in the drawer. Summary / type / feedback stay on the expanded row.
+Shared `ConversationDrawer` → local `Drawer` shim. Review body shows the full transcript inline (`SignalReviewConversation`, same `max-w-md` column as the drawer); **Open Conversation** / **See Conversation** still opens the drawer. Why This Fired jumps land on the inline bubbles. Summary / type / feedback stay on the expanded row.
 
 - **Header:** ops lockup — `SignalUser` (customer initials) + title = customer name (`DrawerTitle`, `translate="no"`) + subtitle **Conversation** and optional message count (`DrawerDescription`, truncate). Close on the right. Dialog uses `aria-labelledby` on the title. Escape, backdrop click, and focus return to the trigger unchanged.
 - **Layout:** shrink-0 header + flex-1 scroll body (`overscroll-behavior: contain`, safe-area on all sides) + optional footer. Panel outer padding + compact inner gutters; messages in a `max-w-lg` column. Vertical header/footer `py-3`+. Same message alignment lock as above (customer right / agent left); identity via avatar only — no per-message name/**Agent** labels; no StatusDot on messages. Optional UTC clock under bubbles (`formatMessageTime`).

@@ -47,7 +47,7 @@ export function ConversationDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger className={cn("btn-secondary", triggerClassName)}>
+      <DrawerTrigger className={cn(triggerClassName ?? "btn-secondary")}>
         {triggerLabel}
       </DrawerTrigger>
 

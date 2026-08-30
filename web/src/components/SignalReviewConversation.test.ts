@@ -15,7 +15,6 @@ vi.mock("next/link", () => ({
 }));
 
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
-import { REVIEW_TRANSCRIPT_PREVIEW } from "@/lib/format";
 import type { Message } from "@/lib/types";
 
 function message(overrides: Partial<Message> = {}): Message {
@@ -30,7 +29,7 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe("SignalReviewConversation", () => {
-  it("previews the transcript beside See Conversation", () => {
+  it("shows the full transcript beside See Conversation", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewConversation, {
         messages: [
@@ -55,6 +54,8 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("See Conversation");
     expect(html).toContain("2 messages");
     expect(html).toContain("1 Aug, 10:05");
+    expect(html).toContain("max-w-md");
+    expect(html).toContain("bg-sio-bg-subtle");
     expect(html).not.toContain("No messages stored");
     expect(html).not.toContain("Showing last");
   });
@@ -76,15 +77,12 @@ describe("SignalReviewConversation", () => {
     expect(html).not.toContain("See Conversation");
   });
 
-  it("notes a truncated tail when the transcript is longer than the preview", () => {
-    const messages = Array.from(
-      { length: REVIEW_TRANSCRIPT_PREVIEW + 2 },
-      (_, i) =>
-        message({
-          id: `msg_${i + 1}`,
-          content:
-            i === 0 ? "Opening SIP question" : `Later turn ${i + 1}`,
-        }),
+  it("shows the opening turn on a long transcript", () => {
+    const messages = Array.from({ length: 10 }, (_, i) =>
+      message({
+        id: `msg_${i + 1}`,
+        content: i === 0 ? "Opening SIP question" : `Later turn ${i + 1}`,
+      }),
     );
     const html = renderToStaticMarkup(
       createElement(SignalReviewConversation, {
@@ -92,11 +90,15 @@ describe("SignalReviewConversation", () => {
         customerName: "Priya",
         typeLabel: "Retention",
         summary: "Pause SIP",
+        highlightedMessageId: "msg_1",
       }),
     );
 
-    expect(html).toContain(`Showing last ${REVIEW_TRANSCRIPT_PREVIEW} of ${messages.length} messages`);
-    expect(html).toContain(`Later turn ${REVIEW_TRANSCRIPT_PREVIEW + 2}`);
-    expect(html).not.toContain("Opening SIP question");
+    expect(html).toContain("Opening SIP question");
+    expect(html).toContain("Later turn 10");
+    expect(html).toContain("conversation-message-msg_1");
+    expect(html).toContain("chat-bubble--evidence");
+    expect(html).toContain("Evidence match");
+    expect(html).not.toContain("Showing last");
   });
 });

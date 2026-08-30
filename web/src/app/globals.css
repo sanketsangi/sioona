@@ -489,6 +489,14 @@
     border: 1px solid var(--sio-border-base);
   }
 
+  /* Why This Fired landing — quiet ring, not a second accent language. */
+  .chat-bubble--evidence {
+    border-color: var(--sio-border-strong);
+    box-shadow:
+      0 0 0 2px var(--sio-bg-base),
+      0 0 0 4px color-mix(in srgb, var(--sio-focus-accent) 40%, transparent);
+  }
+
   .chat-bubble-group {
     @apply flex w-full flex-col gap-3;
   }

@@ -18,7 +18,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-21):** Week-3 real partner CSV upsert **closed** on shared Neon (localhost ingest → FastAPI). Count **4→5**. Local CS `batch_001` replace stays a negative example (200/0).
 
-**Shipped this pass (2026-08-30):** Insights review pairs Conversation (inline preview + See Conversation drawer) with Suggested Next Action / Why This Fired as a two-cell strip (`SignalStatus` when Acted). Drawer header uses `SignalUser` (customer name), not chatbot chrome. Overlay-by-id + keep-set ∪ overlay from #57/#59 unchanged. Not a keep-set go / not Adapt / not taxonomy / not outbound.
+**Shipped this pass (2026-08-30):** Insights review Conversation + Suggested Next Action share one strip: full transcript chat well (`SignalUser`, `max-w-md`, See Conversation) beside stacked action / Why This Fired (`heading-16` recommendation, display-only, `SignalStatus` when Acted). Why quotes jump to the matching bubble. Overlay-by-id + keep-set ∪ overlay from #57/#59 unchanged. Not a keep-set go / not Adapt / not taxonomy / not outbound.
 
 **Shipped prior (2026-08-29):** Insights overlay `GET …/conversations` takes repeat `conversation_id` (missing pending + Follow-up ids only) so `/tmp` wipe stubs do not pull the full Neon pack. Eval keep-set ∪ overlay from #57 stays: Insights and Eval still fetch overlay (by id, not the full tenant list). Pending stub + `filterPendingWithChat` from #55/#56 unchanged. Not a keep-set go / not Adapt / not taxonomy.
 
@@ -162,7 +162,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** web **447** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **60** passed. Overlay-by-id + Eval keep-set ∪ overlay. Not a hosted deploy. Prior on `8825925` / #57: web 444 / backend 58.
+- **Tests status (2026-08-30, this tree):** conversation / next-action pair (counts after verify). Prior on this branch: web **447** passed / **5** skipped; backend **60** passed. Overlay-by-id + Eval keep-set ∪ overlay. Not a hosted deploy.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

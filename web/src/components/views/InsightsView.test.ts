@@ -344,6 +344,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("Conversation");
-    expect(html).not.toContain("lg:col-span-2");
+    expect(html).toContain("Display only — not sent.");
+    expect(html).toContain("Show in conversation: Please pause my SIP this month");
   });
 });

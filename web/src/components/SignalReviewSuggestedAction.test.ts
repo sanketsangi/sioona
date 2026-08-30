@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
-import type { Signal } from "@/lib/types";
+import type { Message, Signal } from "@/lib/types";
 
 function signal(overrides: Partial<Signal> = {}): Signal {
   return {
@@ -24,8 +24,19 @@ function signal(overrides: Partial<Signal> = {}): Signal {
   };
 }
 
+function message(overrides: Partial<Message> = {}): Message {
+  return {
+    id: "msg_1",
+    conversationId: "conv_1",
+    role: "customer",
+    content: "Please pause my SIP this month",
+    timestamp: "2026-08-01T10:05:00.000Z",
+    ...overrides,
+  };
+}
+
 describe("SignalReviewSuggestedAction", () => {
-  it("renders action and why as sibling cells", () => {
+  it("stacks the recommendation over Why This Fired", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, { signal: signal() }),
     );
@@ -36,8 +47,25 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("Phrase");
     expect(html).toContain("pause my SIP");
-    expect(html).toContain("xl:grid-cols-2");
+    expect(html).toContain("Display only — not sent.");
+    expect(html).toContain("text-heading-16");
+    expect(html).not.toContain("xl:grid-cols-2");
     expect(html).not.toContain("bg-sio-bg-muted/50");
+  });
+
+  it("turns joined quotes into conversation jump controls", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal(),
+        messages: [message()],
+        focusedMessageId: "msg_1",
+        onFocusMessage: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("Show in conversation: Please pause my SIP this month");
+    expect(html).toContain("conversation-message-msg_1");
+    expect(html).toContain("aria-pressed");
   });
 
   it("shows honest empty copy when action and evidence are missing", () => {
