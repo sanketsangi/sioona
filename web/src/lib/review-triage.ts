@@ -36,6 +36,22 @@ export function feedbackLabelForShortcutKey(key: string): FeedbackLabel | null {
   return FEEDBACK_SHORTCUT_BY_KEY[key.toLowerCase()] ?? null;
 }
 
+/**
+ * Mark Acted keyboard on Follow-up / Correct panels.
+ * A or Enter — not undo; skip when Feedback still owns Enter (pending review).
+ */
+export function isMarkActedShortcutKey(key: string): boolean {
+  return key === "Enter" || key.toLowerCase() === "a";
+}
+
+/** Enter on a button/link activates that control — do not also Mark Acted. */
+export function isActedEnterBlockedTarget(target: EventTarget | null): boolean {
+  if (!target || typeof target !== "object") return false;
+  const el = target as { tagName?: string };
+  const tag = el.tagName?.toUpperCase();
+  return tag === "BUTTON" || tag === "A";
+}
+
 /** Skip review shortcuts while typing in form controls. */
 export function isEditableShortcutTarget(target: EventTarget | null): boolean {
   if (!target || typeof target !== "object") return false;

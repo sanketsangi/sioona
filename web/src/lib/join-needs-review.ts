@@ -292,6 +292,25 @@ export function doneSignals(reviewed: Signal[]): Signal[] {
   return reviewed.filter((signal) => signal.status === "acted");
 }
 
+/**
+ * Resolve `?preview=` across pending + reviewed.
+ * When the same id is in both (JSON unreviewed + Neon Correct), prefer the
+ * reviewed copy so Follow-up Mark Acted / Feedback chip stay honest.
+ */
+export function resolvePreviewSignal(
+  previewId: string | null | undefined,
+  pending: Signal[],
+  reviewed: Signal[],
+): Signal | null {
+  if (!previewId) return null;
+  const fromPending = pending.find((s) => s.id === previewId) ?? null;
+  const fromReviewed = reviewed.find((s) => s.id === previewId) ?? null;
+  if (fromPending && fromReviewed) {
+    return fromReviewed.feedback ? fromReviewed : fromPending;
+  }
+  return fromPending ?? fromReviewed;
+}
+
 export function queueSignalsForFilter(opts: {
   pending: Signal[];
   reviewed: Signal[];

@@ -1,16 +1,31 @@
 "use client";
 
-import { Check, Copy } from "@phosphor-icons/react/ssr";
-import { useId, useState } from "react";
+import { Check } from "@phosphor-icons/react/ssr";
+import { useEffect, useId, useRef } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
+import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { SignalStatus } from "@/components/SignalStatus";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { messageIdForEvidence } from "@/lib/evidence-messages";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
+import {
+  isActedEnterBlockedTarget,
+  isEditableShortcutTarget,
+  isMarkActedShortcutKey,
+} from "@/lib/review-triage";
 import type { Message, Signal } from "@/lib/types";
+import {
+  useMarkActed,
+  type MarkActedWalk,
+} from "@/lib/use-mark-acted";
 import { cn } from "@/lib/utils";
 
 type SignalReviewSuggestedActionProps = {
@@ -18,11 +33,15 @@ type SignalReviewSuggestedActionProps = {
   messages?: Message[];
   focusedMessageId?: string | null;
   onFocusMessage?: (messageId: string) => void;
+  /** Follow-up Act queue walk — when set, rail shows primary Mark as Acted. */
+  actedWalk?: MarkActedWalk | null;
   className?: string;
 };
 
 /** ≤2 quote lines in Why This Fired (UI_DESIGN). */
 const MAX_WHY_QUOTES = 2;
+
+const ACTED_TOOLTIP = "Does not send the suggested action.";
 
 function EvidenceChip({
   text,
@@ -83,27 +102,55 @@ function EvidenceChip({
 }
 
 /**
- * Suggested Next Action + Why This Fired — recommendation stacked over
- * evidence. Quotes / match chips that join a stored message jump the
- * transcript. Neon stubs / missing join stay honest. Acted uses SignalStatus.
- * Copy Reply is display-only (clipboard; never sends).
+ * Suggested Next Action + Why This Fired + Matched — single review well.
+ * Header is the status chip, or Mark as Acted on Correct-not-Acted
+ * (A / Enter walk). Quotes and match chips that join a stored message
+ * jump the transcript. Neon stubs / missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
   messages = [],
   focusedMessageId = null,
   onFocusMessage,
+  actedWalk = null,
   className,
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
   const whyId = useId();
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
-    "idle",
+  const matchedId = useId();
+  const sectionRef = useRef<HTMLElement>(null);
+  const walk = actedWalk ?? {};
+  const { actedPending, canMarkActed, error, isActed, setActed } = useMarkActed(
+    signal,
+    walk,
   );
-  const isActed = signal.status === "acted";
   const missingAction = !signal.suggestedAction;
   const isNeonStub = isNeonStubSignalId(signal.id);
-  const canCopy = !missingAction;
+  const showRailActed = actedWalk != null && canMarkActed;
+
+  useEffect(() => {
+    if (!showRailActed) return;
+    const keyboardRoot =
+      sectionRef.current?.closest("[data-review-keyboard-root]") ??
+      sectionRef.current;
+    if (!keyboardRoot) return;
+    const el: Element = keyboardRoot;
+
+    const onKeyDown = (e: Event) => {
+      if (!(e instanceof KeyboardEvent)) return;
+      if (actedPending || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!el.contains(e.target as Node)) return;
+      if (isEditableShortcutTarget(e.target)) return;
+      if (!isMarkActedShortcutKey(e.key)) return;
+      // Enter on Feedback / other buttons activates that control, not Acted.
+      if (e.key === "Enter" && isActedEnterBlockedTarget(e.target)) return;
+      e.preventDefault();
+      void setActed(true);
+    };
+
+    el.addEventListener("keydown", onKeyDown);
+    return () => el.removeEventListener("keydown", onKeyDown);
+  }, [actedPending, setActed, showRailActed]);
 
   const formatted = signal.evidence.map((item) => ({
     item,
@@ -116,53 +163,54 @@ export function SignalReviewSuggestedAction({
   const matches = formatted.filter(
     (entry) => entry.kind === "match" || entry.kind === "suppressed",
   );
-  const hasEvidence = quotes.length > 0 || matches.length > 0;
-
-  async function copyReply() {
-    if (!canCopy) return;
-    const text = signal.suggestedAction;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        throw new Error("Clipboard API unavailable");
-      }
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 2000);
-    } catch {
-      try {
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        const ok = document.execCommand("copy");
-        document.body.removeChild(ta);
-        if (!ok) throw new Error("execCommand copy failed");
-        setCopyState("copied");
-        window.setTimeout(() => setCopyState("idle"), 2000);
-      } catch {
-        setCopyState("error");
-        window.setTimeout(() => setCopyState("idle"), 2500);
-      }
-    }
-  }
 
   return (
     <section
+      ref={sectionRef}
       data-review-slot="why"
       className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
       <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
-        {isActed ? <SignalStatus signal={signal} /> : null}
+        {showRailActed ? (
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex shrink-0">
+                  <button
+                    type="button"
+                    className="btn-primary shrink-0"
+                    disabled={actedPending}
+                    aria-busy={actedPending}
+                    aria-keyshortcuts="A Enter"
+                    onClick={() => void setActed(true)}
+                  >
+                    {actedPending ? (
+                      <ButtonSpinner />
+                    ) : (
+                      <Check
+                        className="size-3.5 shrink-0"
+                        weight="bold"
+                        aria-hidden
+                      />
+                    )}
+                    Mark as Acted
+                  </button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                {ACTED_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <SignalStatus signal={signal} variant="chip" />
+        )}
       </InsightsReviewPaneHeader>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4 px-3 py-3 sm:px-4">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 px-4 py-3">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <p className="text-pretty text-label-12 text-sio-fg-muted">
+          <p className="text-label-12 text-sio-fg-muted">
             {isActed
               ? "Marked as Acted — not sent."
               : "Display only — not sent."}
@@ -177,140 +225,104 @@ export function SignalReviewSuggestedAction({
               ? "Unavailable — local detection join missing."
               : signal.suggestedAction}
           </p>
-          {canCopy ? (
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={() => void copyReply()}
-                aria-label="Copy Reply to clipboard"
-                className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
-              >
-                {copyState === "copied" ? (
-                  <Check
-                    data-icon="inline-start"
-                    weight="bold"
-                    aria-hidden
-                  />
-                ) : (
-                  <Copy
-                    data-icon="inline-start"
-                    weight="bold"
-                    aria-hidden
-                  />
-                )}
-                {copyState === "copied" ? "Copied" : "Copy Reply"}
-              </Button>
-              <p className="sr-only" aria-live="polite">
-                {copyState === "copied"
-                  ? "Reply copied to clipboard. Not sent."
-                  : copyState === "error"
-                    ? "Could not copy reply. Try again."
-                    : null}
-              </p>
-              {copyState === "error" ? (
-                <p
-                  className="text-label-12 text-sio-status-danger-fg"
-                  role="alert"
-                >
-                  Could not copy. Try again.
-                </p>
-              ) : null}
-            </div>
+          {showRailActed && error ? (
+            <p className="text-label-12 text-sio-status-danger-fg" role="alert">
+              {error}
+            </p>
           ) : null}
         </div>
 
-        <section aria-labelledby={whyId} className="min-w-0">
-          <h4
-            id={whyId}
-            className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
-          >
-            Why This Fired
-          </h4>
+        {quotes.length > 0 || matches.length === 0 ? (
+          <section aria-labelledby={whyId} className="min-w-0">
+            <h4
+              id={whyId}
+              className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
+            >
+              Why This Fired
+            </h4>
 
-          {hasEvidence ? (
-            <div className="mt-2.5 flex flex-col gap-2.5">
-              {quotes.length > 0 ? (
-                <ul className="flex flex-col gap-2">
-                  {quotes.map(({ item, text, messageId }) => {
-                    const canJump = Boolean(messageId && onFocusMessage);
-                    const active = Boolean(
-                      messageId && messageId === focusedMessageId,
-                    );
-                    return (
-                      <li key={item} className="min-w-0">
-                        {canJump && messageId ? (
-                          <button
-                            type="button"
-                            className={cn(
-                              "w-full min-h-11 rounded-md border px-2 py-1.5 text-left touch-manipulation transition-colors duration-150",
-                              active
-                                ? "border-sio-border-strong bg-sio-bg-interactive"
-                                : "border-transparent hover:border-sio-border-subtle hover:bg-sio-bg-interactive",
-                            )}
-                            aria-pressed={active}
-                            aria-controls={conversationMessageDomId(messageId)}
-                            aria-label={`Show in conversation: ${text}`}
-                            onClick={() => onFocusMessage?.(messageId)}
-                          >
-                            <blockquote className="border-l-2 border-sio-border-strong pl-3">
-                              <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
-                                “{text}”
-                              </p>
-                            </blockquote>
-                          </button>
-                        ) : (
+            {quotes.length > 0 ? (
+              <ul className="mt-2.5 flex flex-col gap-2">
+                {quotes.map(({ item, text, messageId }) => {
+                  const canJump = Boolean(messageId && onFocusMessage);
+                  const active = Boolean(
+                    messageId && messageId === focusedMessageId,
+                  );
+                  return (
+                    <li key={item} className="min-w-0">
+                      {canJump && messageId ? (
+                        <button
+                          type="button"
+                          className={cn(
+                            "w-full min-h-11 rounded-md border px-2 py-1.5 text-left touch-manipulation transition-colors duration-150",
+                            active
+                              ? "border-sio-border-strong bg-sio-bg-interactive"
+                              : "border-transparent hover:border-sio-border-subtle hover:bg-sio-bg-interactive",
+                          )}
+                          aria-pressed={active}
+                          aria-controls={conversationMessageDomId(messageId)}
+                          aria-label={`Show in conversation: ${text}`}
+                          onClick={() => onFocusMessage?.(messageId)}
+                        >
                           <blockquote className="border-l-2 border-sio-border-strong pl-3">
                             <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
                               “{text}”
                             </p>
                           </blockquote>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
+                        </button>
+                      ) : (
+                        <blockquote className="border-l-2 border-sio-border-strong pl-3">
+                          <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
+                            “{text}”
+                          </p>
+                        </blockquote>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
+                {isNeonStub
+                  ? "No local evidence — detection join missing."
+                  : "No local evidence."}
+              </p>
+            )}
+          </section>
+        ) : null}
 
-              {matches.length > 0 ? (
-                <div className="min-w-0">
-                  <p className="text-label-12 font-medium text-sio-fg-muted">
-                    Matched
-                  </p>
-                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                    {matches.map(({ item, text, messageId }) => (
-                      <li key={item} className="min-w-0 max-w-full">
-                        <EvidenceChip
-                          text={text}
-                          active={Boolean(
-                            messageId && messageId === focusedMessageId,
-                          )}
-                          controlsId={
-                            messageId
-                              ? conversationMessageDomId(messageId)
-                              : null
-                          }
-                          onSelect={
-                            messageId && onFocusMessage
-                              ? () => onFocusMessage(messageId)
-                              : null
-                          }
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
-              {isNeonStub
-                ? "No local evidence — detection join missing."
-                : "No local evidence."}
-            </p>
-          )}
-        </section>
+        {matches.length > 0 ? (
+          <section aria-labelledby={matchedId} className="min-w-0">
+            <h4
+              id={matchedId}
+              className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
+            >
+              Matched
+            </h4>
+            <ul className="mt-2.5 flex flex-wrap gap-1.5">
+              {matches.map(({ item, text, messageId }) => (
+                <li key={item} className="min-w-0 max-w-full">
+                  <EvidenceChip
+                    text={text}
+                    active={Boolean(
+                      messageId && messageId === focusedMessageId,
+                    )}
+                    controlsId={
+                      messageId
+                        ? conversationMessageDomId(messageId)
+                        : null
+                    }
+                    onSelect={
+                      messageId && onFocusMessage
+                        ? () => onFocusMessage(messageId)
+                        : null
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </div>
     </section>
   );

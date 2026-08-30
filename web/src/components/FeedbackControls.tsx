@@ -105,6 +105,8 @@ export function FeedbackControls({
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
   const canAdvance = Boolean(triage?.isPendingReview && !signal.feedback);
+  const isUnactedCorrect =
+    feedbackLabel === "correct" && signal.status !== "acted";
 
   useEffect(() => {
     if (!dirty) return;
@@ -199,7 +201,9 @@ export function FeedbackControls({
         <p className="text-label-12 text-sio-fg-muted">
           {canAdvance
             ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
-            : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
+            : isUnactedCorrect
+              ? "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action."
+              : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
         </p>
         <p className="sr-only" aria-live="polite">
           {justSaved
@@ -279,8 +283,7 @@ export function FeedbackControls({
               className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
             >
               <NoteContent className="text-label-12 text-sio-fg-base">
-                Copy Reply from Suggested Next Action, then Mark Acted (does
-                not send).
+                Mark as Acted on Suggested Next Action (does not send).
               </NoteContent>
             </Note>
           </div>

@@ -39,6 +39,7 @@ import {
   signalReviewStatusLabel,
   signalTypeLabel,
 } from "@/lib/format";
+import type { MarkActedWalk } from "@/lib/use-mark-acted";
 import {
   statusQueryValue,
   viewHref,
@@ -210,6 +211,8 @@ type SignalQueueProps = {
   doneEmpty?: EmptyNext | null;
   /** Pending triage — auto-advance after feedback on needs-review panels. */
   reviewTriage?: SignalReviewTriage;
+  /** Follow-up Act queue — rail primary Mark as Acted. */
+  actedWalk?: MarkActedWalk | null;
 };
 
 function buildQueueHref(
@@ -401,6 +404,7 @@ export function SignalQueue({
   followUpEmpty = null,
   doneEmpty = null,
   reviewTriage,
+  actedWalk = null,
 }: SignalQueueProps) {
   const {
     pendingCount,
@@ -475,12 +479,17 @@ export function SignalQueue({
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
         {filterChrome}
-        <QueueCard className="insights-review">
-          <div className="min-w-0 shrink-0 overflow-x-clip bg-sio-bg-base">
+        <QueueCard className="min-w-0 shrink-0 overflow-hidden">
+          <div className="min-w-0 overflow-x-clip bg-sio-bg-base">
             <QueueHeaderBlock />
             {reviewChrome}
           </div>
-          {previewSignal ? (
+        </QueueCard>
+        {previewSignal ? (
+          <div
+            className="insights-review min-h-0"
+            data-review-keyboard-root=""
+          >
             <SignalReviewBody
               key={previewSignal.id}
               signal={previewSignal}
@@ -488,9 +497,10 @@ export function SignalQueue({
               customerName={previewCustomerName ?? "Customer"}
               conversation={previewConversation}
               triage={reviewTriage}
+              actedWalk={actedWalk}
             />
-          ) : null}
-        </QueueCard>
+          </div>
+        ) : null}
       </div>
     );
   }

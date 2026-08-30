@@ -16,6 +16,7 @@ import {
   predictionToStubSignal,
   queueSignalsForFilter,
   quotesFromCustomerMessages,
+  resolvePreviewSignal,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "./join-needs-review";
@@ -418,6 +419,29 @@ describe("followUpSignals / doneSignals", () => {
     expect(doneSignals([follow, acted, wrong]).map((s) => s.id)).toEqual([
       "sig_done",
     ]);
+  });
+});
+
+describe("resolvePreviewSignal", () => {
+  it("prefers reviewed Correct over pending twin", () => {
+    const pending: Signal = { ...baseSignal, id: "sig_same", status: "new" };
+    const reviewed: Signal = {
+      ...baseSignal,
+      id: "sig_same",
+      status: "reviewed",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    expect(resolvePreviewSignal("sig_same", [pending], [reviewed])).toEqual(
+      reviewed,
+    );
+  });
+
+  it("uses pending when only pending matches", () => {
+    const pending: Signal = { ...baseSignal, id: "sig_p", status: "new" };
+    expect(resolvePreviewSignal("sig_p", [pending], [])?.id).toBe("sig_p");
   });
 });
 

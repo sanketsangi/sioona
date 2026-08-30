@@ -453,13 +453,91 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Suggested Next Action");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Follow up");
-    expect(html).toContain("Copy Reply");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("Conversation");
     expect(html).toContain("Display only — not sent.");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
+    expect(html).not.toContain("A / Enter → Mark as Acted");
+  });
+
+  it("shows rail Mark as Acted on Follow-up Correct preview", () => {
+    const follow: Signal = {
+      id: "sig_follow",
+      tenantId: "tenant_demo",
+      conversationId: "conv_follow",
+      type: "retention",
+      score: 0.9,
+      confidence: 0.9,
+      summary: "Pause SIP",
+      suggestedAction: "Call before pause window closes.",
+      evidence: ['quote: "Please pause my SIP"'],
+      status: "reviewed",
+      createdAt: "2026-08-01T00:00:00.000Z",
+      backendSignalId: "pred-follow",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    const store = storeFromSignals([follow]);
+    store.conversations[0].customerName = "Priya";
+    store.messages = [
+      {
+        id: "msg_1",
+        conversationId: "conv_follow",
+        role: "customer",
+        content: "Please pause my SIP",
+        timestamp: "2026-08-01T10:05:00.000Z",
+      },
+    ];
+    store.conversations[0].messageIds = ["msg_1"];
+
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "followup",
+        typeFilter: "all",
+        page: 1,
+        previewId: follow.id,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: true,
+          rows: [
+            {
+              id: "pred-follow",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_follow",
+              signal_type: "retention",
+              confidence: 0.9,
+              summary: "Pause SIP",
+              created_at: "2026-08-01T00:00:00.000Z",
+              acted: false,
+              feedback: {
+                id: "fb-1",
+                tenant_id: "tenant_demo",
+                signal_id: "pred-follow",
+                feedback: "correct",
+                note: null,
+                reviewed_by: "demo",
+                reviewed_at: "2026-08-02T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Suggested Next Action");
+    expect(html).toContain("Mark as Acted");
+    expect(html).toContain("btn-primary");
+    expect(html).toContain("Display only — not sent.");
+    expect(html).toContain("A / Enter → Mark as Acted on Suggested Next Action");
+    expect(html).not.toContain("Mark as Pending");
+    expect(html).toContain("Open Conversation");
+    expect(html).toContain("data-review-keyboard-root");
   });
 
   it("shows the Act cue on Correct ¬acted Follow-up", () => {
@@ -510,10 +588,7 @@ describe("InsightsView review conversation + action", () => {
       }),
     );
 
-    expect(html).toContain("Copy Reply");
-    expect(html).toContain(
-      "Copy Reply from Suggested Next Action, then Mark Acted",
-    );
+    expect(html).toContain("Mark as Acted on Suggested Next Action (does not send).");
     expect(html).toContain("Mark as Acted");
   });
 });
@@ -606,7 +681,9 @@ describe("InsightsView evidence-grounded review", () => {
 
     expect(html).toContain("No messages stored");
     expect(html).toContain("No invented");
-    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Suggested Next Action");
+    expect(html).toContain("Matched");
+    expect(html).not.toContain("Why This Fired");
     expect(html).toContain("Feedback");
     expect(html).toContain("insights-review-split");
   });

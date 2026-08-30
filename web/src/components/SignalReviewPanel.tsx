@@ -38,35 +38,33 @@ export function SignalReviewPanel({
   }, [signal.id]);
 
   return (
-    <div className="shrink-0">
-      <div className="border-b border-sio-border-base bg-sio-bg-base">
-        <SignalQueueRow
-          signal={signal}
-          customerName={who}
-          expandText
-          action={
-            <button
-              type="button"
-              className={QUEUE_REVIEW_ACTION_CLASS}
-              onClick={() => {
-                const el = document.getElementById(bodyId);
-                if (!el) return;
-                const reduced =
-                  typeof window !== "undefined" &&
-                  window.matchMedia("(prefers-reduced-motion: reduce)")
-                    .matches;
-                el.scrollIntoView({
-                  block: "start",
-                  behavior: reduced ? "auto" : "smooth",
-                });
-                headingRef.current?.focus({ preventScroll: true });
-              }}
-            >
-              Review
-            </button>
-          }
-        />
-      </div>
+    <div className="shrink-0 bg-sio-bg-base">
+      <SignalQueueRow
+        signal={signal}
+        customerName={who}
+        expandText
+        action={
+          <button
+            type="button"
+            className={QUEUE_REVIEW_ACTION_CLASS}
+            onClick={() => {
+              const el = document.getElementById(bodyId);
+              if (!el) return;
+              const reduced =
+                typeof window !== "undefined" &&
+                window.matchMedia("(prefers-reduced-motion: reduce)")
+                  .matches;
+              el.scrollIntoView({
+                block: "start",
+                behavior: reduced ? "auto" : "smooth",
+              });
+              headingRef.current?.focus({ preventScroll: true });
+            }}
+          >
+            Review
+          </button>
+        }
+      />
 
       <h2
         ref={headingRef}

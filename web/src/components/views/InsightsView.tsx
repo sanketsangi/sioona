@@ -37,6 +37,7 @@ import {
   applyChatEvidenceToSignals,
   filterPendingWithChat,
   pendingQueueSignals,
+  resolvePreviewSignal,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
@@ -198,12 +199,12 @@ export function InsightsView({
     mode: workspaceMode === "action" ? "action" : null,
   };
 
-  // Same resolution as SignalQueue — deep links ignore active filters.
-  const previewSignal = previewId
-    ? (pendingSignals.find((s) => s.id === previewId) ??
-      reviewedSignals.find((s) => s.id === previewId) ??
-      null)
-    : null;
+  // Prefer Neon Correct when the same id is also JSON-unreviewed pending.
+  const previewSignal = resolvePreviewSignal(
+    previewId,
+    pendingSignals,
+    reviewedSignals,
+  );
   const previewCustomerName = previewSignal
     ? resolveCustomerName(
         previewSignal.conversationId,
@@ -273,6 +274,23 @@ export function InsightsView({
         mode: workspaceMode,
       })
     : null;
+  // Rail Act walk always uses Follow-up branch so Correct ¬acted advances
+  // even when the panel was opened from All / Pending.
+  const railActWalk =
+    previewSignal?.feedback?.label === "correct" &&
+    previewSignal.status !== "acted";
+  const actedWalk = previewSignal
+    ? {
+        nextPreviewId: nextUnactedCorrectId(
+          reviewedSignals,
+          previewSignal.id,
+        ),
+        nextPendingPreviewId: previewTriage?.nextPendingPreviewId ?? null,
+        statusFilter: railActWalk ? ("followup" as const) : statusFilter,
+        scoreFrom,
+        mode: workspaceMode,
+      }
+    : null;
   const queueProps = {
     pendingSignals,
     reviewedSignals,
@@ -295,6 +313,7 @@ export function InsightsView({
       label: "Needs Follow-Up",
     },
     reviewTriage: previewTriage ?? undefined,
+    actedWalk,
   };
 
   return (
@@ -436,12 +455,11 @@ export function InsightsView({
                     <MarkActedHeaderAction
                       key={previewSignal.id}
                       signal={previewSignal}
-                      nextPreviewId={nextUnactedCorrectId(
-                        reviewedSignals,
-                        previewSignal.id,
-                      )}
+                      nextPreviewId={
+                        actedWalk?.nextPreviewId ?? null
+                      }
                       nextPendingPreviewId={
-                        previewTriage?.nextPendingPreviewId ?? null
+                        actedWalk?.nextPendingPreviewId ?? null
                       }
                       statusFilter={statusFilter}
                       scoreFrom={scoreFrom}

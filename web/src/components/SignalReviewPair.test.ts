@@ -14,6 +14,14 @@ vi.mock("next/link", () => ({
   }) => createElement("a", { href, className }, children as never),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}));
+
 import { SignalReviewPair } from "@/components/SignalReviewPair";
 import type { Message, Signal } from "@/lib/types";
 
@@ -63,7 +71,6 @@ describe("SignalReviewPair", () => {
     expect(html).toContain("Priya");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("Call back before the SIP pause window closes.");
-    expect(html).toContain("Copy Reply");
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
   });
