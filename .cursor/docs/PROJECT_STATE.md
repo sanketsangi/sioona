@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/insights-review-design-7593` (Insights review identity + queue row polish)
+**Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,13 +19,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Insights review identity is a selected strip (user + locked chips + summary) — no one-row table header / scroll Review. Queue rows hug Review on mobile; metrics match Eval KPI density; conversation header uses Eval gutters. Locked signal chrome unchanged. Not outbound / not Detect / not a keep-set go.
-
-**Prior pass (code, 2026-08-30):** Insights review queue uses Eval container rhythm — `EvalCard` queue/metrics, review wells + conversation card, `px-3 sm:px-4` row/header/body gutters, `gap-4` between review cards. No logic / Detect / outbound / keep-set change.
-
-**Prior pass (code, 2026-08-30):** Eval containers use shared `EvalCard` (same Card chrome as Insights queue) — Signal Score / Labeled Eval / Pilot / offer / Baseline / Adapt / Labeled / Export. Header + KPI gutters `px-3 py-2.5 sm:px-4`. No logic / Detect / outbound / keep-set change.
-
-**Prior pass (code, 2026-08-30):** Suggested Next Action well — design only: header truncate + hug Mark as Acted, `heading-16` action, `Separator` before quieter Why / Matched, quote rows always bordered, body scrolls. No logic / Detect / outbound / keep-set change.
+**This pass (code, 2026-08-30):** Insights queue list Card is a DataTable (`shadcn` Table + TanStack): User · Signal · Status · Score · Type · Action, sticky muted header, overflow at all sizes, URL `?page=` pager (10/page), locked chrome, `?preview=` Review Links. Empty/error Cards + review body unchanged. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-30):** Suggested Next Action header shows **Mark as Acted** for Correct-not-Acted (A / Enter walk; no Correct chip in that slot). Feedback / Ground Truth wells keep full borders. Queue Card/Separator list and Conversation chat well stay. Not outbound / not Detect / not a keep-set go.
 

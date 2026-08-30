@@ -1,3 +1,4 @@
+import { signalChipClass } from "@/components/SignalScoreChip";
 import { StatusDot } from "@/components/ui/StatusDot";
 import {
   signalStatusDot,
@@ -10,7 +11,7 @@ type SignalStatusProps = {
   signal: Pick<Signal, "status" | "feedback">;
   className?: string;
   /**
-   * `dot` — queue / list StatusDot (default).
+   * `dot` — queue StatusDot inside Score/Type pill shell (default).
    * `chip` — review-well header chip (same shell as Feedback / Ground Truth).
    */
   variant?: "dot" | "chip";
@@ -52,8 +53,10 @@ export function SignalStatus({
   }
 
   return (
-    <StatusDot className={className} label state={state}>
-      {label}
-    </StatusDot>
+    <span className={cn(signalChipClass, className)} translate="no">
+      <StatusDot label state={state}>
+        {label}
+      </StatusDot>
+    </span>
   );
 }

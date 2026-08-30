@@ -60,7 +60,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("Phrase");
     expect(html).toContain("pause my SIP");
-    expect(html).toContain("Display only — not sent.");
+    expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("text-heading-16");
     expect(html).toContain("Pending");
     expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
@@ -229,8 +229,9 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Suggested Next Action[\s\S]*Mark as Acted[\s\S]*Display only — not sent/,
+      /Suggested Next Action[\s\S]*Mark as Acted[\s\S]*Call back before the SIP pause window closes/,
     );
+    expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("btn-primary");
     expect(html).toContain("aria-keyshortcuts");
     expect(html).not.toContain("bg-sio-status-success-bg");

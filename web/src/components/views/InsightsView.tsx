@@ -246,9 +246,6 @@ export function InsightsView({
     ...queryExtras,
     status: "new",
   });
-  const showQuietReDetect =
-    Boolean(queueError) || pendingSignals.length === 0;
-
   const cadenceEmpty = {
     description: pilotCadenceHelperCopy("insights", cadenceAction),
     href: cadenceHref,
@@ -365,22 +362,22 @@ export function InsightsView({
         reviewKey={reviewOpen ? previewId : null}
         list={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <h2 className="sr-only">Insights Queue</h2>
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <SignalQueueFilters
-                className="min-w-0 flex-1"
-                pendingSignals={pendingSignals}
-                reviewedSignals={reviewedSignals}
-                queueError={queueError}
-                statusFilter={statusFilter}
-                typeFilter={typeFilter}
-                page={page}
-                previewId={reviewOpen ? null : previewId}
-                queryExtras={queryExtras}
-              />
-              {showQuietReDetect && !zeroSignalsImport ? (
-                <ReDetectButton />
-              ) : null}
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between">
+              <h2 className="min-w-0 scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                Conversation that needs your attention
+              </h2>
+              <div className="flex w-full min-w-0 shrink-0 justify-end min-[540px]:w-auto">
+                <SignalQueueFilters
+                  pendingSignals={pendingSignals}
+                  reviewedSignals={reviewedSignals}
+                  queueError={queueError}
+                  statusFilter={statusFilter}
+                  typeFilter={typeFilter}
+                  page={page}
+                  previewId={reviewOpen ? null : previewId}
+                  queryExtras={queryExtras}
+                />
+              </div>
             </div>
             <InsightsQueueMetrics
               conversationCount={chats.conversations.length}
@@ -405,41 +402,33 @@ export function InsightsView({
             <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 {breadcrumbPageLabel ? (
-                  <div className="min-w-0">
-                    <Breadcrumb
-                      aria-label="Insights review"
-                      className="scroll-mt-4"
-                    >
-                      <BreadcrumbList className="text-label-13 sm:gap-1.5">
-                        <BreadcrumbItem>
-                          <BreadcrumbLink asChild>
-                            <Link
-                              href={backToQueueHref}
-                              scroll={false}
-                              className="rounded-[var(--radius-control)] text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
-                            >
-                              Insights Queue
-                            </Link>
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3" />
-                        <BreadcrumbItem>
-                          <BreadcrumbPage
-                            className="max-w-[min(16rem,calc(100vw-8rem))] truncate text-sio-fg-subtle sm:max-w-xs"
-                            translate="no"
+                  <Breadcrumb
+                    aria-label="Insights review"
+                    className="scroll-mt-4"
+                  >
+                    <BreadcrumbList className="text-label-13 sm:gap-1.5">
+                      <BreadcrumbItem>
+                        <BreadcrumbLink asChild>
+                          <Link
+                            href={backToQueueHref}
+                            scroll={false}
+                            className="rounded-[var(--radius-control)] text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
                           >
-                            {breadcrumbPageLabel}
-                          </BreadcrumbPage>
-                        </BreadcrumbItem>
-                      </BreadcrumbList>
-                    </Breadcrumb>
-                    <h2
-                      className="mt-1 truncate text-balance text-heading-20 text-sio-fg-base"
-                      translate="no"
-                    >
-                      {breadcrumbPageLabel}
-                    </h2>
-                  </div>
+                            Insights Queue
+                          </Link>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3" />
+                      <BreadcrumbItem>
+                        <BreadcrumbPage
+                          className="max-w-[min(16rem,calc(100vw-8rem))] truncate text-sio-fg-subtle sm:max-w-xs"
+                          translate="no"
+                        >
+                          {breadcrumbPageLabel}
+                        </BreadcrumbPage>
+                      </BreadcrumbItem>
+                    </BreadcrumbList>
+                  </Breadcrumb>
                 ) : (
                   <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                     Insights Queue

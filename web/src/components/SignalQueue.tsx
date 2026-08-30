@@ -2,34 +2,58 @@
 
 import Link from "next/link";
 import { useMemo, useRef, type ComponentProps, type ReactNode } from "react";
-import { ArrowRight, CaretDown } from "@phosphor-icons/react/ssr";
+import {
+  ArrowRight,
+  CaretDoubleLeft,
+  CaretDoubleRight,
+  CaretDown,
+  CaretLeft,
+  CaretRight,
+  CirclesThree,
+} from "@phosphor-icons/react/ssr";
+import {
+  createColumnHelper,
+  createPaginatedRowModel,
+  FlexRender,
+  rowPaginationFeature,
+  tableFeatures,
+  useTable,
+} from "@tanstack/react-table";
+import { FilterIcon } from "@/components/icons/FilterIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
-import { SegmentedTabs } from "@/components/SegmentedTabs";
 import {
   SignalQueueRow,
-  QUEUE_GRID,
   QUEUE_REVIEW_ACTION_CLASS,
-  QUEUE_ROW_CLASS,
 } from "@/components/SignalQueueRow";
 import {
   SignalReviewMissing,
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
-import { EvalCard } from "@/components/EvalCard";
-import { CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import {
   formatScore,
   queueSignalSummary,
@@ -56,6 +80,25 @@ import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type InsightsMode = "list" | "review";
+
+/** Page size for Insights queue DataTable (URL `?page=`). */
+export const QUEUE_PAGE_SIZE = 10;
+
+const queueTableFeatures = tableFeatures({
+  rowPaginationFeature,
+  paginatedRowModel: createPaginatedRowModel(),
+});
+
+const columnHelper = createColumnHelper<typeof queueTableFeatures, Signal>();
+
+const queueColumns = columnHelper.columns([
+  columnHelper.display({ id: "user", header: "User" }),
+  columnHelper.display({ id: "signal", header: "Signal" }),
+  columnHelper.display({ id: "status", header: "Status" }),
+  columnHelper.display({ id: "score", header: "Score" }),
+  columnHelper.display({ id: "type", header: "Type" }),
+  columnHelper.display({ id: "action", header: "Action" }),
+]);
 
 /**
  * Overlay Insights queue list and preview review.
@@ -120,6 +163,12 @@ function resolveCustomerName(
   return "Customer";
 }
 
+const STATUS_DOT_BY_FILTER: Partial<Record<StatusFilter, StatusDotState>> = {
+  new: "QUEUED",
+  followup: "READY",
+  acted: "CANCELED",
+};
+
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "new", label: "Pending" },
@@ -133,6 +182,16 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: "retention", label: "Retention" },
   { value: "upsell", label: "Upsell" },
 ];
+
+function statusFilterIcon(value: StatusFilter): ReactNode {
+  const state = STATUS_DOT_BY_FILTER[value];
+  if (state) {
+    return <StatusDot state={state} className="justify-center" />;
+  }
+  return (
+    <CirclesThree className="size-4 text-sio-fg-subtle" weight="regular" />
+  );
+}
 
 function typeFilterIcon(value: TypeFilter): ReactNode {
   switch (value) {
@@ -219,27 +278,19 @@ function buildQueueHref(
   };
 }
 
+/** Same Card chrome as InsightsQueueMetrics — sio radius, no elevation. */
+const QUEUE_CARD_CLASS =
+  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]";
+
 function QueueCard({
   className,
   children,
   ...props
-}: ComponentProps<typeof EvalCard>) {
+}: ComponentProps<typeof Card>) {
   return (
-    <EvalCard
-      className={cn("flex min-h-0 min-w-0 flex-1 flex-col", className)}
-      {...props}
-    >
+    <Card size="sm" className={cn(QUEUE_CARD_CLASS, className)} {...props}>
       {children}
-    </EvalCard>
-  );
-}
-
-function QueueHeaderBlock() {
-  return (
-    <div className="hidden shrink-0 lg:block">
-      <QueueColumnHeader />
-      <Separator />
-    </div>
+    </Card>
   );
 }
 
@@ -274,37 +325,31 @@ function QueueEmptyState({
   );
 }
 
-const QUEUE_COL_HEADER = "truncate text-label-12 font-medium text-sio-fg-subtle";
+const QUEUE_COL_HEADER =
+  "truncate text-label-12 font-medium text-muted-foreground";
 
-/** Column labels — shared by queue list and review panel modes. */
-function QueueColumnHeader() {
+/** Sticky muted column labels — shared by queue list and review panel. */
+/** Light header band — soft tint so it separates from white card rows. */
+const QUEUE_TABLE_HEADER_CLASS =
+  "sticky top-0 z-10 bg-[color-mix(in_oklch,var(--sio-fg-base)_6%,var(--sio-bg-base))] [&_tr]:border-b [&_th]:bg-[color-mix(in_oklch,var(--sio-fg-base)_6%,var(--sio-bg-base))]";
+
+function QueueSignalsTableHeader() {
   return (
-    <div
-      className={cn(QUEUE_ROW_CLASS, QUEUE_GRID, "h-9 bg-sio-bg-subtle")}
-      role="row"
-    >
-      <span className={QUEUE_COL_HEADER} role="columnheader">
-        User
-      </span>
-      <span className={QUEUE_COL_HEADER} role="columnheader">
-        Signal
-      </span>
-      <span className={QUEUE_COL_HEADER} role="columnheader">
-        Status
-      </span>
-      <span className={QUEUE_COL_HEADER} role="columnheader">
-        Score
-      </span>
-      <span className={QUEUE_COL_HEADER} role="columnheader">
-        Type
-      </span>
-      <span className={cn("hidden xl:block", QUEUE_COL_HEADER)} role="columnheader">
-        Evidence
-      </span>
-      <span className={cn("text-left", QUEUE_COL_HEADER)} role="columnheader">
-        Action
-      </span>
-    </div>
+    <TableHeader className={QUEUE_TABLE_HEADER_CLASS}>
+      <TableRow className="hover:bg-transparent">
+        {queueColumns.map((column) => (
+          <TableHead
+            key={column.id}
+            className={cn(
+              QUEUE_COL_HEADER,
+              column.id === "action" && "text-left",
+            )}
+          >
+            {typeof column.header === "string" ? column.header : column.id}
+          </TableHead>
+        ))}
+      </TableRow>
+    </TableHeader>
   );
 }
 
@@ -331,7 +376,7 @@ function useQueueList({
   );
 }
 
-/** Status tabs + type filter for the Insights queue toolbar. */
+/** Filters + count summary for Insights header (right of section title). */
 export function SignalQueueFilters({
   pendingSignals,
   reviewedSignals,
@@ -339,8 +384,7 @@ export function SignalQueueFilters({
   typeFilter = "all",
   previewId = null,
   queryExtras,
-  className,
-}: Omit<SignalQueueProps, "showFilters"> & { className?: string }) {
+}: Omit<SignalQueueProps, "showFilters">) {
   const { pendingCount, followUpCount, doneCount, allCount } = useQueueList({
     pendingSignals,
     reviewedSignals,
@@ -356,7 +400,6 @@ export function SignalQueueFilters({
 
   return (
     <QueueFilters
-      className={className}
       statusFilter={statusFilter}
       typeFilter={typeFilter}
       pendingCount={pendingCount}
@@ -365,6 +408,211 @@ export function SignalQueueFilters({
       allCount={allCount}
       queueHref={queueHref}
     />
+  );
+}
+
+function QueueTablePager({
+  page,
+  pageCount,
+  rowCount,
+  queueHref,
+}: {
+  page: number;
+  pageCount: number;
+  rowCount: number;
+  queueHref: QueueHref;
+}) {
+  const canPrevious = page > 1;
+  const canNext = page < pageCount;
+  const signalLabel = rowCount === 1 ? "1 signal" : `${rowCount} signals`;
+
+  return (
+    <div className="flex shrink-0 items-center justify-between border-t border-sio-border-base px-4 py-3">
+      <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
+        {signalLabel}
+      </div>
+      <div className="flex w-full items-center gap-8 lg:w-fit">
+        <div className="flex w-fit items-center justify-center text-sm font-medium tabular">
+          Page {page} of {pageCount}
+        </div>
+        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+          <PagerIconLink
+            href={canPrevious ? queueHref({ page: 1 }) : null}
+            label="Go to first page"
+            className="hidden size-8 lg:flex"
+          >
+            <CaretDoubleLeft weight="regular" aria-hidden />
+          </PagerIconLink>
+          <PagerIconLink
+            href={canPrevious ? queueHref({ page: page - 1 }) : null}
+            label="Go to previous page"
+          >
+            <CaretLeft weight="regular" aria-hidden />
+          </PagerIconLink>
+          <PagerIconLink
+            href={canNext ? queueHref({ page: page + 1 }) : null}
+            label="Go to next page"
+          >
+            <CaretRight weight="regular" aria-hidden />
+          </PagerIconLink>
+          <PagerIconLink
+            href={canNext ? queueHref({ page: pageCount }) : null}
+            label="Go to last page"
+            className="hidden size-8 lg:flex"
+          >
+            <CaretDoubleRight weight="regular" aria-hidden />
+          </PagerIconLink>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PagerIconLink({
+  href,
+  label,
+  children,
+  className,
+}: {
+  href: string | null;
+  label: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  if (href == null) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        className={cn("size-8", className)}
+        disabled
+        aria-label={label}
+      >
+        {children}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      className={cn("size-8", className)}
+      asChild
+    >
+      <Link href={href} scroll={false} aria-label={label}>
+        {children}
+      </Link>
+    </Button>
+  );
+}
+
+function QueueSignalsDataTable({
+  signals,
+  page,
+  customerNames,
+  queueHref,
+}: {
+  signals: Signal[];
+  page: number;
+  customerNames: Record<string, string>;
+  queueHref: QueueHref;
+}) {
+  const pageCount = Math.max(1, Math.ceil(signals.length / QUEUE_PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+
+  const table = useTable(
+    {
+      features: queueTableFeatures,
+      data: signals,
+      columns: queueColumns,
+      state: {
+        pagination: {
+          pageIndex: safePage - 1,
+          pageSize: QUEUE_PAGE_SIZE,
+        },
+      },
+      autoResetPageIndex: false,
+      onPaginationChange: () => {
+        /* URL-driven via queueHref Links */
+      },
+      getRowId: (row) => String(row.backendSignalId ?? row.id),
+    },
+    (state) => ({ pagination: state.pagination }),
+  );
+
+  const rows = table.getRowModel().rows;
+
+  return (
+    <QueueCard>
+      <div className="relative min-h-0 flex-1 overflow-auto">
+        <Table className="min-w-[640px]">
+          <TableHeader className={QUEUE_TABLE_HEADER_CLASS}>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    colSpan={header.colSpan}
+                    className={QUEUE_COL_HEADER}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <FlexRender header={header} />
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => {
+              const signal = row.original;
+              const score = formatScore(signal.score);
+              const typeLabel = signalTypeLabel(signal.type);
+              const statusText = signalReviewStatusLabel(signal);
+              const customerName = resolveCustomerName(
+                signal.conversationId,
+                customerNames,
+                signal.summary || "",
+              );
+              const previewHref = queueHref({
+                preview: signal.id,
+                page: safePage,
+              });
+              const summaryForLabel =
+                queueSignalSummary(signal.summary || "", customerName) ||
+                "signal";
+
+              return (
+                <SignalQueueRow
+                  key={row.id}
+                  signal={signal}
+                  customerName={customerName}
+                  previewHref={previewHref}
+                  previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Open review for ${summaryForLabel}`}
+                  action={
+                    <Link
+                      href={previewHref}
+                      scroll={false}
+                      className={QUEUE_REVIEW_ACTION_CLASS}
+                    >
+                      Review
+                    </Link>
+                  }
+                />
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <QueueTablePager
+        page={safePage}
+        pageCount={pageCount}
+        rowCount={signals.length}
+        queueHref={queueHref}
+      />
+    </QueueCard>
   );
 }
 
@@ -446,25 +694,23 @@ export function SignalQueue({
     const previewMessages = previewSignal
       ? (messagesByConversationId[previewSignal.conversationId] ?? [])
       : [];
-    const reviewChrome = previewSignal ? (
-      <SignalReviewPanel
-        signal={previewSignal}
-        customerName={previewCustomerName ?? "Customer"}
-      />
-    ) : (
-      <SignalReviewMissing
-        queueHref={backToQueueHref}
-        previewId={previewId}
-      />
-    );
 
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
         {filterChrome}
-        <QueueCard className="min-w-0 shrink-0 overflow-hidden">
-          <div className="min-w-0 overflow-x-clip bg-sio-bg-base">
-            {reviewChrome}
-          </div>
+        <QueueCard className="min-w-0 flex-none shrink-0 overflow-hidden">
+          {previewSignal && previewCustomerName != null ? (
+            <SignalReviewPanel
+              signal={previewSignal}
+              customerName={previewCustomerName}
+              header={<QueueSignalsTableHeader />}
+            />
+          ) : (
+            <SignalReviewMissing
+              queueHref={backToQueueHref}
+              previewId={previewId}
+            />
+          )}
         </QueueCard>
         {previewSignal ? (
           <div
@@ -653,55 +899,12 @@ export function SignalQueue({
           )}
         </QueueEmptyState>
       ) : (
-        <QueueCard>
-          <QueueHeaderBlock />
-          <CardContent className="scroll-region min-h-0 flex-1 p-0">
-            <ul className="flex flex-col">
-              {filtered.map((signal, index) => {
-                const score = formatScore(signal.score);
-                const typeLabel = signalTypeLabel(signal.type);
-                const statusText = signalReviewStatusLabel(signal);
-                const customerName = resolveCustomerName(
-                  signal.conversationId,
-                  customerNames,
-                  signal.summary || "",
-                );
-                const previewHref = queueHref({
-                  preview: signal.id,
-                  page,
-                });
-                const summaryForLabel =
-                  queueSignalSummary(signal.summary || "", customerName) ||
-                  "signal";
-
-                return (
-                  <li
-                    key={signal.backendSignalId ?? signal.id}
-                    data-queue-row
-                    className="shrink-0"
-                  >
-                    {index > 0 ? <Separator /> : null}
-                    <SignalQueueRow
-                      signal={signal}
-                      customerName={customerName}
-                      previewHref={previewHref}
-                      previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Open review for ${summaryForLabel}`}
-                      action={
-                        <Link
-                          href={previewHref}
-                          scroll={false}
-                          className={QUEUE_REVIEW_ACTION_CLASS}
-                        >
-                          Review
-                        </Link>
-                      }
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </CardContent>
-        </QueueCard>
+        <QueueSignalsDataTable
+          signals={filtered}
+          page={page}
+          customerNames={customerNames}
+          queueHref={queueHref}
+        />
       )}
     </div>
   );
@@ -711,11 +914,13 @@ function FilterMenuLink({
   href,
   active,
   icon,
+  suffix,
   children,
 }: {
   href: string;
   active: boolean;
   icon: ReactNode;
+  suffix?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -735,28 +940,13 @@ function FilterMenuLink({
           {icon}
         </span>
         <span className="min-w-0 flex-1 truncate">{children}</span>
+        {suffix}
       </Link>
     </DropdownMenuItem>
   );
 }
 
-function statusTabCount(
-  value: StatusFilter,
-  counts: {
-    pendingCount: number;
-    followUpCount: number;
-    doneCount: number;
-    allCount: number;
-  },
-): number {
-  if (value === "new") return counts.pendingCount;
-  if (value === "followup") return counts.followUpCount;
-  if (value === "acted") return counts.doneCount;
-  return counts.allCount;
-}
-
 function QueueFilters({
-  className,
   statusFilter,
   typeFilter,
   pendingCount,
@@ -765,7 +955,6 @@ function QueueFilters({
   allCount,
   queueHref,
 }: {
-  className?: string;
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
   pendingCount: number;
@@ -779,46 +968,16 @@ function QueueFilters({
     preview?: string | null;
   }) => string;
 }) {
-  const typeLabel =
-    TYPE_OPTIONS.find((option) => option.value === typeFilter)?.label ??
-    "All Types";
-
   return (
-    <div
-      className={cn(
-        "flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
-        className,
-      )}
-    >
-      <SegmentedTabs
-        className="w-full sm:max-w-lg"
-        label="Queue status"
-        activeId={statusFilter}
-        items={STATUS_OPTIONS.map((option) => ({
-          id: option.value,
-          label: option.label,
-          href: queueHref({
-            status: option.value,
-            page: 1,
-            preview: null,
-          }),
-          count: statusTabCount(option.value, {
-            pendingCount,
-            followUpCount,
-            doneCount,
-            allCount,
-          }),
-        }))}
-      />
+    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label="Filter by type"
-            className="btn-secondary group shrink-0 self-end outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
+            className="btn-secondary group outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
           >
-            {typeFilterIcon(typeFilter)}
-            {typeLabel}
+            <FilterIcon className="size-3.5 shrink-0" />
+            Filters
             <CaretDown
               className="size-3.5 shrink-0 transition-transform duration-150 group-data-[state=open]:rotate-180"
               weight="bold"
@@ -829,8 +988,46 @@ function QueueFilters({
         <DropdownMenuContent
           align="end"
           sideOffset={8}
-          className="w-52 min-w-52 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
+          className="w-56 min-w-56 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
         >
+          <DropdownMenuGroup className="p-2">
+            <DropdownMenuLabel>Status</DropdownMenuLabel>
+            {STATUS_OPTIONS.map((option) => {
+              const count =
+                option.value === "new"
+                  ? pendingCount
+                  : option.value === "followup"
+                    ? followUpCount
+                    : option.value === "acted"
+                      ? doneCount
+                      : allCount;
+              return (
+                <FilterMenuLink
+                  key={option.value}
+                  active={statusFilter === option.value}
+                  icon={statusFilterIcon(option.value)}
+                  href={queueHref({
+                    status: option.value,
+                    page: 1,
+                    preview: null,
+                  })}
+                  suffix={
+                    <DropdownMenuShortcut className="tracking-normal">
+                      <Badge
+                        variant="secondary"
+                        className="h-5 min-w-5 rounded-full border-0 bg-sio-bg-muted px-1.5 text-label-12 font-medium tabular text-sio-fg-base group-focus/dropdown-menu-item:bg-sio-bg-muted group-focus/dropdown-menu-item:text-sio-fg-base"
+                      >
+                        {count}
+                      </Badge>
+                    </DropdownMenuShortcut>
+                  }
+                >
+                  {option.label}
+                </FilterMenuLink>
+              );
+            })}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator className="m-0 bg-sio-border-base" />
           <DropdownMenuGroup className="p-2">
             <DropdownMenuLabel>Type</DropdownMenuLabel>
             {TYPE_OPTIONS.map((option) => (

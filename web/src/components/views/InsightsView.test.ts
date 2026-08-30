@@ -81,7 +81,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     vi.clearAllMocks();
   });
 
-  it("lists Pending signals in the queue when status=new", () => {
+  it("lists Pending signals under the attention heading when status=new", () => {
     const pending = makePendingSignals(10);
     const store = storeFromSignals(pending);
     const html = renderToStaticMarkup(
@@ -107,8 +107,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
       })
     );
 
-    expect(html).toContain("Insights Queue");
-    expect(html).toContain("Queue status");
+    expect(html).toContain("Conversation that needs your attention");
     expect(html).toContain("Queue metrics");
     expect(html).toContain("Pending signal 1");
     expect(html).toContain("Pending signal 10");
@@ -116,6 +115,54 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("preview=sig_1");
     expect(html).toContain(">Review</a>");
     expect(html).not.toContain("No Signals Need Follow-Up");
+  });
+
+  it("paginates Pending queue at 10 rows with URL page links", () => {
+    const pending = makePendingSignals(11);
+    const store = storeFromSignals(pending);
+    const needsReview = {
+      ok: true as const,
+      predictions: pending.map((s) => ({
+        id: s.backendSignalId!,
+        tenant_id: "tenant_demo",
+        conversation_id: s.conversationId,
+        signal_type: s.type,
+        confidence: s.score,
+        summary: s.summary,
+        created_at: s.createdAt,
+      })),
+    };
+    const page1 = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(page1).toContain("Pending signal 1");
+    expect(page1).toContain("Pending signal 10");
+    expect(page1).not.toContain("Pending signal 11");
+    expect(page1).toContain("page=2");
+    expect(page1).toContain("Page 1 of 2");
+
+    const page2 = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 2,
+        needsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(page2).toContain("Pending signal 11");
+    expect(page2).not.toMatch(/Pending signal 1</);
+    expect(page2).toContain("Page 2 of 2");
   });
 
   it("empty Correct with pending shows Review Pending", () => {
@@ -455,12 +502,10 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Follow up");
     expect(html).toContain("Please pause my SIP this month");
-    expect(html).toContain('data-expand-text="true"');
-    expect(html).toContain('aria-current="true"');
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("Conversation");
-    expect(html).toContain("Display only — not sent.");
+    expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
     expect(html).not.toContain("A / Enter → Mark as Acted");
   });
@@ -536,7 +581,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Suggested Next Action");
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
-    expect(html).toContain("Display only — not sent.");
+    expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("A / Enter → Mark as Acted on Suggested Next Action");
     expect(html).not.toContain("Mark as Pending");
     expect(html).toContain("Open Conversation");
@@ -648,9 +693,6 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("Conversation");
     expect(html).toContain("Feedback");
     expect(html).toContain("insights-review-split");
-    expect(html).toContain("insights-review-well");
-    expect(html.match(/insights-review-well/g)?.length).toBeGreaterThanOrEqual(3);
-    expect(html).toContain("px-3 sm:px-4");
     expect(html).toContain('data-review-slot="transcript"');
     expect(html).toContain("conversation-message-msg_2");
     expect(html).toContain("Show in conversation:");

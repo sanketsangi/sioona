@@ -280,11 +280,11 @@ export function SignalReviewSuggestedAction({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
         <div className={cn(evalCardPadClassName, "flex min-w-0 flex-col gap-1.5 pt-3")}>
-          <p className="text-label-12 text-sio-fg-muted">
-            {isActed
-              ? "Marked as Acted — not sent."
-              : "Display only — not sent."}
-          </p>
+          {isActed ? (
+            <p className="text-label-12 text-sio-fg-muted">
+              Marked as Acted — not sent.
+            </p>
+          ) : null}
           <p
             className={
               "text-heading-16 break-words text-pretty font-semibold leading-6 tracking-normal " +
