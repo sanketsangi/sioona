@@ -816,7 +816,7 @@ function QueueFilters({
           <button
             type="button"
             aria-label="Filter by type"
-            className="btn-secondary group shrink-0 outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
+            className="btn-secondary group shrink-0 self-end outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
           >
             {typeFilterIcon(typeFilter)}
             {typeLabel}
