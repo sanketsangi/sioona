@@ -69,6 +69,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
+    expect(html).toContain("data-slot=\"separator\"");
     expect(html).toContain("insights-review-well");
     expect(html).not.toContain("xl:grid-cols-2");
     expect(html).not.toContain("bg-sio-bg-muted/50");
@@ -106,6 +107,8 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Matched");
     expect(html).toContain("pause my SIP");
     expect(html).not.toContain("Why This Fired");
+    expect(html).toContain("data-slot=\"separator\"");
+    expect(html.match(/data-slot="separator"/g)?.length).toBe(1);
   });
 
   it("renders keyword match chips under Matched", () => {
@@ -126,6 +129,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("ledger");
     expect(html).toContain("Phrase");
     expect(html).toContain("prior tickets");
+    expect(html.match(/data-slot="separator"/g)?.length).toBe(2);
   });
 
   it("turns joined quotes into conversation jump controls", () => {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { EvalCard } from "@/components/EvalCard";
 import { Pager } from "@/components/Pager";
 import { signalTypeLabel } from "@/lib/format";
 import { parsePage, viewHref } from "@/lib/views";
@@ -227,8 +228,8 @@ export function AdaptationPanel({
   );
 
   return (
-    <div
-      className={`panel flex min-h-0 flex-1 flex-col overflow-hidden ${compact ? "" : "mt-6"}`}
+    <EvalCard
+      className={`flex min-h-0 flex-1 flex-col overflow-hidden ${compact ? "" : "mt-6"}`}
     >
       <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
         <h2 className="text-balance text-heading-16 text-sio-fg-base">
@@ -508,6 +509,6 @@ export function AdaptationPanel({
           </div>
         </>
       )}
-    </div>
+    </EvalCard>
   );
 }

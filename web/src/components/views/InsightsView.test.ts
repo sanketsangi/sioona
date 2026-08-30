@@ -645,6 +645,9 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("Conversation");
     expect(html).toContain("Feedback");
     expect(html).toContain("insights-review-split");
+    expect(html).toContain("insights-review-well");
+    expect(html.match(/insights-review-well/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(html).toContain("px-3 sm:px-4");
     expect(html).toContain('data-review-slot="transcript"');
     expect(html).toContain("conversation-message-msg_2");
     expect(html).toContain("Show in conversation:");

@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
+import {
+  EvalCard,
+  evalCardHeaderClassName,
+  evalCardPadClassName,
+  evalMetricCellClassName,
+} from "@/components/EvalCard";
 import { ScoreWindowControl } from "@/components/ScoreWindowControl";
 import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { SignalScoreSummary } from "@/components/SignalScoreSummary";
@@ -89,7 +95,7 @@ export function EvalView({
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
 
   return (
-    <ViewFrame className="gap-3 md:gap-4">
+    <ViewFrame className="gap-4">
       <SegmentedTabs
         label="Eval panels"
         activeId={panel}
@@ -164,7 +170,7 @@ function MetricsPanel({
   cadencePreviewId?: string | null;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <SignalScoreSummary
         score={backendScore}
         allTimeScore={allTimeScore}
@@ -174,9 +180,9 @@ function MetricsPanel({
         windowControl={<ScoreWindowControl window={scoreWindow} />}
       />
 
-      <div className="grid shrink-0 gap-3 lg:grid-cols-2">
-        <section className="metric-strip">
-          <div className="border-b border-sio-border-base px-3 py-2">
+      <div className="grid shrink-0 gap-4 lg:grid-cols-2">
+        <EvalCard>
+          <div className={evalCardHeaderClassName}>
             <p className="eyebrow">Labeled Eval</p>
           </div>
           <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
@@ -196,10 +202,10 @@ function MetricsPanel({
               hint={`${metrics.predictedSignals} pred.`}
             />
           </div>
-        </section>
+        </EvalCard>
 
-        <section className="metric-strip">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
+        <EvalCard>
+          <div className={evalCardHeaderClassName}>
             <p className="eyebrow">Pilot</p>
             <p
               className={`tabular text-label-13 font-medium ${goNoGoClass(pilot.goNoGo)}`}
@@ -230,48 +236,50 @@ function MetricsPanel({
               }
             />
           </div>
-        </section>
+        </EvalCard>
       </div>
 
-      <div className="surface-quiet shrink-0 px-3 py-2.5">
-        <p className="line-clamp-3 text-pretty text-label-13 text-sio-fg-subtle">
-          {pilot.offerSummary}
-          {pilot.goNoGo === "insufficient_data" ||
-          pilot.reviewedCount < 5 ? (
-            <>
-              {" "}
-              Need ≥5 reviews in this window — open{" "}
-              <Link
-                href={viewHref("insights", { scoreFrom })}
-                className="link-accent"
-              >
-                Insights
-              </Link>
-              .
-            </>
-          ) : pilot.goNoGo === "go" ? (
-            <>
-              {" "}
-              Share{" "}
-              <span className="text-sio-fg-base">
-                {formatPercent(pilot.reviewPrecision)} Signal Score
-              </span>
-              . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
-              <Link
-                href={cadenceActionHref(cadenceAction, {
-                  scoreFrom,
-                  preview: cadencePreviewId,
-                })}
-                className="link-accent"
-              >
-                {cadenceActionCta(cadenceAction)}
-              </Link>
-            </>
-          ) : (
-            <> Hold until precision ≥80% — use Adapt, then re-review.</>
-          )}
-        </p>
-      </div>
+      <EvalCard className="shrink-0">
+        <div className={`${evalCardPadClassName} py-2.5 sm:py-3`}>
+          <p className="line-clamp-3 text-pretty text-label-13 text-sio-fg-subtle">
+            {pilot.offerSummary}
+            {pilot.goNoGo === "insufficient_data" ||
+            pilot.reviewedCount < 5 ? (
+              <>
+                {" "}
+                Need ≥5 reviews in this window — open{" "}
+                <Link
+                  href={viewHref("insights", { scoreFrom })}
+                  className="link-accent"
+                >
+                  Insights
+                </Link>
+                .
+              </>
+            ) : pilot.goNoGo === "go" ? (
+              <>
+                {" "}
+                Share{" "}
+                <span className="text-sio-fg-base">
+                  {formatPercent(pilot.reviewPrecision)} Signal Score
+                </span>
+                . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
+                <Link
+                  href={cadenceActionHref(cadenceAction, {
+                    scoreFrom,
+                    preview: cadencePreviewId,
+                  })}
+                  className="link-accent"
+                >
+                  {cadenceActionCta(cadenceAction)}
+                </Link>
+              </>
+            ) : (
+              <> Hold until precision ≥80% — use Adapt, then re-review.</>
+            )}
+          </p>
+        </div>
+      </EvalCard>
 
       <div className="shrink-0">
         <BaselineForm
@@ -294,7 +302,7 @@ function Metric({
   hint: string;
 }) {
   return (
-    <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
+    <div className={evalMetricCellClassName}>
       <div className="metric-label">{label}</div>
       <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
         {value}

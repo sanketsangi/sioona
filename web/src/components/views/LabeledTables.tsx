@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EvalCard } from "@/components/EvalCard";
 import { Pager } from "@/components/Pager";
 import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
@@ -65,7 +66,7 @@ export function LabeledTables({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <SegmentedTabs
         label="Labeled tables"
         activeId={table}
@@ -81,7 +82,7 @@ export function LabeledTables({
       />
 
       {table === "byType" ? (
-        <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <EvalCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
             <h2 className="text-balance text-heading-16 text-sio-fg-base">
               Precision By Signal Type
@@ -154,9 +155,9 @@ export function LabeledTables({
               </tbody>
             </table>
           </div>
-        </section>
+        </EvalCard>
       ) : (
-        <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <EvalCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {pageConvs.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
               <p className="text-heading-16 text-sio-fg-base">
@@ -281,7 +282,7 @@ export function LabeledTables({
               </div>
             </>
           )}
-        </section>
+        </EvalCard>
       )}
     </div>
   );

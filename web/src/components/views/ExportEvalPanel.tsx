@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import {
+  EvalCard,
+  evalCardHeaderClassName,
+  evalMetricCellClassName,
+} from "@/components/EvalCard";
 import { Note, NoteContent } from "@/components/ui/Note";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import { viewHref } from "@/lib/views";
@@ -17,12 +22,12 @@ function MetricBlock({
   metrics: EvalMetrics;
 }) {
   return (
-    <section className="metric-strip min-w-0">
-      <div className="border-b border-sio-border-base px-3 py-2">
+    <EvalCard className="min-w-0">
+      <div className={evalCardHeaderClassName}>
         <p className="eyebrow">{title}</p>
       </div>
       <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
-        <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
+        <div className={evalMetricCellClassName}>
           <div className="metric-label">P</div>
           <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
             {formatPercent(metrics.labeledPrecision)}
@@ -31,7 +36,7 @@ function MetricBlock({
             {metrics.truePositives} TP / {metrics.falsePositives} FP
           </div>
         </div>
-        <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
+        <div className={evalMetricCellClassName}>
           <div className="metric-label">R</div>
           <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
             {formatPercent(metrics.labeledRecall)}
@@ -40,7 +45,7 @@ function MetricBlock({
             {metrics.falseNegatives} FN
           </div>
         </div>
-        <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
+        <div className={evalMetricCellClassName}>
           <div className="metric-label">Labeled</div>
           <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
             {metrics.labeledConversations}
@@ -50,7 +55,7 @@ function MetricBlock({
           </div>
         </div>
       </div>
-    </section>
+    </EvalCard>
   );
 }
 
@@ -245,7 +250,7 @@ export function ExportEvalPanel() {
       : "hybrid=skipped";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden">
       <Note>
         <NoteContent>
           <p className="text-balance text-heading-16 text-sio-fg-base">
@@ -260,7 +265,7 @@ export function ExportEvalPanel() {
         </NoteContent>
       </Note>
 
-      <div className="grid shrink-0 gap-3 lg:grid-cols-2">
+      <div className="grid shrink-0 gap-4 lg:grid-cols-2">
         <MetricBlock title="Heuristic (base)" metrics={data.heuristic} />
         {data.adapted ? (
           <MetricBlock
@@ -268,36 +273,36 @@ export function ExportEvalPanel() {
             metrics={data.adapted}
           />
         ) : (
-          <section className="metric-strip flex min-w-0 items-center px-3 py-4">
+          <EvalCard className="flex min-w-0 items-center px-3 py-4 sm:px-4">
             <p className="text-copy-14 text-sio-fg-muted">
               Adapt pass not run for this source.
             </p>
-          </section>
+          </EvalCard>
         )}
       </div>
 
-      <div className="grid min-h-0 shrink-0 gap-3 lg:grid-cols-2">
-        <section className="panel flex min-h-0 flex-col overflow-hidden">
+      <div className="grid min-h-0 shrink-0 gap-4 lg:grid-cols-2">
+        <EvalCard className="flex min-h-0 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
             <h2 className="text-balance text-heading-16 text-sio-fg-base">
               Base · By Type
             </h2>
           </div>
           <ByTypeTable metrics={data.heuristic} />
-        </section>
+        </EvalCard>
         {data.adapted ? (
-          <section className="panel flex min-h-0 flex-col overflow-hidden">
+          <EvalCard className="flex min-h-0 flex-col overflow-hidden">
             <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
               <h2 className="text-balance text-heading-16 text-sio-fg-base">
                 Adapt · By Type
               </h2>
             </div>
             <ByTypeTable metrics={data.adapted} />
-          </section>
+          </EvalCard>
         ) : null}
       </div>
 
-      <section className="panel flex min-h-0 flex-col overflow-hidden">
+      <EvalCard className="flex min-h-0 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
           <h2 className="text-balance text-heading-16 text-sio-fg-base">
             Confusion (base) · top {data.confusion.length}
@@ -306,7 +311,7 @@ export function ExportEvalPanel() {
         <div className="max-h-64 min-h-0 overflow-y-auto">
           <ConfusionList title="Base confusion" examples={data.confusion} />
         </div>
-      </section>
+      </EvalCard>
     </div>
   );
 }

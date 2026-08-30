@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
+import {
+  EvalCard,
+  evalCardHeaderClassName,
+  evalCardPadClassName,
+  evalMetricCellClassName,
+} from "@/components/EvalCard";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
+import { Separator } from "@/components/ui/separator";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import type { SignalType } from "@/lib/types";
@@ -18,8 +25,8 @@ function typeLabel(signalType: string): string {
  * Neon-backed Signal Score panel. When score is null, shows offline/empty —
  * never presents JSON review precision as Signal Score.
  *
- * `compact` = dense Eval Metrics strip: header + window toolbar, five KPI
- * cells in one row (Labeled Eval density), type chips + all-time secondary.
+ * `compact` = dense Eval Metrics Card: header + window toolbar, five KPI
+ * cells in one row (same gutters as Labeled Eval), type chips + all-time.
  * Full layout keeps the two-column metric panel.
  * Signal Detail omits this strip (score lives on Insights/Eval).
  *
@@ -89,18 +96,18 @@ export function SignalScoreSummary({
       allTimeScore != null;
 
     return (
-      <section
-        className="metric-strip metric-strip--compact w-full shrink-0"
+      <EvalCard
+        className="w-full shrink-0"
         aria-label="Signal Score"
         aria-live="polite"
       >
-        <div className="metric-strip-head">
+        <div className={evalCardHeaderClassName}>
           <div className="min-w-0">
             <p className="eyebrow">Signal Score</p>
             <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
           </div>
           {windowControl || windowInvalid ? (
-            <div className="metric-strip-window min-w-0">
+            <div className="min-w-0 max-w-full">
               {windowControl}
               {windowInvalid ? (
                 <p
@@ -115,68 +122,76 @@ export function SignalScoreSummary({
           ) : null}
         </div>
 
-        <dl className="metric-strip-kpis">
+        <dl className="grid min-w-0 w-full grid-cols-5 divide-x divide-sio-border-base overflow-hidden">
           {kpis.map((kpi) => (
             <CompactStat key={kpi.label} {...kpi} />
           ))}
         </dl>
 
         {showFoot ? (
-          <div className="metric-strip-foot">
-            {!online ? (
-              <p className="w-full text-label-12 text-sio-fg-muted">
-                Backend offline — score unavailable
-              </p>
-            ) : null}
-            {emptyWindow ? (
-              <p className="w-full text-label-12 text-sio-fg-muted">
-                No reviews in this window. Mark signals in Shadow Mode to build
-                the week score.
-              </p>
-            ) : null}
-            {online && byType.length > 0 ? (
-              <ul className="m-0 flex min-w-0 list-none flex-wrap items-center gap-x-6 gap-y-2 p-0">
-                {byType.map((row) => (
-                  <li
-                    key={row.signal_type}
-                    className="flex min-w-0 items-center gap-2"
-                  >
-                    {KNOWN_TYPES.has(row.signal_type) ? (
-                      <SignalTypeChip type={row.signal_type as SignalType} />
-                    ) : (
-                      <span className="text-label-12 font-medium text-sio-fg-base">
-                        {typeLabel(row.signal_type)}
+          <>
+            <Separator className="bg-sio-border-base" />
+            <div
+              className={cn(
+                "flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2 py-2.5 sm:py-3",
+                evalCardPadClassName,
+              )}
+            >
+              {!online ? (
+                <p className="w-full text-label-12 text-sio-fg-muted">
+                  Backend offline — score unavailable
+                </p>
+              ) : null}
+              {emptyWindow ? (
+                <p className="w-full text-label-12 text-sio-fg-muted">
+                  No reviews in this window. Mark signals in Shadow Mode to
+                  build the week score.
+                </p>
+              ) : null}
+              {online && byType.length > 0 ? (
+                <ul className="m-0 flex min-w-0 list-none flex-wrap items-center gap-x-6 gap-y-2 p-0">
+                  {byType.map((row) => (
+                    <li
+                      key={row.signal_type}
+                      className="flex min-w-0 items-center gap-2"
+                    >
+                      {KNOWN_TYPES.has(row.signal_type) ? (
+                        <SignalTypeChip type={row.signal_type as SignalType} />
+                      ) : (
+                        <span className="text-label-12 font-medium text-sio-fg-base">
+                          {typeLabel(row.signal_type)}
+                        </span>
+                      )}
+                      <span className="font-mono tabular text-label-12 text-sio-fg-subtle">
+                        {formatPercent(row.signal_score)}
+                        <span className="ml-1.5 text-sio-fg-muted">
+                          ({row.correct_count}/{row.reviewed_count})
+                        </span>
                       </span>
-                    )}
-                    <span className="font-mono tabular text-label-12 text-sio-fg-subtle">
-                      {formatPercent(row.signal_score)}
-                      <span className="ml-1.5 text-sio-fg-muted">
-                        ({row.correct_count}/{row.reviewed_count})
-                      </span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {allTimeLine}
-          </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {allTimeLine}
+            </div>
+          </>
         ) : null}
-      </section>
+      </EvalCard>
     );
   }
 
   return (
-    <section
-      className="metric-strip shrink-0"
+    <EvalCard
+      className="shrink-0"
       aria-label="Signal Score"
       aria-live="polite"
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2 sm:px-4 sm:py-2.5">
+      <div className={evalCardHeaderClassName}>
         <p className="eyebrow">Signal Score</p>
         <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
       </div>
       {windowControl || windowInvalid ? (
-        <div className="border-b border-sio-border-base px-3 py-2 sm:px-4">
+        <div className="border-b border-sio-border-base px-3 py-2.5 sm:px-4">
           {windowControl}
           {windowInvalid ? (
             <p className="mt-1.5 text-label-12 text-sio-fg-subtle" role="alert">
@@ -255,7 +270,7 @@ export function SignalScoreSummary({
           )}
         </div>
       </div>
-    </section>
+    </EvalCard>
   );
 }
 
@@ -273,7 +288,7 @@ function CompactStat({
   mono = false,
 }: CompactKpi) {
   return (
-    <div className="min-w-0 px-1.5 py-2.5 sm:px-3">
+    <div className={evalMetricCellClassName}>
       <dt className="metric-label break-words">{label}</dt>
       <dd
         className={`tabular mt-0.5 text-heading-16 ${mono ? "font-mono" : ""} ${muted ? "text-sio-fg-subtle" : "text-sio-fg-base"}`}

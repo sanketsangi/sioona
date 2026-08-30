@@ -317,7 +317,7 @@ export function InsightsView({
   };
 
   return (
-    <ViewFrame>
+    <ViewFrame className="gap-4">
       <CanonicalizeInsightsStatus
         statusFilter={statusFilter}
         workspaceMode={workspaceMode}

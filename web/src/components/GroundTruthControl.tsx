@@ -8,6 +8,7 @@ import {
   type ComponentType,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { evalCardPadClassName } from "@/components/EvalCard";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { LeadIcon } from "@/components/icons/LeadIcon";
@@ -151,7 +152,12 @@ export function GroundTruthControl({
         </InsightsReviewStatusChip>
       </InsightsReviewPaneHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 py-3 sm:px-4">
+      <div
+        className={cn(
+          evalCardPadClassName,
+          "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
+        )}
+      >
         <p className="text-label-12 text-sio-fg-muted">
           Label this conversation so Eval can compute labeled precision and
           recall for Lead, Retention, Upsell, or None.

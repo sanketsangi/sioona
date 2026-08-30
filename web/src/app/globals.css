@@ -468,6 +468,7 @@
       "feedback";
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: min-content minmax(16rem, 1fr) min-content;
+    gap: 1rem;
     overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -491,8 +492,6 @@
     min-height: 0;
     height: 100%;
     flex-direction: column;
-    border-top: 1px solid var(--sio-border-base);
-    border-bottom: 1px solid var(--sio-border-base);
     overflow: hidden;
   }
 
@@ -511,7 +510,14 @@
     gap: 0.75rem;
     border-bottom: 1px solid var(--sio-border-base);
     background: var(--sio-bg-base);
-    padding: 0.5rem 0.75rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .insights-review-chat-header {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
   }
 
   .insights-review-split [data-review-slot="feedback"] {
@@ -532,11 +538,12 @@
   }
 
   /*
-   * Review wells (Conversation card, rail cards) — same radius ladder as
-   * `.panel`; columns sit on the page with gap-4.
+   * Review wells — same Card chrome as EvalCard / Insights queue Card.
+   * Columns sit on the page with gap-4.
    */
   .insights-review-well {
     min-width: 0;
+    overflow: hidden;
     border-radius: var(--radius-panel);
     border: 1px solid var(--sio-border-base);
     background: var(--sio-bg-base);
@@ -546,7 +553,7 @@
     display: grid;
     min-width: 0;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
+    gap: 1rem;
   }
 
   @container review (33.75rem <= width < 56rem) {
@@ -571,7 +578,7 @@
       min-width: 0;
       min-height: 0;
       flex-direction: column;
-      gap: 0.75rem;
+      gap: 1rem;
       overflow-x: clip;
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -579,8 +586,6 @@
 
     .insights-review-split [data-review-slot="transcript"] {
       min-height: 0;
-      border-top: none;
-      border-bottom: none;
     }
 
     .insights-review-rail > [data-review-slot="why"] {
