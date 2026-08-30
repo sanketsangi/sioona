@@ -4,6 +4,7 @@ import { CircleArrowIcon } from "@/components/icons/CircleArrowIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import { signalStatusDot } from "@/lib/format";
 import type { Signal, SignalType } from "@/lib/types";
@@ -79,7 +80,7 @@ function FoundVsTotal({ found, total }: { found: number; total: number }) {
 /** Keep-set counts for all three types — queue SignalTypeChip chrome + count. */
 function SignalTypeCounts({ counts }: { counts: Record<SignalType, number> }) {
   return (
-    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-1.5 p-0 list-none">
+    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 p-0 list-none">
       {SIGNAL_TYPES.map((type) => (
         <li key={type} className="min-w-0">
           <SignalTypeChip type={type} count={counts[type]} />
@@ -96,11 +97,11 @@ function SignalStatusCounts({
   counts: Record<ReviewStatusLabel, number>;
 }) {
   return (
-    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 p-0 list-none">
+    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 p-0 list-none">
       {REVIEW_STATUS_ORDER.map((label) => (
         <li
           key={label}
-          className="inline-flex min-w-0 max-w-full items-center gap-1 text-label-12"
+          className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-label-12"
         >
           <StatusDot label state={REVIEW_STATUS_STATE[label]}>
             {label}
@@ -126,20 +127,20 @@ function MetricCell({
   compare?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1.5 px-3 py-3 sm:py-2.5">
+    <div className="flex min-w-0 flex-col gap-3 px-4 py-4">
       <div className="flex min-w-0 items-center gap-2">
         <span
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-sio-bg-muted text-sio-fg-subtle"
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
           aria-hidden
         >
           {icon}
         </span>
-        <p className="truncate text-label-12 font-medium text-sio-fg-subtle">
+        <h3 className="truncate text-label-13 font-semibold text-sio-fg-base">
           {title}
-        </p>
+        </h3>
       </div>
       <p className="tabular text-heading-20 text-sio-fg-base">{value}</p>
-      {compare ? <div className="min-w-0 pt-0.5">{compare}</div> : null}
+      {compare ? <div className="mt-auto min-w-0 pt-1">{compare}</div> : null}
     </div>
   );
 }
@@ -180,33 +181,38 @@ export function InsightsQueueMetrics({
   return (
     <section
       aria-label="Queue metrics"
-      className={cn("metric-strip shrink-0 overflow-x-clip", className)}
+      className={cn("shrink-0 overflow-x-clip", className)}
     >
-      <div className="grid min-w-0 grid-cols-1 items-stretch divide-y divide-sio-border-base md:grid-cols-3 md:divide-x md:divide-y-0">
-        <MetricCell
-          title="Conversations"
-          value={String(conversationCount)}
-          icon={<ChatBubbleIcon className="size-3.5 text-black" />}
-          compare={
-            <FoundVsTotal
-              found={foundConversations}
-              total={conversationCount}
-            />
-          }
-        />
-        <MetricCell
-          title="Signals"
-          value={String(signalCount)}
-          icon={<LayersIcon className="size-3.5 text-black" />}
-          compare={<SignalTypeCounts counts={typeCounts} />}
-        />
-        <MetricCell
-          title="Pending"
-          value={String(pendingConversationCount)}
-          icon={<ClockIcon className="size-3.5 text-black" />}
-          compare={<SignalStatusCounts counts={statusCounts} />}
-        />
-      </div>
+      <Card
+        size="sm"
+        className="gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"
+      >
+        <CardContent className="grid grid-cols-1 divide-y divide-sio-border-base p-0 md:grid-cols-3 md:divide-x md:divide-y-0">
+          <MetricCell
+            title="Conversations"
+            value={String(conversationCount)}
+            icon={<ChatBubbleIcon className="size-3.5" />}
+            compare={
+              <FoundVsTotal
+                found={foundConversations}
+                total={conversationCount}
+              />
+            }
+          />
+          <MetricCell
+            title="Signals"
+            value={String(signalCount)}
+            icon={<LayersIcon className="size-3.5" />}
+            compare={<SignalTypeCounts counts={typeCounts} />}
+          />
+          <MetricCell
+            title="Pending"
+            value={String(pendingConversationCount)}
+            icon={<ClockIcon className="size-3.5" />}
+            compare={<SignalStatusCounts counts={statusCounts} />}
+          />
+        </CardContent>
+      </Card>
     </section>
   );
 }

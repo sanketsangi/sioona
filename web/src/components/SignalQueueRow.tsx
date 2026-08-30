@@ -16,7 +16,11 @@ import { cn } from "@/lib/utils";
  * Type · Action. xl: + Evidence before Action.
  */
 export const QUEUE_GRID =
-  "lg:grid-cols-[2.25rem_minmax(0,1fr)_5.75rem_4.5rem_6.75rem_5rem] xl:grid-cols-[2.25rem_minmax(0,1.35fr)_5.75rem_4.5rem_6.75rem_minmax(0,1.25fr)_5rem]";
+  "lg:grid-cols-[2.25rem_minmax(0,1fr)_5.75rem_4.5rem_6.75rem_5.5rem] xl:grid-cols-[2.25rem_minmax(0,1.35fr)_5.75rem_4.5rem_6.75rem_minmax(0,1.25fr)_5.5rem]";
+
+/** Dense Review control — `--radius-control`, not pill. */
+export const QUEUE_REVIEW_ACTION_CLASS =
+  "btn-secondary w-full shrink-0 touch-manipulation lg:h-8 lg:max-w-full lg:px-3";
 
 type SignalQueueRowProps = {
   signal: Signal;
@@ -58,7 +62,7 @@ export function SignalQueueRow({
 
   const dataCells = (
     <>
-      <div className="flex min-w-0 items-center gap-2.5 lg:contents">
+      <div className="flex min-w-0 items-center gap-3 lg:contents">
         <SignalUser
           name={customerName}
           showName={false}
@@ -71,22 +75,22 @@ export function SignalQueueRow({
           </p>
           <SignalStatus signal={signal} className="mt-1 lg:hidden" />
 
-          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 lg:hidden">
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 lg:hidden">
             <div className="min-w-0">
               <dt className="text-label-12 text-sio-fg-muted">Score</dt>
-              <dd className="mt-0.5">
+              <dd className="mt-1">
                 <SignalScoreChip score={signal.score} />
               </dd>
             </div>
             <div className="min-w-0">
               <dt className="text-label-12 text-sio-fg-muted">Type</dt>
-              <dd className="mt-0.5">
+              <dd className="mt-1">
                 <SignalTypeChip type={signal.type} />
               </dd>
             </div>
             <div className="col-span-2 min-w-0">
               <dt className="text-label-12 text-sio-fg-muted">Evidence</dt>
-              <dd className={evidenceClass}>{evidencePrimary}</dd>
+              <dd className={cn("mt-1", evidenceClass)}>{evidencePrimary}</dd>
             </div>
           </dl>
         </div>
@@ -118,7 +122,7 @@ export function SignalQueueRow({
     >
       <div
         className={cn(
-          "grid min-w-0 w-full grid-cols-1 items-center gap-2.5 px-3 py-3 lg:gap-3 lg:px-3.5 lg:py-2.5 xl:gap-4",
+          "grid min-w-0 w-full grid-cols-1 items-center gap-4 px-4 py-3 lg:py-2.5",
           QUEUE_GRID,
         )}
       >
