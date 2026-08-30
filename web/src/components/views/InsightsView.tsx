@@ -337,8 +337,8 @@ export function InsightsView({
         mode={reviewOpen ? "review" : "list"}
         reviewKey={reviewOpen ? previewId : null}
         list={
-          <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
-            <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
+          <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
+            <div className="flex shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                   Conversation that needs your attention
@@ -379,21 +379,21 @@ export function InsightsView({
           </div>
         }
         review={
-          <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
-            <div className="flex shrink-0 flex-col gap-2 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
+          <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
+            <div className="flex shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 {breadcrumbPageLabel ? (
                   <Breadcrumb
                     aria-label="Insights review"
                     className="scroll-mt-4"
                   >
-                    <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2">
+                    <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2.5">
                       <BreadcrumbItem>
                         <BreadcrumbLink asChild>
                           <Link
                             href={backToQueueHref}
                             scroll={false}
-                            className="rounded-sm font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[0_0_0_2px_var(--sio-bg-base),0_0_0_4px_var(--sio-focus-accent)]"
+                            className="rounded-[var(--radius-control)] font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
                           >
                             Insights Queue
                           </Link>
@@ -402,7 +402,7 @@ export function InsightsView({
                       <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
                       <BreadcrumbItem>
                         <BreadcrumbPage
-                          className="max-w-[16rem] truncate font-medium text-sio-fg-base sm:max-w-xs"
+                          className="max-w-[min(16rem,calc(100vw-8rem))] truncate font-medium text-sio-fg-base sm:max-w-xs"
                           translate="no"
                         >
                           {breadcrumbPageLabel}
@@ -416,7 +416,7 @@ export function InsightsView({
                   </h2>
                 )}
               </div>
-              <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
+              <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
                 {previewSignal && previewCustomerName != null ? (
                   <>
                     <OpenConversationHeaderAction

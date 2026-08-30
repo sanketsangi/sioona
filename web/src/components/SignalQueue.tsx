@@ -8,7 +8,11 @@ import { LayersIcon } from "@/components/icons/LayersIcon";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
-import { SignalQueueRow, QUEUE_GRID } from "@/components/SignalQueueRow";
+import {
+  SignalQueueRow,
+  QUEUE_GRID,
+  QUEUE_REVIEW_ACTION_CLASS,
+} from "@/components/SignalQueueRow";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
 import {
@@ -217,6 +221,32 @@ function buildQueueHref(
   };
 }
 
+/** Shared empty / error chrome — keep the `panel flex flex-1…` class for tests. */
+function QueueEmptyState({
+  title,
+  description,
+  children,
+  alert = false,
+}: {
+  title: string;
+  description: ReactNode;
+  children?: ReactNode;
+  alert?: boolean;
+}) {
+  return (
+    <div
+      className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
+      role={alert ? "alert" : undefined}
+    >
+      <p className="text-balance text-heading-16 text-sio-fg-base">{title}</p>
+      <div className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
+        {typeof description === "string" ? <p>{description}</p> : description}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 /** Sticky column labels — shared by queue list and review panel modes. */
 function QueueColumnHeader() {
   return (
@@ -416,16 +446,16 @@ export function SignalQueue({
     );
 
     return (
-      <div className="scroll-region flex h-full min-h-0 flex-1 flex-col gap-3">
+      <div className="scroll-region flex h-full min-h-0 flex-1 flex-col gap-4">
         {filterChrome}
-        <div className="shrink-0 overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
+        <div className="panel shrink-0 overflow-hidden">
           <QueueColumnHeader />
           {reviewChrome}
         </div>
         {previewSignal ? (
           <div
             id={`signal-review-body-${previewSignal.id}`}
-            className="grid min-w-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
+            className="grid min-w-0 shrink-0 grid-cols-1 gap-4 lg:grid-cols-2"
             aria-labelledby={`signal-review-heading-${previewSignal.id}`}
           >
             <SignalReviewSuggestedAction
@@ -460,24 +490,25 @@ export function SignalQueue({
 
   if (showPendingError) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {filterChrome}
-        <div
-          className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
-          role="alert"
+        <QueueEmptyState
+          alert
+          title="Needs-Review Queue Unavailable"
+          description={
+            <>
+              <p>
+                Signal Score backend unavailable — needs-review queue cannot load
+                from Neon. Start FastAPI and refresh.
+              </p>
+              {queueError ? (
+                <p className="mt-2 break-words text-label-12 text-sio-fg-muted">
+                  {queueError}
+                </p>
+              ) : null}
+            </>
+          }
         >
-          <p className="text-heading-16 text-sio-fg-base">
-            Needs-Review Queue Unavailable
-          </p>
-          <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            Signal Score backend unavailable — needs-review queue cannot load
-            from Neon. Start FastAPI and refresh.
-          </p>
-          {queueError ? (
-            <p className="mt-2 max-w-sm break-words text-label-12 text-sio-fg-muted">
-              {queueError}
-            </p>
-          ) : null}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Link
               href={queueHref({ status: "new", type: "all", page: 1 })}
@@ -489,31 +520,32 @@ export function SignalQueue({
               Upload Chats
             </Link>
           </div>
-        </div>
+        </QueueEmptyState>
       </div>
     );
   }
 
   if (showFollowUpError) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {filterChrome}
-        <div
-          className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
-          role="alert"
+        <QueueEmptyState
+          alert
+          title="Follow-Up Queue Unavailable"
+          description={
+            <>
+              <p>
+                Signal Score backend unavailable — Follow-Up and Done cannot load
+                from Neon. Start FastAPI and refresh.
+              </p>
+              {tenantSignalsError ? (
+                <p className="mt-2 break-words text-label-12 text-sio-fg-muted">
+                  {tenantSignalsError}
+                </p>
+              ) : null}
+            </>
+          }
         >
-          <p className="text-heading-16 text-sio-fg-base">
-            Follow-Up Queue Unavailable
-          </p>
-          <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            Signal Score backend unavailable — Follow-Up and Done cannot load
-            from Neon. Start FastAPI and refresh.
-          </p>
-          {tenantSignalsError ? (
-            <p className="mt-2 max-w-sm break-words text-label-12 text-sio-fg-muted">
-              {tenantSignalsError}
-            </p>
-          ) : null}
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Link
               href={queueHref({ status: statusFilter, type: "all", page: 1 })}
@@ -525,23 +557,22 @@ export function SignalQueue({
               Upload Chats
             </Link>
           </div>
-        </div>
+        </QueueEmptyState>
       </div>
     );
   }
 
   if (pendingSignals.length === 0 && reviewedSignals.length === 0) {
     return (
-      <div className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10">
-        <p className="text-heading-16 text-sio-fg-base">No Signals Yet</p>
-        <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-          Upload chats or re-run detection to populate Shadow Mode.
-        </p>
+      <QueueEmptyState
+        title="No Signals Yet"
+        description="Upload chats or re-run detection to populate Shadow Mode."
+      >
         <Link href={viewHref("upload")} className="btn-primary mt-4">
           Upload Chats
           <ArrowRight className="size-3.5" weight="bold" aria-hidden />
         </Link>
-      </div>
+      </QueueEmptyState>
     );
   }
 
@@ -595,15 +626,14 @@ export function SignalQueue({
   })();
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
       {filterChrome}
 
       {filtered.length === 0 ? (
-        <div className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10">
-          <p className="text-heading-16 text-sio-fg-base">{emptyCopy.title}</p>
-          <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-            {emptyCopy.description}
-          </p>
+        <QueueEmptyState
+          title={emptyCopy.title}
+          description={emptyCopy.description}
+        >
           {emptyCopy.next ? (
             <Link href={emptyCopy.next.href} className="btn-primary mt-4">
               {emptyCopy.next.label}
@@ -617,9 +647,9 @@ export function SignalQueue({
               Clear Filters
             </Link>
           )}
-        </div>
+        </QueueEmptyState>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
+        <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="scroll-region min-h-0 flex-1">
             <QueueColumnHeader />
 
@@ -656,7 +686,7 @@ export function SignalQueue({
                         <Link
                           href={previewHref}
                           scroll={false}
-                          className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:max-w-full sm:px-2.5"
+                          className={QUEUE_REVIEW_ACTION_CLASS}
                         >
                           Review
                         </Link>
@@ -751,7 +781,7 @@ function QueueFilters({
         <DropdownMenuContent
           align="end"
           sideOffset={8}
-          className="w-56 min-w-56 overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
+          className="w-56 min-w-56 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
         >
           <DropdownMenuGroup className="border-b border-sio-border-base p-2">
             <DropdownMenuLabel>Status</DropdownMenuLabel>

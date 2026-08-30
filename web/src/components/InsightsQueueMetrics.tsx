@@ -80,7 +80,7 @@ function FoundVsTotal({ found, total }: { found: number; total: number }) {
 /** Keep-set counts for all three types — queue SignalTypeChip chrome + count. */
 function SignalTypeCounts({ counts }: { counts: Record<SignalType, number> }) {
   return (
-    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-2 p-0 list-none">
+    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5 p-0 list-none">
       {SIGNAL_TYPES.map((type) => (
         <li key={type} className="min-w-0">
           <SignalTypeChip type={type} count={counts[type]} />
@@ -97,11 +97,11 @@ function SignalStatusCounts({
   counts: Record<ReviewStatusLabel, number>;
 }) {
   return (
-    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 p-0 list-none">
+    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 p-0 list-none">
       {REVIEW_STATUS_ORDER.map((label) => (
         <li
           key={label}
-          className="inline-flex min-w-0 items-center gap-1 text-label-12"
+          className="inline-flex min-w-0 items-center gap-1.5 text-label-12"
         >
           <StatusDot label state={REVIEW_STATUS_STATE[label]}>
             {label}
@@ -133,18 +133,20 @@ function MetricCard({
   return (
     <Card
       size="sm"
-      className="h-full min-w-0 gap-0 border border-sio-border-base py-0 shadow-none ring-0 [--tw-ring-color:transparent] outline-none"
+      className="h-full min-w-0 gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"
     >
-      <CardHeader className="flex flex-row items-center gap-2 space-y-0 border-b-0 px-3 pb-0 pt-2.5">
+      <CardHeader className="flex flex-row items-center gap-2 space-y-0 border-b-0 px-3 pb-0 pt-3">
         <span
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-sio-bg-muted text-sio-fg-subtle"
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
           aria-hidden
         >
           {icon}
         </span>
-        <CardTitle className="truncate text-sm">{title}</CardTitle>
+        <CardTitle className="truncate text-label-13 font-medium text-sio-fg-base">
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-0 px-3 pb-2.5 pt-1.5">
+      <CardContent className="flex flex-1 flex-col gap-0 px-3 pb-3 pt-1.5">
         <p className="tabular text-heading-20 text-sio-fg-base">{value}</p>
         {hasBottom ? (
           <div className="mt-auto flex min-w-0 flex-col gap-1.5 pt-2">
@@ -198,14 +200,14 @@ export function InsightsQueueMetrics({
     <section
       aria-label="Queue metrics"
       className={cn(
-        "grid shrink-0 grid-cols-1 items-stretch gap-3 sm:grid-cols-3",
+        "grid shrink-0 grid-cols-1 items-stretch gap-4 md:grid-cols-3",
         className,
       )}
     >
       <MetricCard
         title="Conversations"
         value={String(conversationCount)}
-        icon={<ChatBubbleIcon className="size-3.5 text-black" />}
+        icon={<ChatBubbleIcon className="size-3.5" />}
         compare={
           <FoundVsTotal
             found={foundConversations}
@@ -216,13 +218,13 @@ export function InsightsQueueMetrics({
       <MetricCard
         title="Signals"
         value={String(signalCount)}
-        icon={<LayersIcon className="size-3.5 text-black" />}
+        icon={<LayersIcon className="size-3.5" />}
         compare={<SignalTypeCounts counts={typeCounts} />}
       />
       <MetricCard
         title="Pending"
         value={String(pendingConversationCount)}
-        icon={<ClockIcon className="size-3.5 text-black" />}
+        icon={<ClockIcon className="size-3.5" />}
         compare={<SignalStatusCounts counts={statusCounts} />}
       />
     </section>

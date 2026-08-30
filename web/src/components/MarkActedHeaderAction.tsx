@@ -130,7 +130,7 @@ export function MarkActedHeaderAction({
 
   return (
     <TooltipProvider delayDuration={400}>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <p className="sr-only" aria-live="polite">
           {isActed
             ? "Marked as Acted. Suggested action was not sent."

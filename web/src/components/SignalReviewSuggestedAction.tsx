@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { Separator } from "@/components/ui/separator";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
 import type { Signal } from "@/lib/types";
@@ -18,7 +19,7 @@ function EvidenceChip({ text }: { text: string }) {
   const value = sep > 0 ? text.slice(sep + 3) : text;
 
   return (
-    <span className="inline-flex max-w-full items-baseline gap-1.5 rounded-md border border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12 shadow-[0_0_0_1px_rgba(0,0,0,0.02)]">
+    <span className="inline-flex max-w-full items-baseline gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12">
       {kindLabel ? (
         <span className="shrink-0 font-medium text-sio-fg-muted">
           {kindLabel}
@@ -74,25 +75,29 @@ export function SignalReviewSuggestedAction({
         </h3>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-3 px-3 py-3">
-        {isActed ? (
-          <p className="text-pretty text-label-13 text-sio-fg-muted">
-            Marked as Acted — not sent.
+      <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 px-3 py-3 lg:grid-cols-2 lg:gap-6">
+        <div className="flex min-w-0 flex-col gap-2">
+          {isActed ? (
+            <p className="text-pretty text-label-13 text-sio-fg-muted">
+              Marked as Acted — not sent.
+            </p>
+          ) : null}
+          <p
+            className={cn(
+              "break-words text-pretty text-copy-14 font-medium leading-5",
+              missingAction ? "text-sio-fg-muted" : "text-sio-fg-base",
+            )}
+          >
+            {missingAction
+              ? "Unavailable — local detection join missing."
+              : signal.suggestedAction}
           </p>
-        ) : null}
-        <p
-          className={cn(
-            "break-words text-pretty text-copy-14 font-medium leading-5",
-            missingAction ? "text-sio-fg-muted" : "text-sio-fg-base",
-          )}
-        >
-          {missingAction
-            ? "Unavailable — local detection join missing."
-            : signal.suggestedAction}
-        </p>
+        </div>
+
+        <Separator className="bg-sio-border-base lg:hidden" />
 
         <section
-          className="rounded-md border border-sio-border-base bg-sio-bg-muted/50 px-3 py-2.5"
+          className="flex min-w-0 flex-col gap-2.5 lg:border-l lg:border-sio-border-base lg:pl-6"
           aria-labelledby={whyId}
         >
           <h4
@@ -103,12 +108,12 @@ export function SignalReviewSuggestedAction({
           </h4>
 
           {hasEvidence ? (
-            <div className="mt-2.5 flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2.5">
               {quotes.length > 0 ? (
                 <ul className="flex flex-col gap-2">
                   {quotes.map(({ item, text }) => (
                     <li key={item} className="min-w-0">
-                      <blockquote className="border-l-2 border-sio-fg-base/20 pl-3">
+                      <blockquote className="border-l-2 border-sio-border-strong pl-3">
                         <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
                           “{text}”
                         </p>
@@ -134,7 +139,7 @@ export function SignalReviewSuggestedAction({
               ) : null}
             </div>
           ) : (
-            <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
+            <p className="break-words text-pretty text-copy-14 text-sio-fg-muted">
               {isNeonStub
                 ? "No local evidence — detection join missing."
                 : "No local evidence."}
