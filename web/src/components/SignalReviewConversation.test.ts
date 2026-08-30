@@ -29,7 +29,7 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe("SignalReviewConversation", () => {
-  it("shows the full transcript beside See Conversation", () => {
+  it("shows the full transcript in a chat well with a customer header", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewConversation, {
         messages: [
@@ -42,8 +42,6 @@ describe("SignalReviewConversation", () => {
           }),
         ],
         customerName: "Priya",
-        typeLabel: "Retention",
-        summary: "Pause SIP",
       }),
     );
 
@@ -51,11 +49,13 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("Priya");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("I can help pause that SIP.");
-    expect(html).toContain("See Conversation");
     expect(html).toContain("2 messages");
     expect(html).toContain("1 Aug, 10:05");
     expect(html).toContain("max-w-md");
+    expect(html).toContain("insights-review-chat");
+    expect(html).toContain("insights-review-chat-header");
     expect(html).toContain("bg-sio-bg-subtle");
+    expect(html).not.toContain("See Conversation");
     expect(html).not.toContain("No messages stored");
     expect(html).not.toContain("Showing last");
   });
@@ -65,8 +65,6 @@ describe("SignalReviewConversation", () => {
       createElement(SignalReviewConversation, {
         messages: [],
         customerName: "Priya",
-        typeLabel: "Retention",
-        summary: "Pause SIP",
       }),
     );
 
@@ -74,10 +72,12 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("No invented chat.");
     expect(html).toContain("Upload Chats");
     expect(html).toContain("view=upload");
+    expect(html).toContain("Priya");
+    expect(html).toContain("Conversation");
     expect(html).not.toContain("See Conversation");
   });
 
-  it("shows the opening turn on a long transcript", () => {
+  it("highlights the evidence turn on a long transcript", () => {
     const messages = Array.from({ length: 10 }, (_, i) =>
       message({
         id: `msg_${i + 1}`,
@@ -88,8 +88,6 @@ describe("SignalReviewConversation", () => {
       createElement(SignalReviewConversation, {
         messages,
         customerName: "Priya",
-        typeLabel: "Retention",
-        summary: "Pause SIP",
         highlightedMessageId: "msg_1",
       }),
     );
@@ -100,5 +98,6 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Evidence match");
     expect(html).not.toContain("Showing last");
+    expect(html).not.toContain("See Conversation");
   });
 });

@@ -19,8 +19,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Full conversation transcript in a Drawer.
- * Insights accordion: trigger “Open Conversation” / “See Conversation”.
- * Full transcript scrolls inside the drawer (not inline).
+ * Insights header: trigger “Open Conversation”. The in-queue well is
+ * primary (`SignalReviewConversation`); this sheet is the overflow.
  */
 export function ConversationDrawer({
   messages,

@@ -441,9 +441,10 @@
   }
 
   /*
-   * Insights review: one panel. Phone/tablet stack Why → transcript →
-   * Feedback (outer pane scrolls). Laptop+ splits when the review column
-   * is ≥56rem so the rail is not a squeezed 26rem next to the sidebar.
+   * Insights review: one panel. Phone/tablet stack Why → transcript well →
+   * Feedback (outer pane scrolls when Why+Feedback overflow). Laptop+ splits
+   * when the review column is ≥56rem so the rail is not a squeezed 26rem
+   * next to the sidebar. Transcript is the primary chat-app well.
    */
   .insights-review {
     container-type: inline-size;
@@ -460,13 +461,13 @@
     display: grid;
     min-height: 0;
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 1 1 0%;
     grid-template-areas:
       "why"
       "transcript"
       "feedback";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(min-content, auto) minmax(12rem, 42dvh) minmax(min-content, auto);
+    grid-template-rows: min-content minmax(16rem, 1fr) min-content;
     overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -485,10 +486,32 @@
 
   .insights-review-split [data-review-slot="transcript"] {
     grid-area: transcript;
+    display: flex;
     min-width: 0;
     min-height: 0;
+    height: 100%;
+    flex-direction: column;
     border-top: 1px solid var(--sio-border-base);
     border-bottom: 1px solid var(--sio-border-base);
+    overflow: hidden;
+  }
+
+  .insights-review-split [data-review-slot="transcript"] .insights-review-chat-body {
+    min-height: 0;
+  }
+
+  .insights-review-chat-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    min-width: 0;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--sio-border-base);
+    background: var(--sio-bg-base);
+    padding: 0.5rem 0.75rem;
   }
 
   .insights-review-split [data-review-slot="feedback"] {
@@ -502,6 +525,10 @@
     min-width: 0;
     flex-direction: column;
     background: var(--sio-bg-base);
+  }
+
+  .insights-review-pane.insights-review-chat {
+    background: var(--sio-bg-subtle);
   }
 
   .insights-review-feedback {

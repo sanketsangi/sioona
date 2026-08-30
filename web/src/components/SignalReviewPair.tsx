@@ -4,7 +4,6 @@ import { useState } from "react";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import { firstEvidenceMessageId } from "@/lib/evidence-messages";
-import { signalTypeLabel } from "@/lib/format";
 import type { Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +15,9 @@ type SignalReviewPairProps = {
 };
 
 /**
- * Insights review pair — one metric-strip: conversation chat well |
- * Suggested Next Action + Why This Fired. Why quotes jump the transcript.
+ * Insights review pair — one metric-strip: conversation chat well
+ * (sticky customer header, full transcript) | Suggested Next Action +
+ * Why This Fired. Why quotes jump the transcript.
  * Parent should key this on `signal.id` so highlight resets per review.
  */
 export function SignalReviewPair({
@@ -40,8 +40,6 @@ export function SignalReviewPair({
       <SignalReviewConversation
         messages={messages}
         customerName={customerName}
-        typeLabel={signalTypeLabel(signal.type)}
-        summary={signal.summary || ""}
         highlightedMessageId={focusedMessageId}
         className="min-h-0 lg:h-full"
       />

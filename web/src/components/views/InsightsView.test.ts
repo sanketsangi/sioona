@@ -389,7 +389,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Follow up");
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Please pause my SIP this month");
-    expect(html).toContain("See Conversation");
+    expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("Conversation");
     expect(html).toContain("Display only — not sent.");
