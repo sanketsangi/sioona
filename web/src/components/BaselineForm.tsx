@@ -3,6 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import {
+  EvalCard,
+  evalCardHeaderClassName,
+  evalCardPadClassName,
+} from "@/components/EvalCard";
 
 export function BaselineForm({
   baselineOpportunities,
@@ -72,29 +77,38 @@ export function BaselineForm({
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className={`panel ${compact ? "px-3 py-3 sm:px-4" : "p-4 sm:p-5"} ${compact ? "" : "mt-4"}`}
-    >
+    <form onSubmit={onSubmit} className={compact ? undefined : "mt-4"}>
+      <EvalCard>
+        <div
+          className={
+            compact
+              ? evalCardHeaderClassName
+              : "mb-1 px-4 pt-4 sm:px-5 sm:pt-5"
+          }
+        >
+          <h2 className="text-balance text-heading-16 text-sio-fg-base">
+            Set Partner Baseline
+          </h2>
+          {compact ? (
+            <p className="text-label-12 text-sio-fg-muted">
+              Lift = Sioona − baseline
+            </p>
+          ) : null}
+        </div>
+        <div
+          className={
+            compact
+              ? `${evalCardPadClassName} py-3`
+              : "px-4 pb-4 sm:px-5 sm:pb-5"
+          }
+        >
+          {!compact ? (
+            <p className="max-w-2xl text-pretty text-copy-14 text-sio-fg-subtle">
+              Opportunities they find today. Lift = Sioona − baseline.
+            </p>
+          ) : null}
       <div
-        className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 ${compact ? "" : "mb-1"}`}
-      >
-        <h2 className="text-balance text-heading-16 text-sio-fg-base">
-          Set Partner Baseline
-        </h2>
-        {compact ? (
-          <p className="text-label-12 text-sio-fg-muted">
-            Lift = Sioona − baseline
-          </p>
-        ) : null}
-      </div>
-      {!compact ? (
-        <p className="mt-1 max-w-2xl text-pretty text-copy-14 text-sio-fg-subtle">
-          Opportunities they find today. Lift = Sioona − baseline.
-        </p>
-      ) : null}
-      <div
-        className={`grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_minmax(12rem,2fr)_auto] sm:items-end ${compact ? "mt-2.5" : "mt-4"}`}
+        className={`grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_minmax(12rem,2fr)_auto] sm:items-end ${compact ? "" : "mt-4"}`}
       >
         <label className="block min-w-0">
           <span className="text-label-12 text-sio-fg-muted">
@@ -151,6 +165,8 @@ export function BaselineForm({
           </p>
         ) : null}
       </div>
+      </div>
+    </EvalCard>
     </form>
   );
 }

@@ -59,7 +59,7 @@ Upload Chats body stays inside existing `page-frame` / `ViewFrame` — not a `/l
 ### Signal Score chrome
 
 - **Full** (`SignalScoreSummary`): stacked header + overall cell + by-type column (Eval overview when not compact).
-- **Compact** (`compact` on Eval Metrics): full-width `.metric-strip--compact` matching Labeled Eval density — header (eyebrow + window source + This Week / From / Apply Window via `.btn-*` + `input-field`) · five equal KPI cells in one row (Overall % · Reviewed · Correct · Incorrect · Partial, tabular) · type chips via `SignalTypeChip` + percent with open 24px clusters, all-time trailing. `--radius-panel`, `sio-border-base`. Neon SoT unchanged. Insights in-queue review omits the score strip (score lives on Insights queue chrome / Eval).
+- **Compact** (`compact` on Eval Metrics): full-width `EvalCard` matching Insights queue Card chrome — header (eyebrow + window source + This Week / From / Apply Window) · five equal KPI cells in one row (Overall % · Reviewed · Correct · Incorrect · Partial, tabular) · type chips via `SignalTypeChip` + percent, all-time trailing. Header and KPI gutters share `px-3 py-2.5 sm:px-4`. `--radius-panel`, `sio-border-base`. Neon SoT unchanged. Insights in-queue review omits the score strip (score lives on Insights queue chrome / Eval). Labeled Eval / Pilot / offer / Baseline use the same `EvalCard` rhythm.
 
 ### Eval / labeled segmented tabs
 
