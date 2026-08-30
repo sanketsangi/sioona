@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
+**Branch:** `cursor/suggested-next-action-design-ecfd` (Suggested Next Action well: layout / spacing / hierarchy only)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Suggested Next Action header shows **Mark as Acted** for Correct-not-Acted (A / Enter walk; no Correct chip in that slot). Feedback / Ground Truth wells keep full borders. Queue Card/Separator list and Conversation chat well stay. Not outbound / not Detect / not a keep-set go.
+**This pass (code, 2026-08-30):** Suggested Next Action well — design only: header truncate + hug Mark as Acted, `heading-16` action, `Separator` before quieter Why / Matched, quote rows always bordered, body scrolls. No logic / Detect / outbound / keep-set change.
+
+**Prior pass (code, 2026-08-30):** Suggested Next Action header shows **Mark as Acted** for Correct-not-Acted (A / Enter walk; no Correct chip in that slot). Feedback / Ground Truth wells keep full borders. Queue Card/Separator list and Conversation chat well stay. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-30):** Insights queue is a Card/Separator ops list (`SignalQueue` / `SignalQueueRow`: aligned User·Signal·Status·Score·Type columns, denser mobile chips, same empty/unavailable Card as metrics). Review still opens via `?preview=`. Not Detect / not Auth0 / not outbound / not a keep-set go.
 

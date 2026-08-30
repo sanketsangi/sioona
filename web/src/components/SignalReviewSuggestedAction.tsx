@@ -7,6 +7,8 @@ import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { SignalStatus } from "@/components/SignalStatus";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
   TooltipContent,
@@ -101,6 +103,69 @@ function EvidenceChip({
   );
 }
 
+function WhyQuote({
+  text,
+  active,
+  controlsId,
+  onSelect,
+}: {
+  text: string;
+  active: boolean;
+  controlsId: string | null;
+  onSelect: (() => void) | null;
+}) {
+  const quote = (
+    <blockquote className="border-l-2 border-sio-border-strong pl-3">
+      <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
+        “{text}”
+      </p>
+    </blockquote>
+  );
+  const surface = cn(
+    "w-full rounded-[var(--radius-control)] border px-3 py-2 text-left",
+    active
+      ? "border-sio-border-strong bg-sio-bg-interactive"
+      : "border-sio-border-subtle bg-sio-bg-base",
+  );
+
+  if (onSelect && controlsId) {
+    return (
+      <button
+        type="button"
+        className={cn(
+          surface,
+          "min-h-11 touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-9",
+        )}
+        aria-pressed={active}
+        aria-controls={controlsId}
+        aria-label={`Show in conversation: ${text}`}
+        onClick={onSelect}
+      >
+        {quote}
+      </button>
+    );
+  }
+
+  return <div className={surface}>{quote}</div>;
+}
+
+function SupportHeading({
+  id,
+  children,
+}: {
+  id: string;
+  children: string;
+}) {
+  return (
+    <h4
+      id={id}
+      className="text-label-12 font-medium tracking-normal text-sio-fg-subtle"
+    >
+      {children}
+    </h4>
+  );
+}
+
 /**
  * Suggested Next Action + Why This Fired + Matched — single review well.
  * Header is the status chip, or Mark as Acted on Correct-not-Acted
@@ -164,6 +229,10 @@ export function SignalReviewSuggestedAction({
     (entry) => entry.kind === "match" || entry.kind === "suppressed",
   );
 
+  const showWhy = quotes.length > 0 || matches.length === 0;
+  const showMatched = matches.length > 0;
+  const showSupport = showWhy || showMatched;
+
   return (
     <section
       ref={sectionRef}
@@ -177,7 +246,7 @@ export function SignalReviewSuggestedAction({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex shrink-0">
-                  <button
+                  <Button
                     type="button"
                     className="btn-primary shrink-0"
                     disabled={actedPending}
@@ -195,7 +264,7 @@ export function SignalReviewSuggestedAction({
                       />
                     )}
                     Mark as Acted
-                  </button>
+                  </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom" align="end">
@@ -208,8 +277,8 @@ export function SignalReviewSuggestedAction({
         )}
       </InsightsReviewPaneHeader>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 px-4 py-3">
-        <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+        <div className="flex min-w-0 flex-col gap-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
           <p className="text-label-12 text-sio-fg-muted">
             {isActed
               ? "Marked as Acted — not sent."
@@ -232,96 +301,83 @@ export function SignalReviewSuggestedAction({
           ) : null}
         </div>
 
-        {quotes.length > 0 || matches.length === 0 ? (
-          <section aria-labelledby={whyId} className="min-w-0">
-            <h4
-              id={whyId}
-              className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
-            >
-              Why This Fired
-            </h4>
+        {showSupport ? (
+          <>
+            <Separator className="bg-sio-border-base" />
+            <div className="flex min-w-0 flex-col gap-4 px-3 pb-3 sm:px-4 sm:pb-4">
+              {showWhy ? (
+                <section aria-labelledby={whyId} className="min-w-0">
+                  <SupportHeading id={whyId}>Why This Fired</SupportHeading>
 
-            {quotes.length > 0 ? (
-              <ul className="mt-2.5 flex flex-col gap-2">
-                {quotes.map(({ item, text, messageId }) => {
-                  const canJump = Boolean(messageId && onFocusMessage);
-                  const active = Boolean(
-                    messageId && messageId === focusedMessageId,
-                  );
-                  return (
-                    <li key={item} className="min-w-0">
-                      {canJump && messageId ? (
-                        <button
-                          type="button"
-                          className={cn(
-                            "w-full min-h-11 rounded-md border px-2 py-1.5 text-left touch-manipulation transition-colors duration-150",
-                            active
-                              ? "border-sio-border-strong bg-sio-bg-interactive"
-                              : "border-transparent hover:border-sio-border-subtle hover:bg-sio-bg-interactive",
+                  {quotes.length > 0 ? (
+                    <ul className="mt-2 flex flex-col gap-2">
+                      {quotes.map(({ item, text, messageId }) => {
+                        const canJump = Boolean(messageId && onFocusMessage);
+                        return (
+                          <li key={item} className="min-w-0">
+                            <WhyQuote
+                              text={text}
+                              active={Boolean(
+                                messageId && messageId === focusedMessageId,
+                              )}
+                              controlsId={
+                                messageId
+                                  ? conversationMessageDomId(messageId)
+                                  : null
+                              }
+                              onSelect={
+                                canJump && messageId
+                                  ? () => onFocusMessage?.(messageId)
+                                  : null
+                              }
+                            />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
+                      {isNeonStub
+                        ? "No local evidence — detection join missing."
+                        : "No local evidence."}
+                    </p>
+                  )}
+                </section>
+              ) : null}
+
+              {showWhy && showMatched ? (
+                <Separator className="bg-sio-border-base" />
+              ) : null}
+
+              {showMatched ? (
+                <section aria-labelledby={matchedId} className="min-w-0">
+                  <SupportHeading id={matchedId}>Matched</SupportHeading>
+                  <ul className="mt-2 flex flex-wrap gap-2">
+                    {matches.map(({ item, text, messageId }) => (
+                      <li key={item} className="min-w-0 max-w-full">
+                        <EvidenceChip
+                          text={text}
+                          active={Boolean(
+                            messageId && messageId === focusedMessageId,
                           )}
-                          aria-pressed={active}
-                          aria-controls={conversationMessageDomId(messageId)}
-                          aria-label={`Show in conversation: ${text}`}
-                          onClick={() => onFocusMessage?.(messageId)}
-                        >
-                          <blockquote className="border-l-2 border-sio-border-strong pl-3">
-                            <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
-                              “{text}”
-                            </p>
-                          </blockquote>
-                        </button>
-                      ) : (
-                        <blockquote className="border-l-2 border-sio-border-strong pl-3">
-                          <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
-                            “{text}”
-                          </p>
-                        </blockquote>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
-                {isNeonStub
-                  ? "No local evidence — detection join missing."
-                  : "No local evidence."}
-              </p>
-            )}
-          </section>
-        ) : null}
-
-        {matches.length > 0 ? (
-          <section aria-labelledby={matchedId} className="min-w-0">
-            <h4
-              id={matchedId}
-              className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
-            >
-              Matched
-            </h4>
-            <ul className="mt-2.5 flex flex-wrap gap-1.5">
-              {matches.map(({ item, text, messageId }) => (
-                <li key={item} className="min-w-0 max-w-full">
-                  <EvidenceChip
-                    text={text}
-                    active={Boolean(
-                      messageId && messageId === focusedMessageId,
-                    )}
-                    controlsId={
-                      messageId
-                        ? conversationMessageDomId(messageId)
-                        : null
-                    }
-                    onSelect={
-                      messageId && onFocusMessage
-                        ? () => onFocusMessage(messageId)
-                        : null
-                    }
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
+                          controlsId={
+                            messageId
+                              ? conversationMessageDomId(messageId)
+                              : null
+                          }
+                          onSelect={
+                            messageId && onFocusMessage
+                              ? () => onFocusMessage(messageId)
+                              : null
+                          }
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+            </div>
+          </>
         ) : null}
       </div>
     </section>
