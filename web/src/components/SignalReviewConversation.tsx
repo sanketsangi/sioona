@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { useId } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
-import { evalCardHeaderClassName } from "@/components/EvalCard";
+import {
+  evalCardHeaderClassName,
+  evalCardPadClassName,
+} from "@/components/EvalCard";
 import { SignalUser } from "@/components/SignalUser";
 import { Button } from "@/components/ui/button";
 import type { Message as ChatMessage } from "@/lib/types";
@@ -18,7 +21,8 @@ type SignalReviewConversationProps = {
 /**
  * Insights review messaging well — sticky customer header + full-height
  * transcript. Why This Fired jumps land on native evidence bubbles.
- * Empty is honest (no invented chat). Drawer lives on the page header.
+ * Bubble clocks stay off (drawer keeps them). Empty is honest (no invented
+ * chat). Drawer lives on the page header.
  */
 export function SignalReviewConversation({
   messages,
@@ -66,18 +70,22 @@ export function SignalReviewConversation({
         </div>
       </header>
 
-      <div className="insights-review-chat-body scroll-region min-h-[14rem] flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
+      <div
+        className={cn(
+          "insights-review-chat-body scroll-region min-h-[14rem] flex-1 overflow-y-auto overscroll-contain py-3",
+          evalCardPadClassName,
+        )}
+      >
         {hasMessages ? (
           <div className="mx-auto w-full max-w-md">
             <ConversationMessages
               messages={messages}
               customerName={who}
               highlightedMessageId={highlightedMessageId}
-              showTimestamps
             />
           </div>
         ) : (
-          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
+          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-3 text-center">
             <div className="flex flex-col gap-1">
               <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
               <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">

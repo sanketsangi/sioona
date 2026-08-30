@@ -9,6 +9,7 @@ import {
   BubbleGroup,
 } from "@/components/ui/Bubble";
 import {
+  MESSAGE_AVATAR_SIZE,
   Message,
   MessageAvatar,
   MessageContent,
@@ -24,8 +25,9 @@ export function conversationMessageDomId(messageId: string): string {
 /**
  * Shared User/Agent transcript chrome (geistcn Message + Bubble).
  * Alignment lock: customer right (`align="end"`) / muted + initials;
- * agent left (`align="start"`) / default + bot icon. Message rows are
- * full-width so end packs to the right edge (see Message.tsx).
+ * agent left (`align="start"`) / default + bot icon. Avatars 32px
+ * (header SignalUser / radix-vega size-8). Rows are full-width so end
+ * packs to the right edge (see Message.tsx).
  */
 export function ConversationMessages({
   messages,
@@ -82,17 +84,17 @@ export function ConversationMessages({
             key={message.id}
             id={conversationMessageDomId(message.id)}
             ref={isHighlight ? highlightRef : undefined}
-            className="scroll-mt-4"
+            className="scroll-mt-3"
             data-evidence-match={isHighlight ? "true" : undefined}
           >
             <Message align={isAgent ? "start" : "end"}>
               <MessageAvatar>
                 {isAgent ? (
-                  <Avatar placeholder size={28}>
-                    <AgentBotIcon className="size-3.5 shrink-0" />
+                  <Avatar placeholder size={MESSAGE_AVATAR_SIZE}>
+                    <AgentBotIcon className="size-4 shrink-0" />
                   </Avatar>
                 ) : (
-                  <Avatar placeholder size={28}>
+                  <Avatar placeholder size={MESSAGE_AVATAR_SIZE}>
                     <AvatarFallback>{customerLetter}</AvatarFallback>
                   </Avatar>
                 )}

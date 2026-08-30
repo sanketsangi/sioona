@@ -45,7 +45,7 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe("SignalReviewSuggestedAction", () => {
-  it("uses a single Feedback-style well with Pending chip and match tags", () => {
+  it("uses a single Feedback-style Card well with Pending chip and match tags", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -69,13 +69,27 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
+    expect(html).toContain('data-slot="card"');
+    expect(html).toContain('data-slot="card-header"');
+    expect(html).toContain('data-slot="card-action"');
+    expect(html).toContain('data-slot="card-content"');
+    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
     expect(html).toContain("data-slot=\"separator\"");
     expect(html).toContain("insights-review-well");
     expect(html).not.toContain("xl:grid-cols-2");
     expect(html).not.toContain("bg-sio-bg-muted/50");
-    // One outer well — no nested header/body wells.
+    // One outer well — no nested Card; action band uses balanced py.
     expect(html.match(/insights-review-well/g)?.length).toBe(1);
-    // Matched is a sibling section (h4), not a muted sublabel under Why.
+    expect(html).toContain("justify-center gap-1.5 py-3");
+    expect(html).toContain('data-slot="label"');
+    expect(html).toContain("<blockquote");
+    expect(html).toContain('data-slot="badge"');
+    // WhyQuote: outline surface with shared radius + border-border.
+    expect(html).toContain(
+      "rounded-[var(--radius-control)] border border-border",
+    );
+    expect(html).toContain("px-3 py-2");
+    // Matched is a sibling Label section, not a muted sublabel under Why.
     expect(html).toMatch(
       /Why This Fired[\s\S]*Matched[\s\S]*pause my SIP/,
     );
@@ -145,6 +159,11 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
     expect(html).toContain("conversation-message-msg_1");
     expect(html).toContain("aria-pressed");
+    expect(html).toContain('data-slot="button"');
+    expect(html).toContain('data-variant="outline"');
+    expect(html).toContain("<blockquote");
+    expect(html).toContain("rounded-[var(--radius-control)] border");
+    expect(html).toContain("border-sio-border-strong");
   });
 
   it("turns joined phrase chips into conversation jump controls", () => {
@@ -163,6 +182,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Phrase");
     expect(html).toContain("Show in conversation: pause my SIP");
     expect(html).toContain("conversation-message-msg_1");
+    expect(html).toContain('data-slot="button"');
   });
 
   it("shows honest empty copy when action and evidence are missing", () => {

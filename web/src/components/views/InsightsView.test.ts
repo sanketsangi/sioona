@@ -588,7 +588,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("data-review-keyboard-root");
   });
 
-  it("shows the Act cue on Correct ¬acted Follow-up", () => {
+  it("keeps Mark as Acted on Suggested Next Action, not under Feedback", () => {
     const pending = makePendingSignals(1);
     const correctSignal = {
       ...pending[0],
@@ -636,8 +636,11 @@ describe("InsightsView review conversation + action", () => {
       }),
     );
 
-    expect(html).toContain("Mark as Acted on Suggested Next Action (does not send).");
+    expect(html).not.toContain(
+      "Mark as Acted on Suggested Next Action (does not send).",
+    );
     expect(html).toContain("Mark as Acted");
+    expect(html).toContain("A / Enter → Mark as Acted on Suggested Next Action");
   });
 });
 
