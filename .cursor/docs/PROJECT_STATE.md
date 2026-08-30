@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/review-action-conversation-6966` (Insights conversation + next-action pair on #60/#61)
+**Branch:** `cursor/copyable-grounded-actions-34aa` (Correct → Follow-up Act + Copy Reply)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Insights review Conversation + Suggested Next Action sit in the #60 container-query split: full transcript chat well (`SignalUser`, `max-w-md`, See Conversation) beside stacked action / Why This Fired (`heading-16` recommendation, display-only, `SignalStatus` when Acted). Why quotes jump to the matching bubble. Queue chrome from #61 (Card metrics, empty states) and Render wake (#58) stay. Overlay-by-id (#59) and Eval keep-set ∪ overlay (#57) are already on `main`. Not Detect / not Auth0 / not a keep-set go.
+**This pass (code, 2026-08-30):** Correct from Pending lands on Follow-up for the **same** signal (`status=followup&preview=<id>`); Incorrect / Partial still advance next pending. Act cue Note under Feedback on Correct ¬acted; Copy Reply on Suggested Next Action (clipboard only). Mark Acted from Follow-up keeps next Correct walk. Not Detect / not Auth0 / not outbound send.
+
+**Prior pass (code, 2026-08-30):** Insights review Conversation + Suggested Next Action sit in the #60 container-query split: full transcript chat well (`SignalUser`, `max-w-md`, See Conversation) beside stacked action / Why This Fired (`heading-16` recommendation, display-only, `SignalStatus` when Acted). Why quotes jump to the matching bubble. Queue chrome from #61 (Card metrics, empty states) and Render wake (#58) stay. Overlay-by-id (#59) and Eval keep-set ∪ overlay (#57) are already on `main`.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
@@ -133,6 +135,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Insights pending landing 2026-08-20 — **shipped**: omitted status with Follow-up empty + Pending > 0 lands Pending (`status=new` via `resolveInsightsStatusFilter`); **first SSR 200** (no post-FastAPI `redirect` / 307). Address bar may canonicalize with client `history.replaceState` only. Explicit empty Follow-up stays compact + Review Pending. Not a keep-set win / not outbound
 - Insights queue + in-queue review responsive 2026-08-30 — **this pass**: container-query split (Why → transcript → Feedback; wide = transcript | rail), drawer-matched `max-w-md` chat column, Why This Fired jump, honest empty transcript; no new palette
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
+- Correct → Follow-up Act beat 2026-08-30 — **this pass**: Correct from Pending → `status=followup&preview=<same id>`; Incorrect/Partial → next pending; Act cue Note + Copy Reply (clipboard only); Mark Acted Follow-up walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
 - Deploy gate **logged 2026-08-21** (#51) — local = origin; hosted smoke green; Partner Demo wipe re-run; keep-set n=0 = empty window only (Groww∩JSON closed); baseline 12 / Lift +2 preserved across wipe
 - Deploy gate **logged 2026-08-21** (`73081cd` replace guard) — web 426 / backend 56 pass; hosted 7-step smoke green (Insights 307→200; Upload/Eval 200; needs-review 14); Confirm Replace on Partner Demo keep-set live; not a keep-set go / not wipe

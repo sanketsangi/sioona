@@ -88,6 +88,8 @@ export function FeedbackControls({
   const busy = pending !== null;
   const needsAdapt =
     feedbackLabel === "incorrect" || feedbackLabel === "partially_correct";
+  const needsAct =
+    feedbackLabel === "correct" && signal.status !== "acted";
   const currentTitle =
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
@@ -117,6 +119,8 @@ export function FeedbackControls({
           triage?.isPendingReview && wasPending
             ? afterFeedbackHref({
                 wasPending: true,
+                label,
+                currentSignalId: signal.id,
                 nextPendingPreviewId: triage.nextPendingPreviewId,
                 scoreFrom: triage.scoreFrom,
                 mode: triage.mode,
@@ -193,7 +197,7 @@ export function FeedbackControls({
       <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
         <p className="text-label-12 text-sio-fg-muted">
           {canAdvance
-            ? "C / I / P shortcuts · Enter → Correct · saves and opens next pending."
+            ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
             : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
         </p>
         <p className="sr-only" aria-live="polite">
@@ -261,6 +265,20 @@ export function FeedbackControls({
             );
           })}
         </div>
+
+        {needsAct ? (
+          <div className="mt-2.5" role="status" aria-live="polite">
+            <Note
+              icon={null}
+              className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
+            >
+              <NoteContent className="text-label-12 text-sio-fg-base">
+                Copy Reply from Suggested Next Action, then Mark Acted (does
+                not send).
+              </NoteContent>
+            </Note>
+          </div>
+        ) : null}
 
         {needsAdapt ? (
           <div className="mt-2.5" role="status" aria-live="polite">
