@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { useId } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { evalCardHeaderClassName } from "@/components/EvalCard";
 import { SignalUser } from "@/components/SignalUser";
-import { Button } from "@/components/ui/button";
 import type { Message as ChatMessage } from "@/lib/types";
 import { viewHref } from "@/lib/views";
 import { cn } from "@/lib/utils";
@@ -39,13 +39,18 @@ export function SignalReviewConversation({
       )}
       aria-labelledby={headingId}
     >
-      <header className="insights-review-chat-header">
-        <SignalUser name={who} size={32} showName={false} />
+      <header
+        className={cn(
+          evalCardHeaderClassName,
+          "insights-review-chat-header flex-nowrap",
+        )}
+      >
+        <SignalUser name={who} size={28} showName={false} />
         <div className="min-w-0 flex-1">
           <h3
             id={headingId}
             translate="no"
-            className="truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base"
+            className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
           >
             {who}
           </h3>
@@ -80,14 +85,9 @@ export function SignalReviewConversation({
                 chat.
               </p>
             </div>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
-            >
-              <Link href={viewHref("upload")}>Upload Chats</Link>
-            </Button>
+            <Link href={viewHref("upload")} className="btn-secondary">
+              Upload Chats
+            </Link>
           </div>
         )}
       </div>

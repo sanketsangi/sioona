@@ -206,10 +206,17 @@ export function FeedbackControls({
       >
         <p className="text-label-12 text-sio-fg-muted">
           {canAdvance
-            ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
+            ? "Mark whether this detection is useful. Correct opens Follow-up."
             : isUnactedCorrect
-              ? "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action."
-              : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
+              ? "Mark as Acted on Suggested Next Action when you take the step."
+              : "Saves to Neon. Shortcuts: C, I, P."}
+        </p>
+        <p className="sr-only">
+          {canAdvance
+            ? "C advances to Follow-up Act. I or P opens the next pending. Enter submits Correct."
+            : isUnactedCorrect
+              ? "C, I, or P updates feedback. A or Enter marks Acted on Suggested Next Action."
+              : "C, I, or P updates feedback. Enter submits Correct."}
         </p>
         <p className="sr-only" aria-live="polite">
           {justSaved

@@ -534,7 +534,9 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
     expect(html).toContain("Display only — not sent.");
-    expect(html).toContain("A / Enter → Mark as Acted on Suggested Next Action");
+    expect(html).toContain(
+      "Mark as Acted on Suggested Next Action when you take the step.",
+    );
     expect(html).not.toContain("Mark as Pending");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("data-review-keyboard-root");

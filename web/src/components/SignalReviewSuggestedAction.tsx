@@ -61,10 +61,10 @@ function EvidenceChip({
   const kindLabel = sep > 0 ? text.slice(0, sep) : null;
   const value = sep > 0 ? text.slice(sep + 3) : text;
   const chipClass = cn(
-    "h-auto max-w-full gap-1.5 rounded-[var(--radius-control)] border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-left text-label-12 font-normal whitespace-normal",
-    active && "border-sio-border-strong bg-sio-bg-interactive",
+    "h-auto max-w-full gap-1.5 rounded-[var(--radius-control)] border-0 bg-sio-bg-muted px-2 py-1 text-left text-label-12 font-normal whitespace-normal shadow-none",
+    active && "bg-sio-bg-interactive-hover",
     onSelect &&
-      "min-h-11 cursor-pointer touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-8",
+      "min-h-11 cursor-pointer touch-manipulation transition-colors duration-150 hover:bg-sio-bg-interactive lg:min-h-8",
   );
   const inner = (
     <>
@@ -116,17 +116,20 @@ function WhyQuote({
   onSelect: (() => void) | null;
 }) {
   const quote = (
-    <blockquote className="border-l-2 border-sio-border-strong pl-3">
+    <blockquote
+      className={cn(
+        "border-l-2 pl-3",
+        active ? "border-sio-fg-base" : "border-sio-border-strong",
+      )}
+    >
       <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
         “{text}”
       </p>
     </blockquote>
   );
   const surface = cn(
-    "w-full rounded-[var(--radius-control)] border px-3 py-2 text-left",
-    active
-      ? "border-sio-border-strong bg-sio-bg-interactive"
-      : "border-sio-border-subtle bg-sio-bg-base",
+    "w-full rounded-[var(--radius-control)] px-1 py-1.5 text-left",
+    active ? "bg-sio-bg-interactive" : "bg-transparent",
   );
 
   if (onSelect && controlsId) {
@@ -135,7 +138,7 @@ function WhyQuote({
         type="button"
         className={cn(
           surface,
-          "min-h-11 touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-9",
+          "min-h-11 touch-manipulation transition-colors duration-150 hover:bg-sio-bg-interactive lg:min-h-9",
         )}
         aria-pressed={active}
         aria-controls={controlsId}
