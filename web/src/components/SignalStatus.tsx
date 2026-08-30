@@ -1,3 +1,4 @@
+import { signalChipClass } from "@/components/SignalScoreChip";
 import { StatusDot } from "@/components/ui/StatusDot";
 import {
   signalStatusDot,
@@ -10,10 +11,11 @@ type SignalStatusProps = {
   signal: Pick<Signal, "status" | "feedback">;
   className?: string;
   /**
-   * `dot` — queue / list StatusDot (default).
+   * `dot` — bare StatusDot (default).
+   * `pill` — queue Status column: StatusDot inside `signalChipClass` (Score/Type shell).
    * `chip` — review-well header chip (same shell as Feedback / Ground Truth).
    */
-  variant?: "dot" | "chip";
+  variant?: "dot" | "pill" | "chip";
 };
 
 /** Class literals here so Tailwind content scan picks them up. */
@@ -47,6 +49,19 @@ export function SignalStatus({
         translate="no"
       >
         {label}
+      </span>
+    );
+  }
+
+  if (variant === "pill") {
+    return (
+      <span
+        className={cn(signalChipClass, "min-w-0", className)}
+        translate="no"
+      >
+        <StatusDot className="min-w-0" label state={state}>
+          {label}
+        </StatusDot>
       </span>
     );
   }

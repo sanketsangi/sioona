@@ -118,6 +118,54 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toContain("No Signals Need Follow-Up");
   });
 
+  it("paginates Pending queue at 10 rows with URL page links", () => {
+    const pending = makePendingSignals(11);
+    const store = storeFromSignals(pending);
+    const needsReview = {
+      ok: true as const,
+      predictions: pending.map((s) => ({
+        id: s.backendSignalId!,
+        tenant_id: "tenant_demo",
+        conversation_id: s.conversationId,
+        signal_type: s.type,
+        confidence: s.score,
+        summary: s.summary,
+        created_at: s.createdAt,
+      })),
+    };
+    const page1 = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(page1).toContain("Pending signal 1");
+    expect(page1).toContain("Pending signal 10");
+    expect(page1).not.toContain("Pending signal 11");
+    expect(page1).toContain("page=2");
+    expect(page1).toContain("Page 1 of 2");
+
+    const page2 = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 2,
+        needsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(page2).toContain("Pending signal 11");
+    expect(page2).not.toMatch(/Pending signal 1</);
+    expect(page2).toContain("Page 2 of 2");
+  });
+
   it("empty Correct with pending shows Review Pending", () => {
     const pending = makePendingSignals(3);
     const store = storeFromSignals(pending);

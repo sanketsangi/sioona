@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Insights review identity is a selected strip (user + locked chips + summary) — no one-row table header / scroll Review. Queue rows hug Review on mobile; metrics match Eval KPI density; conversation header uses Eval gutters. Locked signal chrome unchanged. Not outbound / not Detect / not a keep-set go.
+**This pass (code, 2026-08-30):** Insights queue list Card is a DataTable (`shadcn` Table + TanStack): User · Signal · Status · Score · Type · Action, sticky muted header, overflow at all sizes, URL `?page=` pager (10/page), locked chrome, `?preview=` Review Links. Empty/error Cards + review body unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-30):** Insights review identity is a selected strip (user + locked chips + summary) — no one-row table header / scroll Review. Queue rows hug Review on mobile; metrics match Eval KPI density; conversation header uses Eval gutters. Locked signal chrome unchanged. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-30):** Insights review queue uses Eval container rhythm — `EvalCard` queue/metrics, review wells + conversation card, `px-3 sm:px-4` row/header/body gutters, `gap-4` between review cards. No logic / Detect / outbound / keep-set change.
 
