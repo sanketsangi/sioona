@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useRef } from "react";
 import { AgentBotIcon } from "@/components/icons/AgentBotIcon";
 import { Avatar, AvatarFallback } from "@/components/ui/Avatar";
 import {
@@ -12,6 +15,11 @@ import {
 } from "@/components/ui/Message";
 import { initialsFromName } from "@/lib/format";
 import type { Message as ChatMessage } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+export function conversationMessageDomId(messageId: string): string {
+  return `conversation-message-${messageId}`;
+}
 
 /**
  * Shared User/Agent transcript chrome (geistcn Message + Bubble).
@@ -22,14 +30,30 @@ import type { Message as ChatMessage } from "@/lib/types";
 export function ConversationMessages({
   messages,
   customerName,
+  highlightedMessageId = null,
   className = "",
 }: {
   messages: ChatMessage[];
   customerName?: string | null;
+  /** Why This Fired landing — scrolls into view and marks the bubble. */
+  highlightedMessageId?: string | null;
   className?: string;
 }) {
   const who = customerName?.trim() || "Customer";
   const customerLetter = initialsFromName(who);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = highlightRef.current;
+    if (!node || !highlightedMessageId) return;
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    node.scrollIntoView({
+      block: "nearest",
+      behavior: reduced ? "auto" : "smooth",
+    });
+  }, [highlightedMessageId]);
 
   return (
     <BubbleGroup className={className}>
@@ -47,28 +71,43 @@ export function ConversationMessages({
 
         const isAgent = message.role === "agent";
         const variant = isAgent ? "default" : "muted";
+        const isHighlight = message.id === highlightedMessageId;
 
         return (
-          <Message key={message.id} align={isAgent ? "start" : "end"}>
-            <MessageAvatar>
-              {isAgent ? (
-                <Avatar placeholder size={28}>
-                  <AgentBotIcon className="size-3.5 shrink-0" />
-                </Avatar>
-              ) : (
-                <Avatar placeholder size={28}>
-                  <AvatarFallback>{customerLetter}</AvatarFallback>
-                </Avatar>
-              )}
-            </MessageAvatar>
-            <MessageContent>
-              <Bubble variant={variant}>
-                <BubbleContent variant={variant}>
-                  {message.content}
-                </BubbleContent>
-              </Bubble>
-            </MessageContent>
-          </Message>
+          <div
+            key={message.id}
+            id={conversationMessageDomId(message.id)}
+            ref={isHighlight ? highlightRef : undefined}
+            className="scroll-mt-4"
+            data-evidence-match={isHighlight ? "true" : undefined}
+          >
+            <Message align={isAgent ? "start" : "end"}>
+              <MessageAvatar>
+                {isAgent ? (
+                  <Avatar placeholder size={28}>
+                    <AgentBotIcon className="size-3.5 shrink-0" />
+                  </Avatar>
+                ) : (
+                  <Avatar placeholder size={28}>
+                    <AvatarFallback>{customerLetter}</AvatarFallback>
+                  </Avatar>
+                )}
+              </MessageAvatar>
+              <MessageContent>
+                <Bubble variant={variant}>
+                  {isHighlight ? (
+                    <span className="sr-only">Evidence match</span>
+                  ) : null}
+                  <BubbleContent
+                    variant={variant}
+                    className={cn(isHighlight && "chat-bubble--evidence")}
+                  >
+                    {message.content}
+                  </BubbleContent>
+                </Bubble>
+              </MessageContent>
+            </Message>
+          </div>
         );
       })}
     </BubbleGroup>

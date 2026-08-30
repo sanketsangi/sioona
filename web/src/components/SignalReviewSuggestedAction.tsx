@@ -1,24 +1,48 @@
+"use client";
+
 import { useId } from "react";
+import { conversationMessageDomId } from "@/components/ConversationMessages";
+import { messageIdForEvidence } from "@/lib/evidence-messages";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
-import type { Signal } from "@/lib/types";
+import type { Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type SignalReviewSuggestedActionProps = {
   signal: Signal;
+  messages?: Message[];
+  focusedMessageId?: string | null;
+  onFocusMessage?: (messageId: string) => void;
   className?: string;
 };
 
 /** ≤2 quote lines in Why This Fired (UI_DESIGN). */
 const MAX_WHY_QUOTES = 2;
 
-function EvidenceChip({ text }: { text: string }) {
+function EvidenceChip({
+  text,
+  active,
+  controlsId,
+  onSelect,
+}: {
+  text: string;
+  active: boolean;
+  controlsId: string | null;
+  onSelect: (() => void) | null;
+}) {
   const sep = text.indexOf(" · ");
   const kindLabel = sep > 0 ? text.slice(0, sep) : null;
   const value = sep > 0 ? text.slice(sep + 3) : text;
-
-  return (
-    <span className="inline-flex max-w-full items-baseline gap-1.5 rounded-md border border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12 shadow-[0_0_0_1px_rgba(0,0,0,0.02)]">
+  const chipClass = cn(
+    "inline-flex max-w-full items-baseline gap-1.5 rounded-md border px-2 py-1 text-left text-label-12 shadow-[0_0_0_1px_rgba(0,0,0,0.02)]",
+    active
+      ? "border-sio-border-strong bg-sio-bg-interactive"
+      : "border-sio-border-subtle bg-sio-bg-base",
+    onSelect &&
+      "min-h-11 cursor-pointer touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-8",
+  );
+  const inner = (
+    <>
       {kindLabel ? (
         <span className="shrink-0 font-medium text-sio-fg-muted">
           {kindLabel}
@@ -30,16 +54,37 @@ function EvidenceChip({ text }: { text: string }) {
       >
         {value}
       </span>
-    </span>
+    </>
   );
+
+  if (onSelect && controlsId) {
+    return (
+      <button
+        type="button"
+        className={chipClass}
+        aria-pressed={active}
+        aria-controls={controlsId}
+        aria-label={`Show in conversation: ${value}`}
+        onClick={onSelect}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return <span className={chipClass}>{inner}</span>;
 }
 
 /**
  * Suggested Next Action + Why This Fired — display-only metric-strip.
+ * Quotes / match chips that join a stored message jump the transcript.
  * Neon stubs / missing join show honest empty copy.
  */
 export function SignalReviewSuggestedAction({
   signal,
+  messages = [],
+  focusedMessageId = null,
+  onFocusMessage,
   className,
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
@@ -50,6 +95,7 @@ export function SignalReviewSuggestedAction({
 
   const formatted = signal.evidence.map((item) => ({
     item,
+    messageId: messageIdForEvidence(item, messages),
     ...formatEvidenceItem(item),
   }));
   const quotes = formatted
@@ -62,7 +108,8 @@ export function SignalReviewSuggestedAction({
 
   return (
     <section
-      className={cn("metric-strip flex flex-col", className)}
+      data-review-slot="why"
+      className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
       <div className="border-b border-sio-border-base px-3 py-2">
@@ -91,10 +138,7 @@ export function SignalReviewSuggestedAction({
             : signal.suggestedAction}
         </p>
 
-        <section
-          className="rounded-md border border-sio-border-base bg-sio-bg-muted/50 px-3 py-2.5"
-          aria-labelledby={whyId}
-        >
+        <section aria-labelledby={whyId}>
           <h4
             id={whyId}
             className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
@@ -106,15 +150,43 @@ export function SignalReviewSuggestedAction({
             <div className="mt-2.5 flex flex-col gap-2.5">
               {quotes.length > 0 ? (
                 <ul className="flex flex-col gap-2">
-                  {quotes.map(({ item, text }) => (
-                    <li key={item} className="min-w-0">
-                      <blockquote className="border-l-2 border-sio-fg-base/20 pl-3">
-                        <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
-                          “{text}”
-                        </p>
-                      </blockquote>
-                    </li>
-                  ))}
+                  {quotes.map(({ item, text, messageId }) => {
+                    const canJump = Boolean(messageId && onFocusMessage);
+                    const active = Boolean(
+                      messageId && messageId === focusedMessageId,
+                    );
+                    return (
+                      <li key={item} className="min-w-0">
+                        {canJump && messageId ? (
+                          <button
+                            type="button"
+                            className={cn(
+                              "w-full min-h-11 rounded-md border px-0 py-1 text-left touch-manipulation transition-colors duration-150",
+                              active
+                                ? "border-sio-border-strong bg-sio-bg-interactive"
+                                : "border-transparent hover:border-sio-border-subtle hover:bg-sio-bg-interactive",
+                            )}
+                            aria-pressed={active}
+                            aria-controls={conversationMessageDomId(messageId)}
+                            aria-label={`Show in conversation: ${text}`}
+                            onClick={() => onFocusMessage?.(messageId)}
+                          >
+                            <blockquote className="border-l-2 border-sio-fg-base/20 pl-3">
+                              <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
+                                “{text}”
+                              </p>
+                            </blockquote>
+                          </button>
+                        ) : (
+                          <blockquote className="border-l-2 border-sio-fg-base/20 pl-3">
+                            <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
+                              “{text}”
+                            </p>
+                          </blockquote>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : null}
 
@@ -124,9 +196,24 @@ export function SignalReviewSuggestedAction({
                     Matched
                   </p>
                   <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                    {matches.map(({ item, text }) => (
+                    {matches.map(({ item, text, messageId }) => (
                       <li key={item} className="min-w-0 max-w-full">
-                        <EvidenceChip text={text} />
+                        <EvidenceChip
+                          text={text}
+                          active={Boolean(
+                            messageId && messageId === focusedMessageId,
+                          )}
+                          controlsId={
+                            messageId
+                              ? conversationMessageDomId(messageId)
+                              : null
+                          }
+                          onSelect={
+                            messageId && onFocusMessage
+                              ? () => onFocusMessage(messageId)
+                              : null
+                          }
+                        />
                       </li>
                     ))}
                   </ul>

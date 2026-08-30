@@ -9,13 +9,11 @@ import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
 import { SignalQueueRow, QUEUE_GRID } from "@/components/SignalQueueRow";
-import { FeedbackControls } from "@/components/FeedbackControls";
-import { GroundTruthControl } from "@/components/GroundTruthControl";
 import {
   SignalReviewMissing,
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
-import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
+import { SignalReviewBody } from "@/components/SignalReviewBody";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +33,7 @@ import {
 import {
   statusQueryValue,
   viewHref,
+  type SignalReviewTriage,
   type StatusFilter,
   type TypeFilter,
   type WorkspaceMode,
@@ -46,7 +45,7 @@ import {
   QUEUE_UNAVAILABLE_PANEL_TITLE,
 } from "@/lib/backend-wake";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
-import type { Conversation, Signal } from "@/lib/types";
+import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type InsightsMode = "list" | "review";
@@ -179,6 +178,8 @@ type SignalQueueProps = {
   customerNames?: Record<string, string>;
   /** conversationId → conversation for Ground Truth in review panel. */
   conversationsById?: Record<string, Conversation>;
+  /** conversationId → messages for in-queue transcript + evidence jump. */
+  messagesByConversationId?: Record<string, Message[]>;
   /** Set when FastAPI needs-review could not be loaded. */
   queueError?: string | null;
   /** Set when FastAPI GET /signals could not be loaded. */
@@ -198,6 +199,8 @@ type SignalQueueProps = {
   followUpEmpty?: EmptyNext | null;
   /** Done-empty next step → Needs Follow-Up. */
   doneEmpty?: EmptyNext | null;
+  /** Pending triage — auto-advance after feedback on needs-review panels. */
+  reviewTriage?: SignalReviewTriage;
 };
 
 function buildQueueHref(
@@ -228,7 +231,7 @@ function QueueColumnHeader() {
   return (
     <div
       className={cn(
-        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 sm:grid lg:gap-4",
+        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 lg:grid xl:gap-4",
         QUEUE_GRID,
       )}
       role="row"
@@ -264,7 +267,7 @@ function QueueColumnHeader() {
         Type
       </span>
       <span
-        className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
+        className="hidden text-label-12 font-semibold text-sio-fg-base xl:block"
         role="columnheader"
       >
         Evidence
@@ -342,6 +345,7 @@ export function SignalQueue({
   reviewedSignals,
   customerNames = {},
   conversationsById = {},
+  messagesByConversationId = {},
   queueError = null,
   tenantSignalsError = null,
   statusFilter = "all",
@@ -353,6 +357,7 @@ export function SignalQueue({
   pendingClear = null,
   followUpEmpty = null,
   doneEmpty = null,
+  reviewTriage,
 }: SignalQueueProps) {
   const {
     pendingCount,
@@ -409,6 +414,9 @@ export function SignalQueue({
           previewSignal.summary || "",
         )
       : null;
+    const previewMessages = previewSignal
+      ? (messagesByConversationId[previewSignal.conversationId] ?? [])
+      : [];
     const reviewChrome = previewSignal ? (
       <SignalReviewPanel
         signal={previewSignal}
@@ -422,35 +430,24 @@ export function SignalQueue({
     );
 
     return (
-      <div className="scroll-region flex h-full min-h-0 flex-1 flex-col gap-3">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
         {filterChrome}
-        <div className="shrink-0 overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
-          <QueueColumnHeader />
-          {reviewChrome}
-        </div>
-        {previewSignal ? (
-          <div
-            id={`signal-review-body-${previewSignal.id}`}
-            className="grid min-w-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
-            aria-labelledby={`signal-review-heading-${previewSignal.id}`}
-          >
-            <SignalReviewSuggestedAction
-              signal={previewSignal}
-              className="min-w-0 lg:col-span-2"
-            />
-            <FeedbackControls
-              signal={previewSignal}
-              className="min-w-0 lg:h-full"
-            />
-            {previewConversation ? (
-              <GroundTruthControl
-                conversationId={previewConversation.id}
-                groundTruth={previewConversation.groundTruth}
-                className="min-w-0 lg:h-full"
-              />
-            ) : null}
+        <div className="panel insights-review">
+          <div className="min-w-0 shrink-0 overflow-x-clip border-b border-sio-border-base bg-sio-bg-base">
+            <QueueColumnHeader />
+            {reviewChrome}
           </div>
-        ) : null}
+          {previewSignal ? (
+            <SignalReviewBody
+              key={previewSignal.id}
+              signal={previewSignal}
+              messages={previewMessages}
+              customerName={previewCustomerName ?? "Customer"}
+              conversation={previewConversation}
+              triage={reviewTriage}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -623,7 +620,7 @@ export function SignalQueue({
           )}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base">
+        <div className="panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="scroll-region min-h-0 flex-1">
             <QueueColumnHeader />
 
@@ -660,7 +657,7 @@ export function SignalQueue({
                         <Link
                           href={previewHref}
                           scroll={false}
-                          className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:max-w-full sm:px-2.5"
+                          className="btn-secondary min-h-11 w-full shrink-0 !rounded-full touch-manipulation md:h-8 md:min-h-0 md:max-w-full md:px-2.5"
                         >
                           Review
                         </Link>
@@ -693,7 +690,7 @@ function FilterMenuLink({
   return (
     <DropdownMenuItem
       asChild
-      className="h-8 min-h-8 cursor-pointer gap-2 rounded-md px-2 py-0"
+      className="h-11 min-h-11 cursor-pointer gap-2 rounded-md px-2 py-0 md:h-8 md:min-h-8"
     >
       <Link
         href={href}

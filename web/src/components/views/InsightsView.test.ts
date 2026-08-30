@@ -108,6 +108,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Conversation that needs your attention");
+    expect(html).toContain("Queue metrics");
     expect(html).toContain("Pending signal 1");
     expect(html).toContain("Pending signal 10");
     expect(html).not.toContain("No Signals Need Follow-Up");
@@ -340,5 +341,99 @@ describe("InsightsView Neon pending overlay", () => {
 
     expect(html).toContain("No Signals Yet");
     expect(html).not.toContain("Leftover Groww pending");
+  });
+});
+
+describe("InsightsView evidence-grounded review", () => {
+  it("shows the transcript and a Why This Fired jump on preview", () => {
+    const pending = makePendingSignals(1);
+    pending[0].conversationId = "conv_1";
+    pending[0].evidence = ['quote: "I want to close my account"'];
+    const store = storeFromSignals(pending);
+    store.conversations[0].messageIds = ["msg_1", "msg_2"];
+    store.messages = [
+      {
+        id: "msg_1",
+        conversationId: "conv_1",
+        role: "agent",
+        content: "How can I help?",
+        timestamp: "2026-08-01T00:00:00.000Z",
+      },
+      {
+        id: "msg_2",
+        conversationId: "conv_1",
+        role: "customer",
+        content: "I want to close my account",
+        timestamp: "2026-08-01T00:01:00.000Z",
+      },
+    ];
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: pending[0].id,
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("I want to close my account");
+    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Conversation");
+    expect(html).toContain("Feedback");
+    expect(html).toContain("insights-review-split");
+    expect(html).toContain('data-review-slot="transcript"');
+    expect(html).toContain("conversation-message-msg_2");
+    expect(html).toContain("Show in conversation:");
+    expect(html).toContain('data-evidence-match="true"');
+    expect(html).not.toContain("No messages stored");
+  });
+
+  it("shows honest empty transcript when the conversation has no messages", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: pending[0].id,
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("No messages stored");
+    expect(html).toContain("No invented");
+    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Feedback");
+    expect(html).toContain("insights-review-split");
   });
 });
