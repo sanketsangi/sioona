@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, type ReactNode } from "react";
+import { useMemo, useRef, type ComponentProps, type ReactNode } from "react";
 import { ArrowRight, CaretDown, CirclesThree } from "@phosphor-icons/react/ssr";
 import { FilterIcon } from "@/components/icons/FilterIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
@@ -12,6 +12,7 @@ import {
   SignalQueueRow,
   QUEUE_GRID,
   QUEUE_REVIEW_ACTION_CLASS,
+  QUEUE_ROW_CLASS,
 } from "@/components/SignalQueueRow";
 import {
   SignalReviewMissing,
@@ -19,15 +20,18 @@ import {
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import {
   formatScore,
@@ -231,7 +235,32 @@ function buildQueueHref(
   };
 }
 
-/** Shared empty / error chrome — keep the `panel flex flex-1…` class for tests. */
+/** Same Card chrome as InsightsQueueMetrics — sio radius, no elevation. */
+const QUEUE_CARD_CLASS =
+  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]";
+
+function QueueCard({
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Card>) {
+  return (
+    <Card size="sm" className={cn(QUEUE_CARD_CLASS, className)} {...props}>
+      {children}
+    </Card>
+  );
+}
+
+function QueueHeaderBlock() {
+  return (
+    <div className="hidden shrink-0 lg:block">
+      <QueueColumnHeader />
+      <Separator />
+    </div>
+  );
+}
+
+/** Shared empty / error chrome — Card shell (`data-slot="card"` for tests). */
 function QueueEmptyState({
   title,
   description,
@@ -244,35 +273,31 @@ function QueueEmptyState({
   alert?: boolean;
 }) {
   return (
-    <div
-      className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12"
-      role={alert ? "alert" : undefined}
-    >
-      <span
-        className="mb-4 inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
-        aria-hidden
-      >
-        <LayersIcon className="size-4" />
-      </span>
-      <p className="text-balance text-heading-16 text-sio-fg-base">{title}</p>
-      <div className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-        {typeof description === "string" ? <p>{description}</p> : description}
-      </div>
-      {children}
-    </div>
+    <QueueCard role={alert ? "alert" : undefined}>
+      <CardContent className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12">
+        <span
+          className="mb-4 inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
+          aria-hidden
+        >
+          <LayersIcon className="size-4" />
+        </span>
+        <p className="text-balance text-heading-16 text-sio-fg-base">{title}</p>
+        <div className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
+          {typeof description === "string" ? <p>{description}</p> : description}
+        </div>
+        {children}
+      </CardContent>
+    </QueueCard>
   );
 }
 
-const QUEUE_COL_HEADER = "text-label-12 font-medium text-sio-fg-subtle";
+const QUEUE_COL_HEADER = "truncate text-label-12 font-medium text-sio-fg-subtle";
 
-/** Sticky column labels — shared by queue list and review panel modes. */
+/** Column labels — shared by queue list and review panel modes. */
 function QueueColumnHeader() {
   return (
     <div
-      className={cn(
-        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-4 border-b border-sio-border-base bg-sio-bg-base px-4 lg:grid",
-        QUEUE_GRID,
-      )}
+      className={cn(QUEUE_ROW_CLASS, QUEUE_GRID, "h-10 bg-sio-bg-base")}
       role="row"
     >
       <span className={QUEUE_COL_HEADER} role="columnheader">
@@ -450,9 +475,9 @@ export function SignalQueue({
     return (
       <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
         {filterChrome}
-        <div className="panel insights-review">
-          <div className="min-w-0 shrink-0 overflow-x-clip border-b border-sio-border-base bg-sio-bg-base">
-            <QueueColumnHeader />
+        <QueueCard className="insights-review">
+          <div className="min-w-0 shrink-0 overflow-x-clip bg-sio-bg-base">
+            <QueueHeaderBlock />
             {reviewChrome}
           </div>
           {previewSignal ? (
@@ -465,7 +490,7 @@ export function SignalQueue({
               triage={reviewTriage}
             />
           ) : null}
-        </div>
+        </QueueCard>
       </div>
     );
   }
@@ -549,15 +574,18 @@ export function SignalQueue({
 
   if (pendingSignals.length === 0 && reviewedSignals.length === 0) {
     return (
-      <QueueEmptyState
-        title="No Signals Yet"
-        description="Upload chats or re-run detection to populate Shadow Mode."
-      >
-        <Link href={viewHref("upload")} className="btn-primary mt-4">
-          Upload Chats
-          <ArrowRight className="size-3.5" weight="bold" aria-hidden />
-        </Link>
-      </QueueEmptyState>
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {filterChrome}
+        <QueueEmptyState
+          title="No Signals Yet"
+          description="Upload chats or re-run detection to populate Shadow Mode."
+        >
+          <Link href={viewHref("upload")} className="btn-primary mt-4">
+            Upload Chats
+            <ArrowRight className="size-3.5" weight="bold" aria-hidden />
+          </Link>
+        </QueueEmptyState>
+      </div>
     );
   }
 
@@ -634,12 +662,11 @@ export function SignalQueue({
           )}
         </QueueEmptyState>
       ) : (
-        <div className="panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="scroll-region min-h-0 flex-1">
-            <QueueColumnHeader />
-
-            <ul className="flex flex-col divide-y divide-sio-border-base">
-              {filtered.map((signal) => {
+        <QueueCard>
+          <QueueHeaderBlock />
+          <CardContent className="scroll-region min-h-0 flex-1 p-0">
+            <ul className="flex flex-col">
+              {filtered.map((signal, index) => {
                 const score = formatScore(signal.score);
                 const typeLabel = signalTypeLabel(signal.type);
                 const statusText = signalReviewStatusLabel(signal);
@@ -662,6 +689,7 @@ export function SignalQueue({
                     data-queue-row
                     className="shrink-0"
                   >
+                    {index > 0 ? <Separator /> : null}
                     <SignalQueueRow
                       signal={signal}
                       customerName={customerName}
@@ -681,8 +709,8 @@ export function SignalQueue({
                 );
               })}
             </ul>
-          </div>
-        </div>
+          </CardContent>
+        </QueueCard>
       )}
     </div>
   );
@@ -768,7 +796,7 @@ function QueueFilters({
           sideOffset={8}
           className="w-56 min-w-56 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
         >
-          <DropdownMenuGroup className="border-b border-sio-border-base p-2">
+          <DropdownMenuGroup className="p-2">
             <DropdownMenuLabel>Status</DropdownMenuLabel>
             {STATUS_OPTIONS.map((option) => {
               const count =
@@ -805,6 +833,7 @@ function QueueFilters({
               );
             })}
           </DropdownMenuGroup>
+          <DropdownMenuSeparator className="m-0 bg-sio-border-base" />
           <DropdownMenuGroup className="p-2">
             <DropdownMenuLabel>Type</DropdownMenuLabel>
             {TYPE_OPTIONS.map((option) => (
