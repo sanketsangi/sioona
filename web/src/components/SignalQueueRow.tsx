@@ -20,11 +20,11 @@ export const QUEUE_GRID =
 
 /** Horizontal padding + gap shared by header and rows. */
 export const QUEUE_ROW_CLASS =
-  "grid min-w-0 w-full grid-cols-1 items-center gap-3 px-3 sm:px-4";
+  "grid min-w-0 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 sm:px-4";
 
-/** Quiet Review control — tertiary on desktop, full-width hit target on mobile. */
+/** Quiet Review control — hug-width tertiary; 44px on mobile, 32px on desktop. */
 export const QUEUE_REVIEW_ACTION_CLASS =
-  "btn-tertiary w-full shrink-0 touch-manipulation lg:h-8 lg:w-auto lg:max-w-full lg:px-2";
+  "btn-tertiary shrink-0 touch-manipulation lg:h-8 lg:px-2";
 
 type SignalQueueRowProps = {
   signal: Signal;
@@ -33,13 +33,14 @@ type SignalQueueRowProps = {
   previewHref?: string;
   previewAriaLabel?: string;
   action?: ReactNode;
-  /** When true, show full signal summary + evidence (review panel chrome). */
+  /** When true, show the review identity strip (not the queue table). */
   expandText?: boolean;
 };
 
 /**
- * Queue row chrome. Selection opens full-panel review via `?preview=`
- * (list rows swap for review body; column header stays).
+ * Queue row chrome. List rows open full-panel review via `?preview=`.
+ * `expandText` is the review identity strip — locked chips + summary,
+ * no table columns and no Review control.
  */
 export function SignalQueueRow({
   signal,
@@ -58,12 +59,47 @@ export function SignalQueueRow({
   );
   const summaryId = `signal-summary-${signal.id}`;
 
-  const summaryClass = expandText
-    ? "break-words text-pretty text-copy-14 font-medium text-sio-fg-base"
-    : "truncate text-copy-14 font-medium text-sio-fg-base";
-  const evidenceClass = expandText
-    ? "break-words text-pretty text-copy-14 text-sio-fg-subtle"
-    : "truncate text-copy-14 text-sio-fg-subtle";
+  if (expandText) {
+    return (
+      <div
+        className="flex flex-col bg-sio-bg-base"
+        data-selected={selected ? "true" : undefined}
+        data-expand-text="true"
+        aria-current={selected ? "true" : undefined}
+      >
+        <div className="flex min-w-0 flex-col gap-2.5 px-3 py-3 sm:px-4">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <SignalUser
+              name={customerName}
+              size={32}
+              showName
+              className="min-w-0"
+            />
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+              <SignalStatus signal={signal} className="max-w-full" />
+              <SignalScoreChip score={signal.score} />
+              <SignalTypeChip type={signal.type} />
+            </div>
+          </div>
+          <p
+            id={summaryId}
+            className="break-words text-pretty text-copy-14 font-medium text-sio-fg-base"
+            translate="no"
+          >
+            {signalText || "No summary available"}
+          </p>
+          {quote ? (
+            <p className="break-words text-pretty text-copy-14 text-sio-fg-subtle">
+              {evidencePrimary}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const summaryClass = "truncate text-copy-14 font-medium text-sio-fg-base";
+  const evidenceClass = "truncate text-copy-14 text-sio-fg-subtle";
 
   const dataCells = (
     <>
@@ -78,12 +114,12 @@ export function SignalQueueRow({
           <p id={summaryId} className={summaryClass} translate="no">
             {signalText || "No summary available"}
           </p>
-          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5 lg:hidden">
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 lg:hidden">
             <SignalStatus signal={signal} className="max-w-full" />
             <SignalScoreChip score={signal.score} />
             <SignalTypeChip type={signal.type} />
           </div>
-          <p className={cn("mt-2 lg:hidden", evidenceClass)}>
+          <p className={cn("mt-1.5 lg:hidden", evidenceClass)}>
             {evidencePrimary}
           </p>
         </div>
@@ -111,9 +147,9 @@ export function SignalQueueRow({
     <div
       className="list-row flex flex-col"
       data-selected={selected ? "true" : undefined}
-      data-expand-text={expandText ? "true" : undefined}
+      aria-current={selected ? "true" : undefined}
     >
-      <div className={cn(QUEUE_ROW_CLASS, QUEUE_GRID, "py-2.5 lg:py-2")}>
+      <div className={cn(QUEUE_ROW_CLASS, QUEUE_GRID, "py-2.5")}>
         {previewHref ? (
           <Link
             href={previewHref}
@@ -128,7 +164,7 @@ export function SignalQueueRow({
         )}
 
         {action ? (
-          <div className="flex min-w-0 w-full items-center justify-start">
+          <div className="flex shrink-0 items-start self-start lg:items-center lg:self-center">
             {action}
           </div>
         ) : (

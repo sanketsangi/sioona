@@ -463,7 +463,6 @@ export function SignalQueue({
         {filterChrome}
         <QueueCard className="min-w-0 shrink-0 overflow-hidden">
           <div className="min-w-0 overflow-x-clip bg-sio-bg-base">
-            <QueueHeaderBlock />
             {reviewChrome}
           </div>
         </QueueCard>

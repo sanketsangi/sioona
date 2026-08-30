@@ -3,7 +3,7 @@ import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
 import { CircleArrowIcon } from "@/components/icons/CircleArrowIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
-import { EvalCard, evalCardPadClassName } from "@/components/EvalCard";
+import { EvalCard, evalMetricCellClassName } from "@/components/EvalCard";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { CardContent } from "@/components/ui/card";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
@@ -130,8 +130,8 @@ function MetricCell({
   return (
     <div
       className={cn(
-        evalCardPadClassName,
-        "flex min-w-0 flex-col gap-3 py-3 sm:py-4",
+        evalMetricCellClassName,
+        "flex min-w-0 flex-col gap-2",
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -141,12 +141,12 @@ function MetricCell({
         >
           {icon}
         </span>
-        <h3 className="truncate text-label-13 font-semibold text-sio-fg-base">
+        <h3 className="truncate text-label-12 font-medium text-sio-fg-subtle">
           {title}
         </h3>
       </div>
-      <p className="tabular text-heading-20 text-sio-fg-base">{value}</p>
-      {compare ? <div className="mt-auto min-w-0 pt-1">{compare}</div> : null}
+      <p className="tabular text-heading-16 text-sio-fg-base">{value}</p>
+      {compare ? <div className="min-w-0">{compare}</div> : null}
     </div>
   );
 }

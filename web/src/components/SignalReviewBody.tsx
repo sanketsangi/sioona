@@ -23,10 +23,10 @@ type SignalReviewBodyProps = {
 };
 
 /**
- * Insights review body: Conversation and review rail as sibling
- * containers (not one shared panel shell). Narrow stacks Conversation
- * then rail (Why → Feedback); wide is ~50% | ~50%.
- * Highlight resets when `signal.id` changes (parent should key this).
+ * Insights review body: Conversation well and review rail as sibling
+ * cards (gap-4). Narrow stacks Why → Conversation → Feedback; wide is
+ * ~50% | ~50%. Highlight resets when `signal.id` changes (parent should
+ * key this).
  */
 export function SignalReviewBody({
   signal,

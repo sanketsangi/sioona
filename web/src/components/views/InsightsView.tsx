@@ -402,36 +402,44 @@ export function InsightsView({
         }
         review={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 {breadcrumbPageLabel ? (
-                  <Breadcrumb
-                    aria-label="Insights review"
-                    className="scroll-mt-4"
-                  >
-                    <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2.5">
-                      <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                          <Link
-                            href={backToQueueHref}
-                            scroll={false}
-                            className="rounded-[var(--radius-control)] font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
+                  <div className="min-w-0">
+                    <Breadcrumb
+                      aria-label="Insights review"
+                      className="scroll-mt-4"
+                    >
+                      <BreadcrumbList className="text-label-13 sm:gap-1.5">
+                        <BreadcrumbItem>
+                          <BreadcrumbLink asChild>
+                            <Link
+                              href={backToQueueHref}
+                              scroll={false}
+                              className="rounded-[var(--radius-control)] text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
+                            >
+                              Insights Queue
+                            </Link>
+                          </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3" />
+                        <BreadcrumbItem>
+                          <BreadcrumbPage
+                            className="max-w-[min(16rem,calc(100vw-8rem))] truncate text-sio-fg-subtle sm:max-w-xs"
+                            translate="no"
                           >
-                            Insights Queue
-                          </Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage
-                          className="max-w-[min(16rem,calc(100vw-8rem))] truncate font-medium text-sio-fg-base sm:max-w-xs"
-                          translate="no"
-                        >
-                          {breadcrumbPageLabel}
-                        </BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
+                            {breadcrumbPageLabel}
+                          </BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </BreadcrumbList>
+                    </Breadcrumb>
+                    <h2
+                      className="mt-1 truncate text-balance text-heading-20 text-sio-fg-base"
+                      translate="no"
+                    >
+                      {breadcrumbPageLabel}
+                    </h2>
+                  </div>
                 ) : (
                   <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                     Insights Queue
