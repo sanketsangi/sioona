@@ -162,7 +162,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-30, this tree):** conversation / next-action pair (counts after verify). Prior on this branch: web **447** passed / **5** skipped; backend **60** passed. Overlay-by-id + Eval keep-set ∪ overlay. Not a hosted deploy.
+- **Tests status (2026-08-30, this tree):** web **471** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip). Conversation / next-action pair. Not a hosted deploy. Prior on this branch: web 447 / backend 60.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
