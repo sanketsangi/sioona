@@ -46,7 +46,6 @@ import {
   parseView,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
-  statusQueryValue,
   type PlatformView,
 } from "@/lib/views";
 
@@ -222,31 +221,10 @@ export default async function PlatformPage({
     pendingCount,
     followUpCount: followUp.length,
   });
+  const statusOmitted =
+    typeof sp.status !== "string" || sp.status === "";
   const typeFilter = parseTypeFilter(sp.type);
   const page = parsePage(sp.page);
-
-  if (view === "insights" && !previewId) {
-    const expectedStatus = statusQueryValue(statusFilter, workspaceMode);
-    const currentStatus =
-      typeof sp.status === "string" && sp.status !== "" ? sp.status : null;
-    const statusMatches =
-      currentStatus === expectedStatus ||
-      (currentStatus === "reviewed" && expectedStatus === "followup");
-    if (!statusMatches) {
-      const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(sp)) {
-        if (key === "status") continue;
-        if (typeof value === "string" && value !== "") {
-          params.set(key, value);
-        }
-      }
-      params.set("view", "insights");
-      if (expectedStatus != null) {
-        params.set("status", expectedStatus);
-      }
-      redirect(`/?${params.toString()}`);
-    }
-  }
 
   return (
     <AppShell
@@ -263,6 +241,7 @@ export default async function PlatformPage({
           importedCount={importedCount}
           newSignalCount={newSignalCount}
           statusFilter={statusFilter}
+          statusOmitted={statusOmitted}
           typeFilter={typeFilter}
           page={page}
           previewId={previewId}

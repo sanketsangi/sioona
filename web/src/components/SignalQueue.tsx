@@ -13,13 +13,11 @@ import {
   QUEUE_GRID,
   QUEUE_REVIEW_ACTION_CLASS,
 } from "@/components/SignalQueueRow";
-import { FeedbackControls } from "@/components/FeedbackControls";
-import { GroundTruthControl } from "@/components/GroundTruthControl";
 import {
   SignalReviewMissing,
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
-import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
+import { SignalReviewBody } from "@/components/SignalReviewBody";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -40,12 +38,19 @@ import {
 import {
   statusQueryValue,
   viewHref,
+  type SignalReviewTriage,
   type StatusFilter,
   type TypeFilter,
   type WorkspaceMode,
 } from "@/lib/views";
+import {
+  FOLLOWUP_UNAVAILABLE_PANEL_BODY,
+  FOLLOWUP_UNAVAILABLE_PANEL_TITLE,
+  QUEUE_UNAVAILABLE_PANEL_BODY,
+  QUEUE_UNAVAILABLE_PANEL_TITLE,
+} from "@/lib/backend-wake";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
-import type { Conversation, Signal } from "@/lib/types";
+import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type InsightsMode = "list" | "review";
@@ -178,6 +183,8 @@ type SignalQueueProps = {
   customerNames?: Record<string, string>;
   /** conversationId → conversation for Ground Truth in review panel. */
   conversationsById?: Record<string, Conversation>;
+  /** conversationId → messages for in-queue transcript + evidence jump. */
+  messagesByConversationId?: Record<string, Message[]>;
   /** Set when FastAPI needs-review could not be loaded. */
   queueError?: string | null;
   /** Set when FastAPI GET /signals could not be loaded. */
@@ -197,6 +204,8 @@ type SignalQueueProps = {
   followUpEmpty?: EmptyNext | null;
   /** Done-empty next step → Needs Follow-Up. */
   doneEmpty?: EmptyNext | null;
+  /** Pending triage — auto-advance after feedback on needs-review panels. */
+  reviewTriage?: SignalReviewTriage;
 };
 
 function buildQueueHref(
@@ -261,7 +270,7 @@ function QueueColumnHeader() {
   return (
     <div
       className={cn(
-        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-4 border-b border-sio-border-base bg-sio-bg-base px-4 sm:grid",
+        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-4 border-b border-sio-border-base bg-sio-bg-base px-4 lg:grid",
         QUEUE_GRID,
       )}
       role="row"
@@ -281,7 +290,7 @@ function QueueColumnHeader() {
       <span className={QUEUE_COL_HEADER} role="columnheader">
         Type
       </span>
-      <span className={cn("hidden lg:block", QUEUE_COL_HEADER)} role="columnheader">
+      <span className={cn("hidden xl:block", QUEUE_COL_HEADER)} role="columnheader">
         Evidence
       </span>
       <span className={cn("text-left", QUEUE_COL_HEADER)} role="columnheader">
@@ -354,6 +363,7 @@ export function SignalQueue({
   reviewedSignals,
   customerNames = {},
   conversationsById = {},
+  messagesByConversationId = {},
   queueError = null,
   tenantSignalsError = null,
   statusFilter = "all",
@@ -365,6 +375,7 @@ export function SignalQueue({
   pendingClear = null,
   followUpEmpty = null,
   doneEmpty = null,
+  reviewTriage,
 }: SignalQueueProps) {
   const {
     pendingCount,
@@ -421,6 +432,9 @@ export function SignalQueue({
           previewSignal.summary || "",
         )
       : null;
+    const previewMessages = previewSignal
+      ? (messagesByConversationId[previewSignal.conversationId] ?? [])
+      : [];
     const reviewChrome = previewSignal ? (
       <SignalReviewPanel
         signal={previewSignal}
@@ -434,35 +448,24 @@ export function SignalQueue({
     );
 
     return (
-      <div className="scroll-region flex h-full min-h-0 flex-1 flex-col gap-4">
+      <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
         {filterChrome}
-        <div className="panel shrink-0 overflow-hidden">
-          <QueueColumnHeader />
-          {reviewChrome}
-        </div>
-        {previewSignal ? (
-          <div
-            id={`signal-review-body-${previewSignal.id}`}
-            className="grid min-w-0 shrink-0 grid-cols-1 gap-4 lg:grid-cols-2"
-            aria-labelledby={`signal-review-heading-${previewSignal.id}`}
-          >
-            <SignalReviewSuggestedAction
-              signal={previewSignal}
-              className="min-w-0 lg:col-span-2"
-            />
-            <FeedbackControls
-              signal={previewSignal}
-              className="min-w-0 lg:h-full"
-            />
-            {previewConversation ? (
-              <GroundTruthControl
-                conversationId={previewConversation.id}
-                groundTruth={previewConversation.groundTruth}
-                className="min-w-0 lg:h-full"
-              />
-            ) : null}
+        <div className="panel insights-review">
+          <div className="min-w-0 shrink-0 overflow-x-clip border-b border-sio-border-base bg-sio-bg-base">
+            <QueueColumnHeader />
+            {reviewChrome}
           </div>
-        ) : null}
+          {previewSignal ? (
+            <SignalReviewBody
+              key={previewSignal.id}
+              signal={previewSignal}
+              messages={previewMessages}
+              customerName={previewCustomerName ?? "Customer"}
+              conversation={previewConversation}
+              triage={reviewTriage}
+            />
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -482,13 +485,10 @@ export function SignalQueue({
         {filterChrome}
         <QueueEmptyState
           alert
-          title="Needs-Review Queue Unavailable"
+          title={QUEUE_UNAVAILABLE_PANEL_TITLE}
           description={
             <>
-              <p>
-                Signal Score backend unavailable — needs-review queue cannot load
-                from Neon. Start FastAPI and refresh.
-              </p>
+              <p>{QUEUE_UNAVAILABLE_PANEL_BODY}</p>
               {queueError ? (
                 <p className="mt-2 break-words text-label-12 text-sio-fg-muted">
                   {queueError}
@@ -519,13 +519,10 @@ export function SignalQueue({
         {filterChrome}
         <QueueEmptyState
           alert
-          title="Follow-Up Queue Unavailable"
+          title={FOLLOWUP_UNAVAILABLE_PANEL_TITLE}
           description={
             <>
-              <p>
-                Signal Score backend unavailable — Follow-Up and Done cannot load
-                from Neon. Start FastAPI and refresh.
-              </p>
+              <p>{FOLLOWUP_UNAVAILABLE_PANEL_BODY}</p>
               {tenantSignalsError ? (
                 <p className="mt-2 break-words text-label-12 text-sio-fg-muted">
                   {tenantSignalsError}
@@ -637,7 +634,7 @@ export function SignalQueue({
           )}
         </QueueEmptyState>
       ) : (
-        <div className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="panel flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <div className="scroll-region min-h-0 flex-1">
             <QueueColumnHeader />
 
@@ -707,7 +704,7 @@ function FilterMenuLink({
   return (
     <DropdownMenuItem
       asChild
-      className="h-8 min-h-8 cursor-pointer gap-2 rounded-md px-2 py-0"
+      className="h-11 min-h-11 cursor-pointer gap-2 rounded-md px-2 py-0 md:h-8 md:min-h-8"
     >
       <Link
         href={href}

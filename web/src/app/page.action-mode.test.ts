@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { StoreData } from "@/lib/types";
 
 const redirect = vi.fn((url: string) => {
@@ -67,6 +67,7 @@ vi.mock("@/lib/views", async () => {
 });
 
 import PlatformPage from "./page";
+import { InsightsView } from "@/components/views/InsightsView";
 import { readStore } from "@/lib/store";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
@@ -84,6 +85,35 @@ function mockStore(): StoreData {
     signals: [],
     pilot: { baselineOpportunities: 0 },
   };
+}
+
+/** Walk SSR element tree for InsightsView props (components are not invoked). */
+function findInsightsViewProps(
+  node: ReactNode,
+): { statusFilter?: string; statusOmitted?: boolean } | null {
+  if (node == null || typeof node !== "object") return null;
+  if (Array.isArray(node)) {
+    for (const child of node) {
+      const found = findInsightsViewProps(child);
+      if (found) return found;
+    }
+    return null;
+  }
+  const el = node as ReactElement<{
+    children?: ReactNode;
+    statusFilter?: string;
+    statusOmitted?: boolean;
+  }>;
+  if (el.type === InsightsView) {
+    return {
+      statusFilter: el.props.statusFilter,
+      statusOmitted: el.props.statusOmitted,
+    };
+  }
+  if (el.props?.children != null) {
+    return findInsightsViewProps(el.props.children);
+  }
+  return null;
 }
 
 describe("PlatformPage Action Mode lock bounce", () => {
@@ -198,14 +228,16 @@ describe("PlatformPage Insights pending landing", () => {
     vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
   });
 
-  it("redirects omitted status to status=new when Pending > 0 and Follow-up empty", async () => {
-    await expect(
-      PlatformPage({
-        searchParams: Promise.resolve({ view: "insights" }),
-      })
-    ).rejects.toThrow("NEXT_REDIRECT:/");
+  it("renders Pending on first SSR when status omitted and Follow-up empty (no redirect)", async () => {
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    })) as ReactElement;
 
-    expect(redirect).toHaveBeenCalledWith("/?view=insights&status=new");
+    expect(redirect).not.toHaveBeenCalled();
+    expect(result).toBeTruthy();
+    const props = findInsightsViewProps(result);
+    expect(props?.statusFilter).toBe("new");
+    expect(props?.statusOmitted).toBe(true);
   });
 
   it("does not redirect explicit status=followup (compact empty path)", async () => {
@@ -218,6 +250,9 @@ describe("PlatformPage Insights pending landing", () => {
 
     expect(redirect).not.toHaveBeenCalled();
     expect(result).toBeTruthy();
+    const props = findInsightsViewProps(result);
+    expect(props?.statusFilter).toBe("followup");
+    expect(props?.statusOmitted).toBe(false);
   });
 
   it("does not redirect when already on status=new", async () => {
@@ -230,5 +265,8 @@ describe("PlatformPage Insights pending landing", () => {
 
     expect(redirect).not.toHaveBeenCalled();
     expect(result).toBeTruthy();
+    const props = findInsightsViewProps(result);
+    expect(props?.statusFilter).toBe("new");
+    expect(props?.statusOmitted).toBe(false);
   });
 });

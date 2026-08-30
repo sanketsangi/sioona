@@ -2,21 +2,34 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, type ComponentType } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
 import { GoodIcon } from "@/components/icons/GoodIcon";
 import { WarningIcon } from "@/components/icons/WarningIcon";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { emitFeedbackSaved } from "@/lib/feedback-saved";
-import { viewHref } from "@/lib/views";
+import {
+  feedbackLabelForShortcutKey,
+  isEditableShortcutTarget,
+} from "@/lib/review-triage";
+import { postSignalFeedback } from "@/lib/signal-feedback-client";
 import type { FeedbackLabel, Signal } from "@/lib/types";
+import { afterFeedbackHref, viewHref, type SignalReviewTriage } from "@/lib/views";
 import { cn } from "@/lib/utils";
 
 const options: {
   label: FeedbackLabel;
   title: string;
   hint: string;
+  shortcut: string;
   primary?: boolean;
   Icon: ComponentType<{ className?: string }>;
 }[] = [
@@ -24,6 +37,7 @@ const options: {
     label: "correct",
     title: "Correct",
     hint: "Signal is correct and useful",
+    shortcut: "C",
     primary: true,
     Icon: GoodIcon,
   },
@@ -31,12 +45,14 @@ const options: {
     label: "incorrect",
     title: "Incorrect",
     hint: "Not a real opportunity",
+    shortcut: "I",
     Icon: CrossCircleIcon,
   },
   {
     label: "partially_correct",
     title: "Partially Correct",
     hint: "Right-ish signal, bad rationale",
+    shortcut: "P",
     Icon: WarningIcon,
   },
 ];
@@ -51,14 +67,16 @@ const FEEDBACK_CHIP: Record<FeedbackLabel | "pending", string> = {
 
 export function FeedbackControls({
   signal,
+  triage,
   className,
 }: {
   signal: Signal;
+  triage?: SignalReviewTriage;
   className?: string;
 }) {
   const router = useRouter();
+  const panelRef = useRef<HTMLElement>(null);
   const headingId = useId();
-  const noteRef = useRef<HTMLInputElement>(null);
   const initialNote = signal.feedback?.note ?? "";
   const [note, setNote] = useState(initialNote);
   const [pending, setPending] = useState<FeedbackLabel | null>(null);
@@ -73,6 +91,7 @@ export function FeedbackControls({
   const currentTitle =
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
+  const canAdvance = Boolean(triage?.isPendingReview && !signal.feedback);
 
   useEffect(() => {
     if (!dirty) return;
@@ -84,46 +103,61 @@ export function FeedbackControls({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  async function submit(label: FeedbackLabel) {
-    setPending(label);
-    setError(null);
-    try {
-      const res = await fetch(`/api/signals/${signal.id}/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label,
-          note: note.trim() || undefined,
-          // Hosted /tmp drift: API resolves by Neon UUID or conversation+type
-          // when the JSON signal id from this card is missing on the instance.
-          ...(signal.backendSignalId
-            ? { backendSignalId: signal.backendSignalId }
-            : {}),
-          conversationId: signal.conversationId,
-          type: signal.type,
-          confidence: signal.confidence,
-          summary: signal.summary,
-        }),
-      });
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        if (res.status === 503) {
-          throw new Error(
-            data.error ||
-              "Signal Score backend unavailable — feedback not saved",
-          );
+  const submit = useCallback(
+    async (label: FeedbackLabel) => {
+      const wasPending = !signal.feedback;
+      setPending(label);
+      setError(null);
+      try {
+        await postSignalFeedback(signal, label, note);
+        setJustSaved(label);
+        emitFeedbackSaved(signal.id);
+
+        const advanceHref =
+          triage?.isPendingReview && wasPending
+            ? afterFeedbackHref({
+                wasPending: true,
+                nextPendingPreviewId: triage.nextPendingPreviewId,
+                scoreFrom: triage.scoreFrom,
+                mode: triage.mode,
+              })
+            : null;
+
+        if (advanceHref) {
+          router.push(advanceHref, { scroll: false });
+        } else {
+          router.refresh();
         }
-        throw new Error(data.error || "Failed to save feedback");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to save feedback");
+      } finally {
+        setPending(null);
       }
-      setJustSaved(label);
-      emitFeedbackSaved(signal.id);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save feedback");
-    } finally {
-      setPending(null);
-    }
-  }
+    },
+    [note, router, signal, triage],
+  );
+
+  useEffect(() => {
+    const keyboardRoot =
+      panelRef.current?.closest("[data-review-keyboard-root]") ??
+      panelRef.current;
+    if (!keyboardRoot) return;
+    const el: Element = keyboardRoot;
+
+    const onKeyDown = (e: Event) => {
+      if (!(e instanceof KeyboardEvent)) return;
+      if (pending !== null || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!el.contains(e.target as Node)) return;
+      if (isEditableShortcutTarget(e.target)) return;
+      const label = feedbackLabelForShortcutKey(e.key);
+      if (!label) return;
+      e.preventDefault();
+      void submit(label);
+    };
+
+    el.addEventListener("keydown", onKeyDown);
+    return () => el.removeEventListener("keydown", onKeyDown);
+  }, [pending, submit]);
 
   function onNoteKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
@@ -134,7 +168,8 @@ export function FeedbackControls({
 
   return (
     <section
-      className={cn("metric-strip flex flex-col", className)}
+      ref={panelRef}
+      className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
@@ -157,8 +192,9 @@ export function FeedbackControls({
 
       <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
         <p className="text-label-12 text-sio-fg-muted">
-          Mark Correct, Incorrect, or Partially Correct. Saves to Neon. Enter →
-          Correct.
+          {canAdvance
+            ? "C / I / P shortcuts · Enter → Correct · saves and opens next pending."
+            : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
         </p>
         <p className="sr-only" aria-live="polite">
           {justSaved
@@ -169,7 +205,6 @@ export function FeedbackControls({
         <label className="mt-2.5 block">
           <span className="sr-only">Optional note</span>
           <input
-            ref={noteRef}
             type="text"
             name="feedbackNote"
             autoComplete="off"
@@ -182,7 +217,7 @@ export function FeedbackControls({
         </label>
 
         <div
-          className="mt-2.5 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3"
+          className="mt-2.5 grid grid-cols-3 gap-2"
           role="group"
           aria-label="Feedback actions"
         >
@@ -193,10 +228,11 @@ export function FeedbackControls({
               <button
                 key={option.label}
                 type="button"
-                title={option.hint}
+                title={`${option.hint} (${option.shortcut})`}
                 disabled={busy}
                 aria-busy={pending === option.label}
                 aria-pressed={isCurrent}
+                aria-keyshortcuts={option.shortcut}
                 onClick={() => void submit(option.label)}
                 className={cn(
                   "w-full min-w-0",

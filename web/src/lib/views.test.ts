@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   actionModeHref,
+  afterFeedbackHref,
   afterMarkActedHref,
   cadenceActionHref,
+  nextPendingPreviewId,
   parseMode,
   parseStatusFilter,
   resolveInsightsStatusFilter,
@@ -176,6 +178,62 @@ describe("cadenceActionHref", () => {
     expect(
       cadenceActionHref({ id: "acted", label: "Mark Acted on Correct reviews" })
     ).toBe("/?view=insights&status=followup");
+  });
+});
+
+describe("nextPendingPreviewId", () => {
+  const pending = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("returns the next id and wraps", () => {
+    expect(nextPendingPreviewId(pending, "a")).toBe("b");
+    expect(nextPendingPreviewId(pending, "b")).toBe("c");
+    expect(nextPendingPreviewId(pending, "c")).toBe("a");
+  });
+
+  it("returns null when only one pending remains", () => {
+    expect(nextPendingPreviewId([{ id: "solo" }], "solo")).toBeNull();
+  });
+});
+
+describe("afterFeedbackHref", () => {
+  it("opens the next pending review after feedback on needs-review", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        nextPendingPreviewId: "sig_next",
+        scoreFrom: "2026-08-17",
+      }),
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=new&preview=sig_next",
+    );
+  });
+
+  it("returns the Pending list when no pending remain", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        nextPendingPreviewId: null,
+      }),
+    ).toBe("/?view=insights&status=new");
+  });
+
+  it("preserves mode=action on advance", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        nextPendingPreviewId: "sig_next",
+        mode: "action",
+      }),
+    ).toBe("/?view=insights&mode=action&status=new&preview=sig_next");
+  });
+
+  it("stays on the panel when re-editing reviewed feedback", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: false,
+        nextPendingPreviewId: "sig_next",
+      }),
+    ).toBeNull();
   });
 });
 

@@ -63,7 +63,7 @@ function FoundVsTotal({ found, total }: { found: number; total: number }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 tabular text-label-12 font-medium",
+        "inline-flex min-w-0 items-center gap-1 tabular text-label-12 font-medium",
         tone,
       )}
     >
@@ -101,7 +101,7 @@ function SignalStatusCounts({
       {REVIEW_STATUS_ORDER.map((label) => (
         <li
           key={label}
-          className="inline-flex min-w-0 items-center gap-1.5 text-label-12"
+          className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-label-12"
         >
           <StatusDot label state={REVIEW_STATUS_STATE[label]}>
             {label}
@@ -128,7 +128,7 @@ function MetricCell({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-3 px-4 py-4">
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <span
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
           aria-hidden
@@ -146,7 +146,7 @@ function MetricCell({
 }
 
 /**
- * Keep-set snapshot under the Insights queue Note — coverage, signals,
+ * Keep-set snapshot under the Insights queue heading — coverage, signals,
  * and pending needs-review depth (not Eval SignalScore / go-no-go).
  */
 export function InsightsQueueMetrics({
@@ -179,7 +179,10 @@ export function InsightsQueueMetrics({
   }
 
   return (
-    <section aria-label="Queue metrics" className={cn("shrink-0", className)}>
+    <section
+      aria-label="Queue metrics"
+      className={cn("shrink-0 overflow-x-clip", className)}
+    >
       <Card
         size="sm"
         className="gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"

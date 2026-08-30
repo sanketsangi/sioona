@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
@@ -40,6 +41,7 @@ import {
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
+import { buildSignalReviewTriage } from "@/lib/review-triage";
 import {
   cadenceActionHref,
   statusQueryValue,
@@ -69,28 +71,13 @@ function resolveCustomerName(
   return "Customer";
 }
 
-/** Next pending id after `currentId` (wraps; excludes current). */
-function nextPendingId(
-  pending: { id: string }[],
-  currentId: string,
-): string | null {
-  const n = pending.length;
-  if (n === 0) return null;
-  const start = pending.findIndex((s) => s.id === currentId);
-  const from = start >= 0 ? start : 0;
-  for (let i = 1; i <= n; i++) {
-    const signal = pending[(from + i) % n];
-    if (signal.id !== currentId) return signal.id;
-  }
-  return null;
-}
-
 export function InsightsView({
   store,
   demo,
   importedCount,
   newSignalCount,
   statusFilter,
+  statusOmitted = false,
   typeFilter,
   page,
   previewId = null,
@@ -111,6 +98,8 @@ export function InsightsView({
   importedCount?: number | null;
   newSignalCount?: number | null;
   statusFilter: StatusFilter;
+  /** Request URL omitted `status` — client may canonicalize via replaceState. */
+  statusOmitted?: boolean;
   typeFilter: TypeFilter;
   page: number;
   previewId?: string | null;
@@ -272,11 +261,20 @@ export function InsightsView({
           label: "Review Pending",
         }
       : pendingClear;
+  const previewTriage = previewSignal
+    ? buildSignalReviewTriage({
+        pendingSignals,
+        previewSignal,
+        scoreFrom,
+        mode: workspaceMode,
+      })
+    : null;
   const queueProps = {
     pendingSignals,
     reviewedSignals,
     customerNames,
     conversationsById,
+    messagesByConversationId,
     queueError,
     tenantSignalsError,
     statusFilter,
@@ -292,10 +290,16 @@ export function InsightsView({
       href: followUpHref,
       label: "Needs Follow-Up",
     },
+    reviewTriage: previewTriage ?? undefined,
   };
 
   return (
     <ViewFrame>
+      <CanonicalizeInsightsStatus
+        statusFilter={statusFilter}
+        workspaceMode={workspaceMode}
+        statusOmitted={statusOmitted}
+      />
       <ClearStaleSyncFailedParams shouldClear={staleSyncFailedParam} />
       {showImportBanner ? (
         <div className="scroll-region flex max-h-[30%] shrink-0 flex-col gap-2.5 lg:max-h-[40%]">
@@ -337,8 +341,8 @@ export function InsightsView({
         mode={reviewOpen ? "review" : "list"}
         reviewKey={reviewOpen ? previewId : null}
         list={
-          <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
-            <div className="flex shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                   Conversation that needs your attention
@@ -370,7 +374,7 @@ export function InsightsView({
               ]}
               pendingSignals={pendingSignals}
             />
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <SignalQueue
                 {...queueProps}
                 previewId={reviewOpen ? null : previewId}
@@ -379,8 +383,8 @@ export function InsightsView({
           </div>
         }
         review={
-          <div className="flex h-full min-h-0 flex-1 flex-col gap-4">
-            <div className="flex shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 {breadcrumbPageLabel ? (
                   <Breadcrumb
@@ -432,10 +436,9 @@ export function InsightsView({
                         reviewedSignals,
                         previewSignal.id,
                       )}
-                      nextPendingPreviewId={nextPendingId(
-                        pendingSignals,
-                        previewSignal.id,
-                      )}
+                      nextPendingPreviewId={
+                        previewTriage?.nextPendingPreviewId ?? null
+                      }
                       statusFilter={statusFilter}
                       scoreFrom={scoreFrom}
                       mode={workspaceMode}
@@ -444,7 +447,7 @@ export function InsightsView({
                 ) : null}
               </div>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <SignalQueue {...queueProps} previewId={previewId} />
             </div>
           </div>
