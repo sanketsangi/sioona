@@ -12,7 +12,7 @@ Pending SoT is FastAPI `GET …/signals/needs-review`. Follow-up / Done SoT is `
 1. Join Neon needs-review to JSON (`backendSignalId`, else conversation + type).
 2. Keep unmatched Neon rows as `sig_neon_*` stubs.
 3. Append JSON unreviewed rows Neon missed.
-4. **Drop stubs whose conversation is missing** from JSON store **and** request-scoped overlay (`filterPendingWithChat`). Overlay chats via `fetchOverlayConversations` + `missingConversationIds` — include pending ids, not only reviewed.
+4. **Drop stubs whose conversation is missing** from JSON store **and** request-scoped overlay (`filterPendingWithChat`). Overlay chats via `fetchOverlayConversations` + `missingConversationIds` — include pending ids, not only reviewed. Overlay `GET`s only those ids (`conversation_id` query), not the full tenant list. Insights and Eval both fetch overlay so keep-set SignalScore includes stub chats.
 5. Fill stub evidence / action from overlay (`applyChatEvidenceToSignals`).
 
 Stale Partner Demo pack ids (Groww leftovers vs Zerodha JSON) stay hidden: no overlay chat → omit. `/tmp` wipe with Neon chats still present → stub + overlay → reviewable.

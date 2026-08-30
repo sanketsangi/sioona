@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-29  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/render-cold-start-queue-wake-cc60` (Render wake + partner-safe queue miss; base `main` = `8825925` / #57)
+**Branch:** `cursor/render-cold-start-queue-wake-cc60` (Render wake + partner-safe queue miss; base `main` = `62fcb12` / #59)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -18,7 +18,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-21):** Week-3 real partner CSV upsert **closed** on shared Neon (localhost ingest → FastAPI). Count **4→5**. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-29):** Render free-tier sleep was emptying Insights on first load (10s GET timeout). Shipped one automatic `/api/backend-health` wake + refresh on `queue-unavailable` / `score-unavailable`, plus partner-safe queue-miss copy. Eval keep-set ∪ overlay from #57 is already on `main`. Not Detect / not Auth0 / not a keep-set go.
+**This pass (code, 2026-08-29):** Render free-tier sleep was emptying Insights on first load (10s GET timeout). Shipped one automatic `/api/backend-health` wake + refresh on `queue-unavailable` / `score-unavailable`, plus partner-safe queue-miss copy. Overlay-by-id (#59) and Eval keep-set ∪ overlay (#57) are already on `main`. Not Detect / not Auth0 / not a keep-set go.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
@@ -139,6 +139,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Partner Demo Groww overwrite guard **shipped 2026-08-21** — ingest 409 + UploadForm Confirm Replace when last upload is `Zerodha_batch_02`; Day-1 Groww/Reset replace unchanged
 - Groq $20 spend cap **skipped**; unused Render `sioona` **deleted**
 - Insights pending overlay **shipped 2026-08-29** — Neon needs-review stubs kept when store/overlay has the chat; stale pack ids without chat still omitted; overlay fetch includes pending ids. Skill `.cursor/skills/insights-queue-join/SKILL.md`. Not a keep-set go / not wipe
+- Insights overlay by conversation id **shipped 2026-08-29** (#59) — `GET …/conversations?conversation_id=` keep-set (not full tenant list). Insights + Eval still fetch overlay so #57 keep-set SignalScore includes stub chats. Not a keep-set go / not wipe
 - Render free-tier wake **this pass (2026-08-29)** — `QueueWakeRetry` on `queue-unavailable` / `score-unavailable`; BFF `/api/backend-health`; Insights error panels drop “Start FastAPI”. Not a keep-set go / not Auth0 / not Detect
 
 ---
@@ -160,7 +161,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-29, this tree):** web **457** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **58** passed. Residual failures: **none**. Not a hosted deploy. Code: Render wake BFF + `QueueWakeRetry` + partner-safe Insights queue-miss copy, merged onto #57 Eval keep-set ∪ overlay.
+- **Tests status (2026-08-29, this tree):** web **457** passed / **5** skipped (`groww-batch02.eval.test.ts` pack-absent skip); backend **60** passed. Residual failures: **none**. Not a hosted deploy. Code: Render wake BFF + `QueueWakeRetry` + partner-safe Insights queue-miss copy, merged onto #59 overlay-by-id + #57 Eval keep-set ∪ overlay.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

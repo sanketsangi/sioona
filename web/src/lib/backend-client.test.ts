@@ -175,6 +175,26 @@ describe("backendFetch timeout", () => {
     );
   });
 
+  it("lists conversations scoped to overlay keep-set ids", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getConversations("tenant_demo", {
+      conversationIds: ["conv_hydrated", "conv_other"],
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/v1\/tenants\/tenant_demo\/conversations\?conversation_id=conv_hydrated&conversation_id=conv_other$/
+      ),
+      expect.anything()
+    );
+  });
+
   it("prunes conversations not in the keep set", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

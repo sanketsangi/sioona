@@ -300,6 +300,65 @@ def test_conversation_bulk_upsert_and_tenant_isolation(client: TestClient) -> No
     assert leaked.status_code == 403
 
 
+def test_list_conversations_query_filters_ids(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_a"}
+    created = client.post(
+        "/v1/conversations/bulk",
+        headers=headers,
+        json={
+            "conversations": [
+                {
+                    "conversation_id": "conv_keep",
+                    "channel": "whatsapp",
+                    "customer_name": "Asha",
+                    "started_at": "2026-08-01T10:00:00Z",
+                    "messages": [
+                        {
+                            "message_id": "msg_keep",
+                            "role": "customer",
+                            "content": "Need a callback",
+                            "timestamp": "2026-08-01T10:00:00Z",
+                        }
+                    ],
+                },
+                {
+                    "conversation_id": "conv_other",
+                    "channel": "whatsapp",
+                    "customer_name": "Ravi",
+                    "started_at": "2026-08-01T11:00:00Z",
+                    "messages": [
+                        {
+                            "message_id": "msg_other",
+                            "role": "customer",
+                            "content": "Thanks",
+                            "timestamp": "2026-08-01T11:00:00Z",
+                        }
+                    ],
+                },
+            ]
+        },
+    )
+    assert created.status_code == 201
+
+    filtered = client.get(
+        "/v1/tenants/tenant_a/conversations",
+        headers=headers,
+        params=[("conversation_id", "conv_keep"), ("conversation_id", "conv_missing")],
+    )
+    assert filtered.status_code == 200
+    body = filtered.json()
+    assert [row["conversation_id"] for row in body] == ["conv_keep"]
+    assert body[0]["messages"][0]["content"] == "Need a callback"
+
+    empty = client.get(
+        "/v1/tenants/tenant_a/conversations",
+        headers=headers,
+        params=[("conversation_id", "")],
+    )
+    assert empty.status_code == 200
+    assert empty.json() == []
+
+
 def test_conversation_prune_is_tenant_safe(client: TestClient) -> None:
     keep_payload = {
         "conversations": [

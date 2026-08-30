@@ -473,4 +473,31 @@ describe("PlatformPage deploy reliability", () => {
       "conv_hydrated",
     ]);
   });
+
+  it("fetches overlay chats on Eval so keep-set can include stub ids", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [
+        {
+          id: "hydrate-pred",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_hydrated",
+          signal_type: "retention",
+          confidence: 0.81,
+          summary: "After wipe",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(readStore).mockResolvedValue(mockStore([]));
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "eval" }),
+    });
+
+    expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
+      "conv_hydrated",
+    ]);
+  });
 });
