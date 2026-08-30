@@ -127,33 +127,67 @@ export function reviewedSignalsFromStore(jsonSignals: Signal[]): Signal[] {
   return jsonSignals.filter((s) => Boolean(s.feedback));
 }
 
-/**
- * Shadow Mode pending list for Insights: Neon needs-review join first
- * (JSON match or stub), then keep-set JSON unreviewed rows Neon missed.
- * Callers must `filterPendingWithChat` after overlay merge.
- * Reviewed (feedback) rows stay out — they belong in Follow-Up / Done.
- */
-export function pendingQueueSignals(
-  predictions: BackendPrediction[],
-  jsonSignals: Signal[]
-): Signal[] {
-  const fromNeon = joinNeedsReviewPredictions(predictions, jsonSignals);
-  const seen = new Set(fromNeon.map((s) => s.id));
-  const localOnly: Signal[] = [];
-  for (const signal of jsonSignals) {
-    if (signal.feedback) continue;
-    if (seen.has(signal.id)) continue;
-    seen.add(signal.id);
-    localOnly.push(signal);
-  }
-  return [...fromNeon, ...localOnly];
-}
-
 const FEEDBACK_LABELS = new Set<BackendFeedbackLabel>([
   "correct",
   "incorrect",
   "partially_correct",
 ]);
+
+function reviewedMatchKey(signal: Pick<Signal, "conversationId" | "type">): string {
+  return `${signal.conversationId}:${signal.type}`;
+}
+
+function neonReviewedKeys(rows: BackendPredictionWithFeedback[] | undefined): {
+  backendIds: Set<string>;
+  convTypes: Set<string>;
+} {
+  const backendIds = new Set<string>();
+  const convTypes = new Set<string>();
+  if (!rows) return { backendIds, convTypes };
+  for (const row of rows) {
+    if (!row.feedback || !FEEDBACK_LABELS.has(row.feedback.feedback)) continue;
+    backendIds.add(row.id);
+    convTypes.add(`${row.conversation_id}:${row.signal_type}`);
+  }
+  return { backendIds, convTypes };
+}
+
+function isNeonReviewedLocal(
+  signal: Signal,
+  reviewed: { backendIds: Set<string>; convTypes: Set<string> }
+): boolean {
+  if (signal.backendSignalId && reviewed.backendIds.has(signal.backendSignalId)) {
+    return true;
+  }
+  return reviewed.convTypes.has(reviewedMatchKey(signal));
+}
+
+/**
+ * Shadow Mode pending list for Insights: Neon needs-review join first
+ * (JSON match or stub), then keep-set JSON unreviewed rows Neon missed.
+ * Callers must `filterPendingWithChat` after overlay merge.
+ * Reviewed (feedback) rows stay out — they belong in Follow-Up / Done.
+ * Pass Neon `GET …/signals` rows so stale `/tmp` JSON without local
+ * feedback cannot re-open a signal already reviewed on another instance.
+ */
+export function pendingQueueSignals(
+  predictions: BackendPrediction[],
+  jsonSignals: Signal[],
+  reviewedRows?: BackendPredictionWithFeedback[]
+): Signal[] {
+  const fromNeon = joinNeedsReviewPredictions(predictions, jsonSignals);
+  const seen = new Set(fromNeon.map((s) => s.id));
+  const reviewed = neonReviewedKeys(reviewedRows);
+  const localOnly: Signal[] = [];
+  for (const signal of jsonSignals) {
+    if (signal.feedback) continue;
+    if (seen.has(signal.id)) continue;
+    if (isNeonReviewedLocal(signal, reviewed)) continue;
+    seen.add(signal.id);
+    localOnly.push(signal);
+  }
+  return [...fromNeon, ...localOnly];
+}
 
 function feedbackFromRow(
   row: BackendPredictionWithFeedback
@@ -166,10 +200,6 @@ function feedbackFromRow(
     ...(note ? { note } : {}),
     reviewedAt: raw.reviewed_at,
   };
-}
-
-function reviewedMatchKey(signal: Pick<Signal, "conversationId" | "type">): string {
-  return `${signal.conversationId}:${signal.type}`;
 }
 
 /**

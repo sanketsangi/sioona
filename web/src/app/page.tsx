@@ -154,7 +154,11 @@ export default async function PlatformPage({
     await writeStore(store);
   }
   const pendingRaw = needsReview.ok
-    ? pendingQueueSignals(needsReview.predictions, store.signals)
+    ? pendingQueueSignals(
+        needsReview.predictions,
+        store.signals,
+        tenantSignals.ok ? tenantSignals.rows : undefined
+      )
     : store.signals.filter((s) => !s.feedback);
   const queueError = needsReview.ok ? null : needsReview.error;
   const reviewedForCadence = tenantSignals.ok
