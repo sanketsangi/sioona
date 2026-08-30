@@ -10,8 +10,9 @@ import {
   MessageAvatar,
   MessageContent,
 } from "@/components/ui/Message";
-import { initialsFromName } from "@/lib/format";
+import { formatMessageTime, initialsFromName } from "@/lib/format";
 import type { Message as ChatMessage } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 /**
  * Shared User/Agent transcript chrome (geistcn Message + Bubble).
@@ -23,10 +24,13 @@ export function ConversationMessages({
   messages,
   customerName,
   className = "",
+  showTimestamps = false,
 }: {
   messages: ChatMessage[];
   customerName?: string | null;
   className?: string;
+  /** Quiet UTC clock under each bubble (SSR-stable). */
+  showTimestamps?: boolean;
 }) {
   const who = customerName?.trim() || "Customer";
   const customerLetter = initialsFromName(who);
@@ -47,6 +51,7 @@ export function ConversationMessages({
 
         const isAgent = message.role === "agent";
         const variant = isAgent ? "default" : "muted";
+        const time = showTimestamps ? formatMessageTime(message.timestamp) : null;
 
         return (
           <Message key={message.id} align={isAgent ? "start" : "end"}>
@@ -66,6 +71,17 @@ export function ConversationMessages({
                 <BubbleContent variant={variant}>
                   {message.content}
                 </BubbleContent>
+                {time ? (
+                  <time
+                    dateTime={message.timestamp}
+                    className={cn(
+                      "px-0.5 text-label-12 tabular-nums text-sio-fg-muted",
+                      isAgent ? "text-left" : "text-right",
+                    )}
+                  >
+                    {time}
+                  </time>
+                ) : null}
               </Bubble>
             </MessageContent>
           </Message>

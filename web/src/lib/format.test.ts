@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   customerNameFromExternalId,
+  formatMessageTime,
   initialsFromName,
   isSignalNeedsReview,
+  previewTranscriptMessages,
   queueSignalSummary,
+  REVIEW_TRANSCRIPT_PREVIEW,
   scoreIconClass,
   scoreIconColor,
   scoreIconKind,
@@ -233,5 +236,37 @@ describe("queueSignalSummary", () => {
     expect(
       queueSignalSummary("Shalini Pandey (upload)", "Shalini Pandey")
     ).toBe("Shalini Pandey (upload)");
+  });
+});
+
+describe("formatMessageTime", () => {
+  it("prints a stable UTC clock", () => {
+    expect(formatMessageTime("2026-08-01T10:05:00.000Z")).toBe("1 Aug, 10:05");
+  });
+
+  it("returns null for invalid timestamps", () => {
+    expect(formatMessageTime("not-a-date")).toBeNull();
+  });
+});
+
+describe("previewTranscriptMessages", () => {
+  it("returns the full list when at or under the preview limit", () => {
+    const messages = [1, 2, 3];
+    expect(previewTranscriptMessages(messages, 8)).toEqual({
+      preview: [1, 2, 3],
+      hiddenCount: 0,
+      total: 3,
+    });
+  });
+
+  it("keeps the tail when the transcript is longer than the preview", () => {
+    const messages = Array.from(
+      { length: REVIEW_TRANSCRIPT_PREVIEW + 3 },
+      (_, i) => i + 1,
+    );
+    const result = previewTranscriptMessages(messages);
+    expect(result.total).toBe(REVIEW_TRANSCRIPT_PREVIEW + 3);
+    expect(result.hiddenCount).toBe(3);
+    expect(result.preview).toEqual([4, 5, 6, 7, 8, 9, 10, 11]);
   });
 });

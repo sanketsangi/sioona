@@ -296,3 +296,54 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Leftover Groww pending");
   });
 });
+
+describe("InsightsView review conversation + action", () => {
+  it("pairs the conversation panel with Suggested Next Action", () => {
+    const pending = makePendingSignals(1);
+    pending[0].evidence = ['quote: "Please pause my SIP this month"'];
+    const store = storeFromSignals(pending);
+    store.messages = [
+      {
+        id: "msg_1",
+        conversationId: pending[0].conversationId,
+        role: "customer",
+        content: "Please pause my SIP this month",
+        timestamp: "2026-08-01T10:05:00.000Z",
+      },
+    ];
+    store.conversations[0].messageIds = ["msg_1"];
+
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: pending[0].id,
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Suggested Next Action");
+    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Follow up");
+    expect(html).toContain("Please pause my SIP this month");
+    expect(html).toContain("See Conversation");
+    expect(html).toContain("Open Conversation");
+    expect(html).toContain("Conversation");
+    expect(html).not.toContain("lg:col-span-2");
+  });
+});

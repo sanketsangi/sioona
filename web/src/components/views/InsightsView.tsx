@@ -277,6 +277,7 @@ export function InsightsView({
     reviewedSignals,
     customerNames,
     conversationsById,
+    messagesByConversationId,
     queueError,
     tenantSignalsError,
     statusFilter,

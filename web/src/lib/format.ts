@@ -222,6 +222,42 @@ export function stripSummaryEvidenceQuote(summary: string): string {
  * so the cell does not repeat the User column; also drop legacy quoteHints.
  * Does not mutate stored summaries / detect.ts.
  */
+/** Last N transcript rows shown in the Insights review conversation panel. */
+export const REVIEW_TRANSCRIPT_PREVIEW = 8;
+
+/**
+ * Quiet UTC clock for conversation bubbles. Fixed locale + zone so SSR
+ * and the client print the same string (no hydration drift).
+ */
+export function formatMessageTime(iso: string): string | null {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  }).format(ms);
+}
+
+/** Tail of a transcript for the in-review preview (full list stays in the drawer). */
+export function previewTranscriptMessages<T>(
+  messages: readonly T[],
+  limit = REVIEW_TRANSCRIPT_PREVIEW,
+): { preview: T[]; hiddenCount: number; total: number } {
+  const total = messages.length;
+  if (total <= limit) {
+    return { preview: [...messages], hiddenCount: 0, total };
+  }
+  return {
+    preview: messages.slice(-limit),
+    hiddenCount: total - limit,
+    total,
+  };
+}
+
 export function queueSignalSummary(
   summary: string,
   customerName: string

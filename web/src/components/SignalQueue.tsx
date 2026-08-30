@@ -15,6 +15,7 @@ import {
   SignalReviewMissing,
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
+import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import {
   DropdownMenu,
@@ -40,7 +41,7 @@ import {
   type WorkspaceMode,
 } from "@/lib/views";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
-import type { Conversation, Signal } from "@/lib/types";
+import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type InsightsMode = "list" | "review";
@@ -173,6 +174,8 @@ type SignalQueueProps = {
   customerNames?: Record<string, string>;
   /** conversationId → conversation for Ground Truth in review panel. */
   conversationsById?: Record<string, Conversation>;
+  /** conversationId → transcript for the in-review conversation panel. */
+  messagesByConversationId?: Record<string, Message[]>;
   /** Set when FastAPI needs-review could not be loaded. */
   queueError?: string | null;
   /** Set when FastAPI GET /signals could not be loaded. */
@@ -336,6 +339,7 @@ export function SignalQueue({
   reviewedSignals,
   customerNames = {},
   conversationsById = {},
+  messagesByConversationId = {},
   queueError = null,
   tenantSignalsError = null,
   statusFilter = "all",
@@ -428,9 +432,18 @@ export function SignalQueue({
             className="grid min-w-0 shrink-0 grid-cols-1 gap-3 lg:grid-cols-2"
             aria-labelledby={`signal-review-heading-${previewSignal.id}`}
           >
+            <SignalReviewConversation
+              messages={
+                messagesByConversationId[previewSignal.conversationId] ?? []
+              }
+              customerName={previewCustomerName ?? "Customer"}
+              typeLabel={signalTypeLabel(previewSignal.type)}
+              summary={previewSignal.summary || ""}
+              className="min-w-0 lg:h-full"
+            />
             <SignalReviewSuggestedAction
               signal={previewSignal}
-              className="min-w-0 lg:col-span-2"
+              className="min-w-0 lg:h-full"
             />
             <FeedbackControls
               signal={previewSignal}

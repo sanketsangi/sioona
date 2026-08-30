@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-29  
+**Last updated:** 2026-08-30  
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `cursor/overlay-conversations-by-id-08d4` (overlay by conversation id; base `main` = `8825925` / #57)
 
@@ -18,7 +18,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-21):** Week-3 real partner CSV upsert **closed** on shared Neon (localhost ingest → FastAPI). Count **4→5**. Local CS `batch_001` replace stays a negative example (200/0).
 
-**Shipped this pass (2026-08-29):** Insights overlay `GET …/conversations` takes repeat `conversation_id` (missing pending + Follow-up ids only) so `/tmp` wipe stubs do not pull the full Neon pack. Eval keep-set ∪ overlay from #57 stays: Insights and Eval still fetch overlay (by id, not the full tenant list). Pending stub + `filterPendingWithChat` from #55/#56 unchanged. Not a keep-set go / not Adapt / not taxonomy.
+**Shipped this pass (2026-08-30):** Insights review pairs Conversation (inline preview + See Conversation drawer) with Suggested Next Action / Why This Fired as a two-cell strip (`SignalStatus` when Acted). Drawer header uses `SignalUser` (customer name), not chatbot chrome. Overlay-by-id + keep-set ∪ overlay from #57/#59 unchanged. Not a keep-set go / not Adapt / not taxonomy / not outbound.
+
+**Shipped prior (2026-08-29):** Insights overlay `GET …/conversations` takes repeat `conversation_id` (missing pending + Follow-up ids only) so `/tmp` wipe stubs do not pull the full Neon pack. Eval keep-set ∪ overlay from #57 stays: Insights and Eval still fetch overlay (by id, not the full tenant list). Pending stub + `filterPendingWithChat` from #55/#56 unchanged. Not a keep-set go / not Adapt / not taxonomy.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
