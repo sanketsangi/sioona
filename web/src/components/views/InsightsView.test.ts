@@ -387,12 +387,68 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Suggested Next Action");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Follow up");
+    expect(html).toContain("Copy Reply");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("Conversation");
     expect(html).toContain("Display only — not sent.");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
+  });
+
+  it("shows the Act cue on Correct ¬acted Follow-up", () => {
+    const pending = makePendingSignals(1);
+    const correctSignal = {
+      ...pending[0],
+      status: "reviewed" as const,
+      feedback: {
+        label: "correct" as const,
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    const store = storeFromSignals([correctSignal]);
+
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "followup",
+        typeFilter: "all",
+        page: 1,
+        previewId: correctSignal.id,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: true,
+          rows: [
+            {
+              id: correctSignal.backendSignalId!,
+              tenant_id: "tenant_demo",
+              conversation_id: correctSignal.conversationId,
+              signal_type: correctSignal.type,
+              confidence: correctSignal.score,
+              summary: correctSignal.summary,
+              created_at: correctSignal.createdAt,
+              acted: false,
+              feedback: {
+                id: "fb-correct-1",
+                tenant_id: "tenant_demo",
+                signal_id: correctSignal.backendSignalId!,
+                feedback: "correct",
+                note: null,
+                reviewed_by: "demo",
+                reviewed_at: "2026-08-02T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Copy Reply");
+    expect(html).toContain(
+      "Copy Reply from Suggested Next Action, then Mark Acted",
+    );
+    expect(html).toContain("Mark as Acted");
   });
 });
 
