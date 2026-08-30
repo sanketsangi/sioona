@@ -5,20 +5,11 @@ import { useEffect, useId, useRef } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { SignalStatus } from "@/components/SignalStatus";
-import {
-  evalCardClassName,
-  evalCardHeaderClassName,
-  evalCardPadClassName,
-} from "@/components/EvalCard";
+import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
+import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -177,9 +168,10 @@ function SupportHeading({
 
 /**
  * Suggested Next Action + Why This Fired + Matched — single Card well.
- * Header is the status chip, or Mark as Acted on Correct-not-Acted
- * (A / Enter walk). Quotes and match chips that join a stored message
- * jump the transcript. Neon stubs / missing join stay honest.
+ * Header matches Feedback / Ground Truth (`InsightsReviewPaneHeader`).
+ * Status chip, or Mark as Acted on Correct-not-Acted (A / Enter walk).
+ * Quotes and match chips that join a stored message jump the transcript.
+ * Neon stubs / missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -250,49 +242,42 @@ export function SignalReviewSuggestedAction({
       className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
-      <CardHeader className={evalCardHeaderClassName}>
-        <CardTitle className="min-w-0 flex-1 p-0 text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base">
-          <h3 id={headingId} className="min-w-0 truncate">
-            Suggested Next Action
-          </h3>
-        </CardTitle>
-        <CardAction className="relative col-auto row-auto self-center justify-self-auto">
-          {showRailActed ? (
-            <TooltipProvider delayDuration={400}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex shrink-0">
-                    <Button
-                      type="button"
-                      className="btn-primary shrink-0"
-                      disabled={actedPending}
-                      aria-busy={actedPending}
-                      aria-keyshortcuts="A Enter"
-                      onClick={() => void setActed(true)}
-                    >
-                      {actedPending ? (
-                        <ButtonSpinner />
-                      ) : (
-                        <Check
-                          className="size-3.5 shrink-0"
-                          weight="bold"
-                          aria-hidden
-                        />
-                      )}
-                      Mark as Acted
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  {ACTED_TOOLTIP}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <SignalStatus signal={signal} variant="chip" />
-          )}
-        </CardAction>
-      </CardHeader>
+      <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
+        {showRailActed ? (
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex shrink-0">
+                  <Button
+                    type="button"
+                    className="btn-primary shrink-0"
+                    disabled={actedPending}
+                    aria-busy={actedPending}
+                    aria-keyshortcuts="A Enter"
+                    onClick={() => void setActed(true)}
+                  >
+                    {actedPending ? (
+                      <ButtonSpinner />
+                    ) : (
+                      <Check
+                        className="size-3.5 shrink-0"
+                        weight="bold"
+                        aria-hidden
+                      />
+                    )}
+                    Mark as Acted
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                {ACTED_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <SignalStatus signal={signal} variant="chip" />
+        )}
+      </InsightsReviewPaneHeader>
 
       <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-0">
         <div
