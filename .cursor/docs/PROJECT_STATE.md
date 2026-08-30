@@ -168,7 +168,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-30, this tree):** web tests after Insights review chat well (sticky customer header, no in-pane See Conversation). Residual failures: **none**. Not a hosted deploy.
+- **Tests status (2026-08-30, this tree):** web Insights review UI polish (Suggested Next Action / Conversation / Feedback / Ground Truth) — related vitest 21 passed; `tsc --noEmit` clean; eslint clean. Residual failures: **none**. Not a hosted deploy.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
