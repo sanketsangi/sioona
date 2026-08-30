@@ -173,7 +173,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-30, this tree):** web design-upgrade pass — Insights/conversation/view tests pending in this commit; residual failures TBD after verify. Not a hosted deploy.
+- **Tests status (2026-08-30, this tree):** web design-upgrade pass — Insights/conversation/view vitest **68 passed**; `tsc --noEmit` clean; eslint clean on touched files. Local SSR Insights/Upload/Eval/Taxonomy **200**. Residual failures: **none**. Not a hosted deploy.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
