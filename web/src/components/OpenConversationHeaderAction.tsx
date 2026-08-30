@@ -11,7 +11,7 @@ type OpenConversationHeaderActionProps = {
 };
 
 /**
- * Insights header slot — Open Conversation beside Filters when the review
+ * Insights header slot — Open Conversation beside Mark Acted when the review
  * panel is open and local messages exist.
  */
 export function OpenConversationHeaderAction({

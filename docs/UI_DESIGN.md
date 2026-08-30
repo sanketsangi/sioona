@@ -111,7 +111,7 @@ Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/compo
 | `feedback.label === incorrect` | **Incorrect** | Red (`sio-status-danger-*`) — ERROR |
 | `feedback.label === partially_correct` | **Partially Correct** | Orange/amber (`sio-status-warning-*`) — BUILDING |
 
-URL filter stays `status=new` for the Neon needs-review bucket. StatusDot uses **feedback presence/label** once reviewed (so a reviewed row never stays Pending/blue from a stale `status===new`). Always show the text label with the dot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status.
+URL filter stays `status=new` for the Neon needs-review bucket. Queue chrome uses shared `SegmentedTabs` (All / Pending / Correct / Done, tabular counts) plus a Type dropdown — not a combined Filters menu. StatusDot uses **feedback presence/label** once reviewed (so a reviewed row never stays Pending/blue from a stale `status===new`). Always show the text label with the dot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status. The page title stays **Insights** in `AppHeader`; the list has an `sr-only` **Insights Queue** heading (review breadcrumb uses the same label).
 
 ### Signal chrome (reuse lock)
 

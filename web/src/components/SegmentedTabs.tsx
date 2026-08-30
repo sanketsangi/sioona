@@ -6,6 +6,8 @@ export type SegmentedTabItem = {
   id: string;
   href: string;
   label: string;
+  /** Optional tabular count — Insights queue status tabs. */
+  count?: number;
 };
 
 /**
@@ -55,7 +57,18 @@ export function SegmentedTabs({
                 : "segmented-tabs-link"
             }
           >
-            {item.label}
+            <span className="min-w-0 truncate">{item.label}</span>
+            {item.count != null ? (
+              <span
+                className={
+                  active
+                    ? "hidden tabular text-label-12 font-medium text-sio-fg-subtle min-[480px]:inline"
+                    : "hidden tabular text-label-12 font-medium text-sio-fg-muted min-[480px]:inline"
+                }
+              >
+                {item.count}
+              </span>
+            ) : null}
           </Link>
         );
       })}

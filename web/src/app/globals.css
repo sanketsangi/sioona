@@ -1036,7 +1036,7 @@
   }
 
   .segmented-tabs-link {
-    @apply relative z-[1] inline-flex min-h-11 min-w-0 items-center justify-center truncate px-2.5 text-center text-label-14 text-sio-fg-subtle md:min-h-8;
+    @apply relative z-[1] inline-flex min-h-11 min-w-0 items-center justify-center gap-1 truncate px-2.5 text-center text-label-14 text-sio-fg-subtle md:min-h-8;
     border-radius: calc(var(--radius) - 4px);
     transition-property: color;
     transition-duration: 150ms;

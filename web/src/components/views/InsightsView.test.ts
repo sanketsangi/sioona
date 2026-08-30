@@ -81,7 +81,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     vi.clearAllMocks();
   });
 
-  it("lists Pending signals under the attention heading when status=new", () => {
+  it("lists Pending signals in the queue when status=new", () => {
     const pending = makePendingSignals(10);
     const store = storeFromSignals(pending);
     const html = renderToStaticMarkup(
@@ -107,7 +107,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
       })
     );
 
-    expect(html).toContain("Conversation that needs your attention");
+    expect(html).toContain("Insights Queue");
+    expect(html).toContain("Queue status");
     expect(html).toContain("Queue metrics");
     expect(html).toContain("Pending signal 1");
     expect(html).toContain("Pending signal 10");
