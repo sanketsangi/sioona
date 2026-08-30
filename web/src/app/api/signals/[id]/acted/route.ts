@@ -85,9 +85,11 @@ function actedErrorResponse(err: unknown): NextResponse {
 /**
  * Shadow Mode: persist `status: acted` (or undo to reviewed).
  * Resolves JSON by id / Neon UUID / conversation+type (same as feedback).
- * JSON update when a reviewed row exists (fail-soft). Neon Acted is SoT
- * across instances — neon-only `setPredictionActed` when JSON is missing
- * or unreviewed after neon-only Correct.
+ * Neon Acted is SoT — write FastAPI first when a prediction UUID exists,
+ * then mirror JSON. Fail 503/404/400 if Neon fails so Insights (which
+ * joins Follow-up / Done from `row.acted`) cannot show a false success.
+ * Local-only rows (no Neon id) still persist JSON. Neon-only path when
+ * JSON is missing or unreviewed after neon-only Correct.
  * Does not call Intercom/WhatsApp/email or execute suggestedAction.
  */
 export async function POST(
@@ -109,31 +111,31 @@ export async function POST(
   const neonStubId = neonPredictionIdFromStubSignalId(id);
   const bodyBackendId = body.backendSignalId?.trim() || undefined;
 
-  if (existing) {
+  if (existing?.feedback) {
+    const backendSignalId =
+      existing.backendSignalId?.trim() ||
+      bodyBackendId ||
+      neonStubId ||
+      undefined;
+    if (backendSignalId) {
+      try {
+        await setPredictionActed(
+          existing.tenantId,
+          backendSignalId,
+          body.acted
+        );
+      } catch (err) {
+        return actedErrorResponse(err);
+      }
+    }
     const result = await setSignalActed(existing.id, body.acted);
     if (result.ok) {
-      const backendSignalId =
-        result.signal.backendSignalId?.trim() ||
-        bodyBackendId ||
-        neonStubId ||
-        undefined;
-      if (backendSignalId) {
-        try {
-          await setPredictionActed(
-            result.signal.tenantId,
-            backendSignalId,
-            body.acted
-          );
-        } catch {
-          // JSON is still a local mirror; Neon Acted is SoT once hydrate runs.
-        }
-      }
       return NextResponse.json({ signal: result.signal });
     }
-    if (result.reason !== "not_reviewed") {
+    if (result.reason === "not_found") {
       return NextResponse.json({ error: "Signal not found" }, { status: 404 });
     }
-    // JSON row exists but has no feedback (neon-only Correct) — fall through.
+    // Local feedback vanished between reads — fall through to Neon.
   }
 
   const predictionId =

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BackendClientError } from "@/lib/backend-client";
 import { readStore, resetStore, setSignalFeedback, writeStore } from "@/lib/store";
 import type { Signal } from "@/lib/types";
 import { POST } from "./route";
@@ -135,7 +136,7 @@ describe("POST /api/signals/[id]/acted", () => {
     expect(body.signal.status).toBe("acted");
   });
 
-  it("still persists JSON Acted when FastAPI dual-write fails", async () => {
+  it("returns 503 and leaves JSON unacted when FastAPI dual-write fails", async () => {
     const store = await readStore();
     const target = store.signals[0];
     expect(target).toBeTruthy();
@@ -144,18 +145,19 @@ describe("POST /api/signals/[id]/acted", () => {
     await setSignalFeedback(target.id, "correct");
 
     setPredictionActed.mockRejectedValueOnce(
-      new Error("Signal Score backend unreachable")
+      new BackendClientError("Signal Score backend unreachable", 503)
     );
 
     const res = await POST(actedRequest({ acted: true }), {
       params: Promise.resolve({ id: target.id }),
     });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { signal: { status: string } };
-    expect(body.signal.status).toBe("acted");
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toEqual({
+      error: "Signal Score backend unreachable",
+    });
     expect(
       (await readStore()).signals.find((s) => s.id === target.id)?.status
-    ).toBe("acted");
+    ).not.toBe("acted");
   });
 
   it("saves via backendSignalId when JSON URL id is stale", async () => {
