@@ -1,6 +1,7 @@
 "use client";
 
-import { useId } from "react";
+import { Check, Copy } from "@phosphor-icons/react/ssr";
+import { useId, useState } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { SignalStatus } from "@/components/SignalStatus";
 import { Badge } from "@/components/ui/badge";
@@ -83,6 +84,7 @@ function EvidenceChip({
  * Suggested Next Action + Why This Fired — recommendation stacked over
  * evidence. Quotes / match chips that join a stored message jump the
  * transcript. Neon stubs / missing join stay honest. Acted uses SignalStatus.
+ * Copy Reply is display-only (clipboard; never sends).
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -93,9 +95,13 @@ export function SignalReviewSuggestedAction({
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
   const whyId = useId();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
   const isActed = signal.status === "acted";
   const missingAction = !signal.suggestedAction;
   const isNeonStub = isNeonStubSignalId(signal.id);
+  const canCopy = !missingAction;
 
   const formatted = signal.evidence.map((item) => ({
     item,
@@ -109,6 +115,38 @@ export function SignalReviewSuggestedAction({
     (entry) => entry.kind === "match" || entry.kind === "suppressed",
   );
   const hasEvidence = quotes.length > 0 || matches.length > 0;
+
+  async function copyReply() {
+    if (!canCopy) return;
+    const text = signal.suggestedAction;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        throw new Error("Clipboard API unavailable");
+      }
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        if (!ok) throw new Error("execCommand copy failed");
+        setCopyState("copied");
+        window.setTimeout(() => setCopyState("idle"), 2000);
+      } catch {
+        setCopyState("error");
+        window.setTimeout(() => setCopyState("idle"), 2500);
+      }
+    }
+  }
 
   return (
     <section
@@ -143,6 +181,46 @@ export function SignalReviewSuggestedAction({
               ? "Unavailable — local detection join missing."
               : signal.suggestedAction}
           </p>
+          {canCopy ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => void copyReply()}
+                aria-label="Copy Reply to clipboard"
+              >
+                {copyState === "copied" ? (
+                  <Check
+                    className="size-3.5 shrink-0"
+                    weight="bold"
+                    aria-hidden
+                  />
+                ) : (
+                  <Copy
+                    className="size-3.5 shrink-0"
+                    weight="bold"
+                    aria-hidden
+                  />
+                )}
+                {copyState === "copied" ? "Copied" : "Copy Reply"}
+              </button>
+              <p className="sr-only" aria-live="polite">
+                {copyState === "copied"
+                  ? "Reply copied to clipboard. Not sent."
+                  : copyState === "error"
+                    ? "Could not copy reply. Try again."
+                    : null}
+              </p>
+              {copyState === "error" ? (
+                <p
+                  className="text-label-12 text-sio-status-danger-fg"
+                  role="alert"
+                >
+                  Could not copy. Try again.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <section aria-labelledby={whyId} className="min-w-0">

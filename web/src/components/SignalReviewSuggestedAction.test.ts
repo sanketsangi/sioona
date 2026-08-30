@@ -48,9 +48,21 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Phrase");
     expect(html).toContain("pause my SIP");
     expect(html).toContain("Display only — not sent.");
+    expect(html).toContain("Copy Reply");
+    expect(html).toContain("Copy Reply to clipboard");
     expect(html).toContain("text-heading-16");
     expect(html).not.toContain("xl:grid-cols-2");
     expect(html).not.toContain("bg-sio-bg-muted/50");
+  });
+
+  it("hides Copy Reply when the suggested action is missing", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({ suggestedAction: "", evidence: [] }),
+      }),
+    );
+
+    expect(html).not.toContain("Copy Reply");
   });
 
   it("turns joined quotes into conversation jump controls", () => {

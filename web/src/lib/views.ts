@@ -2,6 +2,7 @@ import {
   cadenceActionView,
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
+import type { FeedbackLabel } from "@/lib/types";
 
 export type PlatformView = "insights" | "upload" | "eval" | "taxonomy";
 
@@ -221,16 +222,31 @@ function pendingReviewQueueHref(opts: {
 
 /**
  * After SignalScore feedback on a pending review.
- * Advances to the next needs-review panel, or Pending list when empty.
+ * Correct → Follow-up Act panel for the same signal (`status=followup&preview=`).
+ * Incorrect / Partially Correct → next needs-review panel, or Pending list.
  * Null when the reviewer should stay (re-edit, Follow-up / Done origin).
  */
 export function afterFeedbackHref(opts: {
   wasPending: boolean;
+  /** Feedback label just saved — Correct stays on this signal’s Follow-up. */
+  label?: FeedbackLabel | null;
+  /** Current pending signal id (Correct Follow-up preview). */
+  currentSignalId?: string | null;
   nextPendingPreviewId?: string | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
 }): string | null {
   if (!opts.wasPending) return null;
+  const modeExtra =
+    opts.mode === "action" ? ({ mode: "action" } as const) : {};
+  if (opts.label === "correct" && opts.currentSignalId) {
+    return viewHref("insights", {
+      ...modeExtra,
+      scoreFrom: opts.scoreFrom,
+      status: "followup",
+      preview: opts.currentSignalId,
+    });
+  }
   return pendingReviewQueueHref({
     nextPreviewId: opts.nextPendingPreviewId,
     scoreFrom: opts.scoreFrom,

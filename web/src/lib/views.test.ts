@@ -196,10 +196,40 @@ describe("nextPendingPreviewId", () => {
 });
 
 describe("afterFeedbackHref", () => {
-  it("opens the next pending review after feedback on needs-review", () => {
+  it("opens Follow-up for the same signal after Correct on needs-review", () => {
     expect(
       afterFeedbackHref({
         wasPending: true,
+        label: "correct",
+        currentSignalId: "sig_keep",
+        nextPendingPreviewId: "sig_next",
+        scoreFrom: "2026-08-17",
+      }),
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=followup&preview=sig_keep",
+    );
+  });
+
+  it("preserves mode=action on Correct → Follow-up", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "correct",
+        currentSignalId: "sig_keep",
+        nextPendingPreviewId: "sig_next",
+        mode: "action",
+      }),
+    ).toBe(
+      "/?view=insights&mode=action&status=followup&preview=sig_keep",
+    );
+  });
+
+  it("opens the next pending review after Incorrect on needs-review", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "incorrect",
+        currentSignalId: "sig_keep",
         nextPendingPreviewId: "sig_next",
         scoreFrom: "2026-08-17",
       }),
@@ -208,19 +238,34 @@ describe("afterFeedbackHref", () => {
     );
   });
 
-  it("returns the Pending list when no pending remain", () => {
+  it("opens the next pending after Partially Correct", () => {
     expect(
       afterFeedbackHref({
         wasPending: true,
+        label: "partially_correct",
+        currentSignalId: "sig_keep",
+        nextPendingPreviewId: "sig_next",
+      }),
+    ).toBe("/?view=insights&status=new&preview=sig_next");
+  });
+
+  it("returns the Pending list when no pending remain after Incorrect", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "incorrect",
+        currentSignalId: "sig_solo",
         nextPendingPreviewId: null,
       }),
     ).toBe("/?view=insights&status=new");
   });
 
-  it("preserves mode=action on advance", () => {
+  it("preserves mode=action on Incorrect advance", () => {
     expect(
       afterFeedbackHref({
         wasPending: true,
+        label: "incorrect",
+        currentSignalId: "sig_keep",
         nextPendingPreviewId: "sig_next",
         mode: "action",
       }),
@@ -231,6 +276,8 @@ describe("afterFeedbackHref", () => {
     expect(
       afterFeedbackHref({
         wasPending: false,
+        label: "correct",
+        currentSignalId: "sig_keep",
         nextPendingPreviewId: "sig_next",
       }),
     ).toBeNull();

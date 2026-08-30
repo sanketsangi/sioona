@@ -63,6 +63,7 @@ describe("SignalReviewPair", () => {
     expect(html).toContain("Priya");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("Call back before the SIP pause window closes.");
+    expect(html).toContain("Copy Reply");
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
   });
