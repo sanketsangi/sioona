@@ -26,7 +26,11 @@ export async function GET(request: Request) {
     fetchTenantSignals(store.tenant.id),
   ]);
   const pendingRaw = needsReview.ok
-    ? pendingQueueSignals(needsReview.predictions, store.signals)
+    ? pendingQueueSignals(
+        needsReview.predictions,
+        store.signals,
+        tenantSignals.ok ? tenantSignals.rows : undefined
+      )
     : store.signals.filter((s) => !s.feedback);
   const reviewed = tenantSignals.ok
     ? reviewedQueueSignals(tenantSignals.rows, store.signals)

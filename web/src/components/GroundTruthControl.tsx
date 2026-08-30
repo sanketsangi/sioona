@@ -3,44 +3,66 @@
 import { useRouter } from "next/navigation";
 import {
   useId,
-  useRef,
   useState,
   useTransition,
   type ComponentType,
-  type KeyboardEvent,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
+import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { StopIcon } from "@/components/icons/StopIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/ui/toggle-group";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type GroundTruthValue = SignalType | "none" | "";
 
+/** ToggleGroup values cannot be empty string — map Unset ↔ unset. */
+type ToggleValue = "unset" | SignalType | "none";
+
 const OPTIONS: Array<{
   value: GroundTruthValue;
+  toggleValue: ToggleValue;
   label: string;
   hint: string;
   Icon?: ComponentType<{ className?: string }>;
 }> = [
-  { value: "", label: "Unset", hint: "No ground truth label" },
-  { value: "lead", label: "Lead", hint: "Labeled as Lead", Icon: LeadIcon },
+  {
+    value: "",
+    toggleValue: "unset",
+    label: "Unset",
+    hint: "No ground truth label",
+  },
+  {
+    value: "lead",
+    toggleValue: "lead",
+    label: "Lead",
+    hint: "Labeled as Lead",
+    Icon: LeadIcon,
+  },
   {
     value: "retention",
+    toggleValue: "retention",
     label: "Retention",
     hint: "Labeled as Retention",
     Icon: RetentionIcon,
   },
   {
     value: "upsell",
+    toggleValue: "upsell",
     label: "Upsell",
     hint: "Labeled as Upsell",
     Icon: UpsellIcon,
   },
   {
     value: "none",
+    toggleValue: "none",
     label: "None",
     hint: "Explicitly no signal",
     Icon: StopIcon,
@@ -60,6 +82,14 @@ function statusLabel(value: GroundTruthValue): string {
   return OPTIONS.find((o) => o.value === value)?.label ?? "Unset";
 }
 
+function toToggleValue(value: GroundTruthValue): ToggleValue {
+  return value === "" ? "unset" : value;
+}
+
+function fromToggleValue(value: ToggleValue): GroundTruthValue {
+  return value === "unset" ? "" : value;
+}
+
 export function GroundTruthControl({
   conversationId,
   groundTruth,
@@ -71,12 +101,10 @@ export function GroundTruthControl({
 }) {
   const router = useRouter();
   const headingId = useId();
-  const groupId = useId();
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState<GroundTruthValue>(groundTruth ?? "");
   const [prevGroundTruth, setPrevGroundTruth] = useState(groundTruth);
   const [error, setError] = useState<string | null>(null);
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   if (groundTruth !== prevGroundTruth) {
     setPrevGroundTruth(groundTruth);
@@ -112,107 +140,74 @@ export function GroundTruthControl({
     }
   }
 
-  function onRadioKeyDown(e: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const last = OPTIONS.length - 1;
-    let nextIndex: number | null = null;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      nextIndex = index === last ? 0 : index + 1;
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      nextIndex = index === 0 ? last : index - 1;
-    } else if (e.key === "Home") {
-      nextIndex = 0;
-    } else if (e.key === "End") {
-      nextIndex = last;
-    }
-    if (nextIndex === null) return;
-    e.preventDefault();
-    optionRefs.current[nextIndex]?.focus();
-    void onSelect(OPTIONS[nextIndex].value);
-  }
-
   return (
     <section
       className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
-        <h3
-          id={headingId}
-          className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
-        >
-          Ground Truth
-        </h3>
-        <span
-          className={cn(
-            "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 text-label-12 font-medium",
-            STATUS_CHIP[value],
-          )}
-          translate="no"
-        >
+      <InsightsReviewPaneHeader id={headingId} title="Ground Truth">
+        <InsightsReviewStatusChip className={STATUS_CHIP[value]}>
           {statusLabel(value)}
-        </span>
-      </div>
+        </InsightsReviewStatusChip>
+      </InsightsReviewPaneHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
-        <div className="mt-auto flex flex-col gap-2.5">
-          <p className="text-label-12 text-sio-fg-muted">
-            Label this conversation so Eval can compute labeled precision and
-            recall for Lead, Retention, Upsell, or None.
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 py-3 sm:px-4">
+        <p className="text-label-12 text-sio-fg-muted">
+          Label this conversation so Eval can compute labeled precision and
+          recall for Lead, Retention, Upsell, or None.
+        </p>
+
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="lg"
+          spacing={2}
+          value={toToggleValue(value)}
+          onValueChange={(next) => {
+            if (!next || pending) return;
+            void onSelect(fromToggleValue(next as ToggleValue));
+          }}
+          disabled={pending}
+          aria-labelledby={headingId}
+          className="flex w-full flex-wrap justify-start"
+        >
+          {OPTIONS.map((opt) => {
+            const selected = value === opt.value;
+            const { Icon } = opt;
+            return (
+              <ToggleGroupItem
+                key={opt.label}
+                value={opt.toggleValue}
+                title={opt.hint}
+                aria-label={opt.hint}
+                aria-busy={pending && selected}
+                className={cn(
+                  "min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base data-[state=on]:border-sio-border-strong data-[state=on]:bg-sio-bg-inverse data-[state=on]:text-sio-fg-on-color data-[state=on]:hover:bg-sio-bg-inverse/90 hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9",
+                  pending && "cursor-wait",
+                )}
+              >
+                {pending && selected ? (
+                  <ButtonSpinner />
+                ) : Icon ? (
+                  <Icon />
+                ) : null}
+                {opt.label}
+              </ToggleGroupItem>
+            );
+          })}
+        </ToggleGroup>
+
+        {pending ? (
+          <p className="text-label-12 text-sio-fg-muted" aria-live="polite">
+            Saving…
           </p>
+        ) : null}
 
-          <div
-            id={groupId}
-            role="radiogroup"
-            aria-labelledby={headingId}
-            aria-disabled={pending || undefined}
-            className="flex flex-wrap items-center gap-2"
-          >
-            {OPTIONS.map((opt, index) => {
-              const selected = value === opt.value;
-              const { Icon } = opt;
-              return (
-                <button
-                  key={opt.label}
-                  ref={(el) => {
-                    optionRefs.current[index] = el;
-                  }}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  title={opt.hint}
-                  tabIndex={selected ? 0 : -1}
-                  disabled={pending}
-                  aria-busy={pending && selected}
-                  onClick={() => void onSelect(opt.value)}
-                  onKeyDown={(e) => onRadioKeyDown(e, index)}
-                  className={cn(
-                    selected ? "btn-primary" : "btn-secondary",
-                    pending && "cursor-wait",
-                  )}
-                >
-                  {pending && selected ? (
-                    <ButtonSpinner />
-                  ) : Icon ? (
-                    <Icon className="size-3.5 shrink-0" />
-                  ) : null}
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {pending ? (
-            <p className="text-label-12 text-sio-fg-muted" aria-live="polite">
-              Saving…
-            </p>
-          ) : null}
-
-          {error ? (
-            <p className="text-label-12 text-sio-status-danger-fg" role="alert">
-              {error}. Try again or refresh the page.
-            </p>
-          ) : null}
-        </div>
+        {error ? (
+          <p className="text-label-12 text-sio-status-danger-fg" role="alert">
+            {error}. Try again or refresh the page.
+          </p>
+        ) : null}
       </div>
     </section>
   );

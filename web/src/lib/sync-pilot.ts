@@ -63,6 +63,21 @@ export async function refreshStorePilotFromNeon(
   }
 }
 
+/**
+ * Persist a healed pilot onto the latest JSON snapshot.
+ * SSR holds `storeRaw` across the Neon GET; a full write of that snapshot
+ * would clobber concurrent feedback / Acted on the same instance.
+ */
+export async function persistHealedPilot(
+  healed: StoreData,
+  original: StoreData
+): Promise<void> {
+  if (healed === original) return;
+  const { readStore, writeStore } = await import("./store");
+  const latest = await readStore();
+  await writeStore({ ...latest, pilot: healed.pilot });
+}
+
 export async function syncPilotSettingsToBackend(
   tenantId: string,
   pilot: PilotSettings

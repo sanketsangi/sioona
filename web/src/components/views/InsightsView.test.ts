@@ -264,6 +264,64 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain('role="alert"');
     expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
   });
+
+  it("does not list a stale JSON-unreviewed signal that Neon already reviewed", () => {
+    const stale = {
+      ...makePendingSignals(1)[0],
+      id: "sig_stale_instance",
+      conversationId: "conv_reviewed",
+      backendSignalId: "pred-reviewed",
+      summary: "Stale instance pending ghost",
+    };
+    const store = storeFromSignals([stale]);
+    const neonReviewed = {
+      id: "pred-reviewed",
+      tenant_id: "tenant_demo",
+      conversation_id: "conv_reviewed",
+      signal_type: "lead" as const,
+      confidence: 0.9,
+      summary: "Already reviewed on another instance",
+      created_at: "2026-08-01T00:00:00.000Z",
+      acted: false,
+      feedback: {
+        id: "fb-reviewed",
+        tenant_id: "tenant_demo",
+        signal_id: "pred-reviewed",
+        feedback: "correct" as const,
+        note: null,
+        reviewed_by: "demo",
+        reviewed_at: "2026-08-02T00:00:00.000Z",
+      },
+    };
+
+    const pendingHtml = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [neonReviewed] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(pendingHtml).toContain("No Signals Need Review");
+    expect(pendingHtml).not.toContain("Stale instance pending ghost");
+
+    const followHtml = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "followup",
+        typeFilter: "all",
+        page: 1,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [neonReviewed] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(followHtml).toContain("Stale instance pending ghost");
+    expect(followHtml).toContain("Correct");
+  });
 });
 
 describe("InsightsView Neon pending overlay", () => {

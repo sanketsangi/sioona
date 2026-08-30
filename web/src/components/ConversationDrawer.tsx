@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { X } from "@phosphor-icons/react/ssr";
 import { ConversationMessages } from "@/components/ConversationMessages";
 import { SignalUser } from "@/components/SignalUser";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Drawer,
   DrawerClose,
@@ -16,6 +17,9 @@ import {
 } from "@/components/ui/Drawer";
 import type { Message as ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const defaultTriggerClass =
+  "inline-flex min-h-11 touch-manipulation items-center justify-center gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-base px-3.5 text-sm font-medium text-sio-fg-base transition-[color,background-color,border-color] duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive md:h-9 md:min-h-9";
 
 /**
  * Full conversation transcript in a Drawer.
@@ -37,7 +41,7 @@ export function ConversationDrawer({
   summary: string;
   /** Title Case trigger label. */
   triggerLabel?: "See Conversation" | "Open Conversation" | string;
-  /** Override trigger chrome; default is `btn-secondary`. */
+  /** Override trigger chrome; default matches outline Button. */
   triggerClassName?: string;
   /** Optional custom footer; default none (review lives in-queue). */
   footer?: ReactNode | null;
@@ -47,7 +51,7 @@ export function ConversationDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger className={cn(triggerClassName ?? "btn-secondary")}>
+      <DrawerTrigger className={cn(triggerClassName ?? defaultTriggerClass)}>
         {triggerLabel}
       </DrawerTrigger>
 
@@ -75,10 +79,13 @@ export function ConversationDrawer({
             </div>
 
             <DrawerClose
-              className="btn-tertiary size-11 min-h-11 shrink-0 rounded-[var(--radius-control)] px-0 md:size-9 md:min-h-0"
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon-lg" }),
+                "size-11 min-h-11 shrink-0 text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base md:size-9 md:min-h-9",
+              )}
               aria-label="Close"
             >
-              <X className="size-5" weight="bold" aria-hidden />
+              <X weight="bold" aria-hidden />
             </DrawerClose>
           </div>
         </DrawerHeader>
@@ -86,9 +93,9 @@ export function ConversationDrawer({
         <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
           <div className="mx-auto w-full max-w-lg">
             {messages.length === 0 ? (
-              <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center">
+              <div className="flex min-h-[12rem] flex-col items-center justify-center gap-1 px-2 text-center">
                 <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
-                <p className="mt-1 max-w-xs text-pretty text-label-13 text-sio-fg-muted">
+                <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">
                   Re-upload or re-detect to attach the transcript. No invented
                   chat.
                 </p>

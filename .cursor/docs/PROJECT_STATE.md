@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/copyable-grounded-actions` (Copy Action + grounded Suggested Next Action)
+**Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -23,7 +23,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **Prior pass (code, 2026-08-30):** Insights review Conversation is the primary chat-app well (`SignalReviewConversation`: sticky `SignalUser` header, full-height scroll transcript, native Why This Fired highlight). In-pane **See Conversation** dropped; header **Open Conversation** drawer stays as overflow. Empty → Upload Chats. Not Detect / not Auth0 / not outbound / not a keep-set go.
 
-**Prior pass (code, 2026-08-30):** Insights review Conversation + Suggested Next Action sit in the #60 container-query split: full transcript chat well (`SignalUser`, `max-w-md`) beside stacked action / Why This Fired (`heading-16` recommendation, display-only, `SignalStatus` when Acted). Why quotes jump to the matching bubble. Queue chrome from #61 (Card metrics, empty states) and Render wake (#58) stay. Overlay-by-id (#59) and Eval keep-set ∪ overlay (#57) are already on `main`. Not Detect / not Auth0 / not a keep-set go.
+**Prior pass (code, 2026-08-30):** Insights review Conversation is the primary chat-app well (`SignalReviewConversation`: sticky `SignalUser` header, full-height scroll transcript, native Why This Fired highlight). In-pane **See Conversation** dropped; header **Open Conversation** drawer stays as overflow. Empty → Upload Chats. Not Detect / not Auth0 / not outbound / not a keep-set go.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
@@ -170,7 +170,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-30, this tree):** web tests after Insights review chat well (sticky customer header, no in-pane See Conversation). Residual failures: **none**. Not a hosted deploy.
+- **Tests status (2026-08-30, this tree):** web Insights review UI polish (Suggested Next Action / Conversation / Feedback / Ground Truth) — related vitest 21 passed; `tsc --noEmit` clean; eslint clean. Residual failures: **none**. Not a hosted deploy.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
