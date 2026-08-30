@@ -20,6 +20,7 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -235,11 +236,17 @@ function QueueEmptyState({
 }) {
   return (
     <div
-      className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10"
+      className="panel flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12"
       role={alert ? "alert" : undefined}
     >
+      <span
+        className="mb-4 inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
+        aria-hidden
+      >
+        <LayersIcon className="size-4" />
+      </span>
       <p className="text-balance text-heading-16 text-sio-fg-base">{title}</p>
-      <div className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
+      <div className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
         {typeof description === "string" ? <p>{description}</p> : description}
       </div>
       {children}
@@ -247,56 +254,37 @@ function QueueEmptyState({
   );
 }
 
+const QUEUE_COL_HEADER = "text-label-12 font-medium text-sio-fg-subtle";
+
 /** Sticky column labels — shared by queue list and review panel modes. */
 function QueueColumnHeader() {
   return (
     <div
       className={cn(
-        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-3 border-b border-sio-border-base bg-sio-bg-base px-3.5 sm:grid lg:gap-4",
+        "sticky top-0 z-10 hidden h-10 w-full shrink-0 grid-cols-1 items-center gap-4 border-b border-sio-border-base bg-sio-bg-base px-4 sm:grid",
         QUEUE_GRID,
       )}
       role="row"
     >
-      <span
-        className="text-label-12 font-semibold text-sio-fg-base"
-        role="columnheader"
-      >
+      <span className={QUEUE_COL_HEADER} role="columnheader">
         User
       </span>
-      <span
-        className="text-label-12 font-semibold text-sio-fg-base"
-        role="columnheader"
-      >
+      <span className={QUEUE_COL_HEADER} role="columnheader">
         Signal
       </span>
-      <span
-        className="text-label-12 font-semibold text-sio-fg-base"
-        role="columnheader"
-      >
+      <span className={QUEUE_COL_HEADER} role="columnheader">
         Status
       </span>
-      <span
-        className="text-label-12 font-semibold text-sio-fg-base"
-        role="columnheader"
-      >
+      <span className={QUEUE_COL_HEADER} role="columnheader">
         Score
       </span>
-      <span
-        className="text-label-12 font-semibold text-sio-fg-base"
-        role="columnheader"
-      >
+      <span className={QUEUE_COL_HEADER} role="columnheader">
         Type
       </span>
-      <span
-        className="hidden text-label-12 font-semibold text-sio-fg-base lg:block"
-        role="columnheader"
-      >
+      <span className={cn("hidden lg:block", QUEUE_COL_HEADER)} role="columnheader">
         Evidence
       </span>
-      <span
-        className="text-left text-label-12 font-semibold text-sio-fg-base"
-        role="columnheader"
-      >
+      <span className={cn("text-left", QUEUE_COL_HEADER)} role="columnheader">
         Action
       </span>
     </div>
@@ -805,8 +793,13 @@ function QueueFilters({
                     preview: null,
                   })}
                   suffix={
-                    <DropdownMenuShortcut className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-sio-bg-muted px-1.5 text-label-12 font-medium tabular tracking-normal text-sio-fg-base group-focus/dropdown-menu-item:text-sio-fg-base">
-                      {count}
+                    <DropdownMenuShortcut className="tracking-normal">
+                      <Badge
+                        variant="secondary"
+                        className="h-5 min-w-5 rounded-full border-0 bg-sio-bg-muted px-1.5 text-label-12 font-medium tabular text-sio-fg-base group-focus/dropdown-menu-item:bg-sio-bg-muted group-focus/dropdown-menu-item:text-sio-fg-base"
+                      >
+                        {count}
+                      </Badge>
                     </DropdownMenuShortcut>
                   }
                 >

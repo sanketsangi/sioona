@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
@@ -19,7 +20,10 @@ function EvidenceChip({ text }: { text: string }) {
   const value = sep > 0 ? text.slice(sep + 3) : text;
 
   return (
-    <span className="inline-flex max-w-full items-baseline gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12">
+    <Badge
+      variant="outline"
+      className="h-auto max-w-full gap-1.5 rounded-[var(--radius-control)] border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12 font-normal whitespace-normal"
+    >
       {kindLabel ? (
         <span className="shrink-0 font-medium text-sio-fg-muted">
           {kindLabel}
@@ -31,7 +35,7 @@ function EvidenceChip({ text }: { text: string }) {
       >
         {value}
       </span>
-    </span>
+    </Badge>
   );
 }
 
@@ -66,7 +70,7 @@ export function SignalReviewSuggestedAction({
       className={cn("metric-strip flex flex-col", className)}
       aria-labelledby={headingId}
     >
-      <div className="border-b border-sio-border-base px-3 py-2">
+      <div className="border-b border-sio-border-base px-3 py-2 sm:px-4">
         <h3
           id={headingId}
           className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
@@ -75,7 +79,7 @@ export function SignalReviewSuggestedAction({
         </h3>
       </div>
 
-      <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 px-3 py-3 lg:grid-cols-2 lg:gap-6">
+      <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 px-3 py-3 sm:px-4 lg:grid-cols-2 lg:gap-6">
         <div className="flex min-w-0 flex-col gap-2">
           {isActed ? (
             <p className="text-pretty text-label-13 text-sio-fg-muted">

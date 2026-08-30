@@ -95,7 +95,7 @@ export function SignalReviewMissing({
   }, [previewId]);
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-10">
+    <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12">
       <h2
         ref={headingRef}
         tabIndex={-1}
@@ -103,7 +103,7 @@ export function SignalReviewMissing({
       >
         Signal Not Found
       </h2>
-      <p className="mt-1.5 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
+      <p className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
         This preview is missing from the Insights queue. Return to the list
         or try another filter.
       </p>

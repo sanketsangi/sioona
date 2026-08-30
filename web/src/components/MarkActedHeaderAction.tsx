@@ -138,10 +138,10 @@ export function MarkActedHeaderAction({
         </p>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="inline-flex">
+            <span className="inline-flex shrink-0">
               <button
                 type="button"
-                className="btn-primary"
+                className="btn-primary shrink-0"
                 disabled={actedPending}
                 aria-busy={actedPending}
                 onClick={() => void setActed(!isActed)}

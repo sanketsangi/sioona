@@ -4,7 +4,7 @@ import { CircleArrowIcon } from "@/components/icons/CircleArrowIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import { signalStatusDot } from "@/lib/format";
 import type { Signal, SignalType } from "@/lib/types";
@@ -97,7 +97,7 @@ function SignalStatusCounts({
   counts: Record<ReviewStatusLabel, number>;
 }) {
   return (
-    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 p-0 list-none">
+    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 p-0 list-none">
       {REVIEW_STATUS_ORDER.map((label) => (
         <li
           key={label}
@@ -115,51 +115,33 @@ function SignalStatusCounts({
   );
 }
 
-function MetricCard({
+function MetricCell({
   title,
   value,
-  hint,
   icon,
   compare,
 }: {
   title: string;
   value: string;
-  hint?: string;
   icon: ReactNode;
   compare?: ReactNode;
 }) {
-  const hasBottom = Boolean(hint || compare);
-
   return (
-    <Card
-      size="sm"
-      className="h-full min-w-0 gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"
-    >
-      <CardHeader className="flex flex-row items-center gap-2 space-y-0 border-b-0 px-3 pb-0 pt-3">
+    <div className="flex min-w-0 flex-col gap-3 px-4 py-4">
+      <div className="flex items-center gap-2">
         <span
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
           aria-hidden
         >
           {icon}
         </span>
-        <CardTitle className="truncate text-label-13 font-medium text-sio-fg-base">
+        <h3 className="truncate text-label-13 font-semibold text-sio-fg-base">
           {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-0 px-3 pb-3 pt-1.5">
-        <p className="tabular text-heading-20 text-sio-fg-base">{value}</p>
-        {hasBottom ? (
-          <div className="mt-auto flex min-w-0 flex-col gap-1.5 pt-2">
-            {hint ? (
-              <p className="text-pretty text-label-12 text-sio-fg-muted">
-                {hint}
-              </p>
-            ) : null}
-            {compare}
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+        </h3>
+      </div>
+      <p className="tabular text-heading-20 text-sio-fg-base">{value}</p>
+      {compare ? <div className="mt-auto min-w-0 pt-1">{compare}</div> : null}
+    </div>
   );
 }
 
@@ -197,36 +179,37 @@ export function InsightsQueueMetrics({
   }
 
   return (
-    <section
-      aria-label="Queue metrics"
-      className={cn(
-        "grid shrink-0 grid-cols-1 items-stretch gap-4 md:grid-cols-3",
-        className,
-      )}
-    >
-      <MetricCard
-        title="Conversations"
-        value={String(conversationCount)}
-        icon={<ChatBubbleIcon className="size-3.5" />}
-        compare={
-          <FoundVsTotal
-            found={foundConversations}
-            total={conversationCount}
+    <section aria-label="Queue metrics" className={cn("shrink-0", className)}>
+      <Card
+        size="sm"
+        className="gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"
+      >
+        <CardContent className="grid grid-cols-1 divide-y divide-sio-border-base p-0 md:grid-cols-3 md:divide-x md:divide-y-0">
+          <MetricCell
+            title="Conversations"
+            value={String(conversationCount)}
+            icon={<ChatBubbleIcon className="size-3.5" />}
+            compare={
+              <FoundVsTotal
+                found={foundConversations}
+                total={conversationCount}
+              />
+            }
           />
-        }
-      />
-      <MetricCard
-        title="Signals"
-        value={String(signalCount)}
-        icon={<LayersIcon className="size-3.5" />}
-        compare={<SignalTypeCounts counts={typeCounts} />}
-      />
-      <MetricCard
-        title="Pending"
-        value={String(pendingConversationCount)}
-        icon={<ClockIcon className="size-3.5" />}
-        compare={<SignalStatusCounts counts={statusCounts} />}
-      />
+          <MetricCell
+            title="Signals"
+            value={String(signalCount)}
+            icon={<LayersIcon className="size-3.5" />}
+            compare={<SignalTypeCounts counts={typeCounts} />}
+          />
+          <MetricCell
+            title="Pending"
+            value={String(pendingConversationCount)}
+            icon={<ClockIcon className="size-3.5" />}
+            compare={<SignalStatusCounts counts={statusCounts} />}
+          />
+        </CardContent>
+      </Card>
     </section>
   );
 }

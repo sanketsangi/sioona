@@ -16,11 +16,11 @@ import { cn } from "@/lib/utils";
  * lg: + Evidence before Action
  */
 export const QUEUE_GRID =
-  "sm:grid-cols-[2.25rem_minmax(0,1fr)_5.75rem_4.5rem_6.75rem_5rem] lg:grid-cols-[2.25rem_minmax(0,1.35fr)_5.75rem_4.5rem_6.75rem_minmax(0,1.25fr)_5rem]";
+  "sm:grid-cols-[2.25rem_minmax(0,1fr)_5.75rem_4.5rem_6.75rem_5.5rem] lg:grid-cols-[2.25rem_minmax(0,1.35fr)_5.75rem_4.5rem_6.75rem_minmax(0,1.25fr)_5.5rem]";
 
 /** Dense Review control — `--radius-control`, not pill. */
 export const QUEUE_REVIEW_ACTION_CLASS =
-  "btn-secondary w-full shrink-0 touch-manipulation sm:h-8 sm:max-w-full sm:px-2.5";
+  "btn-secondary w-full shrink-0 touch-manipulation sm:h-8 sm:max-w-full sm:px-3";
 
 type SignalQueueRowProps = {
   signal: Signal;
@@ -62,7 +62,7 @@ export function SignalQueueRow({
 
   const dataCells = (
     <>
-      <div className="flex min-w-0 items-center gap-2.5 sm:contents">
+      <div className="flex min-w-0 items-center gap-3 sm:contents">
         <SignalUser
           name={customerName}
           showName={false}
@@ -75,7 +75,7 @@ export function SignalQueueRow({
           </p>
           <SignalStatus signal={signal} className="mt-1 sm:hidden" />
 
-          <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 sm:hidden">
+          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:hidden">
             <div className="min-w-0">
               <dt className="text-label-12 text-sio-fg-muted">Score</dt>
               <dd className="mt-1">
@@ -122,7 +122,7 @@ export function SignalQueueRow({
     >
       <div
         className={cn(
-          "grid min-w-0 w-full grid-cols-1 items-center gap-3 px-3.5 py-3 sm:py-2.5 lg:gap-4",
+          "grid min-w-0 w-full grid-cols-1 items-center gap-4 px-4 py-3 sm:py-2.5",
           QUEUE_GRID,
         )}
       >
