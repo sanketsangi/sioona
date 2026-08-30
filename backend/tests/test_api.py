@@ -300,6 +300,91 @@ def test_conversation_bulk_upsert_and_tenant_isolation(client: TestClient) -> No
     assert leaked.status_code == 403
 
 
+def test_conversation_bulk_upsert_drops_leftover_messages(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_a"}
+    long_thread = client.post(
+        "/v1/conversations/bulk",
+        headers=headers,
+        json={
+            "conversations": [
+                {
+                    "conversation_id": "conv_priya",
+                    "channel": "whatsapp",
+                    "customer_name": "Priya",
+                    "started_at": "2026-08-01T10:00:00+00:00",
+                    "external_id": "priya_sharma_22",
+                    "messages": [
+                        {
+                            "message_id": "msg_conv_priya_0",
+                            "role": "customer",
+                            "content": "I want to close my account",
+                            "timestamp": "2026-08-01T10:00:00+00:00",
+                        },
+                        {
+                            "message_id": "msg_conv_priya_1",
+                            "role": "agent",
+                            "content": "I can help with that",
+                            "timestamp": "2026-08-01T10:01:00+00:00",
+                        },
+                        {
+                            "message_id": "msg_conv_priya_2",
+                            "role": "customer",
+                            "content": "Stale turn from last week's longer export",
+                            "timestamp": "2026-08-01T10:02:00+00:00",
+                        },
+                    ],
+                }
+            ]
+        },
+    )
+    assert long_thread.status_code == 201
+    assert long_thread.json()["messages_created"] == 3
+
+    shorter = client.post(
+        "/v1/conversations/bulk",
+        headers=headers,
+        json={
+            "conversations": [
+                {
+                    "conversation_id": "conv_priya",
+                    "channel": "whatsapp",
+                    "customer_name": "Priya",
+                    "started_at": "2026-08-01T10:00:00+00:00",
+                    "external_id": "priya_sharma_22",
+                    "messages": [
+                        {
+                            "message_id": "msg_conv_priya_0",
+                            "role": "customer",
+                            "content": "Still closing — shorter export",
+                            "timestamp": "2026-08-01T10:00:00+00:00",
+                        },
+                        {
+                            "message_id": "msg_conv_priya_1",
+                            "role": "agent",
+                            "content": "Updated reply",
+                            "timestamp": "2026-08-01T10:01:00+00:00",
+                        },
+                    ],
+                }
+            ]
+        },
+    )
+    assert shorter.status_code == 201
+    assert shorter.json()["updated"] == 1
+
+    listed = client.get(
+        "/v1/tenants/tenant_a/conversations",
+        headers=headers,
+        params=[("conversation_id", "conv_priya")],
+    )
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
+    ids = [m["message_id"] for m in listed.json()[0]["messages"]]
+    contents = [m["content"] for m in listed.json()[0]["messages"]]
+    assert ids == ["msg_conv_priya_0", "msg_conv_priya_1"]
+    assert "Stale turn from last week's longer export" not in contents
+
+
 def test_list_conversations_query_filters_ids(client: TestClient) -> None:
     headers = {"X-Tenant-Id": "tenant_a"}
     created = client.post(

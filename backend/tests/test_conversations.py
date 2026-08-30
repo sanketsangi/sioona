@@ -123,6 +123,130 @@ def test_upsert_same_keys_updates_in_place(db: Session) -> None:
     assert len(msgs) == 2
 
 
+def test_upsert_replaces_shorter_thread_and_drops_leftover_messages(
+    db: Session,
+) -> None:
+    """Mid-week ingest uses msg_{conv}_{index}; a shorter export must not
+    leave leftover turns for Insights overlay / hydrate re-detect."""
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            messages=[
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="customer",
+                    content="I want to close my account",
+                    timestamp=_ts(10),
+                ),
+                MessageUpsert(
+                    message_id="msg_conv_1_1",
+                    role="agent",
+                    content="I can help with that",
+                    timestamp=_ts(11),
+                ),
+                MessageUpsert(
+                    message_id="msg_conv_1_2",
+                    role="customer",
+                    content="Stale turn from last week's longer export",
+                    timestamp=_ts(12),
+                ),
+            ],
+        ),
+    )
+    upsert_conversation(
+        db,
+        tenant_id="tenant_b",
+        payload=_payload(
+            messages=[
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="customer",
+                    content="Other tenant keep-me",
+                    timestamp=_ts(10),
+                ),
+                MessageUpsert(
+                    message_id="msg_conv_1_1",
+                    role="agent",
+                    content="Other tenant agent",
+                    timestamp=_ts(11),
+                ),
+                MessageUpsert(
+                    message_id="msg_conv_1_2",
+                    role="customer",
+                    content="Other tenant leftover-if-wrong-scope",
+                    timestamp=_ts(12),
+                ),
+            ],
+        ),
+    )
+
+    shorter = upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            messages=[
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="customer",
+                    content="Still closing — shorter export",
+                    timestamp=_ts(10),
+                ),
+                MessageUpsert(
+                    message_id="msg_conv_1_1",
+                    role="agent",
+                    content="Updated reply",
+                    timestamp=_ts(11),
+                ),
+            ],
+        ),
+    )
+
+    assert shorter.created is False
+    assert shorter.messages_created == 0
+    assert shorter.messages_updated == 2
+    listed_a = list_conversations(db, "tenant_a")
+    assert [m.message_id for m in listed_a[0][1]] == [
+        "msg_conv_1_0",
+        "msg_conv_1_1",
+    ]
+    assert [m.content for m in listed_a[0][1]] == [
+        "Still closing — shorter export",
+        "Updated reply",
+    ]
+    leftover_a = db.scalar(
+        select(Message).where(
+            Message.tenant_id == "tenant_a",
+            Message.message_id == "msg_conv_1_2",
+        )
+    )
+    assert leftover_a is None
+
+    listed_b = list_conversations(db, "tenant_b")
+    assert [m.message_id for m in listed_b[0][1]] == [
+        "msg_conv_1_0",
+        "msg_conv_1_1",
+        "msg_conv_1_2",
+    ]
+    assert listed_b[0][1][2].content == "Other tenant leftover-if-wrong-scope"
+
+
+def test_empty_message_payload_does_not_wipe_existing_thread(db: Session) -> None:
+    upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    metadata_only = _payload(messages=[])
+    result = upsert_conversation(
+        db, tenant_id="tenant_a", payload=metadata_only
+    )
+
+    assert result.messages_created == 0
+    assert result.messages_updated == 0
+    listed = list_conversations(db, "tenant_a")
+    assert [m.message_id for m in listed[0][1]] == [
+        "msg_conv_1_0",
+        "msg_conv_1_1",
+    ]
+
+
 def test_upsert_does_not_duplicate_on_partner_demo_reload(db: Session) -> None:
     payload = _payload()
     upsert_conversations(db, tenant_id="tenant_demo", payloads=[payload, payload])
