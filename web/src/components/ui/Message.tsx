@@ -8,6 +8,7 @@ export type MessageAlign = "start" | "end";
  * Row is always `w-full` so packing can hug an edge:
  * - `align="start"` → agent left (`flex-row` + `justify-start`)
  * - `align="end"` → customer right (`flex-row-reverse` + `justify-start`)
+ * Avatars top-align with the bubble (`items-start` / `self-start`).
  */
 export function Message({
   children,
@@ -22,7 +23,7 @@ export function Message({
   return (
     <div
       data-align={align}
-      className={`flex w-full max-w-full gap-2 ${
+      className={`flex w-full max-w-full items-start gap-2 ${
         isEnd ? "flex-row-reverse justify-start" : "flex-row justify-start"
       } ${className}`}
     >
@@ -44,14 +45,14 @@ export function MessageAvatar({
   className?: string;
 }) {
   if (children) {
-    return <div className={`mt-0.5 shrink-0 ${className}`}>{children}</div>;
+    return <div className={`shrink-0 self-start ${className}`}>{children}</div>;
   }
   return (
     <Avatar
       letter={letter}
       placeholder
       size={28}
-      className={`mt-0.5 ${className}`}
+      className={`self-start ${className}`}
     />
   );
 }

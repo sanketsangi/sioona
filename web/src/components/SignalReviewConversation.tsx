@@ -35,7 +35,7 @@ export function SignalReviewConversation({
     <section
       data-review-slot="transcript"
       className={cn(
-        "insights-review-pane insights-review-chat flex h-full min-h-0 min-w-0 flex-col bg-sio-bg-subtle",
+        "insights-review-pane insights-review-chat insights-review-well flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-sio-bg-subtle",
         className,
       )}
       aria-labelledby={headingId}
@@ -66,7 +66,7 @@ export function SignalReviewConversation({
         </div>
       </header>
 
-      <div className="insights-review-chat-body scroll-region min-h-[14rem] flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
+      <div className="insights-review-chat-body scroll-region min-h-[14rem] flex-1 overflow-y-auto overscroll-contain">
         {hasMessages ? (
           <div className="mx-auto w-full max-w-md">
             <ConversationMessages

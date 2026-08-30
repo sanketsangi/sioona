@@ -468,7 +468,7 @@
       "feedback";
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: min-content minmax(16rem, 1fr) min-content;
-    gap: 1rem;
+    gap: var(--space-4);
     overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -503,8 +503,19 @@
     position: sticky;
     top: 0;
     z-index: 1;
+    display: flex;
+    min-width: 0;
     flex-shrink: 0;
+    align-items: center;
+    gap: var(--space-3);
+    border-bottom: 1px solid var(--sio-border-base);
     background: var(--sio-bg-base);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .insights-review-chat-body {
+    padding: var(--space-4) var(--space-3);
+    scrollbar-gutter: stable both-edges;
   }
 
   .insights-review-split [data-review-slot="feedback"] {
@@ -525,12 +536,11 @@
   }
 
   /*
-   * Review wells — same Card chrome as EvalCard / Insights queue Card.
-   * Columns sit on the page with gap-4.
+   * Review wells (Conversation card, rail cards) — same radius ladder as
+   * `.panel`; columns sit on the page with gap-4.
    */
   .insights-review-well {
     min-width: 0;
-    overflow: hidden;
     border-radius: var(--radius-panel);
     border: 1px solid var(--sio-border-base);
     background: var(--sio-bg-base);
@@ -540,7 +550,7 @@
     display: grid;
     min-width: 0;
     grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
+    gap: 0.75rem;
   }
 
   @container review (33.75rem <= width < 56rem) {
@@ -565,7 +575,7 @@
       min-width: 0;
       min-height: 0;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.75rem;
       overflow-x: clip;
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -629,13 +639,10 @@
     border: 1px solid var(--sio-border-base);
   }
 
-  /* Why This Fired landing — quiet ring + interactive fill, not a second accent. */
+  /* Why This Fired landing — one surface (fill + border), not a nested ring. */
   .chat-bubble--evidence {
     border-color: var(--sio-border-strong);
     background: var(--sio-bg-interactive);
-    box-shadow:
-      0 0 0 2px var(--sio-bg-base),
-      0 0 0 4px color-mix(in srgb, var(--sio-focus-accent) 40%, transparent);
   }
 
   .chat-bubble-group {

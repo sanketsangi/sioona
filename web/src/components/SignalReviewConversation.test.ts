@@ -54,6 +54,7 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("max-w-md");
     expect(html).toContain("insights-review-chat");
     expect(html).toContain("insights-review-chat-header");
+    expect(html).toContain("insights-review-well");
     expect(html).toContain("bg-sio-bg-subtle");
     expect(html).not.toContain("See Conversation");
     expect(html).not.toContain("No messages stored");
