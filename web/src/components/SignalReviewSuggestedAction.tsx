@@ -3,8 +3,10 @@
 import { Check, Copy } from "@phosphor-icons/react/ssr";
 import { useId, useState } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
+import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { SignalStatus } from "@/components/SignalStatus";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { messageIdForEvidence } from "@/lib/evidence-messages";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
@@ -154,15 +156,9 @@ export function SignalReviewSuggestedAction({
       className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sio-border-base px-3 py-2 sm:px-4">
-        <h3
-          id={headingId}
-          className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
-        >
-          Suggested Next Action
-        </h3>
+      <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
         {isActed ? <SignalStatus signal={signal} /> : null}
-      </div>
+      </InsightsReviewPaneHeader>
 
       <div className="flex min-w-0 flex-1 flex-col gap-4 px-3 py-3 sm:px-4">
         <div className="flex min-w-0 flex-col gap-1.5">
@@ -183,27 +179,29 @@ export function SignalReviewSuggestedAction({
           </p>
           {canCopy ? (
             <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <button
+              <Button
                 type="button"
-                className="btn-secondary"
+                variant="outline"
+                size="lg"
                 onClick={() => void copyReply()}
                 aria-label="Copy Reply to clipboard"
+                className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
               >
                 {copyState === "copied" ? (
                   <Check
-                    className="size-3.5 shrink-0"
+                    data-icon="inline-start"
                     weight="bold"
                     aria-hidden
                   />
                 ) : (
                   <Copy
-                    className="size-3.5 shrink-0"
+                    data-icon="inline-start"
                     weight="bold"
                     aria-hidden
                   />
                 )}
                 {copyState === "copied" ? "Copied" : "Copy Reply"}
-              </button>
+              </Button>
               <p className="sr-only" aria-live="polite">
                 {copyState === "copied"
                   ? "Reply copied to clipboard. Not sent."

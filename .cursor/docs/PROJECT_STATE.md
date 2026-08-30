@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/copyable-grounded-actions` (Copy Action + grounded Suggested Next Action)
+**Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,9 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Insights review Conversation is the primary chat-app well (`SignalReviewConversation`: sticky `SignalUser` header, full-height scroll transcript, native Why This Fired highlight). In-pane **See Conversation** dropped; header **Open Conversation** drawer stays as overflow. Empty → Upload Chats. Not Detect / not Auth0 / not outbound / not a keep-set go.
+**This pass (code, 2026-08-30):** Insights review panes (Suggested Next Action, Conversation, Feedback, Ground Truth) polished to shadcn + sio tokens — shared pane header/status chip, `Button`/`Input`/`ToggleGroup`/`Badge`; no product-logic / API / detect changes.
 
-**Prior pass (code, 2026-08-30):** Insights review Conversation + Suggested Next Action sit in the #60 container-query split: full transcript chat well (`SignalUser`, `max-w-md`) beside stacked action / Why This Fired (`heading-16` recommendation, display-only, `SignalStatus` when Acted). Why quotes jump to the matching bubble. Queue chrome from #61 (Card metrics, empty states) and Render wake (#58) stay. Overlay-by-id (#59) and Eval keep-set ∪ overlay (#57) are already on `main`. Not Detect / not Auth0 / not a keep-set go.
+**Prior pass (code, 2026-08-30):** Insights review Conversation is the primary chat-app well (`SignalReviewConversation`: sticky `SignalUser` header, full-height scroll transcript, native Why This Fired highlight). In-pane **See Conversation** dropped; header **Open Conversation** drawer stays as overflow. Empty → Upload Chats. Not Detect / not Auth0 / not outbound / not a keep-set go.
 
 **Shipped on origin (2026-08-20):** Partner Demo wipe→`zerodha_batch_02.json` only + Insights Follow-up/Done from Neon + unlocked Action Mode (prod locked) + pending landing / Mark Acted Pending return. Hosted Partner Demo already exercised. Partner Demo **preserves partner baseline** after wipe (no more share-out 12→4 footgun); cold-demo 4 still applies when no partner baseline exists.
 
