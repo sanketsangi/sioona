@@ -19,8 +19,9 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
+import { EvalCard } from "@/components/EvalCard";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -238,19 +239,18 @@ function buildQueueHref(
   };
 }
 
-/** Same Card chrome as InsightsQueueMetrics — sio radius, no elevation. */
-const QUEUE_CARD_CLASS =
-  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]";
-
 function QueueCard({
   className,
   children,
   ...props
-}: ComponentProps<typeof Card>) {
+}: ComponentProps<typeof EvalCard>) {
   return (
-    <Card size="sm" className={cn(QUEUE_CARD_CLASS, className)} {...props}>
+    <EvalCard
+      className={cn("flex min-h-0 min-w-0 flex-1 flex-col", className)}
+      {...props}
+    >
       {children}
-    </Card>
+    </EvalCard>
   );
 }
 

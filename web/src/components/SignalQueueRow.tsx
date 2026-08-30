@@ -20,7 +20,7 @@ export const QUEUE_GRID =
 
 /** Horizontal padding + gap shared by header and rows. */
 export const QUEUE_ROW_CLASS =
-  "grid min-w-0 w-full grid-cols-1 items-center gap-3 px-4";
+  "grid min-w-0 w-full grid-cols-1 items-center gap-3 px-3 sm:px-4";
 
 /** Dense Review control — `--radius-control`, not pill. */
 export const QUEUE_REVIEW_ACTION_CLASS =

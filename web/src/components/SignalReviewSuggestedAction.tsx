@@ -6,6 +6,7 @@ import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { SignalStatus } from "@/components/SignalStatus";
+import { evalCardPadClassName } from "@/components/EvalCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -278,7 +279,7 @@ export function SignalReviewSuggestedAction({
       </InsightsReviewPaneHeader>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-        <div className="flex min-w-0 flex-col gap-1.5 px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className={cn(evalCardPadClassName, "flex min-w-0 flex-col gap-1.5 pt-3")}>
           <p className="text-label-12 text-sio-fg-muted">
             {isActed
               ? "Marked as Acted — not sent."
@@ -304,7 +305,7 @@ export function SignalReviewSuggestedAction({
         {showSupport ? (
           <>
             <Separator className="bg-sio-border-base" />
-            <div className="flex min-w-0 flex-col gap-4 px-3 pb-3 sm:px-4 sm:pb-4">
+            <div className={cn(evalCardPadClassName, "flex min-w-0 flex-col gap-4 pb-3")}>
               {showWhy ? (
                 <section aria-labelledby={whyId} className="min-w-0">
                   <SupportHeading id={whyId}>Why This Fired</SupportHeading>

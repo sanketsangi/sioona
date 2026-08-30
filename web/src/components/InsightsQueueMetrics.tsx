@@ -3,8 +3,9 @@ import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
 import { CircleArrowIcon } from "@/components/icons/CircleArrowIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
+import { EvalCard, evalCardPadClassName } from "@/components/EvalCard";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import { signalStatusDot } from "@/lib/format";
 import type { Signal, SignalType } from "@/lib/types";
@@ -127,7 +128,12 @@ function MetricCell({
   compare?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 px-4 py-4">
+    <div
+      className={cn(
+        evalCardPadClassName,
+        "flex min-w-0 flex-col gap-3 py-3 sm:py-4",
+      )}
+    >
       <div className="flex min-w-0 items-center gap-2">
         <span
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
@@ -183,10 +189,7 @@ export function InsightsQueueMetrics({
       aria-label="Queue metrics"
       className={cn("shrink-0 overflow-x-clip", className)}
     >
-      <Card
-        size="sm"
-        className="gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"
-      >
+      <EvalCard>
         <CardContent className="grid grid-cols-1 divide-y divide-sio-border-base p-0 md:grid-cols-3 md:divide-x md:divide-y-0">
           <MetricCell
             title="Conversations"
@@ -212,7 +215,7 @@ export function InsightsQueueMetrics({
             compare={<SignalStatusCounts counts={statusCounts} />}
           />
         </CardContent>
-      </Card>
+      </EvalCard>
     </section>
   );
 }

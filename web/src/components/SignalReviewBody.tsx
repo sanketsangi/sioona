@@ -51,6 +51,7 @@ export function SignalReviewBody({
         messages={messages}
         customerName={customerName}
         highlightedMessageId={focusedMessageId}
+        className="insights-review-well overflow-hidden"
       />
       <div className="insights-review-rail">
         <SignalReviewSuggestedAction

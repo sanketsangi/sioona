@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { evalCardHeaderClassName } from "@/components/EvalCard";
 import { cn } from "@/lib/utils";
 
 /**
@@ -19,7 +20,7 @@ export function InsightsReviewPaneHeader({
   return (
     <div
       className={cn(
-        "flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-sio-border-base px-3 py-2.5 sm:px-4",
+        evalCardHeaderClassName,
         className,
       )}
     >
