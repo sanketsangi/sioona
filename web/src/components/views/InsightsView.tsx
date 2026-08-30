@@ -124,7 +124,11 @@ export function InsightsView({
   const queueError = needsReview.ok ? null : needsReview.error;
   const tenantSignalsError = tenantSignals.ok ? null : tenantSignals.error;
   const pendingJoined = needsReview.ok
-    ? pendingQueueSignals(needsReview.predictions, store.signals)
+    ? pendingQueueSignals(
+        needsReview.predictions,
+        store.signals,
+        tenantSignals.ok ? tenantSignals.rows : undefined,
+      )
     : store.signals.filter((s) => !s.feedback);
   const reviewedJoined = tenantSignals.ok
     ? reviewedQueueSignals(tenantSignals.rows, store.signals)

@@ -293,6 +293,51 @@ const tenantRow = (
   ...overrides,
 });
 
+describe("pendingQueueSignals Neon reviewed exclusion", () => {
+  it("does not re-open JSON-unreviewed locals already reviewed in Neon", () => {
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        id: "sig_stale_instance",
+        backendSignalId: "aaa",
+      },
+      {
+        ...baseSignal,
+        id: "sig_still_open",
+        conversationId: "conv_open",
+        backendSignalId: "open-pred",
+      },
+    ];
+    const pending = pendingQueueSignals([], json, [
+      tenantRow({
+        id: "aaa",
+        conversation_id: "conv_1",
+        signal_type: "lead",
+      }),
+    ]);
+    expect(pending.map((s) => s.id)).toEqual(["sig_still_open"]);
+  });
+
+  it("excludes stale JSON locals by conversation+type when backendSignalId is missing", () => {
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        id: "sig_no_backend_id",
+        conversationId: "conv_1",
+        type: "lead",
+      },
+    ];
+    const pending = pendingQueueSignals([], json, [
+      tenantRow({
+        id: "neon-reviewed",
+        conversation_id: "conv_1",
+        signal_type: "lead",
+      }),
+    ]);
+    expect(pending).toEqual([]);
+  });
+});
+
 describe("joinTenantSignals", () => {
   it("keeps Neon-only Correct-not-Acted as a stub", () => {
     const rows = [
