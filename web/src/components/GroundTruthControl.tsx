@@ -132,7 +132,7 @@ export function GroundTruthControl({
 
   return (
     <section
-      className={cn("metric-strip flex flex-col", className)}
+      className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
