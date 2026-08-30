@@ -345,7 +345,7 @@ export function InsightsView({
                 : hasSyncFailure
                   ? "Neon sync failed for some predictions — needs-review queue may be incomplete."
                   : pendingSignals.length === 0
-                    ? "Import finished — open Filters or re-run detection if the queue stays empty."
+                    ? "Import finished — use the status tabs or re-run detection if the queue stays empty."
                     : "Neon needs-review queue is ready below."}
             </p>
             {zeroSignalsImport ? (
@@ -365,27 +365,22 @@ export function InsightsView({
         reviewKey={reviewOpen ? previewId : null}
         list={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
-              <div className="min-w-0">
-                <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                  Conversation that needs your attention
-                </h2>
-              </div>
-              <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
-                <SignalQueueFilters
-                  pendingSignals={pendingSignals}
-                  reviewedSignals={reviewedSignals}
-                  queueError={queueError}
-                  statusFilter={statusFilter}
-                  typeFilter={typeFilter}
-                  page={page}
-                  previewId={reviewOpen ? null : previewId}
-                  queryExtras={queryExtras}
-                />
-                {showQuietReDetect && !zeroSignalsImport ? (
-                  <ReDetectButton />
-                ) : null}
-              </div>
+            <h2 className="sr-only">Insights Queue</h2>
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <SignalQueueFilters
+                className="min-w-0 flex-1"
+                pendingSignals={pendingSignals}
+                reviewedSignals={reviewedSignals}
+                queueError={queueError}
+                statusFilter={statusFilter}
+                typeFilter={typeFilter}
+                page={page}
+                previewId={reviewOpen ? null : previewId}
+                queryExtras={queryExtras}
+              />
+              {showQuietReDetect && !zeroSignalsImport ? (
+                <ReDetectButton />
+              ) : null}
             </div>
             <InsightsQueueMetrics
               conversationCount={chats.conversations.length}
@@ -439,7 +434,7 @@ export function InsightsView({
                   </Breadcrumb>
                 ) : (
                   <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                    Conversation that needs your attention
+                    Insights Queue
                   </h2>
                 )}
               </div>

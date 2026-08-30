@@ -22,9 +22,9 @@ export const QUEUE_GRID =
 export const QUEUE_ROW_CLASS =
   "grid min-w-0 w-full grid-cols-1 items-center gap-3 px-3 sm:px-4";
 
-/** Dense Review control — `--radius-control`, not pill. */
+/** Quiet Review control — tertiary on desktop, full-width hit target on mobile. */
 export const QUEUE_REVIEW_ACTION_CLASS =
-  "btn-secondary w-full shrink-0 touch-manipulation lg:h-8 lg:max-w-full lg:px-3";
+  "btn-tertiary w-full shrink-0 touch-manipulation lg:h-8 lg:w-auto lg:max-w-full lg:px-2";
 
 type SignalQueueRowProps = {
   signal: Signal;

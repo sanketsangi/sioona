@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useRef, type ComponentProps, type ReactNode } from "react";
-import { ArrowRight, CaretDown, CirclesThree } from "@phosphor-icons/react/ssr";
-import { FilterIcon } from "@/components/icons/FilterIcon";
+import { ArrowRight, CaretDown } from "@phosphor-icons/react/ssr";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
+import { SegmentedTabs } from "@/components/SegmentedTabs";
 import {
   SignalQueueRow,
   QUEUE_GRID,
@@ -20,7 +20,6 @@ import {
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
 import { EvalCard } from "@/components/EvalCard";
-import { Badge } from "@/components/ui/badge";
 import { CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
@@ -28,12 +27,9 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import {
   formatScore,
   queueSignalSummary,
@@ -124,12 +120,6 @@ function resolveCustomerName(
   return "Customer";
 }
 
-const STATUS_DOT_BY_FILTER: Partial<Record<StatusFilter, StatusDotState>> = {
-  new: "QUEUED",
-  followup: "READY",
-  acted: "CANCELED",
-};
-
 const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "new", label: "Pending" },
@@ -143,16 +133,6 @@ const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
   { value: "retention", label: "Retention" },
   { value: "upsell", label: "Upsell" },
 ];
-
-function statusFilterIcon(value: StatusFilter): ReactNode {
-  const state = STATUS_DOT_BY_FILTER[value];
-  if (state) {
-    return <StatusDot state={state} className="justify-center" />;
-  }
-  return (
-    <CirclesThree className="size-4 text-sio-fg-subtle" weight="regular" />
-  );
-}
 
 function typeFilterIcon(value: TypeFilter): ReactNode {
   switch (value) {
@@ -300,7 +280,7 @@ const QUEUE_COL_HEADER = "truncate text-label-12 font-medium text-sio-fg-subtle"
 function QueueColumnHeader() {
   return (
     <div
-      className={cn(QUEUE_ROW_CLASS, QUEUE_GRID, "h-10 bg-sio-bg-base")}
+      className={cn(QUEUE_ROW_CLASS, QUEUE_GRID, "h-9 bg-sio-bg-subtle")}
       role="row"
     >
       <span className={QUEUE_COL_HEADER} role="columnheader">
@@ -351,7 +331,7 @@ function useQueueList({
   );
 }
 
-/** Filters + count summary for Insights header (right of section title). */
+/** Status tabs + type filter for the Insights queue toolbar. */
 export function SignalQueueFilters({
   pendingSignals,
   reviewedSignals,
@@ -359,7 +339,8 @@ export function SignalQueueFilters({
   typeFilter = "all",
   previewId = null,
   queryExtras,
-}: Omit<SignalQueueProps, "showFilters">) {
+  className,
+}: Omit<SignalQueueProps, "showFilters"> & { className?: string }) {
   const { pendingCount, followUpCount, doneCount, allCount } = useQueueList({
     pendingSignals,
     reviewedSignals,
@@ -375,6 +356,7 @@ export function SignalQueueFilters({
 
   return (
     <QueueFilters
+      className={className}
       statusFilter={statusFilter}
       typeFilter={typeFilter}
       pendingCount={pendingCount}
@@ -730,13 +712,11 @@ function FilterMenuLink({
   href,
   active,
   icon,
-  suffix,
   children,
 }: {
   href: string;
   active: boolean;
   icon: ReactNode;
-  suffix?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -756,13 +736,28 @@ function FilterMenuLink({
           {icon}
         </span>
         <span className="min-w-0 flex-1 truncate">{children}</span>
-        {suffix}
       </Link>
     </DropdownMenuItem>
   );
 }
 
+function statusTabCount(
+  value: StatusFilter,
+  counts: {
+    pendingCount: number;
+    followUpCount: number;
+    doneCount: number;
+    allCount: number;
+  },
+): number {
+  if (value === "new") return counts.pendingCount;
+  if (value === "followup") return counts.followUpCount;
+  if (value === "acted") return counts.doneCount;
+  return counts.allCount;
+}
+
 function QueueFilters({
+  className,
   statusFilter,
   typeFilter,
   pendingCount,
@@ -771,6 +766,7 @@ function QueueFilters({
   allCount,
   queueHref,
 }: {
+  className?: string;
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
   pendingCount: number;
@@ -784,16 +780,46 @@ function QueueFilters({
     preview?: string | null;
   }) => string;
 }) {
+  const typeLabel =
+    TYPE_OPTIONS.find((option) => option.value === typeFilter)?.label ??
+    "All Types";
+
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-2">
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        className,
+      )}
+    >
+      <SegmentedTabs
+        className="w-full sm:max-w-lg"
+        label="Queue status"
+        activeId={statusFilter}
+        items={STATUS_OPTIONS.map((option) => ({
+          id: option.value,
+          label: option.label,
+          href: queueHref({
+            status: option.value,
+            page: 1,
+            preview: null,
+          }),
+          count: statusTabCount(option.value, {
+            pendingCount,
+            followUpCount,
+            doneCount,
+            allCount,
+          }),
+        }))}
+      />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="btn-secondary group outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
+            aria-label="Filter by type"
+            className="btn-secondary group shrink-0 self-end outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
           >
-            <FilterIcon className="size-3.5 shrink-0" />
-            Filters
+            {typeFilterIcon(typeFilter)}
+            {typeLabel}
             <CaretDown
               className="size-3.5 shrink-0 transition-transform duration-150 group-data-[state=open]:rotate-180"
               weight="bold"
@@ -804,46 +830,8 @@ function QueueFilters({
         <DropdownMenuContent
           align="end"
           sideOffset={8}
-          className="w-56 min-w-56 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
+          className="w-52 min-w-52 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
         >
-          <DropdownMenuGroup className="p-2">
-            <DropdownMenuLabel>Status</DropdownMenuLabel>
-            {STATUS_OPTIONS.map((option) => {
-              const count =
-                option.value === "new"
-                  ? pendingCount
-                  : option.value === "followup"
-                    ? followUpCount
-                    : option.value === "acted"
-                      ? doneCount
-                      : allCount;
-              return (
-                <FilterMenuLink
-                  key={option.value}
-                  active={statusFilter === option.value}
-                  icon={statusFilterIcon(option.value)}
-                  href={queueHref({
-                    status: option.value,
-                    page: 1,
-                    preview: null,
-                  })}
-                  suffix={
-                    <DropdownMenuShortcut className="tracking-normal">
-                      <Badge
-                        variant="secondary"
-                        className="h-5 min-w-5 rounded-full border-0 bg-sio-bg-muted px-1.5 text-label-12 font-medium tabular text-sio-fg-base group-focus/dropdown-menu-item:bg-sio-bg-muted group-focus/dropdown-menu-item:text-sio-fg-base"
-                      >
-                        {count}
-                      </Badge>
-                    </DropdownMenuShortcut>
-                  }
-                >
-                  {option.label}
-                </FilterMenuLink>
-              );
-            })}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator className="m-0 bg-sio-border-base" />
           <DropdownMenuGroup className="p-2">
             <DropdownMenuLabel>Type</DropdownMenuLabel>
             {TYPE_OPTIONS.map((option) => (

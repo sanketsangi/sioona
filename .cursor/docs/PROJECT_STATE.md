@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Insights review queue uses Eval container rhythm — `EvalCard` queue/metrics, review wells + conversation card, `px-3 sm:px-4` row/header/body gutters, `gap-4` between review cards. No logic / Detect / outbound / keep-set change.
+**This pass (code, 2026-08-30):** Insights queue chrome matches Eval — `SegmentedTabs` status (All / Pending / Correct / Done + counts), Type dropdown, muted table header, tertiary Review. Duplicate “Conversation that needs your attention” heading dropped (`sr-only` Insights Queue). Locked signal chrome unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-30):** Insights review queue uses Eval container rhythm — `EvalCard` queue/metrics, review wells + conversation card, `px-3 sm:px-4` row/header/body gutters, `gap-4` between review cards. No logic / Detect / outbound / keep-set change.
 
 **Prior pass (code, 2026-08-30):** Eval containers use shared `EvalCard` (same Card chrome as Insights queue) — Signal Score / Labeled Eval / Pilot / offer / Baseline / Adapt / Labeled / Export. Header + KPI gutters `px-3 py-2.5 sm:px-4`. No logic / Detect / outbound / keep-set change.
 
