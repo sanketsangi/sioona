@@ -1,5 +1,9 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { Avatar } from "@/components/ui/Avatar";
+import { cn } from "@/lib/utils";
+
+/** Matches header `SignalUser` + radix-vega `size-8`. */
+export const MESSAGE_AVATAR_SIZE = 32;
 
 export type MessageAlign = "start" | "end";
 
@@ -8,6 +12,7 @@ export type MessageAlign = "start" | "end";
  * Row is always `w-full` so packing can hug an edge:
  * - `align="start"` → agent left (`flex-row` + `justify-start`)
  * - `align="end"` → customer right (`flex-row-reverse` + `justify-start`)
+ * Bubble/content hug text (`w-fit`); row stays `w-full`.
  */
 export function Message({
   children,
@@ -22,9 +27,11 @@ export function Message({
   return (
     <div
       data-align={align}
-      className={`flex w-full max-w-full gap-2 ${
-        isEnd ? "flex-row-reverse justify-start" : "flex-row justify-start"
-      } ${className}`}
+      className={cn(
+        "flex w-full max-w-full items-start gap-2",
+        isEnd ? "flex-row-reverse justify-start" : "flex-row justify-start",
+        className,
+      )}
     >
       {children}
     </div>
@@ -44,14 +51,14 @@ export function MessageAvatar({
   className?: string;
 }) {
   if (children) {
-    return <div className={`mt-0.5 shrink-0 ${className}`}>{children}</div>;
+    return <div className={cn("mt-0.5 shrink-0", className)}>{children}</div>;
   }
   return (
     <Avatar
       letter={letter}
       placeholder
-      size={28}
-      className={`mt-0.5 ${className}`}
+      size={MESSAGE_AVATAR_SIZE}
+      className={cn("mt-0.5", className)}
     />
   );
 }
@@ -63,7 +70,10 @@ export function MessageContent({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`min-w-0 max-w-[min(24rem,calc(100%-2.5rem))] ${className}`}
+      className={cn(
+        "min-w-0 w-fit max-w-[min(24rem,calc(100%-2.5rem))]",
+        className,
+      )}
       {...props}
     >
       {children}

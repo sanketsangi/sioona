@@ -611,11 +611,12 @@
   }
 
   /*
-   * Chat bubbles — same radius ladder as panels; sio-* fills only.
+   * Chat bubbles — Eval Card gutters (px-3) + geist copy-14; sio-* fills.
    * muted = customer (right); default = agent (left, panel-quiet).
+   * No nested Card chrome — radius matches .panel / rail Card.
    */
   .chat-bubble {
-    @apply min-w-0 max-w-full px-3 py-2 text-copy-14 leading-5 text-sio-fg-base;
+    @apply w-fit min-w-0 max-w-full px-3 py-2 text-copy-14 leading-5 text-sio-fg-base;
     border-radius: var(--radius-panel);
   }
 
@@ -639,7 +640,7 @@
   }
 
   .chat-bubble-group {
-    @apply flex w-full flex-col gap-3;
+    @apply flex w-full flex-col gap-2;
   }
 
   .metric-strip {

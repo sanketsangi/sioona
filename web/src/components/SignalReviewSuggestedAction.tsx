@@ -5,20 +5,12 @@ import { useEffect, useId, useRef } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { SignalStatus } from "@/components/SignalStatus";
-import {
-  evalCardClassName,
-  evalCardHeaderClassName,
-  evalCardPadClassName,
-} from "@/components/EvalCard";
+import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
+import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -70,23 +62,12 @@ function EvidenceChip({
   const sep = text.indexOf(" · ");
   const kindLabel = sep > 0 ? text.slice(0, sep) : null;
   const value = sep > 0 ? text.slice(sep + 3) : text;
-  const chipClass = cn(
-    "h-auto max-w-full gap-1.5 rounded-[var(--radius-control)] border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-left text-label-12 font-normal whitespace-normal",
-    active && "border-sio-border-strong bg-sio-bg-interactive",
-    onSelect &&
-      "min-h-11 cursor-pointer touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-8",
-  );
   const inner = (
     <>
       {kindLabel ? (
-        <span className="shrink-0 font-medium text-sio-fg-muted">
-          {kindLabel}
-        </span>
+        <span className="shrink-0 text-sio-fg-muted">{kindLabel}</span>
       ) : null}
-      <span
-        className="min-w-0 break-words font-medium text-sio-fg-base"
-        translate="no"
-      >
+      <span className="min-w-0 break-words text-sio-fg-base" translate="no">
         {value}
       </span>
     </>
@@ -94,21 +75,30 @@ function EvidenceChip({
 
   if (onSelect && controlsId) {
     return (
-      <button
+      <Button
         type="button"
-        className={cn("inline-flex max-w-full items-baseline", chipClass)}
+        variant="outline"
+        size="xs"
+        className={cn(
+          "h-auto max-w-full gap-1.5 px-2 py-1 text-left text-label-12 font-normal whitespace-normal",
+          "min-h-11 touch-manipulation lg:min-h-6",
+          active && "border-sio-border-strong bg-sio-bg-interactive",
+        )}
         aria-pressed={active}
         aria-controls={controlsId}
         aria-label={`Show in conversation: ${value}`}
         onClick={onSelect}
       >
         {inner}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <Badge variant="outline" className={chipClass}>
+    <Badge
+      variant="outline"
+      className="h-auto max-w-full gap-1.5 rounded-md px-2 py-1 text-left text-label-12 font-normal whitespace-normal"
+    >
       {inner}
     </Badge>
   );
@@ -125,39 +115,38 @@ function WhyQuote({
   controlsId: string | null;
   onSelect: (() => void) | null;
 }) {
-  const quote = (
-    <blockquote className="border-l-2 border-sio-border-strong pl-3">
+  const quoteBody = (
+    <blockquote className="border-l-2 border-sio-border-strong pl-3 text-left">
       <p className="line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
         “{text}”
       </p>
     </blockquote>
   );
   const surface = cn(
-    "w-full rounded-[var(--radius-control)] border px-3 py-2 text-left",
-    active
-      ? "border-sio-border-strong bg-sio-bg-interactive"
-      : "border-sio-border-subtle bg-sio-bg-base",
+    "h-auto w-full rounded-[var(--radius-control)] border border-border bg-sio-bg-base px-3 py-2 text-left font-normal whitespace-normal",
+    active && "border-sio-border-strong bg-sio-bg-interactive",
   );
 
   if (onSelect && controlsId) {
     return (
-      <button
+      <Button
         type="button"
+        variant="outline"
         className={cn(
           surface,
-          "min-h-11 touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-9",
+          "min-h-11 justify-start touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-9",
         )}
         aria-pressed={active}
         aria-controls={controlsId}
         aria-label={`Show in conversation: ${text}`}
         onClick={onSelect}
       >
-        {quote}
-      </button>
+        {quoteBody}
+      </Button>
     );
   }
 
-  return <div className={surface}>{quote}</div>;
+  return <div className={surface}>{quoteBody}</div>;
 }
 
 function SupportHeading({
@@ -168,21 +157,21 @@ function SupportHeading({
   children: string;
 }) {
   return (
-    <h4
+    <Label
       id={id}
-      className="text-label-12 font-medium tracking-normal text-sio-fg-subtle"
+      className="text-label-12 leading-5 font-medium tracking-normal text-sio-fg-subtle"
     >
       {children}
-    </h4>
+    </Label>
   );
 }
 
 /**
  * Suggested Next Action + Why This Fired + Matched — single Card well.
- * Header matches Conversation / Feedback (`evalCardHeader` flex baseline).
- * Mark as Acted on Correct-not-Acted (A / Enter walk). Quotes and match
- * chips that join a stored message jump the transcript. Neon stubs /
- * missing join stay honest.
+ * Header matches Feedback / Ground Truth (`InsightsReviewPaneHeader`).
+ * Status chip, or Mark as Acted on Correct-not-Acted (A / Enter walk).
+ * Quotes and match chips that join a stored message jump the transcript.
+ * Neon stubs / missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -253,59 +242,52 @@ export function SignalReviewSuggestedAction({
       className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
-      <CardHeader
-        className={cn(evalCardHeaderClassName, "[.border-b]:pb-2.5")}
-      >
-        <CardTitle className="contents p-0 text-sm leading-5 font-semibold">
-          <h3
-            id={headingId}
-            className="min-w-0 flex-1 truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
-          >
-            Suggested Next Action
-          </h3>
-        </CardTitle>
-        <CardAction className="col-auto row-span-1 row-start-auto flex shrink-0 items-center self-center justify-self-auto">
-          {showRailActed ? (
-            <TooltipProvider delayDuration={400}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex shrink-0">
-                    <Button
-                      type="button"
-                      className="btn-primary shrink-0"
-                      disabled={actedPending}
-                      aria-busy={actedPending}
-                      aria-keyshortcuts="A Enter"
-                      onClick={() => void setActed(true)}
-                    >
-                      {actedPending ? (
-                        <ButtonSpinner />
-                      ) : (
-                        <Check
-                          className="size-3.5 shrink-0"
-                          weight="bold"
-                          aria-hidden
-                        />
-                      )}
-                      Mark as Acted
-                    </Button>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end">
-                  {ACTED_TOOLTIP}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <SignalStatus signal={signal} variant="chip" />
-          )}
-        </CardAction>
-      </CardHeader>
+      <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
+        {showRailActed ? (
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex shrink-0">
+                  <Button
+                    type="button"
+                    className="btn-primary shrink-0"
+                    disabled={actedPending}
+                    aria-busy={actedPending}
+                    aria-keyshortcuts="A Enter"
+                    onClick={() => void setActed(true)}
+                  >
+                    {actedPending ? (
+                      <ButtonSpinner />
+                    ) : (
+                      <Check
+                        className="size-3.5 shrink-0"
+                        weight="bold"
+                        aria-hidden
+                      />
+                    )}
+                    Mark as Acted
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                {ACTED_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <SignalStatus signal={signal} variant="chip" />
+        )}
+      </InsightsReviewPaneHeader>
 
       <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-0">
-        <div className={cn(evalCardPadClassName, "flex min-w-0 flex-col gap-1.5 pt-3")}>
+        <div
+          className={cn(
+            evalCardPadClassName,
+            "flex min-w-0 flex-col justify-center gap-1.5 py-3",
+          )}
+        >
           {isActed ? (
-            <p className="text-label-12 text-sio-fg-muted">
+            <p className="text-label-12 leading-5 text-sio-fg-muted">
               Marked as Acted — not sent.
             </p>
           ) : null}
@@ -320,7 +302,7 @@ export function SignalReviewSuggestedAction({
               : signal.suggestedAction}
           </p>
           {showRailActed && error ? (
-            <p className="text-label-12 text-sio-status-danger-fg" role="alert">
+            <p className="text-label-12 leading-5 text-sio-status-danger-fg" role="alert">
               {error}
             </p>
           ) : null}
@@ -329,13 +311,21 @@ export function SignalReviewSuggestedAction({
         {showSupport ? (
           <>
             <Separator className="bg-sio-border-base" />
-            <div className={cn(evalCardPadClassName, "flex min-w-0 flex-col gap-4 pb-3")}>
+            <div
+              className={cn(
+                evalCardPadClassName,
+                "flex min-w-0 flex-col gap-3 py-3",
+              )}
+            >
               {showWhy ? (
-                <section aria-labelledby={whyId} className="min-w-0">
+                <section
+                  aria-labelledby={whyId}
+                  className="flex min-w-0 flex-col gap-1.5"
+                >
                   <SupportHeading id={whyId}>Why This Fired</SupportHeading>
 
                   {quotes.length > 0 ? (
-                    <ul className="mt-2 flex flex-col gap-2">
+                    <ul className="flex flex-col gap-1.5">
                       {quotes.map(({ item, text, messageId }) => {
                         const canJump = Boolean(messageId && onFocusMessage);
                         return (
@@ -361,7 +351,7 @@ export function SignalReviewSuggestedAction({
                       })}
                     </ul>
                   ) : (
-                    <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
+                    <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted">
                       {isNeonStub
                         ? "No local evidence — detection join missing."
                         : "No local evidence."}
@@ -375,9 +365,12 @@ export function SignalReviewSuggestedAction({
               ) : null}
 
               {showMatched ? (
-                <section aria-labelledby={matchedId} className="min-w-0">
+                <section
+                  aria-labelledby={matchedId}
+                  className="flex min-w-0 flex-col gap-1.5"
+                >
                   <SupportHeading id={matchedId}>Matched</SupportHeading>
-                  <ul className="mt-2 flex flex-wrap gap-2">
+                  <ul className="flex flex-wrap gap-1.5">
                     {matches.map(({ item, text, messageId }) => (
                       <li key={item} className="min-w-0 max-w-full">
                         <EvidenceChip

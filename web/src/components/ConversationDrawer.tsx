@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { X } from "@phosphor-icons/react/ssr";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { evalCardPadClassName } from "@/components/EvalCard";
 import { SignalUser } from "@/components/SignalUser";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -90,10 +91,15 @@ export function ConversationDrawer({
           </div>
         </DrawerHeader>
 
-        <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
+        <div
+          className={cn(
+            "scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain py-3",
+            evalCardPadClassName,
+          )}
+        >
           <div className="mx-auto w-full max-w-lg">
             {messages.length === 0 ? (
-              <div className="flex min-h-[12rem] flex-col items-center justify-center gap-1 px-2 text-center">
+              <div className="flex min-h-[12rem] flex-col items-center justify-center gap-1 text-center">
                 <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
                 <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">
                   Re-upload or re-detect to attach the transcript. No invented

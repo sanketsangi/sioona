@@ -50,10 +50,25 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("I can help pause that SIP.");
     expect(html).toContain("2 messages");
-    expect(html).toContain("1 Aug, 10:05");
+    expect(html).not.toContain("<time");
+    expect(html).not.toContain("Aug,");
     expect(html).toContain("max-w-md");
     expect(html).toContain("insights-review-chat");
     expect(html).toContain("insights-review-chat-header");
+    expect(html).toContain("insights-review-chat-body");
+    expect(html).toContain("px-3 sm:px-4");
+    expect(html).toContain("overscroll-contain py-3");
+    expect(html).not.toContain("px-1 py-4");
+    expect(html).not.toContain("sm:px-2 sm:py-5");
+    expect(html).toContain("items-start gap-2");
+    expect(html).toContain("w-fit max-w-full");
+    expect(html).toContain('data-align="end"');
+    expect(html).toContain('data-align="start"');
+    expect(html).toContain("flex-row-reverse");
+    expect(html).toContain("chat-bubble--muted");
+    expect(html).toContain("chat-bubble--default");
+    expect(html).not.toContain("width:28px");
+    expect(html).toContain("width:32px");
     expect(html).toContain("bg-sio-bg-subtle");
     expect(html).not.toContain("See Conversation");
     expect(html).not.toContain("No messages stored");
@@ -74,7 +89,13 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("view=upload");
     expect(html).toContain("Priya");
     expect(html).toContain("Conversation");
+    expect(html).toContain("insights-review-chat-body");
+    expect(html).toContain("px-3 sm:px-4");
+    expect(html).not.toContain("px-1 py-4");
+    expect(html).not.toContain("<time");
+    expect(html).not.toContain("Aug,");
     expect(html).not.toContain("See Conversation");
+    expect(html).not.toContain("chat-bubble");
   });
 
   it("highlights the evidence turn on a long transcript", () => {
@@ -97,6 +118,10 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("conversation-message-msg_1");
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Evidence match");
+    expect(html).toContain('data-evidence-match="true"');
+    expect(html).toContain("scroll-mt-3");
+    expect(html).not.toContain("<time");
+    expect(html).not.toContain("Aug,");
     expect(html).not.toContain("Showing last");
     expect(html).not.toContain("See Conversation");
   });

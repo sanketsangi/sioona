@@ -20,7 +20,7 @@ export function Bubble({
   return (
     <div
       data-variant={variant}
-      className={cn("flex w-full max-w-full flex-col gap-1", className)}
+      className={cn("flex w-fit max-w-full flex-col gap-1", className)}
     >
       {children}
     </div>

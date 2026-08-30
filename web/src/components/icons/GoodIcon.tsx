@@ -1,10 +1,16 @@
+import type { ComponentProps } from "react";
 import { GeistMaskIcon } from "@/components/icons/GeistMaskIcon";
 
-type IconProps = { className?: string; color?: string };
+type IconProps = Omit<ComponentProps<typeof GeistMaskIcon>, "src">;
 
 /** Check-in-circle from `public/icons/good.svg`. */
-export function GoodIcon({ className = "size-4 shrink-0", color }: IconProps) {
+export function GoodIcon({ className, color, ...props }: IconProps) {
   return (
-    <GeistMaskIcon src="/icons/good.svg" className={className} color={color} />
+    <GeistMaskIcon
+      src="/icons/good.svg"
+      className={className}
+      color={color}
+      {...props}
+    />
   );
 }

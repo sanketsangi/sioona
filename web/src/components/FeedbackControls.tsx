@@ -37,7 +37,7 @@ const options: {
   hint: string;
   shortcut: string;
   primary?: boolean;
-  Icon: ComponentType<{ className?: string }>;
+  Icon: ComponentType<{ className?: string; "data-icon"?: string }>;
 }[] = [
   {
     label: "correct",
@@ -100,8 +100,6 @@ export function FeedbackControls({
   const busy = pending !== null;
   const needsAdapt =
     feedbackLabel === "incorrect" || feedbackLabel === "partially_correct";
-  const needsAct =
-    feedbackLabel === "correct" && signal.status !== "acted";
   const currentTitle =
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
@@ -263,37 +261,33 @@ export function FeedbackControls({
                 )}
               >
                 {pending === option.label ? (
-                  <ButtonSpinner />
+                  <ButtonSpinner data-icon="inline-start" />
                 ) : (
-                  <Icon />
+                  <Icon
+                    data-icon="inline-start"
+                    className={
+                      option.label === "partially_correct"
+                        ? "-translate-y-[2px]"
+                        : undefined
+                    }
+                  />
                 )}
-                {option.label === "partially_correct" ? (
-                  <>
-                    <span className="min-[420px]:hidden">Partial</span>
-                    <span className="hidden min-[420px]:inline">
-                      {option.title}
-                    </span>
-                  </>
-                ) : (
-                  option.title
-                )}
+                <span className="leading-none">
+                  {option.label === "partially_correct" ? (
+                    <>
+                      <span className="min-[420px]:hidden">Partial</span>
+                      <span className="hidden min-[420px]:inline">
+                        {option.title}
+                      </span>
+                    </>
+                  ) : (
+                    option.title
+                  )}
+                </span>
               </Button>
             );
           })}
         </div>
-
-        {needsAct ? (
-          <div role="status" aria-live="polite">
-            <Note
-              icon={null}
-              className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
-            >
-              <NoteContent className="text-label-12 text-sio-fg-base">
-                Mark as Acted on Suggested Next Action (does not send).
-              </NoteContent>
-            </Note>
-          </div>
-        ) : null}
 
         {needsAdapt ? (
           <div role="status" aria-live="polite">

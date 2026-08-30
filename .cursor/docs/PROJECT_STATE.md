@@ -19,7 +19,25 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-31):** Suggested Next Action CardTitle sits on the same header baseline as Conversation/Feedback; Mark as Acted unchanged. Not outbound / not Detect / not a keep-set go.
+**This pass (code, 2026-08-31):** Suggested Next Action header uses `InsightsReviewPaneHeader` (same flex/`items-center` 43px row as Feedback / Ground Truth). Drops CardTitle `text-base` wrap and CardAction line-box; Pending chip uses `InsightsReviewStatusChip`. Title/chip midlines match. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Feedback drops the Acted-does-not-send Note; Feedback action Buttons icon+label aligned. Mark as Acted stays on Suggested Next Action. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Suggested Next Action CardTitle sits on the same header baseline as Conversation/Feedback; Mark as Acted unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Suggested Next Action title sits on the same header baseline as Conversation/Feedback (`evalCardHeader`). Mark as Acted / Pending chip unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Insights review bubbles hug content (`w-fit`) with shadcn/Geist `gap-2` between rows and avatar. Shared `ConversationMessages` / `.chat-bubble*` keep the drawer in sync. Why jumps, evidence ring, empty Upload, timestamps off, left/right lock unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Insights review chat body matches rail Card density (`evalCardPad` `px-3 sm:px-4` / `py-3`) with geist Message/Bubble/Avatar (32px, `gap-3`). Shared `ConversationMessages` / `.chat-bubble*` keep the drawer in sync. Why jumps, evidence ring, empty Upload, timestamps off, left/right lock unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Insights review transcript drops per-message bubble clocks (`showTimestamps` off). Why jumps, avatars, data times, and ConversationDrawer clocks stay. Empty / evidence-highlight paths unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Suggested Next Action copy uses balanced `py-3`; Why/Matched share even pad/leading; WhyQuote is outline Button with `--radius-control` + `border-border`. Header / Mark as Acted unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Why This Fired + Matched inside Suggested Next Action CardContent are flush radix-vega Label / blockquote / Badge / Button (no nested quote boxes). Header / Mark as Acted / action copy unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-31):** Suggested Next Action is one flattened shadcn Card well (`CardHeader` / `CardAction` / `CardContent` + Separator; Eval density). Mark as Acted / A-Enter / ≤2 quote jumps / honesty copy unchanged. Feedback keeps `InsightsReviewPaneHeader`. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-30):** Insights queue list Card is a DataTable (`shadcn` Table + TanStack): User · Signal · Status · Score · Type · Action, sticky muted header, overflow at all sizes, URL `?page=` pager (10/page), locked chrome, `?preview=` Review Links. Empty/error Cards + review body unchanged. Not outbound / not Detect / not a keep-set go.
 
