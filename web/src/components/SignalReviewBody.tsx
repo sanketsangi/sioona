@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
+import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
-import { SignalReviewTranscript } from "@/components/SignalReviewTranscript";
 import type { SignalReviewTriage } from "@/lib/views";
 import { firstEvidenceMessageId } from "@/lib/evidence-messages";
+import { signalTypeLabel } from "@/lib/format";
 import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -43,9 +44,11 @@ export function SignalReviewBody({
       className={cn("insights-review-split", className)}
       aria-labelledby={`signal-review-heading-${signal.id}`}
     >
-      <SignalReviewTranscript
+      <SignalReviewConversation
         messages={messages}
         customerName={customerName}
+        typeLabel={signalTypeLabel(signal.type)}
+        summary={signal.summary || ""}
         highlightedMessageId={focusedMessageId}
       />
       <div className="insights-review-rail">

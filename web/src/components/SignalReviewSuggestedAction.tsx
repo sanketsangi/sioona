@@ -2,8 +2,8 @@
 
 import { useId } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
+import { SignalStatus } from "@/components/SignalStatus";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { messageIdForEvidence } from "@/lib/evidence-messages";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
@@ -36,7 +36,7 @@ function EvidenceChip({
   const kindLabel = sep > 0 ? text.slice(0, sep) : null;
   const value = sep > 0 ? text.slice(sep + 3) : text;
   const chipClass = cn(
-    "h-auto max-w-full gap-1.5 rounded-[var(--radius-control)] border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-label-12 font-normal whitespace-normal",
+    "h-auto max-w-full gap-1.5 rounded-[var(--radius-control)] border-sio-border-subtle bg-sio-bg-base px-2 py-1 text-left text-label-12 font-normal whitespace-normal",
     active && "border-sio-border-strong bg-sio-bg-interactive",
     onSelect &&
       "min-h-11 cursor-pointer touch-manipulation transition-colors duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive lg:min-h-8",
@@ -61,10 +61,7 @@ function EvidenceChip({
     return (
       <button
         type="button"
-        className={cn(
-          "inline-flex max-w-full items-baseline",
-          chipClass,
-        )}
+        className={cn("inline-flex max-w-full items-baseline", chipClass)}
         aria-pressed={active}
         aria-controls={controlsId}
         aria-label={`Show in conversation: ${value}`}
@@ -83,9 +80,9 @@ function EvidenceChip({
 }
 
 /**
- * Suggested Next Action + Why This Fired — display-only metric-strip.
- * Quotes / match chips that join a stored message jump the transcript.
- * Neon stubs / missing join show honest empty copy.
+ * Suggested Next Action + Why This Fired — recommendation stacked over
+ * evidence. Quotes / match chips that join a stored message jump the
+ * transcript. Neon stubs / missing join stay honest. Acted uses SignalStatus.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -119,27 +116,28 @@ export function SignalReviewSuggestedAction({
       className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
-      <div className="border-b border-sio-border-base px-3 py-2 sm:px-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-sio-border-base px-3 py-2 sm:px-4">
         <h3
           id={headingId}
           className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
         >
           Suggested Next Action
         </h3>
+        {isActed ? <SignalStatus signal={signal} /> : null}
       </div>
 
-      <div className="grid min-w-0 flex-1 grid-cols-1 gap-4 px-3 py-3 sm:px-4 lg:grid-cols-2 lg:gap-6">
-        <div className="flex min-w-0 flex-col gap-2">
-          {isActed ? (
-            <p className="text-pretty text-label-13 text-sio-fg-muted">
-              Marked as Acted — not sent.
-            </p>
-          ) : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-4 px-3 py-3 sm:px-4">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <p className="text-pretty text-label-12 text-sio-fg-muted">
+            {isActed
+              ? "Marked as Acted — not sent."
+              : "Display only — not sent."}
+          </p>
           <p
-            className={cn(
-              "break-words text-pretty text-copy-14 font-medium leading-5",
-              missingAction ? "text-sio-fg-muted" : "text-sio-fg-base",
-            )}
+            className={
+              "text-heading-16 break-words text-pretty font-semibold leading-6 tracking-normal " +
+              (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
+            }
           >
             {missingAction
               ? "Unavailable — local detection join missing."
@@ -147,12 +145,7 @@ export function SignalReviewSuggestedAction({
           </p>
         </div>
 
-        <Separator className="bg-sio-border-base lg:hidden" />
-
-        <section
-          className="flex min-w-0 flex-col gap-2.5 lg:border-l lg:border-sio-border-base lg:pl-6"
-          aria-labelledby={whyId}
-        >
+        <section aria-labelledby={whyId} className="min-w-0">
           <h4
             id={whyId}
             className="text-label-13 font-semibold tracking-normal text-sio-fg-base"
@@ -161,7 +154,7 @@ export function SignalReviewSuggestedAction({
           </h4>
 
           {hasEvidence ? (
-            <div className="flex flex-col gap-2.5">
+            <div className="mt-2.5 flex flex-col gap-2.5">
               {quotes.length > 0 ? (
                 <ul className="flex flex-col gap-2">
                   {quotes.map(({ item, text, messageId }) => {
@@ -175,7 +168,7 @@ export function SignalReviewSuggestedAction({
                           <button
                             type="button"
                             className={cn(
-                              "w-full min-h-11 rounded-md border px-0 py-1 text-left touch-manipulation transition-colors duration-150",
+                              "w-full min-h-11 rounded-md border px-2 py-1.5 text-left touch-manipulation transition-colors duration-150",
                               active
                                 ? "border-sio-border-strong bg-sio-bg-interactive"
                                 : "border-transparent hover:border-sio-border-subtle hover:bg-sio-bg-interactive",
@@ -235,7 +228,7 @@ export function SignalReviewSuggestedAction({
               ) : null}
             </div>
           ) : (
-            <p className="break-words text-pretty text-copy-14 text-sio-fg-muted">
+            <p className="mt-2 break-words text-pretty text-copy-14 text-sio-fg-muted">
               {isNeonStub
                 ? "No local evidence — detection join missing."
                 : "No local evidence."}

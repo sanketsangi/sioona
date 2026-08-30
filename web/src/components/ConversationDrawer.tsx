@@ -2,9 +2,8 @@
 
 import type { ReactNode } from "react";
 import { X } from "@phosphor-icons/react/ssr";
-import { AgentBotIcon } from "@/components/icons/AgentBotIcon";
 import { ConversationMessages } from "@/components/ConversationMessages";
-import { Avatar } from "@/components/ui/Avatar";
+import { SignalUser } from "@/components/SignalUser";
 import {
   Drawer,
   DrawerClose,
@@ -48,42 +47,30 @@ export function ConversationDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger className={cn("btn-secondary", triggerClassName)}>
+      <DrawerTrigger className={cn(triggerClassName ?? "btn-secondary")}>
         {triggerLabel}
       </DrawerTrigger>
 
       <DrawerContent>
         <DrawerHeader>
           <div className="flex w-full min-w-0 items-center gap-3">
-            <Avatar
-              placeholder
-              size={40}
-              className="shrink-0 text-sio-fg-subtle"
-            >
-              <AgentBotIcon className="size-4 shrink-0" />
-            </Avatar>
+            <SignalUser name={who} size={40} showName={false} />
 
             <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-label-14 font-semibold leading-5">
-                Conversation
-              </DrawerTitle>
-              <DrawerDescription
+              <DrawerTitle
                 translate="no"
-                className="mt-0.5 flex min-w-0 items-center gap-1.5"
+                className="text-label-14 font-semibold leading-5"
               >
-                <span className="status-dot status-dot-queued" aria-hidden>
-                  <span className="status-dot-indicator !size-1.5" />
-                </span>
-                <span className="min-w-0 truncate">
-                  {who}
-                  {messageCount > 0 ? (
-                    <span className="text-sio-fg-muted">
-                      {" "}
-                      · {messageCount}{" "}
-                      {messageCount === 1 ? "message" : "messages"}
-                    </span>
-                  ) : null}
-                </span>
+                {who}
+              </DrawerTitle>
+              <DrawerDescription className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                <span>Conversation</span>
+                {messageCount > 0 ? (
+                  <span className="min-w-0 truncate text-sio-fg-muted">
+                    · {messageCount}{" "}
+                    {messageCount === 1 ? "message" : "messages"}
+                  </span>
+                ) : null}
               </DrawerDescription>
             </div>
 
@@ -97,7 +84,7 @@ export function ConversationDrawer({
         </DrawerHeader>
 
         <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
-          <div className="mx-auto w-full max-w-md">
+          <div className="mx-auto w-full max-w-lg">
             {messages.length === 0 ? (
               <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center">
                 <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
@@ -110,6 +97,7 @@ export function ConversationDrawer({
               <ConversationMessages
                 messages={messages}
                 customerName={who}
+                showTimestamps
               />
             )}
           </div>
@@ -121,7 +109,7 @@ export function ConversationDrawer({
             aria-label="Conversation actions"
             className="justify-center"
           >
-            <div className="flex w-full max-w-md flex-wrap gap-2 md:[&_a]:h-9">
+            <div className="flex w-full max-w-lg flex-wrap gap-2 md:[&_a]:h-9">
               {footer}
             </div>
           </DrawerFooter>

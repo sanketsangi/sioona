@@ -56,9 +56,7 @@ describe("messageIdForEvidence", () => {
     const body = `${"please help ".repeat(20)}I want to close my account`;
     const clipped = `${body.replace(/\s+/g, " ").trim().slice(0, 139).trimEnd()}…`;
     expect(
-      messageIdForEvidence(`quote: "${clipped}"`, [
-        msg("msg_long", body),
-      ]),
+      messageIdForEvidence(`quote: "${clipped}"`, [msg("msg_long", body)]),
     ).toBe("msg_long");
   });
 
@@ -93,10 +91,7 @@ describe("firstEvidenceMessageId", () => {
     const messages = [msg("msg_1", "I want to close my account")];
     expect(
       firstEvidenceMessageId(
-        [
-          'quote: "I want to close my account"',
-          'phrase: "close my account"',
-        ],
+        ['quote: "I want to close my account"', 'phrase: "close my account"'],
         messages,
       ),
     ).toBe("msg_1");

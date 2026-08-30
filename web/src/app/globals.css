@@ -607,9 +607,13 @@
     border: 1px solid var(--sio-border-base);
   }
 
+  /* Why This Fired landing — quiet ring + interactive fill, not a second accent. */
   .chat-bubble--evidence {
     border-color: var(--sio-border-strong);
     background: var(--sio-bg-interactive);
+    box-shadow:
+      0 0 0 2px var(--sio-bg-base),
+      0 0 0 4px color-mix(in srgb, var(--sio-focus-accent) 40%, transparent);
   }
 
   .chat-bubble-group {
@@ -1363,7 +1367,7 @@
       right: 0.75rem;
       bottom: 0.75rem;
       left: auto;
-      width: min(calc(100% - 1.5rem), 28rem);
+      width: min(calc(100% - 1.5rem), 32rem);
       max-height: none;
       border-bottom: 1px solid var(--sio-border-base);
       border-radius: var(--radius-panel);
