@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useId } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { evalCardHeaderClassName } from "@/components/EvalCard";
 import { SignalUser } from "@/components/SignalUser";
 import { Button } from "@/components/ui/button";
 import type { Message as ChatMessage } from "@/lib/types";
@@ -39,25 +40,29 @@ export function SignalReviewConversation({
       )}
       aria-labelledby={headingId}
     >
-      <header className="insights-review-chat-header">
-        <SignalUser name={who} size={32} showName={false} />
-        <div className="min-w-0 flex-1">
-          <h3
-            id={headingId}
-            translate="no"
-            className="truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base"
-          >
-            {who}
-          </h3>
-          <p className="mt-0.5 truncate text-label-12 text-sio-fg-muted">
-            Conversation
-            {messageCount > 0 ? (
-              <span className="tabular-nums">
-                {" "}
-                · {messageCount} {messageCount === 1 ? "message" : "messages"}
-              </span>
-            ) : null}
-          </p>
+      <header
+        className={cn("insights-review-chat-header", evalCardHeaderClassName)}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <SignalUser name={who} size={32} showName={false} />
+          <div className="min-w-0 flex-1">
+            <h3
+              id={headingId}
+              translate="no"
+              className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+            >
+              {who}
+            </h3>
+            <p className="mt-0.5 truncate text-label-12 text-sio-fg-muted">
+              Conversation
+              {messageCount > 0 ? (
+                <span className="tabular-nums">
+                  {" "}
+                  · {messageCount} {messageCount === 1 ? "message" : "messages"}
+                </span>
+              ) : null}
+            </p>
+          </div>
         </div>
       </header>
 

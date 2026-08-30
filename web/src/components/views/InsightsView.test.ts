@@ -455,6 +455,8 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Follow up");
     expect(html).toContain("Please pause my SIP this month");
+    expect(html).toContain('data-expand-text="true"');
+    expect(html).toContain('aria-current="true"');
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain("Conversation");

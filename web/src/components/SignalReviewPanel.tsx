@@ -2,10 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import {
-  QUEUE_REVIEW_ACTION_CLASS,
-  SignalQueueRow,
-} from "@/components/SignalQueueRow";
+import { SignalQueueRow } from "@/components/SignalQueueRow";
 import { queueSignalSummary } from "@/lib/format";
 import type { Signal } from "@/lib/types";
 
@@ -15,8 +12,8 @@ type SignalReviewPanelProps = {
 };
 
 /**
- * Insights review chrome — queue row + heading only.
- * Review cards are composed by SignalQueue.
+ * Insights review identity — selected queue chrome (user, chips, summary).
+ * Review cards are composed by SignalQueue. No table header / Review control.
  */
 export function SignalReviewPanel({
   signal,
@@ -31,7 +28,6 @@ export function SignalReviewPanel({
         signal.summary?.trim() ||
         "Signal";
   const headingId = `signal-review-heading-${signal.id}`;
-  const bodyId = `signal-review-body-${signal.id}`;
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -42,28 +38,8 @@ export function SignalReviewPanel({
       <SignalQueueRow
         signal={signal}
         customerName={who}
+        selected
         expandText
-        action={
-          <button
-            type="button"
-            className={QUEUE_REVIEW_ACTION_CLASS}
-            onClick={() => {
-              const el = document.getElementById(bodyId);
-              if (!el) return;
-              const reduced =
-                typeof window !== "undefined" &&
-                window.matchMedia("(prefers-reduced-motion: reduce)")
-                  .matches;
-              el.scrollIntoView({
-                block: "start",
-                behavior: reduced ? "auto" : "smooth",
-              });
-              headingRef.current?.focus({ preventScroll: true });
-            }}
-          >
-            Review
-          </button>
-        }
       />
 
       <h2
