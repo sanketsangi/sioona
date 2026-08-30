@@ -11,9 +11,14 @@ import {
   type ComponentType,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
+import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
 import { GoodIcon } from "@/components/icons/GoodIcon";
 import { WarningIcon } from "@/components/icons/WarningIcon";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { emitFeedbackSaved } from "@/lib/feedback-saved";
 import {
@@ -65,6 +70,11 @@ const FEEDBACK_CHIP: Record<FeedbackLabel | "pending", string> = {
   partially_correct: "bg-sio-status-warning-bg text-sio-status-warning-fg",
 };
 
+const outlineBtn =
+  "min-h-11 w-full touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9";
+const primaryBtn =
+  "min-h-11 w-full touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
+
 export function FeedbackControls({
   signal,
   triage,
@@ -77,6 +87,7 @@ export function FeedbackControls({
   const router = useRouter();
   const panelRef = useRef<HTMLElement>(null);
   const headingId = useId();
+  const noteId = useId();
   const initialNote = signal.feedback?.note ?? "";
   const [note, setNote] = useState(initialNote);
   const [pending, setPending] = useState<FeedbackLabel | null>(null);
@@ -176,25 +187,15 @@ export function FeedbackControls({
       className={cn("insights-review-pane", className)}
       aria-labelledby={headingId}
     >
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-sio-border-base px-3 py-2">
-        <h3
-          id={headingId}
-          className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
-        >
-          Feedback
-        </h3>
-        <span
-          className={cn(
-            "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 text-label-12 font-medium",
-            FEEDBACK_CHIP[feedbackLabel ?? "pending"],
-          )}
-          translate="no"
+      <InsightsReviewPaneHeader id={headingId} title="Feedback">
+        <InsightsReviewStatusChip
+          className={FEEDBACK_CHIP[feedbackLabel ?? "pending"]}
         >
           {currentTitle ?? "Pending"}
-        </span>
-      </div>
+        </InsightsReviewStatusChip>
+      </InsightsReviewPaneHeader>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 py-3 sm:px-4">
         <p className="text-label-12 text-sio-fg-muted">
           {canAdvance
             ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
@@ -206,22 +207,26 @@ export function FeedbackControls({
             : null}
         </p>
 
-        <label className="mt-2.5 block">
-          <span className="sr-only">Optional note</span>
-          <input
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={noteId} className="sr-only">
+            Optional note
+          </Label>
+          <Input
+            id={noteId}
             type="text"
             name="feedbackNote"
             autoComplete="off"
+            spellCheck={false}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             onKeyDown={onNoteKeyDown}
-            placeholder="Optional note -- e.g. ops language, not churn…"
-            className="input-field"
+            placeholder="Optional note — e.g. ops language, not churn…"
+            className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-sio-fg-base placeholder:text-sio-fg-muted md:min-h-9"
           />
-        </label>
+        </div>
 
         <div
-          className="mt-2.5 grid grid-cols-3 gap-2"
+          className="grid grid-cols-3 gap-2"
           role="group"
           aria-label="Feedback actions"
         >
@@ -229,9 +234,11 @@ export function FeedbackControls({
             const isCurrent = feedbackLabel === option.label;
             const { Icon } = option;
             return (
-              <button
+              <Button
                 key={option.label}
                 type="button"
+                variant={option.primary ? "default" : "outline"}
+                size="lg"
                 title={`${option.hint} (${option.shortcut})`}
                 disabled={busy}
                 aria-busy={pending === option.label}
@@ -239,8 +246,7 @@ export function FeedbackControls({
                 aria-keyshortcuts={option.shortcut}
                 onClick={() => void submit(option.label)}
                 className={cn(
-                  "w-full min-w-0",
-                  option.primary ? "btn-primary" : "btn-secondary",
+                  option.primary ? primaryBtn : outlineBtn,
                   isCurrent &&
                     !option.primary &&
                     "border-sio-border-strong bg-sio-bg-interactive-hover",
@@ -249,7 +255,7 @@ export function FeedbackControls({
                 {pending === option.label ? (
                   <ButtonSpinner />
                 ) : (
-                  <Icon className="size-3.5 shrink-0" />
+                  <Icon />
                 )}
                 {option.label === "partially_correct" ? (
                   <>
@@ -261,13 +267,13 @@ export function FeedbackControls({
                 ) : (
                   option.title
                 )}
-              </button>
+              </Button>
             );
           })}
         </div>
 
         {needsAct ? (
-          <div className="mt-2.5" role="status" aria-live="polite">
+          <div role="status" aria-live="polite">
             <Note
               icon={null}
               className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
@@ -281,7 +287,7 @@ export function FeedbackControls({
         ) : null}
 
         {needsAdapt ? (
-          <div className="mt-2.5" role="status" aria-live="polite">
+          <div role="status" aria-live="polite">
             <Note
               icon={null}
               className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
@@ -292,22 +298,23 @@ export function FeedbackControls({
                   : "Wrong rationale? Add the phrase that should drive this signal type."}
               </NoteContent>
               <NoteAction>
-                <Link
-                  href={viewHref("eval", { panel: "adapt" })}
-                  className="btn-secondary"
+                <Button
+                  asChild
+                  variant="outline"
+                  size="lg"
+                  className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
                 >
-                  Adapt From Reviews
-                </Link>
+                  <Link href={viewHref("eval", { panel: "adapt" })}>
+                    Adapt From Reviews
+                  </Link>
+                </Button>
               </NoteAction>
             </Note>
           </div>
         ) : null}
 
         {error ? (
-          <p
-            className="mt-2.5 text-label-12 text-sio-status-danger-fg"
-            role="alert"
-          >
+          <p className="text-label-12 text-sio-status-danger-fg" role="alert">
             {error}. Try again or refresh the page.
           </p>
         ) : null}
