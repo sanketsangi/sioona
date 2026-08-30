@@ -82,7 +82,8 @@ describe("SignalReviewConversation", () => {
       (_, i) =>
         message({
           id: `msg_${i + 1}`,
-          content: `Line ${i + 1}`,
+          content:
+            i === 0 ? "Opening SIP question" : `Later turn ${i + 1}`,
         }),
     );
     const html = renderToStaticMarkup(
@@ -95,7 +96,7 @@ describe("SignalReviewConversation", () => {
     );
 
     expect(html).toContain(`Showing last ${REVIEW_TRANSCRIPT_PREVIEW} of ${messages.length} messages`);
-    expect(html).toContain(`Line ${REVIEW_TRANSCRIPT_PREVIEW + 2}`);
-    expect(html).not.toContain("Line 1");
+    expect(html).toContain(`Later turn ${REVIEW_TRANSCRIPT_PREVIEW + 2}`);
+    expect(html).not.toContain("Opening SIP question");
   });
 });

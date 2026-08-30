@@ -63,7 +63,7 @@ export function SignalReviewConversation({
             typeLabel={typeLabel}
             summary={summary}
             triggerLabel="See Conversation"
-            triggerClassName="btn-secondary min-h-11 shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:px-2.5"
+            triggerClassName="min-h-11 shrink-0 !rounded-full touch-manipulation sm:min-h-0 sm:h-8 sm:px-2.5"
             footer={null}
           />
         ) : null}
