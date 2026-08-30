@@ -7,7 +7,6 @@ import { SignalReviewConversation } from "@/components/SignalReviewConversation"
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import type { SignalReviewTriage } from "@/lib/views";
 import { firstEvidenceMessageId } from "@/lib/evidence-messages";
-import { signalTypeLabel } from "@/lib/format";
 import type { Conversation, Message, Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -47,8 +46,6 @@ export function SignalReviewBody({
       <SignalReviewConversation
         messages={messages}
         customerName={customerName}
-        typeLabel={signalTypeLabel(signal.type)}
-        summary={signal.summary || ""}
         highlightedMessageId={focusedMessageId}
       />
       <div className="insights-review-rail">
