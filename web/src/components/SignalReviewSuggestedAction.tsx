@@ -4,11 +4,21 @@ import { Check } from "@phosphor-icons/react/ssr";
 import { useEffect, useId, useRef } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { SignalStatus } from "@/components/SignalStatus";
-import { evalCardPadClassName } from "@/components/EvalCard";
+import {
+  evalCardClassName,
+  evalCardHeaderClassName,
+  evalCardPadClassName,
+} from "@/components/EvalCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Tooltip,
@@ -168,10 +178,11 @@ function SupportHeading({
 }
 
 /**
- * Suggested Next Action + Why This Fired + Matched — single review well.
- * Header is the status chip, or Mark as Acted on Correct-not-Acted
- * (A / Enter walk). Quotes and match chips that join a stored message
- * jump the transcript. Neon stubs / missing join stay honest.
+ * Suggested Next Action + Why This Fired + Matched — single Card well.
+ * Header matches Conversation / Feedback (`evalCardHeader` flex baseline).
+ * Mark as Acted on Correct-not-Acted (A / Enter walk). Quotes and match
+ * chips that join a stored message jump the transcript. Neon stubs /
+ * missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -184,7 +195,7 @@ export function SignalReviewSuggestedAction({
   const headingId = useId();
   const whyId = useId();
   const matchedId = useId();
-  const sectionRef = useRef<HTMLElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
   const walk = actedWalk ?? {};
   const { actedPending, canMarkActed, error, isActed, setActed } = useMarkActed(
     signal,
@@ -235,50 +246,63 @@ export function SignalReviewSuggestedAction({
   const showSupport = showWhy || showMatched;
 
   return (
-    <section
+    <Card
       ref={sectionRef}
+      size="sm"
       data-review-slot="why"
-      className={cn("insights-review-pane", className)}
+      className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
-      <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
-        {showRailActed ? (
-          <TooltipProvider delayDuration={400}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex shrink-0">
-                  <Button
-                    type="button"
-                    className="btn-primary shrink-0"
-                    disabled={actedPending}
-                    aria-busy={actedPending}
-                    aria-keyshortcuts="A Enter"
-                    onClick={() => void setActed(true)}
-                  >
-                    {actedPending ? (
-                      <ButtonSpinner />
-                    ) : (
-                      <Check
-                        className="size-3.5 shrink-0"
-                        weight="bold"
-                        aria-hidden
-                      />
-                    )}
-                    Mark as Acted
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="end">
-                {ACTED_TOOLTIP}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <SignalStatus signal={signal} variant="chip" />
-        )}
-      </InsightsReviewPaneHeader>
+      <CardHeader
+        className={cn(evalCardHeaderClassName, "[.border-b]:pb-2.5")}
+      >
+        <CardTitle className="contents p-0 text-sm leading-5 font-semibold">
+          <h3
+            id={headingId}
+            className="min-w-0 flex-1 truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+          >
+            Suggested Next Action
+          </h3>
+        </CardTitle>
+        <CardAction className="col-auto row-span-1 row-start-auto flex shrink-0 items-center self-center justify-self-auto">
+          {showRailActed ? (
+            <TooltipProvider delayDuration={400}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex shrink-0">
+                    <Button
+                      type="button"
+                      className="btn-primary shrink-0"
+                      disabled={actedPending}
+                      aria-busy={actedPending}
+                      aria-keyshortcuts="A Enter"
+                      onClick={() => void setActed(true)}
+                    >
+                      {actedPending ? (
+                        <ButtonSpinner />
+                      ) : (
+                        <Check
+                          className="size-3.5 shrink-0"
+                          weight="bold"
+                          aria-hidden
+                        />
+                      )}
+                      Mark as Acted
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end">
+                  {ACTED_TOOLTIP}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <SignalStatus signal={signal} variant="chip" />
+          )}
+        </CardAction>
+      </CardHeader>
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-0">
         <div className={cn(evalCardPadClassName, "flex min-w-0 flex-col gap-1.5 pt-3")}>
           {isActed ? (
             <p className="text-label-12 text-sio-fg-muted">
@@ -380,7 +404,7 @@ export function SignalReviewSuggestedAction({
             </div>
           </>
         ) : null}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }

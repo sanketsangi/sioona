@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-30  
+**Last updated:** 2026-08-31  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Insights queue list Card is a DataTable (`shadcn` Table + TanStack): User · Signal · Status · Score · Type · Action, sticky muted header, overflow at all sizes, URL `?page=` pager (10/page), locked chrome, `?preview=` Review Links. Empty/error Cards + review body unchanged. Not outbound / not Detect / not a keep-set go.
+**This pass (code, 2026-08-31):** Suggested Next Action CardTitle sits on the same header baseline as Conversation/Feedback; Mark as Acted unchanged. Not outbound / not Detect / not a keep-set go.
+
+**Prior pass (code, 2026-08-30):** Insights queue list Card is a DataTable (`shadcn` Table + TanStack): User · Signal · Status · Score · Type · Action, sticky muted header, overflow at all sizes, URL `?page=` pager (10/page), locked chrome, `?preview=` Review Links. Empty/error Cards + review body unchanged. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-30):** Suggested Next Action header shows **Mark as Acted** for Correct-not-Acted (A / Enter walk; no Correct chip in that slot). Feedback / Ground Truth wells keep full borders. Queue Card/Separator list and Conversation chat well stay. Not outbound / not Detect / not a keep-set go.
 
