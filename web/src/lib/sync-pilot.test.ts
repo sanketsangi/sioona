@@ -1,8 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as backendClient from "./backend-client";
 import { BackendClientError } from "./backend-client";
-import { syncPilotSettingsToBackend } from "./sync-pilot";
-import { readStore, resetStore, setPilotBaseline, writeStore } from "./store";
+import { persistHealedPilot, syncPilotSettingsToBackend } from "./sync-pilot";
+import {
+  readStore,
+  resetStore,
+  setPilotBaseline,
+  setSignalFeedback,
+  writeStore,
+} from "./store";
 
 describe("syncPilotSettingsToBackend", () => {
   afterEach(() => {
@@ -148,6 +154,56 @@ describe("setPilotBaseline", () => {
     const after = await setPilotBaseline(8, "local only");
     expect(after.pilot?.baselineOpportunities).toBe(8);
     expect(after.pilot?.baselineNote).toBe("local only");
+  });
+});
+
+describe("persistHealedPilot", () => {
+  beforeEach(async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("writes only the healed pilot onto the latest snapshot", async () => {
+    const original = await readStore();
+    const target = original.signals[0];
+    expect(target).toBeTruthy();
+
+    const healed = {
+      ...original,
+      pilot: {
+        baselineOpportunities: 12,
+        baselineNote: "healed from Neon",
+        updatedAt: "2026-08-30T00:00:00.000Z",
+      },
+    };
+
+    await setSignalFeedback(target.id, "correct", "keep me");
+    await persistHealedPilot(healed, original);
+
+    const after = await readStore();
+    expect(after.pilot?.baselineOpportunities).toBe(12);
+    expect(after.pilot?.baselineNote).toBe("healed from Neon");
+    expect(after.signals.find((s) => s.id === target.id)?.feedback?.label).toBe(
+      "correct"
+    );
+    expect(after.signals.find((s) => s.id === target.id)?.feedback?.note).toBe(
+      "keep me"
+    );
+  });
+
+  it("does not write when overlay returned the same store", async () => {
+    const original = await readStore();
+    const writeSpy = vi.spyOn(await import("./store"), "writeStore");
+    await persistHealedPilot(original, original);
+    expect(writeSpy).not.toHaveBeenCalled();
   });
 });
 

@@ -36,8 +36,11 @@ import {
   nextPilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
-import { readStore, writeStore } from "@/lib/store";
-import { refreshStorePilotFromNeon } from "@/lib/sync-pilot";
+import { readStore } from "@/lib/store";
+import {
+  persistHealedPilot,
+  refreshStorePilotFromNeon,
+} from "@/lib/sync-pilot";
 import {
   isActionModeUnlocked,
   parseMode,
@@ -150,8 +153,9 @@ export default async function PlatformPage({
     fetchTenantSignals(storeRaw.tenant.id),
   ]);
   if (store !== storeRaw) {
-    // Heal this instance's ephemeral JSON so lift/breadcrumb match Neon SoT.
-    await writeStore(store);
+    // Heal pilot only — do not rewrite the stale SSR snapshot over
+    // concurrent feedback / Acted on this instance's JSON store.
+    await persistHealedPilot(store, storeRaw);
   }
   const pendingRaw = needsReview.ok
     ? pendingQueueSignals(needsReview.predictions, store.signals)
