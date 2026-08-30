@@ -1,3 +1,4 @@
+import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { signalChipClass } from "@/components/SignalScoreChip";
 import { StatusDot } from "@/components/ui/StatusDot";
 import {
@@ -39,16 +40,9 @@ export function SignalStatus({
 
   if (variant === "chip") {
     return (
-      <span
-        className={cn(
-          "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 text-label-12 font-medium",
-          STATUS_CHIP[state],
-          className,
-        )}
-        translate="no"
-      >
+      <InsightsReviewStatusChip className={cn(STATUS_CHIP[state], className)}>
         {label}
-      </span>
+      </InsightsReviewStatusChip>
     );
   }
 

@@ -64,14 +64,20 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("text-heading-16");
     expect(html).toContain("Pending");
     expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
-    expect(html).toContain(
-      "inline-flex shrink-0 items-center rounded-sm px-2 py-0.5 font-medium",
-    );
+    expect(html).toContain("h-auto shrink-0 rounded-sm border-transparent px-2 py-0.5");
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
+    expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
+    expect(html).toContain(
+      'truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base',
+    );
+    expect(html).toContain("flex shrink-0 items-center");
+    expect(html).not.toContain('data-slot="card-header"');
+    expect(html).not.toContain('data-slot="card-title"');
+    expect(html).not.toContain('data-slot="card-action"');
+    expect(html).not.toContain("font-heading text-base");
+    expect(html).not.toContain("group-data-[size=sm]/card:text-sm");
     expect(html).toContain('data-slot="card"');
-    expect(html).toContain('data-slot="card-header"');
-    expect(html).toContain('data-slot="card-action"');
     expect(html).toContain('data-slot="card-content"');
     expect(html.match(/data-slot="card"/g)?.length).toBe(1);
     expect(html).toContain("data-slot=\"separator\"");
