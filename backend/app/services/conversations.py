@@ -165,8 +165,10 @@ def upsert_conversation(
 ) -> ConversationUpsertResult:
     """Insert or update the conversation for tenant + conversation_id.
 
-    Nested messages upsert on (tenant_id, message_id). Re-detect / Partner Demo
-    reuse the same Neon rows.
+    Nested messages upsert on (tenant_id, message_id), then leftovers not in
+    this payload are deleted so mid-week / replace ingest matches JSON
+    (messages for a match are replaced). Empty ``messages`` is metadata-only.
+    Re-detect / Partner Demo reuse the same Neon conversation row.
     """
     existing = db.scalar(
         select(Conversation).where(
@@ -222,6 +224,18 @@ def upsert_conversation(
             messages_created += 1
         else:
             messages_updated += 1
+
+    # JSON ingest replaces the thread on match (`msg_{conv}_{index}`).
+    # Drop Neon leftovers so overlay/hydrate cannot replay stale turns.
+    if payload.messages:
+        keep_ids = {msg.message_id for msg in payload.messages}
+        db.execute(
+            delete(Message).where(
+                Message.tenant_id == tenant_id,
+                Message.conversation_id == payload.conversation_id,
+                Message.message_id.not_in(keep_ids),
+            )
+        )
 
     if commit:
         db.commit()
