@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmptyState } from "@/components/EmptyState";
 import { Pager } from "@/components/Pager";
 import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
@@ -158,18 +159,14 @@ export function LabeledTables({
       ) : (
         <section className="panel flex min-h-0 flex-1 flex-col overflow-hidden">
           {pageConvs.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6">
-              <p className="text-heading-16 text-sio-fg-base">
-                No conversations yet
-              </p>
-              <p className="mt-1 max-w-sm text-pretty text-copy-14 text-sio-fg-subtle">
-                Upload a chat export or start the partner demo to populate this
-                table.
-              </p>
+            <EmptyState
+              title="No Conversations Yet"
+              description="Upload a chat export or start the partner demo to populate this table."
+            >
               <Link href={viewHref("upload")} className="btn-primary mt-4">
                 Upload Chats
               </Link>
-            </div>
+            </EmptyState>
           ) : (
             <>
               <ul className="min-h-0 flex-1 divide-y divide-sio-border-base overflow-hidden md:hidden">

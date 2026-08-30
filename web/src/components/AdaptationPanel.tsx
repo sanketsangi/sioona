@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { EmptyState } from "@/components/EmptyState";
 import { Pager } from "@/components/Pager";
 import { signalTypeLabel } from "@/lib/format";
 import { parsePage, viewHref } from "@/lib/views";
@@ -301,13 +302,14 @@ export function AdaptationPanel({
       ) : null}
 
       {reviewSignals.length === 0 ? (
-        <p className="px-3 py-4 text-copy-14 text-sio-fg-subtle sm:px-4">
-          No incorrect or partially_correct feedback yet. Review signals in{" "}
-          <Link href={viewHref("insights")} className="link-accent">
-            Insights
+        <EmptyState
+          title="No Feedback to Adapt"
+          description="No incorrect or partially correct reviews yet. Confirm detections in Insights, then return here to tune phrases."
+        >
+          <Link href={viewHref("insights")} className="btn-primary mt-4">
+            Open Insights
           </Link>
-          , then return here to tune detection.
-        </p>
+        </EmptyState>
       ) : (
         <>
           <div className="scroll-region min-h-0 flex-1">

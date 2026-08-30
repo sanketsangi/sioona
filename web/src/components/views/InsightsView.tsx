@@ -9,7 +9,7 @@ import {
   SignalQueue,
   SignalQueueFilters,
 } from "@/components/SignalQueue";
-import { ViewFrame } from "@/components/ViewFrame";
+import { PageToolbar, ViewFrame } from "@/components/ViewFrame";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -365,28 +365,29 @@ export function InsightsView({
         reviewKey={reviewOpen ? previewId : null}
         list={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
-              <div className="min-w-0">
-                <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                  Conversation that needs your attention
-                </h2>
-              </div>
-              <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
-                <SignalQueueFilters
-                  pendingSignals={pendingSignals}
-                  reviewedSignals={reviewedSignals}
-                  queueError={queueError}
-                  statusFilter={statusFilter}
-                  typeFilter={typeFilter}
-                  page={page}
-                  previewId={reviewOpen ? null : previewId}
-                  queryExtras={queryExtras}
-                />
-                {showQuietReDetect && !zeroSignalsImport ? (
-                  <ReDetectButton />
-                ) : null}
-              </div>
-            </div>
+            <PageToolbar
+              actions={
+                <>
+                  <SignalQueueFilters
+                    pendingSignals={pendingSignals}
+                    reviewedSignals={reviewedSignals}
+                    queueError={queueError}
+                    statusFilter={statusFilter}
+                    typeFilter={typeFilter}
+                    page={page}
+                    previewId={reviewOpen ? null : previewId}
+                    queryExtras={queryExtras}
+                  />
+                  {showQuietReDetect && !zeroSignalsImport ? (
+                    <ReDetectButton />
+                  ) : null}
+                </>
+              }
+            >
+              <h2 className="page-toolbar-title">
+                Conversation that needs your attention
+              </h2>
+            </PageToolbar>
             <InsightsQueueMetrics
               conversationCount={chats.conversations.length}
               signals={[
@@ -407,44 +408,9 @@ export function InsightsView({
         }
         review={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
-              <div className="min-w-0">
-                {breadcrumbPageLabel ? (
-                  <Breadcrumb
-                    aria-label="Insights review"
-                    className="scroll-mt-4"
-                  >
-                    <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2.5">
-                      <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                          <Link
-                            href={backToQueueHref}
-                            scroll={false}
-                            className="rounded-[var(--radius-control)] font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
-                          >
-                            Insights Queue
-                          </Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage
-                          className="max-w-[min(16rem,calc(100vw-8rem))] truncate font-medium text-sio-fg-base sm:max-w-xs"
-                          translate="no"
-                        >
-                          {breadcrumbPageLabel}
-                        </BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                ) : (
-                  <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                    Conversation that needs your attention
-                  </h2>
-                )}
-              </div>
-              <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
-                {previewSignal && previewCustomerName != null ? (
+            <PageToolbar
+              actions={
+                previewSignal && previewCustomerName != null ? (
                   <>
                     <OpenConversationHeaderAction
                       messages={previewMessages}
@@ -466,9 +432,43 @@ export function InsightsView({
                       mode={workspaceMode}
                     />
                   </>
-                ) : null}
-              </div>
-            </div>
+                ) : null
+              }
+            >
+              {breadcrumbPageLabel ? (
+                <Breadcrumb
+                  aria-label="Insights review"
+                  className="scroll-mt-4"
+                >
+                  <BreadcrumbList className="text-balance text-copy-14 font-medium sm:gap-2.5">
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link
+                          href={backToQueueHref}
+                          scroll={false}
+                          className="rounded-[var(--radius-control)] font-medium text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
+                        >
+                          Insights Queue
+                        </Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3.5" />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage
+                        className="max-w-[min(16rem,calc(100vw-8rem))] truncate font-medium text-sio-fg-base sm:max-w-xs"
+                        translate="no"
+                      >
+                        {breadcrumbPageLabel}
+                      </BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+              ) : (
+                <h2 className="page-toolbar-title">
+                  Conversation that needs your attention
+                </h2>
+              )}
+            </PageToolbar>
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <SignalQueue {...queueProps} previewId={previewId} />
             </div>

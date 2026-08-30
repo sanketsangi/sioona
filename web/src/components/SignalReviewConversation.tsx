@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { useId } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { EmptyState } from "@/components/EmptyState";
+import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
 import { SignalUser } from "@/components/SignalUser";
-import { Button } from "@/components/ui/button";
 import type { Message as ChatMessage } from "@/lib/types";
 import { viewHref } from "@/lib/views";
 import { cn } from "@/lib/utils";
@@ -72,23 +73,16 @@ export function SignalReviewConversation({
             />
           </div>
         ) : (
-          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-3 px-3 text-center">
-            <div className="flex flex-col gap-1">
-              <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
-              <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">
-                Re-upload or re-detect to attach the transcript. No invented
-                chat.
-              </p>
-            </div>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
-            >
-              <Link href={viewHref("upload")}>Upload Chats</Link>
-            </Button>
-          </div>
+          <EmptyState
+            title="No messages stored"
+            description="Re-upload or re-detect to attach the transcript. No invented chat."
+            icon={<ChatBubbleIcon className="size-4" />}
+            className="min-h-[12rem] py-6 sm:py-8"
+          >
+            <Link href={viewHref("upload")} className="btn-secondary mt-4">
+              Upload Chats
+            </Link>
+          </EmptyState>
         )}
       </div>
     </section>

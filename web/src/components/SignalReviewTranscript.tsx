@@ -1,9 +1,13 @@
 "use client";
 
 import { useId } from "react";
+import Link from "next/link";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import { EmptyState } from "@/components/EmptyState";
+import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { viewHref } from "@/lib/views";
 
 type SignalReviewTranscriptProps = {
   messages: Message[];
@@ -49,13 +53,16 @@ export function SignalReviewTranscript({
       <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
         <div className="mx-auto w-full max-w-md">
           {messages.length === 0 ? (
-            <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center">
-              <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
-              <p className="mt-1 max-w-xs text-pretty text-label-13 text-sio-fg-muted">
-                Re-upload or re-detect to attach the transcript. No invented
-                chat.
-              </p>
-            </div>
+            <EmptyState
+              title="No messages stored"
+              description="Re-upload or re-detect to attach the transcript. No invented chat."
+              icon={<ChatBubbleIcon className="size-4" />}
+              className="min-h-[12rem] py-6 sm:py-8"
+            >
+              <Link href={viewHref("upload")} className="btn-secondary mt-4">
+                Upload Chats
+              </Link>
+            </EmptyState>
           ) : (
             <ConversationMessages
               messages={messages}

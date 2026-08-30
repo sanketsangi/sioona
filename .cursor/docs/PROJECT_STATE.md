@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-30  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
+**Branch:** `cursor/design-upgrade-pass-2965` (design-only consistency: sio-bound Card/Input, shared PageToolbar / EmptyState, responsive shell)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-30):** Suggested Next Action header shows **Mark as Acted** for Correct-not-Acted (A / Enter walk; no Correct chip in that slot). Feedback / Ground Truth wells keep full borders. Queue Card/Separator list and Conversation chat well stay. Not outbound / not Detect / not a keep-set go.
+**This pass (code, 2026-08-30):** Design-upgrade only — bind shadcn Card/Input/Badge to `sio-*` + `--radius-panel`/`--radius-control`; shared `PageToolbar` + `EmptyState`; AppHeader title scales on mobile; Upload drops the helper subtitle (UI_DESIGN); Eval/Taxonomy use the same ViewFrame gap rhythm. No Detect / queue / score / flow changes. Not a keep-set go.
+
+**Prior pass (code, 2026-08-30):** Suggested Next Action header shows **Mark as Acted** for Correct-not-Acted (A / Enter walk; no Correct chip in that slot). Feedback / Ground Truth wells keep full borders. Queue Card/Separator list and Conversation chat well stay. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-30):** Insights queue is a Card/Separator ops list (`SignalQueue` / `SignalQueueRow`: aligned User·Signal·Status·Score·Type columns, denser mobile chips, same empty/unavailable Card as metrics). Review still opens via `?preview=`. Not Detect / not Auth0 / not outbound / not a keep-set go.
 
@@ -171,7 +173,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-30, this tree):** web Insights review UI polish (Suggested Next Action / Conversation / Feedback / Ground Truth) — related vitest 21 passed; `tsc --noEmit` clean; eslint clean. Residual failures: **none**. Not a hosted deploy.
+- **Tests status (2026-08-30, this tree):** web design-upgrade pass — Insights/conversation/view tests pending in this commit; residual failures TBD after verify. Not a hosted deploy.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 

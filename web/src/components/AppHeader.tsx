@@ -100,7 +100,7 @@ export function AppHeader({
           />
 
           {title ? (
-            <h1 className="flex min-w-0 items-center gap-2 text-balance text-heading-20 text-sio-fg-base">
+            <h1 className="app-header-title flex min-w-0 items-center gap-2 text-sio-fg-base">
               {showInsightsTitleIcon ? (
                 <ChartLineUpIcon className="size-5 shrink-0 text-sio-fg-base" />
               ) : showEvalTitleIcon ? (
@@ -121,9 +121,9 @@ export function AppHeader({
             <>
               <Separator
                 orientation="vertical"
-                className="h-4 w-px self-center bg-sio-border-strong data-[orientation=vertical]:h-4"
+                className="hidden h-4 w-px self-center bg-sio-border-strong min-[420px]:block data-[orientation=vertical]:h-4"
               />
-              <Breadcrumb className="min-w-0">
+              <Breadcrumb className="hidden min-w-0 min-[420px]:block">
                 <BreadcrumbList className="min-w-0">
                   <BreadcrumbItem className="min-w-0">
                     <BreadcrumbPage

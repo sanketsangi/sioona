@@ -27,7 +27,7 @@ export function AppShell({
 }) {
   return (
     <SidebarProvider
-      className="flex !min-h-0 h-dvh overflow-hidden bg-muted text-foreground"
+      className="flex !min-h-0 h-dvh overflow-hidden bg-sio-bg-muted text-sio-fg-base"
       style={
         {
           "--sidebar-width": "240px",
@@ -47,7 +47,7 @@ export function AppShell({
       <SidebarInset
         id="main"
         tabIndex={-1}
-        className="page-main min-h-0 overflow-hidden bg-muted"
+        className="page-main min-h-0 overflow-hidden bg-sio-bg-muted"
       >
         <AppHeader
           title={title}

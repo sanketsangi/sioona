@@ -19,6 +19,7 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
+import { EmptyState } from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -240,7 +241,7 @@ function buildQueueHref(
 
 /** Same Card chrome as InsightsQueueMetrics — sio radius, no elevation. */
 const QUEUE_CARD_CLASS =
-  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]";
+  "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden py-0";
 
 function QueueCard({
   className,
@@ -277,18 +278,10 @@ function QueueEmptyState({
 }) {
   return (
     <QueueCard role={alert ? "alert" : undefined}>
-      <CardContent className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12">
-        <span
-          className="mb-4 inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
-          aria-hidden
-        >
-          <LayersIcon className="size-4" />
-        </span>
-        <p className="text-balance text-heading-16 text-sio-fg-base">{title}</p>
-        <div className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-          {typeof description === "string" ? <p>{description}</p> : description}
-        </div>
-        {children}
+      <CardContent className="flex flex-1 p-0">
+        <EmptyState title={title} description={description}>
+          {children}
+        </EmptyState>
       </CardContent>
     </QueueCard>
   );

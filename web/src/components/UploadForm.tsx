@@ -178,15 +178,9 @@ export function UploadForm({
         >
           <HexCubeIcon variant="large" className="size-[58px] shrink-0" />
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <h2 className="text-balance text-center text-heading-20 text-sio-fg-base">
-            Get started with <span translate="no">Sioona</span>
-          </h2>
-          <p className="text-center text-copy-14 text-sio-fg-base">
-            Upload a chat export to detect signals you can review in{" "}
-            <span translate="no">Sioona</span> Insights.
-          </p>
-        </div>
+        <h2 className="text-balance text-center text-heading-20 text-sio-fg-base">
+          Get started with <span translate="no">Sioona</span>
+        </h2>
       </div>
 
       <div className="relative flex min-h-56 flex-1 flex-col items-center justify-center gap-3 rounded-[var(--radius-control)] border border-dashed border-sio-border-subtle bg-sio-bg-muted/60 px-4 py-10 text-center touch-manipulation hover:bg-sio-bg-interactive focus-within:shadow-[var(--focus-ring)]">
@@ -226,7 +220,7 @@ export function UploadForm({
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className="btn-primary rounded-[var(--radius-panel)]"
+                className="btn-primary"
               >
                 {loading ? <ButtonSpinner /> : null}
                 Confirm Replace
@@ -235,7 +229,7 @@ export function UploadForm({
                 type="button"
                 disabled={loading}
                 onClick={clearPendingConfirm}
-                className="btn-secondary rounded-[var(--radius-panel)]"
+                className="btn-secondary"
               >
                 Cancel
               </button>
@@ -246,7 +240,7 @@ export function UploadForm({
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className="btn-primary rounded-[var(--radius-panel)]"
+                className="btn-primary"
               >
                 {loading ? (
                   <ButtonSpinner />
@@ -257,7 +251,7 @@ export function UploadForm({
               </button>
               <PartnerDemoButton
                 label="Run Partner Demo"
-                className="btn-secondary rounded-[var(--radius-panel)]"
+                className="btn-secondary"
                 onErrorChange={onDemoErrorChange}
               />
               <ResetDemoButton />

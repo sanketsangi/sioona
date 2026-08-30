@@ -38,7 +38,7 @@ export function ResetDemoButton() {
       onClick={reset}
       disabled={loading}
       aria-busy={loading}
-      className="btn-secondary rounded-[var(--radius-panel)]"
+      className="btn-secondary"
     >
       {loading ? (
         <ButtonSpinner />

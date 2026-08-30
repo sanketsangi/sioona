@@ -377,6 +377,26 @@
     @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
   }
 
+  /*
+   * Shared in-page section toolbar — title left, filters/actions right.
+   * Stacks below 540px so mobile keeps 44px hit targets without wrapping mid-row.
+   */
+  .page-toolbar {
+    @apply flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4;
+  }
+
+  .page-toolbar-start {
+    @apply min-w-0;
+  }
+
+  .page-toolbar-title {
+    @apply scroll-mt-4 text-balance text-heading-16 text-sio-fg-base;
+  }
+
+  .page-toolbar-actions {
+    @apply flex w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto;
+  }
+
   /* Contained scroll region — use inside panels / list panes */
   .scroll-region {
     @apply min-h-0 min-w-0 overflow-x-clip overflow-y-auto;
@@ -678,7 +698,11 @@
   }
 
   .metric-strip--compact .metric-strip-kpis {
-    @apply grid min-w-0 w-full grid-cols-5 divide-x divide-sio-border-base overflow-hidden;
+    @apply grid min-w-0 w-full grid-cols-5 divide-x divide-sio-border-base overflow-x-auto overflow-y-hidden;
+  }
+
+  .metric-strip--compact .metric-strip-kpis > * {
+    min-width: 4.25rem;
   }
 
   .metric-strip--compact .metric-strip-foot {
@@ -1214,6 +1238,23 @@
   .app-header-start {
     grid-area: start;
     min-width: 0;
+  }
+
+  /* Page title: heading-16 on the 56px mobile bar, heading-20 from md. */
+  .app-header-title {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    letter-spacing: -0.32px;
+    text-wrap: balance;
+  }
+
+  @media (min-width: 768px) {
+    .app-header-title {
+      font-size: 20px;
+      line-height: 26px;
+      letter-spacing: -0.4px;
+    }
   }
 
   .app-header-actions {

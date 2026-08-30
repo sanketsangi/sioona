@@ -185,7 +185,7 @@ export function InsightsQueueMetrics({
     >
       <Card
         size="sm"
-        className="gap-0 rounded-[var(--radius-panel)] border border-sio-border-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]"
+        className="gap-0 py-0"
       >
         <CardContent className="grid grid-cols-1 divide-y divide-sio-border-base p-0 md:grid-cols-3 md:divide-x md:divide-y-0">
           <MetricCell

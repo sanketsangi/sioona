@@ -89,7 +89,7 @@ export function EvalView({
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
 
   return (
-    <ViewFrame className="gap-3 md:gap-4">
+    <ViewFrame>
       <SegmentedTabs
         label="Eval panels"
         activeId={panel}

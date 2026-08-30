@@ -22,3 +22,26 @@ export function ViewFrame({
     </div>
   );
 }
+
+/**
+ * In-page section header — title left, filters/actions right.
+ * Matches Insights list + review toolbars.
+ */
+export function PageToolbar({
+  children,
+  actions,
+  className,
+}: {
+  children?: React.ReactNode;
+  actions?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("page-toolbar", className)}>
+      <div className="page-toolbar-start">{children}</div>
+      {actions ? (
+        <div className="page-toolbar-actions">{actions}</div>
+      ) : null}
+    </div>
+  );
+}

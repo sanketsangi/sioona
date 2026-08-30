@@ -10,7 +10,7 @@ export function TaxonomyView({ typePageRaw }: { typePageRaw?: string | null }) {
   const entry = SIGNAL_TAXONOMY[page - 1] ?? SIGNAL_TAXONOMY[0];
 
   return (
-    <ViewFrame className="gap-3 sm:gap-4">
+    <ViewFrame>
       <div className="shrink-0">
         <Pager
           page={page}
