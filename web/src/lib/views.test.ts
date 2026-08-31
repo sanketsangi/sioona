@@ -193,6 +193,10 @@ describe("nextPendingPreviewId", () => {
   it("returns null when only one pending remains", () => {
     expect(nextPendingPreviewId([{ id: "solo" }], "solo")).toBeNull();
   });
+
+  it("returns the first pending when current is not in the queue", () => {
+    expect(nextPendingPreviewId(pending, "sig_followup")).toBe("a");
+  });
 });
 
 describe("afterFeedbackHref", () => {
@@ -285,6 +289,18 @@ describe("afterFeedbackHref", () => {
 });
 
 describe("afterMarkActedHref", () => {
+  it("prefers the next Correct review over pending when both exist", () => {
+    expect(
+      afterMarkActedHref({
+        acted: true,
+        feedbackLabel: "correct",
+        statusFilter: "new",
+        nextPreviewId: "sig_correct_next",
+        nextPendingPreviewId: "sig_pending_next",
+      })
+    ).toBe("/?view=insights&status=followup&preview=sig_correct_next");
+  });
+
   it("opens the next Correct review after Mark as Acted on Follow-up", () => {
     expect(
       afterMarkActedHref({
@@ -313,27 +329,34 @@ describe("afterMarkActedHref", () => {
     );
   });
 
-  it("preserves mode=action on empty Follow-up list", () => {
+  it("opens the next pending review when no Correct-not-Acted remain", () => {
     expect(
       afterMarkActedHref({
         acted: true,
         feedbackLabel: "correct",
         statusFilter: "followup",
         nextPreviewId: null,
-        mode: "action",
+        nextPendingPreviewId: "sig_pending_next",
+        scoreFrom: "2026-08-17",
       })
-    ).toBe("/?view=insights&mode=action&status=followup");
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=new&preview=sig_pending_next"
+    );
   });
 
-  it("returns the follow-up list when no Correct-not-Acted remain", () => {
+  it("preserves mode=action on next pending after last Follow-up Acted", () => {
     expect(
       afterMarkActedHref({
         acted: true,
         feedbackLabel: "correct",
         statusFilter: "followup",
         nextPreviewId: null,
+        nextPendingPreviewId: "sig_pending_next",
+        mode: "action",
       })
-    ).toBe("/?view=insights&status=followup");
+    ).toBe(
+      "/?view=insights&mode=action&status=new&preview=sig_pending_next"
+    );
   });
 
   it("opens the next pending review after Mark as Acted from Pending", () => {
@@ -350,7 +373,17 @@ describe("afterMarkActedHref", () => {
     );
   });
 
-  it("returns the Pending list when no pending remain after Mark as Acted", () => {
+  it("stays on the panel when no Correct or pending reviews remain", () => {
+    expect(
+      afterMarkActedHref({
+        acted: true,
+        feedbackLabel: "correct",
+        statusFilter: "followup",
+        nextPreviewId: null,
+        nextPendingPreviewId: null,
+        mode: "action",
+      })
+    ).toBeNull();
     expect(
       afterMarkActedHref({
         acted: true,
@@ -358,10 +391,7 @@ describe("afterMarkActedHref", () => {
         statusFilter: "new",
         nextPendingPreviewId: null,
       })
-    ).toBe("/?view=insights&status=new");
-  });
-
-  it("returns Pending from All origin (not empty Follow-up)", () => {
+    ).toBeNull();
     expect(
       afterMarkActedHref({
         acted: true,
@@ -369,7 +399,7 @@ describe("afterMarkActedHref", () => {
         statusFilter: "all",
         nextPendingPreviewId: null,
       })
-    ).toBe("/?view=insights&status=new");
+    ).toBeNull();
   });
 
   it("stays on the panel for undo or non-Correct reviews", () => {
