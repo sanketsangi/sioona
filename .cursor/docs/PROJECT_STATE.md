@@ -3,7 +3,7 @@
 **Last updated:** 2026-08-31  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `cursor/insights-review-ui-polish-f5d2` (shadcn polish: Suggested Next Action / Conversation / Feedback / Ground Truth)
+**Branch:** `main` @ `a98fd86` (#77 Insights review polish hosted on sioona-demo)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,7 +19,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-08-24):** Next real weekly partner export **blocked on dump**. Drop unused `real-partner-export.week4.local.csv` (basename already gated for week1–3 only — add week4 to ingest set when file exists) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-08-31):** Suggested Next Action header uses `InsightsReviewPaneHeader` (same flex/`items-center` 43px row as Feedback / Ground Truth). Drops CardTitle `text-base` wrap and CardAction line-box; Pending chip uses `InsightsReviewStatusChip`. Title/chip midlines match. Not outbound / not Detect / not a keep-set go.
+**This pass (code, 2026-08-31):** Deploy gate — origin + sioona-demo Production match Insights polish (`a98fd86` / #77). Hosted 7-step smoke green; queue/preview still Neon SoT. Not a keep-set go / not Partner Demo wipe.
+
+**Prior pass (code, 2026-08-31):** Suggested Next Action header uses `InsightsReviewPaneHeader` (same flex/`items-center` 43px row as Feedback / Ground Truth). Drops CardTitle `text-base` wrap and CardAction line-box; Pending chip uses `InsightsReviewStatusChip`. Title/chip midlines match. Not outbound / not Detect / not a keep-set go.
 
 **Prior pass (code, 2026-08-31):** Feedback drops the Acted-does-not-send Note; Feedback action Buttons icon+label aligned. Mark as Acted stays on Suggested Next Action. Not outbound / not Detect / not a keep-set go.
 
@@ -70,6 +72,7 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Deploy gate (2026-08-21 / #51) | local = origin `06057fa`; hosted 7-step smoke **green** (Insights raw **307** → follow **200** `status=new`); Partner Demo wipe ok; keep-set **n=0** = empty window (**not** Groww∩JSON); baseline **12** / Lift **+2**. Not a keep-set go |
 | Deploy gate (2026-08-21 / replace guard) | origin `73081cd`; web Vitest **426** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200**; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Partner Demo Confirm Replace shipped. Not a keep-set go / not Partner Demo wipe |
 | Deploy gate (2026-08-21 / leftover chrome) | origin `23e0b65`; web Vitest **428** passed / **5** skipped; backend pytest **56** passed; hosted 7-step smoke **green** (health ok; Insights raw **307** → follow **200** `status=new`; Upload/Eval **200**; legacy Location ok; needs-review **14**; signal-score `reviewed_count` present). Help/Guidance local dialogs + Upload tips shipped. Not a keep-set go / not Partner Demo wipe |
+| Deploy gate (2026-08-31 / Insights polish #77) | origin `a98fd86`; web Vitest **537** passed / **5** skipped; backend pytest **63** passed; hosted 7-step smoke **green** (health ok; Insights/Upload/Eval **200**; Insights `?preview=` **200**; legacy Location `/insights/sig_test` → `/?view=insights&preview=sig_test`; needs-review JSON **20**; signal-score `reviewed_count` **8**). Production already on `a98fd86`. Queue/preview Neon SoT. Not a keep-set go / not Partner Demo wipe |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
 
 **Cadence / infra locks:** mid-week upsert `replaced=false`; keep-set SignalScore (orphan Partner Demo rows excluded, not deleted); week-scoped `reviewed_at` + Eval `?scoreFrom=` (empty → Reviewed 0 / **Insufficient Data**, never labeled Go); Adapt + pilot settings survive `/tmp` wipe (hydrate union + Neon `007`). **Partner Demo replace guard (2026-08-21):** when `last_uploaded_file_name=Zerodha_batch_02`, Upload/ingest full-replace requires Confirm Replace (`confirm_partner_demo_replace`) — closes silent Groww overwrite of the active keep-set; Day-1 Groww/Reset replace stays one-click. **Render wake (2026-08-29):** Insights/Eval queue or score miss auto-pings `GET /api/backend-health` (FastAPI `/health`, 25s) then one `router.refresh()` (60s cooldown) so free-tier sleep does not empty the review queue; panel copy is partner-safe (no “Start FastAPI”). Groq **$20 skipped** (Free; do not Create Project limits). Never commit `*.local.csv` / PII / `store.json`.
@@ -165,6 +168,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Deploy gate **logged 2026-08-21** (#51) — local = origin; hosted smoke green; Partner Demo wipe re-run; keep-set n=0 = empty window only (Groww∩JSON closed); baseline 12 / Lift +2 preserved across wipe
 - Deploy gate **logged 2026-08-21** (`73081cd` replace guard) — web 426 / backend 56 pass; hosted 7-step smoke green (Insights 307→200; Upload/Eval 200; needs-review 14); Confirm Replace on Partner Demo keep-set live; not a keep-set go / not wipe
 - Deploy gate **logged 2026-08-21** (`23e0b65` leftover chrome) — web 428 / backend 56 pass; hosted 7-step smoke green (Insights 307→200 `status=new`; Upload/Eval 200; needs-review 14); Help/Guidance dialogs + Upload tips live on sioona-demo; not a keep-set go / not wipe
+- Deploy gate **logged 2026-08-31** (`a98fd86` / #77 Insights polish) — web 537 / backend 63 pass; sioona-demo Production already on SHA; hosted 7-step smoke green (Insights/Upload/Eval 200; preview 200; needs-review 20; signal-score `reviewed_count` 8); queue/preview Neon SoT; not a keep-set go / not Partner Demo wipe
 - Partner Demo keep-set re-query **stopped 2026-08-21** — `scoreFrom=2026-08-20T23:44:44.000Z`; `zrdh_*` n=0 / no go; Groww_batch_02 overwrite (14 Correct ignored); remaining `zrdh_*` pending 0
 - Partner Demo keep-set **closed 2026-08-21 (sioona-demo, fresh)** — wipe→Zerodha_batch_02 (100/14; sync failed=0); 5 Correct + Acted 5/5 on `zrdh_*`; `?scoreFrom=2026-08-20T23:44:44.000Z` → n=5 / 1.00 → go; baseline 0 / lift 14; pending 9; Groww ignored; no Adapt / no outbound
 - Prior same-day Partner Demo keep-set (pending 3; concurrent Groww overwrite) and local rehearsal (`scoreFrom=2026-08-21T10:36:10.000Z`) — **superseded** by hosted close above
@@ -193,7 +197,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-08-30, this tree):** web Insights review UI polish (Suggested Next Action / Conversation / Feedback / Ground Truth) — related vitest 21 passed; `tsc --noEmit` clean; eslint clean. Residual failures: **none**. Not a hosted deploy.
+- **Tests status (2026-08-31, this tree):** web Vitest **537** passed / **5** skipped; backend pytest **63** passed. Compact SignalScore/Eval cockpit tests aligned to KPI strip (Go/n≥5 live on Pilot + cadence, not in `SignalScoreSummary`). Residual failures: **none**. Hosted deploy gate same day.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.
 
