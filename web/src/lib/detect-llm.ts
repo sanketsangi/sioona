@@ -55,7 +55,7 @@ Rules:
 - If you cannot copy a real customer span, return signal=none and evidence="".
 - next_action = one short Shadow Mode suggestion. Use "none" when signal=none.
 - reason = one short sentence.
-- confidence = a number from 0 to 1 (not a string). Use ≥0.8 only if the customer said the intent in clear words.
+- confidence = a number from 0 to 1 (not a string). Use 0.8 or higher only if the customer said the intent in clear words.
 
 Examples (later turns win):
 "The fees are high." later: "I am closing my account and moving my portfolio."
