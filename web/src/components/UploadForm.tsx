@@ -19,6 +19,12 @@ import {
   PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
 } from "@/lib/partner-demo-replace-guard";
 import {
+  CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
+  HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
+  HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
+  isHeldOutWeeklyPackBasename,
+} from "@/lib/partner-weekly-pack";
+import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
@@ -52,10 +58,15 @@ export function UploadForm({
   const [loading, setLoading] = useState(false);
   const [pendingPartnerDemoReplace, setPendingPartnerDemoReplace] =
     useState(false);
+  const [pendingHeldOutWeeklyIngest, setPendingHeldOutWeeklyIngest] =
+    useState(false);
 
   const partnerDemoActive = isPartnerDemoKeepSetActive(lastUploadedFileName);
   /** Full-replace path (Day-1 / non–mid-week) can wipe Partner Demo keep-set. */
   const wouldReplace = !hasPartnerExport;
+  const heldOutSelected = isHeldOutWeeklyPackBasename(file?.name);
+  const pendingHeldOutConfirm =
+    pendingHeldOutWeeklyIngest && !pendingPartnerDemoReplace;
 
   const onDemoErrorChange = useCallback((message: string | null) => {
     setDemoError(message);
@@ -63,9 +74,13 @@ export function UploadForm({
 
   function clearPendingConfirm() {
     setPendingPartnerDemoReplace(false);
+    setPendingHeldOutWeeklyIngest(false);
   }
 
-  async function runIngest(opts?: { confirmPartnerDemoReplace?: boolean }) {
+  async function runIngest(opts?: {
+    confirmPartnerDemoReplace?: boolean;
+    confirmHeldOutWeeklyIngest?: boolean;
+  }) {
     if (!file) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
       fileRef.current?.focus();
@@ -84,6 +99,9 @@ export function UploadForm({
       if (opts?.confirmPartnerDemoReplace) {
         body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
       }
+      if (opts?.confirmHeldOutWeeklyIngest) {
+        body.append(CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD, "true");
+      }
       const res = await fetch("/api/ingest", { method: "POST", body });
       const data = (await res.json()) as {
         error?: string;
@@ -97,6 +115,14 @@ export function UploadForm({
       };
       if (
         res.status === 409 &&
+        data.code === HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE
+      ) {
+        setPendingHeldOutWeeklyIngest(true);
+        setError(null);
+        return;
+      }
+      if (
+        res.status === 409 &&
         data.code === PARTNER_DEMO_REPLACE_CONFIRM_CODE
       ) {
         setPendingPartnerDemoReplace(true);
@@ -104,7 +130,7 @@ export function UploadForm({
         return;
       }
       if (!res.ok) throw new Error(data.error || "Upload failed");
-      setPendingPartnerDemoReplace(false);
+      clearPendingConfirm();
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
@@ -152,6 +178,15 @@ export function UploadForm({
       fileRef.current?.focus();
       return;
     }
+    if (heldOutSelected && !pendingHeldOutWeeklyIngest) {
+      setError(null);
+      setDemoError(null);
+      setStatus(null);
+      setHint(null);
+      setSyncWarning(null);
+      setPendingHeldOutWeeklyIngest(true);
+      return;
+    }
     if (partnerDemoActive && wouldReplace && !pendingPartnerDemoReplace) {
       setError(null);
       setDemoError(null);
@@ -163,6 +198,7 @@ export function UploadForm({
     }
     await runIngest({
       confirmPartnerDemoReplace: pendingPartnerDemoReplace && partnerDemoActive,
+      confirmHeldOutWeeklyIngest: pendingHeldOutWeeklyIngest && heldOutSelected,
     });
   }
 
@@ -220,7 +256,7 @@ export function UploadForm({
 
       <div className="flex shrink-0 flex-col gap-3">
         <div className="relative flex flex-wrap items-center justify-center gap-2">
-          {pendingPartnerDemoReplace ? (
+          {pendingPartnerDemoReplace || pendingHeldOutWeeklyIngest ? (
             <>
               <button
                 type="submit"
@@ -229,7 +265,7 @@ export function UploadForm({
                 className="btn-primary rounded-[var(--radius-panel)]"
               >
                 {loading ? <ButtonSpinner /> : null}
-                Confirm Replace
+                {pendingPartnerDemoReplace ? "Confirm Replace" : "Confirm Ingest"}
               </button>
               <button
                 type="button"
@@ -282,6 +318,12 @@ export function UploadForm({
           <div className="status-banner status-banner-warning" role="alert">
             <p className="text-copy-14 text-sio-fg-base" aria-live="polite">
               {PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE}
+            </p>
+          </div>
+        ) : pendingHeldOutConfirm ? (
+          <div className="status-banner status-banner-warning" role="alert">
+            <p className="text-copy-14 text-sio-fg-base" aria-live="polite">
+              {HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE}
             </p>
           </div>
         ) : null}
