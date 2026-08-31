@@ -271,11 +271,8 @@ export function InsightsView({
         mode: workspaceMode,
       })
     : null;
-  // Rail Act walk always uses Follow-up branch so Correct ¬acted advances
-  // even when the panel was opened from All / Pending.
-  const railActWalk =
-    previewSignal?.feedback?.label === "correct" &&
-    previewSignal.status !== "acted";
+  // After Mark as Acted: next Correct panel, else next pending review.
+  // Origin filter is unused — empty Pending / Follow-up lists are not a destination.
   const actedWalk = previewSignal
     ? {
         nextPreviewId: nextUnactedCorrectId(
@@ -283,7 +280,7 @@ export function InsightsView({
           previewSignal.id,
         ),
         nextPendingPreviewId: previewTriage?.nextPendingPreviewId ?? null,
-        statusFilter: railActWalk ? ("followup" as const) : statusFilter,
+        statusFilter,
         scoreFrom,
         mode: workspaceMode,
       }

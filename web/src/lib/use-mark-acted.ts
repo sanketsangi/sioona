@@ -19,9 +19,9 @@ import {
 export type MarkActedWalk = {
   /** Next Correct-not-Acted after this panel (Follow-up Act queue). */
   nextPreviewId?: string | null;
-  /** Next needs-review id after this panel (Pending return path). */
+  /** Next needs-review id after this panel (or first pending from Follow-up). */
   nextPendingPreviewId?: string | null;
-  /** Current Insights status filter — Follow-up vs Pending return. */
+  /** Current Insights status filter — kept for callers; not used to land on empty lists. */
   statusFilter?: StatusFilter;
   scoreFrom?: string | null;
   /** Preserve Action Mode on next Follow-up deep links. */

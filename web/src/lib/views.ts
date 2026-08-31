@@ -181,7 +181,11 @@ export function cadenceActionHref(
   return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom });
 }
 
-/** Next needs-review id after `currentId` (wraps; excludes current). */
+/**
+ * Next needs-review id after `currentId` (wraps; excludes current).
+ * Follow-up / Done origin is not in pending — return the first pending so
+ * Mark as Acted can open the next review instead of an empty queue.
+ */
 export function nextPendingPreviewId(
   pending: { id: string }[],
   currentId: string,
@@ -189,7 +193,7 @@ export function nextPendingPreviewId(
   const n = pending.length;
   if (n === 0) return null;
   const start = pending.findIndex((s) => s.id === currentId);
-  if (start < 0) return null;
+  if (start < 0) return pending[0]?.id ?? null;
   for (let i = 1; i <= n; i++) {
     const signal = pending[(start + i) % n];
     if (signal.id !== currentId) return signal.id;
@@ -256,15 +260,16 @@ export function afterFeedbackHref(opts: {
 
 /**
  * After Mark as Acted on a Correct review.
- * Follow-up Act queue (`statusFilter=followup`): next Correct panel, or Follow-up list.
- * Pending / All / Done origin: next pending preview, or Pending list (`status=new`).
- * Null → stay and refresh.
+ * Next Correct-not-Acted panel, else next pending review.
+ * Null → stay on this panel (now Acted). Never the empty Insights list
+ * ("No Signals Need Review").
  */
 export function afterMarkActedHref(opts: {
   acted: boolean;
   feedbackLabel?: string | null;
   nextPreviewId?: string | null;
   nextPendingPreviewId?: string | null;
+  /** Origin filter — unused for routing; empty lists are never a destination. */
   statusFilter?: StatusFilter | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
@@ -272,19 +277,12 @@ export function afterMarkActedHref(opts: {
   if (!opts.acted || opts.feedbackLabel !== "correct") return null;
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
-  if (opts.statusFilter === "followup") {
-    if (opts.nextPreviewId) {
-      return viewHref("insights", {
-        ...modeExtra,
-        scoreFrom: opts.scoreFrom,
-        status: "followup",
-        preview: opts.nextPreviewId,
-      });
-    }
+  if (opts.nextPreviewId) {
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
       status: "followup",
+      preview: opts.nextPreviewId,
     });
   }
   if (opts.nextPendingPreviewId) {
@@ -294,8 +292,5 @@ export function afterMarkActedHref(opts: {
       mode: opts.mode,
     });
   }
-  return pendingReviewQueueHref({
-    scoreFrom: opts.scoreFrom,
-    mode: opts.mode,
-  });
+  return null;
 }

@@ -24,7 +24,7 @@ describe("buildSignalReviewTriage", () => {
     });
   });
 
-  it("marks follow-up preview as not pending", () => {
+  it("marks follow-up preview as not pending and points at first pending", () => {
     expect(
       buildSignalReviewTriage({
         pendingSignals: pending,
@@ -34,10 +34,19 @@ describe("buildSignalReviewTriage", () => {
       }),
     ).toEqual({
       isPendingReview: false,
-      nextPendingPreviewId: null,
+      nextPendingPreviewId: "sig_a",
       scoreFrom: "2026-08-17",
       mode: "action",
     });
+  });
+
+  it("has no next pending when the queue is empty", () => {
+    expect(
+      buildSignalReviewTriage({
+        pendingSignals: [],
+        previewSignal: { id: "sig_done" },
+      }).nextPendingPreviewId,
+    ).toBeNull();
   });
 });
 
