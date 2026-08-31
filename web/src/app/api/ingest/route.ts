@@ -18,7 +18,10 @@ import {
   pruneConversationsNotInBackend,
   syncConversationsToBackend,
 } from "@/lib/sync-conversations";
-import { syncPilotSettingsToBackend } from "@/lib/sync-pilot";
+import {
+  refreshStorePilotFromNeon,
+  syncPilotSettingsToBackend,
+} from "@/lib/sync-pilot";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 import {
   PARTNER_DEMO_REPLACE_CONFIRM_CODE,
@@ -38,6 +41,9 @@ const PARTNER_SAMPLE_PACK_BASENAMES = new Set<string>([
   "real-partner-export.local.csv",
   "real-partner-export.week2.local.csv",
   "real-partner-export.week3.local.csv",
+  "real-partner-export.week4.local.csv",
+  "zerodha_week_4_batch_01.json",
+  "zerodha_week_4_batch_02.json",
 ]);
 
 export async function POST(request: Request) {
@@ -60,7 +66,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const store = await readStore();
+    const store = await refreshStorePilotFromNeon(await readStore());
     const incoming = toStoreRecords(parsed, store.tenant.id, {
       stableIds: true,
     });

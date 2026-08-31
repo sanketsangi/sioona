@@ -33,6 +33,12 @@ function csvFile(name: string, rows: string[]) {
   return new File([csv], name, { type: "text/csv" });
 }
 
+function jsonFile(name: string, conversations: object[]) {
+  return new File([JSON.stringify({ conversations })], name, {
+    type: "application/json",
+  });
+}
+
 function ingestRequest(
   file: File,
   options?: { replace?: boolean; confirmPartnerDemoReplace?: boolean }
@@ -249,6 +255,153 @@ describe("POST /api/ingest", () => {
           message.content.includes("today please")
       )
     ).toBe(true);
+  });
+
+  it("mid-week upserts week4 CSV partner pack and bumps weeklyExportCount", async () => {
+    const first = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(first.status).toBe(200);
+    expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
+
+    const second = await POST(
+      ingestRequest(
+        csvFile("real-partner-export.week4.local.csv", [LEAD_LINE_UPDATED])
+      )
+    );
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as { replaced?: boolean };
+    expect(secondBody.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.pilot?.weeklyExportCount).toBe(2);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.week4.local.csv"
+    );
+    const conversationId = after.conversations.find(
+      (conversation) => conversation.externalId === "wa-reupload-1"
+    )?.id;
+    expect(conversationId).toBeTruthy();
+    expect(
+      after.messages.some(
+        (message) =>
+          message.conversationId === conversationId &&
+          message.content.includes("today please")
+      )
+    ).toBe(true);
+  });
+
+  it("mid-week upserts week4 partner pack and bumps weeklyExportCount", async () => {
+    const first = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(first.status).toBe(200);
+    expect((await readStore()).pilot?.weeklyExportCount).toBe(1);
+
+    const second = await POST(
+      ingestRequest(
+        jsonFile("Zerodha_week_4_batch_01.json", [
+          {
+            externalId: "wa-reupload-1",
+            channel: "whatsapp",
+            customerName: "Asha",
+            startedAt: "2026-08-25T08:00:00.000Z",
+            messages: [
+              {
+                role: "customer",
+                content: "Hi, I want to open a demat account today please",
+                timestamp: "2026-08-25T08:00:00.000Z",
+              },
+              {
+                role: "agent",
+                content: "Kite → signup.zerodha.com. KYC needs PAN + Aadhaar OTP.",
+                timestamp: "2026-08-25T08:02:00.000Z",
+              },
+            ],
+            labels: [
+              {
+                signal: "lead",
+                confidence: "high",
+                reason: "New demat open request",
+              },
+            ],
+          },
+        ])
+      )
+    );
+    expect(second.status).toBe(200);
+    const secondBody = (await second.json()) as { replaced?: boolean };
+    expect(secondBody.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.pilot?.weeklyExportCount).toBe(2);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "Zerodha_week_4_batch_01.json"
+    );
+    const conversationId = after.conversations.find(
+      (conversation) => conversation.externalId === "wa-reupload-1"
+    )?.id;
+    expect(conversationId).toBeTruthy();
+    expect(
+      after.messages.some(
+        (message) =>
+          message.conversationId === conversationId &&
+          message.content.includes("today please")
+      )
+    ).toBe(true);
+  });
+
+  it("overlays Neon weeklyExportCount so week4 upserts when local count is 0", async () => {
+    const before = await readStore();
+    const priorCount = before.conversations.length;
+    expect(priorCount).toBeGreaterThan(1);
+    before.pilot = {
+      baselineOpportunities: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeStore(before);
+
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-uuid-heal",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 5,
+      last_uploaded_file_name: "Groww_batch_02",
+      created_at: "2026-08-24T12:18:03.000Z",
+      updated_at: "2026-08-24T12:18:03.000Z",
+    });
+
+    const response = await POST(
+      ingestRequest(
+        jsonFile("Zerodha_week_4_batch_01.json", [
+          {
+            externalId: "wa-reupload-1",
+            channel: "whatsapp",
+            customerName: "Asha",
+            startedAt: "2026-08-25T08:00:00.000Z",
+            messages: [
+              {
+                role: "customer",
+                content: "Hi, I want to open a demat account today please",
+                timestamp: "2026-08-25T08:00:00.000Z",
+              },
+            ],
+          },
+        ])
+      )
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.conversations.length).toBe(priorCount + 1);
+    expect(after.pilot?.weeklyExportCount).toBe(6);
+    expect(after.pilot?.baselineOpportunities).toBe(12);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "Zerodha_week_4_batch_01.json"
+    );
   });
 
   it("keeps SignalScore feedback and Acted across re-upload", async () => {
