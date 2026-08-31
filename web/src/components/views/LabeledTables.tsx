@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { EvalCard } from "@/components/EvalCard";
+import {
+  EvalCard,
+  EvalMetric,
+  evalCardHeaderClassName,
+} from "@/components/EvalCard";
 import { Pager } from "@/components/Pager";
 import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
@@ -67,6 +71,29 @@ export function LabeledTables({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <EvalCard className="shrink-0">
+        <div className={evalCardHeaderClassName}>
+          <p className="eyebrow">Labeled Eval</p>
+        </div>
+        <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
+          <EvalMetric
+            label="P"
+            value={formatPercent(metrics.labeledPrecision)}
+            hint={`${metrics.truePositives} TP / ${metrics.falsePositives} FP`}
+          />
+          <EvalMetric
+            label="R"
+            value={formatPercent(metrics.labeledRecall)}
+            hint={`${metrics.falseNegatives} FN`}
+          />
+          <EvalMetric
+            label="Chats"
+            value={String(metrics.labeledConversations)}
+            hint={`${metrics.predictedSignals} pred.`}
+          />
+        </div>
+      </EvalCard>
+
       <SegmentedTabs
         label="Labeled tables"
         activeId={table}

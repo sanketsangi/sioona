@@ -29,6 +29,7 @@ type SignalQueueRowProps = {
 /**
  * Queue table row. Selection opens full-panel review via `?preview=`
  * (list rows swap for review body; column header stays).
+ * List rows with `previewHref` stretch one Link across the row; Action stays separate.
  */
 export function SignalQueueRow({
   signal,
@@ -44,6 +45,7 @@ export function SignalQueueRow({
     customerName,
   );
   const summaryId = `signal-summary-${signal.id}`;
+  const isPreviewRow = Boolean(previewHref);
 
   const summaryClass = expandText
     ? "break-words text-pretty whitespace-normal text-copy-14 font-medium leading-7 text-sio-fg-base"
@@ -66,10 +68,13 @@ export function SignalQueueRow({
   return (
     <TableRow
       data-queue-row
+      data-queue-preview={isPreviewRow ? "true" : undefined}
       data-selected={selected ? "true" : undefined}
       data-expand-text={expandText ? "true" : undefined}
       className={cn(
         "list-row",
+        isPreviewRow &&
+          "[&>[data-slot=table-cell]]:pointer-events-none [&_[data-queue-row-link]]:pointer-events-auto [&_[data-queue-action]]:pointer-events-auto has-[[data-queue-row-link]:focus-visible]:bg-sio-bg-interactive-hover",
         selected && "bg-muted/50",
       )}
     >
@@ -79,7 +84,8 @@ export function SignalQueueRow({
             href={previewHref}
             scroll={false}
             aria-label={previewAriaLabel}
-            className="block min-w-0 touch-manipulation rounded-[var(--radius-control)] outline-none focus-visible:bg-sio-bg-interactive-hover focus-visible:shadow-[var(--focus-ring)]"
+            data-queue-row-link
+            className="z-0 block min-w-0 touch-manipulation outline-none after:absolute after:inset-0 after:content-['']"
           >
             {userCell}
           </Link>
@@ -89,19 +95,7 @@ export function SignalQueueRow({
       </TableCell>
 
       <TableCell className="min-w-[12rem] max-w-[20rem] whitespace-normal">
-        {previewHref ? (
-          <Link
-            href={previewHref}
-            scroll={false}
-            tabIndex={-1}
-            aria-hidden
-            className="block min-w-0 touch-manipulation rounded-[var(--radius-control)] outline-none focus-visible:bg-sio-bg-interactive-hover"
-          >
-            {signalCell}
-          </Link>
-        ) : (
-          signalCell
-        )}
+        {signalCell}
       </TableCell>
 
       <TableCell className="min-w-[8.75rem] whitespace-normal">
@@ -118,7 +112,10 @@ export function SignalQueueRow({
 
       <TableCell className="min-w-[5.5rem] whitespace-normal">
         {action ? (
-          <div className="flex min-w-0 w-full items-start justify-start">
+          <div
+            data-queue-action
+            className="relative z-10 flex min-w-0 w-full items-start justify-start"
+          >
             {action}
           </div>
         ) : null}

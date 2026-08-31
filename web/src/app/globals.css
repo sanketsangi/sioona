@@ -1081,7 +1081,24 @@
     background: var(--sio-fg-base);
   }
 
-  .list-row:focus-visible {
+  /* Insights DataTable: one stretched ?preview= Link; Action column stays clickable above it */
+  .list-row[data-queue-preview="true"] > [data-slot="table-cell"] {
+    pointer-events: none;
+  }
+
+  .list-row[data-queue-preview="true"] [data-queue-row-link],
+  .list-row[data-queue-preview="true"] [data-queue-action] {
+    pointer-events: auto;
+  }
+
+  .list-row[data-queue-preview="true"] [data-queue-row-link]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
+  .list-row:focus-visible,
+  .list-row:has([data-queue-row-link]:focus-visible) {
     outline: none;
     background-color: var(--sio-bg-interactive-hover);
     box-shadow:

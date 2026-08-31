@@ -11,13 +11,14 @@ import {
   type ComponentType,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { evalCardPadClassName } from "@/components/EvalCard";
+import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
 import { GoodIcon } from "@/components/icons/GoodIcon";
 import { WarningIcon } from "@/components/icons/WarningIcon";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
@@ -86,7 +87,7 @@ export function FeedbackControls({
   className?: string;
 }) {
   const router = useRouter();
-  const panelRef = useRef<HTMLElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const headingId = useId();
   const noteId = useId();
   const initialNote = signal.feedback?.note ?? "";
@@ -183,9 +184,10 @@ export function FeedbackControls({
   }
 
   return (
-    <section
+    <Card
       ref={panelRef}
-      className={cn("insights-review-pane", className)}
+      size="sm"
+      className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
       <InsightsReviewPaneHeader id={headingId} title="Feedback">
@@ -196,132 +198,134 @@ export function FeedbackControls({
         </InsightsReviewStatusChip>
       </InsightsReviewPaneHeader>
 
-      <div
-        className={cn(
-          evalCardPadClassName,
-          "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
-        )}
-      >
-        <p className="text-label-12 text-sio-fg-muted">
-          {canAdvance
-            ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
-            : isUnactedCorrect
-              ? "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action."
-              : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
-        </p>
-        <p className="sr-only" aria-live="polite">
-          {justSaved
-            ? `${options.find((o) => o.label === justSaved)?.title ?? justSaved} saved`
-            : null}
-        </p>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={noteId} className="sr-only">
-            Optional note
-          </Label>
-          <Input
-            id={noteId}
-            type="text"
-            name="feedbackNote"
-            autoComplete="off"
-            spellCheck={false}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onKeyDown={onNoteKeyDown}
-            placeholder="Optional note — e.g. ops language, not churn…"
-            className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-sio-fg-base placeholder:text-sio-fg-muted md:min-h-9"
-          />
-        </div>
-
+      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col px-0">
         <div
-          className="grid grid-cols-3 gap-2"
-          role="group"
-          aria-label="Feedback actions"
+          className={cn(
+            evalCardPadClassName,
+            "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
+          )}
         >
-          {options.map((option) => {
-            const isCurrent = feedbackLabel === option.label;
-            const { Icon } = option;
-            return (
-              <Button
-                key={option.label}
-                type="button"
-                variant={option.primary ? "default" : "outline"}
-                size="lg"
-                title={`${option.hint} (${option.shortcut})`}
-                disabled={busy}
-                aria-busy={pending === option.label}
-                aria-pressed={isCurrent}
-                aria-keyshortcuts={option.shortcut}
-                onClick={() => void submit(option.label)}
-                className={cn(
-                  option.primary ? primaryBtn : outlineBtn,
-                  isCurrent &&
-                    !option.primary &&
-                    "border-sio-border-strong bg-sio-bg-interactive-hover",
-                )}
-              >
-                {pending === option.label ? (
-                  <ButtonSpinner data-icon="inline-start" />
-                ) : (
-                  <Icon
-                    data-icon="inline-start"
-                    className={
-                      option.label === "partially_correct"
-                        ? "-translate-y-[2px]"
-                        : undefined
-                    }
-                  />
-                )}
-                <span className="leading-none">
-                  {option.label === "partially_correct" ? (
-                    <>
-                      <span className="min-[420px]:hidden">Partial</span>
-                      <span className="hidden min-[420px]:inline">
-                        {option.title}
-                      </span>
-                    </>
-                  ) : (
-                    option.title
-                  )}
-                </span>
-              </Button>
-            );
-          })}
-        </div>
-
-        {needsAdapt ? (
-          <div role="status" aria-live="polite">
-            <Note
-              icon={null}
-              className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
-            >
-              <NoteContent className="text-label-12 text-sio-fg-base">
-                {feedbackLabel === "incorrect"
-                  ? "False positive? Add a negative phrase so this pattern stops firing."
-                  : "Wrong rationale? Add the phrase that should drive this signal type."}
-              </NoteContent>
-              <NoteAction>
-                <Button
-                  asChild
-                  variant="outline"
-                  size="lg"
-                  className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
-                >
-                  <Link href={viewHref("eval", { panel: "adapt" })}>
-                    Adapt From Reviews
-                  </Link>
-                </Button>
-              </NoteAction>
-            </Note>
-          </div>
-        ) : null}
-
-        {error ? (
-          <p className="text-label-12 text-sio-status-danger-fg" role="alert">
-            {error}. Try again or refresh the page.
+          <p className="text-label-12 text-sio-fg-muted">
+            {canAdvance
+              ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
+              : isUnactedCorrect
+                ? "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action."
+                : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
           </p>
-        ) : null}
-      </div>
-    </section>
+          <p className="sr-only" aria-live="polite">
+            {justSaved
+              ? `${options.find((o) => o.label === justSaved)?.title ?? justSaved} saved`
+              : null}
+          </p>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={noteId} className="sr-only">
+              Optional note
+            </Label>
+            <Input
+              id={noteId}
+              type="text"
+              name="feedbackNote"
+              autoComplete="off"
+              spellCheck={false}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onKeyDown={onNoteKeyDown}
+              placeholder="Optional note — e.g. ops language, not churn…"
+              className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-sio-fg-base placeholder:text-sio-fg-muted md:min-h-9"
+            />
+          </div>
+
+          <div
+            className="grid grid-cols-3 gap-2"
+            role="group"
+            aria-label="Feedback actions"
+          >
+            {options.map((option) => {
+              const isCurrent = feedbackLabel === option.label;
+              const { Icon } = option;
+              return (
+                <Button
+                  key={option.label}
+                  type="button"
+                  variant={option.primary ? "default" : "outline"}
+                  size="lg"
+                  title={`${option.hint} (${option.shortcut})`}
+                  disabled={busy}
+                  aria-busy={pending === option.label}
+                  aria-pressed={isCurrent}
+                  aria-keyshortcuts={option.shortcut}
+                  onClick={() => void submit(option.label)}
+                  className={cn(
+                    option.primary ? primaryBtn : outlineBtn,
+                    isCurrent &&
+                      !option.primary &&
+                      "border-sio-border-strong bg-sio-bg-interactive-hover",
+                  )}
+                >
+                  {pending === option.label ? (
+                    <ButtonSpinner data-icon="inline-start" />
+                  ) : (
+                    <Icon
+                      data-icon="inline-start"
+                      className={
+                        option.label === "partially_correct"
+                          ? "-translate-y-[2px]"
+                          : undefined
+                      }
+                    />
+                  )}
+                  <span className="leading-none">
+                    {option.label === "partially_correct" ? (
+                      <>
+                        <span className="min-[420px]:hidden">Partial</span>
+                        <span className="hidden min-[420px]:inline">
+                          {option.title}
+                        </span>
+                      </>
+                    ) : (
+                      option.title
+                    )}
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
+
+          {needsAdapt ? (
+            <div role="status" aria-live="polite">
+              <Note
+                icon={null}
+                className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
+              >
+                <NoteContent className="text-label-12 text-sio-fg-base">
+                  {feedbackLabel === "incorrect"
+                    ? "False positive? Add a negative phrase so this pattern stops firing."
+                    : "Wrong rationale? Add the phrase that should drive this signal type."}
+                </NoteContent>
+                <NoteAction>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="lg"
+                    className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
+                  >
+                    <Link href={viewHref("eval", { panel: "adapt" })}>
+                      Adapt From Reviews
+                    </Link>
+                  </Button>
+                </NoteAction>
+              </Note>
+            </div>
+          ) : null}
+
+          {error ? (
+            <p className="text-label-12 text-sio-status-danger-fg" role="alert">
+              {error}. Try again or refresh the page.
+            </p>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

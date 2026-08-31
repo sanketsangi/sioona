@@ -99,4 +99,29 @@ describe("SignalScoreSummary compact", () => {
     expect(html).toContain("n / ≥5");
     expect(html).toContain("Open Insights");
   });
+
+  it("hold verdict shows Hold and cadence, never Adapt", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalScoreSummary, {
+        score: {
+          tenant_id: "tenant_demo",
+          reviewed_count: 6,
+          correct_count: 3,
+          incorrect_count: 3,
+          partially_correct_count: 0,
+          signal_score: 0.5,
+          by_signal_type: [],
+        },
+        compact: true,
+        goNoGo: "hold",
+        cadence: createElement("span", null, "Open Insights"),
+      }),
+    );
+
+    expect(html).toContain("Hold");
+    expect(html).toContain("Open Insights");
+    expect(html).toContain("6 / 5");
+    expect(html).not.toContain("use Adapt");
+    expect(html).not.toContain("Insufficient Data");
+  });
 });

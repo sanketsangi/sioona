@@ -7,11 +7,15 @@ vi.mock("next/link", () => ({
     href,
     children,
     className,
+    scroll: _scroll,
+    ...rest
   }: {
     href: string;
     children?: unknown;
     className?: string;
-  }) => createElement("a", { href, className }, children as never),
+    scroll?: boolean;
+    [key: string]: unknown;
+  }) => createElement("a", { href, className, ...rest }, children as never),
 }));
 
 import { SignalQueueRow } from "@/components/SignalQueueRow";
@@ -36,15 +40,16 @@ function signal(overrides: Partial<Signal> = {}): Signal {
 
 describe("SignalQueueRow", () => {
   it("renders a queue list row with Review and truncated summary", () => {
+    const previewHref = "/?view=insights&preview=sig_1";
     const html = renderToStaticMarkup(
       createElement(SignalQueueRow, {
         signal: signal(),
         customerName: "Priya",
-        previewHref: "/?view=insights&preview=sig_1",
+        previewHref,
         previewAriaLabel: "Open review for Priya",
         action: createElement(
           "a",
-          { href: "/?view=insights&preview=sig_1", className: "btn-tertiary" },
+          { href: previewHref, className: "btn-tertiary" },
           "Review",
         ),
       }),
@@ -55,6 +60,15 @@ describe("SignalQueueRow", () => {
     expect(html).toContain("truncate");
     expect(html).toContain(">Review</a>");
     expect(html).toContain("list-row");
+    expect(html).toContain('data-queue-preview="true"');
+    expect(html).toContain("data-queue-row-link");
+    expect(html).toContain("data-queue-action");
+    expect(html).toContain('aria-label="Open review for Priya"');
+    expect(html).toContain("preview=sig_1");
+    const previewAnchors = html.match(
+      /href="\/\?view=insights&amp;preview=sig_1"/g,
+    );
+    expect(previewAnchors).toHaveLength(2);
     expect(html).not.toContain("data-expand-text");
     expect(html).not.toContain("data-selected");
     expect(html).not.toContain("Please pause my SIP this month");
@@ -76,6 +90,8 @@ describe("SignalQueueRow", () => {
     expect(html).toContain('data-expand-text="true"');
     expect(html).toContain('data-selected="true"');
     expect(html).toContain("list-row");
+    expect(html).not.toContain("data-queue-preview");
+    expect(html).not.toContain("data-queue-row-link");
     expect(html).not.toContain("Review");
     expect(html).not.toContain("columnheader");
     expect(html).not.toContain("Please pause my SIP this month");

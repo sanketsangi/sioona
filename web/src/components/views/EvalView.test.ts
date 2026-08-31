@@ -71,6 +71,16 @@ const goScore: BackendSignalScore = {
   by_signal_type: [],
 };
 
+const holdScore: BackendSignalScore = {
+  tenant_id: "tenant_demo",
+  reviewed_count: 6,
+  correct_count: 3,
+  incorrect_count: 3,
+  partially_correct_count: 0,
+  signal_score: 0.5,
+  by_signal_type: [],
+};
+
 describe("EvalView metrics containers", () => {
   it("aligns Metrics wells on EvalCard gutters", () => {
     const html = renderToStaticMarkup(
@@ -82,7 +92,7 @@ describe("EvalView metrics containers", () => {
       }),
     );
 
-    expect(html).toContain("Labeled Eval");
+    expect(html).not.toContain("Labeled Eval");
     expect(html).toContain("Pilot");
     expect(html).toContain("Set Partner Baseline");
     expect(html).toContain("data-slot=\"card\"");
@@ -107,9 +117,10 @@ describe("EvalView metrics containers", () => {
     expect(html).toContain("0 / 5");
     expect(html).toContain("Insufficient Data");
     expect(html).toContain("Open Insights");
-    expect(html).toContain("Labeled Eval");
     expect(html).toContain("Pilot");
+    expect(html).not.toContain("Labeled Eval");
     expect(html).not.toContain("Insights pilot: Shadow Mode queue");
+    expect(html).not.toContain("use Adapt");
   });
 
   it("Go window surfaces share-out score and cadence on first fold", () => {
@@ -143,5 +154,40 @@ describe("EvalView metrics containers", () => {
     expect(html).toContain("Open Insights");
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toMatch(/Pilot[\s\S]*?>Go</);
+  });
+
+  it("Hold points to Insights reviews, not Adapt phrase tuning", () => {
+    const html = renderToStaticMarkup(
+      createElement(EvalView, {
+        store,
+        scoreWindow,
+        cadenceAction: cadenceReviews,
+        backendScore: holdScore,
+      }),
+    );
+
+    expect(html).toContain("Hold");
+    expect(html).toContain("Open Insights");
+    expect(html).toContain("/?view=insights");
+    expect(html).not.toContain("use Adapt");
+    expect(html).not.toContain("Insufficient Data");
+    expect(html).not.toContain("Labeled Eval");
+  });
+
+  it("labeled panel owns P/R, not Metrics", () => {
+    const html = renderToStaticMarkup(
+      createElement(EvalView, {
+        store,
+        panelRaw: "labeled",
+        scoreWindow,
+        cadenceAction: cadenceReviews,
+        backendScore: emptyScore,
+      }),
+    );
+
+    expect(html).toContain("Labeled Eval");
+    expect(html).toContain("Precision By Signal Type");
+    expect(html).not.toContain("n / ≥5");
+    expect(html).not.toContain("use Adapt");
   });
 });
