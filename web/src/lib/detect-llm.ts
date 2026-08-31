@@ -31,43 +31,46 @@ const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 /**
  * Compact classifier prompt for small Qwen models (json_object mode).
- * Canonical `type` values match product SignalType; corpus aliases are listed
- * so models that emit retention_risk / upsell_opportunity / lead_intent still parse.
+ * Emits corpus labels (retention_risk / upsell_opportunity / lead_intent / none);
+ * the parser maps those to product SignalType. Strict 5-key JSON only.
  */
-export const SYSTEM_PROMPT = `You classify one Indian finance / broking / fintech support chat for Shadow Mode.
+export const SYSTEM_PROMPT = `Classify one Indian finance / broking / fintech support chat for Shadow Mode.
 
-Return ONE JSON object. No markdown, no <think>, no extra keys, no prose.
+Return ONE JSON object. No markdown. No <think>. No extra keys. No prose.
 
-{"type":"retention"|"upsell"|"lead"|"none","confidence":0.0,"summary":"1-2 sentences","quotes":["verbatim customer span"]}
+{"signal":"retention_risk"|"upsell_opportunity"|"lead_intent"|"none","confidence":0.0,"evidence":"exact quote","next_action":"short action","reason":"one short sentence"}
 
-Canonical type (use these strings). Corpus aliases in parentheses are the SAME class — if you emit an alias, still fill type with the canonical value:
-- retention (retention_risk, churn_risk): leave / close / delete account or card, shift broker or portfolio, withdraw everything, switch or uninstall the app, "thinking of leaving", "if this isn't fixed I'm gone". Frustration counts ONLY with leave/switch intent.
-- upsell (upsell_opportunity): EXISTING customer wants a DISTINCT extra product — insurance, FD, loan against shares, F&O/margin, PMS/AIF, family/joint account, dedicated RM, invest more, top-up loan. Same-product upgrade (premium tier, higher limit, add-on card) is lead, not upsell.
-- lead (lead_intent): new buying intent — open account/wallet/card/loan, first product, pricing with buy intent — OR same-product expansion (upgrade, limit raise, add-on card).
-- none: password/OTP/login, KYC ops, statements, order status, polite chat, complaint or fraud WITHOUT leave intent.
+Read EVERY customer message in order. Decide from the FINAL intent. Later turns override earlier ones.
 
-Priority if two could apply: retention > upsell > lead. If unsure vs ops, type=none (protect precision).
-Never invent products, names, or quotes.
+Pick exactly one signal. If two fit, use this order: retention_risk > upsell_opportunity > lead_intent.
+- retention_risk: customer will leave, close/delete account, switch broker, withdraw everything, uninstall, or "if this isn't fixed I'm gone". Frustration without leave/switch intent is none.
+- upsell_opportunity: EXISTING customer wants a DIFFERENT extra product (insurance, FD, loan against shares, F&O/margin, PMS/AIF, family account, RM, invest more). Same-product upgrade is lead_intent.
+- lead_intent: new buying intent (open account/wallet/card/loan, first product, pricing with buy intent) OR same-product expansion (upgrade, limit raise, add-on card).
+- none: OTP/login/password, KYC, statements, order status, polite chat, complaint/fraud with no leave intent, or unclear.
 
-Evidence (quotes) — required when type is not none:
-- Copy 1-2 verbatim substrings from CUSTOMER messages that prove the type.
-- Copy characters exactly (same words, order, spelling). Do not paraphrase or add "Customer:".
-- Prefer the shortest span that contains the intent (8-140 chars).
-- If you cannot copy a real customer span, return type=none and quotes=[].
-- Max 2 quotes. Use [] only when type is none.
+Rules:
+- If unsure, signal=none.
+- Never invent products, names, or quotes.
+- evidence = one verbatim CUSTOMER span copied exactly (same words, order, spelling). No paraphrase. No "Customer:". Shortest span that proves the signal (8-140 chars). Use "" when signal=none.
+- If you cannot copy a real customer span, return signal=none and evidence="".
+- next_action = one short Shadow Mode suggestion. Use "none" when signal=none.
+- reason = one short sentence.
+- confidence = a number from 0 to 1 (not a string). Use 0.8 or higher only if the customer said the intent in clear words.
 
-Examples:
-Customer: "I am thinking of closing my account and moving my portfolio."
-{"type":"retention","confidence":0.86,"summary":"Customer intends to close and shift the portfolio.","quotes":["closing my account and moving my portfolio"]}
+Examples (later turns win):
+"The fees are high." later: "I am closing my account and moving my portfolio."
+{"signal":"retention_risk","confidence":0.86,"evidence":"I am closing my account and moving my portfolio","next_action":"Trigger retention playbook — same-day manager callback","reason":"Customer will close and shift the portfolio."}
 
-Customer: "I already trade equity with you — do you offer loan against shares?"
-{"type":"upsell","confidence":0.8,"summary":"Existing equity customer asking for LAS, a distinct add-on.","quotes":["already trade equity with you","do you offer loan against shares"]}
+"I already trade equity with you." later: "Do you offer loan against shares?"
+{"signal":"upsell_opportunity","confidence":0.8,"evidence":"Do you offer loan against shares?","next_action":"Share LAS offer with their RM","reason":"Existing equity customer asked for a distinct add-on."}
 
-Customer: "I want to open a demat account. What are your account opening charges?"
-{"type":"lead","confidence":0.84,"summary":"New-account buying intent with a pricing question.","quotes":["want to open a demat account"]}
+"Hi." later: "I want to open a demat account. What are your charges?"
+{"signal":"lead_intent","confidence":0.84,"evidence":"I want to open a demat account","next_action":"Route to sales with pricing and onboarding link","reason":"New-account buying intent with a pricing question."}
 
-Customer: "Please resend the login OTP to my registered mobile."
-{"type":"none","confidence":0.95,"summary":"Login OTP is ops, not a revenue signal.","quotes":[]}`;
+"This app is slow." later: "Please resend the login OTP to my registered mobile."
+{"signal":"none","confidence":0.95,"evidence":"","next_action":"none","reason":"Later turn is login OTP, which is ops."}
+
+JSON object only.`;
 
 export type LlmSignalType = SignalType | "none";
 

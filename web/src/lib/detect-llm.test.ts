@@ -55,20 +55,41 @@ describe("isDetectLlmEnabled", () => {
 });
 
 describe("SYSTEM_PROMPT", () => {
-  it("pins canonical JSON plus corpus aliases and verbatim evidence rules", () => {
+  it("pins strict 5-key JSON, corpus labels, verbatim evidence, and later-turn rules", () => {
     expect(SYSTEM_PROMPT).toContain(
-      '"type":"retention"|"upsell"|"lead"|"none"'
+      '"signal":"retention_risk"|"upsell_opportunity"|"lead_intent"|"none"'
     );
-    expect(SYSTEM_PROMPT).toContain("retention_risk");
-    expect(SYSTEM_PROMPT).toContain("upsell_opportunity");
-    expect(SYSTEM_PROMPT).toContain("lead_intent");
+    expect(SYSTEM_PROMPT).toContain('"confidence":0.0');
+    expect(SYSTEM_PROMPT).toContain('"evidence":"exact quote"');
+    expect(SYSTEM_PROMPT).toContain('"next_action":"short action"');
+    expect(SYSTEM_PROMPT).toContain('"reason":"one short sentence"');
+    expect(SYSTEM_PROMPT).toContain("No extra keys");
+    expect(SYSTEM_PROMPT).toContain("Later turns override earlier ones");
     expect(SYSTEM_PROMPT).toContain("verbatim");
-    expect(SYSTEM_PROMPT).toContain("quotes");
     expect(SYSTEM_PROMPT).toContain("If you cannot copy a real customer span");
   });
 });
 
 describe("parseLlmClassificationJson", () => {
+  it("parses the strict 5-key schema from the small-model prompt", () => {
+    expect(
+      parseLlmClassificationJson(
+        JSON.stringify({
+          signal: "retention_risk",
+          confidence: 0.86,
+          evidence: "I am closing my account and moving my portfolio",
+          next_action: "Trigger retention playbook — same-day manager callback",
+          reason: "Customer will close and shift the portfolio.",
+        })
+      )
+    ).toEqual({
+      type: "retention",
+      confidence: 0.86,
+      summary: "Customer will close and shift the portfolio.",
+      quotes: ["I am closing my account and moving my portfolio"],
+    });
+  });
+
   it("maps retention_risk, upsell_opportunity, and lead_intent to product types", () => {
     expect(
       parseLlmClassificationJson(
