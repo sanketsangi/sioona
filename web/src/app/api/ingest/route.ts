@@ -29,22 +29,19 @@ import {
   parseConfirmPartnerDemoReplace,
   requiresPartnerDemoReplaceConfirm,
 } from "@/lib/partner-demo-replace-guard";
+import {
+  HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
+  HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
+  isPartnerWeeklyPackBasename,
+  parseConfirmHeldOutWeeklyIngest,
+  requiresHeldOutWeeklyIngestConfirm,
+} from "@/lib/partner-weekly-pack";
 import { lastUploadedFileName } from "@/lib/upload-filename";
 
 function parseReplaceFlag(form: FormData): boolean {
   const value = form.get("replace");
   return value === "true" || value === "1";
 }
-
-/** Gitignored weekly partner drop-ins — Day-1 replace, mid-week upsert. */
-const PARTNER_SAMPLE_PACK_BASENAMES = new Set<string>([
-  "real-partner-export.local.csv",
-  "real-partner-export.week2.local.csv",
-  "real-partner-export.week3.local.csv",
-  "real-partner-export.week4.local.csv",
-  "zerodha_week_4_batch_01.json",
-  "zerodha_week_4_batch_02.json",
-]);
 
 export async function POST(request: Request) {
   try {
@@ -82,9 +79,8 @@ export async function POST(request: Request) {
     }
 
     const uploadedBasename = lastUploadedFileName(file.name);
-    const isPartnerSamplePackUpload = uploadedBasename
-      ? PARTNER_SAMPLE_PACK_BASENAMES.has(uploadedBasename.toLowerCase())
-      : false;
+    const isPartnerSamplePackUpload =
+      isPartnerWeeklyPackBasename(uploadedBasename);
 
     const priorWeeklyExportCount = store.pilot?.weeklyExportCount;
     const priorExports = priorWeeklyExportCount ?? 0;
@@ -98,6 +94,21 @@ export async function POST(request: Request) {
     const replaceShowcase = isPartnerSamplePackUpload
       ? parseReplaceFlag(form) || priorExports === 0
       : true;
+
+    if (
+      requiresHeldOutWeeklyIngestConfirm({
+        uploadedBasename,
+        confirmed: parseConfirmHeldOutWeeklyIngest(form),
+      })
+    ) {
+      return NextResponse.json(
+        {
+          error: HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
+          code: HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
+        },
+        { status: 409 }
+      );
+    }
 
     if (
       requiresPartnerDemoReplaceConfirm({

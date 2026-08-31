@@ -17,6 +17,12 @@ import {
   PARTNER_DEMO_REPLACE_CONFIRM_CODE,
   PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
 } from "@/lib/partner-demo-replace-guard";
+import {
+  CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
+  HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
+  HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
+  WEEK4_BATCH02_HELD_OUT_BASENAME,
+} from "@/lib/partner-weekly-pack";
 
 const LEAD_LINE =
   'wa-reupload-1,customer,"Hi, I want to open a demat account this week",Asha,whatsapp,lead';
@@ -24,6 +30,20 @@ const LEAD_LINE_UPDATED =
   'wa-reupload-1,customer,"Hi, I want to open a demat account today please",Asha,whatsapp,lead';
 const NEW_CONV_LINE =
   'wa-reupload-2,customer,"Hi, I want to open a demat account this week",Neha,whatsapp,lead';
+
+const WEEKLY_JSON_CONV = {
+  externalId: "wa-reupload-1",
+  channel: "whatsapp",
+  customerName: "Asha",
+  startedAt: "2026-08-25T08:00:00.000Z",
+  messages: [
+    {
+      role: "customer",
+      content: "Hi, I want to open a demat account today please",
+      timestamp: "2026-08-25T08:00:00.000Z",
+    },
+  ],
+};
 
 function csvFile(name: string, rows: string[]) {
   const csv = [
@@ -41,13 +61,20 @@ function jsonFile(name: string, conversations: object[]) {
 
 function ingestRequest(
   file: File,
-  options?: { replace?: boolean; confirmPartnerDemoReplace?: boolean }
+  options?: {
+    replace?: boolean;
+    confirmPartnerDemoReplace?: boolean;
+    confirmHeldOutWeeklyIngest?: boolean;
+  }
 ) {
   const body = new FormData();
   body.append("file", file);
   if (options?.replace) body.append("replace", "true");
   if (options?.confirmPartnerDemoReplace) {
     body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
+  }
+  if (options?.confirmHeldOutWeeklyIngest) {
+    body.append(CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD, "true");
   }
   return new Request("http://localhost/api/ingest", {
     method: "POST",
@@ -401,6 +428,172 @@ describe("POST /api/ingest", () => {
     expect(after.pilot?.baselineOpportunities).toBe(12);
     expect(after.pilot?.lastUploadedFileName).toBe(
       "Zerodha_week_4_batch_01.json"
+    );
+  });
+
+  it("overlays Neon weeklyExportCount so week5-style basename upserts when local count is 0", async () => {
+    const before = await readStore();
+    const priorCount = before.conversations.length;
+    expect(priorCount).toBeGreaterThan(1);
+    before.pilot = {
+      baselineOpportunities: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeStore(before);
+
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-uuid-week5",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 5,
+      last_uploaded_file_name: "Zerodha_week_4_batch_01.json",
+      created_at: "2026-08-31T09:58:00.000Z",
+      updated_at: "2026-08-31T09:58:00.000Z",
+    });
+
+    const response = await POST(
+      ingestRequest(jsonFile("Zerodha_week_5_batch_01.json", [WEEKLY_JSON_CONV]))
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.conversations.length).toBe(priorCount + 1);
+    expect(after.pilot?.weeklyExportCount).toBe(6);
+    expect(after.pilot?.baselineOpportunities).toBe(12);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "Zerodha_week_5_batch_01.json"
+    );
+  });
+
+  it("overlays Neon weeklyExportCount so week5 CSV upserts when local count is 0", async () => {
+    const before = await readStore();
+    const priorCount = before.conversations.length;
+    before.pilot = {
+      baselineOpportunities: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeStore(before);
+
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-uuid-week5-csv",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 5,
+      last_uploaded_file_name: "Zerodha_week_4_batch_01.json",
+      created_at: "2026-08-31T09:58:00.000Z",
+      updated_at: "2026-08-31T09:58:00.000Z",
+    });
+
+    const response = await POST(
+      ingestRequest(
+        csvFile("real-partner-export.week5.local.csv", [LEAD_LINE_UPDATED])
+      )
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.conversations.length).toBe(priorCount + 1);
+    expect(after.pilot?.weeklyExportCount).toBe(6);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.week5.local.csv"
+    );
+  });
+
+  it("unknown-name upload still replaces when Neon weeklyExportCount is overlayed", async () => {
+    const before = await readStore();
+    const priorIds = new Set(before.conversations.map((row) => row.id));
+    before.pilot = {
+      baselineOpportunities: 0,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeStore(before);
+
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-uuid-unknown",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 6,
+      last_uploaded_file_name: "Zerodha_week_4_batch_01.json",
+      created_at: "2026-08-31T09:58:00.000Z",
+      updated_at: "2026-08-31T09:58:00.000Z",
+    });
+
+    const response = await POST(
+      ingestRequest(csvFile("user-upload.csv", [NEW_CONV_LINE]))
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(true);
+
+    const after = await readStore();
+    expect(after.conversations).toHaveLength(1);
+    expect(after.conversations[0].externalId).toBe("wa-reupload-2");
+    expect(priorIds.has(after.conversations[0].id)).toBe(false);
+    expect(after.pilot?.weeklyExportCount).toBe(6);
+    expect(after.pilot?.lastUploadedFileName).toBe("user-upload.csv");
+  });
+
+  it("returns 409 when Week-4 Batch-02 is uploaded without confirm", async () => {
+    const before = await readStore();
+    const priorCount = before.conversations.length;
+    before.pilot = {
+      baselineOpportunities: 12,
+      weeklyExportCount: 6,
+      updatedAt: new Date().toISOString(),
+      lastUploadedFileName: "Zerodha_week_4_batch_01.json",
+    };
+    await writeStore(before);
+
+    const blocked = await POST(
+      ingestRequest(jsonFile(WEEK4_BATCH02_HELD_OUT_BASENAME, [WEEKLY_JSON_CONV]))
+    );
+    expect(blocked.status).toBe(409);
+    await expect(blocked.json()).resolves.toEqual({
+      error: HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
+      code: HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
+    });
+
+    const afterBlocked = await readStore();
+    expect(afterBlocked.conversations).toHaveLength(priorCount);
+    expect(afterBlocked.pilot?.lastUploadedFileName).toBe(
+      "Zerodha_week_4_batch_01.json"
+    );
+    expect(afterBlocked.pilot?.weeklyExportCount).toBe(6);
+  });
+
+  it("upserts Week-4 Batch-02 when confirm_held_out_weekly_ingest is set", async () => {
+    const before = await readStore();
+    const priorCount = before.conversations.length;
+    before.pilot = {
+      baselineOpportunities: 12,
+      weeklyExportCount: 6,
+      updatedAt: new Date().toISOString(),
+      lastUploadedFileName: "Zerodha_week_4_batch_01.json",
+    };
+    await writeStore(before);
+
+    const confirmed = await POST(
+      ingestRequest(
+        jsonFile(WEEK4_BATCH02_HELD_OUT_BASENAME, [WEEKLY_JSON_CONV]),
+        { confirmHeldOutWeeklyIngest: true }
+      )
+    );
+    expect(confirmed.status).toBe(200);
+    const body = (await confirmed.json()) as { replaced?: boolean };
+    expect(body.replaced).toBe(false);
+
+    const after = await readStore();
+    expect(after.conversations.length).toBe(priorCount + 1);
+    expect(after.pilot?.weeklyExportCount).toBe(7);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      WEEK4_BATCH02_HELD_OUT_BASENAME
     );
   });
 
