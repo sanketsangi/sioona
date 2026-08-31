@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-08-30
+**Last updated:** 2026-08-31
 
 ---
 
@@ -149,6 +149,6 @@ Auth0, pgvector, vLLM / QLoRA / LangGraph, live webhooks, Action Mode outbound s
 
 1. Read **this file** for stack shape and edit loci.
 2. Read **`PROJECT_STATE.md`** for current heading, gates, and “do not start.”
-3. Prefer the next step from `PROJECT_STATE` when the user says “next.”
+3. Prefer the next step from `PROJECT_STATE` when the user says “next.” Rank with `.cursor/skills/next-leverage/SKILL.md`. Agent implement: `/next`.
 4. Hand off short Goal / Touch / Constraints / Done sketches per `architect.mdc` — do not implement in Ask mode.
-5. Agent execution expands via `grok-first-pass.mdc`.
+5. Agent execution expands via `.cursor/skills/grok-first-pass/SKILL.md` (`/grok-first`).

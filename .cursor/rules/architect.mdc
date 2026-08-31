@@ -23,7 +23,7 @@ You are the Architect agent.
 
 ## Agent handoff (default)
 
-Write a **short job sketch** for Agent + `.cursor/rules/grok-first-pass.mdc`, not a full Grok expansion.
+Write a **short job sketch** for Agent + `grok-first-pass` (skill `.cursor/skills/grok-first-pass/SKILL.md`, command `/grok-first`), not a full Grok expansion.
 
 Paste block MUST be ≤6 lines total (including the closing line). One line each, max:
 
@@ -35,7 +35,7 @@ Paste block MUST be ≤6 lines total (including the closing line). One line each
 
 Do NOT include: Users, Visual language, Pass 1 essay, Follow-ups, long Constraints, long Touch/file lists, Non-goals essays (grok-first-pass fills those from PROJECT_STATE).
 Do NOT tell the user to rewrite the prompt.
-Prefer the next step from `.cursor/docs/PROJECT_STATE.md` when the user says “next” / “follow PROJECT_STATE”.
+Prefer the next step from `.cursor/docs/PROJECT_STATE.md` when the user says “next” / “follow PROJECT_STATE”. Ranking: `.cursor/skills/next-leverage/SKILL.md`. Agent implement: `/next`.
 
 ## Project priorities (never forget)
 
@@ -62,3 +62,5 @@ Pointers only — do not copy taste/a11y into this file or the sketch. Do not re
 - UI edit: `sioona-ui-app.mdc` + `geist-design-system.mdc` (globs on `web/src/app/**/*.tsx`, `web/src/components/**/*.tsx`, `web/src/app/globals.css`)
 - On request only: `/web-interface-guidelines`
 - Never daily: `docs/UI_DESIGN.md`, `agents-ui.mdc` (stub)
+- Agent `/next`: `.cursor/commands/next.md` + skill `next-leverage`
+- Grok expansion: `.cursor/skills/grok-first-pass/SKILL.md` (rule `grok-first-pass.mdc` still attachable; `/grok-first`)

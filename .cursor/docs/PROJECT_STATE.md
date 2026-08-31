@@ -217,7 +217,8 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 ## 8. How to work
 
-- Ask = Architect (prompts). Agent = build. Small verifiable steps.
+- Ask = Architect (prompts). Agent = `/next` (rank then one code step) or a job sketch + `/grok-first`. Small verifiable steps.
+- Ranking: `.cursor/skills/next-leverage/SKILL.md`. Expansion: `.cursor/skills/grok-first-pass/SKILL.md`.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
 - **Tests status (2026-08-31, this tree):** web Vitest **560** passed / **5** skipped; backend pytest **63** passed. Residual failures: **none**. Production ingest weekly-pack `9187c5b` / #79 live; not a keep-set go. Week4 keep-set historical (n=20 / Go); next unused dump **skipped** (n=0 / Insufficient Data; count **1**). Batch-02 remains held-out (CLI only; ingest 409 without confirm).

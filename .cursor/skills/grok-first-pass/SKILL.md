@@ -1,0 +1,57 @@
+---
+name: grok-first-pass
+description: Expand a short job sketch into a Grok 4.6 first-pass prompt, then execute it in Agent mode. Use when the user pastes a brief informal task, an Architect Goal/Touch/Constraints/Done sketch, or runs /grok-first.
+---
+
+# Grok 4.6 first-pass
+
+The user message is a **job sketch**, not the final prompt. Expand internally, then act. Rule pointer: `.cursor/rules/grok-first-pass.mdc` (attach-when-named; this skill is the Agent SoT).
+
+## When to rewrite
+
+Rewrite if the message is short, informal, or missing stack/visual/verify details (typical: 1–5 lines).
+
+If they pasted an **Architect handoff** (Goal / Touch / Constraints / Done + “Attach grok-first-pass”), treat it as the sketch: expand internally and execute. Never reprint the full expansion unless they asked “show the prompt”.
+
+Do **not** rewrite if they already pasted a full spec, said "just do this exactly", or asked "rewrite only" / "show the prompt".
+
+## Rewrite then act
+
+1. Internally expand the sketch into the template below. Fill gaps from `.cursor/docs/PROJECT_STATE.md`, `.cursor/docs/architecture.md`, `.cursor/rules/sioona-architecture.mdc`, and the repo. Do not invent product scope.
+2. In Agent: execute immediately. Lead with one short restatement of the goal (≤3 sentences). Do not dump the full expanded prompt unless they asked to see it.
+3. If they said **rewrite only** / **show the prompt**: output only the expanded prompt in one fenced block. No code edits.
+4. If the sketch is ambiguous on the actual feature, pick the most likely reading from PROJECT_STATE and state that assumption in one line. Do not ask a clarifying question unless two readings would touch different systems.
+
+## Expansion template (fill every field)
+
+Drop a section only if it truly does not apply.
+
+- **Goal:** one sentence outcome (what works when they click through).
+- **Users:** who this is for (default: founder + partner reviewers on Shadow Mode).
+- **Must-work interactions (3–5):** infer from the sketch; include empty, error, and dense if UI.
+- **Visual language:** existing Vercel / shadcn / Geist / zinc in `web/`. No new design system, no toy-AI chrome. Locked signal chrome: reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser` — do not invent parallel status/score/type/avatar UI.
+- **Stack / constraints:** Next.js `web/` + FastAPI `backend/`. Taxonomy SoT `web/src/lib/taxonomy.ts`. Insights pending = FastAPI `needs-review` + `join-needs-review.ts`. Detect = heuristics + optional Groq. Dual-write predictions. Pilot win = keep-set SignalScore ≥80% (week window), not labeled P/R. Never commit `*.local.csv` / PII / `store.json`.
+- **Non-goals unless they named them:** Auth0, vLLM, LangGraph, pgvector, Action Mode outbound, taxonomy expansion to fake recall, more Adapt phrase tuning, FastAPI classify, Groq rate-limit scaffolding, live outbound send.
+- **Pass 1:** research just enough → ship structure + visual language + core interactions in one pass → run tests/typecheck → stop with real vs stubbed.
+- **Follow-ups:** iteration, not a rewrite.
+
+## Execution rules (Agent)
+
+- First pass = substantial working version, not a plan-only reply.
+- Stay on the job: tools → check → fix → continue. Self-verify before stopping (tests, typecheck, or the UI path you can run).
+- Match existing files and patterns. Do not add a parallel data path or design language.
+- If the change alters heading, stack, or blockers, update `.cursor/docs/PROJECT_STATE.md`. If topology / SoT / seams change, update `.cursor/docs/architecture.md`.
+- End with: files changed, what is real vs stubbed, commands run, what to click.
+
+## Tiny sketch → expanded (example)
+
+User: `insights empty state looks dead and eval go is wrong when neon is empty`
+
+Rewrite as:
+
+- Goal: Insights empty/error/dense states offer a next step; Eval empty Neon window shows Insufficient Data, never a labeled-fixture Go.
+- Touch: `InsightsView.tsx`, `EvalView.tsx`, `eval.ts`, `applyBackendSignalScoreToPilot` / related tests.
+- Constraints: keep-set SignalScore; no fake week-2 chats; no taxonomy edits.
+- Verify: `eval.test.ts` + any view tests; report what was not run.
+
+Then implement that. Do not wait for a longer spec.
