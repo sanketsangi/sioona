@@ -8,12 +8,16 @@ vi.mock("next/link", () => ({
     href,
     children,
     className,
+    scroll: _scroll,
+    ...rest
   }: {
     href: string;
     children?: unknown;
     className?: string;
+    scroll?: boolean;
+    [key: string]: unknown;
   }) =>
-    createElement("a", { href, className }, children as never),
+    createElement("a", { href, className, ...rest }, children as never),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -114,6 +118,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain('data-slot="card"');
     expect(html).toContain("preview=sig_1");
     expect(html).toContain(">Review</a>");
+    expect(html).toContain('data-queue-preview="true"');
+    expect(html).toContain("data-queue-row-link");
     expect(html).not.toContain("No Signals Need Follow-Up");
   });
 

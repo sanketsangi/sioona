@@ -20,6 +20,28 @@ export const evalCardPadClassName = "px-3 sm:px-4";
 /** KPI cell — left edge lines up with header copy. */
 export const evalMetricCellClassName = "min-w-0 px-3 py-2.5 sm:px-4";
 
+export function EvalMetric({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className={evalMetricCellClassName}>
+      <div className="metric-label">{label}</div>
+      <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
+        {value}
+      </div>
+      <div className="mt-0.5 line-clamp-2 break-words text-pretty text-label-12 text-sio-fg-muted">
+        {hint}
+      </div>
+    </div>
+  );
+}
+
 export function EvalCard({
   className,
   ...props

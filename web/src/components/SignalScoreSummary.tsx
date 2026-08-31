@@ -8,7 +8,9 @@ import {
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { Separator } from "@/components/ui/separator";
 import type { BackendSignalScore } from "@/lib/backend-client";
+import type { PilotGoNoGo } from "@/lib/eval";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
+import { PILOT_MIN_REVIEWS } from "@/lib/pilot-cadence";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -21,14 +23,36 @@ function typeLabel(signalType: string): string {
   return signalType.replaceAll("_", " ");
 }
 
+export function goNoGoLabel(value: PilotGoNoGo): string {
+  switch (value) {
+    case "go":
+      return "Go";
+    case "hold":
+      return "Hold";
+    case "insufficient_data":
+      return "Insufficient Data";
+  }
+}
+
+export function goNoGoClass(value: PilotGoNoGo): string {
+  switch (value) {
+    case "go":
+      return "text-sio-status-success-fg";
+    case "hold":
+      return "text-sio-status-warning-fg";
+    case "insufficient_data":
+      return "text-sio-fg-subtle";
+  }
+}
+
 /**
  * Neon-backed Signal Score panel. When score is null, shows offline/empty —
  * never presents JSON review precision as Signal Score.
  *
- * `compact` = dense Eval Metrics Card: header + window toolbar, five KPI
- * cells in one row (same gutters as Labeled Eval), type chips + all-time.
- * Full layout keeps the two-column metric panel.
- * Signal Detail omits this strip (score lives on Insights/Eval).
+ * `compact` = dense Eval Metrics Card: header + window toolbar + Go/Hold/
+ * Insufficient Data, five KPI cells (Overall · n / ≥5 · Correct · Incorrect ·
+ * Partial), cadence CTA, type chips + all-time. Full layout keeps the
+ * two-column metric panel. Insights omits this strip.
  *
  * Primary `score` is the review-window keep-set score (go/no-go). Optional
  * `allTimeScore` is a quiet secondary (Eval only).
@@ -40,6 +64,8 @@ export function SignalScoreSummary({
   windowLabel = "This window",
   windowInvalid = false,
   windowControl = null,
+  goNoGo,
+  cadence = null,
 }: {
   score: BackendSignalScore | null;
   compact?: boolean;
@@ -48,12 +74,19 @@ export function SignalScoreSummary({
   windowLabel?: string;
   windowInvalid?: boolean;
   windowControl?: ReactNode;
+  /** Week-window verdict — omit when backend is offline (never labeled Go). */
+  goNoGo?: PilotGoNoGo;
+  cadence?: ReactNode;
 }) {
   const online = score !== null;
-  const primary = online ? formatPercent(score.signal_score) : "—";
-  const byType = online ? score.by_signal_type : [];
   const emptyWindow = online && score.reviewed_count === 0;
+  const primary =
+    !online || emptyWindow || score?.signal_score == null
+      ? "—"
+      : formatPercent(score.signal_score);
+  const byType = online ? score.by_signal_type : [];
   const sourceLine = online ? `${windowLabel} · Neon` : "Backend offline";
+  const nLabel = `n / ≥${PILOT_MIN_REVIEWS}`;
 
   const allTimeLine =
     allTimeScore != null ? (
@@ -76,14 +109,17 @@ export function SignalScoreSummary({
     const kpis: CompactKpi[] = online
       ? [
           { label: "Overall", value: primary, mono: true },
-          { label: "Reviewed", value: score.reviewed_count },
+          {
+            label: nLabel,
+            value: `${score.reviewed_count} / ${PILOT_MIN_REVIEWS}`,
+          },
           { label: "Correct", value: score.correct_count },
           { label: "Incorrect", value: score.incorrect_count, muted: true },
           { label: "Partial", value: score.partially_correct_count, muted: true },
         ]
       : [
           { label: "Overall", value: "—", mono: true },
-          { label: "Reviewed", value: "—" },
+          { label: nLabel, value: "—" },
           { label: "Correct", value: "—" },
           { label: "Incorrect", value: "—", muted: true },
           { label: "Partial", value: "—", muted: true },
@@ -93,7 +129,8 @@ export function SignalScoreSummary({
       !online ||
       emptyWindow ||
       byType.length > 0 ||
-      allTimeScore != null;
+      allTimeScore != null ||
+      cadence != null;
 
     return (
       <EvalCard
@@ -103,7 +140,16 @@ export function SignalScoreSummary({
       >
         <div className={evalCardHeaderClassName}>
           <div className="min-w-0">
-            <p className="eyebrow">Signal Score</p>
+            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="eyebrow">Signal Score</p>
+              {goNoGo ? (
+                <p
+                  className={`tabular text-label-13 font-medium ${goNoGoClass(goNoGo)}`}
+                >
+                  {goNoGoLabel(goNoGo)}
+                </p>
+              ) : null}
+            </div>
             <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
           </div>
           {windowControl || windowInvalid ? (
@@ -147,6 +193,11 @@ export function SignalScoreSummary({
                   No reviews in this window. Mark signals in Shadow Mode to
                   build the week score.
                 </p>
+              ) : null}
+              {cadence ? (
+                <div className="w-full min-w-0 text-pretty text-label-13 text-sio-fg-subtle">
+                  {cadence}
+                </div>
               ) : null}
               {online && byType.length > 0 ? (
                 <ul className="m-0 flex min-w-0 list-none flex-wrap items-center gap-x-6 gap-y-2 p-0">

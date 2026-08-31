@@ -3,9 +3,8 @@ import { AdaptationPanel } from "@/components/AdaptationPanel";
 import { BaselineForm } from "@/components/BaselineForm";
 import {
   EvalCard,
+  EvalMetric,
   evalCardHeaderClassName,
-  evalCardPadClassName,
-  evalMetricCellClassName,
 } from "@/components/EvalCard";
 import { ScoreWindowControl } from "@/components/ScoreWindowControl";
 import { SegmentedTabs } from "@/components/SegmentedTabs";
@@ -18,7 +17,7 @@ import {
   applyBackendSignalScore,
   applyBackendSignalScoreToPilot,
   computeEvalMetrics,
-  type EvalMetrics,
+  type PilotGoNoGo,
   type PilotMetrics,
 } from "@/lib/eval";
 import { formatPercent } from "@/lib/format";
@@ -27,31 +26,10 @@ import { parseEvalPanel, viewHref, cadenceActionHref, type EvalPanel } from "@/l
 import type { StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
+  PILOT_MIN_REVIEWS,
   pilotCadenceHelperCopy,
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
-
-function goNoGoLabel(value: "go" | "hold" | "insufficient_data"): string {
-  switch (value) {
-    case "go":
-      return "Go";
-    case "hold":
-      return "Hold";
-    case "insufficient_data":
-      return "Insufficient Data";
-  }
-}
-
-function goNoGoClass(value: "go" | "hold" | "insufficient_data"): string {
-  switch (value) {
-    case "go":
-      return "text-sio-status-success-fg";
-    case "hold":
-      return "text-sio-status-warning-fg";
-    case "insufficient_data":
-      return "text-sio-fg-subtle";
-  }
-}
 
 const PANELS: { id: EvalPanel; label: string }[] = [
   { id: "metrics", label: "Metrics" },
@@ -112,7 +90,6 @@ export function EvalView({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {panel === "metrics" ? (
           <MetricsPanel
-            metrics={metrics}
             pilot={pilot}
             backendScore={backendScore}
             allTimeScore={allTimeScore}
@@ -147,7 +124,6 @@ export function EvalView({
 }
 
 function MetricsPanel({
-  metrics,
   pilot,
   backendScore,
   allTimeScore,
@@ -158,7 +134,6 @@ function MetricsPanel({
   cadenceAction,
   cadencePreviewId = null,
 }: {
-  metrics: EvalMetrics;
   pilot: PilotMetrics;
   backendScore: BackendSignalScore | null;
   allTimeScore: BackendSignalScore | null;
@@ -169,6 +144,9 @@ function MetricsPanel({
   cadenceAction: PilotCadenceAction;
   cadencePreviewId?: string | null;
 }) {
+  const online = backendScore !== null;
+  const liftSign = pilot.opportunityLift >= 0 ? "+" : "";
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <SignalScoreSummary
@@ -178,106 +156,46 @@ function MetricsPanel({
         windowLabel={scoreWindow.label}
         windowInvalid={scoreWindow.status === "invalid"}
         windowControl={<ScoreWindowControl window={scoreWindow} />}
+        goNoGo={online ? pilot.goNoGo : undefined}
+        cadence={
+          <MetricsCadence
+            online={online}
+            goNoGo={pilot.goNoGo}
+            reviewPrecision={pilot.reviewPrecision}
+            reviewedCount={pilot.reviewedCount}
+            cadenceAction={cadenceAction}
+            cadencePreviewId={cadencePreviewId}
+            scoreFrom={scoreFrom}
+          />
+        }
       />
 
-      <div className="grid shrink-0 gap-4 lg:grid-cols-2">
-        <EvalCard>
-          <div className={evalCardHeaderClassName}>
-            <p className="eyebrow">Labeled Eval</p>
-          </div>
-          <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
-            <Metric
-              label="P"
-              value={formatPercent(metrics.labeledPrecision)}
-              hint={`${metrics.truePositives} TP / ${metrics.falsePositives} FP`}
-            />
-            <Metric
-              label="R"
-              value={formatPercent(metrics.labeledRecall)}
-              hint={`${metrics.falseNegatives} FN`}
-            />
-            <Metric
-              label="Chats"
-              value={String(metrics.labeledConversations)}
-              hint={`${metrics.predictedSignals} pred.`}
-            />
-          </div>
-        </EvalCard>
-
-        <EvalCard>
-          <div className={evalCardHeaderClassName}>
-            <p className="eyebrow">Pilot</p>
-            <p
-              className={`tabular text-label-13 font-medium ${goNoGoClass(pilot.goNoGo)}`}
-            >
-              {goNoGoLabel(pilot.goNoGo)}
-            </p>
-          </div>
-          <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
-            <Metric
-              label="Opp."
-              value={String(pilot.sioonaOpportunities)}
-              hint={`Lift ${pilot.opportunityLift >= 0 ? "+" : ""}${pilot.opportunityLift}`}
-            />
-            <Metric
-              label="Labeled"
-              value={String(pilot.labeledOpportunities)}
-              hint={`R ${formatPercent(pilot.labeledRecall)}`}
-            />
-            <Metric
-              label="P Target"
-              value={formatPercent(pilot.reviewPrecisionTarget)}
-              hint={
-                pilot.meetsReviewPrecisionTarget === null
-                  ? `${pilot.reviewedCount} reviews`
-                  : pilot.meetsReviewPrecisionTarget
-                    ? "Met"
-                    : "Below"
-              }
-            />
-          </div>
-        </EvalCard>
-      </div>
-
       <EvalCard className="shrink-0">
-        <div className={`${evalCardPadClassName} py-2.5 sm:py-3`}>
-          <p className="line-clamp-3 text-pretty text-label-13 text-sio-fg-subtle">
-            {pilot.offerSummary}
-            {pilot.goNoGo === "insufficient_data" ||
-            pilot.reviewedCount < 5 ? (
-              <>
-                {" "}
-                Need ≥5 reviews in this window — open{" "}
-                <Link
-                  href={viewHref("insights", { scoreFrom })}
-                  className="link-accent"
-                >
-                  Insights
-                </Link>
-                .
-              </>
-            ) : pilot.goNoGo === "go" ? (
-              <>
-                {" "}
-                Share{" "}
-                <span className="text-sio-fg-base">
-                  {formatPercent(pilot.reviewPrecision)} Signal Score
-                </span>
-                . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
-                <Link
-                  href={cadenceActionHref(cadenceAction, {
-                    scoreFrom,
-                    preview: cadencePreviewId,
-                  })}
-                  className="link-accent"
-                >
-                  {cadenceActionCta(cadenceAction)}
-                </Link>
-              </>
-            ) : (
-              <> Hold until precision ≥80% — use Adapt, then re-review.</>
-            )}
-          </p>
+        <div className={evalCardHeaderClassName}>
+          <p className="eyebrow">Pilot</p>
+        </div>
+        <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
+          <EvalMetric
+            label="Opp."
+            value={String(pilot.sioonaOpportunities)}
+            hint="Conversations with a signal"
+          />
+          <EvalMetric
+            label="Lift"
+            value={`${liftSign}${pilot.opportunityLift}`}
+            hint={`Baseline ${pilot.baselineOpportunities}`}
+          />
+          <EvalMetric
+            label="P Target"
+            value={formatPercent(pilot.reviewPrecisionTarget)}
+            hint={
+              !online || pilot.meetsReviewPrecisionTarget === null
+                ? `${pilot.reviewedCount} reviews`
+                : pilot.meetsReviewPrecisionTarget
+                  ? "Met"
+                  : "Below"
+            }
+          />
         </div>
       </EvalCard>
 
@@ -292,24 +210,72 @@ function MetricsPanel({
   );
 }
 
-function Metric({
-  label,
-  value,
-  hint,
+function MetricsCadence({
+  online,
+  goNoGo,
+  reviewPrecision,
+  reviewedCount,
+  cadenceAction,
+  cadencePreviewId = null,
+  scoreFrom,
 }: {
-  label: string;
-  value: string;
-  hint: string;
+  online: boolean;
+  goNoGo: PilotGoNoGo;
+  reviewPrecision: number | null;
+  reviewedCount: number;
+  cadenceAction: PilotCadenceAction;
+  cadencePreviewId?: string | null;
+  scoreFrom: string | null;
 }) {
+  const insightsHref = viewHref("insights", {
+    scoreFrom,
+    preview: cadencePreviewId,
+  });
+  const cadenceHref = cadenceActionHref(cadenceAction, {
+    scoreFrom,
+    preview: cadencePreviewId,
+  });
+  const cadenceLink = (href: string, label: string) => (
+    <Link href={href} className="link-accent">
+      {label}
+    </Link>
+  );
+
+  if (!online) {
+    return (
+      <>
+        {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
+        {cadenceLink(cadenceHref, cadenceActionCta(cadenceAction))}
+      </>
+    );
+  }
+
+  if (goNoGo === "hold") {
+    return (
+      <>
+        Hold until SignalScore ≥80% — continue reviews in Insights.{" "}
+        {cadenceLink(insightsHref, "Open Insights")}
+      </>
+    );
+  }
+
+  if (goNoGo === "insufficient_data" || reviewedCount < PILOT_MIN_REVIEWS) {
+    return (
+      <>
+        Need ≥{PILOT_MIN_REVIEWS} reviews in this window.{" "}
+        {cadenceLink(insightsHref, "Open Insights")}
+      </>
+    );
+  }
+
   return (
-    <div className={evalMetricCellClassName}>
-      <div className="metric-label">{label}</div>
-      <div className="tabular mt-0.5 text-heading-16 text-sio-fg-base">
-        {value}
-      </div>
-      <div className="mt-0.5 line-clamp-2 break-words text-pretty text-label-12 text-sio-fg-muted">
-        {hint}
-      </div>
-    </div>
+    <>
+      Share{" "}
+      <span className="text-sio-fg-base">
+        {formatPercent(reviewPrecision)} Signal Score
+      </span>
+      . {pilotCadenceHelperCopy("eval", cadenceAction)}{" "}
+      {cadenceLink(cadenceHref, cadenceActionCta(cadenceAction))}
+    </>
   );
 }
