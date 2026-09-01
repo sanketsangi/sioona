@@ -1,7 +1,28 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ["@sentry/profiling-node"],
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [{ key: "Document-Policy", value: "js-profiling" }],
+      },
+    ];
+  },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG ?? "sioona",
+  project: process.env.SENTRY_PROJECT ?? "sioona",
+  sentryUrl: process.env.SENTRY_URL ?? "https://de.sentry.io",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+  silent: !process.env.CI,
+  // Local / CI builds without SENTRY_AUTH_TOKEN should still succeed.
+  errorHandler: (err) => {
+    console.warn("[sentry] source map upload skipped:", err.message);
+  },
+});
