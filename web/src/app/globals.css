@@ -442,9 +442,12 @@
 
   /*
    * Insights review: one panel. Phone/tablet stack Why → transcript well →
-   * Feedback (outer pane scrolls when Why+Feedback overflow). Laptop+ splits
-   * when the review column is ≥56rem so the rail is not a squeezed 26rem
-   * next to the sidebar. Transcript is the primary chat-app well.
+   * Feedback (`.insights-review-split` scrolls when Why+Feedback+GT overflow;
+   * rail is display:contents). Laptop+ splits rail | Conversation; the rail
+   * is the only left-column scroller. Suggested Next Action hugs Why/Matched
+   * (no inner card scrollbar). Conversation well / `.insights-review-chat-body`
+   * hug the thread. Wide: well caps at the column and the body scrolls.
+   * Stacked: well stays content-sized; the split scrolls when the stack overflows.
    */
   .insights-review {
     container-type: inline-size;
@@ -458,16 +461,11 @@
   }
 
   .insights-review-split {
-    display: grid;
+    display: flex;
     min-height: 0;
     min-width: 0;
     flex: 1 1 0%;
-    grid-template-areas:
-      "why"
-      "transcript"
-      "feedback";
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: min-content minmax(16rem, 1fr) min-content;
+    flex-direction: column;
     gap: 1rem;
     overflow-x: clip;
     overflow-y: auto;
@@ -478,25 +476,37 @@
     display: contents;
   }
 
-  /* Descendant (not >) so display:contents rail children still get areas. */
+  @media (prefers-reduced-motion: no-preference) {
+    .insights-review-split,
+    .insights-review-rail {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Descendant (not >) so display:contents rail children still participate. */
   .insights-review-split [data-review-slot="why"] {
-    grid-area: why;
+    order: 1;
     min-width: 0;
     min-height: min-content;
+    height: max-content;
+    flex: 0 0 auto;
   }
 
   .insights-review-split [data-review-slot="transcript"] {
-    grid-area: transcript;
+    order: 2;
     display: flex;
+    width: 100%;
     min-width: 0;
     min-height: 0;
-    height: 100%;
+    /* Hug the thread; do not shrink under Why/Feedback (that collapsed the well). */
+    flex: 0 0 auto;
     flex-direction: column;
     overflow: hidden;
   }
 
   .insights-review-split [data-review-slot="transcript"] .insights-review-chat-body {
     min-height: 0;
+    flex: 1 1 auto;
   }
 
   .insights-review-chat-header {
@@ -508,9 +518,10 @@
   }
 
   .insights-review-split [data-review-slot="feedback"] {
-    grid-area: feedback;
+    order: 3;
     min-width: 0;
     min-height: min-content;
+    flex: 0 0 auto;
   }
 
   .insights-review-pane {
@@ -546,6 +557,7 @@
 
   @container review (min-width: 56rem) {
     .insights-review-split {
+      display: grid;
       flex: 1 1 0%;
       grid-template-areas: "rail transcript";
       /* ~57.25% review rail | ~42.75% Conversation (chat is 90% of prior 47.5%) */
@@ -567,11 +579,18 @@
     }
 
     .insights-review-split [data-review-slot="transcript"] {
+      grid-area: transcript;
+      align-self: start;
+      width: auto;
+      height: auto;
+      max-height: 100%;
       min-height: 0;
+      flex: unset;
     }
 
-    .insights-review-rail > [data-review-slot="why"] {
-      flex-shrink: 0;
+    .insights-review-rail > [data-review-slot="why"],
+    .insights-review-rail > [data-review-slot="feedback"] {
+      flex: 0 0 auto;
     }
   }
 

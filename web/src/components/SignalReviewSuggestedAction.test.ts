@@ -88,6 +88,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("group-data-[size=sm]/card:text-sm");
     expect(html).toContain('data-slot="card"');
     expect(html).toContain('data-slot="card-content"');
+    expect(html).toContain("flex min-w-0 flex-col px-0");
+    expect(html).not.toContain("overflow-y-auto");
+    expect(html).not.toContain("overscroll-contain");
+    expect(html).not.toContain("flex min-h-0 min-w-0 flex-1 flex-col");
     expect(html.match(/data-slot="card"/g)?.length).toBe(1);
     expect(html).toContain("data-slot=\"separator\"");
     expect(html).toContain("insights-review-well");

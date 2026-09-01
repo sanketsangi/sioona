@@ -57,7 +57,11 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("insights-review-chat-header");
     expect(html).toContain("insights-review-chat-body");
     expect(html).toContain("px-3 sm:px-4");
-    expect(html).toContain("overscroll-contain py-3");
+    expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");
+    expect(html).not.toContain("max-h-full");
+    expect(html).not.toContain("min-h-[14rem]");
+    expect(html).not.toContain("flex-1 overflow-y-auto");
+    expect(html).not.toContain("flex h-full min-h-0");
     expect(html).not.toContain("px-1 py-4");
     expect(html).not.toContain("sm:px-2 sm:py-5");
     expect(html).toContain("items-start gap-2");
@@ -90,6 +94,11 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("Priya");
     expect(html).not.toContain("Conversation");
     expect(html).toContain("insights-review-chat-body");
+    expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");
+    expect(html).toContain("min-h-[12rem]");
+    expect(html).not.toContain("max-h-full");
+    expect(html).not.toContain("min-h-[14rem]");
+    expect(html).not.toContain("flex min-h-[12rem] flex-1");
     expect(html).toContain("px-3 sm:px-4");
     expect(html).not.toContain("px-1 py-4");
     expect(html).not.toContain("<time");
@@ -120,6 +129,8 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("Evidence match");
     expect(html).toContain('data-evidence-match="true"');
     expect(html).toContain("scroll-mt-3");
+    expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");
+    expect(html).not.toContain("min-h-[14rem]");
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Aug,");
     expect(html).not.toContain("Showing last");

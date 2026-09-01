@@ -19,10 +19,10 @@ type SignalReviewConversationProps = {
 };
 
 /**
- * Insights review messaging well — sticky customer header + full-height
- * transcript. Why This Fired jumps land on native evidence bubbles.
- * Bubble clocks stay off (drawer keeps them). Empty is honest (no invented
- * chat). Drawer lives on the page header.
+ * Insights review messaging well — sticky customer header + transcript that
+ * hugs the thread up to the column, then scrolls. Why This Fired jumps land
+ * on native evidence bubbles. Bubble clocks stay off (drawer keeps them).
+ * Empty is honest (no invented chat). Drawer lives on the page header.
  */
 export function SignalReviewConversation({
   messages,
@@ -38,7 +38,7 @@ export function SignalReviewConversation({
     <section
       data-review-slot="transcript"
       className={cn(
-        "insights-review-pane insights-review-chat flex h-full min-h-0 min-w-0 flex-col bg-sio-bg-subtle",
+        "insights-review-pane insights-review-chat flex min-h-0 min-w-0 flex-col bg-sio-bg-subtle",
         className,
       )}
       aria-labelledby={headingId}
@@ -60,7 +60,7 @@ export function SignalReviewConversation({
 
       <div
         className={cn(
-          "insights-review-chat-body scroll-region min-h-[14rem] flex-1 overflow-y-auto overscroll-contain py-3",
+          "insights-review-chat-body scroll-region min-h-0 flex-auto overflow-y-auto overscroll-contain py-3",
           evalCardPadClassName,
         )}
       >
@@ -73,7 +73,7 @@ export function SignalReviewConversation({
             />
           </div>
         ) : (
-          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-3 text-center">
+          <div className="flex min-h-[12rem] flex-col items-center justify-center gap-3 text-center">
             <div className="flex flex-col gap-1">
               <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
               <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">

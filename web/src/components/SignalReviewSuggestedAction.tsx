@@ -379,7 +379,7 @@ export function SignalReviewSuggestedAction({
         )}
       </InsightsReviewPaneHeader>
 
-      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-0">
+      <CardContent className="flex min-w-0 flex-col px-0">
         <div
           className={cn(
             evalCardPadClassName,
