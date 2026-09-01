@@ -12,6 +12,7 @@ import type {
 } from "./backend-client";
 import { pickAction } from "./detect";
 import { isNeonStubSignalId } from "./prediction-sync";
+import { resolveSuggestedAction } from "./suggested-action-display";
 import type { StatusFilter, TypeFilter } from "./views";
 import type {
   Conversation,
@@ -424,20 +425,33 @@ export function applyChatEvidenceToSignals(
     list.push(message);
     messagesByConv.set(message.conversationId, list);
   }
+  const conversationsById = new Map(
+    chats.conversations.map((conversation) => [conversation.id, conversation]),
+  );
 
   return signals.map((signal) => {
     const needsEvidence = signal.evidence.length === 0;
     const needsAction = !signal.suggestedAction;
     if (!needsEvidence && !needsAction) return signal;
     const msgs = messagesByConv.get(signal.conversationId) ?? [];
+    const evidence = needsEvidence
+      ? quotesFromCustomerMessages(msgs)
+      : signal.evidence;
+    const hasJoin = msgs.length > 0;
     return {
       ...signal,
       suggestedAction: needsAction
-        ? pickAction(signal.type, signal.score, overrides)
+        ? resolveSuggestedAction({
+            type: signal.type,
+            customerName:
+              conversationsById.get(signal.conversationId)?.customerName,
+            evidence,
+            fallback: hasJoin
+              ? pickAction(signal.type, signal.score, overrides)
+              : "",
+          })
         : signal.suggestedAction,
-      evidence: needsEvidence
-        ? quotesFromCustomerMessages(msgs)
-        : signal.evidence,
+      evidence,
     };
   });
 }

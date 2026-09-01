@@ -1,9 +1,12 @@
 import type { FeedbackLabel } from "./types";
 import {
   nextPendingPreviewId,
+  prevPendingPreviewId,
   type SignalReviewTriage,
   type WorkspaceMode,
 } from "./views";
+
+export type PendingWalkDirection = "prev" | "next";
 
 /** Build triage context for an open `?preview=` panel. */
 export function buildSignalReviewTriage(opts: {
@@ -17,6 +20,10 @@ export function buildSignalReviewTriage(opts: {
   );
   return {
     isPendingReview,
+    prevPendingPreviewId: prevPendingPreviewId(
+      opts.pendingSignals,
+      opts.previewSignal.id,
+    ),
     nextPendingPreviewId: nextPendingPreviewId(
       opts.pendingSignals,
       opts.previewSignal.id,
@@ -50,6 +57,16 @@ export function isActedEnterBlockedTarget(target: EventTarget | null): boolean {
   const el = target as { tagName?: string };
   const tag = el.tagName?.toUpperCase();
   return tag === "BUTTON" || tag === "A";
+}
+
+/** J = next pending, K = previous pending. Skip is click-only. */
+export function pendingWalkShortcutForKey(
+  key: string,
+): PendingWalkDirection | null {
+  const lower = key.toLowerCase();
+  if (lower === "j") return "next";
+  if (lower === "k") return "prev";
+  return null;
 }
 
 /** Skip review shortcuts while typing in form controls. */

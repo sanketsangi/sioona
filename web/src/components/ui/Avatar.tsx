@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type AvatarProps = {
-  /** Initials or short letter mark when no children. */
+  /** Initials or short letter mark when no children and no `src`. */
   letter?: string;
   /** Muted fill (geistcn letter-avatar / icon mode). */
   placeholder?: boolean;
@@ -11,6 +11,10 @@ type AvatarProps = {
   className?: string;
   /** Icon or custom mark (e.g. computer for Agent). Overrides letter. */
   children?: ReactNode;
+  /** Photo URL. When set, fills the square and hides letter/children. */
+  src?: string;
+  /** Decorative when Avatar is `aria-hidden`; default empty. */
+  alt?: string;
 };
 
 /**
@@ -20,6 +24,7 @@ type AvatarProps = {
  * Usage:
  * - `<Avatar letter="NS" placeholder size={32} />`
  * - `<Avatar placeholder size={28}><Desktop … /></Avatar>`
+ * - `<Avatar src="/avatars/maya-chen.jpg" alt="" size={32} />`
  */
 export function Avatar({
   letter,
@@ -27,13 +32,16 @@ export function Avatar({
   size = 32,
   className = "",
   children,
+  src,
+  alt = "",
 }: AvatarProps) {
   const text = (letter ?? "?").slice(0, 2);
+  const showPhoto = Boolean(src);
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full text-label-12 font-semibold",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full text-label-12 font-semibold",
         placeholder
           ? "bg-sio-bg-muted text-sio-fg-subtle"
           : "bg-sio-bg-subtle text-sio-fg-muted",
@@ -42,7 +50,16 @@ export function Avatar({
       style={{ width: size, height: size }}
       aria-hidden
     >
-      {children ?? text}
+      {showPhoto ? (
+        // eslint-disable-next-line @next/next/no-img-element -- public demo photo; decorative inside aria-hidden
+        <img
+          src={src}
+          alt={alt}
+          className="absolute inset-0 size-full object-cover"
+        />
+      ) : (
+        (children ?? text)
+      )}
     </span>
   );
 }

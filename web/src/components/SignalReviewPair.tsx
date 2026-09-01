@@ -46,6 +46,7 @@ export function SignalReviewPair({
       <SignalReviewSuggestedAction
         signal={signal}
         messages={messages}
+        customerName={customerName}
         focusedMessageId={focusedMessageId}
         onFocusMessage={setFocusedMessageId}
         className="min-h-0 lg:h-full"

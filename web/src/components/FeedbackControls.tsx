@@ -292,6 +292,20 @@ export function FeedbackControls({
             })}
           </div>
 
+          {isUnactedCorrect ? (
+            <div role="status" aria-live="polite">
+              <Note
+                icon={null}
+                className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
+              >
+                <NoteContent className="text-label-12 text-sio-fg-base">
+                  Copy Reply from Suggested Next Action, then Mark Acted (does
+                  not send).
+                </NoteContent>
+              </Note>
+            </div>
+          ) : null}
+
           {needsAdapt ? (
             <div role="status" aria-live="polite">
               <Note

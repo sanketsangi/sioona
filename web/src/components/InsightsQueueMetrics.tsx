@@ -3,11 +3,16 @@ import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
 import { CircleArrowIcon } from "@/components/icons/CircleArrowIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
-import { EvalCard, evalMetricCellClassName } from "@/components/EvalCard";
+import {
+  EvalCard,
+  evalCardPadClassName,
+  evalMetricCellClassName,
+} from "@/components/EvalCard";
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { CardContent } from "@/components/ui/card";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import { signalStatusDot } from "@/lib/format";
+import { PILOT_MIN_REVIEWS } from "@/lib/pilot-cadence";
 import type { Signal, SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +42,11 @@ type InsightsQueueMetricsProps = {
   signals: Signal[];
   /** Neon needs-review join (or feedback-less fallback). */
   pendingSignals: Signal[];
+  /**
+   * Windowed keep-set reviewed_count from Neon. `0` is an empty window.
+   * `null` / omit = backend offline — do not invent a count.
+   */
+  reviewedCount?: number | null;
   className?: string;
 };
 
@@ -153,12 +163,14 @@ function MetricCell({
 
 /**
  * Keep-set snapshot under the Insights queue heading — coverage, signals,
- * and pending needs-review depth (not Eval SignalScore / go-no-go).
+ * and pending needs-review depth. Quiet n / ≥5 footer is windowed Neon
+ * reviewed_count only — not Eval SignalScore / go-no-go.
  */
 export function InsightsQueueMetrics({
   conversationCount,
   signals,
   pendingSignals,
+  reviewedCount = null,
   className,
 }: InsightsQueueMetricsProps) {
   const signalCount = signals.length;
@@ -215,6 +227,16 @@ export function InsightsQueueMetrics({
             compare={<SignalStatusCounts counts={statusCounts} />}
           />
         </CardContent>
+        {reviewedCount != null ? (
+          <p
+            className={cn(
+              evalCardPadClassName,
+              "border-t border-sio-border-base py-2 tabular text-label-12 text-sio-fg-muted",
+            )}
+          >
+            This window reviewed {reviewedCount} / ≥{PILOT_MIN_REVIEWS}
+          </p>
+        ) : null}
       </EvalCard>
     </section>
   );

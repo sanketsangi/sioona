@@ -6,6 +6,8 @@ Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
 
 > Send one Intercom or WhatsApp export; we’ll show opportunity lift and review precision before any integration work.
 
+**Week-4 partner note (paste-ready):** [`.cursor/docs/WEEK4_SHAREOUT.md`](.cursor/docs/WEEK4_SHAREOUT.md) — week-window keep-set SignalScore, not labeled P/R.
+
 ## Cold demo (no partner data)
 
 1. Open http://localhost:3000 (or https://sioona-demo.vercel.app) → **Upload → Run Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` / hosted FastAPI per `web/DEPLOY.md`, then Re-run Detection). Seed is also in the header notifications menu.
@@ -44,7 +46,9 @@ Cadence helper on Insights empty queue, Upload, and Eval — not in the header b
 
 **Real weekly partner week3 (2026-08-21):** unused Groww Batch-02 `real-partner-export.week3.local.csv` mid-week upsert **`replaced=false`** (100 chats / 14 signals / sync failed=0; file not copied) → `weekly_export_count` **5** → **7** Correct reviews → Eval `?scoreFrom=2026-08-21T10:43:47.000Z` keep-set **n=7 / correct=7 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+3** (15 − 12). Window Corrects **Acted 7/7**. Not Partner Demo wipe / not Adapt / not week-1/week-2 `.local.csv` / not Batch-02 JSON rehearsal.
 
-**Real weekly partner week4 (2026-08-31):** unused Zerodha Week-4 Batch-01 pack (same chats as `real-partner-export.week4.local.csv`) mid-week upsert **`replaced=false`** as `Zerodha_week_4_batch_01.json` (100 chats; file not copied; Batch-02 held-out) → `weekly_export_count` **6** (CSV POST skipped after count already 6) → Eval `?scoreFrom=2026-08-31T09:58:00.000Z` keep-set **n=20 / correct=20 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+36** (48 − 12). Window Corrects **Acted 20/20**. Not Partner Demo wipe / not Adapt / not week3 re-ingest / not week-1/week-2 `.local.csv`. Supersedes 2026-08-24 skip and the same-day n=7 / `09:51:38` reading.
+**Real weekly partner week4 (2026-08-31):** unused Zerodha Week-4 Batch-01 pack (same chats as `real-partner-export.week4.local.csv`) mid-week upsert **`replaced=false`** as `Zerodha_week_4_batch_01.json` (100 chats; file not copied; Batch-02 held-out) → `weekly_export_count` **6** (CSV POST skipped after count already 6) → Eval `?scoreFrom=2026-08-31T09:58:00.000Z` keep-set **n=20 / correct=20 / incorrect=0 / precision 1.00 → go**; baseline **12**; lift **+36** (48 − 12). Window Corrects **Acted 20/20**. Not Partner Demo wipe / not Adapt / not week3 re-ingest / not week-1/week-2 `.local.csv`. Supersedes 2026-08-24 skip and the same-day n=7 / `09:51:38` reading. Paste-ready partner note: [`.cursor/docs/WEEK4_SHAREOUT.md`](.cursor/docs/WEEK4_SHAREOUT.md). Historical: live Neon later wiped+re-ingested the same pack (`10:27Z`; count **1** / baseline **0**).
+
+**Real weekly partner next unused (2026-08-31 evening):** **skipped** — no unused dump (Week-4 Batch-02 held-out; no Week-5). Count stayed **1**. Eval `?scoreFrom=2026-08-31T10:41:38.000Z` keep-set **n=0 / correct=0 / incorrect=0 / Insufficient Data** (no go); baseline **0**; lift **+20** (20 − 0); **Acted 0**. Not Batch-02 ingest / not week3 / not Adapt / not Partner Demo wipe.
 
 **Real weekly partner week4 attempt (2026-08-24):** **skipped** — no unused dump then. Count stayed **5**. Eval `?scoreFrom=2026-08-24T12:18:03.000Z` keep-set **n=0 / Insufficient Data** (no go). **Superseded** by week4 log above.
 

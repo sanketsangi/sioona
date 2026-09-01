@@ -177,6 +177,23 @@ describe("runDetection", () => {
     }
   });
 
+  it("grounds suggestedAction in customer name + first Why quote", () => {
+    const { conversation, messages } = conv(
+      "c_named_ret",
+      "retention",
+      "This is unacceptable. I'm going to switch brokers.",
+    );
+    conversation.customerName = "Priya";
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo",
+    );
+    expect(signals[0]?.type).toBe("retention");
+    expect(signals[0]?.suggestedAction).toContain("Priya");
+    expect(signals[0]?.suggestedAction).toContain("switch brokers");
+  });
+
   it("detects India finance lead / churn / upsell phrasing", () => {
     const cases = [
       conv(

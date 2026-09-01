@@ -1,3 +1,4 @@
+import { resolveSuggestedAction } from "./suggested-action-display";
 import { getEffectiveTaxonomy, getTaxonomy } from "./taxonomy";
 import type {
   Conversation,
@@ -266,7 +267,12 @@ export function detectSignalsForConversation(
     score: Number(r.score.toFixed(3)),
     confidence: Number(r.score.toFixed(3)),
     summary: buildSummary(r.type, conversation, r.score),
-    suggestedAction: pickAction(r.type, r.score, overrides),
+    suggestedAction: resolveSuggestedAction({
+      type: r.type,
+      customerName: conversation.customerName,
+      evidence: r.evidence,
+      fallback: pickAction(r.type, r.score, overrides),
+    }),
     evidence: r.evidence,
     status: "new" as const,
     createdAt: now,

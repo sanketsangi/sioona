@@ -49,6 +49,7 @@ describe("SignalReviewSuggestedAction", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
+        customerName: "Priya",
         className: "insights-review-pane insights-review-well overflow-hidden",
       }),
     );
@@ -56,7 +57,15 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Suggested Next Action");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Matched");
-    expect(html).toContain("Call back before the SIP pause window closes.");
+    expect(html).toContain(
+      "Hi Priya, I noticed you said “Please pause my SIP this month”. I’d like to help — is there a good time to connect today?",
+    );
+    expect(html).toContain("Copy Reply");
+    expect(html).toContain("Copy Reply to clipboard");
+    expect(html).toContain("M2.75 0.5C1.7835 0.5");
+    expect(html).toContain('fill="currentColor"');
+    expect(html).toContain("aria-live");
+    expect(html).not.toContain('disabled=""');
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("Phrase");
     expect(html).toContain("pause my SIP");
@@ -88,12 +97,25 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html.match(/insights-review-well/g)?.length).toBe(1);
     expect(html).toContain("justify-center gap-1.5 py-3");
     expect(html).toContain('data-slot="label"');
-    expect(html).toContain("<blockquote");
-    expect(html).toContain('data-slot="badge"');
+    expect(html).not.toContain("<blockquote");
+    expect(html).not.toContain("border-l-2");
+    expect(html).toContain("M14.5 8C14.5 11.5899");
+    expect(html).toContain('fill="currentColor"');
+    expect(html).not.toContain('fill="#666666"');
+    expect(html).toContain("flex min-w-0 items-start gap-2");
+    expect(html).toContain("“Please pause my SIP this month”");
+    expect(html).toContain('data-pill-background="true"');
+    expect(html).toContain("rounded-[10ex]");
+    expect(html).toContain("outline-dashed");
+    expect(html).toContain(
+      "relative flex h-8 max-w-full flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
+    );
+    expect(html).not.toContain("min-h-11 max-w-full flex-row");
     // WhyQuote: outline surface with shared radius + border-border.
     expect(html).toContain(
       "rounded-[var(--radius-control)] border border-border",
     );
+    expect(html).not.toContain("evidence-highlight");
     expect(html).toContain("px-3 py-2");
     // Matched is a sibling Label section, not a muted sublabel under Why.
     expect(html).toMatch(
@@ -167,9 +189,45 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("aria-pressed");
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
-    expect(html).toContain("<blockquote");
+    expect(html).not.toContain("<blockquote");
+    expect(html).not.toContain("border-l-2");
+    expect(html).toContain("M14.5 8C14.5 11.5899");
+    expect(html).toContain('fill="currentColor"');
+    expect(html).toContain("“Please pause my SIP this month”");
     expect(html).toContain("rounded-[var(--radius-control)] border");
-    expect(html).toContain("border-sio-border-strong");
+    expect(html).toContain("evidence-highlight");
+    expect(html).toContain("border-transparent");
+    expect(html).toContain("bg-sio-bg-interactive");
+    expect(html).toContain('aria-pressed="true"');
+  });
+
+  it("highlights only the pressed Why This Fired quote", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          evidence: [
+            'quote: "Please pause my SIP this month"',
+            'quote: "I already trade equity CNC"',
+          ],
+        }),
+        messages: [
+          message(),
+          message({
+            id: "msg_2",
+            content: "I already trade equity CNC",
+          }),
+        ],
+        focusedMessageId: "msg_1",
+        onFocusMessage: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('class="flex flex-col gap-3"');
+    expect(html).toContain("evidence-highlight");
+    expect(html.match(/evidence-highlight/g)?.length).toBe(1);
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain("Show in conversation: I already trade equity CNC");
   });
 
   it("turns joined phrase chips into conversation jump controls", () => {
@@ -189,6 +247,14 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Show in conversation: pause my SIP");
     expect(html).toContain("conversation-message-msg_1");
     expect(html).toContain('data-slot="button"');
+    expect(html).toContain('data-pill-background="true"');
+    expect(html).toContain("rounded-[10ex]");
+    expect(html).toContain("outline-dashed");
+    expect(html).toContain("outline-sio-border-strong");
+    expect(html).toContain(
+      "relative flex h-8 max-w-full flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
+    );
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it("shows honest empty copy when action and evidence are missing", () => {
@@ -200,6 +266,8 @@ describe("SignalReviewSuggestedAction", () => {
 
     expect(html).toContain("Unavailable — local detection join missing.");
     expect(html).toContain("No local evidence.");
+    expect(html).toContain("Copy Reply");
+    expect(html).toContain('disabled=""');
   });
 
   it("uses Neon stub honesty when the join is missing", () => {
@@ -226,6 +294,7 @@ describe("SignalReviewSuggestedAction", () => {
             reviewedAt: "2026-08-02T00:00:00.000Z",
           },
         }),
+        customerName: "Priya",
       }),
     );
 
@@ -234,7 +303,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
     expect(html).not.toContain("status-dot");
     expect(html).toContain("Marked as Acted — not sent.");
-    expect(html).toContain("Call back before the SIP pause window closes.");
+    expect(html).toContain(
+      "Hi Priya, I noticed you said “Please pause my SIP this month”. I’d like to help — is there a good time to connect today?",
+    );
+    expect(html).toContain("Copy Reply");
   });
 
   it("puts Mark as Acted in the header and omits the Correct chip", () => {
@@ -247,6 +319,7 @@ describe("SignalReviewSuggestedAction", () => {
             reviewedAt: "2026-08-02T00:00:00.000Z",
           },
         }),
+        customerName: "Priya",
         actedWalk: {
           nextPreviewId: "sig_next",
           statusFilter: "followup",
@@ -255,8 +328,9 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Suggested Next Action[\s\S]*Mark as Acted[\s\S]*Call back before the SIP pause window closes/,
+      /Suggested Next Action[\s\S]*Mark as Acted[\s\S]*Hi Priya, I noticed you said/,
     );
+    expect(html).toContain("Copy Reply");
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("btn-primary");
     expect(html).toContain("aria-keyshortcuts");

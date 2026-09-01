@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-08-31  
+**Last updated:** 2026-09-01  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` @ `9187c5b` (#79 ingest weekly-pack hosted on sioona-demo)
@@ -21,7 +21,21 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This pass (data/gate, 2026-08-31):** Skip — no unused Week-N dump. Eval empty-window Insufficient Data (above). Dump not copied. Count not bumped.
 
-**This pass (code, 2026-08-31):** Deploy gate — origin + sioona-demo Production match ingest weekly-pack (`9187c5b` / #79). Hosted 7-step smoke green; queue/preview still Neon SoT. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Detect / not outbound.
+**This pass (code, 2026-09-01):** Insights sidebar footer restores Help / Guidance / Feedback as local sidebar dialogs above identity-only `NavUser` (Maya Chen). No Account / Billing / Theme / Log Out / Upgrade. Not a keep-set go / not outbound / not Detect.
+
+**Prior pass (code, 2026-09-01):** Insights list SSR omits the held review pane (same duplicate `signal-summary-*` hydration as review omitting the list). PagerIconLink drops undefined `aria-keyshortcuts`. Not a keep-set go / not outbound / not Detect.
+
+**Prior pass (code, 2026-09-01):** Insights pending review Prev / Next / Skip are outline `h-8` Buttons (QueueTablePager chrome, Phosphor Regular, visible labels). Prev/Next disable at ends (no wrap); Skip writes no feedback (last Skip → filtered list). J/K skip inputs. Not a keep-set go / not outbound / not Detect.
+
+**Prior pass (code, 2026-09-01):** Insights `?preview=` SSR no longer hydrates the list DataTable beside review (duplicate `signal-summary-*` ids). Review chrome uses `signal-review-summary-*`. List mounts after first client paint. Not a keep-set go / not outbound / not Detect.
+
+**Prior pass (code, 2026-09-01):** Follow-up Suggested Next Action restores **Copy Reply** (clipboard only; customer name + first Why quote; `pickAction` if copy stays empty). Copied… `aria-live`; disabled when action missing. Mark as Acted / C/I/P / A/Enter unchanged. Feedback Correct Note: Copy then Act (does not send). Neon stubs stay honest. Not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-01):** Open pending review has Prev / Next / Skip header Links + J/K (Skip writes no feedback; last Skip → list; filters/`scoreFrom` stay). List DataTable unchanged. Not a keep-set go / not outbound / not Detect.
+
+**Prior pass (code, 2026-09-01):** Insights list shows quiet this-window `n / ≥5` from existing windowed `backendScore` (`InsightsQueueMetrics` footer). Empty Neon window = `0 / ≥5` (not a fake Go). SignalScoreSummary stays off Insights; review pane unchanged. Not a keep-set go / not outbound / not Detect.
+
+**Prior pass (code, 2026-08-31):** Deploy gate — origin + sioona-demo Production match ingest weekly-pack (`9187c5b` / #79). Hosted 7-step smoke green; queue/preview still Neon SoT. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Detect / not outbound.
 
 **Prior pass (code, 2026-08-31):** Ingest weekly-pack allowlist is pattern-based (`real-partner-export.local.csv`, `real-partner-export.week{N}.local.csv`, `{company}_week_{n}_batch_{m}.json`) so week5-style names upsert when Neon `weekly_export_count` > 0. Held-out basename `Zerodha_week_4_batch_02.json` returns 409 unless Upload Confirm Ingest (`confirm_held_out_weekly_ingest`); confirmed ingest still upserts. Overlay still blocks `/tmp` Day-1 replace; unknown names still replace. Not a keep-set go / not Partner Demo wipe / not Adapt.
 
@@ -184,7 +198,8 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Insights queue + in-queue review responsive 2026-08-30 — **this pass**: container-query split (Why → transcript → Feedback; wide = transcript | rail), drawer-matched `max-w-md` chat column, Why This Fired jump, honest empty transcript; no new palette
 - Last Correct → Follow-up Acted rail 2026-08-30 — **this pass**: last Pending Correct opens Follow-up `?preview=`; Suggested Next Action rail-only Mark as Acted primary (A / Enter walk); header Mark as Pending undo after Acted; not outbound
 - Mark Acted Pending return 2026-08-20 — **shipped**: Mark Acted from Pending / All returns to next pending `?preview=` or `status=new` list (not empty Follow-up); Follow-up Act-queue Correct walk unchanged. Not outbound
-- Correct → Follow-up Act beat 2026-08-30 — **this pass**: Correct from Pending → `status=followup&preview=<same id>`; Incorrect/Partial → next pending; Act cue Note + Copy Reply (clipboard only); Mark Acted Follow-up walk unchanged. Not outbound
+- Copy Reply restore 2026-09-01 — **this pass**: Suggested Next Action Copy Reply (clipboard only) from customer + first Why quote; `pickAction` fallback; Mark Acted unchanged. Not outbound
+- Correct → Follow-up Act beat 2026-08-30 — Correct from Pending → `status=followup&preview=<same id>`; Incorrect/Partial → next pending; Mark Acted Follow-up walk unchanged. Not outbound
 - Deploy gate **logged 2026-08-19** — web 331 / backend 56 pass; hosted smoke all green; Eval keep-set 0 = JSON vs Neon id mismatch (not API error); Alembic **007** on Neon; no SSR/API 500s
 - Deploy gate **logged 2026-08-21** (#51) — local = origin; hosted smoke green; Partner Demo wipe re-run; keep-set n=0 = empty window only (Groww∩JSON closed); baseline 12 / Lift +2 preserved across wipe
 - Deploy gate **logged 2026-08-21** (`73081cd` replace guard) — web 426 / backend 56 pass; hosted 7-step smoke green (Insights 307→200; Upload/Eval 200; needs-review 14); Confirm Replace on Partner Demo keep-set live; not a keep-set go / not wipe

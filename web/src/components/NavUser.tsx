@@ -8,7 +8,11 @@ import {
 } from "@/components/ui/sidebar";
 import { initialsFromName } from "@/lib/format";
 
-const avatarClassName = "rounded-[25px] bg-sio-border-base text-sio-fg-subtle";
+/** Demo sidebar identity photo — served from `web/public/`. */
+export const NAV_USER_AVATAR_SRC = "/avatars/maya-chen.jpg";
+
+const avatarClassName =
+  "rounded-[var(--radius-control)] bg-sio-border-base text-sio-fg-subtle";
 
 export function NavUser({
   user,
@@ -32,6 +36,8 @@ export function NavUser({
           <div>
             <Avatar
               letter={initials}
+              src={NAV_USER_AVATAR_SRC}
+              alt=""
               placeholder
               size={32}
               className={avatarClassName}

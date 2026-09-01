@@ -33,7 +33,7 @@ const OPTIONS: Array<{
   toggleValue: ToggleValue;
   label: string;
   hint: string;
-  Icon?: ComponentType<{ className?: string }>;
+  Icon?: ComponentType<{ className?: string; "data-icon"?: string }>;
 }> = [
   {
     value: "",
@@ -79,6 +79,17 @@ const STATUS_CHIP: Record<GroundTruthValue, string> = {
   retention: "bg-sio-signal-retention-bg text-sio-signal-retention-fg",
   upsell: "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg",
 };
+
+/**
+ * Match FeedbackControls size="lg" Button chrome (C/I/P). 5 equal columns
+ * span the card like the 3-col feedback row; wrap to 3+2 on a narrow rail.
+ */
+const itemLayout =
+  "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm font-medium touch-manipulation md:min-h-9";
+const outlineItem =
+  "border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive";
+const selectedItem =
+  "data-[state=on]:border-transparent data-[state=on]:bg-sio-bg-inverse data-[state=on]:text-sio-fg-on-color data-[state=on]:hover:border-transparent data-[state=on]:hover:bg-sio-bg-inverse/90";
 
 function statusLabel(value: GroundTruthValue): string {
   return OPTIONS.find((o) => o.value === value)?.label ?? "Unset";
@@ -178,7 +189,7 @@ export function GroundTruthControl({
             }}
             disabled={pending}
             aria-labelledby={headingId}
-            className="flex w-full flex-wrap justify-start"
+            className="grid w-full min-w-0 grid-cols-5 gap-2 max-[420px]:grid-cols-3"
           >
             {OPTIONS.map((opt) => {
               const selected = value === opt.value;
@@ -191,16 +202,20 @@ export function GroundTruthControl({
                   aria-label={opt.hint}
                   aria-busy={pending && selected}
                   className={cn(
-                    "min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base data-[state=on]:border-sio-border-strong data-[state=on]:bg-sio-bg-inverse data-[state=on]:text-sio-fg-on-color data-[state=on]:hover:bg-sio-bg-inverse/90 hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9",
+                    itemLayout,
+                    outlineItem,
+                    selectedItem,
                     pending && "cursor-wait",
                   )}
                 >
                   {pending && selected ? (
-                    <ButtonSpinner />
+                    <ButtonSpinner data-icon="inline-start" />
                   ) : Icon ? (
-                    <Icon />
+                    <Icon data-icon="inline-start" />
                   ) : null}
-                  {opt.label}
+                  <span className="whitespace-nowrap leading-none">
+                    {opt.label}
+                  </span>
                 </ToggleGroupItem>
               );
             })}

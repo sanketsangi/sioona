@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import path from "path";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "../data/fixtures/partner-export-overrides";
+import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "../data/fixtures/zerodha-batch01-overrides";
 import { runDetection } from "./detect";
 import {
   isDetectLlmEnabled,
@@ -39,9 +40,24 @@ export const PARTNER_EXPORT_LOCAL_FILE = "real-partner-export.local.csv";
 export const PARTNER_EXPORT_WEEK2_LOCAL_FILE =
   "real-partner-export.week2.local.csv";
 
+/**
+ * Week-4 Zerodha Batch-02 held-out pack — lives in Synthetic-Data.
+ * Score in place; never copy into `web/data/samples/` or ingest to tenant_demo.
+ */
+export const ZERODHA_WEEK4_BATCH02_FILE = "Zerodha_week_4_batch_02.json";
+
+export const DEFAULT_ZERODHA_WEEK4_BATCH02_PATH = path.join(
+  "/Users/sanket/Documents/Synthetic-Data/data/companies/zerodha/Week-4/Batch-02",
+  ZERODHA_WEEK4_BATCH02_FILE
+);
+
 const TENANT_ID = "tenant_demo";
 
-export type PartnerExportSource = "local" | "template" | "week2";
+export type PartnerExportSource =
+  | "local"
+  | "template"
+  | "week2"
+  | "week4batch02";
 
 export interface PartnerExportEvalResult {
   source: PartnerExportSource;
@@ -129,6 +145,56 @@ export function resolvePartnerExportPath(
   };
 }
 
+function week4Batch02PathFromEnv(
+  env: NodeJS.ProcessEnv = process.env
+): string | undefined {
+  const fromEnv =
+    env.ZERODHA_WEEK4_BATCH02?.trim() ||
+    env.PARTNER_EXPORT_WEEK4_BATCH02?.trim();
+  return fromEnv || undefined;
+}
+
+/** CLI / env: `--week4-batch02` or PARTNER_EXPORT=week4-batch02. */
+export function isWeek4Batch02EvalRequested(
+  argv: string[] = process.argv,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return (
+    argv.includes("--week4-batch02") ||
+    argv.includes("--week4batch02") ||
+    env.PARTNER_EXPORT === "week4-batch02" ||
+    env.PARTNER_EXPORT === "week4batch02"
+  );
+}
+
+/**
+ * Resolve Week-4 Batch-02 held-out JSON from Synthetic-Data (or an explicit path).
+ * Never falls back to week-1 / week-2 samples or copies into `data/samples/`.
+ */
+export function resolveWeek4Batch02Path(
+  explicitPath?: string,
+  env: NodeJS.ProcessEnv = process.env
+): {
+  source: "week4batch02";
+  filename: string;
+  absolutePath: string;
+} {
+  const absolutePath =
+    explicitPath?.trim() ||
+    week4Batch02PathFromEnv(env) ||
+    DEFAULT_ZERODHA_WEEK4_BATCH02_PATH;
+  if (!existsSync(absolutePath)) {
+    throw new Error(
+      `Missing week-4 Batch-02 held-out pack at ${absolutePath}. Score ${ZERODHA_WEEK4_BATCH02_FILE} from Synthetic-Data in place (do not copy into web/data/samples/). Do not ingest to tenant_demo.`
+    );
+  }
+  return {
+    source: "week4batch02",
+    filename: path.basename(absolutePath),
+    absolutePath,
+  };
+}
+
 function pct(value: number | null): string {
   return value === null ? "n/a" : value.toFixed(2);
 }
@@ -139,17 +205,25 @@ function resolveEvalOverrides(
 ): TaxonomyOverrides | null {
   if (overrides === null) return null;
   if (overrides !== undefined) return overrides;
+  if (source === "week4batch02") return ZERODHA_BATCH01_ADAPT_OVERRIDES;
   return source === "local" || source === "week2"
     ? PARTNER_EXPORT_ADAPT_OVERRIDES
     : null;
 }
 
-/** Load CSV → ingest → heuristic detect → labeled metrics; optional hybrid pass 2. */
+/** Load CSV/JSON → ingest → heuristic detect → labeled metrics; optional hybrid pass 2. */
 export async function loadPartnerExportEval(options?: {
   samplesDir?: string;
   preferTemplate?: boolean;
   /** Score week-2 held-out CSV (requires week2.local.csv; no week-1 fallback). */
   preferWeek2?: boolean;
+  /**
+   * Score Week-4 Zerodha Batch-02 held-out JSON from Synthetic-Data.
+   * No samples copy, no Neon dual-write, not Eval go.
+   */
+  preferWeek4Batch02?: boolean;
+  /** Override the Batch-02 JSON path (tests / machines without the default). */
+  week4Batch02Path?: string;
   tenantId?: string;
   classify?: LlmClassifyFn;
   maxCalls?: number;
@@ -158,17 +232,20 @@ export async function loadPartnerExportEval(options?: {
   skipHybrid?: boolean;
   /**
    * Adapt terms for the second heuristic pass.
-   * Default: partner-export fixture when `source=local` or `week2`; none for template.
-   * Pass `null` to skip Adapt even on local / week2 CSV.
+   * Default: partner-export fixture when `source=local` or `week2`;
+   * Zerodha batch_01 Adapt when `source=week4batch02`; none for template.
+   * Pass `null` to skip Adapt even on local / week2 / week4batch02.
    */
   overrides?: TaxonomyOverrides | null;
 }): Promise<PartnerExportEvalResult> {
   const tenantId = options?.tenantId ?? TENANT_ID;
-  const resolved = resolvePartnerExportPath(
-    options?.samplesDir ?? SAMPLES_DIR,
-    options?.preferTemplate ?? false,
-    options?.preferWeek2 ?? false
-  );
+  const resolved = options?.preferWeek4Batch02
+    ? resolveWeek4Batch02Path(options.week4Batch02Path)
+    : resolvePartnerExportPath(
+        options?.samplesDir ?? SAMPLES_DIR,
+        options?.preferTemplate ?? false,
+        options?.preferWeek2 ?? false
+      );
   const content = readFileSync(resolved.absolutePath, "utf8");
   const doc = parseIngestDocument(resolved.filename, content);
   const { conversations, messages } = toStoreRecords(
@@ -277,11 +354,11 @@ export function formatPartnerExportHybridLine(
 
 /** Full CLI block: source + heuristic + optional Adapt + hybrid (or skipped). */
 export function formatPartnerExportEval(result: PartnerExportEvalResult): string {
-  const lines = [
-    `source=${result.source} file=${result.filename}`,
-    "heuristic:",
-    formatPartnerExportMetrics(result.heuristic),
-  ];
+  const lines = [`source=${result.source} file=${result.filename}`];
+  if (result.source === "week4batch02") {
+    lines.push("note=held-out CLI, not keep-set");
+  }
+  lines.push("heuristic:", formatPartnerExportMetrics(result.heuristic));
   if (result.confusion.length > 0) {
     lines.push("confusion (base):");
     lines.push(formatConfusionExamples(result.confusion, 20));

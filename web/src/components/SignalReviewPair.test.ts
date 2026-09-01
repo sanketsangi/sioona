@@ -65,12 +65,15 @@ describe("SignalReviewPair", () => {
 
     expect(html).toContain("metric-strip");
     expect(html).toContain("lg:grid-cols-2");
-    expect(html).toContain("Conversation");
+    expect(html).not.toContain("Conversation");
     expect(html).toContain("Suggested Next Action");
     expect(html).toContain("Why This Fired");
+    expect(html).toContain("Copy Reply");
     expect(html).toContain("Priya");
     expect(html).toContain("Please pause my SIP this month");
-    expect(html).toContain("Call back before the SIP pause window closes.");
+    expect(html).toContain(
+      "Hi Priya, I noticed you said “Please pause my SIP this month”",
+    );
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
   });

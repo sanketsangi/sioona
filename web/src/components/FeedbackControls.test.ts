@@ -96,6 +96,9 @@ describe("FeedbackControls", () => {
     expect(html).toContain(
       "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action.",
     );
+    expect(html).toContain(
+      "Copy Reply from Suggested Next Action, then Mark Acted",
+    );
     expect(html.match(/data-slot="card"/g)?.length).toBe(1);
   });
 

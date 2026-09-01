@@ -25,8 +25,8 @@ type SignalReviewBodyProps = {
 /**
  * Insights review body: Conversation well and review rail as sibling
  * cards (gap-4). Narrow stacks Why → Conversation → Feedback; wide is
- * ~50% | ~50%. Highlight resets when `signal.id` changes (parent should
- * key this).
+ * ~57.25% rail | ~42.75% Conversation. Highlight resets when `signal.id`
+ * changes (parent should key this).
  */
 export function SignalReviewBody({
   signal,
@@ -47,16 +47,11 @@ export function SignalReviewBody({
       className={cn("insights-review-split", className)}
       aria-labelledby={`signal-review-heading-${signal.id}`}
     >
-      <SignalReviewConversation
-        messages={messages}
-        customerName={customerName}
-        highlightedMessageId={focusedMessageId}
-        className="insights-review-well overflow-hidden"
-      />
       <div className="insights-review-rail">
         <SignalReviewSuggestedAction
           signal={signal}
           messages={messages}
+          customerName={customerName}
           focusedMessageId={focusedMessageId}
           onFocusMessage={setFocusedMessageId}
           actedWalk={actedWalk}
@@ -80,6 +75,12 @@ export function SignalReviewBody({
           ) : null}
         </div>
       </div>
+      <SignalReviewConversation
+        messages={messages}
+        customerName={customerName}
+        highlightedMessageId={focusedMessageId}
+        className="insights-review-well overflow-hidden"
+      />
     </div>
   );
 }

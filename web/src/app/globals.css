@@ -536,6 +536,7 @@
     background: var(--sio-bg-base);
   }
 
+  /* Always stacked: Feedback above Ground Truth at every review width. */
   .insights-review-feedback {
     display: grid;
     min-width: 0;
@@ -543,18 +544,12 @@
     gap: 1rem;
   }
 
-  @container review (33.75rem <= width < 56rem) {
-    .insights-review-feedback {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-  }
-
   @container review (min-width: 56rem) {
     .insights-review-split {
       flex: 1 1 0%;
-      grid-template-areas: "transcript rail";
-      /* ~50% Conversation | ~50% review rail */
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas: "rail transcript";
+      /* ~57.25% review rail | ~42.75% Conversation (chat is 90% of prior 47.5%) */
+      grid-template-columns: minmax(0, 57.25fr) minmax(0, 42.75fr);
       grid-template-rows: minmax(0, 1fr);
       overflow: hidden;
     }
@@ -630,17 +625,32 @@
     border: 1px solid var(--sio-border-base);
   }
 
-  /* Why This Fired landing — quiet ring + interactive fill, not a second accent. */
+  /* Why This Fired landing — quiet ring + interactive fill, not a second accent.
+   * Shared by transcript evidence bubbles and the pressed WhyQuote control so
+   * the perimeter cannot drift. Keep the 1px border for layout (no shift vs
+   * rest) but hide the hairline so only the focus-accent outline remains. */
+  .evidence-highlight,
   .chat-bubble--evidence {
-    border-color: var(--sio-border-strong);
+    border-color: transparent;
     background: var(--sio-bg-interactive);
     box-shadow:
       0 0 0 2px var(--sio-bg-base),
       0 0 0 4px color-mix(in srgb, var(--sio-focus-accent) 40%, transparent);
   }
 
+  /* Beat Button `focus-visible:ring-0` so keyboard focus stays distinct. */
+  button.evidence-highlight:focus-visible {
+    box-shadow: var(--focus-ring);
+  }
+
+  /* Consecutive rows: --space-3 (12px). Do not stack extra margins on wrappers. */
   .chat-bubble-group {
-    @apply flex w-full flex-col gap-2;
+    @apply flex w-full flex-col;
+    gap: var(--space-3);
+  }
+
+  .chat-bubble-group > * {
+    margin-block: 0;
   }
 
   .metric-strip {

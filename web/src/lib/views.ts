@@ -14,6 +14,7 @@ export type StatusFilter = "all" | "new" | "followup" | "acted";
 
 export type SignalReviewTriage = {
   isPendingReview: boolean;
+  prevPendingPreviewId: string | null;
   nextPendingPreviewId: string | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode;
@@ -182,7 +183,7 @@ export function cadenceActionHref(
 }
 
 /**
- * Next needs-review id after `currentId` (wraps; excludes current).
+ * Next needs-review id after `currentId` (no wrap; last → null).
  * Follow-up / Done origin is not in pending — return the first pending so
  * Mark as Acted can open the next review instead of an empty queue.
  */
@@ -190,15 +191,53 @@ export function nextPendingPreviewId(
   pending: { id: string }[],
   currentId: string,
 ): string | null {
-  const n = pending.length;
-  if (n === 0) return null;
+  if (pending.length === 0) return null;
   const start = pending.findIndex((s) => s.id === currentId);
   if (start < 0) return pending[0]?.id ?? null;
-  for (let i = 1; i <= n; i++) {
-    const signal = pending[(start + i) % n];
-    if (signal.id !== currentId) return signal.id;
-  }
-  return null;
+  return pending[start + 1]?.id ?? null;
+}
+
+/** Previous needs-review id before `currentId` (no wrap; first → null). */
+export function prevPendingPreviewId(
+  pending: { id: string }[],
+  currentId: string,
+): string | null {
+  const start = pending.findIndex((s) => s.id === currentId);
+  if (start <= 0) return null;
+  return pending[start - 1]?.id ?? null;
+}
+
+/** Next needs-review id after `currentId` without wrap (last → null → list). */
+export function skipPendingPreviewId(
+  pending: { id: string }[],
+  currentId: string,
+): string | null {
+  const start = pending.findIndex((s) => s.id === currentId);
+  if (start < 0) return null;
+  return pending[start + 1]?.id ?? null;
+}
+
+/**
+ * Open-review Prev / Next / Skip href. Keeps status, type, scoreFrom, and mode.
+ * `previewId` null → filtered list (no `preview=`).
+ */
+export function pendingReviewWalkHref(opts: {
+  previewId?: string | null;
+  statusFilter?: StatusFilter | null;
+  typeFilter?: TypeFilter | null;
+  scoreFrom?: string | null;
+  mode?: WorkspaceMode | null;
+}): string {
+  const mode = opts.mode ?? "shadow";
+  const status = opts.statusFilter ?? "all";
+  const type = opts.typeFilter ?? "all";
+  return viewHref("insights", {
+    scoreFrom: opts.scoreFrom,
+    mode: mode === "action" ? "action" : null,
+    status: statusQueryValue(status, mode),
+    type: type === "all" ? null : type,
+    preview: opts.previewId,
+  });
 }
 
 /** Insights pending queue deep-link after feedback or Mark Acted. */

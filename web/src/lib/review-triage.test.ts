@@ -5,6 +5,7 @@ import {
   isActedEnterBlockedTarget,
   isEditableShortcutTarget,
   isMarkActedShortcutKey,
+  pendingWalkShortcutForKey,
 } from "./review-triage";
 
 describe("buildSignalReviewTriage", () => {
@@ -18,7 +19,23 @@ describe("buildSignalReviewTriage", () => {
       }),
     ).toEqual({
       isPendingReview: true,
+      prevPendingPreviewId: null,
       nextPendingPreviewId: "sig_b",
+      scoreFrom: undefined,
+      mode: undefined,
+    });
+  });
+
+  it("disables Next on the last pending", () => {
+    expect(
+      buildSignalReviewTriage({
+        pendingSignals: pending,
+        previewSignal: { id: "sig_b" },
+      }),
+    ).toEqual({
+      isPendingReview: true,
+      prevPendingPreviewId: "sig_a",
+      nextPendingPreviewId: null,
       scoreFrom: undefined,
       mode: undefined,
     });
@@ -34,6 +51,7 @@ describe("buildSignalReviewTriage", () => {
       }),
     ).toEqual({
       isPendingReview: false,
+      prevPendingPreviewId: null,
       nextPendingPreviewId: "sig_a",
       scoreFrom: "2026-08-17",
       mode: "action",
@@ -81,6 +99,16 @@ describe("isActedEnterBlockedTarget", () => {
   });
 });
 
+describe("pendingWalkShortcutForKey", () => {
+  it("maps J to next and K to prev, case-insensitively", () => {
+    expect(pendingWalkShortcutForKey("j")).toBe("next");
+    expect(pendingWalkShortcutForKey("J")).toBe("next");
+    expect(pendingWalkShortcutForKey("k")).toBe("prev");
+    expect(pendingWalkShortcutForKey("K")).toBe("prev");
+    expect(pendingWalkShortcutForKey("c")).toBeNull();
+  });
+});
+
 describe("isEditableShortcutTarget", () => {
   it("blocks shortcuts in inputs and textareas", () => {
     const input = { tagName: "INPUT", isContentEditable: false } as HTMLElement;
@@ -93,8 +121,19 @@ describe("isEditableShortcutTarget", () => {
       isContentEditable: false,
     } as HTMLElement;
 
+    const select = {
+      tagName: "SELECT",
+      isContentEditable: false,
+    } as HTMLElement;
+    const editable = {
+      tagName: "DIV",
+      isContentEditable: true,
+    } as HTMLElement;
+
     expect(isEditableShortcutTarget(input)).toBe(true);
     expect(isEditableShortcutTarget(textarea)).toBe(true);
+    expect(isEditableShortcutTarget(select)).toBe(true);
+    expect(isEditableShortcutTarget(editable)).toBe(true);
     expect(isEditableShortcutTarget(button)).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import {
   runDetectionWithProgress,
   SCORE_THRESHOLD,
 } from "./detect";
+import { resolveSuggestedAction } from "./suggested-action-display";
 import type {
   Conversation,
   Message,
@@ -505,7 +506,12 @@ function signalFromClassification(
     summary:
       summary ||
       `${who}${via} may be a ${classification.type} signal — review before acting.`,
-    suggestedAction: pickAction(classification.type, score, overrides),
+    suggestedAction: resolveSuggestedAction({
+      type: classification.type,
+      customerName: conversation.customerName,
+      evidence,
+      fallback: pickAction(classification.type, score, overrides),
+    }),
     evidence,
     status: "new",
     createdAt: new Date().toISOString(),

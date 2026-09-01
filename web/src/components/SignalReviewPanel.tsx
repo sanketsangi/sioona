@@ -6,6 +6,7 @@ import {
   QUEUE_REVIEW_ACTION_CLASS,
   SignalQueueRow,
 } from "@/components/SignalQueueRow";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody } from "@/components/ui/table";
 import { queueSignalSummary } from "@/lib/format";
 import type { Signal } from "@/lib/types";
@@ -52,8 +53,10 @@ export function SignalReviewPanel({
               customerName={who}
               expandText
               action={
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   className={QUEUE_REVIEW_ACTION_CLASS}
                   onClick={() => {
                     const el = document.getElementById(bodyId);
@@ -70,7 +73,7 @@ export function SignalReviewPanel({
                   }}
                 >
                   Review
-                </button>
+                </Button>
               }
             />
           </TableBody>

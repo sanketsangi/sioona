@@ -45,11 +45,11 @@ describe("SignalReviewConversation", () => {
       }),
     );
 
-    expect(html).toContain("Conversation");
     expect(html).toContain("Priya");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("I can help pause that SIP.");
-    expect(html).toContain("2 messages");
+    expect(html).not.toContain("Conversation");
+    expect(html).not.toContain("2 messages");
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Aug,");
     expect(html).toContain("max-w-md");
@@ -88,7 +88,7 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("Upload Chats");
     expect(html).toContain("view=upload");
     expect(html).toContain("Priya");
-    expect(html).toContain("Conversation");
+    expect(html).not.toContain("Conversation");
     expect(html).toContain("insights-review-chat-body");
     expect(html).toContain("px-3 sm:px-4");
     expect(html).not.toContain("px-1 py-4");

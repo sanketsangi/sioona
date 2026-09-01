@@ -5,10 +5,13 @@ import {
   afterMarkActedHref,
   cadenceActionHref,
   nextPendingPreviewId,
+  pendingReviewWalkHref,
+  prevPendingPreviewId,
   parseMode,
   parseStatusFilter,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
+  skipPendingPreviewId,
   statusQueryValue,
 } from "./views";
 
@@ -184,10 +187,10 @@ describe("cadenceActionHref", () => {
 describe("nextPendingPreviewId", () => {
   const pending = [{ id: "a" }, { id: "b" }, { id: "c" }];
 
-  it("returns the next id and wraps", () => {
+  it("returns the next id and null at the end", () => {
     expect(nextPendingPreviewId(pending, "a")).toBe("b");
     expect(nextPendingPreviewId(pending, "b")).toBe("c");
-    expect(nextPendingPreviewId(pending, "c")).toBe("a");
+    expect(nextPendingPreviewId(pending, "c")).toBeNull();
   });
 
   it("returns null when only one pending remains", () => {
@@ -196,6 +199,76 @@ describe("nextPendingPreviewId", () => {
 
   it("returns the first pending when current is not in the queue", () => {
     expect(nextPendingPreviewId(pending, "sig_followup")).toBe("a");
+  });
+});
+
+describe("prevPendingPreviewId", () => {
+  const pending = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("returns the previous id and null at the start", () => {
+    expect(prevPendingPreviewId(pending, "a")).toBeNull();
+    expect(prevPendingPreviewId(pending, "b")).toBe("a");
+    expect(prevPendingPreviewId(pending, "c")).toBe("b");
+  });
+
+  it("returns null when only one pending remains", () => {
+    expect(prevPendingPreviewId([{ id: "solo" }], "solo")).toBeNull();
+  });
+
+  it("returns null when current is missing", () => {
+    expect(prevPendingPreviewId(pending, "missing")).toBeNull();
+  });
+});
+
+describe("skipPendingPreviewId", () => {
+  const pending = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("returns the next id without wrapping", () => {
+    expect(skipPendingPreviewId(pending, "a")).toBe("b");
+    expect(skipPendingPreviewId(pending, "b")).toBe("c");
+    expect(skipPendingPreviewId(pending, "c")).toBeNull();
+  });
+
+  it("returns null for the last or only pending", () => {
+    expect(skipPendingPreviewId([{ id: "solo" }], "solo")).toBeNull();
+  });
+});
+
+describe("pendingReviewWalkHref", () => {
+  it("opens the next preview and keeps scoreFrom, type, and status", () => {
+    expect(
+      pendingReviewWalkHref({
+        previewId: "sig_b",
+        statusFilter: "new",
+        typeFilter: "retention",
+        scoreFrom: "2026-08-17",
+      }),
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=new&type=retention&preview=sig_b",
+    );
+  });
+
+  it("drops preview on last Skip and keeps filters", () => {
+    expect(
+      pendingReviewWalkHref({
+        previewId: null,
+        statusFilter: "new",
+        typeFilter: "retention",
+        scoreFrom: "2026-08-17",
+      }),
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=new&type=retention",
+    );
+  });
+
+  it("preserves mode=action", () => {
+    expect(
+      pendingReviewWalkHref({
+        previewId: "sig_b",
+        statusFilter: "new",
+        mode: "action",
+      }),
+    ).toBe("/?view=insights&mode=action&status=new&preview=sig_b");
   });
 });
 

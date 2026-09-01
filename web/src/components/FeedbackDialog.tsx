@@ -21,35 +21,47 @@ import {
 } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 
-export function FeedbackDialog() {
-  const [open, setOpen] = useState(false);
+export function FeedbackDialog({
+  open: openProp,
+  onOpenChange,
+  showTrigger = true,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
+} = {}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const open = openProp ?? uncontrolledOpen;
 
   function handleOpenChange(next: boolean) {
-    setOpen(next);
+    onOpenChange?.(next);
+    if (openProp === undefined) setUncontrolledOpen(next);
     if (!next) setFeedback("");
   }
 
   function handleSubmit() {
     setFeedback("");
-    setOpen(false);
+    handleOpenChange(false);
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DialogTrigger asChild>
-            <SidebarMenuButton
-              tooltip="Feedback"
-              className="h-9 min-h-9 rounded-[var(--radius-panel)] border border-sio-border-subtle bg-sio-bg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
-            >
-              <ChatBubbleIcon className="size-4 shrink-0 text-sio-fg-base" />
-              <span>Feedback</span>
-            </SidebarMenuButton>
-          </DialogTrigger>
-        </SidebarMenuItem>
-      </SidebarMenu>
+      {showTrigger ? (
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DialogTrigger asChild>
+              <SidebarMenuButton
+                tooltip="Feedback"
+                className="h-9 min-h-9 rounded-[var(--radius-panel)] border border-sio-border-subtle bg-sio-bg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
+              >
+                <ChatBubbleIcon className="size-4 shrink-0 text-sio-fg-base" />
+                <span>Feedback</span>
+              </SidebarMenuButton>
+            </DialogTrigger>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      ) : null}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-sio-fg-base">

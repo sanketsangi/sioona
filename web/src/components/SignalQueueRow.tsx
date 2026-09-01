@@ -11,9 +11,9 @@ import { queueSignalSummary } from "@/lib/format";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Dense Review control — `--radius-control`, not pill. Matches 28px User band. */
+/** Dense Review action layout — pair with `Button` `size="sm"` (`h-7`). */
 export const QUEUE_REVIEW_ACTION_CLASS =
-  "btn-secondary w-full shrink-0 touch-manipulation h-7 max-w-full px-3";
+  "w-full max-w-full shrink-0 touch-manipulation rounded-full px-3";
 
 type SignalQueueRowProps = {
   signal: Signal;
@@ -44,7 +44,9 @@ export function SignalQueueRow({
     signal.summary?.trim() || "",
     customerName,
   );
-  const summaryId = `signal-summary-${signal.id}`;
+  const summaryId = expandText
+    ? `signal-review-summary-${signal.id}`
+    : `signal-summary-${signal.id}`;
   const isPreviewRow = Boolean(previewHref);
 
   const summaryClass = expandText

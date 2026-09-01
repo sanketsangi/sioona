@@ -3,15 +3,20 @@ import os from "os";
 import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "../data/fixtures/partner-export-overrides";
+import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "../data/fixtures/zerodha-batch01-overrides";
 import {
+  DEFAULT_ZERODHA_WEEK4_BATCH02_PATH,
   formatPartnerExportEval,
   formatPartnerExportHybridLine,
   formatPartnerExportMetrics,
+  isWeek4Batch02EvalRequested,
   loadPartnerExportEval,
   PARTNER_EXPORT_LOCAL_FILE,
   PARTNER_EXPORT_TEMPLATE_FILE,
   PARTNER_EXPORT_WEEK2_LOCAL_FILE,
   resolvePartnerExportPath,
+  resolveWeek4Batch02Path,
+  ZERODHA_WEEK4_BATCH02_FILE,
 } from "./partner-export-eval";
 
 const tempDirs: string[] = [];
@@ -349,3 +354,188 @@ describe("real partner export eval lane", () => {
     expect(withoutAdapt.adapted).toBeNull();
   });
 });
+
+function writeWeek4Batch02Fixture(filePath: string) {
+  writeFileSync(
+    filePath,
+    JSON.stringify({
+      conversations: [
+        {
+          externalId: "w4_lead",
+          channel: "whatsapp",
+          customerName: "Ada",
+          startedAt: "2026-09-01T06:00:00.000Z",
+          messages: [
+            {
+              role: "customer",
+              content:
+                "Want to open a demat account this week — send pricing to [email]",
+              timestamp: "2026-09-01T06:00:00.000Z",
+            },
+            {
+              role: "agent",
+              content: "Sharing the fee schedule.",
+              timestamp: "2026-09-01T06:01:00.000Z",
+            },
+          ],
+          labels: [{ signal: "lead", confidence: "high" }],
+        },
+        {
+          externalId: "w4_none",
+          channel: "in_app_chat",
+          customerName: "Dev",
+          startedAt: "2026-09-01T14:00:00.000Z",
+          messages: [
+            {
+              role: "customer",
+              content: "Please reset my password — OTP missing",
+              timestamp: "2026-09-01T14:00:00.000Z",
+            },
+            {
+              role: "agent",
+              content: "Reset sent.",
+              timestamp: "2026-09-01T14:01:00.000Z",
+            },
+          ],
+          labels: [{ signal: "complaint" }],
+        },
+      ],
+    }),
+    "utf8"
+  );
+}
+
+describe("week-4 Batch-02 held-out CLI lane", () => {
+  it("treats --week4-batch02 and PARTNER_EXPORT=week4-batch02 as the held-out flag", () => {
+    expect(isWeek4Batch02EvalRequested(["node", "eval"], {})).toBe(false);
+    expect(
+      isWeek4Batch02EvalRequested(["node", "eval", "--week4-batch02"], {})
+    ).toBe(true);
+    expect(
+      isWeek4Batch02EvalRequested(["node", "eval", "--week4batch02"], {})
+    ).toBe(true);
+    expect(
+      isWeek4Batch02EvalRequested(["node", "eval"], {
+        PARTNER_EXPORT: "week4-batch02",
+      })
+    ).toBe(true);
+    expect(
+      isWeek4Batch02EvalRequested(["node", "eval"], {
+        PARTNER_EXPORT: "week4batch02",
+      })
+    ).toBe(true);
+    expect(
+      isWeek4Batch02EvalRequested(["node", "eval", "--week2"], {
+        PARTNER_EXPORT: "week2",
+      })
+    ).toBe(false);
+  });
+
+  it("throws a clear error when the held-out JSON is missing", () => {
+    const missing = path.join(
+      os.tmpdir(),
+      `missing-week4-batch02-${Date.now()}.json`
+    );
+    expect(() => resolveWeek4Batch02Path(missing)).toThrow(missing);
+    expect(() => resolveWeek4Batch02Path(missing)).toThrow("web/data/samples");
+    expect(() => resolveWeek4Batch02Path(missing)).toThrow("ingest");
+  });
+
+  it("does not fall back to week-1 samples or copy into data/samples", async () => {
+    const samplesDir = makeSamplesDir();
+    writeFileSync(
+      path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE),
+      [
+        "conversation_id,role,content,customer_name,channel,timestamp,ground_truth",
+        'w1_lead,customer,"Want to open a demat account — email [email]",W1,whatsapp,2026-08-06T13:00:00.000Z,lead',
+        "w1_lead,agent,Sharing onboarding.,,whatsapp,2026-08-06T13:01:00.000Z,lead",
+      ].join("\n"),
+      "utf8"
+    );
+    writeFileSync(
+      path.join(samplesDir, ZERODHA_WEEK4_BATCH02_FILE),
+      JSON.stringify({ conversations: [] }),
+      "utf8"
+    );
+
+    const packDir = makeSamplesDir();
+    const packPath = path.join(packDir, ZERODHA_WEEK4_BATCH02_FILE);
+    writeWeek4Batch02Fixture(packPath);
+
+    const resolved = resolveWeek4Batch02Path(packPath);
+    expect(resolved.source).toBe("week4batch02");
+    expect(resolved.filename).toBe(ZERODHA_WEEK4_BATCH02_FILE);
+    expect(resolved.absolutePath).toBe(packPath);
+    expect(resolved.absolutePath).not.toContain(`${path.sep}data${path.sep}samples${path.sep}`);
+
+    const result = await loadPartnerExportEval({
+      samplesDir,
+      preferWeek4Batch02: true,
+      week4Batch02Path: packPath,
+    });
+    expect(result.source).toBe("week4batch02");
+    expect(result.absolutePath).toBe(packPath);
+    expect(result.metrics.labeledConversations).toBe(2);
+    expect(
+      result.metrics.byType.find((r) => r.type === "lead")?.labeledCount
+    ).toBe(1);
+    expect(result.store.taxonomyOverrides).toEqual(
+      ZERODHA_BATCH01_ADAPT_OVERRIDES
+    );
+    expect(result.adapted).not.toBeNull();
+    expect(formatPartnerExportEval(result)).toContain("source=week4batch02");
+    expect(formatPartnerExportEval(result)).toContain(
+      "note=held-out CLI, not keep-set"
+    );
+  });
+
+  it("skips Zerodha Adapt when overrides are null", async () => {
+    const packDir = makeSamplesDir();
+    const packPath = path.join(packDir, ZERODHA_WEEK4_BATCH02_FILE);
+    writeWeek4Batch02Fixture(packPath);
+
+    const result = await loadPartnerExportEval({
+      preferWeek4Batch02: true,
+      week4Batch02Path: packPath,
+      overrides: null,
+    });
+    expect(result.source).toBe("week4batch02");
+    expect(result.adapted).toBeNull();
+  });
+});
+
+const WEEK4_BATCH02_PACK_PRESENT = existsSync(DEFAULT_ZERODHA_WEEK4_BATCH02_PATH);
+
+describe.skipIf(!WEEK4_BATCH02_PACK_PRESENT)(
+  "Zerodha Week-4 Batch-02 pack (local Synthetic-Data, held-out CLI)",
+  () => {
+    it("scores labeled P/R in place without using data/samples", async () => {
+      const result = await loadPartnerExportEval({
+        preferWeek4Batch02: true,
+        skipHybrid: true,
+      });
+      expect(result.source).toBe("week4batch02");
+      expect(result.filename).toBe(ZERODHA_WEEK4_BATCH02_FILE);
+      expect(result.absolutePath).toBe(DEFAULT_ZERODHA_WEEK4_BATCH02_PATH);
+      expect(result.absolutePath).not.toContain(
+        `${path.sep}web${path.sep}data${path.sep}samples`
+      );
+      expect(result.metrics.labeledConversations).toBe(100);
+      expect(
+        result.metrics.byType.find((r) => r.type === "lead")?.labeledCount
+      ).toBe(15);
+      expect(
+        result.metrics.byType.find((r) => r.type === "upsell")?.labeledCount
+      ).toBe(12);
+      expect(
+        result.metrics.byType.find((r) => r.type === "retention")?.labeledCount
+      ).toBe(28);
+      expect(typeof result.metrics.labeledPrecision).toBe("number");
+      expect(typeof result.metrics.labeledRecall).toBe("number");
+      expect(result.adapted).not.toBeNull();
+      expect(formatPartnerExportEval(result)).toContain(
+        "note=held-out CLI, not keep-set"
+      );
+    });
+  }
+);

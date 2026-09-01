@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, type ComponentProps, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import {
   ArrowRight,
   CaretDoubleLeft,
@@ -33,6 +40,7 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
+import { PagerIconLink } from "@/components/PagerIconLink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -102,8 +110,11 @@ const queueColumns = columnHelper.columns([
 
 /**
  * Overlay Insights queue list and preview review.
- * Both panes stay mounted; `data-insights-mode` transitions opacity/transform.
- * Holds the last review tree after `?preview=` clears so the exit fade still has content.
+ * Both panes stay mounted after the first client paint; `data-insights-mode`
+ * transitions opacity/transform. Review deep-links omit the list table from SSR
+ * so hydration is a single tree. List SSR omits the review pane for the same
+ * reason (duplicate `signal-summary-*` ids). Holds the last review tree after
+ * `?preview=` clears so the exit fade still has content.
  * First paint uses resting styles — no enter animation on deep links.
  */
 export function InsightsModeSwap({
@@ -118,8 +129,16 @@ export function InsightsModeSwap({
   list: ReactNode;
   review: ReactNode;
 }) {
-  const heldReviewRef = useRef(review);
   const reviewActive = mode === "review";
+  const listActive = mode === "list";
+  const heldReviewRef = useRef<ReactNode>(null);
+  // Review deep-links must not SSR the list table. List must not SSR the
+  // review table. Both panes used the same `signal-summary-*` ids.
+  const [listMounted, setListMounted] = useState(listActive);
+
+  useEffect(() => {
+    setListMounted(true);
+  }, []);
 
   /* eslint-disable react-hooks/refs -- snapshot last review pane for exit fade */
   if (reviewActive && reviewKey) {
@@ -128,8 +147,6 @@ export function InsightsModeSwap({
   const reviewNode = reviewActive ? review : heldReviewRef.current;
   /* eslint-enable react-hooks/refs */
 
-  const listActive = mode === "list";
-
   return (
     <div className="insights-mode-swap" data-insights-mode={mode}>
       <div
@@ -137,7 +154,7 @@ export function InsightsModeSwap({
         aria-hidden={!listActive}
         inert={!listActive ? true : undefined}
       >
-        {list}
+        {listMounted ? list : null}
       </div>
       <div
         className="insights-mode-pane insights-mode-pane-review"
@@ -328,10 +345,10 @@ function QueueEmptyState({
 const QUEUE_COL_HEADER =
   "truncate text-label-12 font-medium text-muted-foreground";
 
-/** Sticky muted column labels — shared by queue list and review panel. */
-/** Light header band — soft tint so it separates from white card rows. */
+/** Sticky column labels — shared by queue list and review panel. */
+/** Header band uses the same surface as the app sidebar. */
 const QUEUE_TABLE_HEADER_CLASS =
-  "sticky top-0 z-10 bg-[color-mix(in_oklch,var(--sio-fg-base)_6%,var(--sio-bg-base))] [&_tr]:border-b [&_th]:bg-[color-mix(in_oklch,var(--sio-fg-base)_6%,var(--sio-bg-base))]";
+  "sticky top-0 z-10 bg-sidebar [&_tr]:border-b [&_th]:bg-sidebar";
 
 function QueueSignalsTableHeader() {
   return (
@@ -468,46 +485,6 @@ function QueueTablePager({
   );
 }
 
-function PagerIconLink({
-  href,
-  label,
-  children,
-  className,
-}: {
-  href: string | null;
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  if (href == null) {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        className={cn("size-8", className)}
-        disabled
-        aria-label={label}
-      >
-        {children}
-      </Button>
-    );
-  }
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      className={cn("size-8", className)}
-      asChild
-    >
-      <Link href={href} scroll={false} aria-label={label}>
-        {children}
-      </Link>
-    </Button>
-  );
-}
-
 function QueueSignalsDataTable({
   signals,
   page,
@@ -592,13 +569,16 @@ function QueueSignalsDataTable({
                   previewHref={previewHref}
                   previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Open review for ${summaryForLabel}`}
                   action={
-                    <Link
-                      href={previewHref}
-                      scroll={false}
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
                       className={QUEUE_REVIEW_ACTION_CLASS}
                     >
-                      Review
-                    </Link>
+                      <Link href={previewHref} scroll={false}>
+                        Review
+                      </Link>
+                    </Button>
                   }
                 />
               );

@@ -1,7 +1,9 @@
 "use client";
 
 import { ConversationDrawer } from "@/components/ConversationDrawer";
+import { buttonVariants } from "@/components/ui/button";
 import type { Message } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type OpenConversationHeaderActionProps = {
   messages: Message[];
@@ -31,7 +33,10 @@ export function OpenConversationHeaderAction({
       typeLabel={typeLabel}
       summary={summary}
       triggerLabel="Open Conversation"
-      triggerClassName="btn-secondary shrink-0"
+      triggerClassName={cn(
+        buttonVariants({ variant: "outline", size: "default" }),
+        "h-8 gap-2 shrink-0",
+      )}
       footer={null}
     />
   );

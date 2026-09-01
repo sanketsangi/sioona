@@ -43,21 +43,37 @@ const CADENCE_STEPS: { title: string; detail: string }[] = [
   },
 ];
 
-export function GuidanceDialog() {
-  const [open, setOpen] = useState(false);
+export function GuidanceDialog({
+  open: openProp,
+  onOpenChange,
+  showTrigger = true,
+}: {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  showTrigger?: boolean;
+} = {}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+
+  function handleOpenChange(next: boolean) {
+    onOpenChange?.(next);
+    if (openProp === undefined) setUncontrolledOpen(next);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <DialogTrigger asChild>
-            <SidebarMenuButton tooltip="Guidance">
-              <BookOpenIcon className="size-4 shrink-0" />
-              <span>Guidance</span>
-            </SidebarMenuButton>
-          </DialogTrigger>
-        </SidebarMenuItem>
-      </SidebarMenu>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {showTrigger ? (
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DialogTrigger asChild>
+              <SidebarMenuButton tooltip="Guidance">
+                <BookOpenIcon className="size-4 shrink-0" />
+                <span>Guidance</span>
+              </SidebarMenuButton>
+            </DialogTrigger>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      ) : null}
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Pilot Guidance</DialogTitle>

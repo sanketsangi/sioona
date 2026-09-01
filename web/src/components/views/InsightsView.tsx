@@ -4,6 +4,7 @@ import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedPar
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
+import { ReviewWalkHeader } from "@/components/ReviewWalkHeader";
 import {
   InsightsModeSwap,
   SignalQueue,
@@ -45,6 +46,8 @@ import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { buildSignalReviewTriage } from "@/lib/review-triage";
 import {
   cadenceActionHref,
+  pendingReviewWalkHref,
+  skipPendingPreviewId,
   statusQueryValue,
   viewHref,
   type StatusFilter,
@@ -93,6 +96,7 @@ export function InsightsView({
   cadenceAction,
   cadencePreviewId = null,
   workspaceMode = "shadow",
+  backendScore = null,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -104,7 +108,7 @@ export function InsightsView({
   typeFilter: TypeFilter;
   page: number;
   previewId?: string | null;
-  /** Reserved for Eval / pilot chrome — not shown on this strip. */
+  /** Windowed keep-set score — list n / ≥5 footer only, not SignalScoreSummary. */
   backendScore?: BackendSignalScore | null;
   needsReview: NeedsReviewResult;
   tenantSignals: TenantSignalsResult;
@@ -271,6 +275,33 @@ export function InsightsView({
         mode: workspaceMode,
       })
     : null;
+  const walkHrefOpts = {
+    statusFilter,
+    typeFilter,
+    scoreFrom,
+    mode: workspaceMode,
+  };
+  const pendingWalk =
+    previewSignal && previewTriage?.isPendingReview
+      ? {
+          prevHref: previewTriage.prevPendingPreviewId
+            ? pendingReviewWalkHref({
+                ...walkHrefOpts,
+                previewId: previewTriage.prevPendingPreviewId,
+              })
+            : null,
+          nextHref: previewTriage.nextPendingPreviewId
+            ? pendingReviewWalkHref({
+                ...walkHrefOpts,
+                previewId: previewTriage.nextPendingPreviewId,
+              })
+            : null,
+          skipHref: pendingReviewWalkHref({
+            ...walkHrefOpts,
+            previewId: skipPendingPreviewId(pendingSignals, previewSignal.id),
+          }),
+        }
+      : null;
   // After Mark as Acted: next Correct panel, else next pending review.
   // Origin filter is unused — empty Pending / Follow-up lists are not a destination.
   const actedWalk = previewSignal
@@ -385,6 +416,7 @@ export function InsightsView({
                 ),
               ]}
               pendingSignals={pendingSignals}
+              reviewedCount={backendScore?.reviewed_count ?? null}
             />
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <SignalQueue
@@ -401,24 +433,25 @@ export function InsightsView({
                 {breadcrumbPageLabel ? (
                   <Breadcrumb
                     aria-label="Insights review"
-                    className="scroll-mt-4"
+                    className="min-w-0 scroll-mt-4"
                   >
-                    <BreadcrumbList className="text-label-13 sm:gap-1.5">
+                    <BreadcrumbList className="min-w-0">
                       <BreadcrumbItem>
                         <BreadcrumbLink asChild>
                           <Link
                             href={backToQueueHref}
                             scroll={false}
-                            className="rounded-[var(--radius-control)] text-sio-fg-muted outline-none transition-colors duration-150 hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
+                            className="inline-flex min-h-11 items-center touch-manipulation md:min-h-6"
                           >
                             Insights Queue
                           </Link>
                         </BreadcrumbLink>
                       </BreadcrumbItem>
-                      <BreadcrumbSeparator className="text-sio-fg-muted [&>svg]:size-3" />
-                      <BreadcrumbItem>
+                      <BreadcrumbSeparator />
+                      <BreadcrumbItem className="min-w-0">
                         <BreadcrumbPage
-                          className="max-w-[min(16rem,calc(100vw-8rem))] truncate text-sio-fg-subtle sm:max-w-xs"
+                          className="font-medium max-w-[min(16rem,calc(100vw-8rem))] truncate sm:max-w-xs"
+                          title={breadcrumbPageLabel}
                           translate="no"
                         >
                           {breadcrumbPageLabel}
@@ -435,6 +468,13 @@ export function InsightsView({
               <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
                 {previewSignal && previewCustomerName != null ? (
                   <>
+                    {pendingWalk ? (
+                      <ReviewWalkHeader
+                        prevHref={pendingWalk.prevHref}
+                        nextHref={pendingWalk.nextHref}
+                        skipHref={pendingWalk.skipHref}
+                      />
+                    ) : null}
                     <OpenConversationHeaderAction
                       messages={previewMessages}
                       customerName={previewCustomerName}

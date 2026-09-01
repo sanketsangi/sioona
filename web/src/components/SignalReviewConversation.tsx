@@ -32,7 +32,6 @@ export function SignalReviewConversation({
 }: SignalReviewConversationProps) {
   const headingId = useId();
   const who = customerName.trim() || "Customer";
-  const messageCount = messages.filter((m) => m.role !== "system").length;
   const hasMessages = messages.length > 0;
 
   return (
@@ -49,24 +48,13 @@ export function SignalReviewConversation({
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <SignalUser name={who} size={32} showName={false} />
-          <div className="min-w-0 flex-1">
-            <h3
-              id={headingId}
-              translate="no"
-              className="truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
-            >
-              {who}
-            </h3>
-            <p className="mt-0.5 truncate text-label-12 text-sio-fg-muted">
-              Conversation
-              {messageCount > 0 ? (
-                <span className="tabular-nums">
-                  {" "}
-                  · {messageCount} {messageCount === 1 ? "message" : "messages"}
-                </span>
-              ) : null}
-            </p>
-          </div>
+          <h3
+            id={headingId}
+            translate="no"
+            className="min-w-0 flex-1 truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+          >
+            {who}
+          </h3>
         </div>
       </header>
 

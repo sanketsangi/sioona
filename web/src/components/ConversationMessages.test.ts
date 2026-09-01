@@ -36,6 +36,8 @@ describe("ConversationMessages", () => {
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain("I can help pause that SIP.");
     expect(html).toContain("chat-bubble-group");
+    expect(html).not.toContain("space-y-4");
+    expect(html).not.toContain("space-y-3");
     expect(html).toContain("chat-bubble--muted");
     expect(html).toContain("chat-bubble--default");
     expect(html).toContain('data-align="end"');
@@ -47,6 +49,12 @@ describe("ConversationMessages", () => {
     expect(html).not.toContain("width:28px");
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Aug,");
+    // Agent sparkle mark (currentColor); customer initials unchanged.
+    expect(html).toContain("M8.40706 4.92939");
+    expect(html).toContain('fill="currentColor"');
+    expect(html).not.toContain("#666666");
+    expect(html).not.toContain("M8.75 2.79933");
+    expect(html).toContain(">P</span>");
   });
 
   it("marks Why This Fired landing on the evidence bubble", () => {
@@ -69,7 +77,33 @@ describe("ConversationMessages", () => {
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Evidence match");
     expect(html).toContain('data-evidence-match="true"');
+    // Evidence class is additive; rest variants keep their own border rules.
+    expect(html).toContain("chat-bubble chat-bubble--muted chat-bubble--evidence");
+    expect(html).toContain("chat-bubble chat-bubble--default");
+    expect(html).not.toContain("chat-bubble chat-bubble--default chat-bubble--evidence");
     expect(html).not.toContain("<time");
+  });
+
+  it("marks an agent evidence bubble without dropping the default variant", () => {
+    const html = renderToStaticMarkup(
+      createElement(ConversationMessages, {
+        messages: [
+          message(),
+          message({
+            id: "msg_2",
+            role: "agent",
+            content: "I can help pause that SIP.",
+          }),
+        ],
+        customerName: "Priya",
+        highlightedMessageId: "msg_2",
+      }),
+    );
+
+    expect(html).toContain("chat-bubble chat-bubble--default chat-bubble--evidence");
+    expect(html).toContain("chat-bubble chat-bubble--muted");
+    expect(html).not.toContain("chat-bubble chat-bubble--muted chat-bubble--evidence");
+    expect(html).toContain('data-evidence-match="true"');
   });
 
   it("renders UTC clocks only when asked (drawer)", () => {

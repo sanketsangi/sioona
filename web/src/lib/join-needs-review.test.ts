@@ -705,7 +705,20 @@ describe("missingConversationIds / chat evidence", () => {
     expect(filled[0].evidence).toEqual([
       'quote: "I want to close my account"',
     ]);
-    expect(filled[0].suggestedAction.length).toBeGreaterThan(0);
+    expect(filled[0].suggestedAction).toContain("Priya");
+    expect(filled[0].suggestedAction).toContain("I want to close my account");
+  });
+
+  it("leaves stub action empty when overlay join is missing", () => {
+    const stub = predictionToStubSignal(
+      prediction({ id: "orphan", conversation_id: "conv_missing" })
+    );
+    const filled = applyChatEvidenceToSignals([stub], {
+      conversations: [],
+      messages: [],
+    });
+    expect(filled[0].suggestedAction).toBe("");
+    expect(filled[0].evidence).toEqual([]);
   });
 
   it("does not overwrite JSON evidence", () => {
