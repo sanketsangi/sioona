@@ -16,8 +16,9 @@ type ReviewWalkHeaderProps = {
 };
 
 /**
- * Insights pending-review header: Prev / Next / Skip outline Buttons + J/K.
- * Skip never writes feedback.
+ * Insights review chrome: Prev / Next / Skip outline Buttons + J/K.
+ * Shown for any open ?preview= while pending remains (incl. after Correct /
+ * Acted). Skip never writes feedback; last Skip drops preview → list.
  */
 export function ReviewWalkHeader({
   prevHref,

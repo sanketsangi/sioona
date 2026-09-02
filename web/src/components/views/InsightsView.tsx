@@ -290,16 +290,19 @@ export function InsightsView({
     mode: workspaceMode,
     replaced: jsonKeepSet,
   };
+  // Any open ?preview= while needs-review remains — including after Correct /
+  // Mark as Acted (follow-up / Done origin). Hide only when the pending queue
+  // is empty. Prev/Next/Skip still walk pending (last Skip → list).
   const pendingWalk =
-    previewSignal && previewTriage?.isPendingReview
+    previewSignal && pendingSignals.length > 0
       ? {
-          prevHref: previewTriage.prevPendingPreviewId
+          prevHref: previewTriage?.prevPendingPreviewId
             ? pendingReviewWalkHref({
                 ...walkHrefOpts,
                 previewId: previewTriage.prevPendingPreviewId,
               })
             : null,
-          nextHref: previewTriage.nextPendingPreviewId
+          nextHref: previewTriage?.nextPendingPreviewId
             ? pendingReviewWalkHref({
                 ...walkHrefOpts,
                 previewId: previewTriage.nextPendingPreviewId,
@@ -437,7 +440,7 @@ export function InsightsView({
         }
         review={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
+            <div className="sticky top-0 z-10 flex min-w-0 shrink-0 flex-col gap-3 bg-sio-bg-muted min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
               <div className="min-w-0">
                 {breadcrumbPageLabel ? (
                   <Breadcrumb

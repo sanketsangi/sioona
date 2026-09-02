@@ -1,17 +1,27 @@
 import { NextResponse } from "next/server";
 import { resolveFeedbackSignal } from "@/app/api/signals/[id]/feedback/route";
+import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
 import { decideSupervisedAction, persistSupervisedActions, readStore } from "@/lib/store";
 import {
   findSupervisedAction,
+  HIGH_RETENTION_CONFIDENCE,
   shouldGenerateRetentionEmail,
 } from "@/lib/supervised-actions";
-import type { SupervisedActionDecision } from "@/lib/types";
+import type {
+  Signal,
+  SignalType,
+  StoreData,
+  SupervisedAction,
+  SupervisedActionDecision,
+} from "@/lib/types";
 
 const DECISIONS = new Set<SupervisedActionDecision>([
   "approved",
   "edited",
   "dismissed",
 ]);
+
+const KNOWN_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 
 type ActionBody = {
   decision?: unknown;
@@ -20,6 +30,9 @@ type ActionBody = {
   backendSignalId?: string;
   conversationId?: string;
   type?: unknown;
+  confidence?: unknown;
+  summary?: unknown;
+  evidence?: unknown;
 };
 
 function asDecision(raw: unknown): SupervisedActionDecision | null {
@@ -27,6 +40,97 @@ function asDecision(raw: unknown): SupervisedActionDecision | null {
   return DECISIONS.has(raw as SupervisedActionDecision)
     ? (raw as SupervisedActionDecision)
     : null;
+}
+
+function asSignalType(raw: unknown): SignalType | null {
+  if (typeof raw !== "string") return null;
+  return KNOWN_TYPES.has(raw as SignalType) ? (raw as SignalType) : null;
+}
+
+function asEvidence(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === "string");
+}
+
+function findStoredRetentionAction(
+  store: StoreData,
+  id: string,
+  body: ActionBody,
+): SupervisedAction | undefined {
+  const list = store.supervisedActions ?? [];
+  const bySignal = list.find((action) => action.signalId === id);
+  if (bySignal) return bySignal;
+
+  const backendId = body.backendSignalId?.trim();
+  if (backendId) {
+    const stubId = `sig_neon_${backendId}`;
+    const byBackend = list.find(
+      (action) =>
+        action.signalId === stubId || action.signalId === backendId,
+    );
+    if (byBackend) return byBackend;
+  }
+
+  const conversationId = body.conversationId?.trim();
+  if (!conversationId) return undefined;
+  return list.find(
+    (action) =>
+      action.conversationId === conversationId &&
+      action.type === "retention_email_draft",
+  );
+}
+
+/**
+ * Resolve a JSON signal, or synthesize one for Neon-only stubs when the
+ * JSON row is missing (same hosted drift as feedback / Mark Acted).
+ */
+export function resolveActionSignal(
+  store: StoreData,
+  id: string,
+  body: ActionBody,
+): Signal | undefined {
+  const fromStore = resolveFeedbackSignal(store.signals, id, {
+    backendSignalId: body.backendSignalId,
+    conversationId: body.conversationId,
+    type: asSignalType(body.type) ?? undefined,
+  });
+  if (fromStore) return fromStore;
+
+  const storedAction = findStoredRetentionAction(store, id, body);
+  const conversationId =
+    body.conversationId?.trim() || storedAction?.conversationId;
+  if (!conversationId) return undefined;
+
+  const type = asSignalType(body.type) ?? (storedAction ? "retention" : null);
+  if (!type) return undefined;
+
+  const confidence =
+    typeof body.confidence === "number" && Number.isFinite(body.confidence)
+      ? body.confidence
+      : storedAction
+        ? HIGH_RETENTION_CONFIDENCE
+        : null;
+  if (confidence == null) return undefined;
+
+  const backendSignalId =
+    body.backendSignalId?.trim() ||
+    neonPredictionIdFromStubSignalId(id) ||
+    undefined;
+
+  return {
+    id,
+    tenantId: store.tenant.id,
+    conversationId,
+    type,
+    score: confidence,
+    confidence,
+    summary: typeof body.summary === "string" ? body.summary : "",
+    suggestedAction: "",
+    evidence: asEvidence(body.evidence),
+    status: "new",
+    createdAt: new Date().toISOString(),
+    ...(backendSignalId ? { backendSignalId } : {}),
+  };
 }
 
 /**
@@ -42,11 +146,7 @@ export async function POST(
 
   try {
     const store = await readStore();
-    const signal = resolveFeedbackSignal(store.signals, id, {
-      backendSignalId: body.backendSignalId,
-      conversationId: body.conversationId,
-      type: body.type as "lead" | "retention" | "upsell" | undefined,
-    });
+    const signal = resolveActionSignal(store, id, body);
 
     if (!signal) {
       return NextResponse.json({ error: "Signal not found" }, { status: 404 });

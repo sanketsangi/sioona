@@ -380,7 +380,7 @@ export function SignalReviewSuggestedAction({
       className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
-      <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
+      <InsightsReviewPaneHeader id={headingId} title="Recommended Actions">
         <div className="flex shrink-0 items-center gap-2">
           <Button
             type="button"

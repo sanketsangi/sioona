@@ -161,4 +161,87 @@ describe("POST /api/signals/[id]/action", () => {
     );
     expect(second.status).toBe(409);
   });
+
+  it("approves a Neon-only stub when JSON has no matching signal", async () => {
+    const neonId = "6a007658-d752-4112-ad7e-697c03bf9c79";
+    const stubId = `sig_neon_${neonId}`;
+    const conversationId = "conv_neon_only_retention";
+
+    const generated = await POST(
+      actionRequest(stubId, {
+        backendSignalId: neonId,
+        conversationId,
+        type: "retention",
+        confidence: 0.91,
+        summary: "Close account",
+        evidence: ['quote: "Please close my account"'],
+      }),
+      { params: Promise.resolve({ id: stubId }) },
+    );
+    expect(generated.status).toBe(200);
+
+    const res = await POST(
+      actionRequest(stubId, {
+        decision: "approved",
+        backendSignalId: neonId,
+        conversationId,
+        type: "retention",
+        confidence: 0.91,
+      }),
+      { params: Promise.resolve({ id: stubId }) },
+    );
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { status: string; signalId: string; conversationId: string };
+      sent: boolean;
+    };
+    expect(data.sent).toBe(false);
+    expect(data.action.status).toBe("approved");
+    expect(data.action.signalId).toBe(stubId);
+    expect(data.action.conversationId).toBe(conversationId);
+
+    const store = await readStore();
+    expect(store.signals.some((signal) => signal.id === stubId)).toBe(false);
+    expect(
+      store.supervisedActions?.some(
+        (action) =>
+          action.signalId === stubId && action.status === "approved",
+      ),
+    ).toBe(true);
+  });
+
+  it("decides via stored draft when only conversationId is sent", async () => {
+    const store = await readStore();
+    const conversationId = store.conversations[0]?.id ?? "conv_x";
+    const stubId = "sig_neon_aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    store.supervisedActions = [
+      {
+        id: "act_neon_stored",
+        type: "retention_email_draft",
+        signalId: stubId,
+        conversationId,
+        tenantId: store.tenant.id,
+        subject: "Checking in on your account",
+        body: "Hi there,\n\nStored.\n\nBest regards",
+        generatedSubject: "Checking in on your account",
+        generatedBody: "Hi there,\n\nStored.\n\nBest regards",
+        evidenceQuote: "pause my SIP",
+        status: "pending",
+        createdAt: "2026-09-01T00:00:00.000Z",
+      },
+    ];
+    await writeStore(store);
+
+    const res = await POST(
+      actionRequest(stubId, {
+        decision: "dismissed",
+        conversationId,
+      }),
+      { params: Promise.resolve({ id: stubId }) },
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { action: { status: string } };
+    expect(data.action.status).toBe("dismissed");
+  });
 });

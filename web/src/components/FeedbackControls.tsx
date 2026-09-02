@@ -210,7 +210,7 @@ export function FeedbackControls({
             {canAdvance
               ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
               : isUnactedCorrect
-                ? "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action."
+                ? "Copy Reply, then A / Enter → Mark as Acted (does not send)."
                 : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
           </p>
           <p className="sr-only" aria-live="polite">
@@ -292,20 +292,6 @@ export function FeedbackControls({
               );
             })}
           </div>
-
-          {isUnactedCorrect ? (
-            <div role="status" aria-live="polite">
-              <Note
-                icon={null}
-                className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
-              >
-                <NoteContent className="text-label-12 text-sio-fg-base">
-                  Copy Reply from Suggested Next Action, then Mark Acted (does
-                  not send).
-                </NoteContent>
-              </Note>
-            </div>
-          ) : null}
 
           {needsAdapt ? (
             <div role="status" aria-live="polite">

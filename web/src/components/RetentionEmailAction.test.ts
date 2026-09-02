@@ -48,7 +48,8 @@ describe("RetentionEmailAction", () => {
 
     expect(html).toContain("Retention Email");
     expect(html).toContain("Pending");
-    expect(html).toContain("Approve");
+    expect(html).toContain("Approve Draft");
+    expect(html).not.toContain("Approve &amp; Send");
     expect(html).toContain("Edit");
     expect(html).toContain("Dismiss");
     expect(html).toContain("Evidence");

@@ -20,6 +20,8 @@ function hasExternalId(store: { conversations: { id: string }[] }, id: string) {
 
 describe("runPartnerDemo", () => {
   beforeEach(async () => {
+    vi.stubEnv("DETECT_LLM", "");
+    vi.stubEnv("GROQ_API_KEY", "");
     // Avoid hanging when FastAPI is unreachable (no fetch timeout in client).
     vi.stubGlobal(
       "fetch",
@@ -30,6 +32,7 @@ describe("runPartnerDemo", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
   });
 

@@ -32,9 +32,10 @@ type SignalReviewBodyProps = {
 
 /**
  * Insights review body: Conversation well and review rail as sibling
- * cards (gap-4). Narrow stacks Why → Conversation → Feedback; wide is
- * ~57.25% rail | ~42.75% Conversation. Highlight resets when `signal.id`
- * changes (parent should key this).
+ * cards (gap-4). Narrow stacks Why → Conversation → Retention Email →
+ * Feedback; wide is ~57.25% rail (Why → Retention → Feedback) |
+ * ~42.75% Conversation. Highlight resets when `signal.id` changes
+ * (parent should key this).
  */
 export function SignalReviewBody({
   signal,

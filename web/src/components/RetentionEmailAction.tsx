@@ -74,7 +74,23 @@ export function resolveRetentionEmailAction(
   customerName: string,
   stored?: SupervisedAction | null,
 ): SupervisedAction | null {
-  if (stored) return stored;
+  if (stored) {
+    // Neon stubs may have locked an empty quote before chat evidence joined.
+    // Prefer live signal evidence for display without rewriting decided drafts.
+    if (!stored.evidenceQuote.trim() && signal.evidence.length > 0) {
+      const filled = createRetentionEmailAction({
+        signal,
+        customerName,
+        evidence: signal.evidence,
+        id: stored.id,
+        createdAt: stored.createdAt,
+      });
+      if (filled.evidenceQuote) {
+        return { ...stored, evidenceQuote: filled.evidenceQuote };
+      }
+    }
+    return stored;
+  }
   if (!shouldGenerateRetentionEmail(signal)) return null;
   return createRetentionEmailAction({
     signal,
@@ -341,7 +357,7 @@ export function RetentionEmailAction({
                                 aria-hidden
                               />
                             )}
-                            Approve &amp; Send
+                            Approve Draft
                           </Button>
                         </span>
                       </TooltipTrigger>

@@ -54,7 +54,7 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).toContain("Suggested Next Action");
+    expect(html).toContain("Recommended Actions");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Matched");
     expect(html).toContain(
@@ -66,7 +66,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("btn-secondary min-h-11");
     expect(html).toContain('data-variant="outline"');
     expect(html).toMatch(
-      /Suggested Next Action[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
     );
     expect(html).not.toMatch(
       /Hi Priya, I noticed you said[\s\S]*Copy Reply/,
@@ -290,7 +290,7 @@ describe("SignalReviewSuggestedAction", () => {
       "break-words text-pretty text-copy-16 text-sio-fg-muted",
     );
     expect(html).toMatch(
-      /Suggested Next Action[\s\S]*Copy Reply[\s\S]*Unavailable/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Unavailable/,
     );
   });
 
@@ -351,7 +351,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Suggested Next Action[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya, I noticed you said/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya, I noticed you said/,
     );
     expect(html).not.toMatch(
       /Hi Priya, I noticed you said[\s\S]*Copy Reply/,

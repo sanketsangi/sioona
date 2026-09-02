@@ -294,24 +294,13 @@ export async function persistSupervisedActions(
   extraConversations: Conversation[] = []
 ): Promise<SupervisedAction[]> {
   const store = await readStore();
-  const created = ensureSupervisedActions(
+  const { created, changed } = ensureSupervisedActions(
     store,
     extraSignals,
     extraConversations
   );
-  if (created.length > 0) {
+  if (changed) {
     await writeStore(store);
-  } else {
-    // Rematched signal ids still need a write when an existing draft moved.
-    const rematched = (store.supervisedActions ?? []).some((action) =>
-      extraSignals.some(
-        (signal) =>
-          signal.conversationId === action.conversationId &&
-          signal.id !== action.signalId &&
-          signal.type === "retention"
-      )
-    );
-    if (rematched) await writeStore(store);
   }
   return created;
 }

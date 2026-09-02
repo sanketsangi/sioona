@@ -488,6 +488,8 @@ describe("backendFetch timeout", () => {
 
 describe("getBackendHealth", () => {
   it("GETs /health with the cold-start timeout", async () => {
+    vi.stubEnv("VERCEL", "");
+    vi.stubEnv("BACKEND_URL", "");
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,

@@ -38,7 +38,7 @@ import type { HeaderNotification } from "@/lib/notifications";
 import {
   actionModeHref,
   isActionModeUnlocked,
-  parseView,
+  shadowModeHref,
   type PlatformView,
   type WorkspaceMode,
 } from "@/lib/views";
@@ -197,16 +197,6 @@ function modeTrackStyle(mode: WorkspaceMode): CSSProperties {
     "--seg-thumb-bg": "var(--sio-bg-interactive)",
     "--seg-thumb-radius": "calc(var(--radius-control) - 2px)",
   } as CSSProperties;
-}
-
-/** Shadow href = current query with `mode` stripped (keeps view/filters). */
-function shadowModeHref(searchParams: URLSearchParams): string {
-  const params = new URLSearchParams(searchParams.toString());
-  params.delete("mode");
-  const view = parseView(params.get("view"));
-  params.set("view", view);
-  const qs = params.toString();
-  return qs ? `/?${qs}` : "/?view=insights";
 }
 
 function ModeToggleFallback({

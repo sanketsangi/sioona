@@ -168,6 +168,21 @@ export function actionModeHref(
 }
 
 /**
+ * Shadow Mode toggle href — keep view/filters, strip `mode` and `preview`.
+ * Omitting `preview` matches Action Mode (list landing) and avoids ModeToggle
+ * hydration mismatches when SSR still has `?preview=` but the client URL does not.
+ */
+export function shadowModeHref(searchParams: URLSearchParams): string {
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete("mode");
+  params.delete("preview");
+  const view = parseView(params.get("view"));
+  params.set("view", view);
+  const qs = params.toString();
+  return qs ? `/?${qs}` : "/?view=insights";
+}
+
+/**
  * Status query value for Insights links.
  * Action Mode must write `status=all` explicitly so omitted status does not
  * collapse back to Follow-up via `parseStatusFilter`.
@@ -225,13 +240,18 @@ export function prevPendingPreviewId(
   return pending[start - 1]?.id ?? null;
 }
 
-/** Next needs-review id after `currentId` without wrap (last → null → list). */
+/**
+ * Skip target: next needs-review after `currentId` (no wrap; last → null → list).
+ * Follow-up / Done / Acted origin is not in pending — first pending so Skip
+ * keeps walking the queue instead of jumping to the empty list.
+ */
 export function skipPendingPreviewId(
   pending: { id: string }[],
   currentId: string,
 ): string | null {
+  if (pending.length === 0) return null;
   const start = pending.findIndex((s) => s.id === currentId);
-  if (start < 0) return null;
+  if (start < 0) return pending[0]?.id ?? null;
   return pending[start + 1]?.id ?? null;
 }
 

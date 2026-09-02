@@ -13,6 +13,7 @@ import {
   replacedQueryValue,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
+  shadowModeHref,
   skipPendingPreviewId,
   statusQueryValue,
 } from "./views";
@@ -184,6 +185,33 @@ describe("actionModeHref", () => {
   });
 });
 
+describe("shadowModeHref", () => {
+  it("keeps filters and strips mode plus preview", () => {
+    expect(
+      shadowModeHref(
+        new URLSearchParams(
+          "view=insights&status=followup&preview=sig_neon_abc&mode=action&scoreFrom=2026-08-17",
+        ),
+      ),
+    ).toBe(
+      "/?view=insights&status=followup&scoreFrom=2026-08-17",
+    );
+  });
+
+  it("matches with or without preview in the source query", () => {
+    const withPreview = shadowModeHref(
+      new URLSearchParams(
+        "view=insights&status=followup&preview=sig_neon_abc",
+      ),
+    );
+    const withoutPreview = shadowModeHref(
+      new URLSearchParams("view=insights&status=followup"),
+    );
+    expect(withPreview).toBe(withoutPreview);
+    expect(withPreview).toBe("/?view=insights&status=followup");
+  });
+});
+
 describe("cadenceActionHref", () => {
   it("deep-links Mark Acted to the first Correct follow-up panel", () => {
     expect(
@@ -259,6 +287,10 @@ describe("skipPendingPreviewId", () => {
 
   it("returns null for the last or only pending", () => {
     expect(skipPendingPreviewId([{ id: "solo" }], "solo")).toBeNull();
+  });
+
+  it("points at the first pending when current is follow-up / Done", () => {
+    expect(skipPendingPreviewId(pending, "sig_followup")).toBe("a");
   });
 });
 

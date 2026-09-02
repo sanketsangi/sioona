@@ -174,16 +174,53 @@ function customerNameForSignal(
   );
 }
 
+export type EnsureSupervisedActionsResult = {
+  created: SupervisedAction[];
+  /** True when drafts were created, rematched, or evidence-backfilled. */
+  changed: boolean;
+};
+
+/**
+ * When a pending draft was created before chat evidence was available
+ * (Neon stubs), fill the quote and regenerate the unedited body.
+ */
+function backfillPendingRetentionEvidence(
+  action: SupervisedAction,
+  signal: Pick<Signal, "evidence">,
+  customerName: string | null | undefined,
+): boolean {
+  if (action.status !== "pending") return false;
+  if (action.evidenceQuote.trim()) return false;
+  const draft = composeRetentionEmailDraft({
+    customerName,
+    evidence: signal.evidence,
+  });
+  if (!draft.evidenceQuote) return false;
+
+  const unedited =
+    action.subject.trim() === action.generatedSubject.trim() &&
+    action.body.trim() === action.generatedBody.trim();
+  action.evidenceQuote = draft.evidenceQuote;
+  if (unedited) {
+    action.subject = draft.subject;
+    action.body = draft.body;
+    action.generatedSubject = draft.subject;
+    action.generatedBody = draft.body;
+  }
+  return true;
+}
+
 /**
  * Create missing retention-email drafts for high-confidence retention
  * signals. Existing drafts (pending or decided) are rematched to the
- * live signal id and never regenerated.
+ * live signal id and never regenerated. Pending drafts with an empty
+ * evidence quote are backfilled when chat evidence is now available.
  */
 export function ensureSupervisedActions(
   store: StoreData,
   extraSignals: Signal[] = [],
   extraConversations: Conversation[] = [],
-): SupervisedAction[] {
+): EnsureSupervisedActionsResult {
   const conversations = [...store.conversations, ...extraConversations];
   const seenSignalIds = new Set<string>();
   const candidates: Signal[] = [];
@@ -200,6 +237,7 @@ export function ensureSupervisedActions(
 
   const created: SupervisedAction[] = [];
   const logs = [...(store.actionLogs ?? [])];
+  let changed = false;
 
   for (const signal of candidates) {
     if (!shouldGenerateRetentionEmail(signal)) continue;
@@ -208,6 +246,14 @@ export function ensureSupervisedActions(
     if (existing) {
       if (existing.signalId !== signal.id) {
         existing.signalId = signal.id;
+        changed = true;
+      }
+      const name = customerNameForSignal(
+        conversations,
+        signal.conversationId,
+      );
+      if (backfillPendingRetentionEvidence(existing, signal, name)) {
+        changed = true;
       }
       continue;
     }
@@ -218,6 +264,7 @@ export function ensureSupervisedActions(
     });
     byKey.set(key, action);
     created.push(action);
+    changed = true;
     logs.push(buildActionLogEvent(action, "generated"));
     logSupervisedAction("generated", action);
   }
@@ -230,7 +277,7 @@ export function ensureSupervisedActions(
     ...created,
   ];
   store.actionLogs = logs;
-  return created;
+  return { created, changed };
 }
 
 export function draftChangedFromGenerated(action: SupervisedAction): boolean {

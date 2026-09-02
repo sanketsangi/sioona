@@ -445,12 +445,15 @@
 
   /*
    * Insights review: one panel. Phone/tablet stack Why → transcript well →
-   * Feedback (`.insights-review-split` scrolls when Why+Feedback+GT overflow;
-   * rail is display:contents). Laptop+ splits rail | Conversation; the rail
-   * is the only left-column scroller. Suggested Next Action hugs Why/Matched
-   * (no inner card scrollbar). Conversation well / `.insights-review-chat-body`
-   * hug the thread. Wide: well caps at the column and the body scrolls.
-   * Stacked: well stays content-sized; the split scrolls when the stack overflows.
+   * Retention Email → Feedback (`.insights-review-split` scrolls when the stack
+   * overflows; rail is display:contents). Laptop+ splits rail | Conversation;
+   * the rail is the only left-column scroller (Why → Retention Email → Feedback).
+   * Suggested Next Action / Retention Email hug content (no inner card scrollbar).
+   * Conversation well / `.insights-review-chat-body` hug the thread. Wide: well
+   * caps at the column and the body scrolls. Stacked: well stays content-sized;
+   * the split scrolls when the stack overflows.
+   * Rail / stacked-split keep overflow scroll but hide scrollbar chrome so
+   * Feedback / GT stay reachable without a visible gutter.
    */
   .insights-review {
     container-type: inline-size;
@@ -473,10 +476,21 @@
     overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
   .insights-review-rail {
     display: contents;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .insights-review-split::-webkit-scrollbar,
+  .insights-review-rail::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -520,8 +534,16 @@
     background: var(--sio-bg-base);
   }
 
-  .insights-review-split [data-review-slot="feedback"] {
+  .insights-review-split [data-review-slot="retention-email"] {
     order: 3;
+    min-width: 0;
+    min-height: min-content;
+    height: max-content;
+    flex: 0 0 auto;
+  }
+
+  .insights-review-split [data-review-slot="feedback"] {
+    order: 4;
     min-width: 0;
     min-height: min-content;
     flex: 0 0 auto;
@@ -592,6 +614,7 @@
     }
 
     .insights-review-rail > [data-review-slot="why"],
+    .insights-review-rail > [data-review-slot="retention-email"],
     .insights-review-rail > [data-review-slot="feedback"] {
       flex: 0 0 auto;
     }

@@ -15,7 +15,10 @@ import {
   type TenantSignalsResult,
 } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
-import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
+import {
+  fetchOverlayConversations,
+  mergeOverlayChats,
+} from "@/lib/hydrate-conversations";
 import { persistDeferredPredictionSync } from "@/lib/defer-prediction-sync";
 import {
   platformPageFetches,
@@ -24,6 +27,7 @@ import {
   shouldDeferHomepagePredictionSync,
 } from "@/lib/platform-page-data";
 import {
+  applyChatEvidenceToSignals,
   filterPendingWithChat,
   followUpSignals,
   keepSetConversationIds,
@@ -240,12 +244,24 @@ export default async function PlatformPage({
         )
       : null;
   if (fetches.insightsQueue) {
-    const created = ensureSupervisedActions(
-      store,
-      [...pendingRaw, ...reviewedForCadence],
-      overlayChats?.conversations ?? []
+    // Fill Neon-stub evidence from overlay chats BEFORE drafting so
+    // retention emails lock in quotes (not empty "No local evidence").
+    const chats = mergeOverlayChats(
+      store.conversations,
+      store.messages,
+      jsonKeepSet ? null : overlayChats,
     );
-    if (created.length > 0) {
+    const ensureCandidates = applyChatEvidenceToSignals(
+      [...pendingRaw, ...reviewedForCadence],
+      chats,
+      store.taxonomyOverrides,
+    );
+    const { changed } = ensureSupervisedActions(
+      store,
+      ensureCandidates,
+      chats.conversations,
+    );
+    if (changed) {
       await writeStore(store);
     }
   }

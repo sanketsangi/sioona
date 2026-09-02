@@ -93,7 +93,8 @@ describe("ensureSupervisedActions", () => {
   it("creates one pending draft and logs generated", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const store = emptyStore([signal()]);
-    const created = ensureSupervisedActions(store);
+    const { created, changed } = ensureSupervisedActions(store);
+    expect(changed).toBe(true);
     expect(created).toHaveLength(1);
     expect(created[0].type).toBe("retention_email_draft");
     expect(created[0].status).toBe("pending");
@@ -112,8 +113,9 @@ describe("ensureSupervisedActions", () => {
     const store = emptyStore([signal()]);
     ensureSupervisedActions(store);
     const first = store.supervisedActions?.[0];
-    const created = ensureSupervisedActions(store);
+    const { created, changed } = ensureSupervisedActions(store);
     expect(created).toHaveLength(0);
+    expect(changed).toBe(false);
     expect(store.supervisedActions).toHaveLength(1);
     expect(store.supervisedActions?.[0]).toEqual(first);
     expect(store.actionLogs).toHaveLength(1);
@@ -128,7 +130,7 @@ describe("ensureSupervisedActions", () => {
         confidence: 0.4,
       }),
     ]);
-    expect(ensureSupervisedActions(store)).toHaveLength(0);
+    expect(ensureSupervisedActions(store).created).toHaveLength(0);
     expect(store.supervisedActions).toHaveLength(0);
   });
 
@@ -137,19 +139,37 @@ describe("ensureSupervisedActions", () => {
     ensureSupervisedActions(store);
     const next = signal({ id: "sig_ret_2" });
     store.signals = [next];
-    const created = ensureSupervisedActions(store);
+    const { created, changed } = ensureSupervisedActions(store);
     expect(created).toHaveLength(0);
+    expect(changed).toBe(true);
     expect(store.supervisedActions?.[0].signalId).toBe("sig_ret_2");
     expect(findSupervisedAction(store.supervisedActions, next)?.id).toBe(
       store.supervisedActions?.[0].id,
     );
+  });
+
+  it("backfills empty pending evidence quote when signal evidence arrives", () => {
+    const store = emptyStore([signal({ evidence: [] })]);
+    const { created } = ensureSupervisedActions(store);
+    expect(created[0].evidenceQuote).toBe("");
+    store.signals = [
+      signal({
+        evidence: ['quote: "Please close my account"'],
+      }),
+    ];
+    const { created: again, changed } = ensureSupervisedActions(store);
+    expect(again).toHaveLength(0);
+    expect(changed).toBe(true);
+    const draft = store.supervisedActions?.[0];
+    expect(draft?.evidenceQuote).toBe("Please close my account");
+    expect(draft?.body).toContain("Please close my account");
   });
 });
 
 describe("applySupervisedActionDecision", () => {
   it("records approved when the generated draft is unchanged", () => {
     const store = emptyStore([signal()]);
-    const [action] = ensureSupervisedActions(store);
+    const [action] = ensureSupervisedActions(store).created;
     const result = applySupervisedActionDecision(store, action.id, "approved");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -163,7 +183,7 @@ describe("applySupervisedActionDecision", () => {
 
   it("records edited when the body changed before approve", () => {
     const store = emptyStore([signal()]);
-    const [action] = ensureSupervisedActions(store);
+    const [action] = ensureSupervisedActions(store).created;
     const result = applySupervisedActionDecision(store, action.id, "approved", {
       body: `${action.body}\n\nP.S. Happy to stay late today.`,
     });
@@ -175,7 +195,7 @@ describe("applySupervisedActionDecision", () => {
 
   it("records dismissed without sending", () => {
     const store = emptyStore([signal()]);
-    const [action] = ensureSupervisedActions(store);
+    const [action] = ensureSupervisedActions(store).created;
     const result = applySupervisedActionDecision(store, action.id, "dismissed");
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -185,7 +205,7 @@ describe("applySupervisedActionDecision", () => {
 
   it("rejects a second decision", () => {
     const store = emptyStore([signal()]);
-    const [action] = ensureSupervisedActions(store);
+    const [action] = ensureSupervisedActions(store).created;
     applySupervisedActionDecision(store, action.id, "dismissed");
     expect(
       applySupervisedActionDecision(store, action.id, "approved"),

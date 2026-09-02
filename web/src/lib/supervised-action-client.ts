@@ -30,6 +30,9 @@ export async function postSupervisedAction(
         : {}),
       conversationId: signal.conversationId,
       type: signal.type,
+      confidence: signal.confidence,
+      summary: signal.summary,
+      evidence: signal.evidence,
     }),
   });
 

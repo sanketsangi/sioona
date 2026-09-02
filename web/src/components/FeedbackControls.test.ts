@@ -99,11 +99,11 @@ describe("FeedbackControls", () => {
     expect(html).toContain("bg-sio-status-success-bg text-sio-status-success-fg");
     expect(html).toContain("aria-pressed=\"true\"");
     expect(html).toContain(
-      "C / I / P shortcuts · A / Enter → Mark as Acted on Suggested Next Action.",
+      "Copy Reply, then A / Enter → Mark as Acted (does not send).",
     );
     expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
     expect(html).not.toContain("text-label-12 text-sio-fg-muted");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );
     expect(html.match(/data-slot="card"/g)?.length).toBe(1);
