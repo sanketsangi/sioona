@@ -24,6 +24,7 @@ vi.mock("@/components/views/TaxonomyView", () => ({
 
 vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
+  loadStore: vi.fn(),
   writeStore: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -43,6 +44,14 @@ vi.mock("@/lib/hydrate-conversations", () => ({
   fetchOverlayConversations: vi.fn().mockResolvedValue(null),
 }));
 
+vi.mock("next/server", () => ({
+  after: vi.fn(),
+}));
+
+vi.mock("@/lib/defer-prediction-sync", () => ({
+  persistDeferredPredictionSync: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/sync-pilot", () => ({
   refreshStorePilotFromNeon: vi.fn(async (store: StoreData) => store),
   persistHealedPilot: vi.fn().mockResolvedValue(undefined),
@@ -53,7 +62,8 @@ import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
-import { readStore } from "@/lib/store";
+import { loadStore } from "@/lib/store";
+import { after } from "next/server";
 
 function pageShellProps(result: ReactElement) {
   return result.props as {
@@ -86,6 +96,10 @@ function insightsViewProps(result: ReactElement): {
     }
   }
   throw new Error("InsightsView props not found in AppShell children");
+}
+
+function stubStore(store: StoreData, coldStart = false) {
+  vi.mocked(loadStore).mockResolvedValue({ store, coldStart });
 }
 
 function mockStore(
@@ -149,7 +163,7 @@ function mockStore(
 
 describe("PlatformPage deploy reliability", () => {
   beforeEach(() => {
-    vi.mocked(readStore).mockResolvedValue(mockStore());
+    stubStore(mockStore());
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: false,
       error: "ECONNREFUSED",
@@ -184,7 +198,7 @@ describe("PlatformPage deploy reliability", () => {
   });
 
   it("hides sync-failed when URL is stale but store is fully dual-written", async () => {
-    vi.mocked(readStore).mockResolvedValue(
+    stubStore(
       mockStore([
         {
           id: "sig_a",
@@ -232,7 +246,7 @@ describe("PlatformPage deploy reliability", () => {
   });
 
   it("falls back to local unreviewed count when needs-review fails", async () => {
-    vi.mocked(readStore).mockResolvedValue(
+    stubStore(
       mockStore([
         {
           id: "sig_reviewed",
@@ -349,7 +363,7 @@ describe("PlatformPage deploy reliability", () => {
       partially_correct_count: 0,
       by_signal_type: [],
     });
-    vi.mocked(readStore).mockResolvedValue(
+    stubStore(
       mockStore([
         {
           id: "sig_follow",
@@ -435,7 +449,7 @@ describe("PlatformPage deploy reliability", () => {
       messages: [],
     });
     vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
-    vi.mocked(readStore).mockResolvedValue(mockStore([]));
+    stubStore(mockStore([]));
 
     await PlatformPage({
       searchParams: Promise.resolve({ view: "eval" }),
@@ -465,7 +479,7 @@ describe("PlatformPage deploy reliability", () => {
     });
     vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
     vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
-    vi.mocked(readStore).mockResolvedValue(mockStore([]));
+    stubStore(mockStore([]));
 
     await PlatformPage({
       searchParams: Promise.resolve({ view: "insights", status: "new" }),
@@ -492,7 +506,7 @@ describe("PlatformPage deploy reliability", () => {
       ],
     });
     vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
-    vi.mocked(readStore).mockResolvedValue(mockStore([]));
+    stubStore(mockStore([]));
 
     await PlatformPage({
       searchParams: Promise.resolve({ view: "eval" }),
@@ -535,5 +549,65 @@ describe("PlatformPage deploy reliability", () => {
     expect(vi.mocked(fetchSignalScoreSafe).mock.calls[0]?.[2]).toEqual({
       dateFrom: expect.anything(),
     });
+  });
+
+  it("never awaits POST /v1/predictions on GET / (loadStore skips dual-write)", async () => {
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    });
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "upload" }),
+    });
+
+    expect(loadStore).toHaveBeenCalledWith({ syncPredictions: false });
+    expect(loadStore).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not schedule deferred prediction sync on Upload/Taxonomy even on cold start", async () => {
+    stubStore(mockStore(), true);
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "upload" }),
+    });
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "taxonomy" }),
+    });
+
+    expect(after).not.toHaveBeenCalled();
+  });
+
+  it("schedules deferred prediction sync on Insights/Eval cold start only", async () => {
+    stubStore(mockStore(), true);
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    });
+    expect(after).toHaveBeenCalledTimes(1);
+
+    vi.mocked(after).mockClear();
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "eval" }),
+    });
+    expect(after).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not schedule deferred prediction sync on Insights warm start", async () => {
+    stubStore(mockStore(), false);
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    });
+
+    expect(after).not.toHaveBeenCalled();
   });
 });

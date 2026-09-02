@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { EvalView } from "@/components/views/EvalView";
@@ -15,7 +16,11 @@ import {
 } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
-import { platformPageFetches } from "@/lib/platform-page-data";
+import { persistDeferredPredictionSync } from "@/lib/defer-prediction-sync";
+import {
+  platformPageFetches,
+  shouldDeferHomepagePredictionSync,
+} from "@/lib/platform-page-data";
 import {
   filterPendingWithChat,
   followUpSignals,
@@ -43,7 +48,7 @@ import {
   nextPilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
-import { readStore } from "@/lib/store";
+import { loadStore } from "@/lib/store";
 import {
   persistHealedPilot,
   refreshStorePilotFromNeon,
@@ -144,7 +149,6 @@ export default async function PlatformPage({
   }
 
   const previewId = sp.preview ?? null;
-  const storeRaw = await readStore();
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
   const wipeFailed = sp.wipeFailed === "1";
@@ -157,6 +161,20 @@ export default async function PlatformPage({
   const fetches = platformPageFetches(view);
   const skippedNeedsReview: NeedsReviewResult = { ok: true, predictions: [] };
   const skippedTenantSignals: TenantSignalsResult = { ok: true, rows: [] };
+  // Never await POST /v1/predictions on GET / — Insights/Eval first paint
+  // uses GET needs-review / GET signals. Dual-write runs after the response
+  // on cold start only.
+  const { store: storeRaw, coldStart } = await loadStore({
+    syncPredictions: false,
+  });
+  if (shouldDeferHomepagePredictionSync(fetches.predictionSync, coldStart)) {
+    after(() => {
+      void persistDeferredPredictionSync(storeRaw.tenant.id).catch((err) => {
+        const detail = err instanceof Error ? err.message : "unknown error";
+        console.warn(`[defer-prediction-sync] ${detail}`);
+      });
+    });
+  }
 
   const [store, queuePair] = await Promise.all([
     refreshStorePilotFromNeon(storeRaw),

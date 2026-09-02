@@ -259,6 +259,16 @@ describe("applyNeonFeedbackToSignals", () => {
     expect(joined[0]?.status).toBe("reviewed");
   });
 
+  it("copies backendSignalId from unreviewed Neon rows without inventing feedback", () => {
+    const joined = applyNeonFeedbackToSignals(
+      [detectedSignal],
+      [{ ...neonReviewed, feedback: null }]
+    );
+    expect(joined[0]?.backendSignalId).toBe("pred-hydrated-1");
+    expect(joined[0]?.feedback).toBeUndefined();
+    expect(joined[0]?.status).toBe("new");
+  });
+
   it("sets acted when Neon acted is true", () => {
     const joined = applyNeonFeedbackToSignals(
       [{ ...detectedSignal, backendSignalId: "pred-hydrated-1" }],
@@ -298,6 +308,34 @@ describe("applyConversationGroundTruthToSignals", () => {
 describe("tryHydrateStoreFromNeon", () => {
   beforeEach(() => {
     vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
+  });
+
+  it("skips POST /v1/predictions when syncPredictions is false and still attaches Neon ids", async () => {
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow(),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [detectedSignal],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    const syncSpy = vi.spyOn(syncPredictions, "syncPredictionsToBackend");
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([
+      { ...neonReviewed, feedback: null },
+    ]);
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon({ syncPredictions: false });
+
+    expect(syncSpy).not.toHaveBeenCalled();
+    expect(result?.signals[0].backendSignalId).toBe("pred-hydrated-1");
+    expect(result?.signals[0].feedback).toBeUndefined();
   });
 
   it("detects, syncs predictions, and writes store without conversation upsert", async () => {
