@@ -8,12 +8,15 @@ import {
   mergeTaxonomyOverrides,
   readStore,
   replaceSignalsPreservingFeedback,
-  resetStoreWithWipe,
   setPilotBaseline,
   writeStore,
   type TaxonomyOverrideField,
 } from "@/lib/store";
-import { partnerDemoCompleteEvent, runPartnerDemo } from "@/lib/demo";
+import {
+  partnerDemoCompleteEvent,
+  runPartnerDemo,
+  runResetDemo,
+} from "@/lib/demo";
 import {
   encodePartnerDemoNdjsonLine,
   PARTNER_DEMO_NDJSON_CONTENT_TYPE,
@@ -24,6 +27,8 @@ import type { SignalType, StoreData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+/** Wipe + detect + dual-write can run several minutes; stream ticks keep the browser fetch alive. */
+export const maxDuration = 300;
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
 const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
@@ -32,12 +37,50 @@ const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
   "negativePhrases",
 ];
 
-function wipeExtras(wipe: { ok: boolean; error?: string }) {
-  if (wipe.ok) return {};
-  return {
-    wipeFailed: true as const,
-    wipeError: wipe.error ?? "Signal Score backend unreachable",
-  };
+function streamShowcaseNdjson(
+  run: (
+    send: (event: PartnerDemoStreamEvent) => Promise<void>
+  ) => Promise<void>,
+  fallbackError: string
+): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = async (event: PartnerDemoStreamEvent) => {
+        try {
+          controller.enqueue(
+            encoder.encode(encodePartnerDemoNdjsonLine(event))
+          );
+        } catch {
+          // Client disconnected (browser timeout / navigation). Keep wipe+seed
+          // running so Neon is not left empty with a stale JSON store.
+          return;
+        }
+        if (event.type === "progress") {
+          await new Promise<void>((resolve) => {
+            setImmediate(resolve);
+          });
+        }
+      };
+      try {
+        await run(send);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : fallbackError;
+        await send({ type: "error", error: message });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": PARTNER_DEMO_NDJSON_CONTENT_TYPE,
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
 
 async function redetectWithOverrides(store: StoreData): Promise<{
@@ -80,52 +123,25 @@ export async function POST(request: Request) {
   };
 
   if (body.action === "reset") {
-    const { store, wipe } = await resetStoreWithWipe();
-    return NextResponse.json({
-      ...store,
-      signals: sortSignals(store.signals),
-      ...wipeExtras(wipe),
-    });
+    return streamShowcaseNdjson(async (send) => {
+      const result = await runResetDemo({
+        onProgress: async (event) => {
+          await send({ type: "progress", ...event });
+        },
+      });
+      await send(partnerDemoCompleteEvent(result));
+    }, "Reset failed");
   }
 
   if (body.action === "partner_demo") {
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        const send = (event: PartnerDemoStreamEvent) => {
-          controller.enqueue(
-            encoder.encode(encodePartnerDemoNdjsonLine(event))
-          );
-        };
-        try {
-          const result = await runPartnerDemo({
-            onProgress: async (event) => {
-              send({ type: "progress", ...event });
-              if (event.step === "detect") {
-                await new Promise<void>((resolve) => {
-                  setImmediate(resolve);
-                });
-              }
-            },
-          });
-          send(partnerDemoCompleteEvent(result));
-        } catch (error) {
-          const message =
-            error instanceof Error ? error.message : "Partner demo failed";
-          send({ type: "error", error: message });
-        } finally {
-          controller.close();
-        }
-      },
-    });
-    return new Response(stream, {
-      status: 200,
-      headers: {
-        "Content-Type": PARTNER_DEMO_NDJSON_CONTENT_TYPE,
-        "Cache-Control": "no-cache, no-transform",
-        "X-Accel-Buffering": "no",
-      },
-    });
+    return streamShowcaseNdjson(async (send) => {
+      const result = await runPartnerDemo({
+        onProgress: async (event) => {
+          await send({ type: "progress", ...event });
+        },
+      });
+      await send(partnerDemoCompleteEvent(result));
+    }, "Partner demo failed");
   }
 
   if (body.action === "set_baseline") {

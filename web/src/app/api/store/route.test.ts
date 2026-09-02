@@ -36,19 +36,27 @@ describe("POST /api/store reset", () => {
         body: JSON.stringify({ action: "reset" }),
       })
     );
-    const body = (await res.json()) as {
-      conversations: unknown[];
-      wipeFailed?: boolean;
-      wipeError?: string;
-      taxonomyOverrides?: unknown;
-    };
 
     expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/ndjson/);
+
+    const events = await readPartnerDemoNdjsonEvents(res);
     expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
-    expect(body.conversations).toHaveLength(EXPECTED_TESTING_JSON.conversations);
-    expect(body.taxonomyOverrides).toEqual({});
-    expect(body.wipeFailed).toBe(true);
-    expect(body.wipeError).toMatch(/unreachable/i);
+    expect(partnerDemoStepSequence(events)).toEqual([
+      "wipe",
+      "detect",
+      "sync_chats",
+      "sync_signals",
+    ]);
+    const complete = events.at(-1);
+    expect(complete?.type).toBe("complete");
+    if (complete?.type !== "complete") return;
+    expect(complete.importedConversations).toBe(
+      EXPECTED_TESTING_JSON.conversations
+    );
+    expect(complete.wipeFailed).toBe(true);
+    expect(complete.wipeError).toMatch(/unreachable/i);
+    expect(events.some((event) => "conversations" in event)).toBe(false);
   });
 
   it("omits wipeFailed when Neon wipe succeeds", async () => {
@@ -67,15 +75,17 @@ describe("POST /api/store reset", () => {
         body: JSON.stringify({ action: "reset" }),
       })
     );
-    const body = (await res.json()) as {
-      wipeFailed?: boolean;
-      conversations: unknown[];
-    };
-
     expect(res.status).toBe(200);
+
+    const events = await readPartnerDemoNdjsonEvents(res);
     expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
-    expect(body.wipeFailed).toBeUndefined();
-    expect(body.conversations).toHaveLength(EXPECTED_TESTING_JSON.conversations);
+    const complete = events.at(-1);
+    expect(complete?.type).toBe("complete");
+    if (complete?.type !== "complete") return;
+    expect(complete.wipeFailed).toBeUndefined();
+    expect(complete.importedConversations).toBe(
+      EXPECTED_TESTING_JSON.conversations
+    );
   });
 
   it("rejects unknown actions and invalid baseline values", async () => {

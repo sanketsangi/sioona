@@ -168,6 +168,12 @@ export function partnerDemoStatusLabel(event: PartnerDemoProgress): string {
   }
 }
 
+/** Same pipeline as Partner Demo; wipe copy matches the Reset button. */
+export function resetDemoStatusLabel(event: PartnerDemoProgress): string {
+  if (event.step === "wipe") return "Resetting…";
+  return partnerDemoStatusLabel(event);
+}
+
 /** Collapse consecutive progress ticks into the named pipeline order. */
 export function partnerDemoStepSequence(
   events: Array<{ type?: string; step?: PartnerDemoStep }>
@@ -186,16 +192,23 @@ export function isPartnerDemoNdjsonResponse(response: Response): boolean {
   return contentType.includes("ndjson") || contentType.includes("event-stream");
 }
 
-async function jsonErrorMessage(response: Response): Promise<string> {
+async function jsonErrorMessage(
+  response: Response,
+  failedMessage: string
+): Promise<string> {
   const data = (await response.json().catch(() => ({}))) as { error?: string };
-  return data.error || "Demo failed";
+  return data.error || failedMessage;
 }
 
 export async function readPartnerDemoNdjsonEvents(
-  response: Response
+  response: Response,
+  failedMessage = "Demo failed"
 ): Promise<PartnerDemoStreamEvent[]> {
   const events: PartnerDemoStreamEvent[] = [];
-  for await (const event of iteratePartnerDemoNdjson(response)) {
+  for await (const event of iteratePartnerDemoNdjson(
+    response,
+    failedMessage
+  )) {
     events.push(event);
   }
   return events;
@@ -205,10 +218,15 @@ export async function consumePartnerDemoNdjson(
   response: Response,
   options?: {
     onProgress?: (event: PartnerDemoProgressEvent) => void;
+    failedMessage?: string;
   }
 ): Promise<PartnerDemoCompleteEvent> {
+  const failedMessage = options?.failedMessage ?? "Demo failed";
   let complete: PartnerDemoCompleteEvent | undefined;
-  for await (const event of iteratePartnerDemoNdjson(response)) {
+  for await (const event of iteratePartnerDemoNdjson(
+    response,
+    failedMessage
+  )) {
     if (event.type === "progress") {
       options?.onProgress?.(event);
       continue;
@@ -218,21 +236,24 @@ export async function consumePartnerDemoNdjson(
     }
     complete = event;
   }
-  if (!complete) throw new Error("Demo failed");
+  if (!complete) throw new Error(failedMessage);
   return complete;
 }
 
 async function* iteratePartnerDemoNdjson(
-  response: Response
+  response: Response,
+  failedMessage = "Demo failed"
 ): AsyncGenerator<PartnerDemoStreamEvent> {
   if (!response.body) {
     throw new Error(
-      response.ok ? "Demo failed" : await jsonErrorMessage(response)
+      response.ok
+        ? failedMessage
+        : await jsonErrorMessage(response, failedMessage)
     );
   }
 
   if (!response.ok && !isPartnerDemoNdjsonResponse(response)) {
-    throw new Error(await jsonErrorMessage(response));
+    throw new Error(await jsonErrorMessage(response, failedMessage));
   }
 
   const reader = response.body.getReader();
@@ -246,10 +267,10 @@ async function* iteratePartnerDemoNdjson(
     try {
       raw = JSON.parse(trimmed);
     } catch {
-      throw new Error("Demo failed");
+      throw new Error(failedMessage);
     }
     const event = parsePartnerDemoStreamEvent(raw);
-    if (!event) throw new Error("Demo failed");
+    if (!event) throw new Error(failedMessage);
     return event;
   };
 

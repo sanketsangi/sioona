@@ -1,6 +1,9 @@
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import { getPilotSettings } from "./backend-client";
-import { loadZerodhaBatch02IntoStore } from "./load-testing-json-store";
+import {
+  loadTestingJsonIntoStore,
+  loadZerodhaBatch02IntoStore,
+} from "./load-testing-json-store";
 import {
   DEMO_BASELINE_OPPORTUNITIES,
   isColdDemoBaseline,
@@ -115,6 +118,45 @@ export async function runPartnerDemo(
 
   return {
     store,
+    importedConversations: loaded.importedConversations,
+    newSignals: loaded.newSignals,
+    samples: loaded.samples,
+    baselineOpportunities,
+    opportunityLift: sioonaOpportunities - baselineOpportunities,
+    predictionSync: loaded.predictionSync,
+    conversationSync: loaded.conversationSync,
+    detectLlm: loaded.detectLlm,
+    wipe,
+  };
+}
+
+/**
+ * Wipe Neon for this tenant (fail-soft), then replace the JSON store with
+ * Groww testing.json (Reset Demo). Dual-writes chats + predictions. Does not
+ * apply the Partner Demo cold-demo baseline. Empty taxonomyOverrides.
+ */
+export async function runResetDemo(
+  options?: PartnerDemoOptions
+): Promise<PartnerDemoResult> {
+  const tenantId = emptyShowcaseStore.tenant.id;
+  const report = options?.onProgress;
+  await report?.({ step: "wipe", done: 0, total: 1 });
+  const wipe = await wipeTenantDataFailSoft(tenantId);
+  await report?.({ step: "wipe", done: 1, total: 1 });
+  const loaded = await loadTestingJsonIntoStore({
+    applyDemoBaseline: false,
+    syncPredictions: true,
+    onProgress: report,
+  });
+
+  const sioonaOpportunities = new Set(
+    loaded.store.signals.map((s) => s.conversationId)
+  ).size;
+  const baselineOpportunities =
+    loaded.store.pilot?.baselineOpportunities ?? 0;
+
+  return {
+    store: loaded.store,
     importedConversations: loaded.importedConversations,
     newSignals: loaded.newSignals,
     samples: loaded.samples,

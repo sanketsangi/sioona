@@ -7,6 +7,7 @@ import {
   partnerDemoStatusLabel,
   partnerDemoStepSequence,
   readPartnerDemoNdjsonEvents,
+  resetDemoStatusLabel,
   type PartnerDemoCompleteEvent,
   type PartnerDemoStreamEvent,
 } from "./partner-demo-progress";
@@ -67,6 +68,17 @@ describe("partnerDemoStatusLabel", () => {
     expect(
       partnerDemoStatusLabel({ step: "sync_signals", done: 4, total: 14 })
     ).toBe("Extracting…");
+  });
+});
+
+describe("resetDemoStatusLabel", () => {
+  it("names wipe as Resetting… and reuses later steps", () => {
+    expect(resetDemoStatusLabel({ step: "wipe", done: 0, total: 1 })).toBe(
+      "Resetting…"
+    );
+    expect(
+      resetDemoStatusLabel({ step: "detect", done: 12, total: 100 })
+    ).toBe("Finding signals…");
   });
 });
 
@@ -169,6 +181,13 @@ describe("consumePartnerDemoNdjson", () => {
         })
       )
     ).rejects.toThrow("Demo failed");
+
+    await expect(
+      consumePartnerDemoNdjson(
+        new Response(null, { status: 500 }),
+        { failedMessage: "Reset failed" }
+      )
+    ).rejects.toThrow("Reset failed");
   });
 
   it("reads a split NDJSON buffer without dropping the last line", async () => {

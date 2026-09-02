@@ -7,6 +7,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { ChartLineUpIcon } from "@/components/icons/ChartLineUpIcon";
+import { FileIcon } from "@/components/icons/FileIcon";
 import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
 import { GuidanceDialog } from "@/components/GuidanceDialog";
@@ -86,6 +87,36 @@ function WorkspaceNav({
   );
 }
 
+function VaultNav({ lastUploadedFileName }: { lastUploadedFileName?: string }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+  const filename = lastUploadedFileName?.trim() || undefined;
+
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>Vault</SidebarGroupLabel>
+      <SidebarMenu>
+        {filename ? (
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip={filename}>
+              <Link
+                href={viewHref("upload")}
+                title={filename}
+                translate="no"
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                }}
+              >
+                <FileIcon className="size-4 shrink-0 text-sio-fg-base" />
+                <span className="min-w-0 truncate">{filename}</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        ) : null}
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
 function SidebarBrand() {
   const { isMobile, setOpenMobile } = useSidebar();
 
@@ -143,10 +174,12 @@ function AppSidebarFooter() {
 export function AppSidebar({
   activeView,
   detailOpen = false,
+  lastUploadedFileName,
   ...props
 }: ComponentProps<typeof Sidebar> & {
   activeView: PlatformView;
   detailOpen?: boolean;
+  lastUploadedFileName?: string;
 }) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -155,6 +188,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <WorkspaceNav activeView={activeView} detailOpen={detailOpen} />
+        <VaultNav lastUploadedFileName={lastUploadedFileName} />
       </SidebarContent>
       <SidebarFooter>
         <AppSidebarFooter />

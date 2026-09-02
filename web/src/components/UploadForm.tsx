@@ -296,7 +296,7 @@ export function UploadForm({
                 className="btn-secondary rounded-[var(--radius-panel)]"
                 onErrorChange={onDemoErrorChange}
               />
-              <ResetDemoButton />
+              <ResetDemoButton onErrorChange={onDemoErrorChange} />
             </>
           )}
           <div
@@ -330,7 +330,7 @@ export function UploadForm({
         {demoError ? (
           <div className="status-banner status-banner-warning" role="alert">
             <p className="text-copy-14 text-sio-fg-base" aria-live="polite">
-              {demoError}. Try Run Partner Demo again.
+              {demoError}. Try again.
             </p>
           </div>
         ) : null}

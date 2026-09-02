@@ -42,7 +42,11 @@ export function AppShell({
         Skip to content
       </a>
 
-      <AppSidebar activeView={activeView} detailOpen={detailOpen} />
+      <AppSidebar
+        activeView={activeView}
+        detailOpen={detailOpen}
+        lastUploadedFileName={lastUploadedFileName}
+      />
 
       <SidebarInset
         id="main"

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as backendClient from "./backend-client";
-import { partnerDemoCompleteEvent, runPartnerDemo } from "./demo";
+import { partnerDemoCompleteEvent, runPartnerDemo, runResetDemo } from "./demo";
 import {
   partnerDemoStepSequence,
   type PartnerDemoProgress,
@@ -156,6 +156,46 @@ describe("runPartnerDemo", () => {
     );
     expect(putPilotSpy).toHaveBeenCalledTimes(2);
     expect(wipeSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("runResetDemo wipes then loads Groww testing.json without the cold-demo baseline", async () => {
+    const wipeSpy = vi
+      .spyOn(backendClient, "wipeTenantData")
+      .mockResolvedValue({
+        conversations: 0,
+        messages: 0,
+        predictions: 0,
+        feedback: 0,
+        pilot_settings: 0,
+      });
+    const progress: PartnerDemoProgress[] = [];
+    const result = await runResetDemo({
+      onProgress: (event) => {
+        progress.push(event);
+      },
+    });
+
+    expect(partnerDemoStepSequence(progress)).toEqual([
+      "wipe",
+      "detect",
+      "sync_chats",
+      "sync_signals",
+    ]);
+    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    expect(result.wipe.ok).toBe(true);
+    expect(result.importedConversations).toBe(
+      EXPECTED_TESTING_JSON.conversations
+    );
+    expect(hasExternalId(result.store, GROWW_TESTING_JSON_EXTERNAL_ID)).toBe(
+      true
+    );
+    expect(hasExternalId(result.store, ZERODHA_BATCH02_EXTERNAL_ID)).toBe(
+      false
+    );
+    expect(result.store.pilot?.baselineOpportunities).toBe(0);
+    expect(result.store.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+    expect(result.store.taxonomyOverrides).toEqual({});
+    expect(partnerDemoCompleteEvent(result).wipeFailed).toBeUndefined();
   });
 
   it("Reset after Partner Demo returns Groww testing.json only", async () => {
