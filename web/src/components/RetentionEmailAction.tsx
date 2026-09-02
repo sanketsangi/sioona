@@ -156,12 +156,14 @@ export function RetentionEmailAction({
 
   if (!action) return null;
 
+  // Narrowed for nested handlers — outer early-return does not carry into closures.
+  const currentAction = action;
   const busy = pending != null;
-  const isPending = action.status === "pending";
-  const decidedCopy = statusMessage(action.status);
+  const isPending = currentAction.status === "pending";
+  const decidedCopy = statusMessage(currentAction.status);
 
   async function submit(decision: SupervisedActionDecision) {
-    if (!action || busy) return;
+    if (busy) return;
     if (decision === "edited" || decision === "approved") {
       if (!subject.trim() || !body.trim()) {
         setError("Subject and body are required.");
@@ -202,8 +204,8 @@ export function RetentionEmailAction({
   }
 
   function cancelEdit() {
-    setSubject(action.subject);
-    setBody(action.body);
+    setSubject(currentAction.subject);
+    setBody(currentAction.body);
     setEditing(false);
     setError(null);
   }
@@ -216,8 +218,8 @@ export function RetentionEmailAction({
       aria-labelledby={headingId}
     >
       <InsightsReviewPaneHeader id={headingId} title="Retention Email">
-        <InsightsReviewStatusChip className={STATUS_CHIP[action.status]}>
-          {STATUS_LABEL[action.status]}
+        <InsightsReviewStatusChip className={STATUS_CHIP[currentAction.status]}>
+          {STATUS_LABEL[currentAction.status]}
         </InsightsReviewStatusChip>
       </InsightsReviewPaneHeader>
 
@@ -494,12 +496,12 @@ export function RetentionEmailAction({
               >
                 Evidence
               </h4>
-              {action.evidenceQuote ? (
+              {currentAction.evidenceQuote ? (
                 <blockquote
                   className="mt-1.5 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base"
                   translate="no"
                 >
-                  “{action.evidenceQuote}”
+                  “{currentAction.evidenceQuote}”
                 </blockquote>
               ) : (
                 <p className="mt-1.5 text-pretty text-copy-14 leading-5 text-sio-fg-muted">
@@ -522,10 +524,10 @@ export function RetentionEmailAction({
                 className="mt-1.5 break-words text-label-14 font-medium text-sio-fg-base"
                 translate="no"
               >
-                {action.subject}
+                {currentAction.subject}
               </p>
               <pre className="mt-1.5 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-5 text-sio-fg-base">
-                {action.body}
+                {currentAction.body}
               </pre>
             </section>
           </div>
