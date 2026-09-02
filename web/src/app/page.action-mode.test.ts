@@ -48,9 +48,14 @@ vi.mock("@/lib/fetch-signal-score", () => ({
   fetchSignalScoreSafe: vi.fn(),
 }));
 
-vi.mock("@/lib/hydrate-conversations", () => ({
-  fetchOverlayConversations: vi.fn().mockResolvedValue(null),
-}));
+vi.mock("@/lib/hydrate-conversations", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/hydrate-conversations")>();
+  return {
+    ...actual,
+    fetchOverlayConversations: vi.fn().mockResolvedValue(null),
+  };
+});
 
 vi.mock("next/server", () => ({
   after: vi.fn(),
