@@ -83,9 +83,11 @@ const STATUS_CHIP: Record<GroundTruthValue, string> = {
 /**
  * Match FeedbackControls size="lg" Button chrome (C/I/P). 5 equal columns
  * span the card like the 3-col feedback row; wrap to 3+2 on a narrow rail.
+ * Use px-2 (same as toggleVariants icon-start/end) so icon and text-only
+ * cells share identical horizontal padding; truncate long labels (Retention).
  */
 const itemLayout =
-  "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm font-medium touch-manipulation md:min-h-9";
+  "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium touch-manipulation md:min-h-9 has-data-[icon=inline-start]:pl-2 has-data-[icon=inline-end]:pr-2";
 const outlineItem =
   "border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive";
 const selectedItem =
@@ -209,11 +211,23 @@ export function GroundTruthControl({
                   )}
                 >
                   {pending && selected ? (
-                    <ButtonSpinner data-icon="inline-start" />
+                    <ButtonSpinner
+                      data-icon="inline-start"
+                      className="size-3.5 shrink-0"
+                    />
                   ) : Icon ? (
-                    <Icon data-icon="inline-start" />
-                  ) : null}
-                  <span className="whitespace-nowrap leading-none">
+                    <Icon
+                      data-icon="inline-start"
+                      className="size-3.5 shrink-0"
+                    />
+                  ) : (
+                    <span
+                      className="size-3.5 shrink-0"
+                      aria-hidden
+                      data-icon="inline-start"
+                    />
+                  )}
+                  <span className="min-w-0 truncate leading-none">
                     {opt.label}
                   </span>
                 </ToggleGroupItem>

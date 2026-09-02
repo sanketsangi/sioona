@@ -58,7 +58,7 @@ describe("GroundTruthControl", () => {
     expect(html).not.toContain("flex w-full flex-wrap justify-start");
     expect(html).not.toContain("gap-[calc(var(--gap)*0.25rem)]");
     expect(html).toContain(
-      "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1.5 rounded-lg px-2.5 text-sm font-medium touch-manipulation md:min-h-9",
+      "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1 rounded-lg px-2 text-sm font-medium touch-manipulation md:min-h-9 has-data-[icon=inline-start]:pl-2 has-data-[icon=inline-end]:pr-2",
     );
     expect(html).not.toContain("w-full min-w-0 flex-1");
     expect(html).toContain(
@@ -67,9 +67,10 @@ describe("GroundTruthControl", () => {
     expect(html).toContain(
       "data-[state=on]:border-transparent data-[state=on]:bg-sio-bg-inverse data-[state=on]:text-sio-fg-on-color data-[state=on]:hover:border-transparent data-[state=on]:hover:bg-sio-bg-inverse/90",
     );
-    expect(html).toContain("whitespace-nowrap leading-none");
-    expect(html).not.toContain("min-w-0 truncate leading-none");
-    expect(html).not.toContain("truncate leading-none");
+    expect(html).toContain("min-w-0 truncate leading-none");
+    expect(html).not.toContain("whitespace-nowrap leading-none");
+    expect(html).toContain('data-icon="inline-start"');
+    expect(html).toContain("size-3.5 shrink-0");
     expect(html).toContain("data:image/svg+xml");
     expect(html).toContain("M7.75%200C5.95507");
     expect(html).toContain("M3.5%204.057");
