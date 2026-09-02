@@ -24,6 +24,17 @@ export type PredictionSyncStats = {
   skipped: number;
 };
 
+/** Immediate ingest response: dual-write runs after() so stats are still zero. */
+export function emptyPredictionSyncStats(): PredictionSyncStats {
+  return {
+    attempted: 0,
+    created: 0,
+    updated: 0,
+    failed: 0,
+    skipped: 0,
+  };
+}
+
 export type PredictionSyncResult = {
   signals: Signal[];
   sync: PredictionSyncStats;

@@ -229,6 +229,23 @@ describe("pendingQueueSignals", () => {
       "sig_b",
     ]);
   });
+
+  it("includes JSON-only new signals when Neon needs-review is empty or lagging", () => {
+    const json: Signal[] = [
+      { ...baseSignal, id: "sig_just_ingested" },
+      {
+        ...baseSignal,
+        id: "sig_already_reviewed",
+        conversationId: "conv_done",
+        feedback: {
+          label: "correct",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+      },
+    ];
+    const pending = pendingQueueSignals([], json);
+    expect(pending.map((s) => s.id)).toEqual(["sig_just_ingested"]);
+  });
 });
 
 describe("filterPendingWithChat", () => {

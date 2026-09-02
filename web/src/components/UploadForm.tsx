@@ -163,7 +163,8 @@ export function UploadForm({
       const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
       if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
       if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
-      setTimeout(() => router.push(`/?${query.toString()}`), 900);
+      // JSON already has newSignals; do not wait for Neon dual-write.
+      router.push(`/?${query.toString()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {

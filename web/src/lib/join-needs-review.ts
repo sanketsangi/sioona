@@ -167,6 +167,8 @@ function isNeonReviewedLocal(
 /**
  * Shadow Mode pending list for Insights: Neon needs-review join first
  * (JSON match or stub), then keep-set JSON unreviewed rows Neon missed.
+ * Needs-review is an enhancement, not a gate — empty/lagging Neon still
+ * surfaces JSON-only rows so Upload → Insights can paint before dual-write.
  * Callers must `filterPendingWithChat` after overlay merge.
  * Reviewed (feedback) rows stay out — they belong in Follow-Up / Done.
  * Pass Neon `GET …/signals` rows so stale `/tmp` JSON without local

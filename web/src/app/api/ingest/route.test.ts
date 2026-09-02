@@ -1,5 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return { ...actual, after: vi.fn() };
+});
+
+vi.mock("@/lib/defer-ingest-sync", () => ({
+  persistDeferredIngestDualWrite: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { POST } from "./route";
+import { after } from "next/server";
+import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runDetection } from "@/lib/detect";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import * as backendClient from "@/lib/backend-client";
@@ -88,6 +100,10 @@ describe("POST /api/ingest", () => {
       "fetch",
       vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
     );
+    vi.mocked(persistDeferredIngestDualWrite)
+      .mockReset()
+      .mockResolvedValue(undefined);
+    vi.mocked(after).mockClear();
     await resetStore();
   });
 
@@ -116,10 +132,12 @@ describe("POST /api/ingest", () => {
       importedConversations: number;
       replaced?: boolean;
       conversationPrune?: { skipped: boolean };
+      predictionSync?: { attempted: number; failed: number };
     };
     expect(firstBody.importedConversations).toBe(1);
     expect(firstBody.replaced).toBe(true);
-    expect(firstBody.conversationPrune?.skipped).toBe(true);
+    expect(firstBody.conversationPrune).toBeUndefined();
+    expect(firstBody.predictionSync?.attempted).toBe(0);
 
     const afterFirst = await readStore();
     expect(afterFirst.conversations).toHaveLength(1);
@@ -877,6 +895,68 @@ describe("POST /api/ingest", () => {
     );
     const putBody = vi.mocked(backendClient.putPilotSettings).mock.calls[0]?.[1];
     expect(putBody).not.toHaveProperty("lastUploadedFileName");
+  });
+
+  it("responds after writeStore without awaiting Neon dual-write", async () => {
+    let resolvePersist: (() => void) | undefined;
+    vi.mocked(persistDeferredIngestDualWrite).mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolvePersist = resolve;
+      })
+    );
+
+    const response = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      importedConversations: number;
+      newSignals: number;
+      replaced?: boolean;
+      predictionSync?: {
+        attempted: number;
+        created: number;
+        updated: number;
+        failed: number;
+        skipped: number;
+      };
+      conversationSync?: { attempted: number; failed: number };
+    };
+    expect(body.importedConversations).toBe(1);
+    expect(body.newSignals).toBeGreaterThan(0);
+    expect(body.replaced).toBe(true);
+    expect(body.predictionSync).toEqual({
+      attempted: 0,
+      created: 0,
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+    });
+    expect(body.conversationSync?.attempted).toBe(0);
+    expect(body.conversationSync?.failed).toBe(0);
+
+    const afterWrite = await readStore();
+    expect(afterWrite.conversations).toHaveLength(1);
+    expect(afterWrite.signals.length).toBeGreaterThan(0);
+
+    expect(persistDeferredIngestDualWrite).not.toHaveBeenCalled();
+    expect(after).toHaveBeenCalledTimes(1);
+
+    vi.mocked(after).mock.calls[0]?.[0]?.();
+    expect(persistDeferredIngestDualWrite).toHaveBeenCalledTimes(1);
+    expect(persistDeferredIngestDualWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant_demo",
+        replaceShowcase: true,
+        conversations: expect.arrayContaining([
+          expect.objectContaining({ externalId: "wa-reupload-1" }),
+        ]),
+        signals: expect.arrayContaining([
+          expect.objectContaining({ type: "lead" }),
+        ]),
+      })
+    );
+    resolvePersist?.();
   });
 });
 

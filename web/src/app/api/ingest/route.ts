@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetection } from "@/lib/detect-llm";
 import {
   parseIngestDocument,
@@ -14,15 +15,12 @@ import {
   writeStore,
 } from "@/lib/store";
 import { sortSignals } from "@/lib/eval";
-import {
-  pruneConversationsNotInBackend,
-  syncConversationsToBackend,
-} from "@/lib/sync-conversations";
+import { emptyConversationSyncStats } from "@/lib/sync-conversations";
 import {
   refreshStorePilotFromNeon,
   syncPilotSettingsToBackend,
 } from "@/lib/sync-pilot";
-import { syncPredictionsToBackend } from "@/lib/sync-predictions";
+import { emptyPredictionSyncStats } from "@/lib/sync-predictions";
 import {
   PARTNER_DEMO_REPLACE_CONFIRM_CODE,
   PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
@@ -159,28 +157,19 @@ export async function POST(request: Request) {
       store.tenant.id,
       store.taxonomyOverrides
     );
-    const [conversationSync, { signals: syncedNew, sync }] = await Promise.all([
-      syncConversationsToBackend(
-        ingestedConversations,
-        ingestedMessages,
-        store.tenant.id,
-        { clearUnlabeledGroundTruth: replaceShowcase }
-      ),
-      syncPredictionsToBackend(newSignals, store.tenant.id),
-    ]);
+    const ingestedConversationIds = new Set(
+      ingestedConversations.map((conversation) => conversation.id)
+    );
 
     if (replaceShowcase) {
-      store.signals = mergeSignalsPreservingFeedback(priorSignals, syncedNew);
+      store.signals = mergeSignalsPreservingFeedback(priorSignals, newSignals);
     } else {
-      const ingestedIds = new Set(
-        ingestedConversations.map((conversation) => conversation.id)
-      );
       const kept = priorSignals.filter(
-        (signal) => !ingestedIds.has(signal.conversationId)
+        (signal) => !ingestedConversationIds.has(signal.conversationId)
       );
       store.signals = [
         ...kept,
-        ...mergeSignalsPreservingFeedback(priorSignals, syncedNew),
+        ...mergeSignalsPreservingFeedback(priorSignals, newSignals),
       ];
     }
 
@@ -199,15 +188,25 @@ export async function POST(request: Request) {
 
     // Dual-write pilot to Neon so /tmp wipe does not reset mid-week gate.
     await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
-
-    const conversationPrune = replaceShowcase
-      ? await pruneConversationsNotInBackend(
-          store.tenant.id,
-          ingestedConversations.map((conversation) => conversation.id)
-        )
-      : undefined;
-
     await writeStore(store);
+
+    // Same idea as GET / Insights/Eval: JSON is SoT for first paint.
+    // Neon chats + predictions (and replace prune) run after the response.
+    const signalsToSync = store.signals.filter((signal) =>
+      ingestedConversationIds.has(signal.conversationId)
+    );
+    after(() => {
+      void persistDeferredIngestDualWrite({
+        tenantId: store.tenant.id,
+        conversations: ingestedConversations,
+        messages: ingestedMessages,
+        signals: signalsToSync,
+        replaceShowcase,
+      }).catch((err) => {
+        const detail = err instanceof Error ? err.message : "unknown error";
+        console.warn(`[defer-ingest-sync] ${detail}`);
+      });
+    });
 
     return NextResponse.json({
       format,
@@ -216,9 +215,8 @@ export async function POST(request: Request) {
       newSignals: newSignals.length,
       hint: newSignals.length === 0 ? ZERO_SIGNAL_HINT : undefined,
       signals: sortSignals(store.signals),
-      predictionSync: sync,
-      conversationSync,
-      conversationPrune,
+      predictionSync: emptyPredictionSyncStats(),
+      conversationSync: emptyConversationSyncStats(),
       detectLlm: llm,
       replaced: replaceShowcase,
     });
