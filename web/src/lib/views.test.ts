@@ -10,6 +10,7 @@ import {
   parseMode,
   parseReplacedParam,
   parseStatusFilter,
+  replacedQueryValue,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
   skipPendingPreviewId,
@@ -35,6 +36,14 @@ describe("parseReplacedParam", () => {
     expect(parseReplacedParam("true")).toBe(true);
     expect(parseReplacedParam("0")).toBe(false);
     expect(parseReplacedParam(undefined)).toBe(false);
+  });
+});
+
+describe("replacedQueryValue", () => {
+  it("writes 1 only when true", () => {
+    expect(replacedQueryValue(true)).toBe("1");
+    expect(replacedQueryValue(false)).toBeNull();
+    expect(replacedQueryValue(undefined)).toBeNull();
   });
 });
 
@@ -192,6 +201,15 @@ describe("cadenceActionHref", () => {
       cadenceActionHref({ id: "acted", label: "Mark Acted on Correct reviews" })
     ).toBe("/?view=insights&status=followup");
   });
+
+  it("keeps replaced=1 on the Follow-up cadence deep-link", () => {
+    expect(
+      cadenceActionHref(
+        { id: "acted", label: "Mark Acted on Correct reviews" },
+        { preview: "sig_keep", replaced: true }
+      )
+    ).toBe("/?view=insights&status=followup&preview=sig_keep&replaced=1");
+  });
 });
 
 describe("nextPendingPreviewId", () => {
@@ -280,6 +298,23 @@ describe("pendingReviewWalkHref", () => {
       }),
     ).toBe("/?view=insights&mode=action&status=new&preview=sig_b");
   });
+
+  it("keeps replaced=1 on Prev / Next / Skip", () => {
+    expect(
+      pendingReviewWalkHref({
+        previewId: "sig_b",
+        statusFilter: "new",
+        replaced: true,
+      }),
+    ).toBe("/?view=insights&status=new&preview=sig_b&replaced=1");
+    expect(
+      pendingReviewWalkHref({
+        previewId: null,
+        statusFilter: "new",
+        replaced: true,
+      }),
+    ).toBe("/?view=insights&status=new&replaced=1");
+  });
 });
 
 describe("afterFeedbackHref", () => {
@@ -295,6 +330,25 @@ describe("afterFeedbackHref", () => {
     ).toBe(
       "/?view=insights&scoreFrom=2026-08-17&status=followup&preview=sig_keep",
     );
+  });
+
+  it("keeps replaced=1 after Correct and Incorrect", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "correct",
+        currentSignalId: "sig_keep",
+        replaced: true,
+      }),
+    ).toBe("/?view=insights&status=followup&preview=sig_keep&replaced=1");
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "incorrect",
+        nextPendingPreviewId: "sig_next",
+        replaced: true,
+      }),
+    ).toBe("/?view=insights&status=new&preview=sig_next&replaced=1");
   });
 
   it("preserves mode=action on Correct → Follow-up", () => {
@@ -382,6 +436,29 @@ describe("afterMarkActedHref", () => {
         nextPendingPreviewId: "sig_pending_next",
       })
     ).toBe("/?view=insights&status=followup&preview=sig_correct_next");
+  });
+
+  it("keeps replaced=1 on next Correct and next pending", () => {
+    expect(
+      afterMarkActedHref({
+        acted: true,
+        feedbackLabel: "correct",
+        nextPreviewId: "sig_correct_next",
+        replaced: true,
+      })
+    ).toBe(
+      "/?view=insights&status=followup&preview=sig_correct_next&replaced=1"
+    );
+    expect(
+      afterMarkActedHref({
+        acted: true,
+        feedbackLabel: "correct",
+        nextPendingPreviewId: "sig_pending_next",
+        replaced: true,
+      })
+    ).toBe(
+      "/?view=insights&status=new&preview=sig_pending_next&replaced=1"
+    );
   });
 
   it("opens the next Correct review after Mark as Acted on Follow-up", () => {

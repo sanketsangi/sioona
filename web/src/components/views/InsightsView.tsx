@@ -247,6 +247,7 @@ export function InsightsView({
   const cadenceHref = cadenceActionHref(cadenceAction, {
     scoreFrom,
     preview: cadencePreviewId,
+    replaced: jsonKeepSet,
   });
   const followUpHref = viewHref("insights", {
     ...queryExtras,
@@ -279,6 +280,7 @@ export function InsightsView({
         previewSignal,
         scoreFrom,
         mode: workspaceMode,
+        replaced: jsonKeepSet,
       })
     : null;
   const walkHrefOpts = {
@@ -286,6 +288,7 @@ export function InsightsView({
     typeFilter,
     scoreFrom,
     mode: workspaceMode,
+    replaced: jsonKeepSet,
   };
   const pendingWalk =
     previewSignal && previewTriage?.isPendingReview
@@ -320,6 +323,7 @@ export function InsightsView({
         statusFilter,
         scoreFrom,
         mode: workspaceMode,
+        replaced: jsonKeepSet,
       }
     : null;
   const queueProps = {

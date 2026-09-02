@@ -18,6 +18,8 @@ export type SignalReviewTriage = {
   nextPendingPreviewId: string | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode;
+  /** Replace-ingest landing — keep leftover Neon overlay off. */
+  replaced?: boolean;
 };
 
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
@@ -53,6 +55,12 @@ export function parseMode(raw?: string | null): WorkspaceMode {
 /** Upload replace landing: JSON chats are the keep-set until Neon prune finishes. */
 export function parseReplacedParam(raw?: string | null): boolean {
   return raw === "1" || raw === "true";
+}
+
+export function replacedQueryValue(
+  replaced?: boolean | null
+): string | null {
+  return replaced ? "1" : null;
 }
 
 /**
@@ -175,13 +183,18 @@ export function statusQueryValue(
 /** Cadence CTA href — Acted deep-links to the first Correct follow-up panel. */
 export function cadenceActionHref(
   action: PilotCadenceAction,
-  extras?: { scoreFrom?: string | null; preview?: string | null }
+  extras?: {
+    scoreFrom?: string | null;
+    preview?: string | null;
+    replaced?: boolean;
+  }
 ): string {
   if (action.id === "acted") {
     return viewHref("insights", {
       scoreFrom: extras?.scoreFrom,
       status: "followup",
       preview: extras?.preview,
+      replaced: replacedQueryValue(extras?.replaced),
     });
   }
   return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom });
@@ -232,6 +245,7 @@ export function pendingReviewWalkHref(opts: {
   typeFilter?: TypeFilter | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
+  replaced?: boolean;
 }): string {
   const mode = opts.mode ?? "shadow";
   const status = opts.statusFilter ?? "all";
@@ -242,6 +256,7 @@ export function pendingReviewWalkHref(opts: {
     status: statusQueryValue(status, mode),
     type: type === "all" ? null : type,
     preview: opts.previewId,
+    replaced: replacedQueryValue(opts.replaced),
   });
 }
 
@@ -250,21 +265,25 @@ function pendingReviewQueueHref(opts: {
   nextPreviewId?: string | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
+  replaced?: boolean;
 }): string {
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
+  const replaced = replacedQueryValue(opts.replaced);
   if (opts.nextPreviewId) {
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
       status: "new",
       preview: opts.nextPreviewId,
+      replaced,
     });
   }
   return viewHref("insights", {
     ...modeExtra,
     scoreFrom: opts.scoreFrom,
     status: "new",
+    replaced,
   });
 }
 
@@ -283,6 +302,7 @@ export function afterFeedbackHref(opts: {
   nextPendingPreviewId?: string | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
+  replaced?: boolean;
 }): string | null {
   if (!opts.wasPending) return null;
   const modeExtra =
@@ -293,12 +313,14 @@ export function afterFeedbackHref(opts: {
       scoreFrom: opts.scoreFrom,
       status: "followup",
       preview: opts.currentSignalId,
+      replaced: replacedQueryValue(opts.replaced),
     });
   }
   return pendingReviewQueueHref({
     nextPreviewId: opts.nextPendingPreviewId,
     scoreFrom: opts.scoreFrom,
     mode: opts.mode,
+    replaced: opts.replaced,
   });
 }
 
@@ -317,6 +339,7 @@ export function afterMarkActedHref(opts: {
   statusFilter?: StatusFilter | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
+  replaced?: boolean;
 }): string | null {
   if (!opts.acted || opts.feedbackLabel !== "correct") return null;
   const modeExtra =
@@ -327,6 +350,7 @@ export function afterMarkActedHref(opts: {
       scoreFrom: opts.scoreFrom,
       status: "followup",
       preview: opts.nextPreviewId,
+      replaced: replacedQueryValue(opts.replaced),
     });
   }
   if (opts.nextPendingPreviewId) {
@@ -334,6 +358,7 @@ export function afterMarkActedHref(opts: {
       nextPreviewId: opts.nextPendingPreviewId,
       scoreFrom: opts.scoreFrom,
       mode: opts.mode,
+      replaced: opts.replaced,
     });
   }
   return null;

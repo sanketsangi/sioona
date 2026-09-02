@@ -133,6 +133,7 @@ function renderPendingPreview(opts: {
   count: number;
   previewId: string;
   scoreFrom?: string;
+  jsonKeepSet?: boolean;
 }) {
   const pending = makePendingSignals(opts.count);
   const store = storeFromSignals(pending);
@@ -144,6 +145,7 @@ function renderPendingPreview(opts: {
       page: 1,
       previewId: opts.previewId,
       scoreFrom: opts.scoreFrom,
+      jsonKeepSet: opts.jsonKeepSet,
       needsReview: {
         ok: true,
         predictions: pending.map((s) => ({
@@ -739,6 +741,23 @@ describe("InsightsView pending review walk", () => {
       "/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new",
     );
     expect(skipHref).not.toContain("preview=");
+  });
+
+  it("keeps replaced=1 on Next and Skip after replace ingest", () => {
+    const html = renderPendingPreview({
+      count: 3,
+      previewId: "sig_1",
+      jsonKeepSet: true,
+    });
+    expect(html).toContain(
+      'href="/?view=insights&amp;status=new&amp;preview=sig_2&amp;replaced=1"',
+    );
+    const skipHref = html.match(
+      /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
+    )?.[1];
+    expect(skipHref).toBe(
+      "/?view=insights&amp;status=new&amp;preview=sig_2&amp;replaced=1",
+    );
   });
 });
 
