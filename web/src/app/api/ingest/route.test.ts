@@ -948,6 +948,8 @@ describe("POST /api/ingest", () => {
       expect.objectContaining({
         tenantId: "tenant_demo",
         replaceShowcase: true,
+        storeUpdatedAt: expect.any(String),
+        lastUploadedFileName: "real-partner-export.local.csv",
         conversations: expect.arrayContaining([
           expect.objectContaining({ externalId: "wa-reupload-1" }),
         ]),

@@ -50,6 +50,11 @@ export function parseMode(raw?: string | null): WorkspaceMode {
   return "shadow";
 }
 
+/** Upload replace landing: JSON chats are the keep-set until Neon prune finishes. */
+export function parseReplacedParam(raw?: string | null): boolean {
+  return raw === "1" || raw === "true";
+}
+
 /**
  * Resolve workspace mode after the unlock gate.
  * Locked + `?mode=action` → Shadow (caller should also strip `mode` from the URL).

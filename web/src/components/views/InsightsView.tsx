@@ -80,6 +80,7 @@ export function InsightsView({
   demo,
   importedCount,
   newSignalCount,
+  jsonKeepSet = false,
   statusFilter,
   statusOmitted = false,
   typeFilter,
@@ -102,6 +103,8 @@ export function InsightsView({
   demo?: boolean;
   importedCount?: number | null;
   newSignalCount?: number | null;
+  /** Replace-ingest landing: hide leftover Neon stubs until prune finishes. */
+  jsonKeepSet?: boolean;
   statusFilter: StatusFilter;
   /** Request URL omitted `status` — client may canonicalize via replaceState. */
   statusOmitted?: boolean;
@@ -141,7 +144,7 @@ export function InsightsView({
   const chats = mergeOverlayChats(
     store.conversations,
     store.messages,
-    overlayChats,
+    jsonKeepSet ? null : overlayChats,
   );
   const pendingSignals = applyChatEvidenceToSignals(
     filterPendingWithChat(pendingJoined, chats.conversations),
@@ -149,7 +152,9 @@ export function InsightsView({
     store.taxonomyOverrides,
   );
   const reviewedSignals = applyChatEvidenceToSignals(
-    reviewedJoined,
+    jsonKeepSet
+      ? filterPendingWithChat(reviewedJoined, chats.conversations)
+      : reviewedJoined,
     chats,
     store.taxonomyOverrides,
   );
@@ -195,6 +200,7 @@ export function InsightsView({
       newSignalCount != null && !Number.isNaN(newSignalCount)
         ? String(newSignalCount)
         : null,
+    replaced: jsonKeepSet ? "1" : null,
     syncFailed: hasSyncFailure ? String(syncFailed) : null,
     syncCreated: hasSyncFailure ? String(syncCreated) : null,
     llmAdded: llmAdded > 0 ? String(llmAdded) : null,

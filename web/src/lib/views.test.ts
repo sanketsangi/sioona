@@ -8,6 +8,7 @@ import {
   pendingReviewWalkHref,
   prevPendingPreviewId,
   parseMode,
+  parseReplacedParam,
   parseStatusFilter,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
@@ -25,6 +26,15 @@ describe("parseMode", () => {
     expect(parseMode(undefined)).toBe("shadow");
     expect(parseMode(null)).toBe("shadow");
     expect(parseMode("nope")).toBe("shadow");
+  });
+});
+
+describe("parseReplacedParam", () => {
+  it("is true only for 1 or true", () => {
+    expect(parseReplacedParam("1")).toBe(true);
+    expect(parseReplacedParam("true")).toBe(true);
+    expect(parseReplacedParam("0")).toBe(false);
+    expect(parseReplacedParam(undefined)).toBe(false);
   });
 });
 
