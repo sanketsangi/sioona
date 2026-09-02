@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as backendClient from "./backend-client";
 import { BackendClientError } from "./backend-client";
-import { persistHealedPilot, syncPilotSettingsToBackend } from "./sync-pilot";
+import {
+  persistDeferredPilotRefresh,
+  persistHealedPilot,
+  syncPilotSettingsToBackend,
+} from "./sync-pilot";
 import {
   readStore,
   resetStore,
@@ -204,6 +208,59 @@ describe("persistHealedPilot", () => {
     const writeSpy = vi.spyOn(await import("./store"), "writeStore");
     await persistHealedPilot(original, original);
     expect(writeSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistDeferredPilotRefresh", () => {
+  beforeEach(async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("overlays Neon pilot onto the latest snapshot without clobbering feedback", async () => {
+    const original = await readStore();
+    const target = original.signals[0];
+    expect(target).toBeTruthy();
+    await setSignalFeedback(target.id, "correct", "keep me");
+
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: "healed after paint",
+      weekly_export_count: 2,
+      last_uploaded_file_name: "Groww_batch_02",
+      created_at: "2026-08-14T00:00:00.000Z",
+      updated_at: "2026-08-30T00:00:00.000Z",
+    });
+
+    await persistDeferredPilotRefresh("tenant_demo");
+
+    const after = await readStore();
+    expect(after.pilot?.baselineOpportunities).toBe(12);
+    expect(after.pilot?.baselineNote).toBe("healed after paint");
+    expect(after.pilot?.weeklyExportCount).toBe(2);
+    expect(after.pilot?.lastUploadedFileName).toBe("Groww_batch_02");
+    expect(after.signals.find((s) => s.id === target.id)?.feedback?.label).toBe(
+      "correct"
+    );
+    expect(after.signals.find((s) => s.id === target.id)?.feedback?.note).toBe(
+      "keep me"
+    );
+  });
+
+  it("skips when the stored tenant does not match", async () => {
+    const getSpy = vi.spyOn(backendClient, "getPilotSettings");
+    await persistDeferredPilotRefresh("tenant_other");
+    expect(getSpy).not.toHaveBeenCalled();
   });
 });
 

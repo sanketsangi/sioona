@@ -55,6 +55,7 @@ vi.mock("@/lib/defer-prediction-sync", () => ({
 vi.mock("@/lib/sync-pilot", () => ({
   refreshStorePilotFromNeon: vi.fn(async (store: StoreData) => store),
   persistHealedPilot: vi.fn().mockResolvedValue(undefined),
+  persistDeferredPilotRefresh: vi.fn().mockResolvedValue(undefined),
 }));
 
 import PlatformPage from "./page";
@@ -63,12 +64,18 @@ import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
 import { loadStore } from "@/lib/store";
+import { persistDeferredPredictionSync } from "@/lib/defer-prediction-sync";
+import {
+  persistDeferredPilotRefresh,
+  refreshStorePilotFromNeon,
+} from "@/lib/sync-pilot";
 import { after } from "next/server";
 
 function pageShellProps(result: ReactElement) {
   return result.props as {
     activeView: string;
     title: string;
+    lastUploadedFileName?: string;
     notifications: { id: string; title?: string }[];
     children?: ReactNode;
   };
@@ -574,6 +581,7 @@ describe("PlatformPage deploy reliability", () => {
     });
 
     expect(after).not.toHaveBeenCalled();
+    expect(persistDeferredPredictionSync).not.toHaveBeenCalled();
   });
 
   it("schedules deferred prediction sync on Insights/Eval cold start only", async () => {
@@ -587,13 +595,26 @@ describe("PlatformPage deploy reliability", () => {
     await PlatformPage({
       searchParams: Promise.resolve({ view: "insights" }),
     });
-    expect(after).toHaveBeenCalledTimes(1);
+    // Cold Insights: prediction dual-write + /pilot heal (neither on TTFB).
+    expect(after).toHaveBeenCalledTimes(2);
+    for (const [cb] of vi.mocked(after).mock.calls) {
+      cb();
+    }
+    expect(persistDeferredPredictionSync).toHaveBeenCalledTimes(1);
+    expect(persistDeferredPilotRefresh).toHaveBeenCalledTimes(1);
 
     vi.mocked(after).mockClear();
+    vi.mocked(persistDeferredPredictionSync).mockClear();
+    vi.mocked(persistDeferredPilotRefresh).mockClear();
     await PlatformPage({
       searchParams: Promise.resolve({ view: "eval" }),
     });
-    expect(after).toHaveBeenCalledTimes(1);
+    expect(after).toHaveBeenCalledTimes(2);
+    for (const [cb] of vi.mocked(after).mock.calls) {
+      cb();
+    }
+    expect(persistDeferredPredictionSync).toHaveBeenCalledTimes(1);
+    expect(persistDeferredPilotRefresh).toHaveBeenCalledTimes(1);
   });
 
   it("does not schedule deferred prediction sync on Insights warm start", async () => {
@@ -608,6 +629,78 @@ describe("PlatformPage deploy reliability", () => {
       searchParams: Promise.resolve({ view: "insights" }),
     });
 
+    expect(after).toHaveBeenCalledTimes(1);
+    vi.mocked(after).mock.calls[0]?.[0]?.();
+    expect(persistDeferredPredictionSync).not.toHaveBeenCalled();
+    expect(persistDeferredPilotRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not await GET /pilot on Insights (JSON filename; heal after paint)", async () => {
+    const local = mockStore();
+    local.pilot = {
+      baselineOpportunities: 0,
+      lastUploadedFileName: "local.json",
+    };
+    stubStore(local, false);
+    vi.mocked(refreshStorePilotFromNeon).mockImplementation(async (store) => ({
+      ...store,
+      pilot: {
+        ...store.pilot,
+        lastUploadedFileName: "from-neon.csv",
+      },
+    }));
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    })) as ReactElement;
+
+    expect(refreshStorePilotFromNeon).not.toHaveBeenCalled();
+    expect(pageShellProps(result).lastUploadedFileName).toBe("local.json");
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(fetchNeedsReview).toHaveBeenCalledTimes(1);
+    expect(fetchTenantSignals).toHaveBeenCalledTimes(1);
+  });
+
+  it("awaits GET /pilot on Upload so cadence chrome uses Neon", async () => {
+    const local = mockStore();
+    local.pilot = {
+      baselineOpportunities: 0,
+      lastUploadedFileName: "local.json",
+    };
+    stubStore(local, false);
+    vi.mocked(refreshStorePilotFromNeon).mockImplementation(async (store) => ({
+      ...store,
+      pilot: {
+        ...store.pilot,
+        lastUploadedFileName: "from-neon.csv",
+        weeklyExportCount: 2,
+      },
+    }));
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "upload" }),
+    })) as ReactElement;
+
+    expect(refreshStorePilotFromNeon).toHaveBeenCalledTimes(1);
+    expect(pageShellProps(result).lastUploadedFileName).toBe("from-neon.csv");
     expect(after).not.toHaveBeenCalled();
+    expect(fetchNeedsReview).not.toHaveBeenCalled();
+  });
+
+  it("skips GET /pilot on Taxonomy (no cadence chrome)", async () => {
+    stubStore(mockStore(), false);
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "taxonomy" }),
+    });
+
+    expect(refreshStorePilotFromNeon).not.toHaveBeenCalled();
+    expect(after).not.toHaveBeenCalled();
+    expect(persistDeferredPilotRefresh).not.toHaveBeenCalled();
   });
 });

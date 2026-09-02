@@ -19,6 +19,8 @@ import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
 import { persistDeferredPredictionSync } from "@/lib/defer-prediction-sync";
 import {
   platformPageFetches,
+  shouldAwaitHomepagePilotRefresh,
+  shouldDeferHomepagePilotRefresh,
   shouldDeferHomepagePredictionSync,
 } from "@/lib/platform-page-data";
 import {
@@ -50,6 +52,7 @@ import {
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { loadStore } from "@/lib/store";
 import {
+  persistDeferredPilotRefresh,
   persistHealedPilot,
   refreshStorePilotFromNeon,
 } from "@/lib/sync-pilot";
@@ -175,22 +178,33 @@ export default async function PlatformPage({
       });
     });
   }
+  // Insights/Eval first paint uses needs-review / signals, not /pilot.
+  // Header filename + cadence helper read JSON; heal Neon after the response.
+  if (shouldDeferHomepagePilotRefresh(fetches.pilotRefresh)) {
+    after(() => {
+      void persistDeferredPilotRefresh(storeRaw.tenant.id).catch((err) => {
+        const detail = err instanceof Error ? err.message : "unknown error";
+        console.warn(`[defer-pilot-refresh] ${detail}`);
+      });
+    });
+  }
 
-  const [store, queuePair] = await Promise.all([
-    refreshStorePilotFromNeon(storeRaw),
-    fetches.insightsQueue
-      ? Promise.all([
-          fetchNeedsReview(storeRaw.tenant.id),
-          fetchTenantSignals(storeRaw.tenant.id),
-        ])
-      : Promise.resolve([skippedNeedsReview, skippedTenantSignals] as const),
-  ]);
-  const [needsReview, tenantSignals] = queuePair;
+  // Upload awaits live /pilot for cadence chrome. Insights/Eval/Taxonomy
+  // render from the JSON snapshot (skip or after() above).
+  const store = shouldAwaitHomepagePilotRefresh(fetches.pilotRefresh)
+    ? await refreshStorePilotFromNeon(storeRaw)
+    : storeRaw;
   if (store !== storeRaw) {
     // Heal pilot only — do not rewrite the stale SSR snapshot over
     // concurrent feedback / Acted on this instance's JSON store.
     await persistHealedPilot(store, storeRaw);
   }
+  const [needsReview, tenantSignals] = fetches.insightsQueue
+    ? await Promise.all([
+        fetchNeedsReview(storeRaw.tenant.id),
+        fetchTenantSignals(storeRaw.tenant.id),
+      ])
+    : [skippedNeedsReview, skippedTenantSignals];
   const pendingRaw =
     fetches.insightsQueue && needsReview.ok
       ? pendingQueueSignals(

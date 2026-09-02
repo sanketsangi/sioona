@@ -7,6 +7,14 @@ import type { PlatformView } from "@/lib/views";
  */
 export type PredictionSyncPlan = "skip" | "defer";
 
+/**
+ * `GET /v1/tenants/:id/pilot` on homepage SSR.
+ * await — Upload cadence chrome (weeklyExportCount + filename) is first paint.
+ * defer — Insights/Eval header filename + cadence helper use JSON; heal after().
+ * skip — Taxonomy has no filename / cadence chrome.
+ */
+export type PilotRefreshPlan = "await" | "defer" | "skip";
+
 /** Which FastAPI reads the platform page should issue for `?view=`. */
 export type PlatformPageFetches = {
   /** needs-review + tenant signals + overlay chats (Insights queue / Eval keep-set). */
@@ -21,6 +29,13 @@ export type PlatformPageFetches = {
    * defer — Insights/Eval need Neon rows eventually; do not block TTFB.
    */
   predictionSync: PredictionSyncPlan;
+  /**
+   * Neon `GET …/pilot` overlay onto JSON `store.pilot`.
+   * await — Upload first paint (cadence + filename).
+   * defer — Insights/Eval: stale JSON is fine for header / helper copy.
+   * skip — Taxonomy.
+   */
+  pilotRefresh: PilotRefreshPlan;
 };
 
 export function platformPageFetches(view: PlatformView): PlatformPageFetches {
@@ -30,6 +45,8 @@ export function platformPageFetches(view: PlatformView): PlatformPageFetches {
     windowedScore: insightsOrEval,
     allTimeScore: view === "eval",
     predictionSync: insightsOrEval ? "defer" : "skip",
+    pilotRefresh:
+      view === "upload" ? "await" : insightsOrEval ? "defer" : "skip",
   };
 }
 
@@ -42,4 +59,21 @@ export function shouldDeferHomepagePredictionSync(
   coldStart: boolean
 ): boolean {
   return coldStart && plan === "defer";
+}
+
+/** Upload cadence chrome needs a live Neon overlay before first paint. */
+export function shouldAwaitHomepagePilotRefresh(
+  plan: PilotRefreshPlan
+): boolean {
+  return plan === "await";
+}
+
+/**
+ * Insights/Eval heal `store.pilot` after the response so header filename
+ * and cadence helper do not block TTFB. Taxonomy never schedules this.
+ */
+export function shouldDeferHomepagePilotRefresh(
+  plan: PilotRefreshPlan
+): boolean {
+  return plan === "defer";
 }

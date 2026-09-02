@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   platformPageFetches,
+  shouldAwaitHomepagePilotRefresh,
+  shouldDeferHomepagePilotRefresh,
   shouldDeferHomepagePredictionSync,
 } from "./platform-page-data";
 
@@ -11,6 +13,7 @@ describe("platformPageFetches", () => {
       windowedScore: true,
       allTimeScore: false,
       predictionSync: "defer",
+      pilotRefresh: "defer",
     });
   });
 
@@ -20,6 +23,7 @@ describe("platformPageFetches", () => {
       windowedScore: true,
       allTimeScore: true,
       predictionSync: "defer",
+      pilotRefresh: "defer",
     });
   });
 
@@ -29,13 +33,22 @@ describe("platformPageFetches", () => {
       windowedScore: false,
       allTimeScore: false,
       predictionSync: "skip",
+      pilotRefresh: "await",
     });
     expect(platformPageFetches("taxonomy")).toEqual({
       insightsQueue: false,
       windowedScore: false,
       allTimeScore: false,
       predictionSync: "skip",
+      pilotRefresh: "skip",
     });
+  });
+
+  it("plans GET /pilot per view: await Upload, defer Insights/Eval, skip Taxonomy", () => {
+    expect(platformPageFetches("upload").pilotRefresh).toBe("await");
+    expect(platformPageFetches("insights").pilotRefresh).toBe("defer");
+    expect(platformPageFetches("eval").pilotRefresh).toBe("defer");
+    expect(platformPageFetches("taxonomy").pilotRefresh).toBe("skip");
   });
 });
 
@@ -48,5 +61,19 @@ describe("shouldDeferHomepagePredictionSync", () => {
   it("defers Insights/Eval dual-write only on cold start (never awaits TTFB)", () => {
     expect(shouldDeferHomepagePredictionSync("defer", true)).toBe(true);
     expect(shouldDeferHomepagePredictionSync("defer", false)).toBe(false);
+  });
+});
+
+describe("homepage /pilot plan", () => {
+  it("awaits GET /pilot only on Upload (cadence chrome)", () => {
+    expect(shouldAwaitHomepagePilotRefresh("await")).toBe(true);
+    expect(shouldAwaitHomepagePilotRefresh("defer")).toBe(false);
+    expect(shouldAwaitHomepagePilotRefresh("skip")).toBe(false);
+  });
+
+  it("defers GET /pilot on Insights/Eval (never on Upload or Taxonomy)", () => {
+    expect(shouldDeferHomepagePilotRefresh("defer")).toBe(true);
+    expect(shouldDeferHomepagePilotRefresh("await")).toBe(false);
+    expect(shouldDeferHomepagePilotRefresh("skip")).toBe(false);
   });
 });

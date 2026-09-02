@@ -63,6 +63,7 @@ vi.mock("@/lib/defer-prediction-sync", () => ({
 vi.mock("@/lib/sync-pilot", () => ({
   refreshStorePilotFromNeon: vi.fn(async (store: StoreData) => store),
   persistHealedPilot: vi.fn().mockResolvedValue(undefined),
+  persistDeferredPilotRefresh: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/views", async () => {
