@@ -97,6 +97,18 @@ describe("joinNeedsReviewPredictions", () => {
     expect(joined.evidence).toEqual(["quote"]);
   });
 
+  it("replaces a stale JSON backendSignalId with the live Neon id", () => {
+    const preds = [prediction({ id: "live-neon-id" })];
+    const json: Signal[] = [
+      { ...baseSignal, id: "sig_match", backendSignalId: "stale-uuid-gone" },
+    ];
+
+    const [joined] = joinNeedsReviewPredictions(preds, json);
+    expect(joined.id).toBe("sig_match");
+    expect(joined.backendSignalId).toBe("live-neon-id");
+    expect(joined.evidence).toEqual(["quote"]);
+  });
+
   it("keeps unmatched Neon predictions as stubs", () => {
     const preds = [
       prediction({
@@ -376,6 +388,34 @@ describe("joinTenantSignals", () => {
     expect(joined.evidence).toEqual(["quote: \"local\""]);
     expect(joined.suggestedAction).toBe("Call back");
     expect(joined.backendSignalId).toBe("aaa");
+  });
+
+  it("replaces a stale JSON backendSignalId with the live Neon id", () => {
+    const rows = [
+      tenantRow({
+        id: "83a80e70-live-neon",
+        conversation_id: "conv_1",
+        signal_type: "lead",
+      }),
+    ];
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        backendSignalId: "83a80e70-stale-json",
+        evidence: ["quote: \"I fired two. Stopping. Not happy.\""],
+        suggestedAction: "Call back",
+        feedback: {
+          label: "correct",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+        status: "reviewed",
+      },
+    ];
+    const [joined] = joinTenantSignals(rows, json);
+    expect(joined.id).toBe("sig_local_1");
+    expect(joined.backendSignalId).toBe("83a80e70-live-neon");
+    expect(joined.feedback?.label).toBe("correct");
+    expect(joined.evidence[0]).toContain("Not happy");
   });
 
   it("skips unreviewed Neon rows", () => {

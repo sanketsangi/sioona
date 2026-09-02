@@ -57,20 +57,19 @@ describe("mergeSyncedBackendIds", () => {
     );
   });
 
-  it("does not overwrite an existing backendSignalId or clobber feedback", () => {
+  it("heals a stale backendSignalId without clobbering feedback", () => {
     const latest = [
       signal({
-        backendSignalId: "pred-keep",
+        backendSignalId: "pred-stale",
         feedback: {
           label: "correct",
           reviewedAt: "2026-08-02T00:00:00.000Z",
         },
       }),
     ];
-    const synced = [signal({ backendSignalId: "pred-new" })];
+    const synced = [signal({ backendSignalId: "pred-live" })];
     const merged = mergeSyncedBackendIds(latest, synced);
-    expect(merged).toBe(latest);
-    expect(merged[0]?.backendSignalId).toBe("pred-keep");
+    expect(merged[0]?.backendSignalId).toBe("pred-live");
     expect(merged[0]?.feedback?.label).toBe("correct");
   });
 

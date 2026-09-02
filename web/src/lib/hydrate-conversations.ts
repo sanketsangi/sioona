@@ -135,6 +135,7 @@ function asFeedbackLabel(raw: string): FeedbackLabel | null {
 /**
  * Overlay Neon feedback (and Acted) onto detected JSON signals.
  * Match backendSignalId first, then tenant+conversationId+type.
+ * Always attach the live Neon id so stale JSON UUIDs cannot 404 Acted.
  * Does not invent taxonomy. Conversation GT is copied separately.
  */
 export function applyNeonFeedbackToSignals(
@@ -160,7 +161,8 @@ export function applyNeonFeedbackToSignals(
 
     const withId: Signal = {
       ...signal,
-      backendSignalId: signal.backendSignalId ?? row.id,
+      // Neon row id is SoT — a stale JSON UUID 404s Mark Acted.
+      backendSignalId: row.id,
     };
     const neonFeedback = row.feedback;
     const label = neonFeedback
