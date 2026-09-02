@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { RetentionEmailAction } from "@/components/RetentionEmailAction";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import { firstEvidenceMessageId } from "@/lib/evidence-messages";
-import type { Message, Signal } from "@/lib/types";
+import type { Message, Signal, SupervisedAction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type SignalReviewPairProps = {
   signal: Signal;
   messages: Message[];
   customerName: string;
+  supervisedAction?: SupervisedAction | null;
   className?: string;
 };
 
@@ -24,6 +26,7 @@ export function SignalReviewPair({
   signal,
   messages,
   customerName,
+  supervisedAction = null,
   className,
 }: SignalReviewPairProps) {
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(() =>
@@ -43,14 +46,22 @@ export function SignalReviewPair({
         highlightedMessageId={focusedMessageId}
         className="min-h-0 lg:h-full"
       />
-      <SignalReviewSuggestedAction
-        signal={signal}
-        messages={messages}
-        customerName={customerName}
-        focusedMessageId={focusedMessageId}
-        onFocusMessage={setFocusedMessageId}
-        className="min-h-0 lg:h-full"
-      />
+      <div className="flex min-h-0 min-w-0 flex-col gap-4 lg:h-full">
+        <SignalReviewSuggestedAction
+          signal={signal}
+          messages={messages}
+          customerName={customerName}
+          focusedMessageId={focusedMessageId}
+          onFocusMessage={setFocusedMessageId}
+          className="min-h-0"
+        />
+        <RetentionEmailAction
+          signal={signal}
+          customerName={customerName}
+          action={supervisedAction}
+          className="min-h-0"
+        />
+      </div>
     </div>
   );
 }

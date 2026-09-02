@@ -18,4 +18,6 @@ export const emptyShowcaseStore: StoreData = {
   pilot: { baselineOpportunities: 0 },
   taxonomyOverrides: {},
   auditEvents: [],
+  supervisedActions: [],
+  actionLogs: [],
 };

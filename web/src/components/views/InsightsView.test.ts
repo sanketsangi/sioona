@@ -871,6 +871,10 @@ describe("InsightsView review conversation + action", () => {
     );
 
     expect(html).toContain("Suggested Next Action");
+    expect(html).toContain("Retention Email");
+    expect(html).toContain("Approve");
+    expect(html).toContain("Checking in on your account");
+    expect(html).toContain("data-review-slot=\"retention-email\"");
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
     expect(html).toContain("Copy Reply");

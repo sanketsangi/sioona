@@ -339,6 +339,7 @@ export function InsightsView({
     },
     reviewTriage: previewTriage ?? undefined,
     actedWalk,
+    supervisedActions: store.supervisedActions ?? [],
   };
 
   return (

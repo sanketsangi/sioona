@@ -50,7 +50,8 @@ import {
   nextPilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
-import { loadStore } from "@/lib/store";
+import { loadStore, writeStore } from "@/lib/store";
+import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import {
   persistDeferredPilotRefresh,
   persistHealedPilot,
@@ -229,6 +230,16 @@ export default async function PlatformPage({
         )
       )
     : null;
+  if (fetches.insightsQueue) {
+    const created = ensureSupervisedActions(
+      store,
+      [...pendingRaw, ...reviewedForCadence],
+      overlayChats?.conversations ?? []
+    );
+    if (created.length > 0) {
+      await writeStore(store);
+    }
+  }
   const keepSetIds = keepSetConversationIds(
     store.conversations,
     overlayChats?.conversations
