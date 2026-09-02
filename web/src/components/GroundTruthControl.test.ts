@@ -63,10 +63,12 @@ describe("GroundTruthControl", () => {
     expect(html).toContain("whitespace-nowrap leading-none");
     expect(html).not.toContain("min-w-0 truncate leading-none");
     expect(html).not.toContain("truncate leading-none");
-    expect(html).toContain("/icons/lead.svg");
-    expect(html).toContain("/icons/retention.svg");
-    expect(html).toContain("/icons/upsell.svg");
-    expect(html).toContain("/icons/stop.svg");
+    expect(html).toContain("data:image/svg+xml");
+    expect(html).toContain("M7.75%200C5.95507");
+    expect(html).toContain("M3.5%204.057");
+    expect(html).toContain("M10.8242%203H10.0742");
+    expect(html).toContain("M5.10051%200C4.83529");
+    expect(html).not.toContain("url(/icons/");
     expect(html).not.toContain("/icons/good.svg");
   });
 

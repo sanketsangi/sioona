@@ -184,7 +184,8 @@ describe("InsightsView window reviewed footer", () => {
     expect(html).not.toContain("Precision By Signal Type");
     expect(html).not.toMatch(/>Go</);
     expect(html).not.toMatch(/>Hold</);
-    expect(html).not.toContain("83%");
+    // Visible Signal Score (not a coincidence in inlined SVG path data).
+    expect(html).not.toMatch(/>83%</);
   });
 });
 
