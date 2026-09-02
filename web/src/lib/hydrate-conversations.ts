@@ -156,16 +156,21 @@ export function applyNeonFeedbackToSignals(
         ? byId.get(signal.backendSignalId)
         : undefined) ??
       byConvType.get(signalMatchKey(signal.conversationId, signal.type));
-    const neonFeedback = row?.feedback;
+    if (!row) return signal;
+
+    const withId: Signal = {
+      ...signal,
+      backendSignalId: signal.backendSignalId ?? row.id,
+    };
+    const neonFeedback = row.feedback;
     const label = neonFeedback
       ? asFeedbackLabel(neonFeedback.feedback)
       : null;
-    if (!row || !neonFeedback || !label) return signal;
+    if (!neonFeedback || !label) return withId;
 
     const note = neonFeedback.note?.trim();
     return {
-      ...signal,
-      backendSignalId: signal.backendSignalId ?? row.id,
+      ...withId,
       status: row.acted ? "acted" : "reviewed",
       feedback: {
         label,
@@ -271,11 +276,22 @@ export function mergeOverlayChats(
   };
 }
 
+export type HydrateStoreOptions = {
+  /**
+   * Await `POST /v1/predictions`. Default true.
+   * Homepage GET / passes false so TTFB is not blocked; Insights/Eval
+   * dual-write after the response. GET /signals still attaches ids.
+   */
+  syncPredictions?: boolean;
+};
+
 /**
- * Build a JSON store from Neon chats, re-detect, dual-write predictions, persist.
- * Returns null when Neon has no rows or is unreachable.
+ * Build a JSON store from Neon chats, re-detect, optionally dual-write
+ * predictions, persist. Returns null when Neon has no rows or is unreachable.
  */
-export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
+export async function tryHydrateStoreFromNeon(
+  options?: HydrateStoreOptions
+): Promise<StoreData | null> {
   const tenantId = emptyShowcaseStore.tenant.id;
   const chats = await fetchHydrateConversations(tenantId);
   if (!chats) return null;
@@ -289,6 +305,7 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
   const testSleep = process.env.VITEST
     ? { sleep: async () => undefined }
     : undefined;
+  const awaitPredictions = options?.syncPredictions !== false;
 
   try {
     const detected = await runHybridDetection(
@@ -298,12 +315,14 @@ export async function tryHydrateStoreFromNeon(): Promise<StoreData | null> {
       taxonomyOverrides
     );
     signals = detected.signals;
-    const synced = await syncPredictionsToBackend(
-      signals,
-      tenantId,
-      testSleep
-    );
-    signals = synced.signals;
+    if (awaitPredictions) {
+      const synced = await syncPredictionsToBackend(
+        signals,
+        tenantId,
+        testSleep
+      );
+      signals = synced.signals;
+    }
     try {
       const rows = await getTenantSignals(tenantId);
       if (Array.isArray(rows) && rows.length > 0) {

@@ -32,6 +32,7 @@ vi.mock("@/components/views/TaxonomyView", () => ({
 
 vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
+  loadStore: vi.fn(),
   writeStore: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -49,6 +50,14 @@ vi.mock("@/lib/fetch-signal-score", () => ({
 
 vi.mock("@/lib/hydrate-conversations", () => ({
   fetchOverlayConversations: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("next/server", () => ({
+  after: vi.fn(),
+}));
+
+vi.mock("@/lib/defer-prediction-sync", () => ({
+  persistDeferredPredictionSync: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/sync-pilot", () => ({
@@ -69,7 +78,7 @@ vi.mock("@/lib/views", async () => {
 
 import PlatformPage from "./page";
 import { InsightsView } from "@/components/views/InsightsView";
-import { readStore } from "@/lib/store";
+import { loadStore } from "@/lib/store";
 import { fetchNeedsReview } from "@/lib/fetch-needs-review";
 import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
@@ -120,7 +129,10 @@ function findInsightsViewProps(
 describe("PlatformPage Action Mode lock bounce", () => {
   beforeEach(() => {
     redirect.mockClear();
-    vi.mocked(readStore).mockResolvedValue(mockStore());
+    vi.mocked(loadStore).mockResolvedValue({
+      store: mockStore(),
+      coldStart: false,
+    });
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
       predictions: [],
@@ -217,7 +229,10 @@ describe("PlatformPage Insights pending landing", () => {
 
   beforeEach(() => {
     redirect.mockClear();
-    vi.mocked(readStore).mockResolvedValue(storeWithPending);
+    vi.mocked(loadStore).mockResolvedValue({
+      store: storeWithPending,
+      coldStart: false,
+    });
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
       predictions: [pendingPrediction],

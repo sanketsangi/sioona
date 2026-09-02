@@ -24,12 +24,29 @@ import {
   type TenantWipeStats,
 } from "./wipe-tenant";
 
+export type ReadStoreOptions = {
+  /**
+   * Await `POST /v1/predictions` on cold-start hydrate/seed.
+   * Default true (API / reset). Homepage GET / passes false and defers
+   * Insights/Eval dual-write with `after()` so TTFB is not blocked.
+   */
+  syncPredictions?: boolean;
+};
+
+export type ReadStoreLoad = {
+  store: StoreData;
+  /** True when this read hydrated from Neon or seeded testing.json. */
+  coldStart: boolean;
+};
+
 /** Seed showcase from testing.json (dynamic import avoids cycle with writeStore). */
-async function seedShowcaseStore(): Promise<StoreData> {
+async function seedShowcaseStore(
+  options?: Pick<ReadStoreOptions, "syncPredictions">
+): Promise<StoreData> {
   const { loadTestingJsonIntoStore } = await import("./load-testing-json-store");
   const result = await loadTestingJsonIntoStore({
     applyDemoBaseline: false,
-    syncPredictions: true,
+    syncPredictions: options?.syncPredictions !== false,
   });
   return result.store;
 }
@@ -138,22 +155,41 @@ export function appendAuditEvent(
   return entry;
 }
 
-export async function readStore(): Promise<StoreData> {
+export async function loadStore(
+  options?: ReadStoreOptions
+): Promise<ReadStoreLoad> {
+  const syncPredictions = options?.syncPredictions !== false;
   const storePath = await resolveStorePath();
   if (storePath) {
     try {
       const raw = await fs.readFile(storePath, "utf8");
-      return normalizeStore(JSON.parse(raw) as StoreData);
+      return {
+        store: normalizeStore(JSON.parse(raw) as StoreData),
+        coldStart: false,
+      };
     } catch {
       // No persisted file yet — fall through to seed from bundled fixtures.
     }
   } else if (memoryStore) {
-    return normalizeStore(structuredClone(memoryStore));
+    return {
+      store: normalizeStore(structuredClone(memoryStore)),
+      coldStart: false,
+    };
   }
   const { tryHydrateStoreFromNeon } = await import("./hydrate-conversations");
-  const hydrated = await tryHydrateStoreFromNeon();
-  if (hydrated) return hydrated;
-  return seedShowcaseStore();
+  const hydrated = await tryHydrateStoreFromNeon({ syncPredictions });
+  if (hydrated) return { store: hydrated, coldStart: true };
+  return {
+    store: await seedShowcaseStore({ syncPredictions }),
+    coldStart: true,
+  };
+}
+
+export async function readStore(
+  options?: ReadStoreOptions
+): Promise<StoreData> {
+  const { store } = await loadStore(options);
+  return store;
 }
 
 export async function writeStore(data: StoreData): Promise<void> {
