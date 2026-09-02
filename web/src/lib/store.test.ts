@@ -3,13 +3,16 @@ import * as backendClient from "./backend-client";
 import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
 import {
   addTaxonomyOverride,
+  decideSupervisedAction,
   mergeTaxonomyOverrides,
+  persistSupervisedActions,
   readStore,
   resetStore,
   resetStoreWithWipe,
   setConversationGroundTruth,
   setSignalActed,
   setSignalFeedback,
+  writeStore,
 } from "./store";
 
 describe("setSignalActed", () => {
@@ -297,5 +300,96 @@ describe("addTaxonomyOverride", () => {
     await addTaxonomyOverride("upsell", "negativePhrases", "  first time  ");
     const after = await readStore();
     expect(after.taxonomyOverrides?.upsell?.negativePhrases).toEqual(["first time"]);
+  });
+});
+
+describe("supervised retention email actions", () => {
+  beforeEach(async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("persists a draft for a high-confidence retention signal and logs it", async () => {
+    const store = await readStore();
+    store.signals.push({
+      id: "sig_ret_store",
+      tenantId: store.tenant.id,
+      conversationId: store.conversations[0]?.id ?? "conv_x",
+      type: "retention",
+      score: 0.92,
+      confidence: 0.92,
+      summary: "Closing",
+      suggestedAction: "Call",
+      evidence: ['quote: "I will close my account"'],
+      status: "new",
+      createdAt: "2026-09-01T00:00:00.000Z",
+    });
+    if (store.conversations[0]) {
+      store.conversations[0].customerName = "Anita";
+    }
+    await writeStore(store);
+
+    const created = await persistSupervisedActions();
+    expect(created.some((action) => action.signalId === "sig_ret_store")).toBe(
+      true
+    );
+
+    const after = await readStore();
+    const draft = after.supervisedActions?.find(
+      (action) => action.signalId === "sig_ret_store"
+    );
+    expect(draft?.status).toBe("pending");
+    expect(draft?.body).toContain("Anita");
+    expect(
+      after.actionLogs?.some(
+        (event) =>
+          event.event === "generated" && event.signalId === "sig_ret_store"
+      )
+    ).toBe(true);
+  });
+
+  it("records a dismiss decision without sending", async () => {
+    const store = await readStore();
+    store.signals.push({
+      id: "sig_ret_dismiss",
+      tenantId: store.tenant.id,
+      conversationId: store.conversations[0]?.id ?? "conv_x",
+      type: "retention",
+      score: 0.9,
+      confidence: 0.9,
+      summary: "Leaving",
+      suggestedAction: "Call",
+      evidence: ['quote: "I am leaving"'],
+      status: "new",
+      createdAt: "2026-09-01T00:00:00.000Z",
+    });
+    await writeStore(store);
+    const [action] = await persistSupervisedActions();
+    const target =
+      action ??
+      (await readStore()).supervisedActions?.find(
+        (item) => item.signalId === "sig_ret_dismiss"
+      );
+    expect(target).toBeTruthy();
+
+    const result = await decideSupervisedAction(target!.id, "dismissed");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.action.status).toBe("dismissed");
+
+    const after = await readStore();
+    expect(
+      after.supervisedActions?.find((item) => item.id === target!.id)?.status
+    ).toBe("dismissed");
+    expect(
+      after.actionLogs?.some((event) => event.event === "dismissed")
+    ).toBe(true);
   });
 });

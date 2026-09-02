@@ -755,4 +755,6 @@ export const detectEvalStore: StoreData = {
   pilot: { baselineOpportunities: 0 },
   taxonomyOverrides: {},
   auditEvents: [],
+  supervisedActions: [],
+  actionLogs: [],
 };

@@ -67,6 +67,9 @@ describe("SignalReviewPair", () => {
     expect(html).toContain("lg:grid-cols-2");
     expect(html).not.toContain("Conversation");
     expect(html).toContain("Suggested Next Action");
+    expect(html).toContain("Retention Email");
+    expect(html).toContain("Approve");
+    expect(html).toContain("Checking in on your account");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Priya");

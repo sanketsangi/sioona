@@ -9,13 +9,20 @@ import {
 } from "./backend-client";
 import { toConversationSyncPayload } from "./sync-conversations";
 import { syncPilotSettingsToBackend } from "./sync-pilot";
+import {
+  applySupervisedActionDecision,
+  ensureSupervisedActions,
+} from "./supervised-actions";
 import type {
   AuditEvent,
+  Conversation,
   FeedbackLabel,
   PilotSettings,
   Signal,
   SignalType,
   StoreData,
+  SupervisedAction,
+  SupervisedActionDecision,
   TaxonomyOverrides,
   TaxonomyTypeOverride,
 } from "./types";
@@ -122,6 +129,8 @@ export function normalizeStore(data: StoreData): StoreData {
       ...event,
       label: normalizeFeedbackLabel(event.label),
     })),
+    supervisedActions: data.supervisedActions ?? [],
+    actionLogs: data.actionLogs ?? [],
     signals: data.signals.map((signal) =>
       signal.feedback
         ? {
@@ -260,6 +269,7 @@ export async function replaceSignalsPreservingFeedback(
 ): Promise<StoreData> {
   const store = await readStore();
   store.signals = mergeSignalsPreservingFeedback(store.signals, signals);
+  ensureSupervisedActions(store);
   await writeStore(store);
   return store;
 }
@@ -270,8 +280,64 @@ export async function upsertSignals(signals: Signal[]): Promise<StoreData> {
   const kept = store.signals.filter((s) => !byConversation.has(s.conversationId));
   const merged = mergeSignalsPreservingFeedback(store.signals, signals);
   store.signals = [...kept, ...merged];
+  ensureSupervisedActions(store);
   await writeStore(store);
   return store;
+}
+
+/**
+ * Generate missing high-confidence retention email drafts and persist.
+ * Used on Insights load for signals already in the store (no re-detect).
+ */
+export async function persistSupervisedActions(
+  extraSignals: Signal[] = [],
+  extraConversations: Conversation[] = []
+): Promise<SupervisedAction[]> {
+  const store = await readStore();
+  const created = ensureSupervisedActions(
+    store,
+    extraSignals,
+    extraConversations
+  );
+  if (created.length > 0) {
+    await writeStore(store);
+  } else {
+    // Rematched signal ids still need a write when an existing draft moved.
+    const rematched = (store.supervisedActions ?? []).some((action) =>
+      extraSignals.some(
+        (signal) =>
+          signal.conversationId === action.conversationId &&
+          signal.id !== action.signalId &&
+          signal.type === "retention"
+      )
+    );
+    if (rematched) await writeStore(store);
+  }
+  return created;
+}
+
+export type DecideSupervisedActionStoreResult =
+  | { ok: true; action: SupervisedAction }
+  | {
+      ok: false;
+      reason: "not_found" | "already_decided" | "invalid_body";
+    };
+
+export async function decideSupervisedAction(
+  actionId: string,
+  decision: SupervisedActionDecision,
+  edits?: { subject?: string; body?: string }
+): Promise<DecideSupervisedActionStoreResult> {
+  const store = await readStore();
+  const result = applySupervisedActionDecision(
+    store,
+    actionId,
+    decision,
+    edits
+  );
+  if (!result.ok) return result;
+  await writeStore(store);
+  return result;
 }
 
 export async function setSignalFeedback(

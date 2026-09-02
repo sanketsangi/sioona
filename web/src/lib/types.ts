@@ -93,6 +93,53 @@ export interface AuditEvent {
   timestamp: string;
 }
 
+/**
+ * First supervised Action type. Add more kinds here later — do not
+ * invent parallel action records.
+ */
+export type SupervisedActionType = "retention_email_draft";
+
+/** Human decision on a generated draft. Nothing is sent until approved. */
+export type SupervisedActionDecision = "approved" | "edited" | "dismissed";
+
+export type SupervisedActionStatus = "pending" | SupervisedActionDecision;
+
+/**
+ * Stored supervised action. Generated from existing Detect output;
+ * never executes outbound (Approve records intent only).
+ */
+export interface SupervisedAction {
+  id: string;
+  type: SupervisedActionType;
+  signalId: string;
+  conversationId: string;
+  tenantId: string;
+  subject: string;
+  body: string;
+  /** Immutable copy used to tell approved vs edited. */
+  generatedSubject: string;
+  generatedBody: string;
+  evidenceQuote: string;
+  status: SupervisedActionStatus;
+  createdAt: string;
+  decidedAt?: string;
+}
+
+/** Append-only evaluation log for generated drafts and human decisions. */
+export type ActionLogEventKind = "generated" | SupervisedActionDecision;
+
+export interface ActionLogEvent {
+  id: string;
+  actionId: string;
+  signalId: string;
+  conversationId?: string;
+  type: SupervisedActionType;
+  event: ActionLogEventKind;
+  subject: string;
+  body: string;
+  timestamp: string;
+}
+
 export interface StoreData {
   tenant: Tenant;
   conversations: Conversation[];
@@ -102,4 +149,8 @@ export interface StoreData {
   taxonomyOverrides?: TaxonomyOverrides;
   /** Append-only compliance log (e.g. SignalScore feedback events). */
   auditEvents?: AuditEvent[];
+  /** Supervised Action drafts (retention email first). */
+  supervisedActions?: SupervisedAction[];
+  /** Evaluation log for action generation + decisions. */
+  actionLogs?: ActionLogEvent[];
 }

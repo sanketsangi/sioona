@@ -42,6 +42,7 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
+import { findSupervisedAction } from "@/lib/supervised-actions";
 import { PagerIconLink } from "@/components/PagerIconLink";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,7 +75,12 @@ import {
   QUEUE_UNAVAILABLE_PANEL_TITLE,
 } from "@/lib/backend-wake";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
-import type { Conversation, Message, Signal } from "@/lib/types";
+import type {
+  Conversation,
+  Message,
+  Signal,
+  SupervisedAction,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type InsightsMode = "list" | "review";
@@ -235,6 +241,8 @@ type SignalQueueProps = {
   reviewTriage?: SignalReviewTriage;
   /** Follow-up Act queue — rail primary Mark as Acted. */
   actedWalk?: MarkActedWalk | null;
+  /** Stored supervised action drafts (retention email first). */
+  supervisedActions?: SupervisedAction[];
 };
 
 function buildQueueHref(
@@ -580,6 +588,7 @@ export function SignalQueue({
   doneEmpty = null,
   reviewTriage,
   actedWalk = null,
+  supervisedActions = [],
 }: SignalQueueProps) {
   const {
     pendingCount,
@@ -670,6 +679,10 @@ export function SignalQueue({
               conversation={previewConversation}
               triage={reviewTriage}
               actedWalk={actedWalk}
+              supervisedAction={findSupervisedAction(
+                supervisedActions,
+                previewSignal,
+              )}
             />
           </div>
         ) : null}

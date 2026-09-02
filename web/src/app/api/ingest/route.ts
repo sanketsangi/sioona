@@ -14,6 +14,7 @@ import {
   readStore,
   writeStore,
 } from "@/lib/store";
+import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import { sortSignals } from "@/lib/eval";
 import { emptyConversationSyncStats } from "@/lib/sync-conversations";
 import {
@@ -188,6 +189,7 @@ export async function POST(request: Request) {
 
     // Dual-write pilot to Neon so /tmp wipe does not reset mid-week gate.
     await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
+    ensureSupervisedActions(store);
     await writeStore(store);
 
     // Same idea as GET / Insights/Eval: JSON is SoT for first paint.
