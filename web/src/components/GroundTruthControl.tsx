@@ -172,7 +172,7 @@ export function GroundTruthControl({
             "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
           )}
         >
-          <p className="text-label-12 text-sio-fg-muted">
+          <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-subtle">
             Label this conversation so Eval can compute labeled precision and
             recall for Lead, Retention, Upsell, or None.
           </p>

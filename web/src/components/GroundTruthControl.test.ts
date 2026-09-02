@@ -27,11 +27,18 @@ describe("GroundTruthControl", () => {
     expect(html).toContain("Retention");
     expect(html).toContain("Upsell");
     expect(html).toContain("None");
+    expect(html).toContain(
+      "Label this conversation so Eval can compute labeled precision and recall for Lead, Retention, Upsell, or None.",
+    );
+    expect(html).toContain(
+      "break-words text-pretty text-copy-14 leading-5 text-sio-fg-subtle",
+    );
+    expect(html).not.toContain("text-label-12 text-sio-fg-muted");
     expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
     expect(html).toContain(
-      "truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base",
+      "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
     );
     expect(html).not.toContain('data-slot="card-header"');
     expect(html).not.toContain('data-slot="card-title"');

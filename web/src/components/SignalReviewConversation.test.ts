@@ -55,6 +55,9 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("max-w-md");
     expect(html).toContain("insights-review-chat");
     expect(html).toContain("insights-review-chat-header");
+    expect(html).toContain(
+      "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+    );
     expect(html).toContain("insights-review-chat-body");
     expect(html).toContain("px-3 sm:px-4");
     expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");

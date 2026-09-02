@@ -1,16 +1,24 @@
 "use client";
 
 import { Check } from "@phosphor-icons/react/ssr";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { CheckCircleIcon } from "@/components/icons/CheckCircleIcon";
 import { CopyIcon } from "@/components/icons/CopyIcon";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { SignalStatus } from "@/components/SignalStatus";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -206,9 +214,10 @@ function SupportHeading({
 /**
  * Suggested Next Action + Why This Fired + Matched — single Card well.
  * Header matches Feedback / Ground Truth (`InsightsReviewPaneHeader`).
- * Status chip, or Mark as Acted on Correct-not-Acted (A / Enter walk).
- * Copy Reply is clipboard-only (never sent). Quotes and match chips that
- * join a stored message jump the transcript. Neon stubs / missing join stay honest.
+ * Copy Reply (clipboard-only, never sent) sits left of Mark as Acted.
+ * Mark as Acted stays in the header; without Correct feedback a dialog
+ * sends the operator to Feedback. Quotes and match chips that join a
+ * stored message jump the transcript. Neon stubs / missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -229,10 +238,14 @@ export function SignalReviewSuggestedAction({
     "idle",
   );
   const walk = actedWalk ?? {};
-  const { actedPending, canMarkActed, error, isActed, setActed } = useMarkActed(
-    signal,
-    walk,
-  );
+  const {
+    actedPending,
+    canMarkActed,
+    error,
+    hasFeedback,
+    isActed,
+    setActed,
+  } = useMarkActed(signal, walk);
   const actionText = resolveSuggestedAction({
     type: signal.type,
     customerName,
@@ -241,10 +254,35 @@ export function SignalReviewSuggestedAction({
   });
   const missingAction = !actionText;
   const isNeonStub = isNeonStubSignalId(signal.id);
-  const showRailActed = actedWalk != null && canMarkActed;
+  const showActedButton = !isActed;
+  const giveFeedbackRef = useRef<HTMLButtonElement>(null);
+  const [feedbackGateOpen, setFeedbackGateOpen] = useState(false);
+
+  const requestMarkActed = useCallback(() => {
+    if (canMarkActed) {
+      void setActed(true);
+      return;
+    }
+    setFeedbackGateOpen(true);
+  }, [canMarkActed, setActed]);
+
+  function goToFeedback() {
+    setFeedbackGateOpen(false);
+    requestAnimationFrame(() => {
+      const review = sectionRef.current?.closest("[id^='signal-review-body-']");
+      const feedback = review?.querySelector<HTMLElement>(
+        "[data-review-slot='feedback']",
+      );
+      const correct = feedback?.querySelector<HTMLButtonElement>(
+        '[aria-keyshortcuts="C"]',
+      );
+      feedback?.scrollIntoView({ block: "nearest" });
+      correct?.focus();
+    });
+  }
 
   useEffect(() => {
-    if (!showRailActed) return;
+    if (!showActedButton) return;
     const keyboardRoot =
       sectionRef.current?.closest("[data-review-keyboard-root]") ??
       sectionRef.current;
@@ -260,12 +298,12 @@ export function SignalReviewSuggestedAction({
       // Enter on Feedback / other buttons activates that control, not Acted.
       if (e.key === "Enter" && isActedEnterBlockedTarget(e.target)) return;
       e.preventDefault();
-      void setActed(true);
+      requestMarkActed();
     };
 
     el.addEventListener("keydown", onKeyDown);
     return () => el.removeEventListener("keydown", onKeyDown);
-  }, [actedPending, setActed, showRailActed]);
+  }, [actedPending, requestMarkActed, showActedButton]);
 
   useEffect(() => {
     return () => {
@@ -343,40 +381,103 @@ export function SignalReviewSuggestedAction({
       aria-labelledby={headingId}
     >
       <InsightsReviewPaneHeader id={headingId} title="Suggested Next Action">
-        {showRailActed ? (
-          <TooltipProvider delayDuration={400}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex shrink-0">
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="btn-secondary shrink-0"
+            disabled={missingAction}
+            aria-label="Copy Reply to clipboard"
+            aria-describedby={copyStatusId}
+            onClick={() => void copyReply()}
+          >
+            {copyState === "copied" ? (
+              <Check
+                className="size-3.5 shrink-0"
+                weight="bold"
+                aria-hidden
+              />
+            ) : (
+              <CopyIcon className="size-4 shrink-0" />
+            )}
+            {copyState === "copied" ? "Copied…" : "Copy Reply"}
+          </Button>
+          {showActedButton ? (
+            <Dialog open={feedbackGateOpen} onOpenChange={setFeedbackGateOpen}>
+              <TooltipProvider delayDuration={400}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex shrink-0">
+                      <Button
+                        type="button"
+                        className="btn-primary shrink-0"
+                        disabled={actedPending}
+                        aria-busy={actedPending}
+                        aria-haspopup={canMarkActed ? undefined : "dialog"}
+                        aria-keyshortcuts="A Enter"
+                        onClick={requestMarkActed}
+                      >
+                        {actedPending ? (
+                          <ButtonSpinner />
+                        ) : (
+                          <Check
+                            className="size-3.5 shrink-0"
+                            weight="bold"
+                            aria-hidden
+                          />
+                        )}
+                        Mark as Acted
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="end">
+                    {ACTED_TOOLTIP}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <DialogContent
+                className="overscroll-contain motion-reduce:animate-none"
+                showCloseButton
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  giveFeedbackRef.current?.focus();
+                }}
+              >
+                <DialogHeader>
+                  <DialogTitle>
+                    {hasFeedback
+                      ? "Correct Feedback Required"
+                      : "Give Feedback First"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {hasFeedback
+                      ? "Mark as Acted is only for Correct reviews. Update Feedback to Correct, then try again. This does not send a message."
+                      : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Mark as Acted records that you handled a Correct review and does not send a message."}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="btn-secondary"
+                    >
+                      Cancel
+                    </Button>
+                  </DialogClose>
                   <Button
+                    ref={giveFeedbackRef}
                     type="button"
-                    className="btn-primary shrink-0"
-                    disabled={actedPending}
-                    aria-busy={actedPending}
-                    aria-keyshortcuts="A Enter"
-                    onClick={() => void setActed(true)}
+                    className="btn-primary"
+                    onClick={goToFeedback}
                   >
-                    {actedPending ? (
-                      <ButtonSpinner />
-                    ) : (
-                      <Check
-                        className="size-3.5 shrink-0"
-                        weight="bold"
-                        aria-hidden
-                      />
-                    )}
-                    Mark as Acted
+                    Give Feedback
                   </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" align="end">
-                {ACTED_TOOLTIP}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        ) : (
-          <SignalStatus signal={signal} variant="chip" />
-        )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : null}
+        </div>
       </InsightsReviewPaneHeader>
 
       <CardContent className="flex min-w-0 flex-col px-0">
@@ -393,7 +494,7 @@ export function SignalReviewSuggestedAction({
           ) : null}
           <p
             className={
-              "text-heading-16 break-words text-pretty font-semibold leading-6 tracking-normal " +
+              "break-words text-pretty text-copy-16 " +
               (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
             }
           >
@@ -401,44 +502,22 @@ export function SignalReviewSuggestedAction({
               ? "Unavailable — local detection join missing."
               : actionText}
           </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="btn-secondary min-h-11 shrink-0 touch-manipulation md:min-h-9"
-              disabled={missingAction}
-              aria-label="Copy Reply to clipboard"
-              aria-describedby={copyStatusId}
-              onClick={() => void copyReply()}
+          <p id={copyStatusId} className="sr-only" aria-live="polite">
+            {copyState === "copied"
+              ? "Reply copied to clipboard. Not sent."
+              : copyState === "error"
+                ? "Could not copy reply. Try again."
+                : null}
+          </p>
+          {copyState === "error" ? (
+            <p
+              className="text-label-12 leading-5 text-sio-status-danger-fg"
+              role="alert"
             >
-              {copyState === "copied" ? (
-                <Check
-                  className="size-3.5 shrink-0"
-                  weight="bold"
-                  aria-hidden
-                />
-              ) : (
-                <CopyIcon className="size-4 shrink-0" />
-              )}
-              {copyState === "copied" ? "Copied…" : "Copy Reply"}
-            </Button>
-            <p id={copyStatusId} className="sr-only" aria-live="polite">
-              {copyState === "copied"
-                ? "Reply copied to clipboard. Not sent."
-                : copyState === "error"
-                  ? "Could not copy reply. Try again."
-                  : null}
+              Could not copy. Try again.
             </p>
-            {copyState === "error" ? (
-              <p
-                className="text-label-12 leading-5 text-sio-status-danger-fg"
-                role="alert"
-              >
-                Could not copy. Try again.
-              </p>
-            ) : null}
-          </div>
-          {showRailActed && error ? (
+          ) : null}
+          {error ? (
             <p className="text-label-12 leading-5 text-sio-status-danger-fg" role="alert">
               {error}
             </p>

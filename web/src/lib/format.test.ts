@@ -12,6 +12,7 @@ import {
   scoreIconKind,
   signalReviewStatusLabel,
   signalStatusDot,
+  signalStatusMarkClass,
   stripSummaryEvidenceQuote,
 } from "./format";
 
@@ -137,6 +138,27 @@ describe("signalStatusDot", () => {
         feedback: { label: "correct", reviewedAt: "2026-01-01" },
       })
     ).toEqual({ state: "CANCELED", label: "Acted" });
+  });
+});
+
+describe("signalStatusMarkClass", () => {
+  it("tints queue chips from status tokens, not signal-type colors", () => {
+    expect(signalStatusMarkClass("QUEUED")).toBe(
+      "bg-sio-status-pending-bg text-sio-status-pending-fg",
+    );
+    expect(signalStatusMarkClass("READY")).toBe(
+      "bg-sio-status-success-bg text-sio-status-success-fg",
+    );
+    expect(signalStatusMarkClass("ERROR")).toBe(
+      "bg-sio-status-danger-bg text-sio-status-danger-fg",
+    );
+    expect(signalStatusMarkClass("BUILDING")).toBe(
+      "bg-sio-status-warning-bg text-sio-status-warning-fg",
+    );
+    expect(signalStatusMarkClass("CANCELED")).toBe(
+      "bg-sio-bg-muted text-sio-fg-subtle",
+    );
+    expect(signalStatusMarkClass("QUEUED")).not.toContain("signal-lead");
   });
 });
 

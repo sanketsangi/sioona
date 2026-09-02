@@ -85,7 +85,7 @@ Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/sh
 Operator review happens **in the queue**, not on a full-page Signal Detail screen and not in a right split preview pane. Clicking a `SignalQueueRow` (or **Review**) toggles expand for that signal via `?preview=<signalId>` (one open at a time). Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body sits under the same row chrome inside the list item:
 
 1. **Signal cell (in-row):** row chrome stays identical open or closed — truncated Signal summary (no unwrap, no selected fill / `aria-current` bar). Full text and evidence live in the expand body; no duplicate full-signal block there beyond Why This Fired.
-2. **Conversation + Suggested Next Action** — EvalCard-aligned wells (`gap-4`, gutters `px-3 sm:px-4` / header `py-2.5`): conversation chat well (`SignalUser`, full transcript in a `max-w-md` column, quiet `sio-bg-subtle` fill) beside the Suggested Next Action well (`SignalReviewSuggestedAction`): header + `heading-16` action, `Separator`, then quieter Why This Fired (≤2 quote rows) / Matched chips. Display-only note; honesty for Neon stubs. Why quotes and match chips that join a stored message jump to a highlighted bubble. Acted uses `SignalStatus`. Feedback / Ground Truth stay on the rail below. Review panels open downward only. Queue rows share the same horizontal gutter so the review chrome lines up with Eval containers.
+2. **Conversation + Suggested Next Action** — EvalCard-aligned wells (`gap-4`, gutters `px-3 sm:px-4` / header `py-2.5`): conversation chat well (`SignalUser`, full transcript in a `max-w-md` column, quiet `sio-bg-subtle` fill) beside the Suggested Next Action well (`SignalReviewSuggestedAction`): header + `copy-16` draft reply (`sio-fg-base`; muted when missing), `Separator`, then quieter Why This Fired (≤2 quote rows, `copy-14`) / Matched chips. Display-only note; honesty for Neon stubs. Why quotes and match chips that join a stored message jump to a highlighted bubble. Acted uses `SignalStatus`. Feedback / Ground Truth stay on the rail below. Review panels open downward only. Queue rows share the same horizontal gutter so the review chrome lines up with Eval containers.
 3. **Feedback → Ground Truth** — `FeedbackControls` then `GroundTruthControl` when a local conversation exists. Header still has **Open Conversation** + Mark Acted. Full transcript stays in `ConversationDrawer` (including Neon stubs that still join a local transcript). No **Open Full Detail** / **Add Feedback** links. Neon stubs without local evidence: quiet empty copy in Action/Why (no yellow status banner); Upload Chats when no local messages.
 
 Smooth expand/collapse uses compositor-friendly `grid-template-rows` and honors `prefers-reduced-motion`. Expanded row keeps `aria-expanded` / `aria-controls` / `data-expanded` (no `aria-current` highlight). Legacy `?signal=` and `/insights/[id]` redirect to `?view=insights&preview=<id>`.
@@ -102,7 +102,7 @@ Shared `ConversationDrawer` → local `Drawer` shim. Review body shows the full 
 
 ### Insights queue status
 
-Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/components/ui/StatusDot.tsx`, geistcn-aligned local shim). **Pending until review = blue**; colors follow the operator feedback label after review (not signal type). Mapping lives only in `format.ts` (`signalStatusDot`).
+Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/components/ui/StatusDot.tsx`, geistcn-aligned). **Pending until review = blue**; colors follow the operator feedback label after review (not signal type). Mapping lives only in `format.ts` (`signalStatusDot`). Queue **filters** are Geist pills (Add Filter + All / Pending / Correct / Done), not `SignalStatusChip`.
 
 | Operator state | Label | Dot |
 |---|---|---|
@@ -110,8 +110,9 @@ Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/compo
 | `feedback.label === correct` | **Correct** | Green (`sio-status-success-*`) — READY |
 | `feedback.label === incorrect` | **Incorrect** | Red (`sio-status-danger-*`) — ERROR |
 | `feedback.label === partially_correct` | **Partially Correct** | Orange/amber (`sio-status-warning-*`) — BUILDING |
+| `status === acted` | **Acted** | Muted (`sio-fg-faint`) — CANCELED |
 
-URL filter stays `status=new` for the Neon needs-review bucket. Queue chrome uses shared `SegmentedTabs` (All / Pending / Correct / Done, tabular counts) plus a Type dropdown — not a combined Filters menu. StatusDot uses **feedback presence/label** once reviewed (so a reviewed row never stays Pending/blue from a stale `status===new`). Always show the text label with the dot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status. The page title stays **Insights** in `AppHeader`; the list has an `sr-only` **Insights Queue** heading (review breadcrumb uses the same label).
+URL filter stays `status=new` for the Neon needs-review bucket. Queue chrome uses Geist filter pills immediately above the queue table: **Add Filter** (solid, Type menu) plus four EvidenceChip-style status chips (All / Pending / Correct / Done). Selected chips use applied chrome (solid + X). Type lives in Add Filter. Status chips stay URL `Link`s. Not beside the section title, not a combined Filters menu, and not `SegmentedTabs`. Status chips use **feedback presence/label** once reviewed (so a reviewed row never stays Pending from a stale `status===new`). Queue rows and the Pending metric breakdown always show the text label with the StatusDot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status. The page title stays **Insights** in `AppHeader`; the list has an `sr-only` **Insights Queue** heading (review breadcrumb uses the same label).
 
 ### Signal chrome (reuse lock)
 
@@ -119,13 +120,13 @@ Operator Insights surfaces (queue / in-row expand) share one chrome set — copy
 
 | Surface | Component | Notes |
 |---|---|---|
-| Status | `SignalStatus` only | Internals call `signalStatusDot` → `StatusDot`; Pending / Correct / Incorrect / Partially Correct mapping stays in `format.ts` |
+| Status | `SignalStatus` only | Queue Status column and Pending metric breakdown use `StatusDot` + label; queue filters use Add Filter plus All / Pending / Correct / Done chips. Mapping stays in `format.ts` |
 | Detection score | `SignalScoreChip` only | Hairline pill + band icon hex; bands unchanged via `scoreIconKind` / `scoreIconColor` |
 | Type (ops scan) | `SignalTypeChip` | Same hairline pill + muted Lead / Retention / Upsell glyphs |
 | Type (taxonomy / legacy colored mark) | `SignalBadge` | Colored mark for taxonomy tables only — do not duplicate chip logic inside `SignalBadge` |
 | User | `SignalUser` | `Avatar` + initials (`?` when empty / `"Customer"`) + optional truncated name |
 
-**NEVER** re-wire `scoreIconKind` / `StatusDot` mapping / type icons inline in views — import the shared components.
+**NEVER** re-wire `scoreIconKind` / status mark mapping / type icons inline in views — import the shared components.
 
 Shared pill class: `signalChipClass` (exported from `SignalScoreChip.tsx`).
 

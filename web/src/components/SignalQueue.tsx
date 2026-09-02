@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  forwardRef,
   useEffect,
   useMemo,
   useRef,
@@ -13,10 +14,8 @@ import {
   ArrowRight,
   CaretDoubleLeft,
   CaretDoubleRight,
-  CaretDown,
   CaretLeft,
   CaretRight,
-  CirclesThree,
 } from "@phosphor-icons/react/ssr";
 import {
   createColumnHelper,
@@ -26,11 +25,14 @@ import {
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
+import {
+  ADD_FILTER_STATUS_OPTIONS,
+  ADD_FILTER_TYPE_OPTIONS,
+  AddFilterPopover,
+} from "@/components/AddFilterPopover";
 import { FilterIcon } from "@/components/icons/FilterIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
-import { LeadIcon } from "@/components/icons/LeadIcon";
-import { RetentionIcon } from "@/components/icons/RetentionIcon";
-import { UpsellIcon } from "@/components/icons/UpsellIcon";
+import { XIcon } from "@/components/icons/XIcon";
 import {
   SignalQueueRow,
   QUEUE_REVIEW_ACTION_CLASS,
@@ -41,19 +43,8 @@ import {
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
 import { PagerIconLink } from "@/components/PagerIconLink";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuShortcut,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -61,7 +52,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
 import {
   formatScore,
   queueSignalSummary,
@@ -180,47 +170,22 @@ function resolveCustomerName(
   return "Customer";
 }
 
-const STATUS_DOT_BY_FILTER: Partial<Record<StatusFilter, StatusDotState>> = {
-  new: "QUEUED",
-  followup: "READY",
-  acted: "CANCELED",
-};
+const STATUS_OPTIONS = ADD_FILTER_STATUS_OPTIONS;
+const TYPE_OPTIONS = ADD_FILTER_TYPE_OPTIONS;
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "new", label: "Pending" },
-  { value: "followup", label: "Correct" },
-  { value: "acted", label: "Done" },
-];
-
-const TYPE_OPTIONS: { value: TypeFilter; label: string }[] = [
-  { value: "all", label: "All Types" },
-  { value: "lead", label: "Lead" },
-  { value: "retention", label: "Retention" },
-  { value: "upsell", label: "Upsell" },
-];
-
-function statusFilterIcon(value: StatusFilter): ReactNode {
-  const state = STATUS_DOT_BY_FILTER[value];
-  if (state) {
-    return <StatusDot state={state} className="justify-center" />;
-  }
-  return (
-    <CirclesThree className="size-4 text-sio-fg-subtle" weight="regular" />
-  );
-}
-
-function typeFilterIcon(value: TypeFilter): ReactNode {
-  switch (value) {
-    case "lead":
-      return <LeadIcon className="size-4 shrink-0" />;
-    case "retention":
-      return <RetentionIcon className="size-4 shrink-0" />;
-    case "upsell":
-      return <UpsellIcon className="size-4 shrink-0" />;
-    default:
-      return <LayersIcon className="size-4 shrink-0 text-sio-fg-subtle" />;
-  }
+function statusFilterCount(
+  value: StatusFilter,
+  counts: {
+    pendingCount: number;
+    followUpCount: number;
+    doneCount: number;
+    allCount: number;
+  },
+): number {
+  if (value === "new") return counts.pendingCount;
+  if (value === "followup") return counts.followUpCount;
+  if (value === "acted") return counts.doneCount;
+  return counts.allCount;
 }
 
 type QueueHref = (next: {
@@ -393,7 +358,7 @@ function useQueueList({
   );
 }
 
-/** Filters + count summary for Insights header (right of section title). */
+/** Filters + count summary for Insights — immediately above the queue table. */
 export function SignalQueueFilters({
   pendingSignals,
   reviewedSignals,
@@ -890,41 +855,162 @@ export function SignalQueue({
   );
 }
 
-function FilterMenuLink({
+const PILL_LINE =
+  "outline-[color-mix(in_oklch,var(--sio-fg-base)_21%,transparent)]";
+
+/** Geist add-pill hairline — not a palette token. */
+const PILL_HAIRLINE_SHADOW =
+  "shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.06)]";
+
+const PILL_SOLID_BG = cn(
+  "bg-sio-bg-base [outline-style:solid] outline-sio-border-base",
+  "group-hover:bg-sio-bg-interactive group-hover/trigger:bg-sio-bg-interactive",
+  "group-focus-visible/trigger:bg-sio-bg-interactive",
+  "group-hover:outline-[color-mix(in_oklch,var(--sio-fg-base)_21%,transparent)] group-hover/trigger:outline-[color-mix(in_oklch,var(--sio-fg-base)_21%,transparent)]",
+  "group-focus-visible/trigger:outline-[color-mix(in_oklch,var(--sio-fg-base)_21%,transparent)]",
+  "group-data-[state=open]/trigger:bg-sio-bg-muted group-data-[state=open]/trigger:outline-sio-border-strong",
+);
+
+const FILTER_PILL_TRIGGER_CLASS =
+  "group/trigger relative max-w-full cursor-pointer rounded-[10ex] touch-manipulation outline-none select-none !ring-0 before:absolute before:-inset-y-1.5 before:inset-x-0 before:content-[''] focus-visible:shadow-[var(--focus-ring)] md:before:hidden";
+
+/** Outer Geist group so unnamed `group-hover:` (labels + add fill) works. */
+function FilterPillFrame({ children }: { children: ReactNode }) {
+  return <div className="group relative">{children}</div>;
+}
+
+function FilterCountBadge({ count }: { count: number }) {
+  return (
+    <span
+      data-filter-count=""
+      aria-hidden
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[100%] bg-sio-bg-muted text-label-12 font-medium leading-none tabular text-sio-fg-subtle"
+    >
+      {count}
+    </span>
+  );
+}
+
+function FilterPillClear({
   href,
-  active,
-  icon,
-  suffix,
-  children,
+  label,
 }: {
   href: string;
-  active: boolean;
-  icon: ReactNode;
-  suffix?: ReactNode;
-  children: ReactNode;
+  label: string;
 }) {
   return (
-    <DropdownMenuItem
-      asChild
-      className="h-11 min-h-11 cursor-pointer gap-2 rounded-md px-2 py-0 md:h-8 md:min-h-8"
+    <Link
+      href={href}
+      scroll={false}
+      aria-label={label}
+      data-filter-pill-clear=""
+      className="absolute top-0 right-0 z-10 flex size-8 cursor-pointer items-center justify-end pr-1 text-[#7d7d7d] outline-none !ring-0 before:absolute before:-inset-1.5 before:content-[''] hover:text-sio-fg-base focus-visible:[&_[data-filter-clear-face]]:shadow-[var(--focus-ring)] touch-manipulation md:before:inset-0"
     >
+      <span
+        data-filter-clear-face=""
+        className="relative flex size-5 items-center justify-center rounded-full border border-[#ebebeb] bg-sio-bg-base transition-[color,border-color,background-color] duration-150 motion-reduce:transition-none"
+      >
+        <XIcon className="relative size-4 rounded-full" />
+      </span>
+    </Link>
+  );
+}
+
+const FilterPillTrigger = forwardRef<
+  HTMLButtonElement,
+  ComponentProps<"button"> & {
+    variant: "add" | "suggestion" | "applied";
+    href?: string;
+    clearable?: boolean;
+  }
+>(function FilterPillTrigger(
+  {
+    variant,
+    className,
+    children,
+    type = "button",
+    href,
+    clearable = false,
+    ...props
+  },
+  ref,
+) {
+  const solid = variant === "add" || variant === "applied";
+  const inner = (
+    <>
+      <div
+        className={cn(
+          "absolute inset-0 rounded-[10ex] outline-1 outline-offset-0 transition-colors duration-150 motion-reduce:transition-none",
+          solid
+            ? PILL_SOLID_BG
+            : cn(
+                "bg-transparent outline-dashed",
+                PILL_LINE,
+                "group-hover:bg-sio-bg-interactive group-hover/trigger:bg-sio-bg-base group-hover/trigger:outline-transparent",
+                "group-focus-visible/trigger:bg-sio-bg-base group-focus-visible/trigger:outline-transparent",
+              ),
+        )}
+        data-pill-background="true"
+        aria-hidden
+      >
+        <div
+          className={cn(
+            "pointer-events-none absolute inset-0 rounded-[10ex] outline-1 outline-offset-0 [outline-style:solid] outline-transparent transition-colors duration-150 motion-reduce:transition-none",
+            solid
+              ? PILL_HAIRLINE_SHADOW
+              : cn(
+                  "group-hover/trigger:outline-[color-mix(in_oklch,var(--sio-fg-base)_21%,transparent)]",
+                  "group-focus-visible/trigger:outline-[color-mix(in_oklch,var(--sio-fg-base)_21%,transparent)]",
+                ),
+          )}
+        />
+      </div>
+      <div
+        className={cn(
+          "relative flex h-8 flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
+          variant === "add" &&
+            "w-[110px] cursor-pointer justify-center leading-none !ring-0",
+          variant === "applied" && clearable && "pr-7",
+        )}
+      >
+        {children}
+      </div>
+    </>
+  );
+  const triggerClass = cn(
+    FILTER_PILL_TRIGGER_CLASS,
+    href && "inline-flex",
+    className,
+  );
+
+  if (href) {
+    return (
       <Link
         href={href}
         scroll={false}
-        aria-current={active ? "true" : undefined}
+        data-slot="button"
+        className={triggerClass}
+        aria-current={props["aria-current"]}
+        aria-label={props["aria-label"]}
       >
-        <span
-          className="flex size-4 shrink-0 items-center justify-center"
-          aria-hidden
-        >
-          {icon}
-        </span>
-        <span className="min-w-0 flex-1 truncate">{children}</span>
-        {suffix}
+        {inner}
       </Link>
-    </DropdownMenuItem>
+    );
+  }
+
+  return (
+    <button
+      ref={ref}
+      type={type}
+      data-slot="button"
+      {...props}
+      className={triggerClass}
+    >
+      {inner}
+    </button>
   );
-}
+});
+FilterPillTrigger.displayName = "FilterPillTrigger";
 
 function QueueFilters({
   statusFilter,
@@ -941,92 +1027,100 @@ function QueueFilters({
   followUpCount: number;
   doneCount: number;
   allCount: number;
-  queueHref: (next: {
-    status?: StatusFilter;
-    type?: TypeFilter;
-    page?: number;
-    preview?: string | null;
-  }) => string;
+  queueHref: QueueHref;
 }) {
+  const typeLabel =
+    TYPE_OPTIONS.find((option) => option.value === typeFilter)?.label ??
+    "All Types";
+  const typeApplied = typeFilter !== "all";
+  const counts = { pendingCount, followUpCount, doneCount, allCount };
+  const clearStatusHref = queueHref({
+    status: "all",
+    page: 1,
+    preview: null,
+  });
+  const clearTypeHref = queueHref({
+    type: "all",
+    page: 1,
+    preview: null,
+  });
+
   return (
-    <div className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="btn-secondary group outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
-          >
-            <FilterIcon className="size-3.5 shrink-0" />
-            Filters
-            <CaretDown
-              className="size-3.5 shrink-0 transition-transform duration-150 group-data-[state=open]:rotate-180"
-              weight="bold"
-              aria-hidden
-            />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          sideOffset={8}
-          className="w-56 min-w-56 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-0 shadow-md ring-0"
+    <div className="flex w-full min-w-0 flex-wrap items-center gap-2 p-1 pointer-coarse:w-max pointer-coarse:min-w-full pointer-coarse:flex-nowrap">
+      <FilterPillFrame>
+        <AddFilterPopover
+          typeFilter={typeFilter}
+          statusFilter={statusFilter}
+          queueHref={queueHref}
+          typeApplied={typeApplied}
         >
-          <DropdownMenuGroup className="p-2">
-            <DropdownMenuLabel>Status</DropdownMenuLabel>
-            {STATUS_OPTIONS.map((option) => {
-              const count =
-                option.value === "new"
-                  ? pendingCount
-                  : option.value === "followup"
-                    ? followUpCount
-                    : option.value === "acted"
-                      ? doneCount
-                      : allCount;
-              return (
-                <FilterMenuLink
-                  key={option.value}
-                  active={statusFilter === option.value}
-                  icon={statusFilterIcon(option.value)}
-                  href={queueHref({
-                    status: option.value,
-                    page: 1,
-                    preview: null,
-                  })}
-                  suffix={
-                    <DropdownMenuShortcut className="tracking-normal">
-                      <Badge
-                        variant="secondary"
-                        className="h-5 min-w-5 rounded-full border-0 bg-sio-bg-muted px-1.5 text-label-12 font-medium tabular text-sio-fg-base group-focus/dropdown-menu-item:bg-sio-bg-muted group-focus/dropdown-menu-item:text-sio-fg-base"
-                      >
-                        {count}
-                      </Badge>
-                    </DropdownMenuShortcut>
-                  }
+          <FilterPillTrigger
+            variant={typeApplied ? "applied" : "add"}
+            clearable={typeApplied}
+            aria-label={
+              typeApplied ? `Queue type: ${typeLabel}` : "Add Filter"
+            }
+          >
+            {typeApplied ? (
+              <span className="flex min-w-0 flex-row items-center gap-1 font-medium whitespace-nowrap">
+                <span className="shrink-0 font-normal text-sio-fg-subtle opacity-80 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100">
+                  Type
+                </span>
+                <span className="text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base">
+                  {typeLabel}
+                </span>
+              </span>
+            ) : (
+              <>
+                <FilterIcon className="block size-4 shrink-0 translate-y-[1.5px] text-sio-fg-subtle" />
+                <span
+                  className="w-16 text-left font-medium leading-none whitespace-nowrap"
+                  data-wide-only="true"
                 >
+                  Add Filter
+                </span>
+              </>
+            )}
+          </FilterPillTrigger>
+        </AddFilterPopover>
+        {typeApplied ? (
+          <FilterPillClear href={clearTypeHref} label="Clear type filter" />
+        ) : null}
+      </FilterPillFrame>
+
+      {STATUS_OPTIONS.map((option) => {
+        const selected = statusFilter === option.value;
+        const clearable = selected && statusFilter !== "all";
+        const count = statusFilterCount(option.value, counts);
+        return (
+          <FilterPillFrame key={option.value}>
+            <FilterPillTrigger
+              variant={selected ? "applied" : "suggestion"}
+              clearable={clearable}
+              href={queueHref({
+                status: option.value,
+                page: 1,
+                preview: null,
+              })}
+              aria-current={selected ? "true" : undefined}
+              aria-label={`Queue status: ${option.label}, ${count} ${count === 1 ? "signal" : "signals"}`}
+            >
+              <span className="flex min-w-0 flex-row items-center gap-1.5 font-medium whitespace-nowrap">
+                <span className="text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base">
                   {option.label}
-                </FilterMenuLink>
-              );
-            })}
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator className="m-0 bg-sio-border-base" />
-          <DropdownMenuGroup className="p-2">
-            <DropdownMenuLabel>Type</DropdownMenuLabel>
-            {TYPE_OPTIONS.map((option) => (
-              <FilterMenuLink
-                key={option.value}
-                active={typeFilter === option.value}
-                icon={typeFilterIcon(option.value)}
-                href={queueHref({
-                  type: option.value,
-                  page: 1,
-                  preview: null,
-                })}
-              >
-                {option.label}
-              </FilterMenuLink>
-            ))}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+                </span>
+                <FilterCountBadge count={count} />
+              </span>
+            </FilterPillTrigger>
+            {clearable ? (
+              <FilterPillClear
+                href={clearStatusHref}
+                label="Clear status filter"
+              />
+            ) : null}
+          </FilterPillFrame>
+        );
+      })}
     </div>
   );
 }

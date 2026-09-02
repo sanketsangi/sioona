@@ -73,6 +73,10 @@ describe("SignalQueueRow", () => {
     expect(html).toContain("data-queue-action");
     expect(html).toContain('aria-label="Open review for Priya"');
     expect(html).toContain("preview=sig_1");
+    expect(html).toContain("Pending");
+    expect(html).toContain("status-dot");
+    expect(html).toContain("status-dot-queued");
+    expect(html).not.toContain("bg-sio-status-pending-bg");
     expect(html).toContain('id="signal-summary-sig_1"');
     const previewAnchors = html.match(
       /href="\/\?view=insights&amp;preview=sig_1"/g,

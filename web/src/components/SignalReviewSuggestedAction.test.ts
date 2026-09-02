@@ -45,7 +45,7 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe("SignalReviewSuggestedAction", () => {
-  it("uses a single Feedback-style Card well with Pending chip and match tags", () => {
+  it("uses a single Feedback-style Card well with Mark as Acted and match tags", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -62,6 +62,15 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Copy Reply to clipboard");
+    expect(html).toContain("btn-secondary shrink-0");
+    expect(html).not.toContain("btn-secondary min-h-11");
+    expect(html).toContain('data-variant="outline"');
+    expect(html).toMatch(
+      /Suggested Next Action[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
+    );
+    expect(html).not.toMatch(
+      /Hi Priya, I noticed you said[\s\S]*Copy Reply/,
+    );
     expect(html).toContain("M2.75 0.5C1.7835 0.5");
     expect(html).toContain('fill="currentColor"');
     expect(html).toContain("aria-live");
@@ -70,17 +79,21 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Phrase");
     expect(html).toContain("pause my SIP");
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain("text-heading-16");
-    expect(html).toContain("Pending");
-    expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
-    expect(html).toContain("h-auto shrink-0 rounded-sm border-transparent px-2 py-0.5");
+    expect(html).toContain("text-copy-16");
+    expect(html).toContain(
+      "break-words text-pretty text-copy-16 text-sio-fg-base",
+    );
+    expect(html).toContain("Mark as Acted");
+    expect(html).toContain("btn-primary shrink-0");
+    expect(html).toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
     expect(html).toContain(
-      'truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base',
+      'truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base',
     );
     expect(html).toContain("flex shrink-0 items-center");
+    expect(html).toContain("flex shrink-0 items-center gap-2");
     expect(html).not.toContain('data-slot="card-header"');
     expect(html).not.toContain('data-slot="card-title"');
     expect(html).not.toContain('data-slot="card-action"');
@@ -271,7 +284,14 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Unavailable — local detection join missing.");
     expect(html).toContain("No local evidence.");
     expect(html).toContain("Copy Reply");
+    expect(html).toContain("Copy Reply to clipboard");
     expect(html).toContain('disabled=""');
+    expect(html).toContain(
+      "break-words text-pretty text-copy-16 text-sio-fg-muted",
+    );
+    expect(html).toMatch(
+      /Suggested Next Action[\s\S]*Copy Reply[\s\S]*Unavailable/,
+    );
   });
 
   it("uses Neon stub honesty when the join is missing", () => {
@@ -288,7 +308,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("No local evidence — detection join missing.");
   });
 
-  it("marks acted with locked SignalStatus and not-sent copy", () => {
+  it("keeps Copy Reply after Acted and omits Mark as Acted", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -302,11 +322,10 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).toContain("Acted");
-    expect(html).not.toContain("Pending");
-    expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
-    expect(html).not.toContain("status-dot");
     expect(html).toContain("Marked as Acted — not sent.");
+    expect(html).not.toContain("Pending");
+    expect(html).not.toContain('aria-keyshortcuts="A Enter"');
+    expect(html).not.toContain("status-dot");
     expect(html).toContain(
       "Hi Priya, I noticed you said “Please pause my SIP this month”. I’d like to help — is there a good time to connect today?",
     );
@@ -332,18 +351,23 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Suggested Next Action[\s\S]*Mark as Acted[\s\S]*Hi Priya, I noticed you said/,
+      /Suggested Next Action[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya, I noticed you said/,
+    );
+    expect(html).not.toMatch(
+      /Hi Priya, I noticed you said[\s\S]*Copy Reply/,
     );
     expect(html).toContain("Copy Reply");
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain("btn-primary");
+    expect(html).toContain("btn-secondary shrink-0");
+    expect(html).toContain("btn-primary shrink-0");
+    expect(html).not.toContain("btn-secondary min-h-11");
     expect(html).toContain("aria-keyshortcuts");
     expect(html).not.toContain("bg-sio-status-success-bg");
     expect(html).not.toContain("status-dot");
     expect(html).not.toContain("A / Enter → Mark as Acted.");
   });
 
-  it("omits rail Mark as Acted without walk context", () => {
+  it("shows Mark as Acted without walk context until the review is Acted", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -356,6 +380,6 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).not.toContain("Mark as Acted");
+    expect(html).toContain("Mark as Acted");
   });
 });

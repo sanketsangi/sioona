@@ -76,6 +76,8 @@ module.exports = {
           "signal-upsell-fg": "var(--sio-signal-upsell-fg)",
           "signal-upsell-accent": "var(--sio-signal-upsell-accent)",
           "status-info-bg": "var(--sio-status-info-bg)",
+          "status-pending-bg": "var(--sio-status-pending-bg)",
+          "status-pending-fg": "var(--sio-status-pending-fg)",
           "status-success-bg": "var(--sio-status-success-bg)",
           "status-success-fg": "var(--sio-status-success-fg)",
           "status-warning-bg": "var(--sio-status-warning-bg)",

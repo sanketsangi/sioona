@@ -205,7 +205,7 @@ export function FeedbackControls({
             "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
           )}
         >
-          <p className="text-label-12 text-sio-fg-muted">
+          <p className="text-pretty text-copy-14 text-sio-fg-subtle">
             {canAdvance
               ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
               : isUnactedCorrect

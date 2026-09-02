@@ -222,6 +222,14 @@ describe("InsightsView pending landing empty Follow-up", () => {
 
     expect(html).toContain("Conversation that needs your attention");
     expect(html).toContain("Queue metrics");
+    const titleAt = html.indexOf("Conversation that needs your attention");
+    const metricsAt = html.indexOf('aria-label="Queue metrics"');
+    const filtersAt = html.indexOf("Add Filter");
+    const tableAt = html.indexOf("Pending signal 1");
+    expect(titleAt).toBeGreaterThan(-1);
+    expect(metricsAt).toBeGreaterThan(titleAt);
+    expect(filtersAt).toBeGreaterThan(metricsAt);
+    expect(tableAt).toBeGreaterThan(filtersAt);
     expect(html).toContain("Pending signal 1");
     expect(html).toContain("Pending signal 10");
     expect(html).toContain('data-slot="card"');
@@ -237,6 +245,76 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html.match(/id="signal-summary-sig_1"/g)?.length).toBe(1);
     expect(html).not.toContain("Skip pending review");
     expect(html).not.toContain("No Signals Need Follow-Up");
+    expect(html).toContain("Add Filter");
+    expect(html).toContain('data-slot="popover-trigger"');
+    expect(html).toContain("w-[110px]");
+    expect(html).toContain("w-16");
+    expect(html).toContain("Queue status: All,");
+    expect(html).toContain("Queue status: Pending, 10 signals");
+    expect(html).toContain("Queue status: Correct,");
+    expect(html).toContain("Queue status: Done,");
+    expect(html).toContain("status=new");
+    expect(html).toContain("status=followup");
+    expect(html).toContain("status=acted");
+    expect(html).toContain("pr-7");
+    expect(html).toContain("rounded-[100%]");
+    expect(html).toContain("data-filter-count");
+    expect(html).toContain("size-6");
+    expect(html).toContain("gap-2 p-1");
+    expect(html).toContain("Clear status filter");
+    expect(html).toContain("data-filter-pill-clear");
+    expect(html).toContain("data-filter-clear-face");
+    expect(html).toContain("rounded-full");
+    expect(html).toContain("border-[#ebebeb]");
+    expect(html).toContain("text-[#7d7d7d]");
+    expect(html).toContain("bg-sio-bg-base");
+    expect(html).not.toContain("before:inset-2");
+    expect(html).not.toContain("hover:before:block");
+    expect(html).not.toContain("Queue type:");
+    expect(html).toContain("status-dot");
+    expect(html).toContain("status-dot-queued");
+    expect(html).not.toContain(">Filters<");
+  });
+
+  it("applies Type Lead in Add Filter with X that clears type", () => {
+    const pending = makePendingSignals(3);
+    const store = storeFromSignals(pending);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "lead",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Queue type: Lead");
+    expect(html).toContain("Clear type filter");
+    expect(html).toContain("pr-7");
+    expect(html).toContain("data-filter-clear-face");
+    expect(html).toContain("border-[#ebebeb]");
+    expect(html).not.toContain("Add Filter");
+    expect(html).not.toContain("w-[110px]");
+    const clearType = html.match(
+      /href="([^"]*)"[^>]*aria-label="Clear type filter"/,
+    )?.[1];
+    expect(clearType).toBeDefined();
+    expect(clearType).toContain("status=new");
+    expect(clearType).not.toContain("type=");
   });
 
   it("paginates Pending queue at 10 rows with URL page links", () => {

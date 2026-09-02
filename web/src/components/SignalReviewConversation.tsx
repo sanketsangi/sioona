@@ -5,6 +5,7 @@ import {
   evalCardHeaderClassName,
   evalCardPadClassName,
 } from "@/components/EvalCard";
+import { REVIEW_PANE_TITLE_CLASS } from "@/components/InsightsReviewPaneHeader";
 import { SignalUser } from "@/components/SignalUser";
 import { Button } from "@/components/ui/button";
 import type { Message as ChatMessage } from "@/lib/types";
@@ -51,7 +52,7 @@ export function SignalReviewConversation({
           <h3
             id={headingId}
             translate="no"
-            className="min-w-0 flex-1 truncate text-label-13 font-semibold leading-5 tracking-normal text-sio-fg-base"
+            className={REVIEW_PANE_TITLE_CLASS}
           >
             {who}
           </h3>

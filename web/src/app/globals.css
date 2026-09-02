@@ -140,6 +140,9 @@
 
   --sio-status-info-bg: var(--muted);
   --sio-status-info-border: var(--border);
+  --sio-status-pending-bg: var(--ds-blue-100);
+  --sio-status-pending-fg: var(--ds-blue-900);
+  --sio-status-pending-accent: var(--ds-blue-700);
   --sio-status-success-bg: var(--ds-green-100);
   --sio-status-success-fg: var(--ds-green-900);
   --sio-status-success-accent: var(--ds-green-700);
@@ -609,6 +612,29 @@
     border-radius: var(--radius-panel);
     border: 1px solid var(--sio-border-base);
     background: var(--sio-bg-base);
+  }
+
+  /* Geist menu surface — quiet border + layered shadow (filter popover). */
+  .material-menu {
+    border-radius: var(--radius-panel);
+    border: 1px solid var(--sio-border-base);
+    background: var(--sio-bg-base);
+    box-shadow:
+      0 1px 1px rgba(0, 0, 0, 0.02),
+      0 4px 8px rgba(0, 0, 0, 0.04),
+      0 12px 24px -4px rgba(0, 0, 0, 0.06);
+  }
+
+  .filter-popover-query {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  @media (min-width: 768px) {
+    .filter-popover-query {
+      font-size: 14px;
+      line-height: 20px;
+    }
   }
 
   .panel-quiet {

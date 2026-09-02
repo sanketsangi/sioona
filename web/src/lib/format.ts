@@ -124,6 +124,22 @@ export function signalTypeClass(type: SignalType): string {
   }
 }
 
+/** Quiet status mark fill for queue chips (`sio-status-*`). Not signal-type colors. */
+export function signalStatusMarkClass(state: SignalStatusDotState): string {
+  switch (state) {
+    case "QUEUED":
+      return "bg-sio-status-pending-bg text-sio-status-pending-fg";
+    case "READY":
+      return "bg-sio-status-success-bg text-sio-status-success-fg";
+    case "ERROR":
+      return "bg-sio-status-danger-bg text-sio-status-danger-fg";
+    case "BUILDING":
+      return "bg-sio-status-warning-bg text-sio-status-warning-fg";
+    case "CANCELED":
+      return "bg-sio-bg-muted text-sio-fg-subtle";
+  }
+}
+
 /** Quiet type mark fill for campaign-style queue rows (`sio-signal-*`). */
 export function signalTypeMarkClass(type: SignalType): string {
   switch (type) {

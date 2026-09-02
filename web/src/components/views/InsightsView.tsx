@@ -390,23 +390,9 @@ export function InsightsView({
         reviewKey={reviewOpen ? previewId : null}
         list={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between">
-              <h2 className="min-w-0 scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                Conversation that needs your attention
-              </h2>
-              <div className="flex w-full min-w-0 shrink-0 justify-end min-[540px]:w-auto">
-                <SignalQueueFilters
-                  pendingSignals={pendingSignals}
-                  reviewedSignals={reviewedSignals}
-                  queueError={queueError}
-                  statusFilter={statusFilter}
-                  typeFilter={typeFilter}
-                  page={page}
-                  previewId={reviewOpen ? null : previewId}
-                  queryExtras={queryExtras}
-                />
-              </div>
-            </div>
+            <h2 className="min-w-0 shrink-0 scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+              Conversation that needs your attention
+            </h2>
             <InsightsQueueMetrics
               conversationCount={chats.conversations.length}
               signals={[
@@ -418,7 +404,19 @@ export function InsightsView({
               pendingSignals={pendingSignals}
               reviewedCount={backendScore?.reviewed_count ?? null}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+              <div className="flex w-full min-w-0 shrink-0">
+                <SignalQueueFilters
+                  pendingSignals={pendingSignals}
+                  reviewedSignals={reviewedSignals}
+                  queueError={queueError}
+                  statusFilter={statusFilter}
+                  typeFilter={typeFilter}
+                  page={page}
+                  previewId={reviewOpen ? null : previewId}
+                  queryExtras={queryExtras}
+                />
+              </div>
               <SignalQueue
                 {...queueProps}
                 previewId={reviewOpen ? null : previewId}

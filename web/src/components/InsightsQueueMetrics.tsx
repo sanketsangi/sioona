@@ -108,11 +108,11 @@ function SignalStatusCounts({
   counts: Record<ReviewStatusLabel, number>;
 }) {
   return (
-    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 p-0 list-none">
+    <ul className="m-0 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 p-0 list-none">
       {REVIEW_STATUS_ORDER.map((label) => (
         <li
           key={label}
-          className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-label-12"
+          className="inline-flex min-w-0 items-center gap-1 text-label-12"
         >
           <StatusDot label state={REVIEW_STATUS_STATE[label]}>
             {label}
