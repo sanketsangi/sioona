@@ -78,6 +78,21 @@ export async function persistHealedPilot(
   await writeStore({ ...latest, pilot: healed.pilot });
 }
 
+/**
+ * Off-TTFB Neon `GET …/pilot` + heal. Insights/Eval first paint uses JSON
+ * `store.pilot` (header filename / cadence helper). Upload still awaits
+ * `refreshStorePilotFromNeon` on GET / so cadence chrome is live.
+ */
+export async function persistDeferredPilotRefresh(
+  tenantId: string
+): Promise<void> {
+  const { readStore } = await import("./store");
+  const latest = await readStore();
+  if (latest.tenant.id !== tenantId) return;
+  const healed = await refreshStorePilotFromNeon(latest);
+  await persistHealedPilot(healed, latest);
+}
+
 export async function syncPilotSettingsToBackend(
   tenantId: string,
   pilot: PilotSettings
