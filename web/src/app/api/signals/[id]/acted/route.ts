@@ -50,7 +50,7 @@ function isNotReviewedError(err: unknown): boolean {
   );
 }
 
-function uniqueIds(...ids: Array<string | undefined>): string[] {
+function uniqueIds(...ids: Array<string | null | undefined>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of ids) {
