@@ -249,6 +249,23 @@ describe("pendingQueueSignals", () => {
 });
 
 describe("filterPendingWithChat", () => {
+  it("drops leftover Neon stubs when join uses JSON chats only (replace ingest)", () => {
+    const pending = pendingQueueSignals(
+      [prediction({ id: "old-pack", conversation_id: "conv_old_pack" })],
+      [{ ...baseSignal, id: "sig_just_ingested" }]
+    );
+    const jsonOnly = filterPendingWithChat(pending, [
+      {
+        id: "conv_1",
+        tenantId: "tenant_demo",
+        channel: "whatsapp",
+        startedAt: "2026-08-01T00:00:00.000Z",
+        messageIds: [],
+      },
+    ]);
+    expect(jsonOnly.map((s) => s.id)).toEqual(["sig_just_ingested"]);
+  });
+
   it("drops Neon stubs whose conversation is missing", () => {
     const pending = pendingQueueSignals(
       [prediction({ id: "stale", conversation_id: "conv_other_pack" })],

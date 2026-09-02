@@ -137,6 +137,7 @@ export function FeedbackControls({
                 nextPendingPreviewId: triage.nextPendingPreviewId,
                 scoreFrom: triage.scoreFrom,
                 mode: triage.mode,
+                replaced: triage.replaced,
               })
             : null;
 

@@ -84,6 +84,8 @@ function pageShellProps(result: ReactElement) {
 function insightsViewProps(result: ReactElement): {
   tenantSignals: { ok: boolean; rows?: { id: string }[] };
   cadencePreviewId: string | null | undefined;
+  jsonKeepSet?: boolean;
+  overlayChats?: unknown;
 } {
   const { children } = pageShellProps(result);
   const list = Array.isArray(children) ? children : [children];
@@ -99,6 +101,8 @@ function insightsViewProps(result: ReactElement): {
       return child.props as {
         tenantSignals: { ok: boolean; rows?: { id: string }[] };
         cadencePreviewId: string | null | undefined;
+        jsonKeepSet?: boolean;
+        overlayChats?: unknown;
       };
     }
   }
@@ -467,6 +471,44 @@ describe("PlatformPage deploy reliability", () => {
       vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
     ).toEqual([keepSet, keepSet]);
     expect(fetchSignalScoreSafe).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips leftover Neon overlay after replace ingest landing", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [
+        {
+          id: "old-pack",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_old_pack",
+          signal_type: "lead",
+          confidence: 0.9,
+          summary: "Leftover before prune",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+    stubStore(mockStore());
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({
+        view: "insights",
+        imported: "1",
+        signals: "1",
+        replaced: "1",
+      }),
+    })) as ReactElement;
+
+    expect(fetchOverlayConversations).not.toHaveBeenCalled();
+    const props = insightsViewProps(result);
+    expect(props.jsonKeepSet).toBe(true);
+    expect(props.overlayChats).toBeNull();
+    expect(vi.mocked(fetchSignalScoreSafe).mock.calls[0]?.[1]).toEqual([
+      "conv_1",
+      "conv_2",
+    ]);
   });
 
   it("requests overlay chats for unmatched pending conversation ids", async () => {

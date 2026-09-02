@@ -204,6 +204,8 @@ export async function POST(request: Request) {
         messages: ingestedMessages,
         signals: signalsToSync,
         replaceShowcase,
+        storeUpdatedAt: store.pilot?.updatedAt,
+        lastUploadedFileName: store.pilot?.lastUploadedFileName,
       }).catch((err) => {
         const detail = err instanceof Error ? err.message : "unknown error";
         console.warn(`[defer-ingest-sync] ${detail}`);

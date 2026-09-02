@@ -14,6 +14,7 @@ export function buildSignalReviewTriage(opts: {
   previewSignal: { id: string };
   scoreFrom?: string | null;
   mode?: WorkspaceMode;
+  replaced?: boolean;
 }): SignalReviewTriage {
   const isPendingReview = opts.pendingSignals.some(
     (pending) => pending.id === opts.previewSignal.id,
@@ -30,6 +31,7 @@ export function buildSignalReviewTriage(opts: {
     ),
     scoreFrom: opts.scoreFrom,
     mode: opts.mode,
+    replaced: opts.replaced,
   };
 }
 

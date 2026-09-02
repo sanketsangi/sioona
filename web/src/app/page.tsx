@@ -59,10 +59,11 @@ import {
 } from "@/lib/sync-pilot";
 import {
   isActionModeUnlocked,
-  parseMode,
-  parsePage,
-  parseTypeFilter,
-  parseView,
+    parseMode,
+    parsePage,
+    parseReplacedParam,
+    parseTypeFilter,
+    parseView,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
   type PlatformView,
@@ -116,6 +117,7 @@ export default async function PlatformPage({
     scoreFrom?: string;
     wipeFailed?: string;
     mode?: string;
+    replaced?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -156,6 +158,7 @@ export default async function PlatformPage({
   const syncFailed = parseSyncFailedParam(sp.syncFailed);
   const syncCreated = parseSyncCreatedParam(sp.syncCreated);
   const wipeFailed = sp.wipeFailed === "1";
+  const jsonKeepSet = parseReplacedParam(sp.replaced);
   const scoreWindow = inspectSignalScoreWindow({
     scoreFrom: sp.scoreFrom,
     envFrom: process.env.SIGNAL_SCORE_FROM,
@@ -216,20 +219,26 @@ export default async function PlatformPage({
       : store.signals.filter((s) => !s.feedback);
   const queueError =
     fetches.insightsQueue && !needsReview.ok ? needsReview.error : null;
-  const reviewedForCadence =
+  const reviewedRaw =
     fetches.insightsQueue && tenantSignals.ok
       ? reviewedQueueSignals(tenantSignals.rows, store.signals)
       : reviewedSignalsFromStore(store.signals);
+  // Replace ingest: leftover Neon rows still have chats until prune. Do not
+  // overlay those ids — JSON store is the keep-set for this landing.
+  const reviewedForCadence = jsonKeepSet
+    ? filterPendingWithChat(reviewedRaw, store.conversations)
+    : reviewedRaw;
   const followUp = followUpSignals(reviewedForCadence);
-  const overlayChats = fetches.insightsQueue
-    ? await fetchOverlayConversations(
-        store.tenant.id,
-        missingConversationIds(
-          [...pendingRaw, ...reviewedForCadence],
-          store.conversations
+  const overlayChats =
+    fetches.insightsQueue && !jsonKeepSet
+      ? await fetchOverlayConversations(
+          store.tenant.id,
+          missingConversationIds(
+            [...pendingRaw, ...reviewedForCadence],
+            store.conversations
+          )
         )
-      )
-    : null;
+      : null;
   if (fetches.insightsQueue) {
     const created = ensureSupervisedActions(
       store,
@@ -316,6 +325,7 @@ export default async function PlatformPage({
           demo={sp.demo === "1"}
           importedCount={importedCount}
           newSignalCount={newSignalCount}
+          jsonKeepSet={jsonKeepSet}
           statusFilter={statusFilter}
           statusOmitted={statusOmitted}
           typeFilter={typeFilter}

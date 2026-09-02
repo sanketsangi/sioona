@@ -112,6 +112,7 @@ export function UploadForm({
         hint?: string;
         predictionSync?: unknown;
         detectLlm?: unknown;
+        replaced?: boolean;
       };
       if (
         res.status === 409 &&
@@ -163,6 +164,8 @@ export function UploadForm({
       const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
       if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
       if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
+      // JSON is the keep-set until deferred prune finishes — skip leftover Neon overlay.
+      if (data.replaced) query.set("replaced", "1");
       // JSON already has newSignals; do not wait for Neon dual-write.
       router.push(`/?${query.toString()}`);
     } catch (err) {
