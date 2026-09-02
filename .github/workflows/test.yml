@@ -20,14 +20,17 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Install
-        run: npm ci
+        run: |
+          npm ci
+          # npm/cli#4828: lockfile from macOS omits the Linux Rollup optional binary.
+          npm install --no-save "@rollup/rollup-linux-x64-gnu@$(node -p "require('rollup/package.json').version")"
       - name: Test
         run: npm test
 
@@ -39,8 +42,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
