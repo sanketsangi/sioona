@@ -880,11 +880,20 @@ function FilterPillFrame({ children }: { children: ReactNode }) {
 }
 
 function FilterCountBadge({ count }: { count: number }) {
+  const digitCount = String(count).length;
   return (
     <span
       data-filter-count=""
       aria-hidden
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[100%] bg-sio-border-base text-sio-fg-base"
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center bg-sio-border-base text-sio-fg-base",
+        digitCount >= 3
+          ? "h-6 min-w-6 rounded-[10ex] px-2"
+          : cn(
+              "rounded-[100%]",
+              digitCount === 1 ? "size-6" : "h-6 min-w-6 px-1.5",
+            ),
+      )}
     >
       <span className="translate-y-px tabular text-label-12 font-medium leading-none">
         {count}

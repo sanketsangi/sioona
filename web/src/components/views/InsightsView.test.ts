@@ -270,13 +270,12 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain(
       "flex min-w-0 flex-row items-center gap-1.5 font-medium leading-none whitespace-nowrap",
     );
-    expect(html).toContain(
-      "rounded-[100%] bg-sio-border-base text-sio-fg-base",
-    );
+    expect(html).toContain("bg-sio-border-base text-sio-fg-base");
     expect(html).toContain(
       "translate-y-px tabular text-label-12 font-medium leading-none",
     );
     expect(html).toContain("size-6");
+    expect(html).toContain("min-w-6 px-1.5");
     expect(html).toContain("gap-2 p-1");
     expect(html).toContain("Clear status filter");
     expect(html).toContain("data-filter-pill-clear");
