@@ -87,10 +87,16 @@ export async function persistDeferredIngestDualWrite(
     await writeStore({ ...latest, signals: merged });
   }
 
-  if (replaceShowcase) {
-    await pruneConversationsNotInBackend(
-      tenantId,
-      conversations.map((conversation) => conversation.id)
-    );
-  }
+  if (!replaceShowcase) return;
+
+  // writeStore / Reset / a later ingest can land after the heal check.
+  // Re-read immediately before prune so a stale keep-list cannot delete
+  // the current pack from Neon.
+  const prePrune = await readStore();
+  if (!ingestDualWriteStillCurrent(prePrune, input)) return;
+
+  await pruneConversationsNotInBackend(
+    tenantId,
+    conversations.map((conversation) => conversation.id)
+  );
 }
