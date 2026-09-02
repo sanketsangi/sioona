@@ -22,6 +22,11 @@ describe("geistMaskImage", () => {
     expect(geistMaskImage("/icons/missing.svg")).toBe("none");
     expect(geistMaskImage("https://evil.example/x.svg")).toBe("none");
   });
+
+  it("inlines the Vault file icon from public/icons/file.svg", () => {
+    expect(isGeistMaskSrc("/icons/file.svg")).toBe(true);
+    expect(geistMaskImage("/icons/file.svg")).toContain("M14.5%2013.5V6.5V5.41421");
+  });
 });
 
 describe("GeistMaskIcon", () => {

@@ -25,6 +25,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -188,6 +189,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <WorkspaceNav activeView={activeView} detailOpen={detailOpen} />
+        <SidebarSeparator />
         <VaultNav lastUploadedFileName={lastUploadedFileName} />
       </SidebarContent>
       <SidebarFooter>

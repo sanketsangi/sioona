@@ -247,6 +247,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toContain("No Signals Need Follow-Up");
     expect(html).toContain("Add Filter");
     expect(html).toContain('data-slot="popover-trigger"');
+    expect(html).toContain("block size-4 shrink-0 text-sio-fg-subtle");
+    expect(html).not.toContain("translate-y-[1.5px]");
     expect(html).toContain("w-[110px]");
     expect(html).toContain("w-16");
     expect(html).toContain("Queue status: All,");
@@ -259,6 +261,9 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("pr-7");
     expect(html).toContain("rounded-[100%]");
     expect(html).toContain("data-filter-count");
+    expect(html).toContain(
+      "rounded-[100%] bg-sio-border-base text-label-12 font-medium leading-none tabular text-sio-fg-base",
+    );
     expect(html).toContain("size-6");
     expect(html).toContain("gap-2 p-1");
     expect(html).toContain("Clear status filter");

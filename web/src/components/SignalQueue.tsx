@@ -884,7 +884,7 @@ function FilterCountBadge({ count }: { count: number }) {
     <span
       data-filter-count=""
       aria-hidden
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[100%] bg-sio-bg-muted text-label-12 font-medium leading-none tabular text-sio-fg-subtle"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[100%] bg-sio-border-base text-label-12 font-medium leading-none tabular text-sio-fg-base"
     >
       {count}
     </span>
@@ -1072,7 +1072,7 @@ function QueueFilters({
               </span>
             ) : (
               <>
-                <FilterIcon className="block size-4 shrink-0 translate-y-[1.5px] text-sio-fg-subtle" />
+                <FilterIcon className="block size-4 shrink-0 text-sio-fg-subtle" />
                 <span
                   className="w-16 text-left font-medium leading-none whitespace-nowrap"
                   data-wide-only="true"

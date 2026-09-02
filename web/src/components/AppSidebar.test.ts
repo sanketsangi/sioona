@@ -33,12 +33,14 @@ function renderSidebar(lastUploadedFileName?: string) {
 }
 
 describe("AppSidebar Vault", () => {
-  it("places Vault directly under Workspace", () => {
+  it("places a separator between Workspace and Vault", () => {
     const html = renderSidebar("Groww_batch_02.csv");
     const workspace = html.indexOf("Workspace");
+    const separator = html.indexOf('data-sidebar="separator"');
     const vault = html.indexOf("Vault");
     expect(workspace).toBeGreaterThan(-1);
-    expect(vault).toBeGreaterThan(workspace);
+    expect(separator).toBeGreaterThan(workspace);
+    expect(vault).toBeGreaterThan(separator);
   });
 
   it("lists the uploaded file with a File icon, truncated name, and Upload link", () => {
@@ -49,7 +51,9 @@ describe("AppSidebar Vault", () => {
     expect(html).toContain("min-w-0 truncate");
     expect(html).toContain("/?view=upload");
     expect(html.match(/href="\/\?view=upload"/g)?.length).toBe(2);
-    expect(html).toContain("/icons/file.svg");
+    expect(html).toContain("data:image/svg+xml");
+    expect(html).toContain("M14.5%2013.5V6.5V5.41421");
+    expect(html).not.toContain("/icons/file.svg");
     expect(html).toContain("aria-hidden");
   });
 
