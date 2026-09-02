@@ -5,10 +5,17 @@ import { EvalView } from "@/components/views/EvalView";
 import { InsightsView } from "@/components/views/InsightsView";
 import { TaxonomyView } from "@/components/views/TaxonomyView";
 import { UploadView } from "@/components/views/UploadView";
-import { fetchNeedsReview } from "@/lib/fetch-needs-review";
-import { fetchTenantSignals } from "@/lib/fetch-tenant-signals";
+import {
+  fetchNeedsReview,
+  type NeedsReviewResult,
+} from "@/lib/fetch-needs-review";
+import {
+  fetchTenantSignals,
+  type TenantSignalsResult,
+} from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
 import { fetchOverlayConversations } from "@/lib/hydrate-conversations";
+import { platformPageFetches } from "@/lib/platform-page-data";
 import {
   filterPendingWithChat,
   followUpSignals,
@@ -147,44 +154,62 @@ export default async function PlatformPage({
   });
   const scoreDateFrom = scoreWindow.resolvedFrom;
 
-  const [store, needsReview, tenantSignals] = await Promise.all([
+  const fetches = platformPageFetches(view);
+  const skippedNeedsReview: NeedsReviewResult = { ok: true, predictions: [] };
+  const skippedTenantSignals: TenantSignalsResult = { ok: true, rows: [] };
+
+  const [store, queuePair] = await Promise.all([
     refreshStorePilotFromNeon(storeRaw),
-    fetchNeedsReview(storeRaw.tenant.id),
-    fetchTenantSignals(storeRaw.tenant.id),
+    fetches.insightsQueue
+      ? Promise.all([
+          fetchNeedsReview(storeRaw.tenant.id),
+          fetchTenantSignals(storeRaw.tenant.id),
+        ])
+      : Promise.resolve([skippedNeedsReview, skippedTenantSignals] as const),
   ]);
+  const [needsReview, tenantSignals] = queuePair;
   if (store !== storeRaw) {
     // Heal pilot only — do not rewrite the stale SSR snapshot over
     // concurrent feedback / Acted on this instance's JSON store.
     await persistHealedPilot(store, storeRaw);
   }
-  const pendingRaw = needsReview.ok
-    ? pendingQueueSignals(
-        needsReview.predictions,
-        store.signals,
-        tenantSignals.ok ? tenantSignals.rows : undefined
-      )
-    : store.signals.filter((s) => !s.feedback);
-  const queueError = needsReview.ok ? null : needsReview.error;
-  const reviewedForCadence = tenantSignals.ok
-    ? reviewedQueueSignals(tenantSignals.rows, store.signals)
-    : reviewedSignalsFromStore(store.signals);
+  const pendingRaw =
+    fetches.insightsQueue && needsReview.ok
+      ? pendingQueueSignals(
+          needsReview.predictions,
+          store.signals,
+          tenantSignals.ok ? tenantSignals.rows : undefined
+        )
+      : store.signals.filter((s) => !s.feedback);
+  const queueError =
+    fetches.insightsQueue && !needsReview.ok ? needsReview.error : null;
+  const reviewedForCadence =
+    fetches.insightsQueue && tenantSignals.ok
+      ? reviewedQueueSignals(tenantSignals.rows, store.signals)
+      : reviewedSignalsFromStore(store.signals);
   const followUp = followUpSignals(reviewedForCadence);
-  const overlayChats = await fetchOverlayConversations(
-    store.tenant.id,
-    missingConversationIds(
-      [...pendingRaw, ...reviewedForCadence],
-      store.conversations
-    )
-  );
+  const overlayChats = fetches.insightsQueue
+    ? await fetchOverlayConversations(
+        store.tenant.id,
+        missingConversationIds(
+          [...pendingRaw, ...reviewedForCadence],
+          store.conversations
+        )
+      )
+    : null;
   const keepSetIds = keepSetConversationIds(
     store.conversations,
     overlayChats?.conversations
   );
   const [backendScore, allTimeScore] = await Promise.all([
-    fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
-      dateFrom: scoreDateFrom,
-    }),
-    fetchSignalScoreSafe(store.tenant.id, keepSetIds),
+    fetches.windowedScore
+      ? fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
+          dateFrom: scoreDateFrom,
+        })
+      : Promise.resolve(null),
+    fetches.allTimeScore
+      ? fetchSignalScoreSafe(store.tenant.id, keepSetIds)
+      : Promise.resolve(null),
   ]);
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
   const cadencePreviewId = firstUnactedCorrectId(followUp);
@@ -213,7 +238,7 @@ export default async function PlatformPage({
     queueError,
     syncFailed: hasSyncFailure ? syncFailed : 0,
     syncCreated: hasSyncFailure ? syncCreated : 0,
-    scoreUnavailable: backendScore == null,
+    scoreUnavailable: fetches.windowedScore && backendScore == null,
     demoReady: sp.demo === "1",
     wipeFailed,
   });

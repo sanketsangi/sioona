@@ -445,6 +445,7 @@ describe("PlatformPage deploy reliability", () => {
     expect(
       vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
     ).toEqual([keepSet, keepSet]);
+    expect(fetchSignalScoreSafe).toHaveBeenCalledTimes(2);
   });
 
   it("requests overlay chats for unmatched pending conversation ids", async () => {
@@ -500,5 +501,39 @@ describe("PlatformPage deploy reliability", () => {
     expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
       "conv_hydrated",
     ]);
+  });
+
+  it("skips Insights queue and SignalScore fetches on Upload and Taxonomy", async () => {
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "upload" }),
+    });
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "taxonomy" }),
+    });
+
+    expect(fetchNeedsReview).not.toHaveBeenCalled();
+    expect(fetchTenantSignals).not.toHaveBeenCalled();
+    expect(fetchOverlayConversations).not.toHaveBeenCalled();
+    expect(fetchSignalScoreSafe).not.toHaveBeenCalled();
+  });
+
+  it("fetches windowed SignalScore once on Insights (no all-time call)", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights" }),
+    });
+
+    expect(fetchNeedsReview).toHaveBeenCalledTimes(1);
+    expect(fetchTenantSignals).toHaveBeenCalledTimes(1);
+    expect(fetchSignalScoreSafe).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetchSignalScoreSafe).mock.calls[0]?.[2]).toEqual({
+      dateFrom: expect.anything(),
+    });
   });
 });
