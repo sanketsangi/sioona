@@ -45,7 +45,7 @@
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: #ebebeb;
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
@@ -626,8 +626,22 @@
   }
 
   .filter-popover-query {
+    appearance: none;
+    border: 0;
     font-size: 16px;
     line-height: 24px;
+  }
+
+  /*
+   * Overflow on the menu clips the outer :focus-visible ring into a full-width
+   * bar under Filter by. Native text-field appearance also paints a bottom
+   * bezel on focus. Caret + list aria-activedescendant stay as focus cues.
+   */
+  .filter-popover-query:focus,
+  .filter-popover-query:focus-visible {
+    outline: none;
+    border: 0;
+    box-shadow: none;
   }
 
   @media (min-width: 768px) {

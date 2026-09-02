@@ -44,6 +44,9 @@ function signal(overrides: Partial<Signal> = {}): Signal {
 describe("SignalQueueRow", () => {
   it("styles queue Review actions as pills without global btn-secondary", () => {
     expect(QUEUE_REVIEW_ACTION_CLASS).toContain("rounded-full");
+    expect(QUEUE_REVIEW_ACTION_CLASS).toContain("w-auto");
+    expect(QUEUE_REVIEW_ACTION_CLASS).not.toContain("w-7");
+    expect(QUEUE_REVIEW_ACTION_CLASS).not.toContain("w-full");
     expect(QUEUE_REVIEW_ACTION_CLASS).not.toContain("btn-secondary");
   });
 

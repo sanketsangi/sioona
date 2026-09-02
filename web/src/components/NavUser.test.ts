@@ -6,13 +6,13 @@ import { NAV_USER_AVATAR_SRC, NavUser } from "@/components/NavUser";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 describe("NavUser", () => {
-  it("renders the Maya Chen photo at the public avatar path", () => {
+  it("renders the Sanket Sangi photo at the public avatar path", () => {
     const html = renderToStaticMarkup(
       createElement(
         SidebarProvider,
         null,
         createElement(NavUser, {
-          user: { name: "Maya Chen", email: "maya.chen@acme.com" },
+          user: { name: "Sanket Sangi", email: "sanket@sioona.ai" },
         }),
       ),
     );
@@ -21,8 +21,8 @@ describe("NavUser", () => {
     expect(html).toContain("/avatars/maya-chen.jpg");
     expect(html).toContain("object-cover");
     expect(html).toContain("rounded-[var(--radius-control)]");
-    expect(html).toContain("Maya Chen");
-    expect(html).toContain("maya.chen@acme.com");
-    expect(html).not.toContain(">MC</span>");
+    expect(html).toContain("Sanket Sangi");
+    expect(html).toContain("sanket@sioona.ai");
+    expect(html).not.toContain(">SS</span>");
   });
 });

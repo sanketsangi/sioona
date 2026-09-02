@@ -1,5 +1,20 @@
+/** Cold-open / Reset Demo chrome name for Groww testing.json. */
+export const GROWW_SHOWCASE_SAMPLE_NAME = "Groww_batch_02";
+
 /** Last-upload breadcrumb when Run Partner Demo seeded Zerodha Batch-02. */
 export const ZERODHA_BATCH02_SAMPLE_NAME = "Zerodha_batch_02";
+
+/** True when last-upload chrome name is this sample, with or without an extension. */
+export function matchesVaultSampleName(
+  lastUploadedFileName: string | null | undefined,
+  sampleName: string
+): boolean {
+  const trimmed = lastUploadedFileName?.trim();
+  if (!trimmed) return false;
+  if (trimmed === sampleName) return true;
+  const stem = trimmed.replace(/\.[^.]+$/, "");
+  return stem === sampleName;
+}
 
 /** Stable API/UI code when Partner Demo Zerodha would be replaced without confirm. */
 export const PARTNER_DEMO_REPLACE_CONFIRM_CODE =

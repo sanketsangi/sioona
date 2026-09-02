@@ -53,7 +53,7 @@ export function FeedbackDialog({
             <DialogTrigger asChild>
               <SidebarMenuButton
                 tooltip="Feedback"
-                className="h-9 min-h-9 rounded-[var(--radius-panel)] border border-sio-border-subtle bg-sio-bg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
+                className="h-9 min-h-9 rounded-[var(--radius-panel)] border border-sio-border-subtle bg-sio-bg-base hover:border-sio-border-strong hover:bg-sidebar-accent"
               >
                 <ChatBubbleIcon className="size-4 shrink-0 text-sio-fg-base" />
                 <span>Feedback</span>

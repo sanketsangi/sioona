@@ -884,9 +884,11 @@ function FilterCountBadge({ count }: { count: number }) {
     <span
       data-filter-count=""
       aria-hidden
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[100%] bg-sio-border-base text-label-12 font-medium leading-none tabular text-sio-fg-base"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-[100%] bg-sio-border-base text-sio-fg-base"
     >
-      {count}
+      <span className="translate-y-px tabular text-label-12 font-medium leading-none">
+        {count}
+      </span>
     </span>
   );
 }
@@ -1050,7 +1052,6 @@ function QueueFilters({
       <FilterPillFrame>
         <AddFilterPopover
           typeFilter={typeFilter}
-          statusFilter={statusFilter}
           queueHref={queueHref}
           typeApplied={typeApplied}
         >
@@ -1105,7 +1106,7 @@ function QueueFilters({
               aria-current={selected ? "true" : undefined}
               aria-label={`Queue status: ${option.label}, ${count} ${count === 1 ? "signal" : "signals"}`}
             >
-              <span className="flex min-w-0 flex-row items-center gap-1.5 font-medium whitespace-nowrap">
+              <span className="flex min-w-0 flex-row items-center gap-1.5 font-medium leading-none whitespace-nowrap">
                 <span className="text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base">
                   {option.label}
                 </span>

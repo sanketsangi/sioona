@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 /** Dense Review action layout — pair with `Button` `size="sm"` (`h-7`). */
 export const QUEUE_REVIEW_ACTION_CLASS =
-  "w-full max-w-full shrink-0 touch-manipulation rounded-full px-3";
+  "w-auto shrink-0 touch-manipulation rounded-full px-3";
 
 type SignalQueueRowProps = {
   signal: Signal;

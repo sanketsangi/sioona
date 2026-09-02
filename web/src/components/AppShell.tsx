@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
 import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { QueueWakeRetry } from "@/components/QueueWakeRetry";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { shouldWakeBackendFromNotifications } from "@/lib/backend-wake";
+import { stopCursorRefStrip } from "@/lib/cursor-ref-hydration";
 import type { HeaderNotification } from "@/lib/notifications";
 import type { PlatformView, WorkspaceMode } from "@/lib/views";
 
@@ -25,6 +27,10 @@ export function AppShell({
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
 }) {
+  useEffect(() => {
+    stopCursorRefStrip();
+  }, []);
+
   return (
     <SidebarProvider
       className="flex !min-h-0 h-dvh overflow-hidden bg-muted text-foreground"

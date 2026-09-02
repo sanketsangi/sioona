@@ -32,7 +32,7 @@ import {
   initialAddFilterDimension,
   type QueueFilterHref,
 } from "@/components/AddFilterPopover";
-import type { StatusFilter, TypeFilter } from "@/lib/views";
+import type { TypeFilter } from "@/lib/views";
 
 const queueHref: QueueFilterHref = (next) => {
   const params = new URLSearchParams({ view: "insights" });
@@ -45,20 +45,17 @@ const queueHref: QueueFilterHref = (next) => {
 
 function panel(overrides: {
   query?: string;
-  dimension?: "keys" | "type" | "status";
+  dimension?: "keys" | "type";
   highlightIndex?: number;
   typeFilter?: TypeFilter;
-  statusFilter?: StatusFilter;
 } = {}) {
   const query = overrides.query ?? "";
-  const dimension = overrides.dimension ?? "keys";
+  const dimension = overrides.dimension ?? "type";
   const typeFilter = overrides.typeFilter ?? "all";
-  const statusFilter = overrides.statusFilter ?? "new";
   const items = buildAddFilterItems({
     dimension,
     query,
     typeFilter,
-    statusFilter,
     queueHref,
   });
   return createElement(AddFilterMenuPanel, {
@@ -81,25 +78,32 @@ function panel(overrides: {
 }
 
 describe("buildAddFilterItems", () => {
-  it("lists Type and Status keys, filtered by query", () => {
+  it("lists Type as the only key; Status stays on the queue pills", () => {
     const keys = buildAddFilterItems({
       dimension: "keys",
       query: "",
       typeFilter: "all",
-      statusFilter: "new",
       queueHref,
     });
-    expect(keys.map((item) => item.label)).toEqual(["Type", "Status"]);
+    expect(keys.map((item) => item.label)).toEqual(["Type"]);
     expect(keys.every((item) => item.kind === "key")).toBe(true);
+    expect(keys.some((item) => item.label === "Status")).toBe(false);
 
     const typed = buildAddFilterItems({
       dimension: "keys",
       query: "ty",
       typeFilter: "all",
-      statusFilter: "new",
       queueHref,
     });
     expect(typed.map((item) => item.label)).toEqual(["Type"]);
+
+    const statusQuery = buildAddFilterItems({
+      dimension: "keys",
+      query: "status",
+      typeFilter: "all",
+      queueHref,
+    });
+    expect(statusQuery).toEqual([]);
   });
 
   it("lists Type values with icons and hrefs, without key chevrons", () => {
@@ -107,7 +111,6 @@ describe("buildAddFilterItems", () => {
       dimension: "type",
       query: "",
       typeFilter: "lead",
-      statusFilter: "new",
       queueHref,
     });
     expect(items.map((item) => item.label)).toEqual([
@@ -123,34 +126,22 @@ describe("buildAddFilterItems", () => {
     expect(lead?.icon).toBeTruthy();
   });
 
-  it("lists Status values as links while leaving chips as the URL SoT", () => {
-    const items = buildAddFilterItems({
-      dimension: "status",
-      query: "pend",
-      typeFilter: "all",
-      statusFilter: "new",
-      queueHref,
-    });
-    expect(items).toHaveLength(1);
-    expect(items[0]?.label).toBe("Pending");
-    expect(items[0]?.href).toContain("status=new");
-    expect(items[0]?.active).toBe(true);
-  });
-
-  it("opens on Type values when Type is already applied", () => {
-    expect(initialAddFilterDimension(false)).toBe("keys");
+  it("opens on Type values because Status is already on the pills", () => {
+    expect(initialAddFilterDimension(false)).toBe("type");
     expect(initialAddFilterDimension(true)).toBe("type");
   });
 });
 
 describe("AddFilterMenuPanel", () => {
-  it("renders Geist search chrome, Close on mobile, and key rows with chevrons", () => {
+  it("renders Geist search chrome, Close on mobile, and Type values without Status", () => {
     const html = renderToStaticMarkup(panel());
 
     expect(html).toContain('placeholder="Filter by…"');
     expect(html).toContain("text-copy-16");
     expect(html).toContain("md:text-label-14");
     expect(html).toContain("filter-popover-query");
+    expect(html).toContain("appearance-none");
+    expect(html).toContain("focus-visible:shadow-none");
     expect(html).toContain("md:min-w-[7.5rem]");
     expect(html).toContain('aria-label="Close"');
     expect(html).toContain('data-filter-popover-control="true"');
@@ -158,14 +149,17 @@ describe("AddFilterMenuPanel", () => {
     expect(html).toContain("role=\"combobox\"");
     expect(html).toContain("role=\"listbox\"");
     expect(html).toContain("aria-activedescendant");
-    expect(html).toContain(">Type</span>");
-    expect(html).toContain(">Status</span>");
+    expect(html).toContain("All Types");
+    expect(html).toContain("Lead");
+    expect(html).not.toContain(">Status</span>");
+    expect(html).not.toContain("key-status");
     expect(html).toContain("overscroll-contain");
     expect(html).toContain("h-11");
     expect(html).toContain("md:h-8");
     expect(html).toContain("inset-x-1");
     expect(html).toContain("bg-sio-bg-interactive");
-    expect(html).toContain("bg-sio-border-base");
+    expect(html).not.toContain("<hr");
+    expect(html).not.toContain("bg-sio-border-base");
   });
 
   it("renders Type values as links with type icons and no chevrons", () => {
@@ -190,5 +184,6 @@ describe("AddFilterMenuPanel", () => {
     );
     expect(html).toContain("No matching filters");
     expect(html).not.toContain(">Type</span>");
+    expect(html).not.toContain(">Status</span>");
   });
 });

@@ -25,7 +25,7 @@ import {
 import type { StatusFilter, TypeFilter } from "@/lib/views";
 import { cn } from "@/lib/utils";
 
-export type AddFilterDimension = "keys" | "type" | "status";
+export type AddFilterDimension = "keys" | "type";
 
 export type QueueFilterHref = (next: {
   status?: StatusFilter;
@@ -55,7 +55,7 @@ export type AddFilterListItem = {
   id: string;
   label: string;
   kind: "key" | "value";
-  dimension?: "type" | "status";
+  dimension?: "type";
   href?: string;
   active?: boolean;
   icon?: ReactNode;
@@ -103,11 +103,11 @@ function ChevronRightIcon({ className }: { className?: string }) {
   );
 }
 
-/** Opening Add Filter starts on keys; an applied Type pill starts on Type values. */
+/** Add Filter only adds Type — Status is the queue pills. */
 export function initialAddFilterDimension(
-  typeApplied: boolean,
+  _typeApplied: boolean,
 ): AddFilterDimension {
-  return typeApplied ? "type" : "keys";
+  return "type";
 }
 
 /** Searchable rows for the current Add Filter step. */
@@ -115,55 +115,40 @@ export function buildAddFilterItems({
   dimension,
   query,
   typeFilter,
-  statusFilter,
   queueHref,
 }: {
   dimension: AddFilterDimension;
   query: string;
   typeFilter: TypeFilter;
-  statusFilter: StatusFilter;
   queueHref: QueueFilterHref;
 }): AddFilterListItem[] {
   if (dimension === "keys") {
     return (
       [
-        { id: "key-type", label: "Type", kind: "key" as const, dimension: "type" as const },
         {
-          id: "key-status",
-          label: "Status",
+          id: "key-type",
+          label: "Type",
           kind: "key" as const,
-          dimension: "status" as const,
+          dimension: "type" as const,
         },
       ] satisfies AddFilterListItem[]
     ).filter((item) => matchesQuery(item.label, query));
   }
 
-  if (dimension === "type") {
-    return ADD_FILTER_TYPE_OPTIONS.filter((option) =>
-      matchesQuery(option.label, query),
-    ).map((option) => ({
-      id: `type-${option.value}`,
-      label: option.label,
-      kind: "value" as const,
-      href: queueHref({ type: option.value, page: 1, preview: null }),
-      active: typeFilter === option.value,
-      icon: typeFilterIcon(option.value),
-    }));
-  }
-
-  return ADD_FILTER_STATUS_OPTIONS.filter((option) =>
+  return ADD_FILTER_TYPE_OPTIONS.filter((option) =>
     matchesQuery(option.label, query),
   ).map((option) => ({
-    id: `status-${option.value}`,
+    id: `type-${option.value}`,
     label: option.label,
     kind: "value" as const,
-    href: queueHref({ status: option.value, page: 1, preview: null }),
-    active: statusFilter === option.value,
+    href: queueHref({ type: option.value, page: 1, preview: null }),
+    active: typeFilter === option.value,
+    icon: typeFilterIcon(option.value),
   }));
 }
 
 const INPUT_CLASS =
-  "h-12 min-w-0 flex-1 bg-transparent px-3 text-copy-16 text-sio-fg-base placeholder:text-sio-fg-muted !outline-none focus-visible:shadow-[var(--focus-ring)] md:h-10 md:text-label-14 filter-popover-query";
+  "h-12 min-w-0 flex-1 appearance-none border-0 bg-transparent px-3 text-copy-16 text-sio-fg-base placeholder:text-sio-fg-muted !outline-none shadow-none focus-visible:shadow-none md:h-10 md:text-label-14 filter-popover-query";
 
 const ROW_CLASS =
   "relative flex h-11 w-full min-w-0 cursor-pointer items-center gap-2 px-3 text-left text-label-14 text-sio-fg-base outline-none focus-visible:shadow-[var(--focus-ring)] touch-manipulation md:h-8";
@@ -193,12 +178,12 @@ export function AddFilterMenuPanel({
   activeOptionId: string | undefined;
   onClose: () => void;
   onInputKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
-  onSelectKey: (key: "type" | "status") => void;
+  onSelectKey: (key: "type") => void;
   onValueNavigate: () => void;
   inputRef?: Ref<HTMLInputElement>;
 }) {
   const listLabel =
-    dimension === "type" ? "Type" : dimension === "status" ? "Status" : "Filters";
+    dimension === "type" ? "Type" : "Filters";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -234,7 +219,6 @@ export function AddFilterMenuPanel({
           <XIcon className="size-4" />
         </button>
       </div>
-      <hr className="h-px w-full flex-none border-none bg-sio-border-base" />
       <div
         id={listId}
         role="listbox"
@@ -318,13 +302,11 @@ export function AddFilterMenuPanel({
 
 export function AddFilterPopover({
   typeFilter,
-  statusFilter,
   queueHref,
   typeApplied,
   children,
 }: {
   typeFilter: TypeFilter;
-  statusFilter: StatusFilter;
   queueHref: QueueFilterHref;
   typeApplied: boolean;
   children: ReactNode;
@@ -332,13 +314,10 @@ export function AddFilterPopover({
   const router = useRouter();
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
-  const dimensionRef = useRef<AddFilterDimension>("keys");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [dimension, setDimension] = useState<AddFilterDimension>("keys");
+  const [dimension, setDimension] = useState<AddFilterDimension>("type");
   const [highlightIndex, setHighlightIndex] = useState(0);
-
-  dimensionRef.current = dimension;
 
   const items = useMemo(
     () =>
@@ -346,10 +325,9 @@ export function AddFilterPopover({
         dimension,
         query,
         typeFilter,
-        statusFilter,
         queueHref,
       }),
-    [dimension, query, typeFilter, statusFilter, queueHref],
+    [dimension, query, typeFilter, queueHref],
   );
 
   useEffect(() => {
@@ -363,7 +341,7 @@ export function AddFilterPopover({
 
   function resetClosed() {
     setQuery("");
-    setDimension("keys");
+    setDimension("type");
     setHighlightIndex(0);
   }
 
@@ -378,7 +356,7 @@ export function AddFilterPopover({
     resetClosed();
   }
 
-  function selectKey(key: "type" | "status") {
+  function selectKey(key: "type") {
     setDimension(key);
     setQuery("");
     setHighlightIndex(0);
@@ -417,10 +395,9 @@ export function AddFilterPopover({
       return;
     }
     if (event.key === "Escape") {
-      if (dimensionRef.current !== "keys") {
+      if (query.trim()) {
         event.preventDefault();
         event.stopPropagation();
-        setDimension("keys");
         setQuery("");
         setHighlightIndex(0);
       }
@@ -444,9 +421,8 @@ export function AddFilterPopover({
           }
         }}
         onEscapeKeyDown={(event) => {
-          if (dimensionRef.current !== "keys") {
+          if (query.trim()) {
             event.preventDefault();
-            setDimension("keys");
             setQuery("");
             setHighlightIndex(0);
           }

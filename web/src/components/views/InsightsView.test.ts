@@ -238,7 +238,13 @@ describe("InsightsView pending landing empty Follow-up", () => {
     const reviewAnchors = html.match(/<a\b[^>]*>Review<\/a>/g) ?? [];
     expect(reviewAnchors.length).toBeGreaterThan(0);
     expect(
-      reviewAnchors.every((anchor) => anchor.includes("rounded-full")),
+      reviewAnchors.every(
+        (anchor) =>
+          anchor.includes("rounded-full") &&
+          anchor.includes("h-7") &&
+          anchor.includes("w-auto") &&
+          !anchor.includes("w-7"),
+      ),
     ).toBe(true);
     expect(html).toContain('data-queue-preview="true"');
     expect(html).toContain("data-queue-row-link");
@@ -262,7 +268,13 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("rounded-[100%]");
     expect(html).toContain("data-filter-count");
     expect(html).toContain(
-      "rounded-[100%] bg-sio-border-base text-label-12 font-medium leading-none tabular text-sio-fg-base",
+      "flex min-w-0 flex-row items-center gap-1.5 font-medium leading-none whitespace-nowrap",
+    );
+    expect(html).toContain(
+      "rounded-[100%] bg-sio-border-base text-sio-fg-base",
+    );
+    expect(html).toContain(
+      "translate-y-px tabular text-label-12 font-medium leading-none",
     );
     expect(html).toContain("size-6");
     expect(html).toContain("gap-2 p-1");
