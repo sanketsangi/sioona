@@ -58,7 +58,8 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Hi Priya,");
     expect(html).toContain("grid-cols-1");
     expect(html).toContain("md:grid-cols-2");
-    expect(html).toContain("Does not send the email");
+    expect(html).toContain("the email is not sent");
+    expect(html).toContain("Records approval. Does not send the email.");
     expect(html).toContain("data-review-slot=\"retention-email\"");
   });
 

@@ -327,6 +327,7 @@ export function RetentionEmailAction({
                             disabled={busy}
                             aria-busy={pending === "approved"}
                             aria-haspopup="dialog"
+                            title={APPROVE_TOOLTIP}
                             onClick={() => setConfirm("approve")}
                           >
                             {pending === "approved" ? (
