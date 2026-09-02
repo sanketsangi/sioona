@@ -89,7 +89,7 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 ## 5. Detect pipeline
 
 1. **Ingest** — CSV/JSON / Intercom / WhatsApp → PII redact → Day-1 replace or mid-week `externalId` upsert (`replaced=false`).
-2. **Pass 1** — `detect.ts` heuristics on customer messages; effective taxonomy = base ⊕ overrides; threshold ~0.35.
+2. **Pass 1** — `detect.ts` heuristics on customer messages; effective taxonomy = base ⊕ overrides; threshold ~0.35; structural intent patterns + fraud/complaint suppress on lead/upsell (`detect-patterns.ts`).
 3. **Pass 2** — `detect-llm.ts` Groq only on **zero-signal** misses (`DETECT_LLM=1` + `GROQ_API_KEY`); never overrides hits; fail-soft. **Detect v2 closed / hosted.**
 4. **Persist** — replace signals preserving feedback → `syncPredictionsToBackend` upsert `(tenant, conversation, type)`.
 
