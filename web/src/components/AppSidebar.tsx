@@ -201,9 +201,13 @@ function VaultNav({ lastUploadedFileName }: { lastUploadedFileName?: string }) {
                     ))}
                   </SidebarMenuSub>
                 ) : (
-                  <p className="px-2 py-1 text-xs text-sio-fg-muted">
-                    No uploads yet
-                  </p>
+                  <SidebarMenuSub>
+                    <SidebarMenuSubItem>
+                      <span className="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-xs text-sio-fg-muted">
+                        No uploads yet
+                      </span>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
                 )}
               </CollapsibleContent>
             </SidebarMenuItem>

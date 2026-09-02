@@ -85,6 +85,9 @@ describe("AppSidebar Vault", () => {
     expect(vault).toContain("Upload Chats");
     expect(vault).not.toContain("Uploads");
     expect(vault).toContain("No uploads yet");
+    expect(vault).toMatch(
+      /data-sidebar="menu-sub"[^>]*>[\s\S]*No uploads yet/,
+    );
     expect(vault).toContain(GROWW_SHOWCASE_SAMPLE_NAME);
     expect(vault).toContain(ZERODHA_BATCH02_SAMPLE_NAME);
     expect(vault).toContain(`title="${GROWW_SHOWCASE_SAMPLE_NAME}"`);
