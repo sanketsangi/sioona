@@ -682,6 +682,49 @@ describe("queueSignalsForFilter", () => {
       }).filtered.map((s) => s.id)
     ).toEqual(["sig_follow"]);
   });
+
+  it("filters and counts Approve vs Review CTAs", () => {
+    const highRetention: Signal = {
+      ...baseSignal,
+      id: "sig_approve",
+      type: "retention",
+      confidence: 0.9,
+      score: 0.9,
+    };
+    const lowRetention: Signal = {
+      ...baseSignal,
+      id: "sig_review_ret",
+      type: "retention",
+      confidence: 0.4,
+      score: 0.4,
+    };
+    const result = queueSignalsForFilter({
+      pending: [highRetention, lowRetention, pending[0]],
+      reviewed: [],
+      status: "new",
+      type: "all",
+    });
+    expect(result.approveCount).toBe(1);
+    expect(result.reviewCount).toBe(2);
+    expect(
+      queueSignalsForFilter({
+        pending: [highRetention, lowRetention, pending[0]],
+        reviewed: [],
+        status: "new",
+        type: "all",
+        action: "approve",
+      }).filtered.map((s) => s.id)
+    ).toEqual(["sig_approve"]);
+    expect(
+      queueSignalsForFilter({
+        pending: [highRetention, lowRetention, pending[0]],
+        reviewed: [],
+        status: "new",
+        type: "all",
+        action: "review",
+      }).filtered.map((s) => s.id)
+    ).toEqual(["sig_review_ret", "sig_p"]);
+  });
 });
 
 describe("missingConversationIds / chat evidence", () => {

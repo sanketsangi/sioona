@@ -10,7 +10,10 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-import { RetentionEmailAction } from "@/components/RetentionEmailAction";
+import {
+  queueActionLabelForSignal,
+  RetentionEmailAction,
+} from "@/components/RetentionEmailAction";
 import { createRetentionEmailAction } from "@/lib/supervised-actions";
 import type { Signal } from "@/lib/types";
 
@@ -30,6 +33,35 @@ function signal(overrides: Partial<Signal> = {}): Signal {
     ...overrides,
   };
 }
+
+describe("queueActionLabelForSignal", () => {
+  it("returns Approve for high-confidence retention", () => {
+    expect(queueActionLabelForSignal(signal(), "Priya")).toBe("Approve");
+  });
+
+  it("returns Review for lead signals without a stored action", () => {
+    expect(
+      queueActionLabelForSignal(
+        signal({ type: "lead", confidence: 0.95 }),
+        "Rahul",
+      ),
+    ).toBe("Review");
+  });
+
+  it("returns Approve when a stored retention draft exists", () => {
+    const stored = createRetentionEmailAction({
+      signal: signal({ type: "lead", confidence: 0.4 }),
+      customerName: "Priya",
+    });
+    expect(
+      queueActionLabelForSignal(
+        signal({ type: "lead", confidence: 0.4 }),
+        "Priya",
+        stored,
+      ),
+    ).toBe("Approve");
+  });
+});
 
 describe("RetentionEmailAction", () => {
   it("shows evidence and draft side by side with decision buttons", () => {

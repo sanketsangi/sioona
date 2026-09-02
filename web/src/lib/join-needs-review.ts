@@ -13,13 +13,15 @@ import type {
 import { pickAction } from "./detect";
 import { isNeonStubSignalId } from "./prediction-sync";
 import { resolveSuggestedAction } from "./suggested-action-display";
-import type { StatusFilter, TypeFilter } from "./views";
+import type { StatusFilter, TypeFilter, ActionFilter } from "./views";
+import { isQueueApproveSignal } from "./supervised-actions";
 import type {
   Conversation,
   FeedbackLabel,
   Message,
   Signal,
   SignalType,
+  SupervisedAction,
   TaxonomyOverrides,
 } from "./types";
 
@@ -321,12 +323,16 @@ export function queueSignalsForFilter(opts: {
   reviewed: Signal[];
   status: StatusFilter;
   type: TypeFilter;
+  action?: ActionFilter;
+  supervisedActions?: SupervisedAction[] | null;
 }): {
   filtered: Signal[];
   pendingCount: number;
   followUpCount: number;
   doneCount: number;
   allCount: number;
+  approveCount: number;
+  reviewCount: number;
 } {
   const followUp = followUpSignals(opts.reviewed);
   const done = doneSignals(opts.reviewed);
@@ -348,12 +354,27 @@ export function queueSignalsForFilter(opts: {
     list = list.filter((signal) => signal.type === opts.type);
   }
 
+  const actions = opts.supervisedActions;
+  const approveCount = list.filter((signal) =>
+    isQueueApproveSignal(signal, actions),
+  ).length;
+  const reviewCount = list.length - approveCount;
+
+  const action = opts.action ?? "all";
+  if (action === "approve") {
+    list = list.filter((signal) => isQueueApproveSignal(signal, actions));
+  } else if (action === "review") {
+    list = list.filter((signal) => !isQueueApproveSignal(signal, actions));
+  }
+
   return {
     filtered: list,
     pendingCount: opts.pending.length,
     followUpCount: followUp.length,
     doneCount: done.length,
     allCount: all.length,
+    approveCount,
+    reviewCount,
   };
 }
 

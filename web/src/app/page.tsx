@@ -63,11 +63,12 @@ import {
 } from "@/lib/sync-pilot";
 import {
   isActionModeUnlocked,
-    parseMode,
-    parsePage,
-    parseReplacedParam,
-    parseTypeFilter,
-    parseView,
+  parseActionFilter,
+  parseMode,
+  parsePage,
+  parseReplacedParam,
+  parseTypeFilter,
+  parseView,
   resolveInsightsStatusFilter,
   resolveWorkspaceMode,
   type PlatformView,
@@ -107,6 +108,7 @@ export default async function PlatformPage({
     signals?: string;
     status?: string;
     type?: string;
+    action?: string;
     page?: string;
     taxPage?: string;
     msgPage?: string;
@@ -325,6 +327,7 @@ export default async function PlatformPage({
   const statusOmitted =
     typeof sp.status !== "string" || sp.status === "";
   const typeFilter = parseTypeFilter(sp.type);
+  const actionFilter = parseActionFilter(sp.action);
   const page = parsePage(sp.page);
 
   return (
@@ -345,6 +348,7 @@ export default async function PlatformPage({
           statusFilter={statusFilter}
           statusOmitted={statusOmitted}
           typeFilter={typeFilter}
+          actionFilter={actionFilter}
           page={page}
           previewId={previewId}
           backendScore={backendScore}

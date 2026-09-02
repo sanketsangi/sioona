@@ -99,6 +99,17 @@ export function resolveRetentionEmailAction(
   });
 }
 
+/** Queue CTA: Approve when the review rail shows Retention Email. */
+export function queueActionLabelForSignal(
+  signal: Signal,
+  customerName: string,
+  stored?: SupervisedAction | null,
+): "Approve" | "Review" {
+  return resolveRetentionEmailAction(signal, customerName, stored)
+    ? "Approve"
+    : "Review";
+}
+
 type RetentionEmailActionProps = {
   signal: Signal;
   customerName?: string;

@@ -26,6 +26,7 @@ import {
   useTable,
 } from "@tanstack/react-table";
 import {
+  ADD_FILTER_ACTION_OPTIONS,
   ADD_FILTER_STATUS_OPTIONS,
   ADD_FILTER_TYPE_OPTIONS,
   AddFilterPopover,
@@ -42,6 +43,7 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
+import { queueActionLabelForSignal } from "@/components/RetentionEmailAction";
 import { findSupervisedAction } from "@/lib/supervised-actions";
 import { PagerIconLink } from "@/components/PagerIconLink";
 import { Button } from "@/components/ui/button";
@@ -63,6 +65,7 @@ import type { MarkActedWalk } from "@/lib/use-mark-acted";
 import {
   statusQueryValue,
   viewHref,
+  type ActionFilter,
   type SignalReviewTriage,
   type StatusFilter,
   type TypeFilter,
@@ -177,6 +180,7 @@ function resolveCustomerName(
 }
 
 const STATUS_OPTIONS = ADD_FILTER_STATUS_OPTIONS;
+const ACTION_OPTIONS = ADD_FILTER_ACTION_OPTIONS;
 const TYPE_OPTIONS = ADD_FILTER_TYPE_OPTIONS;
 
 function statusFilterCount(
@@ -194,9 +198,17 @@ function statusFilterCount(
   return counts.allCount;
 }
 
+function actionFilterCount(
+  value: Exclude<ActionFilter, "all">,
+  counts: { approveCount: number; reviewCount: number },
+): number {
+  return value === "approve" ? counts.approveCount : counts.reviewCount;
+}
+
 type QueueHref = (next: {
   status?: StatusFilter;
   type?: TypeFilter;
+  action?: ActionFilter;
   page?: number;
   preview?: string | null;
 }) => string;
@@ -224,6 +236,7 @@ type SignalQueueProps = {
   tenantSignalsError?: string | null;
   statusFilter?: StatusFilter;
   typeFilter?: TypeFilter;
+  actionFilter?: ActionFilter;
   page?: number;
   /** Full-panel review selection (`?preview=`). */
   previewId?: string | null;
@@ -249,6 +262,7 @@ function buildQueueHref(
   queryExtras: Record<string, string | undefined | null> | undefined,
   statusFilter: StatusFilter,
   typeFilter: TypeFilter,
+  actionFilter: ActionFilter,
   previewId: string | null | undefined,
 ): QueueHref {
   const workspaceMode: WorkspaceMode =
@@ -256,12 +270,14 @@ function buildQueueHref(
   return (next) => {
     const status = next.status ?? statusFilter;
     const type = next.type ?? typeFilter;
+    const action = next.action ?? actionFilter;
     const pageNum = next.page ?? 1;
     const preview = next.preview !== undefined ? next.preview : previewId;
     return viewHref("insights", {
       ...queryExtras,
       status: statusQueryValue(status, workspaceMode),
       type: type === "all" ? null : type,
+      action: action === "all" ? null : action,
       page: pageNum > 1 ? String(pageNum) : null,
       preview: preview || null,
     });
@@ -321,7 +337,7 @@ const QUEUE_COL_HEADER =
 /** Sticky column labels — shared by queue list and review panel. */
 /** Header band uses the same surface as the app sidebar. */
 const QUEUE_TABLE_HEADER_CLASS =
-  "sticky top-0 z-10 bg-sidebar [&_tr]:border-b [&_th]:bg-sidebar";
+  "sticky top-0 z-20 bg-sidebar [&_tr]:border-b [&_th]:bg-sidebar";
 
 function QueueSignalsTableHeader() {
   return (
@@ -348,11 +364,15 @@ function useQueueList({
   reviewedSignals,
   statusFilter,
   typeFilter,
+  actionFilter,
+  supervisedActions,
 }: {
   pendingSignals: Signal[];
   reviewedSignals: Signal[];
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
+  actionFilter: ActionFilter;
+  supervisedActions?: SupervisedAction[];
 }) {
   return useMemo(
     () =>
@@ -361,8 +381,17 @@ function useQueueList({
         reviewed: reviewedSignals,
         status: statusFilter,
         type: typeFilter,
+        action: actionFilter,
+        supervisedActions,
       }),
-    [pendingSignals, reviewedSignals, statusFilter, typeFilter],
+    [
+      pendingSignals,
+      reviewedSignals,
+      statusFilter,
+      typeFilter,
+      actionFilter,
+      supervisedActions,
+    ],
   );
 }
 
@@ -372,19 +401,31 @@ export function SignalQueueFilters({
   reviewedSignals,
   statusFilter = "all",
   typeFilter = "all",
+  actionFilter = "all",
   previewId = null,
   queryExtras,
+  supervisedActions = [],
 }: Omit<SignalQueueProps, "showFilters">) {
-  const { pendingCount, followUpCount, doneCount, allCount } = useQueueList({
+  const {
+    pendingCount,
+    followUpCount,
+    doneCount,
+    allCount,
+    approveCount,
+    reviewCount,
+  } = useQueueList({
     pendingSignals,
     reviewedSignals,
     statusFilter,
     typeFilter,
+    actionFilter,
+    supervisedActions,
   });
   const queueHref = buildQueueHref(
     queryExtras,
     statusFilter,
     typeFilter,
+    actionFilter,
     previewId,
   );
 
@@ -392,10 +433,13 @@ export function SignalQueueFilters({
     <QueueFilters
       statusFilter={statusFilter}
       typeFilter={typeFilter}
+      actionFilter={actionFilter}
       pendingCount={pendingCount}
       followUpCount={followUpCount}
       doneCount={doneCount}
       allCount={allCount}
+      approveCount={approveCount}
+      reviewCount={reviewCount}
       queueHref={queueHref}
     />
   );
@@ -463,11 +507,13 @@ function QueueSignalsDataTable({
   page,
   customerNames,
   queueHref,
+  supervisedActions = [],
 }: {
   signals: Signal[];
   page: number;
   customerNames: Record<string, string>;
   queueHref: QueueHref;
+  supervisedActions?: SupervisedAction[];
 }) {
   const pageCount = Math.max(1, Math.ceil(signals.length / QUEUE_PAGE_SIZE));
   const safePage = Math.min(Math.max(1, page), pageCount);
@@ -496,7 +542,7 @@ function QueueSignalsDataTable({
 
   return (
     <QueueCard>
-      <div className="relative min-h-0 flex-1 overflow-auto">
+      <div className="relative min-h-0 flex-1 overflow-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <Table className="min-w-[640px]">
           <TableHeader className={QUEUE_TABLE_HEADER_CLASS}>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -533,6 +579,15 @@ function QueueSignalsDataTable({
               const summaryForLabel =
                 queueSignalSummary(signal.summary || "", customerName) ||
                 "signal";
+              const actionLabel = queueActionLabelForSignal(
+                signal,
+                customerName,
+                findSupervisedAction(supervisedActions, signal),
+              );
+              const openVerb =
+                actionLabel === "Approve"
+                  ? "Open approval for"
+                  : "Open review for";
 
               return (
                 <SignalQueueRow
@@ -540,7 +595,7 @@ function QueueSignalsDataTable({
                   signal={signal}
                   customerName={customerName}
                   previewHref={previewHref}
-                  previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. Open review for ${summaryForLabel}`}
+                  previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. ${openVerb} ${summaryForLabel}`}
                   action={
                     <Button
                       asChild
@@ -549,7 +604,7 @@ function QueueSignalsDataTable({
                       className={QUEUE_REVIEW_ACTION_CLASS}
                     >
                       <Link href={previewHref} scroll={false}>
-                        Review
+                        {actionLabel}
                       </Link>
                     </Button>
                   }
@@ -579,6 +634,7 @@ export function SignalQueue({
   tenantSignalsError = null,
   statusFilter = "all",
   typeFilter = "all",
+  actionFilter = "all",
   page = 1,
   previewId = null,
   queryExtras,
@@ -595,18 +651,23 @@ export function SignalQueue({
     followUpCount,
     doneCount,
     allCount,
+    approveCount,
+    reviewCount,
     filtered,
   } = useQueueList({
     pendingSignals,
     reviewedSignals,
     statusFilter,
     typeFilter,
+    actionFilter,
+    supervisedActions,
   });
 
   const queueHref = buildQueueHref(
     queryExtras,
     statusFilter,
     typeFilter,
+    actionFilter,
     previewId,
   );
 
@@ -626,10 +687,13 @@ export function SignalQueue({
     <QueueFilters
       statusFilter={statusFilter}
       typeFilter={typeFilter}
+      actionFilter={actionFilter}
       pendingCount={pendingCount}
       followUpCount={followUpCount}
       doneCount={doneCount}
       allCount={allCount}
+      approveCount={approveCount}
+      reviewCount={reviewCount}
       queueHref={queueHref}
     />
   ) : null;
@@ -658,6 +722,11 @@ export function SignalQueue({
               signal={previewSignal}
               customerName={previewCustomerName}
               header={<QueueSignalsTableHeader />}
+              actionLabel={queueActionLabelForSignal(
+                previewSignal,
+                previewCustomerName,
+                findSupervisedAction(supervisedActions, previewSignal),
+              )}
             />
           ) : (
             <SignalReviewMissing
@@ -789,6 +858,20 @@ export function SignalQueue({
     description: string;
     next: EmptyNext | null;
   } => {
+    if (actionFilter !== "all") {
+      return {
+        title:
+          actionFilter === "approve"
+            ? "No Approve Signals"
+            : "No Review Signals",
+        description: "Try another filter, or clear filters to see the full queue.",
+        next: {
+          description: "",
+          href: queueHref({ action: "all", page: 1 }),
+          label: "Clear Action Filter",
+        },
+      };
+    }
     if (statusFilter === "new") {
       return {
         title: "No Signals Need Review",
@@ -827,7 +910,12 @@ export function SignalQueue({
       description: "Try another filter, or clear filters to see the full queue.",
       next: {
         description: "",
-        href: queueHref({ status: "all", type: "all", page: 1 }),
+        href: queueHref({
+          status: "all",
+          type: "all",
+          action: "all",
+          page: 1,
+        }),
         label: "Clear Filters",
       },
     };
@@ -849,7 +937,12 @@ export function SignalQueue({
             </Link>
           ) : (
             <Link
-              href={queueHref({ status: "all", type: "all", page: 1 })}
+              href={queueHref({
+                status: "all",
+                type: "all",
+                action: "all",
+                page: 1,
+              })}
               className="btn-secondary mt-4"
             >
               Clear Filters
@@ -862,6 +955,7 @@ export function SignalQueue({
           page={page}
           customerNames={customerNames}
           queueHref={queueHref}
+          supervisedActions={supervisedActions}
         />
       )}
     </div>
@@ -1039,18 +1133,24 @@ FilterPillTrigger.displayName = "FilterPillTrigger";
 function QueueFilters({
   statusFilter,
   typeFilter,
+  actionFilter,
   pendingCount,
   followUpCount,
   doneCount,
   allCount,
+  approveCount,
+  reviewCount,
   queueHref,
 }: {
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
+  actionFilter: ActionFilter;
   pendingCount: number;
   followUpCount: number;
   doneCount: number;
   allCount: number;
+  approveCount: number;
+  reviewCount: number;
   queueHref: QueueHref;
 }) {
   const typeLabel =
@@ -1058,6 +1158,7 @@ function QueueFilters({
     "All Types";
   const typeApplied = typeFilter !== "all";
   const counts = { pendingCount, followUpCount, doneCount, allCount };
+  const actionCounts = { approveCount, reviewCount };
   const clearStatusHref = queueHref({
     status: "all",
     page: 1,
@@ -1065,6 +1166,11 @@ function QueueFilters({
   });
   const clearTypeHref = queueHref({
     type: "all",
+    page: 1,
+    preview: null,
+  });
+  const clearActionHref = queueHref({
+    action: "all",
     page: 1,
     preview: null,
   });
@@ -1139,6 +1245,39 @@ function QueueFilters({
               <FilterPillClear
                 href={clearStatusHref}
                 label="Clear status filter"
+              />
+            ) : null}
+          </FilterPillFrame>
+        );
+      })}
+
+      {ACTION_OPTIONS.map((option) => {
+        const selected = actionFilter === option.value;
+        const count = actionFilterCount(option.value, actionCounts);
+        return (
+          <FilterPillFrame key={option.value}>
+            <FilterPillTrigger
+              variant={selected ? "applied" : "suggestion"}
+              clearable={selected}
+              href={queueHref({
+                action: option.value,
+                page: 1,
+                preview: null,
+              })}
+              aria-current={selected ? "true" : undefined}
+              aria-label={`Queue action: ${option.label}, ${count} ${count === 1 ? "signal" : "signals"}`}
+            >
+              <span className="flex min-w-0 flex-row items-center gap-1.5 font-medium leading-none whitespace-nowrap">
+                <span className="text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base">
+                  {option.label}
+                </span>
+                <FilterCountBadge count={count} />
+              </span>
+            </FilterPillTrigger>
+            {selected ? (
+              <FilterPillClear
+                href={clearActionHref}
+                label="Clear action filter"
               />
             ) : null}
           </FilterPillFrame>

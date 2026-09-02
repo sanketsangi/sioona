@@ -7,6 +7,7 @@ import {
   nextPendingPreviewId,
   pendingReviewWalkHref,
   prevPendingPreviewId,
+  parseActionFilter,
   parseMode,
   parseReplacedParam,
   parseStatusFilter,
@@ -86,6 +87,20 @@ describe("parseStatusFilter", () => {
 
   it("honors explicit all in Action Mode", () => {
     expect(parseStatusFilter("all", "action")).toBe("all");
+  });
+});
+
+describe("parseActionFilter", () => {
+  it("accepts approve and review", () => {
+    expect(parseActionFilter("approve")).toBe("approve");
+    expect(parseActionFilter("review")).toBe("review");
+  });
+
+  it("defaults unknown and omitted values to all", () => {
+    expect(parseActionFilter(undefined)).toBe("all");
+    expect(parseActionFilter(null)).toBe("all");
+    expect(parseActionFilter("nope")).toBe("all");
+    expect(parseActionFilter("all")).toBe("all");
   });
 });
 
@@ -329,6 +344,16 @@ describe("pendingReviewWalkHref", () => {
         mode: "action",
       }),
     ).toBe("/?view=insights&mode=action&status=new&preview=sig_b");
+  });
+
+  it("preserves action=approve CTA filter", () => {
+    expect(
+      pendingReviewWalkHref({
+        previewId: "sig_b",
+        statusFilter: "new",
+        actionFilter: "approve",
+      }),
+    ).toBe("/?view=insights&status=new&action=approve&preview=sig_b");
   });
 
   it("keeps replaced=1 on Prev / Next / Skip", () => {

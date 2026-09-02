@@ -50,6 +50,7 @@ import {
   skipPendingPreviewId,
   statusQueryValue,
   viewHref,
+  type ActionFilter,
   type StatusFilter,
   type TypeFilter,
   type WorkspaceMode,
@@ -84,6 +85,7 @@ export function InsightsView({
   statusFilter,
   statusOmitted = false,
   typeFilter,
+  actionFilter = "all",
   page,
   previewId = null,
   needsReview,
@@ -109,6 +111,7 @@ export function InsightsView({
   /** Request URL omitted `status` — client may canonicalize via replaceState. */
   statusOmitted?: boolean;
   typeFilter: TypeFilter;
+  actionFilter?: ActionFilter;
   page: number;
   previewId?: string | null;
   /** Windowed keep-set score — list n / ≥5 footer only, not SignalScoreSummary. */
@@ -241,6 +244,7 @@ export function InsightsView({
     ...queryExtras,
     status: statusQueryValue(statusFilter, workspaceMode),
     type: typeFilter === "all" ? null : typeFilter,
+    action: actionFilter === "all" ? null : actionFilter,
     page: page > 1 ? String(page) : null,
     preview: null,
   });
@@ -286,6 +290,7 @@ export function InsightsView({
   const walkHrefOpts = {
     statusFilter,
     typeFilter,
+    actionFilter,
     scoreFrom,
     mode: workspaceMode,
     replaced: jsonKeepSet,
@@ -339,6 +344,7 @@ export function InsightsView({
     tenantSignalsError,
     statusFilter,
     typeFilter,
+    actionFilter,
     page,
     queryExtras,
     showFilters: false as const,
@@ -426,9 +432,11 @@ export function InsightsView({
                   queueError={queueError}
                   statusFilter={statusFilter}
                   typeFilter={typeFilter}
+                  actionFilter={actionFilter}
                   page={page}
                   previewId={reviewOpen ? null : previewId}
                   queryExtras={queryExtras}
+                  supervisedActions={store.supervisedActions ?? []}
                 />
               </div>
               <SignalQueue

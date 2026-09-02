@@ -99,6 +99,15 @@ export function findSupervisedAction(
   );
 }
 
+/** True when the queue CTA is Approve (Retention Email), else Review. */
+export function isQueueApproveSignal(
+  signal: Pick<Signal, "id" | "conversationId" | "type" | "confidence">,
+  actions?: SupervisedAction[] | null,
+): boolean {
+  if (findSupervisedAction(actions ?? undefined, signal)) return true;
+  return shouldGenerateRetentionEmail(signal);
+}
+
 function nowIso(clock?: () => string): string {
   return clock?.() ?? new Date().toISOString();
 }

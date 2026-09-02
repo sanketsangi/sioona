@@ -7,6 +7,7 @@ import {
   ensureSupervisedActions,
   findSupervisedAction,
   HIGH_RETENTION_CONFIDENCE,
+  isQueueApproveSignal,
   resolveApproveDecision,
   shouldGenerateRetentionEmail,
 } from "./supervised-actions";
@@ -61,6 +62,22 @@ describe("shouldGenerateRetentionEmail", () => {
       false,
     );
     expect(HIGH_RETENTION_CONFIDENCE).toBe(0.75);
+  });
+});
+
+describe("isQueueApproveSignal", () => {
+  it("matches high-confidence retention or a stored draft", () => {
+    expect(isQueueApproveSignal(signal())).toBe(true);
+    expect(isQueueApproveSignal(signal({ type: "lead" }))).toBe(false);
+    const stored = createRetentionEmailAction({
+      signal: signal({ id: "sig_stored", confidence: 0.4 }),
+      customerName: "Priya",
+    });
+    expect(
+      isQueueApproveSignal(signal({ id: "sig_stored", confidence: 0.4 }), [
+        stored,
+      ]),
+    ).toBe(true);
   });
 });
 

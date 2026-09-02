@@ -11,7 +11,7 @@ import { queueSignalSummary } from "@/lib/format";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Dense Review action layout — pair with `Button` `size="sm"` (`h-7`). */
+/** Dense queue action layout — pair with `Button` `size="sm"` (`h-7`). */
 export const QUEUE_REVIEW_ACTION_CLASS =
   "w-auto shrink-0 touch-manipulation rounded-full px-3";
 
@@ -74,9 +74,9 @@ export function SignalQueueRow({
       data-selected={selected ? "true" : undefined}
       data-expand-text={expandText ? "true" : undefined}
       className={cn(
-        "list-row",
+        "list-row hover:bg-sidebar-accent",
         isPreviewRow &&
-          "[&>[data-slot=table-cell]]:pointer-events-none [&_[data-queue-row-link]]:pointer-events-auto [&_[data-queue-action]]:pointer-events-auto has-[[data-queue-row-link]:focus-visible]:bg-sio-bg-interactive-hover",
+          "[&>[data-slot=table-cell]]:pointer-events-none [&_[data-queue-row-link]]:pointer-events-auto [&_[data-queue-action]]:pointer-events-auto has-[[data-queue-row-link]:focus-visible]:bg-sidebar-accent",
         selected && "bg-muted/50",
       )}
     >
@@ -116,7 +116,7 @@ export function SignalQueueRow({
         {action ? (
           <div
             data-queue-action
-            className="relative z-10 flex min-w-0 w-full items-start justify-start"
+            className="relative z-[1] flex min-w-0 w-full items-start justify-start"
           >
             {action}
           </div>

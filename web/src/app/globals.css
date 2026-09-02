@@ -1148,9 +1148,9 @@
     @apply bg-sio-bg-interactive-hover text-sio-fg-base;
   }
 
-  /* Flush list row inside .panel — hover/active raise contrast; focus inset so overflow doesn’t clip */
+  /* Flush list row — same hover fill as sidebar menu (`--sidebar-accent`) */
   .list-row {
-    @apply relative min-w-0 transition-[color,background-color] duration-150 hover:bg-sio-bg-interactive active:bg-sio-bg-interactive-hover;
+    @apply relative min-w-0 transition-[color,background-color] duration-150 hover:bg-sidebar-accent active:bg-sidebar-accent;
   }
 
   /* Review panel chrome — static row, no list hover */
@@ -1159,7 +1159,7 @@
   }
 
   .list-row[aria-current="true"] {
-    background-color: var(--sio-bg-interactive-hover);
+    background-color: var(--sidebar-accent);
   }
 
   .list-row[aria-current="true"]::before {
@@ -1192,7 +1192,7 @@
   .list-row:focus-visible,
   .list-row:has([data-queue-row-link]:focus-visible) {
     outline: none;
-    background-color: var(--sio-bg-interactive-hover);
+    background-color: var(--sidebar-accent);
     box-shadow:
       inset 0 0 0 1px var(--sio-focus-accent),
       inset 0 0 0 3px

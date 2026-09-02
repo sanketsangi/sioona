@@ -12,6 +12,9 @@ export type WorkspaceMode = "shadow" | "action";
 
 export type StatusFilter = "all" | "new" | "followup" | "acted";
 
+/** Queue CTA filter — Approve (retention email) vs Review. */
+export type ActionFilter = "all" | "approve" | "review";
+
 export type SignalReviewTriage = {
   isPendingReview: boolean;
   prevPendingPreviewId: string | null;
@@ -28,6 +31,7 @@ export type LabeledTab = "byType" | "conversations";
 const VIEWS: PlatformView[] = ["insights", "upload", "eval", "taxonomy"];
 const EVAL_PANELS: EvalPanel[] = ["metrics", "adapt", "labeled", "export"];
 const STATUS_FILTERS: StatusFilter[] = ["all", "new", "followup", "acted"];
+const ACTION_FILTERS: ActionFilter[] = ["all", "approve", "review"];
 const TYPE_FILTERS: TypeFilter[] = ["all", "lead", "retention", "upsell"];
 const LABELED_TABS: LabeledTab[] = ["byType", "conversations"];
 
@@ -121,6 +125,13 @@ export function resolveInsightsStatusFilter(opts: {
 export function parseTypeFilter(raw?: string | null): TypeFilter {
   if (raw && (TYPE_FILTERS as string[]).includes(raw)) {
     return raw as TypeFilter;
+  }
+  return "all";
+}
+
+export function parseActionFilter(raw?: string | null): ActionFilter {
+  if (raw && (ACTION_FILTERS as string[]).includes(raw)) {
+    return raw as ActionFilter;
   }
   return "all";
 }
@@ -263,6 +274,7 @@ export function pendingReviewWalkHref(opts: {
   previewId?: string | null;
   statusFilter?: StatusFilter | null;
   typeFilter?: TypeFilter | null;
+  actionFilter?: ActionFilter | null;
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
@@ -270,11 +282,13 @@ export function pendingReviewWalkHref(opts: {
   const mode = opts.mode ?? "shadow";
   const status = opts.statusFilter ?? "all";
   const type = opts.typeFilter ?? "all";
+  const action = opts.actionFilter ?? "all";
   return viewHref("insights", {
     scoreFrom: opts.scoreFrom,
     mode: mode === "action" ? "action" : null,
     status: statusQueryValue(status, mode),
     type: type === "all" ? null : type,
+    action: action === "all" ? null : action,
     preview: opts.previewId,
     replaced: replacedQueryValue(opts.replaced),
   });

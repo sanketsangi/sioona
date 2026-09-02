@@ -263,6 +263,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Queue status: Pending, 10 signals");
     expect(html).toContain("Queue status: Correct,");
     expect(html).toContain("Queue status: Done,");
+    expect(html).toContain("Queue action: Approve,");
+    expect(html).toContain("Queue action: Review,");
     expect(html).toContain("status=new");
     expect(html).toContain("status=followup");
     expect(html).toContain("status=acted");
@@ -969,6 +971,7 @@ describe("InsightsView review conversation + action", () => {
 
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Retention Email");
+    expect(html).toContain(">Approve</button>");
     expect(html).toContain("Approve");
     expect(html).toContain("Checking in on your account");
     expect(html).toContain("data-review-slot=\"retention-email\"");

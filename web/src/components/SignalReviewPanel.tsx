@@ -16,6 +16,8 @@ type SignalReviewPanelProps = {
   customerName: string;
   /** Sticky column header row (same chrome as the list DataTable). */
   header: ReactNode;
+  /** Queue CTA — Approve when Retention Email is on the rail. */
+  actionLabel?: "Approve" | "Review";
 };
 
 /**
@@ -26,6 +28,7 @@ export function SignalReviewPanel({
   signal,
   customerName,
   header,
+  actionLabel = "Review",
 }: SignalReviewPanelProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const who = customerName.trim() || "Customer";
@@ -72,7 +75,7 @@ export function SignalReviewPanel({
                     headingRef.current?.focus({ preventScroll: true });
                   }}
                 >
-                  Review
+                  {actionLabel}
                 </Button>
               }
             />

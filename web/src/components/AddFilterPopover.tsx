@@ -22,7 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { StatusFilter, TypeFilter } from "@/lib/views";
+import type { StatusFilter, TypeFilter, ActionFilter } from "@/lib/views";
 import { cn } from "@/lib/utils";
 
 export type AddFilterDimension = "keys" | "type";
@@ -30,6 +30,7 @@ export type AddFilterDimension = "keys" | "type";
 export type QueueFilterHref = (next: {
   status?: StatusFilter;
   type?: TypeFilter;
+  action?: ActionFilter;
   page?: number;
   preview?: string | null;
 }) => string;
@@ -49,6 +50,14 @@ export const ADD_FILTER_STATUS_OPTIONS: {
   { value: "new", label: "Pending" },
   { value: "followup", label: "Correct" },
   { value: "acted", label: "Done" },
+];
+
+export const ADD_FILTER_ACTION_OPTIONS: {
+  value: Exclude<ActionFilter, "all">;
+  label: string;
+}[] = [
+  { value: "approve", label: "Approve" },
+  { value: "review", label: "Review" },
 ];
 
 export type AddFilterListItem = {
