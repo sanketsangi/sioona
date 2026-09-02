@@ -466,6 +466,102 @@ describe("runDetection", () => {
     expect(scoreType("UPI is working again.", "lead").score).toBe(0);
   });
 
+  it("does not fire a taxonomy phrase that is locally negated", () => {
+    expect(
+      scoreType(
+        "I was never interested in insurance. This charge is a mistake.",
+        "upsell"
+      ).score
+    ).toBe(0);
+  });
+
+  it("recovers informal first-product leads without canned open-account phrasing", () => {
+    const cases = [
+      "I want my first FD of 25000 for 12 months. Is that even on this app?",
+      "I want my first broker FD for 12 months — is that on this app?",
+      "First time buying digital gold here, is 0.5g enough?",
+      "Starting fresh here — opening my own account, never traded equity.",
+      "Never bought stock. Walk me through first buy on this app.",
+      "I only have mutual funds here. How do I turn on stocks?",
+    ];
+    for (const text of cases) {
+      const { conversation, messages } = conv("c_soft_lead", "lead", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "lead")).toBe(true);
+      expect(signals.some((s) => s.type === "upsell")).toBe(false);
+    }
+  });
+
+  it("recovers informal close / switch / pause retention", () => {
+    const cases = [
+      "Need this resident account closed before I move abroad.",
+      "Calculator keeps rejecting. One more miss and I try another broker for options.",
+      "How do I stop everything here? I'm taking funds to another app.",
+      "If this repeats I'm parking my SIPs on another platform for a bit.",
+      "Please start account closure after I flatten positions.",
+      "Wife already on Upstox. Closing this so we use one place.",
+      "I'll pause trading if a human doesn't own the money mismatch.",
+      "Withdraw still processing. I'm not adding a rupee till this lands.",
+      "If I can't get in by tomorrow I'll just sit out the week.",
+      "Human comment today or I stop using this app for exits.",
+      "If this isn't live by Thursday I'm filling Angel.",
+    ];
+    for (const text of cases) {
+      const { conversation, messages } = conv("c_soft_ret", "retention", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "retention")).toBe(true);
+    }
+  });
+
+  it("recovers same-login adjacent-product upsell", () => {
+    const cases = [
+      "I want my own SIPs but visible to my husband — is there a family view?",
+      "Can I also start a gold buy on the same wallet?",
+      "Stocks I already have. Parking 50k in an FD — possible on this same id?",
+      "Do you also sell term insurance from the same app?",
+      "Delivery is fine but can I turn on MTF? Same login.",
+      "F&O already on. Can I pledge more stocks to increase overnight margin?",
+      "Equity I do. Is commodity / crude even available here or only index options?",
+    ];
+    for (const text of cases) {
+      const { conversation, messages } = conv("c_soft_upsell", "upsell", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals.some((s) => s.type === "upsell")).toBe(true);
+      expect(signals.some((s) => s.type === "lead")).toBe(false);
+    }
+  });
+
+  it("keeps fraud and phishing complaints as none, not upsell or lead", () => {
+    const cases = [
+      "Unauthorized insurance charge on my account. I never signed up for insurance.",
+      "This is fraud — someone added a credit line I didn't authorize.",
+      "Dispute this transaction, I was charged for a premium advisory I didn't buy.",
+      "Someone on WhatsApp asked for my OTP and said they can add insurance to my account.",
+      "Downloaded a fake apk. Any charge I should look for on advisory or insurance?",
+    ];
+    for (const text of cases) {
+      const { conversation, messages } = conv("c_fraud_none", "none", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals).toEqual([]);
+    }
+  });
+
 });
 
 describe("runDetectionWithProgress", () => {

@@ -86,6 +86,31 @@ const SHARED_OPS_NEGATIVES: string[] = [
   "unable to complete kyc",
 ];
 
+/**
+ * Fraud / phishing / unauthorized dispute — not a revenue signal.
+ * Spread onto lead + upsell so complaint threads never leak as buying intent.
+ * Retention is omitted: close/leave after fraud is still churn risk.
+ */
+const SHARED_FRAUD_NEGATIVES: string[] = [
+  "report fraud",
+  "unauthorized transaction",
+  "unauthorised transaction",
+  "didn't authorize",
+  "didn't authorise",
+  "never authorized",
+  "never signed up for",
+  "charged without",
+  "this is fraud",
+  "this is a scam",
+  "phishing",
+  "fake app",
+  "fake apk",
+  "asked for otp",
+  "asked for my otp",
+  "asked for tpin",
+  "asked for my tpin",
+];
+
 export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
   {
     type: "lead",
@@ -307,8 +332,7 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
       "card not working",
       "lost my card",
       "report a lost card",
-      "report fraud",
-      "unauthorized transaction",
+      ...SHARED_FRAUD_NEGATIVES,
       "dispute a transaction",
       "wrong transaction",
       "loan emi",
@@ -363,6 +387,7 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
       "withdraw all",
       "transfer out",
       "closure",
+      "closed",
       "unhappy",
       "useless",
       "worst",
@@ -561,6 +586,7 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
     ],
     negativePhrases: [
       ...SHARED_OPS_NEGATIVES,
+      ...SHARED_FRAUD_NEGATIVES,
       "when does my sip",
       "sip get debited",
       "sip debit",

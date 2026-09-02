@@ -1,3 +1,8 @@
+import {
+  isFraudComplaintText,
+  isNegatedMatch,
+  matchIntentPatterns,
+} from "./detect-patterns";
 import { resolveSuggestedAction } from "./suggested-action-display";
 import { getEffectiveTaxonomy, getTaxonomy } from "./taxonomy";
 import type {
@@ -53,18 +58,32 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Multi-word phrases are substrings; single tokens use word boundaries. */
-export function textIncludesTerm(text: string, term: string): boolean {
+/**
+ * Index of `term` in already-normalized text, or -1.
+ * Multi-word phrases are substrings; single tokens use word boundaries.
+ */
+export function findTermIndex(text: string, term: string): number {
   const needle = normalize(term);
-  if (!needle) return false;
+  if (!needle) return -1;
   if (needle.includes(" ")) {
-    return text.includes(needle);
+    return text.indexOf(needle);
   }
   const re = new RegExp(
-    `(?:^|[^a-z0-9])${escapeRegex(needle)}(?:[^a-z0-9]|$)`,
+    `(?:^|[^a-z0-9])(${escapeRegex(needle)})(?:[^a-z0-9]|$)`,
     "i"
   );
-  return re.test(text);
+  const match = re.exec(text);
+  if (!match || match.index === undefined) return -1;
+  const captured = match[1];
+  if (!captured) return -1;
+  return match[0].startsWith(captured)
+    ? match.index
+    : match.index + (match[0].length - captured.length);
+}
+
+/** Multi-word phrases are substrings; single tokens use word boundaries. */
+export function textIncludesTerm(text: string, term: string): boolean {
+  return findTermIndex(text, term) >= 0;
 }
 
 function clipQuote(text: string, max = QUOTE_MAX): string {
@@ -105,28 +124,50 @@ export function scoreType(
     }
   }
 
+  // Fraud / phishing / unauthorized dispute is none — never lead or upsell.
+  // Retention can still fire when the customer is also leaving.
+  if (
+    (type === "lead" || type === "upsell") &&
+    isFraudComplaintText(normalized)
+  ) {
+    return {
+      score: 0,
+      evidence: [`suppressed: "fraud/complaint"`],
+      suppressed: true,
+    };
+  }
+
   const evidence = new Set<string>();
   let hits = 0;
   let phraseHits = 0;
   let keywordHits = 0;
+  let strongKeywordHits = 0;
 
   for (const phrase of entry.phrases) {
-    if (textIncludesTerm(normalized, phrase)) {
-      hits += PHRASE_WEIGHT;
-      phraseHits += 1;
-      evidence.add(`phrase: "${phrase}"`);
-    }
+    const index = findTermIndex(normalized, phrase);
+    if (index < 0) continue;
+    if (isNegatedMatch(normalized, index)) continue;
+    hits += PHRASE_WEIGHT;
+    phraseHits += 1;
+    evidence.add(`phrase: "${phrase}"`);
   }
 
   for (const keyword of entry.keywords) {
-    if (textIncludesTerm(normalized, keyword)) {
-      const weight = WEAK_KEYWORDS.has(normalize(keyword))
-        ? WEAK_KEYWORD_WEIGHT
-        : KEYWORD_WEIGHT;
-      hits += weight;
-      keywordHits += 1;
-      evidence.add(`keyword: "${keyword}"`);
-    }
+    const index = findTermIndex(normalized, keyword);
+    if (index < 0) continue;
+    if (isNegatedMatch(normalized, index)) continue;
+    const weak = WEAK_KEYWORDS.has(normalize(keyword));
+    const weight = weak ? WEAK_KEYWORD_WEIGHT : KEYWORD_WEIGHT;
+    hits += weight;
+    keywordHits += 1;
+    if (!weak) strongKeywordHits += 1;
+    evidence.add(`keyword: "${keyword}"`);
+  }
+
+  for (const pattern of matchIntentPatterns(normalized, type)) {
+    hits += PHRASE_WEIGHT;
+    phraseHits += 1;
+    evidence.add(`phrase: "${pattern.span}"`);
   }
 
   // Lone product tokens must not light Shadow Mode without a phrase or co-evidence.
@@ -134,7 +175,11 @@ export function scoreType(
     return { score: 0, evidence: [...evidence].slice(0, 6), suppressed: false };
   }
 
-  const score = Math.min(1, hits / HIT_NORMALIZE);
+  let score = Math.min(1, hits / HIT_NORMALIZE);
+  // Two distinct strong keywords are enough to clear the Shadow Mode bar.
+  if (phraseHits === 0 && strongKeywordHits >= MIN_KEYWORD_ONLY_HITS) {
+    score = Math.max(score, SCORE_THRESHOLD);
+  }
   return { score, evidence: [...evidence].slice(0, 6), suppressed: false };
 }
 

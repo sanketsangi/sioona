@@ -44,13 +44,14 @@ Return ONE JSON object. No markdown. No <think>. No extra keys. No prose.
 Read EVERY customer message in order. Decide from the FINAL intent. Later turns override earlier ones.
 
 Pick exactly one signal. If two fit, use this order: retention_risk > upsell_opportunity > lead_intent.
-- retention_risk: customer will leave, close/delete account, switch broker, withdraw everything, uninstall, or "if this isn't fixed I'm gone". Frustration without leave/switch intent is none.
-- upsell_opportunity: EXISTING customer wants a DIFFERENT extra product (insurance, FD, loan against shares, F&O/margin, PMS/AIF, family account, RM, invest more). Same-product upgrade is lead_intent.
-- lead_intent: new buying intent (open account/wallet/card/loan, first product, pricing with buy intent) OR same-product expansion (upgrade, limit raise, add-on card).
-- none: OTP/login/password, KYC, statements, order status, polite chat, complaint/fraud with no leave intent, or unclear.
+- retention_risk: customer will leave, close/delete/stop the account or app, switch broker, park funds elsewhere, pause trading, or "if this isn't fixed I'm gone". Informal wording counts. Ops-only frustration (crash, OTP, statement download) is none. Churn-shaped frustration (other app, stop using, close, parking SIPs elsewhere) is retention_risk.
+- upsell_opportunity: EXISTING customer wants a DIFFERENT extra product (insurance, FD, loan against shares, F&O/margin/MTF, PMS/AIF, family view/account, RM, invest more, commodity) on the same login. Same-product upgrade is lead_intent.
+- lead_intent: new buying intent (open account/wallet/card/loan, first product / first buy / first FD/ELSS/SIP, starting fresh, opening their own id, pricing with buy intent) OR same-product expansion (upgrade, limit raise, add-on card).
+- none: OTP/login/password, KYC tech errors, statements, order status, polite chat, phishing/fraud/unauthorized/dispute with no leave intent, or unclear ops.
 
 Rules:
-- If unsure, signal=none.
+- Prefer a product signal when the customer clearly asked to buy, leave, or add a distinct product — even if the wording is casual or mixed with Hindi.
+- Fraud, phishing, fake-app, OTP/TPIN scams, and unauthorized charges are none — never upsell_opportunity, even if a product name appears (insurance they did not buy, etc.).
 - Never invent products, names, or quotes.
 - evidence = one verbatim CUSTOMER span copied exactly (same words, order, spelling). No paraphrase. No "Customer:". Shortest span that proves the signal (8-140 chars). Use "" when signal=none.
 - If you cannot copy a real customer span, return signal=none and evidence="".

@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-01  
+**Last updated:** 2026-09-02  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` @ `09f9687` (Insights replies + pending review walk; Vercel Production status success)
@@ -20,6 +20,8 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 **This week (ops, 2026-08-31):** Skip logged (above). Week-4 Batch-02 is **held-out CLI only** (labeled P/R — not Eval go, not ingest). Next unused weekly dump is Week-5-or-later (not Batch-02, not week3) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
 **This pass (data/gate, 2026-09-01):** Deploy gate on `09f9687` — web Vitest **598** passed / **6** skipped; backend pytest **63** passed. Local 7-step smoke green (Insights/Upload/Eval **200**; legacy `307` → `/?view=insights&preview=sig_test`; sqlite FastAPI health ok; needs-review `[]`; signal-score `reviewed_count` **0**). Eval `?scoreFrom=2026-08-31T10:41:38.000Z` keep-set **n=0 / Insufficient Data** (never labeled Go); Insights this-window **0 / ≥5**. Open PRs: **none**. Hosted curl to `sioona-demo.vercel.app` / `sioona-api.onrender.com` blocked by Cloud Agent egress (TLS handshake RST); GitHub Vercel status **success** for Production aliases. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest.
+
+**This pass (code, 2026-09-02):** Detect recall lift — structural intent patterns in `detect-patterns.ts` (first-product lead, close/switch/pause retention, same-login adjacent upsell) + local negation + fraud/complaint suppress on lead/upsell. Two strong keywords now clear the 0.35 bar. Groq prompt aligned (fraud ≠ upsell; informal wording still counts). **Not** Week-4 Batch-02 ingest, **not** Adapt phrase tuning, **not** planted-phrase copies. Showcase `testing.json` heuristic measurement: P **1.00** / R **0.98** (was P 1.00 / R 0.25). Held-out Batch-02 stays unread.
 
 **This pass (code, 2026-09-01):** Insights sidebar footer restores Help / Guidance / Feedback as local sidebar dialogs above identity-only `NavUser` (Maya Chen). No Account / Billing / Theme / Log Out / Upgrade. Not a keep-set go / not outbound / not Detect.
 
