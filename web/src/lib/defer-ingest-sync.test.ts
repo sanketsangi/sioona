@@ -220,6 +220,41 @@ describe("persistDeferredIngestDualWrite", () => {
     expect(writeStore).not.toHaveBeenCalled();
   });
 
+  it("skips prune when Reset or a later ingest lands after healing ids", async () => {
+    const ingestSnap = store([signal()], {
+      updatedAt: "2026-09-02T20:00:00.000Z",
+      lastUploadedFileName: "first.csv",
+    });
+    const laterSnap = store([signal({ conversationId: "conv_reset" })], {
+      updatedAt: "2026-09-02T20:10:00.000Z",
+      lastUploadedFileName: "Groww_batch_02",
+    });
+    laterSnap.conversations = [conversation({ id: "conv_reset" })];
+    vi.mocked(readStore)
+      .mockResolvedValueOnce(ingestSnap)
+      .mockResolvedValueOnce(ingestSnap)
+      .mockResolvedValueOnce(laterSnap);
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: [signal({ backendSignalId: "pred-1" })],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+
+    await persistDeferredIngestDualWrite({
+      ...input,
+      storeUpdatedAt: "2026-09-02T20:00:00.000Z",
+      lastUploadedFileName: "first.csv",
+    });
+
+    expect(writeStore).toHaveBeenCalledTimes(1);
+    expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
+  });
+
   it("skips prune after sync if Reset or Partner Demo moved the store", async () => {
     const ingestSnap = store([signal()], {
       updatedAt: "2026-09-02T20:00:00.000Z",
