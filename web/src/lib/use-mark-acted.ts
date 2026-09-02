@@ -26,6 +26,8 @@ export type MarkActedWalk = {
   scoreFrom?: string | null;
   /** Preserve Action Mode on next Follow-up deep links. */
   mode?: WorkspaceMode;
+  /** Replace-ingest landing — keep leftover Neon overlay off. */
+  replaced?: boolean;
 };
 
 /**
@@ -78,6 +80,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
           statusFilter: walk.statusFilter,
           scoreFrom: walk.scoreFrom,
           mode: walk.mode,
+          replaced: walk.replaced,
         });
         if (href) {
           router.push(href, { scroll: false });
@@ -100,6 +103,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
       walk.mode,
       walk.nextPendingPreviewId,
       walk.nextPreviewId,
+      walk.replaced,
       walk.scoreFrom,
       walk.statusFilter,
     ],

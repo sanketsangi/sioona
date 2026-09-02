@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { persistDeferredIngestDualWrite } from "./defer-ingest-sync";
+import {
+  ingestDualWriteStillCurrent,
+  persistDeferredIngestDualWrite,
+} from "./defer-ingest-sync";
 import type { Conversation, Message, Signal, StoreData } from "./types";
 
 vi.mock("./store", () => ({
@@ -62,7 +65,10 @@ function message(overrides: Partial<Message> = {}): Message {
   };
 }
 
-function store(signals: Signal[]): StoreData {
+function store(
+  signals: Signal[],
+  pilot: StoreData["pilot"] = { baselineOpportunities: 0 }
+): StoreData {
   return {
     tenant: {
       id: "tenant_demo",
@@ -72,7 +78,7 @@ function store(signals: Signal[]): StoreData {
     conversations: [conversation()],
     messages: [message()],
     signals,
-    pilot: { baselineOpportunities: 0 },
+    pilot: { baselineOpportunities: 0, ...pilot },
   };
 }
 
@@ -192,5 +198,81 @@ describe("persistDeferredIngestDualWrite", () => {
     });
 
     expect(writeStore).not.toHaveBeenCalled();
+  });
+
+  it("skips upsert and prune when a later ingest rewrote the store", async () => {
+    vi.mocked(readStore).mockResolvedValue(
+      store([signal()], {
+        updatedAt: "2026-09-02T20:10:00.000Z",
+        lastUploadedFileName: "later.csv",
+      })
+    );
+
+    await persistDeferredIngestDualWrite({
+      ...input,
+      storeUpdatedAt: "2026-09-02T20:00:00.000Z",
+      lastUploadedFileName: "first.csv",
+    });
+
+    expect(syncConversationsToBackend).not.toHaveBeenCalled();
+    expect(syncPredictionsToBackend).not.toHaveBeenCalled();
+    expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
+    expect(writeStore).not.toHaveBeenCalled();
+  });
+
+  it("skips prune after sync if Reset or Partner Demo moved the store", async () => {
+    const ingestSnap = store([signal()], {
+      updatedAt: "2026-09-02T20:00:00.000Z",
+      lastUploadedFileName: "first.csv",
+    });
+    const laterSnap = store([signal()], {
+      updatedAt: "2026-09-02T20:10:00.000Z",
+      lastUploadedFileName: "Groww_batch_02",
+    });
+    vi.mocked(readStore)
+      .mockResolvedValueOnce(ingestSnap)
+      .mockResolvedValueOnce(laterSnap);
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: [signal({ backendSignalId: "pred-1" })],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+
+    await persistDeferredIngestDualWrite({
+      ...input,
+      storeUpdatedAt: "2026-09-02T20:00:00.000Z",
+      lastUploadedFileName: "first.csv",
+    });
+
+    expect(syncConversationsToBackend).toHaveBeenCalledTimes(1);
+    expect(writeStore).not.toHaveBeenCalled();
+    expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
+  });
+});
+
+describe("ingestDualWriteStillCurrent", () => {
+  const latest = store([signal()], {
+    updatedAt: "2026-09-02T20:00:00.000Z",
+    lastUploadedFileName: "first.csv",
+  });
+
+  it("is false when replace keep-list no longer matches JSON chats", () => {
+    expect(
+      ingestDualWriteStillCurrent(latest, {
+        tenantId: "tenant_demo",
+        conversations: [
+          conversation(),
+          conversation({ id: "conv_gone" }),
+        ],
+        replaceShowcase: true,
+        storeUpdatedAt: "2026-09-02T20:00:00.000Z",
+        lastUploadedFileName: "first.csv",
+      })
+    ).toBe(false);
   });
 });

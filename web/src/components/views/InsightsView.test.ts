@@ -133,6 +133,7 @@ function renderPendingPreview(opts: {
   count: number;
   previewId: string;
   scoreFrom?: string;
+  jsonKeepSet?: boolean;
 }) {
   const pending = makePendingSignals(opts.count);
   const store = storeFromSignals(pending);
@@ -144,6 +145,7 @@ function renderPendingPreview(opts: {
       page: 1,
       previewId: opts.previewId,
       scoreFrom: opts.scoreFrom,
+      jsonKeepSet: opts.jsonKeepSet,
       needsReview: {
         ok: true,
         predictions: pending.map((s) => ({
@@ -740,6 +742,23 @@ describe("InsightsView pending review walk", () => {
     );
     expect(skipHref).not.toContain("preview=");
   });
+
+  it("keeps replaced=1 on Next and Skip after replace ingest", () => {
+    const html = renderPendingPreview({
+      count: 3,
+      previewId: "sig_1",
+      jsonKeepSet: true,
+    });
+    expect(html).toContain(
+      'href="/?view=insights&amp;status=new&amp;preview=sig_2&amp;replaced=1"',
+    );
+    const skipHref = html.match(
+      /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
+    )?.[1];
+    expect(skipHref).toBe(
+      "/?view=insights&amp;status=new&amp;preview=sig_2&amp;replaced=1",
+    );
+  });
 });
 
 describe("InsightsView review conversation + action", () => {
@@ -1052,5 +1071,80 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).not.toContain("Why This Fired");
     expect(html).toContain("Feedback");
     expect(html).toContain("insights-review-split");
+  });
+
+  it("hides leftover Neon overlay cards after replace ingest", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    const overlayChats = {
+      conversations: [
+        {
+          id: "conv_old_pack",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          customerName: "Leftover",
+        },
+      ],
+      messages: [],
+    };
+    const leftoverNeedsReview = {
+      ok: true as const,
+      predictions: [
+        {
+          id: "old-pack",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_old_pack",
+          signal_type: "lead" as const,
+          confidence: 0.9,
+          summary: "Leftover before prune",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+        {
+          id: pending[0].backendSignalId!,
+          tenant_id: "tenant_demo",
+          conversation_id: pending[0].conversationId,
+          signal_type: pending[0].type,
+          confidence: pending[0].score,
+          summary: pending[0].summary,
+          created_at: pending[0].createdAt,
+        },
+      ],
+    };
+
+    const withOverlay = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        overlayChats,
+        needsReview: leftoverNeedsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(withOverlay).toContain("sig_neon_old-pack");
+    expect(withOverlay).toContain("Before prune");
+
+    const jsonKeepSet = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        jsonKeepSet: true,
+        overlayChats,
+        importedCount: 1,
+        newSignalCount: 1,
+        needsReview: leftoverNeedsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(jsonKeepSet).not.toContain("sig_neon_old-pack");
+    expect(jsonKeepSet).toContain("Pending signal 1");
+    expect(jsonKeepSet).toContain("replaced=1");
   });
 });
