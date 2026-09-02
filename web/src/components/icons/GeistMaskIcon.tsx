@@ -1,13 +1,17 @@
 import type { HTMLAttributes } from "react";
+import {
+  geistMaskImage,
+  type GeistMaskSrc,
+} from "@/components/icons/geist-mask-svg";
 import { cn } from "@/lib/utils";
 
 type GeistMaskIconProps = HTMLAttributes<HTMLSpanElement> & {
-  src: string;
+  src: GeistMaskSrc;
   /** Sets `currentColor` for `bg-current` mask paint. */
   color?: string;
 };
 
-/** Masked Geist SVG from `public/icons/` so fill follows `currentColor`. */
+/** Masked Geist SVG so fill follows `currentColor` (inlined; no /icons HTTP). */
 export function GeistMaskIcon({
   src,
   className,
@@ -21,7 +25,7 @@ export function GeistMaskIcon({
         className,
       )}
       style={{
-        ["--geist-icon" as string]: `url(${src})`,
+        ["--geist-icon" as string]: geistMaskImage(src),
         ...(color ? { color } : {}),
       }}
       aria-hidden
