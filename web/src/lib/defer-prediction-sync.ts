@@ -8,7 +8,7 @@ import { readStore, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import type { Signal } from "./types";
 
-/** Copy upserted Neon ids onto the latest JSON snapshot (do not clobber feedback). */
+/** Copy upserted Neon ids onto the latest JSON snapshot (keep feedback; heal stale ids). */
 export function mergeSyncedBackendIds(
   latest: Signal[],
   synced: Signal[]
@@ -24,7 +24,7 @@ export function mergeSyncedBackendIds(
   let changed = false;
   const next = latest.map((signal) => {
     const id = byId.get(signal.id);
-    if (!id || signal.backendSignalId) return signal;
+    if (!id || signal.backendSignalId === id) return signal;
     changed = true;
     return { ...signal, backendSignalId: id };
   });

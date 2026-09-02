@@ -97,7 +97,8 @@ export function joinNeedsReviewPredictions(
     seenJsonIds.add(matched.id);
     joined.push({
       ...matched,
-      backendSignalId: matched.backendSignalId ?? prediction.id,
+      // Neon row id is SoT — stale JSON UUIDs 404 Mark Acted / feedback.
+      backendSignalId: prediction.id,
       // Pending queue SoT is Neon — treat as unreviewed for UI status
       status: "new" as const,
       feedback: undefined,
@@ -229,7 +230,8 @@ export function joinTenantSignals(
       seenKeys.add(key);
       joined.push({
         ...matched,
-        backendSignalId: matched.backendSignalId ?? row.id,
+        // Live Neon id wins over a stale JSON UUID (wipe / instance drift).
+        backendSignalId: row.id,
         status,
         feedback,
       });

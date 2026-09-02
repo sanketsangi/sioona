@@ -5,12 +5,16 @@ import type { Signal } from "@/lib/types";
 import { POST } from "./route";
 
 const setPredictionActed = vi.fn();
+const createPrediction = vi.fn();
+const submitFeedback = vi.fn();
 
 vi.mock("@/lib/backend-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/backend-client")>();
   return {
     ...actual,
     setPredictionActed: (...args: unknown[]) => setPredictionActed(...args),
+    createPrediction: (...args: unknown[]) => createPrediction(...args),
+    submitFeedback: (...args: unknown[]) => submitFeedback(...args),
   };
 });
 
@@ -53,7 +57,15 @@ describe("POST /api/signals/[id]/acted", () => {
     );
     setPredictionActed.mockReset();
     setPredictionActed.mockResolvedValue(neonRow());
+    createPrediction.mockReset();
+    createPrediction.mockRejectedValue(
+      new Error("backend unavailable in tests")
+    );
+    submitFeedback.mockReset();
     await resetStore();
+    // Hydrate/seed dual-write uses createPrediction; only count Acted recovery.
+    createPrediction.mockClear();
+    submitFeedback.mockClear();
   });
 
   afterEach(() => {
@@ -291,5 +303,156 @@ describe("POST /api/signals/[id]/acted", () => {
     expect(after.signals.find((s) => s.id === target!.id)?.status).not.toBe(
       "acted"
     );
+  });
+
+  it("uses the live body backendSignalId when JSON UUID is stale", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "stale-uuid-gone";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    setPredictionActed.mockResolvedValue(neonRow({ id: "live-uuid" }));
+
+    const res = await POST(
+      actedRequest({
+        acted: true,
+        backendSignalId: "live-uuid",
+        conversationId: target.conversationId,
+        type: target.type,
+      }),
+      { params: Promise.resolve({ id: target.id }) }
+    );
+    expect(res.status).toBe(200);
+    expect(setPredictionActed).toHaveBeenCalledTimes(1);
+    expect(setPredictionActed).toHaveBeenCalledWith(
+      store.tenant.id,
+      "live-uuid",
+      true
+    );
+    expect(createPrediction).not.toHaveBeenCalled();
+    const after = await readStore();
+    expect(after.signals.find((s) => s.id === target.id)?.backendSignalId).toBe(
+      "live-uuid"
+    );
+    expect(after.signals.find((s) => s.id === target.id)?.status).toBe("acted");
+  });
+
+  it("recreates the prediction when stored Neon UUID is stale (404)", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "83a80e70-7a28-479e-a2c3-56e82ce010c3";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    setPredictionActed
+      .mockRejectedValueOnce(
+        new BackendClientError(
+          "Signal 83a80e70-7a28-479e-a2c3-56e82ce010c3 not found for tenant",
+          404
+        )
+      )
+      .mockResolvedValueOnce(neonRow({ id: "pred-live-2" }));
+    createPrediction.mockResolvedValue({ id: "pred-live-2" });
+
+    const res = await POST(
+      actedRequest({
+        acted: true,
+        backendSignalId: "83a80e70-7a28-479e-a2c3-56e82ce010c3",
+        conversationId: target.conversationId,
+        type: target.type,
+      }),
+      { params: Promise.resolve({ id: target.id }) }
+    );
+    expect(res.status).toBe(200);
+    expect(createPrediction).toHaveBeenCalledWith(
+      store.tenant.id,
+      expect.objectContaining({
+        conversation_id: target.conversationId,
+        signal_type: target.type,
+      })
+    );
+    expect(submitFeedback).not.toHaveBeenCalled();
+    expect(setPredictionActed).toHaveBeenLastCalledWith(
+      store.tenant.id,
+      "pred-live-2",
+      true
+    );
+    const body = (await res.json()) as { signal: Signal };
+    expect(body.signal.status).toBe("acted");
+    const after = await readStore();
+    expect(after.signals.find((s) => s.id === target.id)?.backendSignalId).toBe(
+      "pred-live-2"
+    );
+  });
+
+  it("submits local Correct then Acted when upserted row has no feedback", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "stale-uuid-gone";
+    await writeStore(store);
+    await setSignalFeedback(target.id, "correct");
+
+    setPredictionActed
+      .mockRejectedValueOnce(
+        new BackendClientError("Signal stale-uuid-gone not found for tenant", 404)
+      )
+      .mockRejectedValueOnce(
+        new BackendClientError(
+          "Signal must be reviewed before marking acted",
+          400
+        )
+      )
+      .mockResolvedValueOnce(neonRow({ id: "pred-live-3" }));
+    createPrediction.mockResolvedValue({ id: "pred-live-3" });
+    submitFeedback.mockResolvedValue({ ok: true });
+
+    const res = await POST(
+      actedRequest({
+        acted: true,
+        backendSignalId: "stale-uuid-gone",
+        conversationId: target.conversationId,
+        type: target.type,
+      }),
+      { params: Promise.resolve({ id: target.id }) }
+    );
+    expect(res.status).toBe(200);
+    expect(submitFeedback).toHaveBeenCalledWith(
+      store.tenant.id,
+      "pred-live-3",
+      expect.objectContaining({ feedback: "correct" })
+    );
+    expect(setPredictionActed).toHaveBeenLastCalledWith(
+      store.tenant.id,
+      "pred-live-3",
+      true
+    );
+    const after = await readStore();
+    expect(after.signals.find((s) => s.id === target.id)?.status).toBe("acted");
+  });
+
+  it("does not leak tenant-not-found UUID when recovery is impossible", async () => {
+    setPredictionActed.mockRejectedValueOnce(
+      new BackendClientError(
+        "Signal 83a80e70-7a28-479e-a2c3-56e82ce010c3 not found for tenant",
+        404
+      )
+    );
+
+    const res = await POST(
+      actedRequest({
+        acted: true,
+        backendSignalId: "83a80e70-7a28-479e-a2c3-56e82ce010c3",
+      }),
+      { params: Promise.resolve({ id: "sig_missing" }) }
+    );
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({
+      error: "Could not save Mark Acted. Try again.",
+    });
+    expect(createPrediction).not.toHaveBeenCalled();
   });
 });

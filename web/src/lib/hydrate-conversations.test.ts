@@ -259,6 +259,15 @@ describe("applyNeonFeedbackToSignals", () => {
     expect(joined[0]?.status).toBe("reviewed");
   });
 
+  it("replaces a stale JSON backendSignalId when joining by conversation+type", () => {
+    const joined = applyNeonFeedbackToSignals(
+      [{ ...detectedSignal, backendSignalId: "stale-uuid-gone" }],
+      [neonReviewed]
+    );
+    expect(joined[0]?.backendSignalId).toBe("pred-hydrated-1");
+    expect(joined[0]?.feedback?.label).toBe("correct");
+  });
+
   it("copies backendSignalId from unreviewed Neon rows without inventing feedback", () => {
     const joined = applyNeonFeedbackToSignals(
       [detectedSignal],

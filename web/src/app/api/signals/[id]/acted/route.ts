@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   BackendClientError,
+  createPrediction,
   type BackendPredictionWithFeedback,
   setPredictionActed,
+  submitFeedback,
 } from "@/lib/backend-client";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
-import { readStore, setSignalActed } from "@/lib/store";
+import { readStore, setSignalActed, writeStore } from "@/lib/store";
 import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
 import { resolveFeedbackSignal } from "../feedback/route";
 
@@ -14,6 +16,7 @@ const FEEDBACK_LABELS = new Set<FeedbackLabel>([
   "incorrect",
   "partially_correct",
 ]);
+const DEFAULT_REVIEWER = "shadow_reviewer";
 
 type ActedBody = {
   acted?: unknown;
@@ -33,6 +36,39 @@ function asFeedbackLabel(raw: unknown): FeedbackLabel | undefined {
 function asSignalType(raw: unknown): SignalType {
   if (raw === "lead" || raw === "retention" || raw === "upsell") return raw;
   return "lead";
+}
+
+function isPredictionMissingError(err: unknown): boolean {
+  return err instanceof BackendClientError && err.status === 404;
+}
+
+function isNotReviewedError(err: unknown): boolean {
+  return (
+    err instanceof BackendClientError &&
+    err.status === 400 &&
+    /must be reviewed/i.test(err.message)
+  );
+}
+
+function uniqueIds(...ids: Array<string | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of ids) {
+    const id = raw?.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
+function clampConfidence(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+export function actedMissingPredictionMessage(): string {
+  return "Could not save Mark Acted. Try again.";
 }
 
 function neonOnlyActedSignal(
@@ -69,17 +105,85 @@ function neonOnlyActedSignal(
 }
 
 function actedErrorResponse(err: unknown): NextResponse {
+  if (isPredictionMissingError(err)) {
+    return NextResponse.json(
+      { error: actedMissingPredictionMessage() },
+      { status: 404 }
+    );
+  }
   const message =
     err instanceof BackendClientError
       ? err.message
       : "Failed to save acted status to Signal Score backend";
   const status =
-    err instanceof BackendClientError && err.status === 404
-      ? 404
-      : err instanceof BackendClientError && err.status === 400
-        ? 400
-        : 503;
+    err instanceof BackendClientError && err.status === 400 ? 400 : 503;
   return NextResponse.json({ error: message }, { status });
+}
+
+/**
+ * Mark Acted; if stored Neon UUIDs 404 (wipe / JSON drift), try the live
+ * card id, then upsert by conversation+type (same as feedback recovery).
+ */
+export async function setActedRecoveringStaleId(opts: {
+  tenantId: string;
+  candidateIds: string[];
+  conversationId: string;
+  signalType: SignalType;
+  confidence: number;
+  summary: string;
+  acted: boolean;
+  feedbackLabel?: FeedbackLabel;
+}): Promise<{ liveId: string; row: BackendPredictionWithFeedback }> {
+  let lastMissing: unknown;
+  for (const predictionId of opts.candidateIds) {
+    try {
+      const row = await setPredictionActed(
+        opts.tenantId,
+        predictionId,
+        opts.acted
+      );
+      return { liveId: row.id, row };
+    } catch (err) {
+      if (!isPredictionMissingError(err)) throw err;
+      lastMissing = err;
+    }
+  }
+
+  const conversationId = opts.conversationId.trim();
+  const canRecreate = Boolean(conversationId) && Boolean(opts.signalType);
+  if (!canRecreate) {
+    throw lastMissing instanceof Error
+      ? lastMissing
+      : new BackendClientError("Signal not found", 404);
+  }
+
+  const created = await createPrediction(opts.tenantId, {
+    conversation_id: conversationId,
+    signal_type: opts.signalType,
+    confidence: clampConfidence(opts.confidence),
+    summary: opts.summary.trim() || opts.signalType,
+  });
+
+  try {
+    const row = await setPredictionActed(
+      opts.tenantId,
+      created.id,
+      opts.acted
+    );
+    return { liveId: created.id, row };
+  } catch (err) {
+    if (!isNotReviewedError(err) || !opts.feedbackLabel) throw err;
+    await submitFeedback(opts.tenantId, created.id, {
+      feedback: opts.feedbackLabel,
+      reviewed_by: DEFAULT_REVIEWER,
+    });
+    const row = await setPredictionActed(
+      opts.tenantId,
+      created.id,
+      opts.acted
+    );
+    return { liveId: created.id, row };
+  }
 }
 
 /**
@@ -90,6 +194,7 @@ function actedErrorResponse(err: unknown): NextResponse {
  * joins Follow-up / Done from `row.acted`) cannot show a false success.
  * Local-only rows (no Neon id) still persist JSON. Neon-only path when
  * JSON is missing or unreviewed after neon-only Correct.
+ * Stale JSON UUIDs recover via upsert (feedback already did this).
  * Does not call Intercom/WhatsApp/email or execute suggestedAction.
  */
 export async function POST(
@@ -110,20 +215,30 @@ export async function POST(
   const existing = resolveFeedbackSignal(store.signals, id, body);
   const neonStubId = neonPredictionIdFromStubSignalId(id);
   const bodyBackendId = body.backendSignalId?.trim() || undefined;
+  const bodyConversationId = body.conversationId?.trim() || undefined;
 
   if (existing?.feedback) {
-    const backendSignalId =
-      existing.backendSignalId?.trim() ||
-      bodyBackendId ||
-      neonStubId ||
-      undefined;
-    if (backendSignalId) {
+    const candidateIds = uniqueIds(
+      bodyBackendId,
+      existing.backendSignalId,
+      neonStubId
+    );
+    if (candidateIds.length > 0) {
       try {
-        await setPredictionActed(
-          existing.tenantId,
-          backendSignalId,
-          body.acted
-        );
+        const { liveId } = await setActedRecoveringStaleId({
+          tenantId: existing.tenantId,
+          candidateIds,
+          conversationId: existing.conversationId || bodyConversationId || "",
+          signalType: existing.type,
+          confidence: existing.confidence,
+          summary: existing.summary,
+          acted: body.acted,
+          feedbackLabel: existing.feedback.label,
+        });
+        if (existing.backendSignalId !== liveId) {
+          existing.backendSignalId = liveId;
+          await writeStore(store);
+        }
       } catch (err) {
         return actedErrorResponse(err);
       }
@@ -138,9 +253,12 @@ export async function POST(
     // Local feedback vanished between reads — fall through to Neon.
   }
 
-  const predictionId =
-    neonStubId || bodyBackendId || existing?.backendSignalId?.trim() || undefined;
-  if (!predictionId) {
+  const candidateIds = uniqueIds(
+    bodyBackendId,
+    neonStubId,
+    existing?.backendSignalId
+  );
+  if (candidateIds.length === 0) {
     if (existing) {
       return NextResponse.json(
         { error: "Signal must be reviewed before marking acted" },
@@ -151,22 +269,35 @@ export async function POST(
   }
 
   try {
-    const row = await setPredictionActed(
-      store.tenant.id,
-      predictionId,
-      body.acted
-    );
+    const { liveId, row } = await setActedRecoveringStaleId({
+      tenantId: store.tenant.id,
+      candidateIds,
+      conversationId:
+        bodyConversationId || existing?.conversationId || "",
+      signalType: asSignalType(body.type ?? existing?.type),
+      confidence:
+        typeof existing?.confidence === "number" ? existing.confidence : 0,
+      summary: existing?.summary ?? "",
+      acted: body.acted,
+      feedbackLabel: existing?.feedback?.label,
+    });
     const mirror = store.signals.find(
-      (s) => s.backendSignalId === row.id && s.feedback
+      (s) =>
+        (s.backendSignalId === liveId || s.backendSignalId === row.id) &&
+        s.feedback
     );
     if (mirror) {
+      if (mirror.backendSignalId !== liveId) {
+        mirror.backendSignalId = liveId;
+        await writeStore(store);
+      }
       const mirrored = await setSignalActed(mirror.id, body.acted);
       if (mirrored.ok) {
         return NextResponse.json({ signal: mirrored.signal, neonOnly: false });
       }
     }
     return NextResponse.json({
-      signal: neonOnlyActedSignal(id, row, body.acted),
+      signal: neonOnlyActedSignal(id, { ...row, id: liveId }, body.acted),
       neonOnly: true,
     });
   } catch (err) {
