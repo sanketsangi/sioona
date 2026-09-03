@@ -16,8 +16,8 @@ type SignalReviewPanelProps = {
   customerName: string;
   /** Sticky column header row (same chrome as the list DataTable). */
   header: ReactNode;
-  /** Queue CTA — Approve when Retention Email is on the rail. */
-  actionLabel?: "Approve" | "Review";
+  /** Queue CTA — Approve / Review / Mark as Acted / View by signal state. */
+  actionLabel?: "Approve" | "Review" | "Mark as Acted" | "View";
 };
 
 /**
