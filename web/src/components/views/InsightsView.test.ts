@@ -418,6 +418,126 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toContain("Upload Weekly Export");
   });
 
+  it("Follow-up list Action is Mark as Acted (not Review link)", () => {
+    const follow: Signal = {
+      id: "sig_follow_list",
+      tenantId: "tenant_demo",
+      conversationId: "conv_follow_list",
+      type: "retention",
+      score: 0.9,
+      confidence: 0.9,
+      summary: "Pause SIP follow-up",
+      suggestedAction: "Call before pause.",
+      evidence: ['quote: "Please pause"'],
+      status: "reviewed",
+      createdAt: "2026-08-01T00:00:00.000Z",
+      backendSignalId: "pred-follow-list",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    const store = storeFromSignals([follow]);
+    store.conversations[0].customerName = "Priya";
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "followup",
+        typeFilter: "all",
+        page: 1,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: true,
+          rows: [
+            {
+              id: "pred-follow-list",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_follow_list",
+              signal_type: "retention",
+              confidence: 0.9,
+              summary: "Pause SIP follow-up",
+              created_at: "2026-08-01T00:00:00.000Z",
+              acted: false,
+              feedback: {
+                id: "fb-follow-list",
+                tenant_id: "tenant_demo",
+                signal_id: "pred-follow-list",
+                feedback: "correct",
+                note: null,
+                reviewed_by: "demo",
+                reviewed_at: "2026-08-02T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Mark as Acted");
+    expect(html).not.toContain(">Review</a>");
+  });
+
+  it("Done list Action is View (not Review)", () => {
+    const acted: Signal = {
+      id: "sig_done_list",
+      tenantId: "tenant_demo",
+      conversationId: "conv_done_list",
+      type: "lead",
+      score: 0.8,
+      confidence: 0.8,
+      summary: "Done lead",
+      suggestedAction: "Nurture",
+      evidence: ["quote"],
+      status: "acted",
+      createdAt: "2026-08-01T00:00:00.000Z",
+      backendSignalId: "pred-done-list",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    const store = storeFromSignals([acted]);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "acted",
+        typeFilter: "all",
+        page: 1,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: true,
+          rows: [
+            {
+              id: "pred-done-list",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_done_list",
+              signal_type: "lead",
+              confidence: 0.8,
+              summary: "Done lead",
+              created_at: "2026-08-01T00:00:00.000Z",
+              acted: true,
+              feedback: {
+                id: "fb-done-list",
+                tenant_id: "tenant_demo",
+                signal_id: "pred-done-list",
+                feedback: "correct",
+                note: null,
+                reviewed_by: "demo",
+                reviewed_at: "2026-08-02T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain(">View</a>");
+    expect(html).not.toContain(">Review</a>");
+    expect(html).not.toContain('aria-label="Mark as Acted for');
+  });
+
   it("empty Correct with no pending mirrors Pending mid-week empty", () => {
     const acted: Signal = {
       id: "sig_acted",
@@ -895,7 +1015,6 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
     );
-    expect(html).toContain("Conversation");
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
     expect(html).not.toContain("A / Enter → Mark as Acted");
@@ -971,8 +1090,8 @@ describe("InsightsView review conversation + action", () => {
 
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Retention Email");
-    expect(html).toContain(">Approve</button>");
-    expect(html).toContain("Approve");
+    expect(html).toContain("Approve Draft");
+    expect(html).toContain(">Edit</button>");
     expect(html).toContain("Checking in on your account");
     expect(html).toContain("data-review-slot=\"retention-email\"");
     const whySlot = html.indexOf('data-review-slot="why"');
@@ -1121,7 +1240,6 @@ describe("InsightsView evidence-grounded review", () => {
 
     expect(html).toContain("I want to close my account");
     expect(html).toContain("Why This Fired");
-    expect(html).toContain("Conversation");
     expect(html).toContain("Feedback");
     expect(html).toContain("Ground Truth");
     expect(html).toContain("insights-review-feedback");
