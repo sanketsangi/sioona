@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  queueActionKindForSignal,
   queueActionLabelForSignal,
   RetentionEmailAction,
 } from "@/components/RetentionEmailAction";
@@ -61,6 +62,53 @@ describe("queueActionLabelForSignal", () => {
       ),
     ).toBe("Approve");
   });
+
+  it("returns Mark as Acted for Correct ¬acted follow-up", () => {
+    expect(
+      queueActionLabelForSignal(
+        signal({
+          status: "reviewed",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-09-03T00:00:00.000Z",
+          },
+        }),
+        "Priya",
+      ),
+    ).toBe("Mark as Acted");
+  });
+
+  it("returns View for acted Done rows", () => {
+    expect(
+      queueActionLabelForSignal(
+        signal({
+          status: "acted",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-09-03T00:00:00.000Z",
+          },
+        }),
+        "Priya",
+      ),
+    ).toBe("View");
+  });
+});
+
+describe("queueActionKindForSignal", () => {
+  it("prefers mark_acted over approve for Correct ¬acted retention", () => {
+    expect(
+      queueActionKindForSignal(
+        signal({
+          status: "reviewed",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-09-03T00:00:00.000Z",
+          },
+        }),
+        "Priya",
+      ),
+    ).toBe("mark_acted");
+  });
 });
 
 describe("RetentionEmailAction", () => {
@@ -92,8 +140,12 @@ describe("RetentionEmailAction", () => {
     expect(html.indexOf("Draft")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html).toContain("Checking in on your account");
     expect(html).toContain("Hi Priya,");
-    expect(html).toContain("grid-cols-1");
-    expect(html).toContain("md:grid-cols-2");
+    expect(html).toContain("retention-email-columns");
+    // Vertical stack lives in .retention-email-columns (globals.css).
+    expect(html).not.toContain(
+      "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
+    );
+    expect(html).toContain("flex-nowrap");
     expect(html).toContain("the email is not sent");
     expect(html).toContain("Records approval. Does not send the email.");
     expect(html).toContain("data-review-slot=\"retention-email\"");
@@ -126,8 +178,16 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("mb-3");
     expect(html).toContain("mt-3");
     expect(html).toContain("gap-2");
-    expect(html).toContain("items-start");
+    // Hang body under title text (icon size-4 + gap-2).
+    expect(html).toContain("ps-6");
     expect(html).toContain("border-sio-border-subtle");
+    expect(html).toContain("gap-1.5");
+    // align-items:stretch lives on .retention-email-columns in globals.css
+    expect(html).toContain("retention-email-columns");
+    expect(html).toContain("flex-nowrap");
+    expect(html).not.toContain(
+      "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
+    );
     expect(html).toContain("Retention Email");
     expect(html).toContain("Pending");
     expect(html).toContain("Approve Draft");
@@ -136,9 +196,10 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Draft");
     expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html).toContain("rounded-[var(--radius-control)]");
-    expect(html).toContain("rounded-full");
+    // Quiet subsection labels (Why This Fired / Matched), not pill chips.
+    expect(html).not.toContain("rounded-full");
     expect(html).toContain(
-      "inline-flex h-7 w-fit shrink-0 items-center justify-center rounded-full border border-border bg-background px-3 text-[0.8rem] font-medium text-sio-fg-base",
+      "text-label-12 leading-5 font-semibold tracking-normal text-sio-fg-subtle",
     );
     expect(html).not.toContain(
       "shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.06)]",
@@ -165,7 +226,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toBe("");
   });
 
-  it("shows the decided state without action buttons", () => {
+  it("keeps Approve / Edit / Dismiss after Approved so partners can revise", () => {
     const action = createRetentionEmailAction({
       signal: signal(),
       customerName: "Priya",
@@ -181,10 +242,13 @@ describe("RetentionEmailAction", () => {
       }),
     );
     expect(html).toContain("Approved — not sent.");
+    expect(html).toContain("Approved");
     expect(html).not.toContain("High-confidence retention draft");
     expect(html).not.toContain("Approve &amp; Send");
-    expect(html).not.toContain(">Edit<");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain("Approve Draft");
+    expect(html).toContain(">Edit<");
+    expect(html).toContain(">Dismiss<");
+    expect(html).not.toContain("This draft already has a decision.");
   });
 
   it("keeps Approve / Edit / Dismiss after an edited draft save", () => {
@@ -212,7 +276,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Revised retention note.");
   });
 
-  it("locks dismissed drafts without action buttons", () => {
+  it("keeps Approve / Edit / Dismiss after Dismissed so partners can revise", () => {
     const action = createRetentionEmailAction({
       signal: signal(),
       customerName: "Priya",
@@ -228,8 +292,8 @@ describe("RetentionEmailAction", () => {
       }),
     );
     expect(html).toContain("Dismissed. No email will be sent.");
-    expect(html).not.toContain("Approve Draft");
-    expect(html).not.toContain(">Edit<");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain("Approve Draft");
+    expect(html).toContain(">Edit<");
+    expect(html).toContain(">Dismiss<");
   });
 });

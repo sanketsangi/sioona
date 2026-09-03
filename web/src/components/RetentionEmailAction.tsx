@@ -6,6 +6,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
+import { RetentionEmailDraftIcon } from "@/components/icons/RetentionEmailDraftIcon";
+import { RetentionEmailEvidenceIcon } from "@/components/icons/RetentionEmailEvidenceIcon";
 import {
   InsightsReviewPaneHeader,
   REVIEW_PANE_TITLE_CLASS,
@@ -60,6 +62,23 @@ const STATUS_LABEL: Record<SupervisedActionStatus, string> = {
 
 const APPROVE_TOOLTIP = "Records approval. Does not send the email.";
 
+/** Quieter subsection labels — matches Why This Fired / Matched (UI_DESIGN). */
+const SECTION_LABEL_CLASS =
+  "text-label-12 leading-5 font-semibold tracking-normal text-sio-fg-subtle";
+
+/** Retention Email Evidence / Draft wells. */
+const EVIDENCE_WELL_CLASS =
+  "flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-muted/40";
+
+const DRAFT_WELL_CLASS =
+  "flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-base";
+
+/**
+ * Embedded header icon is size-4 + gap-2 — hang body so helper / wells /
+ * CTAs share the title text column (optical lockup, AGENTS.md).
+ */
+const EMBEDDED_BODY_INSET_CLASS = "ps-6";
+
 function statusMessage(status: SupervisedActionStatus): string | null {
   switch (status) {
     case "approved":
@@ -103,15 +122,49 @@ export function resolveRetentionEmailAction(
   });
 }
 
-/** Queue CTA: Approve when the review rail shows Retention Email. */
+/** Insights list Action column — cadence-aware, not outbound. */
+export type QueueActionKind = "mark_acted" | "view" | "approve" | "review";
+
+const QUEUE_ACTION_LABEL: Record<QueueActionKind, string> = {
+  mark_acted: "Mark as Acted",
+  view: "View",
+  approve: "Approve",
+  review: "Review",
+};
+
+/**
+ * Queue Action kind by signal state.
+ * Follow-up Correct ¬acted → Mark as Acted; Done → View;
+ * pending with Retention Email → Approve; else Review.
+ */
+export function queueActionKindForSignal(
+  signal: Signal,
+  customerName: string,
+  stored?: SupervisedAction | null,
+): QueueActionKind {
+  if (signal.status === "acted") return "view";
+  if (signal.feedback?.label === "correct") return "mark_acted";
+  return resolveRetentionEmailAction(signal, customerName, stored)
+    ? "approve"
+    : "review";
+}
+
+export function queueActionLabelForKind(kind: QueueActionKind): string {
+  return QUEUE_ACTION_LABEL[kind];
+}
+
+/** Queue / review chrome label (Approve when Retention Email is on the rail). */
 export function queueActionLabelForSignal(
   signal: Signal,
   customerName: string,
   stored?: SupervisedAction | null,
-): "Approve" | "Review" {
-  return resolveRetentionEmailAction(signal, customerName, stored)
-    ? "Approve"
-    : "Review";
+): "Approve" | "Review" | "Mark as Acted" | "View" {
+  const kind = queueActionKindForSignal(signal, customerName, stored);
+  return queueActionLabelForKind(kind) as
+    | "Approve"
+    | "Review"
+    | "Mark as Acted"
+    | "View";
 }
 
 type RetentionEmailActionProps = {
@@ -158,6 +211,11 @@ export function RetentionEmailAction({
   const [pending, setPending] = useState<SupervisedActionDecision | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<"approve" | "dismiss" | null>(null);
+  /** Change after Approved / Dismissed — shadcn Dialog, not inline danger text. */
+  const [reviseIntent, setReviseIntent] = useState<
+    "approve" | "edit" | "dismiss" | null
+  >(null);
+  const reviseConfirmRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const next = resolveRetentionEmailAction(
@@ -171,6 +229,7 @@ export function RetentionEmailAction({
     setEditing(false);
     setError(null);
     setConfirm(null);
+    setReviseIntent(null);
   }, [signal, customerName, storedAction]);
 
   const dirty =
@@ -194,9 +253,9 @@ export function RetentionEmailAction({
   // Narrowed for nested handlers — outer early-return does not carry into closures.
   const currentAction = action;
   const busy = pending != null;
-  // Edited is a saved draft, not a lock — Approve / Edit / Dismiss stay available.
-  const decisionOpen =
-    currentAction.status === "pending" || currentAction.status === "edited";
+  // Status chip + copy reflect the last decision; CTAs stay so partners can revise
+  // (Approve again, Edit draft, or Dismiss). Still decision-only — never sends.
+  const decisionOpen = true;
   const decidedCopy = statusMessage(currentAction.status);
 
   async function submit(decision: SupervisedActionDecision) {
@@ -247,6 +306,45 @@ export function RetentionEmailAction({
     setError(null);
   }
 
+  const needsReviseWarn =
+    currentAction.status === "approved" || currentAction.status === "dismissed";
+
+  function requestChange(intent: "approve" | "edit" | "dismiss") {
+    if (busy) return;
+    setError(null);
+    if (needsReviseWarn) {
+      setReviseIntent(intent);
+      return;
+    }
+    if (intent === "edit") {
+      startEdit();
+      return;
+    }
+    setConfirm(intent);
+  }
+
+  function confirmRevise() {
+    const intent = reviseIntent;
+    setReviseIntent(null);
+    if (!intent) return;
+    if (intent === "edit") {
+      startEdit();
+      return;
+    }
+    if (intent === "approve") {
+      void submit("approved");
+      return;
+    }
+    void submit("dismissed");
+  }
+
+  const reviseStatusLabel =
+    currentAction.status === "approved"
+      ? "approved"
+      : currentAction.status === "dismissed"
+        ? "dismissed"
+        : "decided";
+
   const statusChip = (
     <InsightsReviewStatusChip className={STATUS_CHIP[currentAction.status]}>
       {STATUS_LABEL[currentAction.status]}
@@ -280,283 +378,329 @@ export function RetentionEmailAction({
         </p>
       ) : null}
 
-      {/* Review Evidence|Draft before deciding (or while editing subject/body). */}
-      {!editing ? (
-        <div className="grid min-w-0 grid-cols-1 items-start gap-2 md:grid-cols-2 md:gap-3">
-          <section
-            aria-labelledby={evidenceId}
-            className="min-w-0 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-muted/40 px-2.5 py-2"
-          >
-            <h4
-              id={evidenceId}
-              className="inline-flex h-7 w-fit shrink-0 items-center justify-center rounded-full border border-border bg-background px-3 text-[0.8rem] font-medium text-sio-fg-base"
-            >
-              Evidence
-            </h4>
-            {currentAction.evidenceQuote ? (
-              <blockquote
-                className="mt-1 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base"
-                translate="no"
-              >
-                “{currentAction.evidenceQuote}”
-              </blockquote>
-            ) : (
-              <p className="mt-1 text-pretty text-copy-14 leading-5 text-sio-fg-muted">
-                No local evidence quote.
-              </p>
-            )}
-          </section>
-
-          <section
-            aria-labelledby={draftId}
-            className="min-w-0 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-base px-2.5 py-2"
-          >
-            <h4
-              id={draftId}
-              className="inline-flex h-7 w-fit shrink-0 items-center justify-center rounded-full border border-border bg-background px-3 text-[0.8rem] font-medium text-sio-fg-base"
-            >
-              Draft
-            </h4>
-            <p
-              className="mt-1 break-words text-label-14 font-medium leading-5 text-sio-fg-base"
-              translate="no"
-            >
-              {currentAction.subject}
-            </p>
-            <pre className="mt-1 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-5 text-sio-fg-base">
-              {currentAction.body}
-            </pre>
-          </section>
-        </div>
-      ) : null}
-
-      {decisionOpen ? (
-        editing ? (
-          <form
-            className="flex min-w-0 flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submit("edited");
-            }}
-          >
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <Label htmlFor={subjectId} className="text-label-12">
-                Subject
-              </Label>
-              <Input
-                ref={subjectRef}
-                id={subjectId}
-                name="retentionEmailSubject"
-                type="text"
-                autoComplete="off"
-                spellCheck
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-                placeholder="e.g. Checking in on your account…"
-                className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:min-h-9 md:text-sm"
-                aria-invalid={!subject.trim()}
-              />
-            </div>
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <Label htmlFor={bodyId} className="text-label-12">
-                Body
-              </Label>
-              <Textarea
-                id={bodyId}
-                name="retentionEmailBody"
-                rows={8}
-                value={body}
-                onChange={(event) => setBody(event.target.value)}
-                onKeyDown={(event) => {
-                  if (
-                    (event.metaKey || event.ctrlKey) &&
-                    event.key === "Enter"
-                  ) {
-                    event.preventDefault();
-                    void submit("edited");
-                  }
-                }}
-                placeholder="Short, polite follow-up…"
-                className="min-h-32 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:text-sm"
-                aria-invalid={!body.trim()}
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="submit"
-                className="btn-primary min-h-11 touch-manipulation md:min-h-9"
-                disabled={busy}
-                aria-busy={pending === "edited"}
-              >
-                {pending === "edited" ? <ButtonSpinner /> : null}
-                Save Edit
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="btn-secondary min-h-11 touch-manipulation md:min-h-9"
-                disabled={busy}
-                onClick={cancelEdit}
-              >
+      <Dialog
+        open={reviseIntent != null}
+        onOpenChange={(open) => {
+          if (!open) setReviseIntent(null);
+        }}
+      >
+        <DialogContent
+          className="overscroll-contain motion-reduce:animate-none"
+          showCloseButton
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            reviseConfirmRef.current?.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Change Decision?</DialogTitle>
+            <DialogDescription>
+              This draft was already {reviseStatusLabel}. Updating records a new
+              decision only — the email is still not sent.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline" className="btn-secondary">
                 Cancel
               </Button>
-            </div>
-          </form>
-        ) : (
-          <div
-            className="flex flex-wrap gap-2 pt-0.5"
-            role="group"
-            aria-label="Retention email decisions"
-          >
-            <Dialog
-              open={confirm === "approve"}
-              onOpenChange={(open) =>
-                setConfirm(open ? "approve" : null)
-              }
-            >
-              <TooltipProvider delayDuration={400}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <Button
-                        type="button"
-                        className="btn-primary min-h-11 touch-manipulation md:min-h-9"
-                        disabled={busy}
-                        aria-busy={pending === "approved"}
-                        aria-haspopup="dialog"
-                        title={APPROVE_TOOLTIP}
-                        onClick={() => setConfirm("approve")}
-                      >
-                        {pending === "approved" ? (
-                          <ButtonSpinner />
-                        ) : (
-                          <Check
-                            className="size-3.5 shrink-0"
-                            weight="bold"
-                            aria-hidden
-                          />
-                        )}
-                        Approve Draft
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom" align="start">
-                    {APPROVE_TOOLTIP}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <DialogContent
-                className="overscroll-contain motion-reduce:animate-none"
-                showCloseButton
-                onOpenAutoFocus={(event) => {
-                  event.preventDefault();
-                  approveRef.current?.focus();
-                }}
-              >
-                <DialogHeader>
-                  <DialogTitle>Approve Draft</DialogTitle>
-                  <DialogDescription>
-                    This records your approval for later evaluation. The
-                    email is not sent.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="btn-secondary"
-                    >
-                      Cancel
-                    </Button>
-                  </DialogClose>
-                  <Button
-                    ref={approveRef}
-                    type="button"
-                    className="btn-primary"
-                    disabled={busy}
-                    onClick={() => void submit("approved")}
-                  >
-                    {pending === "approved" ? <ButtonSpinner /> : null}
-                    Approve Draft
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-
+            </DialogClose>
             <Button
+              ref={reviseConfirmRef}
               type="button"
-              variant="outline"
-              className="btn-secondary min-h-11 touch-manipulation md:min-h-9"
-              disabled={busy}
-              onClick={startEdit}
+              className="btn-primary"
+              onClick={confirmRevise}
             >
-              <PencilSimple
-                className="size-3.5 shrink-0"
-                weight="bold"
-                aria-hidden
-              />
-              Edit
+              Continue
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-            <Dialog
-              open={confirm === "dismiss"}
-              onOpenChange={(open) =>
-                setConfirm(open ? "dismiss" : null)
-              }
+      {/* Evidence always visible; edit opens inside the Draft well only. */}
+      <div className="retention-email-columns">
+        <section
+          data-retention-email-panel="evidence"
+          aria-labelledby={evidenceId}
+          className={EVIDENCE_WELL_CLASS}
+        >
+          <h4
+            id={evidenceId}
+            className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
+          >
+            <RetentionEmailEvidenceIcon className="size-4 shrink-0 text-sio-fg-subtle" />
+            <span>Evidence</span>
+          </h4>
+          {currentAction.evidenceQuote ? (
+            <blockquote
+              className="m-0 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base"
+              translate="no"
             >
-              <Button
-                type="button"
-                variant="outline"
-                className="btn-secondary min-h-11 touch-manipulation md:min-h-9"
-                disabled={busy}
-                aria-haspopup="dialog"
-                onClick={() => setConfirm("dismiss")}
+              “{currentAction.evidenceQuote}”
+            </blockquote>
+          ) : (
+            <p className="m-0 text-pretty text-copy-14 leading-5 text-sio-fg-muted">
+              No local evidence quote.
+            </p>
+          )}
+        </section>
+
+        <section
+          data-retention-email-panel="draft"
+          aria-labelledby={draftId}
+          className={DRAFT_WELL_CLASS}
+        >
+          <h4
+            id={draftId}
+            className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
+          >
+            <RetentionEmailDraftIcon className="size-4 shrink-0 text-sio-fg-subtle" />
+            <span>Draft</span>
+          </h4>
+
+          {editing ? (
+            <form
+              className="flex min-w-0 flex-col gap-1.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit("edited");
+              }}
+            >
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor={subjectId} className="text-label-12">
+                  Subject
+                </Label>
+                <Input
+                  ref={subjectRef}
+                  id={subjectId}
+                  name="retentionEmailSubject"
+                  type="text"
+                  autoComplete="off"
+                  spellCheck
+                  value={subject}
+                  onChange={(event) => setSubject(event.target.value)}
+                  placeholder="e.g. Checking in on your account…"
+                  className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:min-h-9 md:text-sm"
+                  aria-invalid={!subject.trim()}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor={bodyId} className="text-label-12">
+                  Body
+                </Label>
+                <Textarea
+                  id={bodyId}
+                  name="retentionEmailBody"
+                  rows={6}
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      (event.metaKey || event.ctrlKey) &&
+                      event.key === "Enter"
+                    ) {
+                      event.preventDefault();
+                      void submit("edited");
+                    }
+                  }}
+                  placeholder="Short, polite follow-up…"
+                  className="min-h-24 resize-y border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:text-sm"
+                  aria-invalid={!body.trim()}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                <Button
+                  type="submit"
+                  className="btn-primary min-h-11 touch-manipulation md:min-h-9"
+                  disabled={busy}
+                  aria-busy={pending === "edited"}
+                >
+                  {pending === "edited" ? <ButtonSpinner /> : null}
+                  Save Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="btn-secondary min-h-11 touch-manipulation md:min-h-9"
+                  disabled={busy}
+                  onClick={cancelEdit}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <p
+                className="m-0 break-words text-label-14 font-medium leading-5 text-sio-fg-base"
+                translate="no"
               >
-                <X className="size-3.5 shrink-0" weight="bold" aria-hidden />
-                Dismiss
-              </Button>
-              <DialogContent
-                className="overscroll-contain motion-reduce:animate-none"
-                showCloseButton
-                onOpenAutoFocus={(event) => {
-                  event.preventDefault();
-                  dismissRef.current?.focus();
-                }}
-              >
-                <DialogHeader>
-                  <DialogTitle>Dismiss Draft</DialogTitle>
-                  <DialogDescription>
-                    This records that the draft should not be used. Nothing
-                    is sent.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
+                {currentAction.subject}
+              </p>
+              <pre className="m-0 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-5 text-sio-fg-base">
+                {currentAction.body}
+              </pre>
+              {decisionOpen ? (
+                <div
+                  className="flex flex-nowrap items-center gap-1 pt-0.5"
+                  role="group"
+                  aria-label="Retention email decisions"
+                >
+                  <Dialog
+                    open={confirm === "approve"}
+                    onOpenChange={(open) => setConfirm(open ? "approve" : null)}
+                  >
+                    <TooltipProvider delayDuration={400}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex shrink-0">
+                            <Button
+                              type="button"
+                              className="btn-primary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                              disabled={busy}
+                              aria-busy={pending === "approved"}
+                              aria-haspopup="dialog"
+                              title={APPROVE_TOOLTIP}
+                              onClick={() => requestChange("approve")}
+                            >
+                              {pending === "approved" ? (
+                                <ButtonSpinner />
+                              ) : (
+                                <Check
+                                  className="size-3.5 shrink-0"
+                                  weight="bold"
+                                  aria-hidden
+                                />
+                              )}
+                              <span className="hidden sm:inline">
+                                Approve Draft
+                              </span>
+                              <span className="sm:hidden">Approve</span>
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start">
+                          {APPROVE_TOOLTIP}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <DialogContent
+                      className="overscroll-contain motion-reduce:animate-none"
+                      showCloseButton
+                      onOpenAutoFocus={(event) => {
+                        event.preventDefault();
+                        approveRef.current?.focus();
+                      }}
+                    >
+                      <DialogHeader>
+                        <DialogTitle>Approve Draft</DialogTitle>
+                        <DialogDescription>
+                          This records your approval for later evaluation. The
+                          email is not sent.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="btn-secondary"
+                          >
+                            Cancel
+                          </Button>
+                        </DialogClose>
+                        <Button
+                          ref={approveRef}
+                          type="button"
+                          className="btn-primary"
+                          disabled={busy}
+                          onClick={() => void submit("approved")}
+                        >
+                          {pending === "approved" ? <ButtonSpinner /> : null}
+                          Approve Draft
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                    disabled={busy}
+                    onClick={() => requestChange("edit")}
+                  >
+                    <PencilSimple
+                      className="size-3.5 shrink-0"
+                      weight="bold"
+                      aria-hidden
+                    />
+                    Edit
+                  </Button>
+
+                  <Dialog
+                    open={confirm === "dismiss"}
+                    onOpenChange={(open) => setConfirm(open ? "dismiss" : null)}
+                  >
                     <Button
                       type="button"
                       variant="outline"
-                      className="btn-secondary"
+                      className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                      disabled={busy}
+                      aria-haspopup="dialog"
+                      onClick={() => requestChange("dismiss")}
                     >
-                      Cancel
+                      <X
+                        className="size-3.5 shrink-0"
+                        weight="bold"
+                        aria-hidden
+                      />
+                      Dismiss
                     </Button>
-                  </DialogClose>
-                  <Button
-                    ref={dismissRef}
-                    type="button"
-                    className="btn-primary"
-                    disabled={busy}
-                    onClick={() => void submit("dismissed")}
-                  >
-                    {pending === "dismissed" ? <ButtonSpinner /> : null}
-                    Dismiss Draft
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        )
-      ) : null}
+                    <DialogContent
+                      className="overscroll-contain motion-reduce:animate-none"
+                      showCloseButton
+                      onOpenAutoFocus={(event) => {
+                        event.preventDefault();
+                        dismissRef.current?.focus();
+                      }}
+                    >
+                      <DialogHeader>
+                        <DialogTitle>Dismiss Draft</DialogTitle>
+                        <DialogDescription>
+                          This records that the draft should not be used. Nothing
+                          is sent.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="btn-secondary"
+                          >
+                            Cancel
+                          </Button>
+                        </DialogClose>
+                        <Button
+                          ref={dismissRef}
+                          type="button"
+                          className="btn-primary"
+                          disabled={busy}
+                          onClick={() => void submit("dismissed")}
+                        >
+                          {pending === "dismissed" ? <ButtonSpinner /> : null}
+                          Dismiss Draft
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              ) : null}
+            </>
+          )}
+        </section>
+      </div>
     </>
   );
 
@@ -583,7 +727,15 @@ export function RetentionEmailAction({
           </div>
           {statusChip}
         </div>
-        {bodyInner}
+        {/* Hang under title text — same left edge for helper, wells, CTAs. */}
+        <div
+          className={cn(
+            "flex min-w-0 flex-col gap-2",
+            EMBEDDED_BODY_INSET_CLASS,
+          )}
+        >
+          {bodyInner}
+        </div>
       </section>
     );
   }

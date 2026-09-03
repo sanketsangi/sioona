@@ -583,6 +583,58 @@
     pointer-events: none !important;
   }
 
+  /*
+   * Retention Email Evidence|Draft — vertical stack on all breakpoints.
+   * Evidence first, Draft second; CTAs scroll inside Draft when the rail is tight.
+   */
+  [data-review-slot="retention-email"] {
+    container-type: inline-size;
+    container-name: retention-email;
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .retention-email-columns {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  /* Deterministic order: Evidence first, Draft second. */
+  .retention-email-columns [data-retention-email-panel="evidence"] {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .retention-email-columns [data-retention-email-panel="draft"] {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  .retention-email-columns [data-retention-email-panel="draft"] [role="group"] {
+    @apply hide-scrollbar;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior: contain;
+  }
+
+  @container retention-email (max-width: 24rem) {
+    .retention-email-columns {
+      gap: 0.5rem;
+    }
+
+    [data-review-slot="retention-email"] .retention-email-embedded-body {
+      padding-inline-start: 0;
+    }
+  }
+
   /* Nested under Recommended Actions — no rail-level order. */
   .insights-review-split [data-review-slot="retention-email"] {
     min-width: 0;
