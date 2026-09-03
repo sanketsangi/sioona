@@ -52,15 +52,19 @@ describe("SignalReviewConversation", () => {
     expect(html).not.toContain("2 messages");
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Aug,");
-    expect(html).toContain("max-w-md");
+    expect(html).not.toContain("max-w-md");
     expect(html).toContain("insights-review-chat");
     expect(html).toContain("insights-review-chat-header");
     expect(html).toContain(
       "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
     );
     expect(html).toContain("insights-review-chat-body");
-    expect(html).toContain("px-3 sm:px-4");
-    expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");
+    expect(html).toContain('data-slot="message-scroller"');
+    expect(html).toContain('data-slot="message-scroller-viewport"');
+    expect(html).toContain("scroll-fade-b");
+    expect(html).toContain("chat-bubble-group");
+    expect(html).not.toContain("px-3 sm:px-4");
+    expect(html).not.toContain("sm:px-4");
     expect(html).not.toContain("max-h-full");
     expect(html).not.toContain("min-h-[14rem]");
     expect(html).not.toContain("flex-1 overflow-y-auto");
@@ -76,7 +80,8 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("chat-bubble--default");
     expect(html).not.toContain("width:28px");
     expect(html).toContain("width:32px");
-    expect(html).toContain("bg-sio-bg-subtle");
+    expect(html).toContain("bg-sio-bg-base");
+    expect(html).not.toContain("bg-sio-bg-subtle");
     expect(html).not.toContain("See Conversation");
     expect(html).not.toContain("No messages stored");
     expect(html).not.toContain("Showing last");
@@ -97,13 +102,18 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("Priya");
     expect(html).not.toContain("Conversation");
     expect(html).toContain("insights-review-chat-body");
-    expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");
+    expect(html).toContain(
+      "insights-review-chat-body scroll-region min-h-0 flex-auto overflow-y-auto overscroll-contain",
+    );
+    expect(html).not.toContain('data-slot="message-scroller"');
     expect(html).toContain("min-h-[12rem]");
     expect(html).not.toContain("max-h-full");
     expect(html).not.toContain("min-h-[14rem]");
     expect(html).not.toContain("flex min-h-[12rem] flex-1");
-    expect(html).toContain("px-3 sm:px-4");
+    expect(html).not.toContain("px-3 sm:px-4");
+    expect(html).not.toContain("sm:px-4");
     expect(html).not.toContain("px-1 py-4");
+    expect(html).not.toContain("md:min-h-9");
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Aug,");
     expect(html).not.toContain("See Conversation");
@@ -131,8 +141,10 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Evidence match");
     expect(html).toContain('data-evidence-match="true"');
+    expect(html).toContain('data-message-id="msg_1"');
     expect(html).toContain("scroll-mt-3");
-    expect(html).toContain("min-h-0 flex-auto overflow-y-auto overscroll-contain py-3");
+    expect(html).toContain('data-slot="message-scroller"');
+    expect(html).toContain("scroll-fade-b");
     expect(html).not.toContain("min-h-[14rem]");
     expect(html).not.toContain("<time");
     expect(html).not.toContain("Aug,");

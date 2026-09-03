@@ -2,6 +2,12 @@
 
 import { useId } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
+import {
+  MessageScroller,
+  MessageScrollerContent,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +19,7 @@ type SignalReviewTranscriptProps = {
 };
 
 /**
- * In-queue conversation — Why This Fired jumps land here.
+ * In-queue conversation — Why This Fired jumps land here via MessageScroller.
  * Empty copy matches the drawer (no invented transcript).
  */
 export function SignalReviewTranscript({
@@ -25,6 +31,7 @@ export function SignalReviewTranscript({
   const headingId = useId();
   const who = customerName.trim() || "Customer";
   const messageCount = messages.filter((m) => m.role !== "system").length;
+  const hasMessages = messages.length > 0;
 
   return (
     <section
@@ -46,25 +53,39 @@ export function SignalReviewTranscript({
         ) : null}
       </div>
 
-      <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
-        <div className="mx-auto w-full max-w-md">
-          {messages.length === 0 ? (
-            <div className="flex min-h-[12rem] flex-col items-center justify-center px-2 text-center">
-              <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
-              <p className="mt-1 max-w-xs text-pretty text-label-13 text-sio-fg-muted">
-                Re-upload or re-detect to attach the transcript. No invented
-                chat.
-              </p>
-            </div>
-          ) : (
-            <ConversationMessages
-              messages={messages}
-              customerName={who}
-              highlightedMessageId={highlightedMessageId}
-            />
-          )}
+      {hasMessages ? (
+        <MessageScrollerProvider
+          autoScroll={false}
+          defaultScrollPosition="start"
+          scrollMargin={12}
+          scrollPreviousItemPeek={0}
+        >
+          <MessageScroller className="min-h-0 flex-1">
+            <MessageScrollerViewport
+              className="scroll-region px-1 py-4 sm:px-2 sm:py-5"
+              aria-label="Conversation"
+            >
+              <MessageScrollerContent className="mx-auto w-full max-w-md">
+                <ConversationMessages
+                  messages={messages}
+                  customerName={who}
+                  highlightedMessageId={highlightedMessageId}
+                />
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+          </MessageScroller>
+        </MessageScrollerProvider>
+      ) : (
+        <div className="scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain px-1 py-4 sm:px-2 sm:py-5">
+          <div className="mx-auto flex min-h-[12rem] w-full max-w-md flex-col items-center justify-center px-2 text-center">
+            <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
+            <p className="mt-1 max-w-xs text-pretty text-label-13 text-sio-fg-muted">
+              Re-upload or re-detect to attach the transcript. No invented
+              chat.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }

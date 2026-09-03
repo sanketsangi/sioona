@@ -115,7 +115,7 @@ export function LabeledTables({
               Precision By Signal Type
             </h2>
           </div>
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
+          <div className="hide-scrollbar min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
             <table className="w-full min-w-0 text-left text-copy-14">
               <caption className="sr-only">
                 Labeled precision, recall, and confusion counts for each signal
@@ -224,7 +224,7 @@ export function LabeledTables({
                 ))}
               </ul>
 
-              <div className="hidden min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:block">
+              <div className="hide-scrollbar hidden min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden md:block">
                 <table className="w-full min-w-0 text-left text-copy-14">
                   <caption className="sr-only">
                     Ground truth labels, predicted signals, and reviewer

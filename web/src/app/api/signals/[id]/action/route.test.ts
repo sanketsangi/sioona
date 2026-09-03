@@ -124,7 +124,7 @@ describe("POST /api/signals/[id]/action", () => {
 
     const res = await POST(
       actionRequest("sig_ret_edit", {
-        decision: "approved",
+        decision: "edited",
         body: "Hi there,\n\nRevised offer.\n\nBest regards",
         subject: "Checking in on your account",
       }),
@@ -135,7 +135,7 @@ describe("POST /api/signals/[id]/action", () => {
     expect(data.action.status).toBe("edited");
   });
 
-  it("rejects a second decision", async () => {
+  it("rejects a second decision after dismiss", async () => {
     const store = await readStore();
     store.signals.push({
       id: "sig_ret_twice",

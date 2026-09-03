@@ -16,6 +16,12 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/Drawer";
+import {
+  MessageScroller,
+  MessageScrollerContent,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import type { Message as ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -91,30 +97,43 @@ export function ConversationDrawer({
           </div>
         </DrawerHeader>
 
-        <div
-          className={cn(
-            "scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain py-3",
-            evalCardPadClassName,
-          )}
-        >
-          <div className="mx-auto w-full max-w-lg">
-            {messages.length === 0 ? (
-              <div className="flex min-h-[12rem] flex-col items-center justify-center gap-1 text-center">
-                <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
-                <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">
-                  Re-upload or re-detect to attach the transcript. No invented
-                  chat.
-                </p>
-              </div>
-            ) : (
-              <ConversationMessages
-                messages={messages}
-                customerName={who}
-                showTimestamps
-              />
+        {messages.length === 0 ? (
+          <div
+            className={cn(
+              "scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain py-3",
+              evalCardPadClassName,
             )}
+          >
+            <div className="mx-auto flex min-h-[12rem] w-full max-w-lg flex-col items-center justify-center gap-1 text-center">
+              <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
+              <p className="max-w-xs text-pretty text-label-13 text-sio-fg-muted">
+                Re-upload or re-detect to attach the transcript. No invented
+                chat.
+              </p>
+            </div>
           </div>
-        </div>
+        ) : (
+          <MessageScrollerProvider
+            autoScroll={false}
+            defaultScrollPosition="start"
+            scrollPreviousItemPeek={0}
+          >
+            <MessageScroller className="min-h-0 flex-1">
+              <MessageScrollerViewport
+                className={cn("scroll-region py-3", evalCardPadClassName)}
+                aria-label={`${who} conversation`}
+              >
+                <MessageScrollerContent className="mx-auto w-full max-w-lg">
+                  <ConversationMessages
+                    messages={messages}
+                    customerName={who}
+                    showTimestamps
+                  />
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+            </MessageScroller>
+          </MessageScrollerProvider>
+        )}
 
         {footer ? (
           <DrawerFooter

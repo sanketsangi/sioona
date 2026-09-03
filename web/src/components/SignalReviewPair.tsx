@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { RetentionEmailAction } from "@/components/RetentionEmailAction";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import { firstEvidenceMessageId } from "@/lib/evidence-messages";
@@ -18,9 +17,10 @@ type SignalReviewPairProps = {
 
 /**
  * Insights review pair — one metric-strip: conversation chat well
- * (sticky customer header, full transcript) | Suggested Next Action +
- * Why This Fired. Why quotes jump the transcript.
- * Parent should key this on `signal.id` so highlight resets per review.
+ * (sticky customer header, full transcript) | Recommended Actions
+ * (Why / Matched / Retention Email nested). Why quotes jump the
+ * transcript. Parent should key this on `signal.id` so highlight
+ * resets per review.
  */
 export function SignalReviewPair({
   signal,
@@ -46,22 +46,15 @@ export function SignalReviewPair({
         highlightedMessageId={focusedMessageId}
         className="min-h-0 lg:h-full"
       />
-      <div className="flex min-h-0 min-w-0 flex-col gap-4 lg:h-full">
-        <SignalReviewSuggestedAction
-          signal={signal}
-          messages={messages}
-          customerName={customerName}
-          focusedMessageId={focusedMessageId}
-          onFocusMessage={setFocusedMessageId}
-          className="min-h-0"
-        />
-        <RetentionEmailAction
-          signal={signal}
-          customerName={customerName}
-          action={supervisedAction}
-          className="min-h-0"
-        />
-      </div>
+      <SignalReviewSuggestedAction
+        signal={signal}
+        messages={messages}
+        customerName={customerName}
+        focusedMessageId={focusedMessageId}
+        onFocusMessage={setFocusedMessageId}
+        supervisedAction={supervisedAction}
+        className="min-h-0"
+      />
     </div>
   );
 }

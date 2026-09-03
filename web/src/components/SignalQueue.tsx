@@ -542,7 +542,7 @@ function QueueSignalsDataTable({
 
   return (
     <QueueCard>
-      <div className="relative min-h-0 flex-1 overflow-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="hide-scrollbar relative min-h-0 flex-1 overflow-auto">
         <Table className="min-w-[640px]">
           <TableHeader className={QUEUE_TABLE_HEADER_CLASS}>
             {table.getHeaderGroups().map((headerGroup) => (

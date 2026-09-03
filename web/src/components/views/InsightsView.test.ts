@@ -981,6 +981,16 @@ describe("InsightsView review conversation + action", () => {
     expect(whySlot).toBeGreaterThan(-1);
     expect(retentionSlot).toBeGreaterThan(whySlot);
     expect(feedbackSlot).toBeGreaterThan(retentionSlot);
+    // Retention nests inside Recommended Actions; Feedback stays a sibling.
+    expect(html.match(/data-review-slot="why"/g)?.length).toBe(1);
+    const whyChunk = html.slice(whySlot, feedbackSlot);
+    expect(whyChunk).toContain('data-review-slot="retention-email"');
+    expect(whyChunk).toContain("Retention Email");
+    if (whyChunk.includes("Matched")) {
+      expect(whyChunk.indexOf("Matched")).toBeLessThan(
+        whyChunk.indexOf("Retention Email"),
+      );
+    }
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
     expect(html).toContain("Copy Reply");

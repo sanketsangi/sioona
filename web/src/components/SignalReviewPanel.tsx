@@ -47,7 +47,7 @@ export function SignalReviewPanel({
 
   return (
     <div className="shrink-0 bg-sio-bg-base">
-      <div className="relative overflow-auto">
+      <div className="hide-scrollbar relative overflow-auto">
         <Table className="min-w-[640px]">
           {header}
           <TableBody>

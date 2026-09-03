@@ -61,7 +61,7 @@ function MetricBlock({
 
 function ByTypeTable({ metrics }: { metrics: EvalMetrics }) {
   return (
-    <div className="min-h-0 min-w-0 overflow-x-auto">
+    <div className="hide-scrollbar min-h-0 min-w-0 overflow-x-auto">
       <table className="w-full min-w-0 text-left text-copy-14">
         <caption className="sr-only">
           Per-type labeled precision and recall for this export eval pass.
@@ -250,7 +250,7 @@ export function ExportEvalPanel() {
       : "hybrid=skipped";
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden">
+    <div className="hide-scrollbar flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden">
       <Note>
         <NoteContent>
           <p className="text-balance text-heading-16 text-sio-fg-base">
@@ -308,7 +308,7 @@ export function ExportEvalPanel() {
             Confusion (base) · top {data.confusion.length}
           </h2>
         </div>
-        <div className="max-h-64 min-h-0 overflow-y-auto">
+        <div className="hide-scrollbar max-h-64 min-h-0 overflow-y-auto">
           <ConfusionList title="Base confusion" examples={data.confusion} />
         </div>
       </EvalCard>

@@ -82,7 +82,7 @@ export function GuidanceDialog({
             Eval for the week window.
           </DialogDescription>
         </DialogHeader>
-        <ol className="max-h-[min(60vh,24rem)] list-decimal space-y-4 overflow-y-auto overscroll-contain pl-5 pr-1">
+        <ol className="hide-scrollbar max-h-[min(60vh,24rem)] list-decimal space-y-4 overflow-y-auto overscroll-contain pl-5">
           {CADENCE_STEPS.map((step) => (
             <li key={step.title} className="space-y-1 pl-1">
               <h3 className="text-sm font-medium text-sio-fg-base">

@@ -8,6 +8,7 @@ import { CopyIcon } from "@/components/icons/CopyIcon";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
+import { RetentionEmailAction } from "@/components/RetentionEmailAction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -36,7 +37,7 @@ import {
   isMarkActedShortcutKey,
 } from "@/lib/review-triage";
 import { resolveSuggestedAction } from "@/lib/suggested-action-display";
-import type { Message, Signal } from "@/lib/types";
+import type { Message, Signal, SupervisedAction } from "@/lib/types";
 import {
   useMarkActed,
   type MarkActedWalk,
@@ -51,6 +52,8 @@ type SignalReviewSuggestedActionProps = {
   onFocusMessage?: (messageId: string) => void;
   /** Follow-up Act queue walk — when set, rail shows primary Mark as Acted. */
   actedWalk?: MarkActedWalk | null;
+  /** Stored supervised retention email draft, when one exists. */
+  supervisedAction?: SupervisedAction | null;
   className?: string;
 };
 
@@ -212,12 +215,14 @@ function SupportHeading({
 }
 
 /**
- * Suggested Next Action + Why This Fired + Matched — single Card well.
- * Header matches Feedback / Ground Truth (`InsightsReviewPaneHeader`).
- * Copy Reply (clipboard-only, never sent) sits left of Mark as Acted.
- * Mark as Acted stays in the header; without Correct feedback a dialog
- * sends the operator to Feedback. Quotes and match chips that join a
- * stored message jump the transcript. Neon stubs / missing join stay honest.
+ * Suggested Next Action + Why This Fired + Matched + Retention Email —
+ * single Card well. Header matches Feedback / Ground Truth
+ * (`InsightsReviewPaneHeader`). Copy Reply (clipboard-only, never sent)
+ * sits left of Mark as Acted. Mark as Acted stays in the header; without
+ * Correct feedback a dialog sends the operator to Feedback. Quotes and
+ * match chips that join a stored message jump the transcript. Retention
+ * Email nests below Matched when present (flattened section). Neon stubs
+ * / missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -226,6 +231,7 @@ export function SignalReviewSuggestedAction({
   focusedMessageId = null,
   onFocusMessage,
   actedWalk = null,
+  supervisedAction = null,
   className,
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
@@ -613,6 +619,13 @@ export function SignalReviewSuggestedAction({
             </div>
           </>
         ) : null}
+
+        <RetentionEmailAction
+          embedded
+          signal={signal}
+          customerName={customerName}
+          action={supervisedAction}
+        />
       </CardContent>
     </Card>
   );

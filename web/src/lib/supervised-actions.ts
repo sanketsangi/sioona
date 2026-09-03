@@ -311,7 +311,8 @@ export type DecideSupervisedActionResult =
 
 /**
  * Record a human decision. Never sends mail.
- * Approve uses `edited` when the working copy differs from the generated draft.
+ * `edited` keeps the draft open for re-edit / Approve / Dismiss.
+ * Only `approved` and `dismissed` lock the draft.
  */
 export function applySupervisedActionDecision(
   store: StoreData,
@@ -323,7 +324,7 @@ export function applySupervisedActionDecision(
     (item) => item.id === actionId,
   );
   if (!action) return { ok: false, reason: "not_found" };
-  if (action.status !== "pending") {
+  if (action.status === "approved" || action.status === "dismissed") {
     return { ok: false, reason: "already_decided" };
   }
 
@@ -335,15 +336,14 @@ export function applySupervisedActionDecision(
 
   action.subject = nextSubject;
   action.body = nextBody;
-  const finalDecision =
-    decision === "approved" ? resolveApproveDecision(action) : decision;
-  action.status = finalDecision;
+  // Approve is always terminal — do not remap to `edited` when the copy differs.
+  action.status = decision;
   action.decidedAt = nowIso();
 
   store.actionLogs = [
     ...(store.actionLogs ?? []),
-    buildActionLogEvent(action, finalDecision),
+    buildActionLogEvent(action, decision),
   ];
-  logSupervisedAction(finalDecision, action);
+  logSupervisedAction(decision, action);
   return { ok: true, action };
 }

@@ -380,9 +380,24 @@
     @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
   }
 
+  /*
+   * Hide scrollbar chrome; pointer / keyboard / trackpad scroll still works.
+   * Prefer this over visible gutters in product panes.
+   */
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
   /* Contained scroll region — use inside panels / list panes */
   .scroll-region {
-    @apply min-h-0 min-w-0 overflow-x-clip overflow-y-auto;
+    @apply hide-scrollbar min-h-0 min-w-0 overflow-x-clip overflow-y-auto;
     overscroll-behavior: contain;
   }
 
@@ -444,11 +459,12 @@
   }
 
   /*
-   * Insights review: one panel. Phone/tablet stack Why → transcript well →
-   * Retention Email → Feedback (`.insights-review-split` scrolls when the stack
-   * overflows; rail is display:contents). Laptop+ splits rail | Conversation;
-   * the rail is the only left-column scroller (Why → Retention Email → Feedback).
-   * Suggested Next Action / Retention Email hug content (no inner card scrollbar).
+   * Insights review: one panel. Phone/tablet stack Recommended Actions
+   * (Retention Email nested) → transcript well → Feedback
+   * (`.insights-review-split` scrolls when the stack overflows; rail is
+   * display:contents). Laptop+ splits rail | Conversation; the rail is
+   * the only left-column scroller (Recommended Actions → Feedback).
+   * Recommended Actions hugs content (no inner card scrollbar).
    * Conversation well / `.insights-review-chat-body` hug the thread. Wide: well
    * caps at the column and the body scrolls. Stacked: well stays content-sized;
    * the split scrolls when the stack overflows.
@@ -467,6 +483,7 @@
   }
 
   .insights-review-split {
+    @apply hide-scrollbar;
     display: flex;
     min-height: 0;
     min-width: 0;
@@ -476,21 +493,11 @@
     overflow-x: clip;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
   }
 
   .insights-review-rail {
+    @apply hide-scrollbar;
     display: contents;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-
-  .insights-review-split::-webkit-scrollbar,
-  .insights-review-rail::-webkit-scrollbar {
-    display: none;
-    width: 0;
-    height: 0;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -530,15 +537,56 @@
     position: sticky;
     top: 0;
     z-index: 1;
+    display: flex;
+    min-width: 0;
     flex-shrink: 0;
+    align-items: center;
+    /* Fixed screenshot gutters — do not retune at breakpoints. */
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--sio-border-base);
     background: var(--sio-bg-base);
   }
 
+  .insights-review-chat-body {
+    /* Fixed screenshot gutters — do not retune at breakpoints. */
+    padding: 0.75rem 1rem;
+  }
+
+  /*
+   * MessageScroller frame fills the chat body. Padding lives on the viewport
+   * so scroll-fade masks the transcript edge, not the sticky header.
+   */
+  .insights-review-chat-body[data-slot="message-scroller"] {
+    padding: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+  }
+
+  .insights-review-chat-body[data-slot="message-scroller"]
+    > [data-slot="message-scroller-viewport"] {
+    padding: 0.75rem 1rem;
+  }
+
+  /*
+   * MessageScroller turn-anchor spacer — zero it so scroll ends at the last
+   * bubble (no empty pad below the transcript). Inline height from the
+   * primitive is overridden with !important.
+   */
+  [data-message-scroller-spacer] {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Nested under Recommended Actions — no rail-level order. */
   .insights-review-split [data-review-slot="retention-email"] {
-    order: 3;
     min-width: 0;
     min-height: min-content;
-    height: max-content;
     flex: 0 0 auto;
   }
 
@@ -557,7 +605,7 @@
   }
 
   .insights-review-pane.insights-review-chat {
-    background: var(--sio-bg-subtle);
+    background: var(--sio-bg-base);
   }
 
   /*
@@ -614,7 +662,6 @@
     }
 
     .insights-review-rail > [data-review-slot="why"],
-    .insights-review-rail > [data-review-slot="retention-email"],
     .insights-review-rail > [data-review-slot="feedback"] {
       flex: 0 0 auto;
     }
@@ -688,21 +735,32 @@
   }
 
   /*
-   * Chat bubbles — Eval Card gutters (px-3) + geist copy-14; sio-* fills.
-   * muted = customer (right); default = agent (left, panel-quiet).
+   * Chat bubbles — review screenshot gutters (px-4 / py-2.5) + geist copy-14;
+   * sio-* fills. muted = customer (right); default = agent (left, panel-quiet).
    * No nested Card chrome — radius matches .panel / rail Card.
+   * Parent `data-variant` (June 2026 Bubble) mirrors `--*` classes when the
+   * content node omits an explicit variant class.
    */
-  .chat-bubble {
-    @apply w-fit min-w-0 max-w-full px-3 py-2 text-copy-14 leading-5 text-sio-fg-base;
+  .chat-bubble,
+  [data-slot="bubble-content"] {
+    @apply w-fit min-w-0 max-w-full px-4 py-2.5 text-copy-14 leading-5 text-sio-fg-base;
     border-radius: var(--radius-panel);
   }
 
-  .chat-bubble--muted {
+  .chat-bubble--muted,
+  [data-slot="bubble"][data-variant="muted"] > [data-slot="bubble-content"],
+  [data-slot="bubble-content"][data-variant="muted"] {
     background: var(--sio-bg-muted);
     border: 1px solid transparent;
   }
 
-  .chat-bubble--default {
+  .chat-bubble--default,
+  [data-slot="bubble"][data-variant="default"] > [data-slot="bubble-content"],
+  [data-slot="bubble"][data-variant="secondary"] > [data-slot="bubble-content"],
+  [data-slot="bubble"][data-variant="outline"] > [data-slot="bubble-content"],
+  [data-slot="bubble-content"][data-variant="default"],
+  [data-slot="bubble-content"][data-variant="secondary"],
+  [data-slot="bubble-content"][data-variant="outline"] {
     background: var(--sio-bg-base);
     border: 1px solid var(--sio-border-base);
   }
@@ -725,10 +783,10 @@
     box-shadow: var(--focus-ring);
   }
 
-  /* Consecutive rows: --space-3 (12px). Do not stack extra margins on wrappers. */
+  /* Consecutive rows: --space-4 (16px). Do not stack extra margins on wrappers. */
   .chat-bubble-group {
     @apply flex w-full flex-col;
-    gap: var(--space-3);
+    gap: var(--space-4);
   }
 
   .chat-bubble-group > * {
@@ -1201,7 +1259,7 @@
 
   /* Tables keep their columns readable and scroll sideways when space runs out */
   .table-scroll {
-    @apply w-full overflow-x-auto;
+    @apply hide-scrollbar w-full overflow-x-auto;
     overscroll-behavior-x: contain;
   }
 
@@ -1546,6 +1604,141 @@
 
   .btn-spinner {
     @apply size-3.5 shrink-0 animate-spin;
+  }
+}
+
+/*
+ * scroll-fade — June 2026 shadcn chat utility, ported for Tailwind 3.
+ * Masks scroll edges so long transcripts hint at more content.
+ * Prefer `scroll-fade-b` on MessageScrollerViewport.
+ */
+@property --scroll-fade-t {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --scroll-fade-b {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes scroll-fade-reveal-t {
+  from {
+    --scroll-fade-t: 0px;
+  }
+  to {
+    --scroll-fade-t: var(
+      --_scroll-fade-size-t,
+      var(--scroll-fade-size, min(12%, 2.5rem))
+    );
+  }
+}
+
+@keyframes scroll-fade-reveal-b {
+  from {
+    --scroll-fade-b: var(
+      --_scroll-fade-size-b,
+      var(--scroll-fade-size, min(12%, 2.5rem))
+    );
+  }
+  to {
+    --scroll-fade-b: 0px;
+  }
+}
+
+@layer utilities {
+  .scroll-fade,
+  .scroll-fade-y {
+    --_scroll-fade-size-t: var(
+      --scroll-fade-t-size,
+      var(--scroll-fade-size, min(12%, 2.5rem))
+    );
+    --_scroll-fade-size-b: var(
+      --scroll-fade-b-size,
+      var(--scroll-fade-size, min(12%, 2.5rem))
+    );
+    --scroll-fade-block: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--scroll-fade-t, 0px),
+      #000 calc(100% - var(--scroll-fade-b, 0px)),
+      transparent 100%
+    );
+    -webkit-mask-image: var(--scroll-fade-mask, var(--scroll-fade-block));
+    mask-image: var(--scroll-fade-mask, var(--scroll-fade-block));
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .scroll-fade,
+    .scroll-fade-y {
+      animation:
+        scroll-fade-reveal-t 1ms ease-in-out,
+        scroll-fade-reveal-b 1ms ease-in-out;
+      animation-timeline: scroll(self y), scroll(self y);
+      animation-range:
+        0 var(--scroll-fade-reveal, 6rem),
+        calc(100% - var(--scroll-fade-reveal, 6rem)) 100%;
+      animation-fill-mode: both;
+    }
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    .scroll-fade,
+    .scroll-fade-y {
+      --scroll-fade-t: var(--_scroll-fade-size-t);
+      --scroll-fade-b: var(--_scroll-fade-size-b);
+    }
+  }
+
+  .scroll-fade-b {
+    --_scroll-fade-size-b: var(
+      --scroll-fade-b-size,
+      var(--scroll-fade-size, min(12%, 2.5rem))
+    );
+    --scroll-fade-mask: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 calc(100% - var(--scroll-fade-b, 0px)),
+      transparent 100%
+    );
+    -webkit-mask-image: var(--scroll-fade-mask);
+    mask-image: var(--scroll-fade-mask);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .scroll-fade-b {
+      animation: scroll-fade-reveal-b 1ms ease-in-out;
+      animation-timeline: scroll(self y);
+      animation-range: calc(100% - var(--scroll-fade-reveal, 6rem)) 100%;
+      animation-fill-mode: both;
+    }
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    .scroll-fade-b {
+      --scroll-fade-b: var(--_scroll-fade-size-b);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scroll-fade,
+    .scroll-fade-y,
+    .scroll-fade-b {
+      animation: none;
+      --scroll-fade-t: 0px;
+      --scroll-fade-b: 0px;
+      -webkit-mask-image: none;
+      mask-image: none;
+    }
   }
 }
 

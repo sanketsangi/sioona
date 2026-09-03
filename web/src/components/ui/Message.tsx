@@ -1,5 +1,5 @@
-import type { HTMLAttributes, ReactNode } from "react";
-import { Avatar } from "@/components/ui/Avatar";
+import type { ComponentProps } from "react";
+
 import { cn } from "@/lib/utils";
 
 /** Matches header `SignalUser` + radix-vega `size-8`. */
@@ -7,76 +7,101 @@ export const MESSAGE_AVATAR_SIZE = 32;
 
 export type MessageAlign = "start" | "end";
 
-/**
- * Local Message primitive (geistcn / shadcn-style API).
- * Row is always `w-full` so packing can hug an edge:
- * - `align="start"` → agent left (`flex-row` + `justify-start`)
- * - `align="end"` → customer right (`flex-row-reverse` + `justify-start`)
- * Bubble/content hug text (`w-fit`); row stays `w-full`.
- */
-export function Message({
-  children,
-  align = "start",
-  className = "",
-}: {
-  children: ReactNode;
-  align?: MessageAlign;
-  className?: string;
-}) {
-  const isEnd = align === "end";
+function MessageGroup({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      data-align={align}
-      className={cn(
-        "flex w-full max-w-full items-start gap-2",
-        isEnd ? "flex-row-reverse justify-start" : "flex-row justify-start",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-/**
- * Avatar slot — pass composed `<Avatar>` children (demo API), or `letter` for initials.
- */
-export function MessageAvatar({
-  children,
-  letter,
-  className = "",
-}: {
-  children?: ReactNode;
-  letter?: string;
-  className?: string;
-}) {
-  if (children) {
-    return <div className={cn("mt-0.5 shrink-0", className)}>{children}</div>;
-  }
-  return (
-    <Avatar
-      letter={letter}
-      placeholder
-      size={MESSAGE_AVATAR_SIZE}
-      className={cn("mt-0.5", className)}
+      data-slot="message-group"
+      className={cn("flex min-w-0 flex-col gap-2", className)}
+      {...props}
     />
   );
 }
 
-export function MessageContent({
-  children,
-  className = "",
+/**
+ * June 2026 shadcn Message — adapted for Insights transcript.
+ * Row is always full-width so packing can hug an edge:
+ * - `align="start"` → agent left
+ * - `align="end"` → customer right (`flex-row-reverse`)
+ */
+function Message({
+  className,
+  align = "start",
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
+}: ComponentProps<"div"> & { align?: MessageAlign }) {
   return (
     <div
+      data-slot="message"
+      data-align={align}
       className={cn(
-        "min-w-0 w-fit max-w-[min(24rem,calc(100%-2.5rem))]",
+        "group/message relative flex w-full min-w-0 max-w-full items-start gap-2 text-sm",
+        align === "end"
+          ? "flex-row-reverse justify-start"
+          : "flex-row justify-start",
         className,
       )}
       {...props}
-    >
-      {children}
-    </div>
+    />
   );
 }
+
+function MessageAvatar({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="message-avatar"
+      className={cn(
+        "mt-0.5 flex w-fit min-w-8 shrink-0 items-center justify-center self-start overflow-hidden rounded-full bg-sio-bg-muted group-has-data-[slot=message-footer]/message:self-end group-has-data-[slot=message-footer]/message:-translate-y-8",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function MessageContent({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="message-content"
+      className={cn(
+        /* Avatar (32) + gap-2 (8) — hug the column; no fixed rem cap. */
+        "flex min-w-0 w-fit max-w-[calc(100%-2.5rem)] flex-col gap-1 break-words group-data-[align=end]/message:*:data-[slot]:self-end",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function MessageHeader({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="message-header"
+      className={cn(
+        "flex max-w-full min-w-0 items-center px-3 text-label-12 font-medium text-sio-fg-muted group-has-data-[variant=ghost]/message:px-0",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function MessageFooter({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="message-footer"
+      className={cn(
+        "flex max-w-full min-w-0 items-center px-0.5 text-label-12 font-medium text-sio-fg-muted group-has-data-[variant=ghost]/message:px-0 group-data-[align=end]/message:justify-end",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export {
+  MessageGroup,
+  Message,
+  MessageAvatar,
+  MessageContent,
+  MessageFooter,
+  MessageHeader,
+};

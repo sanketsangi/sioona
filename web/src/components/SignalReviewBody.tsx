@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { GroundTruthControl } from "@/components/GroundTruthControl";
-import { RetentionEmailAction } from "@/components/RetentionEmailAction";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import type { MarkActedWalk } from "@/lib/use-mark-acted";
@@ -32,10 +31,10 @@ type SignalReviewBodyProps = {
 
 /**
  * Insights review body: Conversation well and review rail as sibling
- * cards (gap-4). Narrow stacks Why → Conversation → Retention Email →
- * Feedback; wide is ~57.25% rail (Why → Retention → Feedback) |
- * ~42.75% Conversation. Highlight resets when `signal.id` changes
- * (parent should key this).
+ * cards (gap-4). Narrow stacks Recommended Actions (Retention nested) →
+ * Conversation → Feedback; wide is ~57.25% rail (Recommended Actions →
+ * Feedback) | ~42.75% Conversation. Highlight resets when `signal.id`
+ * changes (parent should key this).
  */
 export function SignalReviewBody({
   signal,
@@ -65,12 +64,7 @@ export function SignalReviewBody({
           focusedMessageId={focusedMessageId}
           onFocusMessage={setFocusedMessageId}
           actedWalk={actedWalk}
-          className="insights-review-pane insights-review-well overflow-hidden"
-        />
-        <RetentionEmailAction
-          signal={signal}
-          customerName={customerName}
-          action={supervisedAction}
+          supervisedAction={supervisedAction}
           className="insights-review-pane insights-review-well overflow-hidden"
         />
         <div

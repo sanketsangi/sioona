@@ -236,7 +236,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
           </div>
         ) : (
           <div
-            className="max-h-[min(22rem,70vh)] overflow-y-auto overscroll-contain"
+            className="hide-scrollbar max-h-[min(22rem,70vh)] overflow-y-auto overscroll-contain"
             role="list"
           >
             {notifications.map((item, index) => {

@@ -198,10 +198,10 @@ describe("applySupervisedActionDecision", () => {
     ]);
   });
 
-  it("records edited when the body changed before approve", () => {
+  it("records edited when Save Edit changes the body", () => {
     const store = emptyStore([signal()]);
     const [action] = ensureSupervisedActions(store).created;
-    const result = applySupervisedActionDecision(store, action.id, "approved", {
+    const result = applySupervisedActionDecision(store, action.id, "edited", {
       body: `${action.body}\n\nP.S. Happy to stay late today.`,
     });
     expect(result.ok).toBe(true);
@@ -220,7 +220,34 @@ describe("applySupervisedActionDecision", () => {
     expect(store.actionLogs?.at(-1)?.event).toBe("dismissed");
   });
 
-  it("rejects a second decision", () => {
+  it("allows Approve after an edited draft save", () => {
+    const store = emptyStore([signal()]);
+    const [action] = ensureSupervisedActions(store).created;
+    applySupervisedActionDecision(store, action.id, "edited", {
+      body: `${action.body}\n\nRevised.`,
+    });
+    const result = applySupervisedActionDecision(store, action.id, "approved");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.action.status).toBe("approved");
+  });
+
+  it("allows a second Save Edit on an edited draft", () => {
+    const store = emptyStore([signal()]);
+    const [action] = ensureSupervisedActions(store).created;
+    applySupervisedActionDecision(store, action.id, "edited", {
+      body: `${action.body}\n\nFirst revision.`,
+    });
+    const result = applySupervisedActionDecision(store, action.id, "edited", {
+      body: `${action.body}\n\nSecond revision.`,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.action.status).toBe("edited");
+    expect(result.action.body).toContain("Second revision.");
+  });
+
+  it("rejects a second decision after approve or dismiss", () => {
     const store = emptyStore([signal()]);
     const [action] = ensureSupervisedActions(store).created;
     applySupervisedActionDecision(store, action.id, "dismissed");

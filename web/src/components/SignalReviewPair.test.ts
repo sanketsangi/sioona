@@ -79,5 +79,10 @@ describe("SignalReviewPair", () => {
     );
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");
+    // One Recommended Actions card; Retention nests below Why (no sibling card).
+    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
+    expect(html.indexOf("Why This Fired")).toBeLessThan(
+      html.indexOf("Retention Email"),
+    );
   });
 });

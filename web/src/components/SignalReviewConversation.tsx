@@ -1,13 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import { useId } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
-import {
-  evalCardHeaderClassName,
-  evalCardPadClassName,
-} from "@/components/EvalCard";
 import { REVIEW_PANE_TITLE_CLASS } from "@/components/InsightsReviewPaneHeader";
 import { SignalUser } from "@/components/SignalUser";
 import { Button } from "@/components/ui/button";
+import {
+  MessageScroller,
+  MessageScrollerContent,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import type { Message as ChatMessage } from "@/lib/types";
 import { viewHref } from "@/lib/views";
 import { cn } from "@/lib/utils";
@@ -20,10 +24,11 @@ type SignalReviewConversationProps = {
 };
 
 /**
- * Insights review messaging well — sticky customer header + transcript that
- * hugs the thread up to the column, then scrolls. Why This Fired jumps land
- * on native evidence bubbles. Bubble clocks stay off (drawer keeps them).
- * Empty is honest (no invented chat). Drawer lives on the page header.
+ * Insights review messaging well — sticky customer header + MessageScroller
+ * transcript (June 2026 shadcn chat + scroll-fade). Why This Fired jumps land
+ * via scrollToMessage on evidence bubbles. Bubble clocks stay off (drawer
+ * keeps them). Empty is honest (no invented chat). No Attachment / composer /
+ * streaming chrome. Chrome is fixed to the review screenshot.
  */
 export function SignalReviewConversation({
   messages,
@@ -39,14 +44,12 @@ export function SignalReviewConversation({
     <section
       data-review-slot="transcript"
       className={cn(
-        "insights-review-pane insights-review-chat flex min-h-0 min-w-0 flex-col bg-sio-bg-subtle",
+        "insights-review-pane insights-review-chat flex min-h-0 min-w-0 flex-col bg-sio-bg-base",
         className,
       )}
       aria-labelledby={headingId}
     >
-      <header
-        className={cn("insights-review-chat-header", evalCardHeaderClassName)}
-      >
+      <header className="insights-review-chat-header">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <SignalUser name={who} size={32} showName={false} />
           <h3
@@ -59,21 +62,30 @@ export function SignalReviewConversation({
         </div>
       </header>
 
-      <div
-        className={cn(
-          "insights-review-chat-body scroll-region min-h-0 flex-auto overflow-y-auto overscroll-contain py-3",
-          evalCardPadClassName,
-        )}
-      >
-        {hasMessages ? (
-          <div className="mx-auto w-full max-w-md">
-            <ConversationMessages
-              messages={messages}
-              customerName={who}
-              highlightedMessageId={highlightedMessageId}
-            />
-          </div>
-        ) : (
+      {hasMessages ? (
+        <MessageScrollerProvider
+          autoScroll={false}
+          defaultScrollPosition="start"
+          scrollMargin={12}
+          scrollPreviousItemPeek={0}
+        >
+          <MessageScroller className="insights-review-chat-body min-h-0 flex-auto">
+            <MessageScrollerViewport
+              className="scroll-region"
+              aria-label={`${who} conversation`}
+            >
+              <MessageScrollerContent>
+                <ConversationMessages
+                  messages={messages}
+                  customerName={who}
+                  highlightedMessageId={highlightedMessageId}
+                />
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+          </MessageScroller>
+        </MessageScrollerProvider>
+      ) : (
+        <div className="insights-review-chat-body scroll-region min-h-0 flex-auto overflow-y-auto overscroll-contain">
           <div className="flex min-h-[12rem] flex-col items-center justify-center gap-3 text-center">
             <div className="flex flex-col gap-1">
               <p className="text-copy-14 text-sio-fg-base">No messages stored</p>
@@ -86,13 +98,13 @@ export function SignalReviewConversation({
               asChild
               variant="outline"
               size="lg"
-              className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
+              className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
             >
               <Link href={viewHref("upload")}>Upload Chats</Link>
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

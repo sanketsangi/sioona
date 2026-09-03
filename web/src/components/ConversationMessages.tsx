@@ -1,20 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { AgentBotIcon } from "@/components/icons/AgentBotIcon";
-import { Avatar, AvatarFallback } from "@/components/ui/Avatar";
+import { SignalUser } from "@/components/SignalUser";
+import { Avatar } from "@/components/ui/Avatar";
 import {
   Bubble,
   BubbleContent,
-  BubbleGroup,
 } from "@/components/ui/Bubble";
 import {
   MESSAGE_AVATAR_SIZE,
   Message,
   MessageAvatar,
   MessageContent,
+  MessageFooter,
 } from "@/components/ui/Message";
-import { formatMessageTime, initialsFromName } from "@/lib/format";
+import {
+  Marker,
+  MarkerContent,
+} from "@/components/ui/marker";
+import {
+  MessageScrollerItem,
+  useMessageScroller,
+} from "@/components/ui/message-scroller";
+import { formatMessageTime } from "@/lib/format";
 import type { Message as ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +32,31 @@ export function conversationMessageDomId(messageId: string): string {
 }
 
 /**
- * Shared User/Agent transcript chrome (geistcn Message + Bubble).
- * Alignment lock: customer right (`align="end"`) / muted + initials;
- * agent left (`align="start"`) / default + bot icon. Avatars 32px
- * (header SignalUser / radix-vega size-8). Rows are full-width so end
- * packs to the right edge (see Message.tsx).
+ * Why This Fired → transcript jump via MessageScroller (must render inside
+ * MessageScrollerProvider). Honors prefers-reduced-motion.
+ */
+function EvidenceJump({ messageId }: { messageId: string }) {
+  const { scrollToMessage } = useMessageScroller();
+
+  useEffect(() => {
+    const reduced =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scrollToMessage(messageId, {
+      align: "nearest",
+      behavior: reduced ? "auto" : "smooth",
+      scrollMargin: 12,
+    });
+  }, [messageId, scrollToMessage]);
+
+  return null;
+}
+
+/**
+ * Shared User/Agent transcript chrome (June 2026 Message + Bubble + Marker).
+ * Alignment lock: customer right (`align="end"`) / muted + SignalUser;
+ * agent left (`align="start"`) / default + bot icon. Avatars 32px.
+ * Rows wrap in MessageScrollerItem — parent must provide MessageScroller.
  */
 export function ConversationMessages({
   messages,
@@ -38,39 +67,31 @@ export function ConversationMessages({
 }: {
   messages: ChatMessage[];
   customerName?: string | null;
-  /** Why This Fired landing — scrolls into view and marks the bubble. */
+  /** Why This Fired landing — scrolls via MessageScroller and marks the bubble. */
   highlightedMessageId?: string | null;
   className?: string;
   /** Quiet UTC clock under each bubble (SSR-stable). */
   showTimestamps?: boolean;
 }) {
   const who = customerName?.trim() || "Customer";
-  const customerLetter = initialsFromName(who);
-  const highlightRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const node = highlightRef.current;
-    if (!node || !highlightedMessageId) return;
-    const reduced =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    node.scrollIntoView({
-      block: "nearest",
-      behavior: reduced ? "auto" : "smooth",
-    });
-  }, [highlightedMessageId]);
 
   return (
-    <BubbleGroup className={className}>
+    <div className={cn("contents", className)}>
+      {highlightedMessageId ? (
+        <EvidenceJump messageId={highlightedMessageId} />
+      ) : null}
       {messages.map((message) => {
         if (message.role === "system") {
           return (
-            <p
+            <MessageScrollerItem
               key={message.id}
-              className="px-2 text-center text-label-12 text-sio-fg-muted"
+              messageId={message.id}
+              id={conversationMessageDomId(message.id)}
             >
-              {message.content}
-            </p>
+              <Marker variant="separator">
+                <MarkerContent>{message.content}</MarkerContent>
+              </Marker>
+            </MessageScrollerItem>
           );
         }
 
@@ -80,11 +101,10 @@ export function ConversationMessages({
         const isHighlight = message.id === highlightedMessageId;
 
         return (
-          <div
+          <MessageScrollerItem
             key={message.id}
+            messageId={message.id}
             id={conversationMessageDomId(message.id)}
-            ref={isHighlight ? highlightRef : undefined}
-            className="scroll-mt-3"
             data-evidence-match={isHighlight ? "true" : undefined}
           >
             <Message align={isAgent ? "start" : "end"}>
@@ -94,13 +114,15 @@ export function ConversationMessages({
                     <AgentBotIcon className="size-4 shrink-0" />
                   </Avatar>
                 ) : (
-                  <Avatar placeholder size={MESSAGE_AVATAR_SIZE}>
-                    <AvatarFallback>{customerLetter}</AvatarFallback>
-                  </Avatar>
+                  <SignalUser
+                    name={who}
+                    size={MESSAGE_AVATAR_SIZE}
+                    showName={false}
+                  />
                 )}
               </MessageAvatar>
               <MessageContent>
-                <Bubble variant={variant}>
+                <Bubble variant={variant} align={isAgent ? "start" : "end"}>
                   {isHighlight ? (
                     <span className="sr-only">Evidence match</span>
                   ) : null}
@@ -110,23 +132,25 @@ export function ConversationMessages({
                   >
                     {message.content}
                   </BubbleContent>
-                  {time ? (
+                </Bubble>
+                {time ? (
+                  <MessageFooter>
                     <time
                       dateTime={message.timestamp}
                       className={cn(
-                        "px-0.5 text-label-12 tabular-nums text-sio-fg-muted",
+                        "tabular-nums text-sio-fg-muted",
                         isAgent ? "text-left" : "text-right",
                       )}
                     >
                       {time}
                     </time>
-                  ) : null}
-                </Bubble>
+                  </MessageFooter>
+                ) : null}
               </MessageContent>
             </Message>
-          </div>
+          </MessageScrollerItem>
         );
       })}
-    </BubbleGroup>
+    </div>
   );
 }

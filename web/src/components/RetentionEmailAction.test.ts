@@ -87,6 +87,9 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Evidence");
     expect(html).toContain("Draft");
     expect(html).toContain("I want to close my account");
+    // Review Evidence|Draft before decision buttons.
+    expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
+    expect(html.indexOf("Draft")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html).toContain("Checking in on your account");
     expect(html).toContain("Hi Priya,");
     expect(html).toContain("grid-cols-1");
@@ -94,6 +97,62 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("the email is not sent");
     expect(html).toContain("Records approval. Does not send the email.");
     expect(html).toContain("data-review-slot=\"retention-email\"");
+    // Standalone keeps pane-header chrome.
+    expect(html).toContain("border-b border-sio-border-base");
+    expect(html).toContain(
+      "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+    );
+    expect(html).toContain('data-slot="card"');
+  });
+
+  it("embeds as a quiet Why/Matched-density section without pane header", () => {
+    const action = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "I want to close my account"'],
+    });
+    const html = renderToStaticMarkup(
+      createElement(RetentionEmailAction, {
+        signal: signal(),
+        customerName: "Priya",
+        action,
+        embedded: true,
+      }),
+    );
+
+    expect(html).toContain('data-review-slot="retention-email"');
+    expect(html).toContain("surface-quiet");
+    expect(html).toContain("mx-3");
+    expect(html).toContain("mb-3");
+    expect(html).toContain("mt-3");
+    expect(html).toContain("gap-2");
+    expect(html).toContain("items-start");
+    expect(html).toContain("border-sio-border-subtle");
+    expect(html).toContain("Retention Email");
+    expect(html).toContain("Pending");
+    expect(html).toContain("Approve Draft");
+    expect(html).toContain("High-confidence retention draft");
+    expect(html).toContain("Evidence");
+    expect(html).toContain("Draft");
+    expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
+    expect(html).toContain("rounded-[var(--radius-control)]");
+    expect(html).toContain("rounded-full");
+    expect(html).toContain(
+      "inline-flex h-7 w-fit shrink-0 items-center justify-center rounded-full border border-border bg-background px-3 text-[0.8rem] font-medium text-sio-fg-base",
+    );
+    expect(html).not.toContain(
+      "shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.06)]",
+    );
+    expect(html).toContain("<h3");
+    expect(html).toContain(
+      "min-w-0 flex-1 truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+    );
+    expect(html).toContain("[mask-image:var(--geist-icon)]");
+    expect(html).toContain("size-4 shrink-0 text-sio-fg-base");
+    expect(html).not.toContain('data-slot="card"');
+    expect(html).not.toContain("data-slot=\"separator\"");
+    expect(html).not.toContain("border-b border-sio-border-base");
+    expect(html).not.toContain('data-slot="label"');
   });
 
   it("renders nothing for lead signals without a stored action", () => {
@@ -122,7 +181,54 @@ describe("RetentionEmailAction", () => {
       }),
     );
     expect(html).toContain("Approved — not sent.");
+    expect(html).not.toContain("High-confidence retention draft");
     expect(html).not.toContain("Approve &amp; Send");
+    expect(html).not.toContain(">Edit<");
+    expect(html).not.toContain(">Dismiss<");
+  });
+
+  it("keeps Approve / Edit / Dismiss after an edited draft save", () => {
+    const action = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "I want to close my account"'],
+    });
+    action.status = "edited";
+    action.decidedAt = "2026-09-02T00:00:00.000Z";
+    action.body = "Hi Priya,\n\nRevised retention note.";
+    const html = renderToStaticMarkup(
+      createElement(RetentionEmailAction, {
+        signal: signal(),
+        customerName: "Priya",
+        action,
+      }),
+    );
+
+    expect(html).toContain("Edited");
+    expect(html).toContain("Edited draft saved — not sent.");
+    expect(html).toContain("Approve Draft");
+    expect(html).toContain(">Edit<");
+    expect(html).toContain(">Dismiss<");
+    expect(html).toContain("Revised retention note.");
+  });
+
+  it("locks dismissed drafts without action buttons", () => {
+    const action = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "I want to close my account"'],
+    });
+    action.status = "dismissed";
+    action.decidedAt = "2026-09-02T00:00:00.000Z";
+    const html = renderToStaticMarkup(
+      createElement(RetentionEmailAction, {
+        signal: signal(),
+        customerName: "Priya",
+        action,
+      }),
+    );
+    expect(html).toContain("Dismissed. No email will be sent.");
+    expect(html).not.toContain("Approve Draft");
     expect(html).not.toContain(">Edit<");
     expect(html).not.toContain(">Dismiss<");
   });

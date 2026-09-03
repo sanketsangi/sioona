@@ -63,7 +63,6 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Copy Reply to clipboard");
     expect(html).toContain("btn-secondary shrink-0");
-    expect(html).not.toContain("btn-secondary min-h-11");
     expect(html).toContain('data-variant="outline"');
     expect(html).toMatch(
       /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
@@ -114,7 +113,6 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html.match(/insights-review-well/g)?.length).toBe(1);
     expect(html).toContain("justify-center gap-1.5 py-3");
     expect(html).toContain('data-slot="label"');
-    expect(html).not.toContain("<blockquote");
     expect(html).not.toContain("border-l-2");
     expect(html).toContain("M14.5 8C14.5 11.5899");
     expect(html).toContain('fill="currentColor"');
@@ -135,9 +133,64 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("evidence-highlight");
     expect(html).toContain("px-3 py-2");
     // Matched is a sibling Label section, not a muted sublabel under Why.
+    // Retention Email nests below Matched inside the same Recommended Actions card.
     expect(html).toMatch(
-      /Why This Fired[\s\S]*Matched[\s\S]*pause my SIP/,
+      /Why This Fired[\s\S]*Matched[\s\S]*pause my SIP[\s\S]*Retention Email/,
     );
+    expect(html).toContain('data-review-slot="retention-email"');
+    expect(html).toContain("Approve Draft");
+    const matchedIdx = html.indexOf("Matched");
+    const retentionIdx = html.indexOf("Retention Email");
+    expect(matchedIdx).toBeGreaterThan(-1);
+    expect(retentionIdx).toBeGreaterThan(matchedIdx);
+  });
+
+  it("nests Retention Email below Matched in one Recommended Actions card", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal(),
+        customerName: "Priya",
+      }),
+    );
+
+    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
+    expect(html).toContain("Recommended Actions");
+    expect(html).toMatch(
+      /Matched[\s\S]*Retention Email[\s\S]*Approve Draft/,
+    );
+    expect(html.indexOf("Matched")).toBeLessThan(html.indexOf("Retention Email"));
+    expect(html.indexOf("Retention Email")).toBeLessThan(
+      html.indexOf("Approve Draft"),
+    );
+    expect(html).toContain('data-review-slot="retention-email"');
+    expect(html).not.toContain("insights-review-pane insights-review-well");
+    // Quiet inner section — only the outer Recommended Actions pane header.
+    expect(html.match(/border-b border-sio-border-base/g)?.length).toBe(1);
+    expect(html).toContain("surface-quiet");
+    // Embedded Retention Email uses h3 + Pending chip (not a Label heading).
+    expect(html).toMatch(
+      /data-review-slot="retention-email"[\s\S]*<h3[\s\S]*Retention Email[\s\S]*Pending/,
+    );
+    expect(html).toContain(
+      "min-w-0 flex-1 truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+    );
+    // Why / Matched stay Label density.
+    expect(html).toContain(
+      "leading-5 font-medium tracking-normal text-sio-fg-subtle",
+    );
+  });
+
+  it("omits Retention Email for non-retention signals", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({ type: "lead", confidence: 0.95 }),
+        customerName: "Rahul",
+      }),
+    );
+
+    expect(html).toContain("Recommended Actions");
+    expect(html).not.toContain("Retention Email");
+    expect(html).not.toContain('data-review-slot="retention-email"');
   });
 
   it("omits Matched section when only quotes exist", () => {
@@ -167,6 +220,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("pause my SIP");
     expect(html).not.toContain("Why This Fired");
     expect(html).toContain("data-slot=\"separator\"");
+    // Support block separator only — Retention Email is surface-quiet, not a Separator.
     expect(html.match(/data-slot="separator"/g)?.length).toBe(1);
   });
 
@@ -188,6 +242,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("ledger");
     expect(html).toContain("Phrase");
     expect(html).toContain("prior tickets");
+    // Why|Matched separators only — Retention Email nests as surface-quiet.
     expect(html.match(/data-slot="separator"/g)?.length).toBe(2);
   });
 
@@ -206,7 +261,6 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("aria-pressed");
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
-    expect(html).not.toContain("<blockquote");
     expect(html).not.toContain("border-l-2");
     expect(html).toContain("M14.5 8C14.5 11.5899");
     expect(html).toContain('fill="currentColor"');
@@ -323,7 +377,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toContain("Marked as Acted — not sent.");
-    expect(html).not.toContain("Pending");
+    expect(html).not.toContain("Mark as Acted");
     expect(html).not.toContain('aria-keyshortcuts="A Enter"');
     expect(html).not.toContain("status-dot");
     expect(html).toContain(
@@ -360,7 +414,6 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain("btn-primary shrink-0");
-    expect(html).not.toContain("btn-secondary min-h-11");
     expect(html).toContain("aria-keyshortcuts");
     expect(html).not.toContain("bg-sio-status-success-bg");
     expect(html).not.toContain("status-dot");

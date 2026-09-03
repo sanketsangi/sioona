@@ -85,7 +85,7 @@ export function HelpDialog({
             Shadow Mode FAQ for the two-week pilot — local answers only.
           </DialogDescription>
         </DialogHeader>
-        <dl className="max-h-[min(60vh,24rem)] space-y-4 overflow-y-auto overscroll-contain pr-1">
+        <dl className="hide-scrollbar max-h-[min(60vh,24rem)] space-y-4 overflow-y-auto overscroll-contain">
           {HELP_FAQ.map((item) => (
             <div key={item.question} className="space-y-1">
               <dt className="text-sm font-medium text-sio-fg-base">
