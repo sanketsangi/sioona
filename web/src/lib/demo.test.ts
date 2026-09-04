@@ -5,6 +5,7 @@ import {
   partnerDemoStepSequence,
   type PartnerDemoProgress,
 } from "./partner-demo-progress";
+import { clearShowcasePackCache } from "./showcase-pack-cache";
 import { resetStore, readStore } from "./store";
 import {
   EXPECTED_TESTING_JSON,
@@ -22,6 +23,7 @@ describe("runPartnerDemo", () => {
   beforeEach(async () => {
     vi.stubEnv("DETECT_LLM", "");
     vi.stubEnv("GROQ_API_KEY", "");
+    clearShowcasePackCache();
     // Avoid hanging when FastAPI is unreachable (no fetch timeout in client).
     vi.stubGlobal(
       "fetch",
@@ -34,9 +36,10 @@ describe("runPartnerDemo", () => {
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    clearShowcasePackCache();
   });
 
-  it("wipes Neon then loads only Zerodha Batch-02 (no Groww, no Adapt)", async () => {
+  it("writes preloaded Zerodha Batch-02 instantly (Neon wipe deferred)", async () => {
     const before = await readStore();
     expect(hasExternalId(before, GROWW_TESTING_JSON_EXTERNAL_ID)).toBe(true);
 
@@ -57,12 +60,8 @@ describe("runPartnerDemo", () => {
       },
     });
 
-    expect(partnerDemoStepSequence(progress)).toEqual([
-      "wipe",
-      "detect",
-      "sync_chats",
-      "sync_signals",
-    ]);
+    // Hot path: wipe tick (deferred) → detect from pack → writeStore. No Neon wipe yet.
+    expect(partnerDemoStepSequence(progress)).toEqual(["wipe", "detect"]);
     const detect = progress.filter((event) => event.step === "detect");
     expect(detect[0]).toMatchObject({
       done: 0,
@@ -72,27 +71,16 @@ describe("runPartnerDemo", () => {
       done: EXPECTED_ZERODHA_BATCH02.conversations,
       total: EXPECTED_ZERODHA_BATCH02.conversations,
     });
-    expect(
-      detect.every(
-        (event, index) => index === 0 || event.done >= detect[index - 1]!.done
-      )
-    ).toBe(true);
-    const chats = progress.filter((event) => event.step === "sync_chats");
-    expect(chats[0]?.total).toBe(EXPECTED_ZERODHA_BATCH02.conversations);
-    const signalsProgress = progress.filter(
-      (event) => event.step === "sync_signals"
-    );
-    expect(signalsProgress.at(-1)).toMatchObject({
-      done: result.newSignals,
-      total: result.newSignals,
-    });
+    expect(progress.some((event) => event.step === "sync_chats")).toBe(false);
+    expect(progress.some((event) => event.step === "sync_signals")).toBe(false);
     expect(partnerDemoCompleteEvent(result).type).toBe("complete");
     expect(partnerDemoCompleteEvent(result).importedConversations).toBe(
       result.importedConversations
     );
     expect(partnerDemoCompleteEvent(result).wipeFailed).toBeUndefined();
 
-    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    // Neon wipe is store-route after() — not on this hot path.
+    expect(wipeSpy).not.toHaveBeenCalled();
     expect(result.wipe.ok).toBe(true);
     expect(result.samples).toEqual([ZERODHA_BATCH02_SAMPLE_NAME]);
     expect(result.importedConversations).toBe(
@@ -125,28 +113,34 @@ describe("runPartnerDemo", () => {
     expect(result.store.taxonomyOverrides?.upsell?.phrases).toBeUndefined();
     expect(result.store.taxonomyOverrides?.lead?.phrases).toBeUndefined();
 
-    expect(result.predictionSync).toEqual(
-      expect.objectContaining({
-        attempted: expect.any(Number),
-        created: expect.any(Number),
-        updated: expect.any(Number),
-        failed: expect.any(Number),
-        skipped: expect.any(Number),
-      })
-    );
-    expect(
-      result.predictionSync.attempted + result.predictionSync.skipped
-    ).toBeGreaterThan(0);
-    expect(result.conversationSync).toEqual(
-      expect.objectContaining({
-        attempted: EXPECTED_ZERODHA_BATCH02.conversations,
-        failed: EXPECTED_ZERODHA_BATCH02.conversations,
-        created: 0,
-      })
-    );
+    expect(result.predictionSync).toEqual({
+      attempted: 0,
+      created: 0,
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+    });
+    expect(result.conversationSync).toEqual({
+      attempted: 0,
+      created: 0,
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+      messagesCreated: 0,
+      messagesUpdated: 0,
+    });
     expect(result.detectLlm.enabled).toBe(false);
 
-    const again = await runPartnerDemo();
+    const againProgress: PartnerDemoProgress[] = [];
+    const again = await runPartnerDemo({
+      onProgress: (event) => {
+        againProgress.push(event);
+      },
+    });
+    // Second call hits in-memory cache — single detect tick at 100%.
+    expect(
+      againProgress.filter((event) => event.step === "detect")
+    ).toHaveLength(1);
     expect(again.store.conversations.map((c) => c.id).sort()).toEqual(
       result.store.conversations.map((c) => c.id).sort()
     );
@@ -158,10 +152,10 @@ describe("runPartnerDemo", () => {
       ZERODHA_BATCH02_SAMPLE_NAME
     );
     expect(putPilotSpy).toHaveBeenCalledTimes(2);
-    expect(wipeSpy).toHaveBeenCalledTimes(2);
+    expect(wipeSpy).not.toHaveBeenCalled();
   });
 
-  it("runResetDemo wipes then loads Groww testing.json without the cold-demo baseline", async () => {
+  it("runResetDemo loads Groww testing.json without the cold-demo baseline", async () => {
     const wipeSpy = vi
       .spyOn(backendClient, "wipeTenantData")
       .mockResolvedValue({
@@ -178,13 +172,8 @@ describe("runPartnerDemo", () => {
       },
     });
 
-    expect(partnerDemoStepSequence(progress)).toEqual([
-      "wipe",
-      "detect",
-      "sync_chats",
-      "sync_signals",
-    ]);
-    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    expect(partnerDemoStepSequence(progress)).toEqual(["wipe", "detect"]);
+    expect(wipeSpy).not.toHaveBeenCalled();
     expect(result.wipe.ok).toBe(true);
     expect(result.importedConversations).toBe(
       EXPECTED_TESTING_JSON.conversations
@@ -244,7 +233,6 @@ describe("runPartnerDemo", () => {
         created_at: "2026-08-18T00:00:00.000Z",
         updated_at: "2026-08-18T00:00:00.000Z",
       })
-      // Post-wipe syncs: no remote pilot (or cold seed already written).
       .mockResolvedValue(null);
     const putPilotSpy = vi.spyOn(backendClient, "putPilotSettings");
 

@@ -1,21 +1,20 @@
 /**
- * Partner Demo pipeline events. Server emits real wipe / detect / sync ticks
- * as NDJSON — not client-side theater.
+ * Partner Demo pipeline events. Server emits real wipe / detect ticks as NDJSON.
+ * Neon chat/prediction dual-write runs after complete (`after()`), like ingest.
  */
 
 import type { LlmPassStats } from "./detect-llm";
 import { parseLlmPassStats } from "./detect-llm-query";
-import { parsePredictionSync, type PredictionSyncStats } from "./prediction-sync";
+import {
+  parsePredictionSync,
+  type PredictionSyncStats,
+} from "./prediction-sync";
 import type { ConversationSyncStats } from "./sync-conversations";
 
 export const PARTNER_DEMO_NDJSON_CONTENT_TYPE =
   "application/x-ndjson; charset=utf-8";
 
-export type PartnerDemoStep =
-  | "wipe"
-  | "detect"
-  | "sync_chats"
-  | "sync_signals";
+export type PartnerDemoStep = "wipe" | "detect" | "sync_chats" | "sync_signals";
 
 export type PartnerDemoProgress = {
   step: PartnerDemoStep;
@@ -99,14 +98,15 @@ function parseConversationSync(raw: unknown): ConversationSyncStats | null {
 }
 
 export function parsePartnerDemoStreamEvent(
-  raw: unknown
+  raw: unknown,
 ): PartnerDemoStreamEvent | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   if (o.type === "progress") {
     const done = nonNegInt(o.done);
     const total = nonNegInt(o.total);
-    if (!isPartnerDemoStep(o.step) || done == null || total == null) return null;
+    if (!isPartnerDemoStep(o.step) || done == null || total == null)
+      return null;
     return { type: "progress", step: o.step, done, total };
   }
   if (o.type === "error") {
@@ -151,7 +151,7 @@ export function parsePartnerDemoStreamEvent(
 }
 
 export function encodePartnerDemoNdjsonLine(
-  event: PartnerDemoStreamEvent
+  event: PartnerDemoStreamEvent,
 ): string {
   return `${JSON.stringify(event)}\n`;
 }
@@ -168,6 +168,28 @@ export function partnerDemoStatusLabel(event: PartnerDemoProgress): string {
   }
 }
 
+/**
+ * Honest bar for the hot path (wipe → detect). Neon dual-write runs after
+ * complete, so sync ticks stay at 100 when they still appear.
+ */
+export function partnerDemoProgressPercent(
+  event: PartnerDemoProgress,
+): number {
+  const ratio =
+    event.total <= 0
+      ? 1
+      : Math.min(1, Math.max(0, event.done / event.total));
+  switch (event.step) {
+    case "wipe":
+      return Math.round(8 + ratio * 14);
+    case "detect":
+      return Math.round(22 + ratio * 78);
+    case "sync_chats":
+    case "sync_signals":
+      return 100;
+  }
+}
+
 /** Same pipeline as Partner Demo; wipe copy matches the Reset button. */
 export function resetDemoStatusLabel(event: PartnerDemoProgress): string {
   if (event.step === "wipe") return "Resetting…";
@@ -176,7 +198,7 @@ export function resetDemoStatusLabel(event: PartnerDemoProgress): string {
 
 /** Collapse consecutive progress ticks into the named pipeline order. */
 export function partnerDemoStepSequence(
-  events: Array<{ type?: string; step?: PartnerDemoStep }>
+  events: Array<{ type?: string; step?: PartnerDemoStep }>,
 ): PartnerDemoStep[] {
   const steps: PartnerDemoStep[] = [];
   for (const event of events) {
@@ -194,7 +216,7 @@ export function isPartnerDemoNdjsonResponse(response: Response): boolean {
 
 async function jsonErrorMessage(
   response: Response,
-  failedMessage: string
+  failedMessage: string,
 ): Promise<string> {
   const data = (await response.json().catch(() => ({}))) as { error?: string };
   return data.error || failedMessage;
@@ -202,13 +224,10 @@ async function jsonErrorMessage(
 
 export async function readPartnerDemoNdjsonEvents(
   response: Response,
-  failedMessage = "Demo failed"
+  failedMessage = "Demo failed",
 ): Promise<PartnerDemoStreamEvent[]> {
   const events: PartnerDemoStreamEvent[] = [];
-  for await (const event of iteratePartnerDemoNdjson(
-    response,
-    failedMessage
-  )) {
+  for await (const event of iteratePartnerDemoNdjson(response, failedMessage)) {
     events.push(event);
   }
   return events;
@@ -219,14 +238,11 @@ export async function consumePartnerDemoNdjson(
   options?: {
     onProgress?: (event: PartnerDemoProgressEvent) => void;
     failedMessage?: string;
-  }
+  },
 ): Promise<PartnerDemoCompleteEvent> {
   const failedMessage = options?.failedMessage ?? "Demo failed";
   let complete: PartnerDemoCompleteEvent | undefined;
-  for await (const event of iteratePartnerDemoNdjson(
-    response,
-    failedMessage
-  )) {
+  for await (const event of iteratePartnerDemoNdjson(response, failedMessage)) {
     if (event.type === "progress") {
       options?.onProgress?.(event);
       continue;
@@ -242,13 +258,13 @@ export async function consumePartnerDemoNdjson(
 
 async function* iteratePartnerDemoNdjson(
   response: Response,
-  failedMessage = "Demo failed"
+  failedMessage = "Demo failed",
 ): AsyncGenerator<PartnerDemoStreamEvent> {
   if (!response.body) {
     throw new Error(
       response.ok
         ? failedMessage
-        : await jsonErrorMessage(response, failedMessage)
+        : await jsonErrorMessage(response, failedMessage),
     );
   }
 

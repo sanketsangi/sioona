@@ -16,7 +16,7 @@ describe("composeCustomerReplyDraft", () => {
         ],
       }),
     ).toBe(
-      "Hi Priya, I noticed you said “Please pause my SIP this month”. I’d like to help — is there a good time to connect today?",
+      "Hi Priya — I saw your note about “Please pause my SIP this month”. I can look into this and call you today if helpful. When works for a quick chat?",
     );
   });
 
@@ -43,7 +43,7 @@ describe("composeCustomerReplyDraft", () => {
         type: "retention",
         evidence: ['quote: "Please pause my SIP this month"'],
       }),
-    ).toContain("Hi there,");
+    ).toContain("Hi there —");
   });
 
   it("builds lead and upsell drafts", () => {
@@ -54,7 +54,7 @@ describe("composeCustomerReplyDraft", () => {
         evidence: ['quote: "What is the pricing?"'],
       }),
     ).toBe(
-      "Hi Rahul, thanks for reaching out — you mentioned “What is the pricing?”. Happy to share the right plan details whenever you’re ready.",
+      "Hi Rahul, thanks for asking about “What is the pricing?”. I can walk you through the right plan and next steps whenever you’re free.",
     );
     expect(
       composeCustomerReplyDraft({
@@ -63,7 +63,7 @@ describe("composeCustomerReplyDraft", () => {
         evidence: ['quote: "Do you offer MTF?"'],
       }),
     ).toBe(
-      "Hi Anita, following up on “Do you offer MTF?” — I can share eligibility and next steps if that would help.",
+      "Hi Anita, following up on “Do you offer MTF?” — happy to check eligibility and share next steps if useful.",
     );
   });
 

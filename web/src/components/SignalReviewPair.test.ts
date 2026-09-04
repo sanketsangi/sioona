@@ -69,13 +69,13 @@ describe("SignalReviewPair", () => {
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Retention Email");
     expect(html).toContain("Approve");
-    expect(html).toContain("Checking in on your account");
+    expect(html).toContain("Following up on your account — can we help?");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Priya");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).toContain(
-      "Hi Priya, I noticed you said “Please pause my SIP this month”",
+      "Hi Priya — I saw your note about “Please pause my SIP this month”",
     );
     expect(html).toContain("chat-bubble--evidence");
     expect(html).toContain("Show in conversation: Please pause my SIP this month");

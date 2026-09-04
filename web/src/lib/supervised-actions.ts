@@ -52,8 +52,8 @@ export function shouldGenerateRetentionEmail(
 }
 
 /**
- * Short, polite, finance-appropriate retention email.
- * Display-only until a human records Approve — never sent by this module.
+ * Short, desk-ready retention email a partner can Approve and paste outside
+ * Sioona. Display-only until a human records Approve — never sent here.
  */
 export function composeRetentionEmailDraft(
   input: RetentionEmailDraftInput,
@@ -61,16 +61,20 @@ export function composeRetentionEmailDraft(
   const name = greetingName(input.customerName);
   const rawQuote = primaryQuote(input.evidence ?? [])?.trim() ?? "";
   const evidenceQuote = rawQuote ? clipEmailQuote(rawQuote) : "";
-  const subject = "Checking in on your account";
+  const subject = evidenceQuote
+    ? "Following up on your account — can we help?"
+    : "Following up on your account";
   const mention = evidenceQuote
-    ? `I wanted to follow up after you mentioned “${evidenceQuote}”.`
-    : "I wanted to follow up on your recent conversation.";
+    ? `You mentioned “${evidenceQuote}”. I want to make sure we resolve this before anything gets worse.`
+    : "I wanted to follow up on your recent conversation and make sure we resolve any open concerns.";
   const body = [
     `Hi ${name},`,
     "",
-    `${mention} If something isn’t working the way you expected, I would like to help put it right.`,
+    mention,
     "",
-    "Would a brief call this week be convenient?",
+    "I can review fees, settlement, or account options with you and arrange a same-day callback if that helps.",
+    "",
+    "Would a brief call today or tomorrow work?",
     "",
     "Best regards",
   ].join("\n");

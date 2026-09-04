@@ -126,7 +126,7 @@ describe("POST /api/signals/[id]/action", () => {
       actionRequest("sig_ret_edit", {
         decision: "edited",
         body: "Hi there,\n\nRevised offer.\n\nBest regards",
-        subject: "Checking in on your account",
+        subject: "Following up on your account — can we help?",
       }),
       { params: Promise.resolve({ id: "sig_ret_edit" }) },
     );
@@ -224,9 +224,9 @@ describe("POST /api/signals/[id]/action", () => {
         signalId: stubId,
         conversationId,
         tenantId: store.tenant.id,
-        subject: "Checking in on your account",
+        subject: "Following up on your account — can we help?",
         body: "Hi there,\n\nStored.\n\nBest regards",
-        generatedSubject: "Checking in on your account",
+        generatedSubject: "Following up on your account — can we help?",
         generatedBody: "Hi there,\n\nStored.\n\nBest regards",
         evidenceQuote: "pause my SIP",
         status: "pending",

@@ -136,8 +136,24 @@ describe("EvalView metrics containers", () => {
     expect(html).toContain("Go");
     expect(html).toContain("6 / 5");
     expect(html).toContain("83%");
+    expect(html).toContain("Lift vs baseline");
+    expect(html).toContain("0 found − 12 baseline");
     expect(html).toContain("Open Insights");
     expect(html).not.toContain("Insufficient Data");
+  });
+
+  it("empty baseline hints partners to set share-out baseline", () => {
+    const html = renderToStaticMarkup(
+      createElement(EvalView, {
+        store: { ...store, pilot: { baselineOpportunities: 0 } },
+        scoreWindow,
+        cadenceAction: cadenceReviews,
+        backendScore: emptyScore,
+      }),
+    );
+
+    expect(html).toContain("Lift vs baseline");
+    expect(html).toContain("Set partner baseline for share-out");
   });
 
   it("offline cockpit omits fixture Go and still shows cadence CTA", () => {

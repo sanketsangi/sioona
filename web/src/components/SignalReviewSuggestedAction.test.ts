@@ -58,7 +58,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Matched");
     expect(html).toContain(
-      "Hi Priya, I noticed you said “Please pause my SIP this month”. I’d like to help — is there a good time to connect today?",
+      "Hi Priya — I saw your note about “Please pause my SIP this month”. I can look into this and call you today if helpful. When works for a quick chat?",
     );
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Copy Reply to clipboard");
@@ -68,7 +68,7 @@ describe("SignalReviewSuggestedAction", () => {
       /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
     );
     expect(html).not.toMatch(
-      /Hi Priya, I noticed you said[\s\S]*Copy Reply/,
+      /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
     expect(html).toContain("M2.75 0.5C1.7835 0.5");
     expect(html).toContain('fill="currentColor"');
@@ -383,7 +383,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain('aria-keyshortcuts="A Enter"');
     expect(html).not.toContain("status-dot");
     expect(html).toContain(
-      "Hi Priya, I noticed you said “Please pause my SIP this month”. I’d like to help — is there a good time to connect today?",
+      "Hi Priya — I saw your note about “Please pause my SIP this month”. I can look into this and call you today if helpful. When works for a quick chat?",
     );
     expect(html).toContain("Copy Reply");
   });
@@ -407,10 +407,10 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya, I noticed you said/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya — I saw your note about/,
     );
     expect(html).not.toMatch(
-      /Hi Priya, I noticed you said[\s\S]*Copy Reply/,
+      /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
     expect(html).toContain("Copy Reply");
     expect(html).not.toContain("Display only — not sent.");

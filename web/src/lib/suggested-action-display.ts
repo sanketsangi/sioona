@@ -25,6 +25,9 @@ export type CustomerReplyDraftInput = {
  * Customer-facing reply draft (display-only; never sent).
  * Requires a Why This Fired quote; otherwise returns "" so callers can
  * fall back to taxonomy `pickAction`.
+ *
+ * Retention copy is RM/WhatsApp-ready: acknowledge the risk, offer a
+ * same-day callback — partners paste this outside Sioona.
  */
 export function composeCustomerReplyDraft(
   input: CustomerReplyDraftInput,
@@ -35,12 +38,12 @@ export function composeCustomerReplyDraft(
   const quote = clipReplyQuote(rawQuote);
 
   if (input.type === "retention") {
-    return `Hi ${name}, I noticed you said “${quote}”. I’d like to help — is there a good time to connect today?`;
+    return `Hi ${name} — I saw your note about “${quote}”. I can look into this and call you today if helpful. When works for a quick chat?`;
   }
   if (input.type === "lead") {
-    return `Hi ${name}, thanks for reaching out — you mentioned “${quote}”. Happy to share the right plan details whenever you’re ready.`;
+    return `Hi ${name}, thanks for asking about “${quote}”. I can walk you through the right plan and next steps whenever you’re free.`;
   }
-  return `Hi ${name}, following up on “${quote}” — I can share eligibility and next steps if that would help.`;
+  return `Hi ${name}, following up on “${quote}” — happy to check eligibility and share next steps if useful.`;
 }
 
 /**

@@ -713,7 +713,7 @@ export function RetentionEmailAction({
                   spellCheck
                   value={subject}
                   onChange={(event) => setSubject(event.target.value)}
-                  placeholder="e.g. Checking in on your account…"
+                  placeholder="e.g. Following up on your account…"
                   className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:min-h-9 md:text-sm"
                   aria-invalid={!subject.trim()}
                   tabIndex={editing ? undefined : -1}

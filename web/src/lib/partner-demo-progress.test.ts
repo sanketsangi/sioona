@@ -4,6 +4,7 @@ import {
   encodePartnerDemoNdjsonLine,
   PARTNER_DEMO_NDJSON_CONTENT_TYPE,
   parsePartnerDemoStreamEvent,
+  partnerDemoProgressPercent,
   partnerDemoStatusLabel,
   partnerDemoStepSequence,
   readPartnerDemoNdjsonEvents,
@@ -68,6 +69,26 @@ describe("partnerDemoStatusLabel", () => {
     expect(
       partnerDemoStatusLabel({ step: "sync_signals", done: 4, total: 14 })
     ).toBe("Extracting…");
+  });
+});
+
+describe("partnerDemoProgressPercent", () => {
+  it("maps wipe and detect ticks onto an honest progress percent", () => {
+    expect(
+      partnerDemoProgressPercent({ step: "wipe", done: 0, total: 1 })
+    ).toBe(8);
+    expect(
+      partnerDemoProgressPercent({ step: "wipe", done: 1, total: 1 })
+    ).toBe(22);
+    expect(
+      partnerDemoProgressPercent({ step: "detect", done: 0, total: 100 })
+    ).toBe(22);
+    expect(
+      partnerDemoProgressPercent({ step: "detect", done: 50, total: 100 })
+    ).toBe(61);
+    expect(
+      partnerDemoProgressPercent({ step: "detect", done: 100, total: 100 })
+    ).toBe(100);
   });
 });
 

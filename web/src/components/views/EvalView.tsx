@@ -146,6 +146,10 @@ function MetricsPanel({
 }) {
   const online = backendScore !== null;
   const liftSign = pilot.opportunityLift >= 0 ? "+" : "";
+  const liftHint =
+    pilot.baselineOpportunities > 0
+      ? `${pilot.sioonaOpportunities} found − ${pilot.baselineOpportunities} baseline`
+      : "Set partner baseline for share-out";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
@@ -181,9 +185,9 @@ function MetricsPanel({
             hint="Conversations with a signal"
           />
           <EvalMetric
-            label="Lift"
+            label="Lift vs baseline"
             value={`${liftSign}${pilot.opportunityLift}`}
-            hint={`Baseline ${pilot.baselineOpportunities}`}
+            hint={liftHint}
           />
           <EvalMetric
             label="P Target"

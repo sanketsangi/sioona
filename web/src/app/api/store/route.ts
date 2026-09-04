@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "@/data/fixtures/zerodha-batch01-overrides";
+import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
@@ -16,14 +17,52 @@ import {
   partnerDemoCompleteEvent,
   runPartnerDemo,
   runResetDemo,
+  type PartnerDemoResult,
 } from "@/lib/demo";
 import {
   encodePartnerDemoNdjsonLine,
   PARTNER_DEMO_NDJSON_CONTENT_TYPE,
   type PartnerDemoStreamEvent,
 } from "@/lib/partner-demo-progress";
+import { warmShowcasePacks } from "@/lib/showcase-pack-cache";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 import type { SignalType, StoreData } from "@/lib/types";
+import { syncPilotSettingsToBackend } from "@/lib/sync-pilot";
+import { wipeTenantDataFailSoft } from "@/lib/wipe-tenant";
+
+/**
+ * After JSON showcase is live: wipe Neon leftovers, restore pilot (partner
+ * baseline survives wipe), then dual-write the pack. Insights lands with
+ * `replaced=1` so leftover overlay stays off until prune.
+ */
+function deferShowcaseNeon(result: PartnerDemoResult): void {
+  after(() =>
+    wipeTenantDataFailSoft(result.store.tenant.id)
+      .then(async () => {
+        // Wipe deletes pilot_settings — put JSON pilot back so Eval lift
+        // survives Day-1 replace / cold-start hydrate after /tmp wipe.
+        if (result.store.pilot) {
+          await syncPilotSettingsToBackend(
+            result.store.tenant.id,
+            result.store.pilot
+          );
+        }
+        await persistDeferredIngestDualWrite({
+          tenantId: result.store.tenant.id,
+          conversations: result.store.conversations,
+          messages: result.store.messages,
+          signals: result.store.signals,
+          replaceShowcase: true,
+          storeUpdatedAt: result.store.pilot?.updatedAt,
+          lastUploadedFileName: result.store.pilot?.lastUploadedFileName,
+        });
+      })
+      .catch((err) => {
+        const detail = err instanceof Error ? err.message : "unknown error";
+        console.warn(`[defer-showcase-sync] ${detail}`);
+      })
+  );
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -122,6 +161,11 @@ export async function POST(request: Request) {
     redetect?: boolean;
   };
 
+  if (body.action === "warmup_showcase") {
+    const warmed = await warmShowcasePacks();
+    return NextResponse.json({ ok: true, ...warmed });
+  }
+
   if (body.action === "reset") {
     return streamShowcaseNdjson(async (send) => {
       const result = await runResetDemo({
@@ -129,6 +173,7 @@ export async function POST(request: Request) {
           await send({ type: "progress", ...event });
         },
       });
+      deferShowcaseNeon(result);
       await send(partnerDemoCompleteEvent(result));
     }, "Reset failed");
   }
@@ -140,6 +185,7 @@ export async function POST(request: Request) {
           await send({ type: "progress", ...event });
         },
       });
+      deferShowcaseNeon(result);
       await send(partnerDemoCompleteEvent(result));
     }, "Partner demo failed");
   }

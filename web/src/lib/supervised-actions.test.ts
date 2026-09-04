@@ -87,19 +87,21 @@ describe("composeRetentionEmailDraft", () => {
       customerName: "Priya Shah",
       evidence: ['quote: "I am closing my account"'],
     });
-    expect(draft.subject).toBe("Checking in on your account");
+    expect(draft.subject).toBe("Following up on your account — can we help?");
     expect(draft.evidenceQuote).toBe("I am closing my account");
     expect(draft.body).toContain("Hi Priya Shah,");
     expect(draft.body).toContain("“I am closing my account”");
-    expect(draft.body).toContain("Would a brief call this week be convenient?");
+    expect(draft.body).toContain("same-day callback");
+    expect(draft.body).toContain("Would a brief call today or tomorrow work?");
     expect(draft.body).toContain("Best regards");
-    expect(draft.body.length).toBeLessThan(500);
+    expect(draft.body.length).toBeLessThan(600);
   });
 
   it("falls back without a quote or name", () => {
     const draft = composeRetentionEmailDraft({
       evidence: ['phrase: "close my account"'],
     });
+    expect(draft.subject).toBe("Following up on your account");
     expect(draft.body).toContain("Hi there,");
     expect(draft.body).toContain("recent conversation");
     expect(draft.evidenceQuote).toBe("");

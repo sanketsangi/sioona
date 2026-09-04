@@ -310,4 +310,29 @@ describe("overlayPilotFromRemote", () => {
     });
     expect(next).toBe(store);
   });
+
+  it("keeps JSON partner baseline when Neon is still cold-demo", async () => {
+    const { overlayPilotFromRemote } = await import("./sync-pilot");
+    const store = await readStore();
+    store.pilot = {
+      baselineOpportunities: 12,
+      baselineNote: "partner agreed",
+      lastUploadedFileName: "Zerodha_batch_02",
+      updatedAt: "2026-08-20T22:00:00.000Z",
+    };
+    const next = overlayPilotFromRemote(store, {
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 4,
+      baseline_note:
+        "Cold-demo estimate: what a busy desk typically flags without Shadow Mode. Replace with the partner’s real count on Eval.",
+      weekly_export_count: null,
+      last_uploaded_file_name: "Zerodha_batch_02",
+      created_at: "2026-08-20T00:00:00.000Z",
+      updated_at: "2026-08-20T22:05:00.000Z",
+    });
+    expect(next.pilot?.baselineOpportunities).toBe(12);
+    expect(next.pilot?.baselineNote).toBe("partner agreed");
+    expect(next.pilot?.lastUploadedFileName).toBe("Zerodha_batch_02");
+  });
 });

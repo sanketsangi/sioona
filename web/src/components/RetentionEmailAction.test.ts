@@ -138,7 +138,7 @@ describe("RetentionEmailAction", () => {
     // Review Evidence|Draft before decision buttons.
     expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html.indexOf("Draft")).toBeLessThan(html.indexOf("Approve Draft"));
-    expect(html).toContain("Checking in on your account");
+    expect(html).toContain("Following up on your account — can we help?");
     expect(html).toContain("Hi Priya,");
     expect(html).toContain("retention-email-columns");
     expect(html).toContain("retention-email-draft-swap");

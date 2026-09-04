@@ -9,6 +9,10 @@ import {
   putPilotSettings,
   type BackendPilotSettings,
 } from "@/lib/backend-client";
+import {
+  isPartnerBaseline,
+  isUnsetOrColdDemoBaseline,
+} from "@/lib/demo-baseline";
 import type { PilotSettings, StoreData } from "@/lib/types";
 
 export function pilotSettingsFromRemote(
@@ -30,6 +34,8 @@ export function pilotSettingsFromRemote(
 /**
  * Neon is SoT for pilot. Overlay remote settings onto a JSON store snapshot
  * (Vercel /tmp can lag after Partner Demo / set_baseline on another instance).
+ * When JSON already holds a partner baseline and Neon is still cold-demo /
+ * unset (wipe race), keep the partner baseline so Eval lift stays honest.
  * Returns a new store when pilot changed; otherwise the same reference.
  */
 export function overlayPilotFromRemote(
@@ -37,8 +43,29 @@ export function overlayPilotFromRemote(
   remote: BackendPilotSettings | null
 ): StoreData {
   if (!remote) return store;
-  const next = pilotSettingsFromRemote(remote);
+  let next = pilotSettingsFromRemote(remote);
   const prev = store.pilot;
+  const localPartner =
+    prev != null &&
+    isPartnerBaseline(prev.baselineOpportunities, prev.baselineNote);
+  const remotePartner = isPartnerBaseline(
+    remote.baseline_opportunities,
+    remote.baseline_note
+  );
+  if (
+    localPartner &&
+    !remotePartner &&
+    isUnsetOrColdDemoBaseline(
+      remote.baseline_opportunities,
+      remote.baseline_note
+    )
+  ) {
+    next = {
+      ...next,
+      baselineOpportunities: prev.baselineOpportunities,
+      ...(prev.baselineNote ? { baselineNote: prev.baselineNote } : {}),
+    };
+  }
   if (
     prev &&
     prev.baselineOpportunities === next.baselineOpportunities &&

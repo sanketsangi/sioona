@@ -35,7 +35,7 @@ describe("postSupervisedAction", () => {
         action: {
           id: "act_1",
           status: "approved",
-          subject: "Checking in on your account",
+          subject: "Following up on your account — can we help?",
           body: "Hi",
         },
       }),
@@ -45,7 +45,7 @@ describe("postSupervisedAction", () => {
     const signal = retentionSignal();
     await postSupervisedAction(signal, {
       decision: "approved",
-      subject: "Checking in on your account",
+      subject: "Following up on your account — can we help?",
       draftBody: "Hi there",
     });
 
@@ -55,7 +55,7 @@ describe("postSupervisedAction", () => {
         method: "POST",
         body: JSON.stringify({
           decision: "approved",
-          subject: "Checking in on your account",
+          subject: "Following up on your account — can we help?",
           body: "Hi there",
           backendSignalId: signal.backendSignalId,
           conversationId: signal.conversationId,

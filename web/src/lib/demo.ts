@@ -1,24 +1,33 @@
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import { getPilotSettings } from "./backend-client";
 import {
-  loadTestingJsonIntoStore,
-  loadZerodhaBatch02IntoStore,
-} from "./load-testing-json-store";
-import {
   DEMO_BASELINE_OPPORTUNITIES,
   isColdDemoBaseline,
+  isPartnerBaseline,
 } from "./demo-baseline";
 import type { LlmPassStats } from "./detect-llm";
 import type {
   PartnerDemoCompleteEvent,
   PartnerDemoProgress,
 } from "./partner-demo-progress";
-import { setPilotBaseline } from "./store";
-import type { ConversationSyncStats } from "./sync-conversations";
-import type { PredictionSyncStats } from "./sync-predictions";
+import {
+  getOrBuildShowcasePack,
+  isShowcasePackCached,
+  storeFromShowcasePack,
+} from "./showcase-pack-cache";
+import { setPilotBaseline, writeStore } from "./store";
+import { syncPilotSettingsToBackend } from "./sync-pilot";
+import {
+  emptyConversationSyncStats,
+  type ConversationSyncStats,
+} from "./sync-conversations";
+import {
+  emptyPredictionSyncStats,
+  type PredictionSyncStats,
+} from "./sync-predictions";
 import type { StoreData } from "./types";
 import {
-  wipeTenantDataFailSoft,
+  deferredTenantWipeStats,
   type TenantWipeStats,
 } from "./wipe-tenant";
 
@@ -26,6 +35,8 @@ export {
   DEMO_BASELINE_NOTE,
   DEMO_BASELINE_OPPORTUNITIES,
   isColdDemoBaseline,
+  isPartnerBaseline,
+  isUnsetOrColdDemoBaseline,
 } from "./demo-baseline";
 
 export interface PartnerDemoResult {
@@ -65,6 +76,9 @@ export async function snapshotPartnerBaseline(
     ) {
       return null;
     }
+    if (!isPartnerBaseline(remote.baseline_opportunities, remote.baseline_note)) {
+      return null;
+    }
     const snap: PartnerBaselineSnapshot = {
       baselineOpportunities: remote.baseline_opportunities,
     };
@@ -77,31 +91,56 @@ export async function snapshotPartnerBaseline(
   }
 }
 
+async function reportDetectFromPack(
+  report: PartnerDemoOptions["onProgress"],
+  conversationCount: number,
+  fromCache: boolean
+): Promise<void> {
+  if (!report) return;
+  if (fromCache) {
+    // Preloaded — one tick so the client spinner can advance without waiting.
+    await report({
+      step: "detect",
+      done: conversationCount,
+      total: conversationCount,
+    });
+    return;
+  }
+  await report({ step: "detect", done: 0, total: conversationCount });
+  await report({
+    step: "detect",
+    done: conversationCount,
+    total: conversationCount,
+  });
+}
+
 /**
- * Wipe Neon for this tenant (fail-soft), then replace the JSON store with
- * committed Zerodha Batch-02 only (never merge with Groww testing.json).
- * Dual-writes chats + predictions and sets the cold-demo baseline — unless a
- * partner baseline was already on Neon, which is restored after seed (share-out
- * footgun: wipe no longer forces baseline 12→4). weekly_export_count resets.
- * No Zerodha Adapt on this path.
+ * Replace the JSON store with preloaded Zerodha Batch-02 (instant when cached).
+ * Neon wipe + chat/prediction dual-write are deferred by the store route
+ * (`after()` + `replaced=1`) so Insights paints the signal queue immediately.
+ * Restores a prior partner baseline after seed when one existed (not cold-demo 4).
  */
 export async function runPartnerDemo(
   options?: PartnerDemoOptions
 ): Promise<PartnerDemoResult> {
   const tenantId = emptyShowcaseStore.tenant.id;
   const priorBaseline = await snapshotPartnerBaseline(tenantId);
-
   const report = options?.onProgress;
-  await report?.({ step: "wipe", done: 0, total: 1 });
-  const wipe = await wipeTenantDataFailSoft(tenantId);
-  await report?.({ step: "wipe", done: 1, total: 1 });
-  const loaded = await loadZerodhaBatch02IntoStore({
-    applyDemoBaseline: true,
-    syncPredictions: true,
-    onProgress: report,
-  });
 
-  let store = loaded.store;
+  // Wipe is deferred — emit a completed wipe tick so NDJSON clients stay happy.
+  await report?.({ step: "wipe", done: 0, total: 1 });
+  await report?.({ step: "wipe", done: 1, total: 1 });
+
+  const fromCache = isShowcasePackCached("partner");
+  const pack = await getOrBuildShowcasePack("partner");
+  await reportDetectFromPack(report, pack.conversations.length, fromCache);
+
+  let store = storeFromShowcasePack(pack, { applyDemoBaseline: true });
+  await writeStore(store);
+  if (store.pilot) {
+    await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
+  }
+
   let baselineOpportunities = DEMO_BASELINE_OPPORTUNITIES;
   if (priorBaseline) {
     store = await setPilotBaseline(
@@ -118,54 +157,57 @@ export async function runPartnerDemo(
 
   return {
     store,
-    importedConversations: loaded.importedConversations,
-    newSignals: loaded.newSignals,
-    samples: loaded.samples,
+    importedConversations: pack.conversations.length,
+    newSignals: pack.signals.length,
+    samples: [pack.sampleName],
     baselineOpportunities,
     opportunityLift: sioonaOpportunities - baselineOpportunities,
-    predictionSync: loaded.predictionSync,
-    conversationSync: loaded.conversationSync,
-    detectLlm: loaded.detectLlm,
-    wipe,
+    predictionSync: emptyPredictionSyncStats(),
+    conversationSync: emptyConversationSyncStats(),
+    detectLlm: pack.detectLlm,
+    // Wipe runs in after() — optimistic ok so clients do not block on Neon.
+    wipe: deferredTenantWipeStats(),
   };
 }
 
 /**
- * Wipe Neon for this tenant (fail-soft), then replace the JSON store with
- * Groww testing.json (Reset Demo). Dual-writes chats + predictions. Does not
- * apply the Partner Demo cold-demo baseline. Empty taxonomyOverrides.
+ * Replace the JSON store with preloaded Groww Sample (instant when cached).
+ * Neon wipe + dual-write deferred by the store route. No cold-demo baseline.
  */
 export async function runResetDemo(
   options?: PartnerDemoOptions
 ): Promise<PartnerDemoResult> {
-  const tenantId = emptyShowcaseStore.tenant.id;
   const report = options?.onProgress;
+
   await report?.({ step: "wipe", done: 0, total: 1 });
-  const wipe = await wipeTenantDataFailSoft(tenantId);
   await report?.({ step: "wipe", done: 1, total: 1 });
-  const loaded = await loadTestingJsonIntoStore({
-    applyDemoBaseline: false,
-    syncPredictions: true,
-    onProgress: report,
-  });
+
+  const fromCache = isShowcasePackCached("sample");
+  const pack = await getOrBuildShowcasePack("sample");
+  await reportDetectFromPack(report, pack.conversations.length, fromCache);
+
+  const store = storeFromShowcasePack(pack, { applyDemoBaseline: false });
+  await writeStore(store);
+  if (store.pilot) {
+    await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
+  }
 
   const sioonaOpportunities = new Set(
-    loaded.store.signals.map((s) => s.conversationId)
+    store.signals.map((s) => s.conversationId)
   ).size;
-  const baselineOpportunities =
-    loaded.store.pilot?.baselineOpportunities ?? 0;
+  const baselineOpportunities = store.pilot?.baselineOpportunities ?? 0;
 
   return {
-    store: loaded.store,
-    importedConversations: loaded.importedConversations,
-    newSignals: loaded.newSignals,
-    samples: loaded.samples,
+    store,
+    importedConversations: pack.conversations.length,
+    newSignals: pack.signals.length,
+    samples: [pack.sampleName],
     baselineOpportunities,
     opportunityLift: sioonaOpportunities - baselineOpportunities,
-    predictionSync: loaded.predictionSync,
-    conversationSync: loaded.conversationSync,
-    detectLlm: loaded.detectLlm,
-    wipe,
+    predictionSync: emptyPredictionSyncStats(),
+    conversationSync: emptyConversationSyncStats(),
+    detectLlm: pack.detectLlm,
+    wipe: deferredTenantWipeStats(),
   };
 }
 

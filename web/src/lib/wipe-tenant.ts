@@ -25,6 +25,11 @@ export function emptyTenantWipeStats(error?: string): TenantWipeStats {
   return { ...EMPTY_COUNTS, ok: false, error };
 }
 
+/** Optimistic wipe placeholder when Neon wipe is deferred to `after()`. */
+export function deferredTenantWipeStats(): TenantWipeStats {
+  return { ...EMPTY_COUNTS, ok: true };
+}
+
 /**
  * Wipe this tenant's Neon data. On FastAPI down / error, returns ok:false
  * with zero counts — caller should still reseed JSON and report wipeFailed.

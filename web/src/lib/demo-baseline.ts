@@ -15,3 +15,26 @@ export function isColdDemoBaseline(
   const note = baselineNote?.trim() ?? "";
   return note === "" || note === DEMO_BASELINE_NOTE;
 }
+
+/**
+ * True when this is a real partner-set baseline (Eval share-out), not the
+ * cold-demo 4 and not an unset 0 with no note.
+ */
+export function isPartnerBaseline(
+  baselineOpportunities: number,
+  baselineNote?: string | null
+): boolean {
+  if (isColdDemoBaseline(baselineOpportunities, baselineNote)) return false;
+  return (
+    baselineOpportunities > 0 || Boolean(baselineNote?.trim())
+  );
+}
+
+/** Unset (0, no note) or cold-demo — safe to heal from Neon partner baseline. */
+export function isUnsetOrColdDemoBaseline(
+  baselineOpportunities: number,
+  baselineNote?: string | null
+): boolean {
+  if (isColdDemoBaseline(baselineOpportunities, baselineNote)) return true;
+  return baselineOpportunities === 0 && !baselineNote?.trim();
+}

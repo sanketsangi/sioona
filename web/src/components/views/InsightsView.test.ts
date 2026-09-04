@@ -1161,7 +1161,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Copy Reply");
-    expect(html).toContain("Hi Priya, thanks for reaching out");
+    expect(html).toContain("Hi Priya, thanks for asking about");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
@@ -1248,7 +1248,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Retention Email");
     expect(html).toContain("Approve Draft");
     expect(html).toContain(">Edit</button>");
-    expect(html).toContain("Checking in on your account");
+    expect(html).toContain("Following up on your account — can we help?");
     expect(html).toContain("data-review-slot=\"retention-email\"");
     const whySlot = html.indexOf('data-review-slot="why"');
     const retentionSlot = html.indexOf('data-review-slot="retention-email"');
@@ -1269,7 +1269,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
     expect(html).toContain("Copy Reply");
-    expect(html).toContain("Hi Priya, I noticed you said");
+    expect(html).toContain("Hi Priya — I saw your note about");
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("Copy Reply, then A / Enter → Mark as Acted");
     expect(html).not.toContain(

@@ -1,4 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return { ...actual, after: vi.fn() };
+});
+
+vi.mock("@/lib/defer-ingest-sync", () => ({
+  persistDeferredIngestDualWrite: vi.fn().mockResolvedValue(undefined),
+}));
+
+import { after } from "next/server";
+import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import * as backendClient from "@/lib/backend-client";
 import * as demo from "@/lib/demo";
 import {
@@ -17,6 +29,8 @@ describe("POST /api/store reset", () => {
       "fetch",
       vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
     );
+    vi.mocked(persistDeferredIngestDualWrite).mockClear();
+    vi.mocked(after).mockClear();
   });
 
   afterEach(() => {
@@ -24,7 +38,7 @@ describe("POST /api/store reset", () => {
     vi.restoreAllMocks();
   });
 
-  it("wipes Neon then reseeds testing.json and reports wipeFailed when down", async () => {
+  it("wipes Neon then reseeds testing.json; Neon wipe runs in after()", async () => {
     const wipeSpy = vi
       .spyOn(backendClient, "wipeTenantData")
       .mockRejectedValue(new Error("Signal Score backend unreachable"));
@@ -41,22 +55,38 @@ describe("POST /api/store reset", () => {
     expect(res.headers.get("content-type")).toMatch(/ndjson/);
 
     const events = await readPartnerDemoNdjsonEvents(res);
-    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
-    expect(partnerDemoStepSequence(events)).toEqual([
-      "wipe",
-      "detect",
-      "sync_chats",
-      "sync_signals",
-    ]);
+    // Hot path does not wipe — after() does.
+    expect(wipeSpy).not.toHaveBeenCalled();
+    expect(partnerDemoStepSequence(events)).toEqual(["wipe", "detect"]);
     const complete = events.at(-1);
     expect(complete?.type).toBe("complete");
     if (complete?.type !== "complete") return;
     expect(complete.importedConversations).toBe(
       EXPECTED_TESTING_JSON.conversations
     );
-    expect(complete.wipeFailed).toBe(true);
-    expect(complete.wipeError).toMatch(/unreachable/i);
+    expect(complete.wipeFailed).toBeUndefined();
     expect(events.some((event) => "conversations" in event)).toBe(false);
+    expect(after).toHaveBeenCalled();
+    expect(persistDeferredIngestDualWrite).not.toHaveBeenCalled();
+    const afterCb = vi.mocked(after).mock.calls[0]?.[0];
+    expect(typeof afterCb).toBe("function");
+    const putPilotSpy = vi.spyOn(backendClient, "putPilotSettings");
+    await afterCb?.();
+    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    expect(putPilotSpy).toHaveBeenCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        baseline_opportunities: 0,
+        last_uploaded_file_name: "Groww_batch_02",
+      })
+    );
+    expect(persistDeferredIngestDualWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant_demo",
+        replaceShowcase: true,
+        lastUploadedFileName: "Groww_batch_02",
+      })
+    );
   });
 
   it("omits wipeFailed when Neon wipe succeeds", async () => {
@@ -78,7 +108,7 @@ describe("POST /api/store reset", () => {
     expect(res.status).toBe(200);
 
     const events = await readPartnerDemoNdjsonEvents(res);
-    expect(wipeSpy).toHaveBeenCalledWith("tenant_demo");
+    expect(wipeSpy).not.toHaveBeenCalled();
     const complete = events.at(-1);
     expect(complete?.type).toBe("complete");
     if (complete?.type !== "complete") return;
@@ -146,6 +176,8 @@ describe("POST /api/store partner_demo", () => {
       "fetch",
       vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
     );
+    vi.mocked(persistDeferredIngestDualWrite).mockClear();
+    vi.mocked(after).mockClear();
   });
 
   afterEach(() => {
@@ -153,7 +185,7 @@ describe("POST /api/store partner_demo", () => {
     vi.restoreAllMocks();
   });
 
-  it("streams NDJSON wipe → detect → sync chats → sync signals → complete", async () => {
+  it("streams NDJSON wipe → detect → complete (dual-write deferred)", async () => {
     vi.spyOn(backendClient, "wipeTenantData").mockRejectedValue(
       new Error("Signal Score backend unreachable")
     );
@@ -170,12 +202,7 @@ describe("POST /api/store partner_demo", () => {
     expect(res.headers.get("content-type")).toMatch(/ndjson/);
 
     const events = await readPartnerDemoNdjsonEvents(res);
-    expect(partnerDemoStepSequence(events)).toEqual([
-      "wipe",
-      "detect",
-      "sync_chats",
-      "sync_signals",
-    ]);
+    expect(partnerDemoStepSequence(events)).toEqual(["wipe", "detect"]);
     const complete = events.at(-1);
     expect(complete?.type).toBe("complete");
     if (complete?.type !== "complete") return;
@@ -183,8 +210,73 @@ describe("POST /api/store partner_demo", () => {
       EXPECTED_ZERODHA_BATCH02.conversations
     );
     expect(complete.newSignals).toBeGreaterThan(0);
-    expect(complete.wipeFailed).toBe(true);
+    expect(complete.wipeFailed).toBeUndefined();
     expect(events.some((event) => "conversations" in event)).toBe(false);
+    expect(after).toHaveBeenCalled();
+  });
+
+  it("restores partner baseline to Neon after deferred wipe", async () => {
+    vi.spyOn(backendClient, "wipeTenantData").mockResolvedValue({
+      conversations: 1,
+      messages: 1,
+      predictions: 1,
+      feedback: 1,
+      pilot_settings: 1,
+    });
+    vi.spyOn(backendClient, "getPilotSettings")
+      .mockResolvedValueOnce({
+        id: "pilot-1",
+        tenant_id: "tenant_demo",
+        baseline_opportunities: 12,
+        baseline_note: "partner agreed",
+        weekly_export_count: 4,
+        last_uploaded_file_name: "Groww_batch_02",
+        created_at: "2026-08-18T00:00:00.000Z",
+        updated_at: "2026-08-18T00:00:00.000Z",
+      })
+      .mockResolvedValue(null);
+    const putPilotSpy = vi.spyOn(backendClient, "putPilotSettings");
+
+    const res = await POST(
+      new Request("http://localhost/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "partner_demo" }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await readPartnerDemoNdjsonEvents(res);
+
+    const afterCb = vi.mocked(after).mock.calls[0]?.[0];
+    expect(typeof afterCb).toBe("function");
+    putPilotSpy.mockClear();
+    await afterCb?.();
+
+    expect(backendClient.wipeTenantData).toHaveBeenCalledWith("tenant_demo");
+    expect(putPilotSpy).toHaveBeenCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        baseline_opportunities: 12,
+        baseline_note: "partner agreed",
+      })
+    );
+    expect(persistDeferredIngestDualWrite).toHaveBeenCalled();
+  });
+
+  it("warms Sample and Partner Demo packs without writing the live store", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "warmup_showcase" }),
+      })
+    );
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      ok: true,
+      sample: true,
+      partner: true,
+    });
   });
 
   it("streams an error event when Partner Demo throws", async () => {
@@ -205,6 +297,7 @@ describe("POST /api/store partner_demo", () => {
       type: "error",
       error: "testing.json missing",
     });
+    expect(after).not.toHaveBeenCalled();
   });
 
   it("maps non-Error throws to Partner demo failed", async () => {
