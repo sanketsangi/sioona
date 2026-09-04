@@ -15,12 +15,17 @@ import {
   type PartnerDemoStep,
 } from "@/lib/partner-demo-progress";
 import { syncQueryExtras } from "@/lib/prediction-sync";
+import { humanizeInternalError } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
+import { defaultInsightsHref, vaultInsightsHref } from "@/lib/vault-file";
 import {
   resolveVaultShowcaseKind,
+  VAULT_SHOWCASE_STALL_MS,
   vaultShowcaseDisplayName,
+  vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
+  vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
   type VaultShowcaseKind,
 } from "@/lib/vault-showcase";
@@ -33,7 +38,14 @@ const QUEUE_CARD_CLASS =
  * When Insights is scoped to Sample / Partner Demo but that pack is not the
  * keep-set, wipe+seed via the existing store actions and land on Insights.
  */
-export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
+export function VaultShowcaseLoader({
+  fileName,
+  keepSetFileName = null,
+}: {
+  fileName: string;
+  /** Current keep-set — Cancel returns here instead of looping the load. */
+  keepSetFileName?: string | null;
+}) {
   const router = useRouter();
   const kind = resolveVaultShowcaseKind(fileName);
   const [attempt, setAttempt] = useState(0);
@@ -51,11 +63,19 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
     const failedMessage = vaultShowcaseFailedMessage(showcaseKind);
     const runId = ++runIdRef.current;
     let cancelled = false;
+    let stalled = false;
 
     setError(null);
     setStatus(vaultShowcaseLoadingLabel(showcaseKind));
     // Wake sleeping Render while wipe starts (fail-soft).
     void fetch("/api/backend-health").catch(() => undefined);
+
+    const stallTimer = window.setTimeout(() => {
+      if (cancelled || runId !== runIdRef.current) return;
+      stalled = true;
+      setError(vaultShowcaseStallMessage(showcaseKind));
+      setStatus(null);
+    }, VAULT_SHOWCASE_STALL_MS);
 
     async function load() {
       try {
@@ -71,7 +91,7 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
         const data = await consumePartnerDemoNdjson(res, {
           failedMessage,
           onProgress: (event) => {
-            if (cancelled || runId !== runIdRef.current) return;
+            if (cancelled || stalled || runId !== runIdRef.current) return;
             if (event.step === lastStep) return;
             lastStep = event.step;
             setStatus(
@@ -81,7 +101,7 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
             );
           },
         });
-        if (cancelled || runId !== runIdRef.current) return;
+        if (cancelled || stalled || runId !== runIdRef.current) return;
 
         const query = new URLSearchParams({
           view: "insights",
@@ -100,9 +120,9 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
         router.replace(`/?${query.toString()}`);
         router.refresh();
       } catch (err) {
-        if (cancelled || runId !== runIdRef.current) return;
+        if (cancelled || stalled || runId !== runIdRef.current) return;
         const raw = err instanceof Error ? err.message : failedMessage;
-        setError(raw === "Failed to fetch" ? failedMessage : raw);
+        setError(humanizeInternalError(raw, failedMessage));
         setStatus(null);
       }
     }
@@ -110,30 +130,38 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
     void load();
     return () => {
       cancelled = true;
+      window.clearTimeout(stallTimer);
     };
   }, [kind, attempt, router]);
 
   if (!kind) return null;
+
+  const cancelHref = keepSetFileName
+    ? vaultInsightsHref(keepSetFileName)
+    : defaultInsightsHref();
 
   return (
     <VaultShowcaseLoadingPanel
       kind={kind}
       status={status}
       error={error}
+      cancelHref={cancelHref}
       onRetry={() => setAttempt((n) => n + 1)}
     />
   );
 }
 
-function VaultShowcaseLoadingPanel({
+export function VaultShowcaseLoadingPanel({
   kind,
   status,
   error,
+  cancelHref,
   onRetry,
 }: {
   kind: VaultShowcaseKind;
   status: string | null;
   error: string | null;
+  cancelHref: string;
   onRetry: () => void;
 }) {
   const displayName = vaultShowcaseDisplayName(kind);
@@ -166,21 +194,29 @@ function VaultShowcaseLoadingPanel({
           {error ? (
             <p>{error}</p>
           ) : (
-            <p aria-live="polite" aria-atomic="true">
-              {status ?? vaultShowcaseLoadingLabel(kind)}
-            </p>
+            <>
+              <p aria-live="polite" aria-atomic="true">
+                {status ?? vaultShowcaseLoadingLabel(kind)}
+              </p>
+              <p className="mt-1">{vaultShowcaseExpectation()}</p>
+            </>
           )}
         </div>
-        {error ? (
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          {error ? (
             <button type="button" className="btn-primary" onClick={onRetry}>
-              Try Again
+              Retry
             </button>
-            <Link href={viewHref("upload")} className="btn-secondary">
+          ) : null}
+          <Link href={cancelHref} className="btn-secondary">
+            Cancel
+          </Link>
+          {error ? (
+            <Link href={viewHref("upload")} className="btn-tertiary">
               Open Upload
             </Link>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </CardContent>
     </Card>
   );

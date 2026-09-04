@@ -7,8 +7,10 @@ import {
   isVaultShowcaseFile,
   resolveVaultShowcaseKind,
   vaultShowcaseAlreadyActive,
+  vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
+  vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
 } from "./vault-showcase";
 
@@ -60,11 +62,11 @@ describe("vaultShowcaseStoreAction", () => {
 });
 
 describe("vaultShowcaseLoadingLabel", () => {
-  it("uses Title Case loading ellipsis", () => {
-    expect(vaultShowcaseLoadingLabel("sample")).toBe("Loading Sample…");
-    expect(vaultShowcaseLoadingLabel("partner")).toBe(
-      "Loading Partner Demo…",
-    );
+  it("uses Finding signals for both showcase packs", () => {
+    expect(vaultShowcaseLoadingLabel("sample")).toBe("Finding signals…");
+    expect(vaultShowcaseLoadingLabel("partner")).toBe("Finding signals…");
+    expect(vaultShowcaseExpectation()).toMatch(/20 seconds/);
+    expect(vaultShowcaseStallMessage("partner")).toMatch(/longer than expected/);
     expect(vaultShowcaseFailedMessage("sample")).toContain("Sample");
   });
 });

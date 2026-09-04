@@ -102,10 +102,19 @@ describe("GET /api/eval/partner-export", () => {
       new Request("http://localhost/api/eval/partner-export?week2=1")
     );
     expect(res.status).toBe(404);
-    await expect(res.json()).resolves.toMatchObject({
+    const body = (await res.json()) as {
+      ok: boolean;
+      code: string;
+      message: string;
+      debugMessage?: string;
+    };
+    expect(body).toMatchObject({
       ok: false,
       code: "missing_file",
+      message: "Week-2 export isn’t ready yet.",
     });
+    expect(body.message).not.toMatch(/\/var\/task|npm run |week2\.local\.csv/);
+    expect(body.debugMessage).toBeUndefined();
   });
 
   it("maps other loader failures to 500 error", async () => {
@@ -117,10 +126,18 @@ describe("GET /api/eval/partner-export", () => {
       new Request("http://localhost/api/eval/partner-export")
     );
     expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({
+    const body = (await res.json()) as {
+      ok: boolean;
+      code: string;
+      message: string;
+      debugMessage?: string;
+    };
+    expect(body).toEqual({
       ok: false,
       code: "error",
-      message: "CSV parse failed",
+      message: "Export eval is unavailable right now.",
     });
+    expect(body.message).not.toMatch(/CSV parse failed|\/var\/task|npm run /);
+    expect(body.debugMessage).toBeUndefined();
   });
 });

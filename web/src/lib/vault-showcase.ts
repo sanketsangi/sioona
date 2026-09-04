@@ -60,8 +60,13 @@ export function vaultShowcaseDisplayName(kind: VaultShowcaseKind): string {
 /** Idle / first-paint label before NDJSON progress arrives. */
 export function vaultShowcaseLoadingLabel(kind: VaultShowcaseKind): string {
   return kind === "sample"
-    ? "Loading Sample…"
-    : "Loading Partner Demo…";
+    ? "Finding signals…"
+    : "Finding signals…";
+}
+
+/** Realistic wait copy under the status line. */
+export function vaultShowcaseExpectation(): string {
+  return "Usually ready in about 20 seconds.";
 }
 
 export function vaultShowcaseFailedMessage(kind: VaultShowcaseKind): string {
@@ -69,3 +74,11 @@ export function vaultShowcaseFailedMessage(kind: VaultShowcaseKind): string {
     ? "Sample failed to load"
     : "Partner Demo failed to load";
 }
+
+export function vaultShowcaseStallMessage(kind: VaultShowcaseKind): string {
+  const pack = kind === "sample" ? "Sample" : "Partner Demo";
+  return `${pack} is taking longer than expected. Retry, or cancel to stay on the current batch.`;
+}
+
+/** How long the loader may spin before a soft-fail. */
+export const VAULT_SHOWCASE_STALL_MS = 30_000;

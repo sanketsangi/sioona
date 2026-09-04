@@ -110,6 +110,27 @@ export async function persistHealedPilot(
  * `store.pilot` (header filename / cadence helper). Upload still awaits
  * `refreshStorePilotFromNeon` on GET / so cadence chrome is live.
  */
+/**
+ * Insights/Eval after-paint heal must not revert a just-written JSON
+ * keep-set filename to a stale Neon pack (Partner Demo wipe still in flight).
+ * Upload still awaits `overlayPilotFromRemote` so Neon can win there.
+ */
+export function preserveLocalKeepSetFilename(
+  healed: StoreData,
+  latest: StoreData
+): StoreData {
+  const local = latest.pilot?.lastUploadedFileName?.trim();
+  if (!local) return healed;
+  if (healed.pilot?.lastUploadedFileName === local) return healed;
+  if (!healed.pilot) {
+    return { ...healed, pilot: { ...latest.pilot, lastUploadedFileName: local } };
+  }
+  return {
+    ...healed,
+    pilot: { ...healed.pilot, lastUploadedFileName: local },
+  };
+}
+
 export async function persistDeferredPilotRefresh(
   tenantId: string
 ): Promise<void> {
@@ -117,7 +138,7 @@ export async function persistDeferredPilotRefresh(
   const latest = await readStore();
   if (latest.tenant.id !== tenantId) return;
   const healed = await refreshStorePilotFromNeon(latest);
-  await persistHealedPilot(healed, latest);
+  await persistHealedPilot(preserveLocalKeepSetFilename(healed, latest), latest);
 }
 
 export async function syncPilotSettingsToBackend(

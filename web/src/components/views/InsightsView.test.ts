@@ -227,6 +227,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Conversation that needs your attention");
+    expect(html).toContain("Shadow Mode — Confirm or correct detections");
+    expect(html).toContain("nothing is sent");
     expect(html).toContain("Queue metrics");
     const titleAt = html.indexOf("Conversation that needs your attention");
     const metricsAt = html.indexOf('aria-label="Queue metrics"');
@@ -247,11 +249,11 @@ describe("InsightsView pending landing empty Follow-up", () => {
       reviewAnchors.every(
         (anchor) =>
           anchor.includes("rounded-full") &&
-          anchor.includes("h-7") &&
-          anchor.includes("w-auto") &&
           !anchor.includes("w-7"),
       ),
     ).toBe(true);
+    expect(html).toContain("data-queue-card");
+    expect(html).toContain("line-clamp-3");
     expect(html).toContain('data-queue-preview="true"');
     expect(html).toContain("data-queue-row-link");
     expect(html.match(/id="signal-summary-sig_1"/g)?.length).toBe(1);
@@ -835,7 +837,9 @@ describe("InsightsView Neon pending overlay", () => {
     );
 
     expect(html).toContain("Groww_batch_02");
-    expect(html).toContain("Loading Sample…");
+    expect(html).toContain("Finding signals…");
+    expect(html).toContain("Usually ready in about 20 seconds.");
+    expect(html).toContain("Cancel");
     expect(html).not.toContain("Sample Not Loaded");
     expect(html).not.toContain("Pending signal 1");
   });
@@ -1165,7 +1169,6 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
-    expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
@@ -1250,22 +1253,21 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain(">Edit</button>");
     expect(html).toContain("Following up on your account — can we help?");
     expect(html).toContain("data-review-slot=\"retention-email\"");
+    const feedbackSlot = html.indexOf('data-review-slot="feedback"');
+    const actionsSlot = html.indexOf('data-review-slot="actions"');
     const whySlot = html.indexOf('data-review-slot="why"');
     const retentionSlot = html.indexOf('data-review-slot="retention-email"');
-    const feedbackSlot = html.indexOf('data-review-slot="feedback"');
-    expect(whySlot).toBeGreaterThan(-1);
-    expect(retentionSlot).toBeGreaterThan(whySlot);
-    expect(feedbackSlot).toBeGreaterThan(retentionSlot);
-    // Retention nests inside Recommended Actions; Feedback stays a sibling.
+    expect(feedbackSlot).toBeGreaterThan(-1);
+    expect(actionsSlot).toBeGreaterThan(feedbackSlot);
+    expect(retentionSlot).toBeGreaterThan(actionsSlot);
+    expect(whySlot).toBeGreaterThan(retentionSlot);
+    // Retention nests inside Recommended Actions; Why This Fired is a sibling.
     expect(html.match(/data-review-slot="why"/g)?.length).toBe(1);
-    const whyChunk = html.slice(whySlot, feedbackSlot);
-    expect(whyChunk).toContain('data-review-slot="retention-email"');
-    expect(whyChunk).toContain("Retention Email");
-    if (whyChunk.includes("Matched")) {
-      expect(whyChunk.indexOf("Matched")).toBeLessThan(
-        whyChunk.indexOf("Retention Email"),
-      );
-    }
+    const actionsChunk = html.slice(actionsSlot, whySlot);
+    expect(actionsChunk).toContain('data-review-slot="retention-email"');
+    expect(actionsChunk).toContain("Retention Email");
+    expect(actionsChunk).toContain("Recommended Actions");
+    expect(html).toContain("Why This Fired");
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
     expect(html).toContain("Copy Reply");
@@ -1277,7 +1279,6 @@ describe("InsightsView review conversation + action", () => {
     );
     expect(html).not.toContain("Mark as Pending");
     expect(html).toContain("Open Conversation");
-    expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
