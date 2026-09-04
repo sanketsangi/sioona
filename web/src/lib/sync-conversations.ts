@@ -106,6 +106,8 @@ export function toConversationSyncPayload(
 
 /** Chunk size for /v1/conversations/bulk — Neon ~5–9s/chat; keep under client timeout. */
 export const CONVERSATION_SYNC_CHUNK_SIZE = 5;
+/** Parallel bulk chunks — caps Neon load while cutting Partner Demo wall time. */
+export const CONVERSATION_SYNC_CONCURRENCY = 2;
 
 async function upsertConversationChunkWithRetry(
   tenantId: string,
@@ -144,26 +146,33 @@ async function upsertConversationsWithRetry(
   >
 ) {
   const payload = toConversationSyncPayload(conversations, messages, options);
+  const chunks: BackendConversationInput[][] = [];
+  for (let i = 0; i < payload.length; i += CONVERSATION_SYNC_CHUNK_SIZE) {
+    chunks.push(payload.slice(i, i + CONVERSATION_SYNC_CHUNK_SIZE));
+  }
+
   let created = 0;
   let updated = 0;
   let messages_created = 0;
   let messages_updated = 0;
+  let completed = 0;
 
-  for (let i = 0; i < payload.length; i += CONVERSATION_SYNC_CHUNK_SIZE) {
-    const chunk = payload.slice(i, i + CONVERSATION_SYNC_CHUNK_SIZE);
-    const result = await upsertConversationChunkWithRetry(
-      tenantId,
-      chunk,
-      sleep
+  for (let i = 0; i < chunks.length; i += CONVERSATION_SYNC_CONCURRENCY) {
+    const wave = chunks.slice(i, i + CONVERSATION_SYNC_CONCURRENCY);
+    const results = await Promise.all(
+      wave.map((chunk) =>
+        upsertConversationChunkWithRetry(tenantId, chunk, sleep)
+      )
     );
-    created += result.created;
-    updated += result.updated;
-    messages_created += result.messages_created;
-    messages_updated += result.messages_updated;
-    await options?.onProgress?.(
-      Math.min(i + chunk.length, payload.length),
-      payload.length
-    );
+    for (let w = 0; w < wave.length; w++) {
+      const result = results[w];
+      created += result.created;
+      updated += result.updated;
+      messages_created += result.messages_created;
+      messages_updated += result.messages_updated;
+      completed += wave[w].length;
+    }
+    await options?.onProgress?.(completed, payload.length);
   }
 
   return { created, updated, messages_created, messages_updated };

@@ -1,2 +1,29 @@
 # OS / editor cruft
 .DS_Store
+*.pem
+
+# Accidental root installs / caches
+/node_modules/
+.vite/
+
+# Cursor debug / agent scratch
+.cursor/debug-*.log
+.cursor/**/debug-*.log
+
+# Env (root); web/backend have their own
+.env
+.env.*
+!.env.example
+
+# Python / tooling at root if ever added
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

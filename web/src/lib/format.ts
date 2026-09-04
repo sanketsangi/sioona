@@ -113,17 +113,6 @@ export function signalTypeLabel(type: SignalType): string {
   }
 }
 
-export function signalTypeClass(type: SignalType): string {
-  switch (type) {
-    case "lead":
-      return "bg-ds-blue-100 text-ds-blue-900 ring-ds-blue-700/40";
-    case "retention":
-      return "bg-ds-amber-100 text-ds-amber-900 ring-ds-amber-700/40";
-    case "upsell":
-      return "bg-ds-teal-100 text-ds-teal-900 ring-ds-teal-700/40";
-  }
-}
-
 /** Quiet status mark fill for queue chips (`sio-status-*`). Not signal-type colors. */
 export function signalStatusMarkClass(state: SignalStatusDotState): string {
   switch (state) {
@@ -150,10 +139,6 @@ export function signalTypeMarkClass(type: SignalType): string {
     case "upsell":
       return "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg";
   }
-}
-
-export function signalTypeInitial(type: SignalType): string {
-  return signalTypeLabel(type).charAt(0);
 }
 
 /** Human-readable evidence line (quotes vs match labels). */

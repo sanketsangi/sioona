@@ -251,22 +251,6 @@ export function DrawerContent({
   );
 }
 
-export function DrawerHeader({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={`flex shrink-0 flex-col gap-0 border-b border-sio-border-base px-1 py-3 sm:px-2 sm:py-3.5 ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function DrawerTitle({
   children,
   className = "",

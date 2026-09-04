@@ -7,7 +7,7 @@ import {
   useMessageScrollerScrollable,
   useMessageScrollerVisibility,
 } from "@shadcn/react/message-scroller";
-import { RiArrowDownLine } from "@remixicon/react";
+import { ArrowDown } from "@phosphor-icons/react/ssr";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -111,7 +111,7 @@ function MessageScrollerButton({
     >
       {children ?? (
         <>
-          <RiArrowDownLine />
+          <ArrowDown />
           <span className="sr-only">
             {direction === "end" ? "Scroll to end" : "Scroll to start"}
           </span>

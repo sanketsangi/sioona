@@ -17,17 +17,14 @@ function normalizeExternalId(value: string | undefined): string | undefined {
 }
 
 function remappedMessages(
-  incoming: Message[],
-  incomingConversationId: string,
+  incomingMessages: Message[],
   keepId: string
 ): Message[] {
-  return incoming
-    .filter((message) => message.conversationId === incomingConversationId)
-    .map((message, index) => ({
-      ...message,
-      id: `msg_${keepId}_${index}`,
-      conversationId: keepId,
-    }));
+  return incomingMessages.map((message, index) => ({
+    ...message,
+    id: `msg_${keepId}_${index}`,
+    conversationId: keepId,
+  }));
 }
 
 /**
@@ -52,6 +49,26 @@ export function mergeConversationsByExternalId(
     messagesByConversation.set(message.conversationId, list);
   }
 
+  const incomingMessagesByConversation = new Map<string, Message[]>();
+  for (const message of incoming.messages) {
+    const list =
+      incomingMessagesByConversation.get(message.conversationId) ?? [];
+    list.push(message);
+    incomingMessagesByConversation.set(message.conversationId, list);
+  }
+
+  // Indexes for O(1) match (skip claimed rows via Sets on ids).
+  const byExternalId = new Map<string, number>();
+  const byId = new Map<string, number>();
+  for (let i = 0; i < conversations.length; i++) {
+    const conversation = conversations[i];
+    byId.set(conversation.id, i);
+    const externalId = normalizeExternalId(conversation.externalId);
+    if (externalId && !byExternalId.has(externalId)) {
+      byExternalId.set(externalId, i);
+    }
+  }
+
   const claimed = new Set<string>();
   const replacedIds: string[] = [];
   const addedIds: string[] = [];
@@ -64,35 +81,43 @@ export function mergeConversationsByExternalId(
       ? stableConversationId(incomingExternalId, new Set())
       : undefined;
 
-    const matchIndex = conversations.findIndex((existingConversation) => {
-      if (claimed.has(existingConversation.id)) return false;
-      const existingExternalId = normalizeExternalId(
-        existingConversation.externalId
-      );
+    let matchIndex = -1;
+    if (incomingExternalId != null) {
+      const byExt = byExternalId.get(incomingExternalId);
       if (
-        incomingExternalId &&
-        existingExternalId &&
-        incomingExternalId === existingExternalId
+        byExt != null &&
+        !claimed.has(conversations[byExt].id)
       ) {
-        return true;
+        matchIndex = byExt;
       }
-      return (
-        existingConversation.id === incomingConversation.id ||
-        (stableId != null && existingConversation.id === stableId)
-      );
-    });
+    }
+    if (matchIndex < 0) {
+      const byIncomingId = byId.get(incomingConversation.id);
+      if (
+        byIncomingId != null &&
+        !claimed.has(conversations[byIncomingId].id)
+      ) {
+        matchIndex = byIncomingId;
+      }
+    }
+    if (matchIndex < 0 && stableId != null) {
+      const byStable = byId.get(stableId);
+      if (byStable != null && !claimed.has(conversations[byStable].id)) {
+        matchIndex = byStable;
+      }
+    }
 
-    const incomingMessages = remappedMessages(
-      incoming.messages,
-      incomingConversation.id,
+    const keepId =
       matchIndex >= 0
         ? conversations[matchIndex].id
-        : incomingConversation.id
+        : incomingConversation.id;
+    const incomingMessages = remappedMessages(
+      incomingMessagesByConversation.get(incomingConversation.id) ?? [],
+      keepId
     );
 
     if (matchIndex >= 0) {
       const prior = conversations[matchIndex];
-      const keepId = prior.id;
       claimed.add(keepId);
       replacedIds.push(keepId);
       conversations[matchIndex] = {
@@ -111,10 +136,15 @@ export function mergeConversationsByExternalId(
 
     claimed.add(incomingConversation.id);
     addedIds.push(incomingConversation.id);
+    const newIndex = conversations.length;
     conversations.push({
       ...incomingConversation,
       messageIds: incomingMessages.map((message) => message.id),
     });
+    byId.set(incomingConversation.id, newIndex);
+    if (incomingExternalId && !byExternalId.has(incomingExternalId)) {
+      byExternalId.set(incomingExternalId, newIndex);
+    }
     messagesByConversation.set(incomingConversation.id, incomingMessages);
   }
 

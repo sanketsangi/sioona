@@ -6,6 +6,7 @@ import {
   VERCEL_BACKEND_MISCONFIG_MESSAGE,
   assertBackendUrlConfigured,
   createPrediction,
+  createPredictionsBulk,
   BACKEND_HEALTH_TIMEOUT_MS,
   getBackendHealth,
   getConversations,
@@ -86,6 +87,51 @@ describe("backendFetch timeout", () => {
     expect(created.id).toBe("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/v1/predictions"),
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          "X-Tenant-Id": "tenant_demo",
+        }),
+        signal: expect.any(AbortSignal),
+      })
+    );
+  });
+
+  it("posts prediction bulk upsert with X-Tenant-Id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        predictions: [
+          {
+            id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+            tenant_id: "tenant_demo",
+            conversation_id: "conv_1",
+            signal_type: "lead",
+            confidence: 0.9,
+            summary: "Buying intent",
+            created_at: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+        created: 1,
+        updated: 0,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await createPredictionsBulk("tenant_demo", [
+      {
+        conversation_id: "conv_1",
+        signal_type: "lead",
+        confidence: 0.9,
+        summary: "Buying intent",
+      },
+    ]);
+
+    expect(result.created).toBe(1);
+    expect(result.predictions).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/v1/predictions/bulk"),
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({

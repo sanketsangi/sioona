@@ -737,6 +737,74 @@ def test_prediction_upsert_same_conversation_and_type(client: TestClient) -> Non
     assert matches[0]["id"] == signal_id
 
 
+def test_prediction_bulk_upsert_and_tenant_isolation(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_bulk"}
+    first = client.post(
+        "/v1/predictions/bulk",
+        headers=headers,
+        json={
+            "predictions": [
+                {
+                    "conversation_id": "conv_bulk_1",
+                    "signal_type": "lead",
+                    "confidence": 0.7,
+                    "summary": "First lead",
+                },
+                {
+                    "conversation_id": "conv_bulk_2",
+                    "signal_type": "retention",
+                    "confidence": 0.8,
+                    "summary": "First retention",
+                },
+            ]
+        },
+    )
+    assert first.status_code == 201
+    body = first.json()
+    assert body["created"] == 2
+    assert body["updated"] == 0
+    assert len(body["predictions"]) == 2
+    ids = {row["conversation_id"]: row["id"] for row in body["predictions"]}
+
+    second = client.post(
+        "/v1/predictions/bulk",
+        headers=headers,
+        json={
+            "predictions": [
+                {
+                    "conversation_id": "conv_bulk_1",
+                    "signal_type": "lead",
+                    "confidence": 0.91,
+                    "summary": "Updated lead",
+                },
+                {
+                    "conversation_id": "conv_bulk_3",
+                    "signal_type": "upsell",
+                    "confidence": 0.6,
+                    "summary": "New upsell",
+                },
+            ]
+        },
+    )
+    assert second.status_code == 201
+    body2 = second.json()
+    assert body2["created"] == 1
+    assert body2["updated"] == 1
+    by_conv = {row["conversation_id"]: row for row in body2["predictions"]}
+    assert by_conv["conv_bulk_1"]["id"] == ids["conv_bulk_1"]
+    assert by_conv["conv_bulk_1"]["confidence"] == 0.91
+    assert by_conv["conv_bulk_1"]["summary"] == "Updated lead"
+    assert by_conv["conv_bulk_3"]["signal_type"] == "upsell"
+
+    other = client.get(
+        "/v1/tenants/other_tenant/signals/needs-review",
+        headers={"X-Tenant-Id": "other_tenant"},
+        params={"limit": 100},
+    )
+    assert other.status_code == 200
+    assert all(row["tenant_id"] != "tenant_bulk" for row in other.json())
+
+
 def test_tenant_signals_include_feedback_and_isolate_tenants(
     client: TestClient,
 ) -> None:

@@ -113,19 +113,26 @@ def _upsert_one_message(
     tenant_id: str,
     conversation_id: str,
     payload: MessageUpsert,
+    existing_by_id: dict[str, Message] | None = None,
 ) -> tuple[Message, bool]:
     """Insert or update one message. Returns (row, created)."""
     _validate_role(payload.role)
-    existing = db.scalar(
-        select(Message).where(
-            Message.tenant_id == tenant_id,
-            Message.message_id == payload.message_id,
+    existing = (
+        existing_by_id.get(payload.message_id)
+        if existing_by_id is not None
+        else db.scalar(
+            select(Message).where(
+                Message.tenant_id == tenant_id,
+                Message.message_id == payload.message_id,
+            )
         )
     )
     if existing is not None:
         _apply_message_fields(
             existing, conversation_id=conversation_id, payload=payload
         )
+        if existing_by_id is not None:
+            existing_by_id[payload.message_id] = existing
         return existing, False
 
     row = Message(
@@ -152,7 +159,11 @@ def _upsert_one_message(
         _apply_message_fields(
             raced, conversation_id=conversation_id, payload=payload
         )
+        if existing_by_id is not None:
+            existing_by_id[payload.message_id] = raced
         return raced, False
+    if existing_by_id is not None:
+        existing_by_id[payload.message_id] = row
     return row, True
 
 
@@ -162,6 +173,8 @@ def upsert_conversation(
     tenant_id: str,
     payload: ConversationUpsert,
     commit: bool = True,
+    existing_conversation: Conversation | None = None,
+    existing_messages_by_id: dict[str, Message] | None = None,
 ) -> ConversationUpsertResult:
     """Insert or update the conversation for tenant + conversation_id.
 
@@ -170,12 +183,14 @@ def upsert_conversation(
     (messages for a match are replaced). Empty ``messages`` is metadata-only.
     Re-detect / Partner Demo reuse the same Neon conversation row.
     """
-    existing = db.scalar(
-        select(Conversation).where(
-            Conversation.tenant_id == tenant_id,
-            Conversation.conversation_id == payload.conversation_id,
+    existing = existing_conversation
+    if existing is None:
+        existing = db.scalar(
+            select(Conversation).where(
+                Conversation.tenant_id == tenant_id,
+                Conversation.conversation_id == payload.conversation_id,
+            )
         )
-    )
     created = False
     if existing is not None:
         _apply_conversation_fields(existing, payload)
@@ -218,6 +233,7 @@ def upsert_conversation(
             tenant_id=tenant_id,
             conversation_id=payload.conversation_id,
             payload=msg,
+            existing_by_id=existing_messages_by_id,
         )
         messages.append(row)
         if msg_created:
@@ -258,7 +274,46 @@ def upsert_conversations(
     tenant_id: str,
     payloads: list[ConversationUpsert],
 ) -> ConversationBulkResult:
-    """Bulk upsert in one transaction (Partner Demo / ingest)."""
+    """Bulk upsert in one transaction (Partner Demo / ingest).
+
+    Preloads existing conversations + messages for the chunk (two SELECTs)
+    and reloads rows once after commit instead of per-row refresh.
+    """
+    if not payloads:
+        return ConversationBulkResult(
+            items=[],
+            created=0,
+            updated=0,
+            messages_created=0,
+            messages_updated=0,
+        )
+
+    conversation_ids = [payload.conversation_id for payload in payloads]
+    existing_conversations = {
+        row.conversation_id: row
+        for row in db.scalars(
+            select(Conversation).where(
+                Conversation.tenant_id == tenant_id,
+                Conversation.conversation_id.in_(conversation_ids),
+            )
+        ).all()
+    }
+
+    message_ids = [
+        msg.message_id for payload in payloads for msg in payload.messages
+    ]
+    existing_messages_by_id: dict[str, Message] = {}
+    if message_ids:
+        existing_messages_by_id = {
+            row.message_id: row
+            for row in db.scalars(
+                select(Message).where(
+                    Message.tenant_id == tenant_id,
+                    Message.message_id.in_(message_ids),
+                )
+            ).all()
+        }
+
     items: list[ConversationUpsertResult] = []
     created = 0
     updated = 0
@@ -267,7 +322,14 @@ def upsert_conversations(
 
     for payload in payloads:
         item = upsert_conversation(
-            db, tenant_id=tenant_id, payload=payload, commit=False
+            db,
+            tenant_id=tenant_id,
+            payload=payload,
+            commit=False,
+            existing_conversation=existing_conversations.get(
+                payload.conversation_id
+            ),
+            existing_messages_by_id=existing_messages_by_id,
         )
         items.append(item)
         if item.created:
@@ -276,15 +338,64 @@ def upsert_conversations(
             updated += 1
         messages_created += item.messages_created
         messages_updated += item.messages_updated
+        existing_conversations[payload.conversation_id] = item.conversation
 
     db.commit()
+
+    reloaded_conversations = {
+        row.conversation_id: row
+        for row in db.scalars(
+            select(Conversation).where(
+                Conversation.tenant_id == tenant_id,
+                Conversation.conversation_id.in_(conversation_ids),
+            )
+        ).all()
+    }
+    reloaded_messages = list(
+        db.scalars(
+            select(Message)
+            .where(
+                Message.tenant_id == tenant_id,
+                Message.conversation_id.in_(conversation_ids),
+            )
+            .order_by(Message.timestamp.asc())
+        ).all()
+    )
+    messages_by_conv: dict[str, list[Message]] = {
+        cid: [] for cid in conversation_ids
+    }
+    for row in reloaded_messages:
+        messages_by_conv.setdefault(row.conversation_id, []).append(row)
+
+    refreshed_items: list[ConversationUpsertResult] = []
     for item in items:
-        db.refresh(item.conversation)
-        for row in item.messages:
-            db.refresh(row)
+        cid = item.conversation.conversation_id
+        conversation = reloaded_conversations.get(cid, item.conversation)
+        keep_ids = {msg.message_id for msg in item.messages}
+        messages = [
+            row
+            for row in messages_by_conv.get(cid, [])
+            if row.message_id in keep_ids
+        ]
+        # Preserve payload order when possible.
+        by_id = {row.message_id: row for row in messages}
+        ordered = [
+            by_id[msg.message_id]
+            for msg in item.messages
+            if msg.message_id in by_id
+        ]
+        refreshed_items.append(
+            ConversationUpsertResult(
+                conversation=conversation,
+                messages=ordered,
+                created=item.created,
+                messages_created=item.messages_created,
+                messages_updated=item.messages_updated,
+            )
+        )
 
     return ConversationBulkResult(
-        items=items,
+        items=refreshed_items,
         created=created,
         updated=updated,
         messages_created=messages_created,
@@ -430,6 +541,8 @@ def prune_conversations_not_in(
     """Delete this tenant's conversations whose ids are not in ``keep_ids``.
 
     Returns (deleted, kept). Never touches other tenants.
+    Children (feedback → predictions → messages → conversations) are removed
+    in bulk rather than one delete_conversation round-trip per id.
     """
     existing = list(
         db.scalars(
@@ -438,15 +551,43 @@ def prune_conversations_not_in(
             )
         ).all()
     )
-    deleted = 0
-    kept = 0
-    for cid in existing:
-        if cid in keep_ids:
-            kept += 1
-            continue
-        if delete_conversation(
-            db, tenant_id=tenant_id, conversation_id=cid, commit=False
-        ):
-            deleted += 1
+    to_delete = [cid for cid in existing if cid not in keep_ids]
+    kept = len(existing) - len(to_delete)
+    if not to_delete:
+        return 0, kept
+
+    pred_ids = list(
+        db.scalars(
+            select(SignalPrediction.id).where(
+                SignalPrediction.tenant_id == tenant_id,
+                SignalPrediction.conversation_id.in_(to_delete),
+            )
+        ).all()
+    )
+    if pred_ids:
+        db.execute(
+            delete(SignalFeedback).where(
+                SignalFeedback.tenant_id == tenant_id,
+                SignalFeedback.signal_id.in_(pred_ids),
+            )
+        )
+        db.execute(
+            delete(SignalPrediction).where(
+                SignalPrediction.tenant_id == tenant_id,
+                SignalPrediction.conversation_id.in_(to_delete),
+            )
+        )
+    db.execute(
+        delete(Message).where(
+            Message.tenant_id == tenant_id,
+            Message.conversation_id.in_(to_delete),
+        )
+    )
+    db.execute(
+        delete(Conversation).where(
+            Conversation.tenant_id == tenant_id,
+            Conversation.conversation_id.in_(to_delete),
+        )
+    )
     db.commit()
-    return deleted, kept
+    return len(to_delete), kept

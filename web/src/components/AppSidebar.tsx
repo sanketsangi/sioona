@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, type ComponentProps } from "react";
 import { CaretRight, Tag } from "@phosphor-icons/react/ssr";
@@ -12,9 +13,6 @@ import { FileIcon } from "@/components/icons/FileIcon";
 import { FolderIcon } from "@/components/icons/FolderIcon";
 import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
-import { FeedbackDialog } from "@/components/FeedbackDialog";
-import { GuidanceDialog } from "@/components/GuidanceDialog";
-import { HelpDialog } from "@/components/HelpDialog";
 import { NavUser } from "@/components/NavUser";
 import { SioonaLogotype } from "@/components/SioonaLogotype";
 import {
@@ -51,6 +49,21 @@ import {
   vaultInsightsHref,
 } from "@/lib/vault-file";
 import { viewHref, type PlatformView } from "@/lib/views";
+
+const HelpDialog = dynamic(
+  () => import("@/components/HelpDialog").then((mod) => mod.HelpDialog),
+  { ssr: false },
+);
+const GuidanceDialog = dynamic(
+  () =>
+    import("@/components/GuidanceDialog").then((mod) => mod.GuidanceDialog),
+  { ssr: false },
+);
+const FeedbackDialog = dynamic(
+  () =>
+    import("@/components/FeedbackDialog").then((mod) => mod.FeedbackDialog),
+  { ssr: false },
+);
 
 const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
   { view: "insights", label: "Insights", icon: null },

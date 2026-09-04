@@ -178,13 +178,10 @@ export function logSupervisedAction(
 }
 
 function customerNameForSignal(
-  conversations: Conversation[],
+  conversationsById: Map<string, Conversation>,
   conversationId: string,
 ): string {
-  return (
-    conversations.find((conversation) => conversation.id === conversationId)
-      ?.customerName ?? ""
-  );
+  return conversationsById.get(conversationId)?.customerName ?? "";
 }
 
 export type EnsureSupervisedActionsResult = {
@@ -235,6 +232,9 @@ export function ensureSupervisedActions(
   extraConversations: Conversation[] = [],
 ): EnsureSupervisedActionsResult {
   const conversations = [...store.conversations, ...extraConversations];
+  const conversationsById = new Map(
+    conversations.map((conversation) => [conversation.id, conversation]),
+  );
   const seenSignalIds = new Set<string>();
   const candidates: Signal[] = [];
   for (const signal of [...store.signals, ...extraSignals]) {
@@ -262,7 +262,7 @@ export function ensureSupervisedActions(
         changed = true;
       }
       const name = customerNameForSignal(
-        conversations,
+        conversationsById,
         signal.conversationId,
       );
       if (backfillPendingRetentionEvidence(existing, signal, name)) {
@@ -272,7 +272,10 @@ export function ensureSupervisedActions(
     }
     const action = createRetentionEmailAction({
       signal,
-      customerName: customerNameForSignal(conversations, signal.conversationId),
+      customerName: customerNameForSignal(
+        conversationsById,
+        signal.conversationId,
+      ),
       evidence: signal.evidence,
     });
     byKey.set(key, action);

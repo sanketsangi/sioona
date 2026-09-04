@@ -324,6 +324,35 @@ export async function createPrediction(
   });
 }
 
+/** Bulk prediction upserts — Partner Demo / ingest (~50–100 signals). */
+export const BACKEND_BULK_PREDICTION_TIMEOUT_MS = 60_000;
+
+export type BackendPredictionBulkResult = {
+  predictions: BackendPrediction[];
+  created: number;
+  updated: number;
+};
+
+export async function createPredictionsBulk(
+  tenantId: string,
+  predictions: Array<{
+    conversation_id: string;
+    signal_type: string;
+    confidence: number;
+    summary: string;
+  }>
+): Promise<BackendPredictionBulkResult> {
+  return backendFetch<BackendPredictionBulkResult>(
+    tenantId,
+    "/v1/predictions/bulk",
+    {
+      method: "POST",
+      body: JSON.stringify({ predictions }),
+      timeoutMs: BACKEND_BULK_PREDICTION_TIMEOUT_MS,
+    }
+  );
+}
+
 export async function submitFeedback(
   tenantId: string,
   signalId: string,

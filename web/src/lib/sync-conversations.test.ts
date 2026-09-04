@@ -205,7 +205,6 @@ describe("syncConversationsToBackend", () => {
 
     expect(ticks).toEqual([
       { done: 0, total: 6 },
-      { done: 5, total: 6 },
       { done: 6, total: 6 },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);

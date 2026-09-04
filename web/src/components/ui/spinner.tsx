@@ -1,13 +1,13 @@
-import { RiLoaderLine } from "@remixicon/react"
+import { CircleNotch } from "@phosphor-icons/react/ssr"
 
 import { cn } from "@/lib/utils"
 
 function Spinner({
   className,
   ...props
-}: React.ComponentProps<typeof RiLoaderLine>) {
+}: React.ComponentProps<typeof CircleNotch>) {
   return (
-    <RiLoaderLine
+    <CircleNotch
       data-slot="spinner"
       role="status"
       aria-label="Loading"

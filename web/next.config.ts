@@ -3,6 +3,16 @@ import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sentry/profiling-node"],
+  // Barrel imports for icon kits / table — avoid compiling unused modules.
+  experimental: {
+    optimizePackageImports: [
+      "@phosphor-icons/react",
+      "@shadcn/react",
+      "@tanstack/react-table",
+      "radix-ui",
+      "react-day-picker",
+    ],
+  },
   async headers() {
     return [
       {

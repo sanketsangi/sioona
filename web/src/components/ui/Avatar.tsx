@@ -64,13 +64,3 @@ export function Avatar({
   );
 }
 
-/** Geistcn-aligned fallback alias — renders initials inside Avatar. */
-export function AvatarFallback({
-  children,
-  className = "",
-}: {
-  children?: ReactNode;
-  className?: string;
-}) {
-  return <span className={className}>{children}</span>;
-}

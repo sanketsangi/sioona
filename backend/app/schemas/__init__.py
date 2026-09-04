@@ -11,6 +11,8 @@ from app.schemas.conversation import (
 from app.schemas.feedback import FeedbackCreate, FeedbackResponse
 from app.schemas.prediction import (
     PredictionActedUpdate,
+    PredictionBulkResponse,
+    PredictionBulkUpsert,
     PredictionCreate,
     PredictionResponse,
     PredictionWithFeedbackResponse,
@@ -31,6 +33,8 @@ __all__ = [
     "MessageResponse",
     "MessageUpsert",
     "PredictionActedUpdate",
+    "PredictionBulkResponse",
+    "PredictionBulkUpsert",
     "PredictionCreate",
     "PredictionResponse",
     "PredictionWithFeedbackResponse",

@@ -5,7 +5,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { RiCloseLine } from "@remixicon/react"
+import { X } from "@phosphor-icons/react/ssr"
 
 function Dialog({
   ...props
@@ -74,8 +74,7 @@ function DialogContent({
               className="absolute top-4 right-4 text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base"
               size="icon-sm"
             >
-              <RiCloseLine
-              />
+              <X />
               <span className="sr-only">Close</span>
             </Button>
           </DialogPrimitive.Close>

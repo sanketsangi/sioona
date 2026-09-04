@@ -56,7 +56,7 @@ import {
   type TypeFilter,
   type WorkspaceMode,
 } from "@/lib/views";
-import type { Conversation, Message, StoreData } from "@/lib/types";
+import type { Conversation, Message, Signal, StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
   nextUnactedCorrectId,
@@ -108,6 +108,8 @@ export function InsightsView({
   workspaceMode = "shadow",
   backendScore = null,
   vaultFile = null,
+  precomputedPending = null,
+  precomputedReviewed = null,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -141,6 +143,9 @@ export function InsightsView({
   workspaceMode?: WorkspaceMode;
   /** Vault `?file=` — scope queue to that keep-set name when it matches. */
   vaultFile?: string | null;
+  /** From page.tsx — avoid recomputing the same joins for cadence + view. */
+  precomputedPending?: Signal[] | null;
+  precomputedReviewed?: Signal[] | null;
 }) {
   const keepSetMatches =
     !vaultFile ||
@@ -156,16 +161,20 @@ export function InsightsView({
       : null;
   const queueError = needsReview.ok ? null : needsReview.error;
   const tenantSignalsError = tenantSignals.ok ? null : tenantSignals.error;
-  const pendingJoined = needsReview.ok
-    ? pendingQueueSignals(
-        needsReview.predictions,
-        store.signals,
-        tenantSignals.ok ? tenantSignals.rows : undefined,
-      )
-    : store.signals.filter((s) => !s.feedback);
-  const reviewedJoined = tenantSignals.ok
-    ? reviewedQueueSignals(tenantSignals.rows, store.signals)
-    : reviewedSignalsFromStore(store.signals);
+  const pendingJoined =
+    precomputedPending ??
+    (needsReview.ok
+      ? pendingQueueSignals(
+          needsReview.predictions,
+          store.signals,
+          tenantSignals.ok ? tenantSignals.rows : undefined,
+        )
+      : store.signals.filter((s) => !s.feedback));
+  const reviewedJoined =
+    precomputedReviewed ??
+    (tenantSignals.ok
+      ? reviewedQueueSignals(tenantSignals.rows, store.signals)
+      : reviewedSignalsFromStore(store.signals));
   const chats = mergeOverlayChats(
     store.conversations,
     store.messages,

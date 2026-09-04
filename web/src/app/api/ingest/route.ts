@@ -152,15 +152,34 @@ export async function POST(request: Request) {
       );
     }
 
-    const { signals: newSignals, llm } = await runHybridDetection(
-      ingestedConversations,
-      ingestedMessages,
-      store.tenant.id,
-      store.taxonomyOverrides
-    );
     const ingestedConversationIds = new Set(
       ingestedConversations.map((conversation) => conversation.id)
     );
+
+    // Weekly partner drop-in ingest advances week-1 mid-week cadence (cold demo does not).
+    // Pilot fields do not depend on detect — overlap Neon PUT with hybrid detect
+    // so Upload TTFB pays max(detect, pilot) instead of sum.
+    store.pilot = {
+      baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
+      updatedAt: new Date().toISOString(),
+      weeklyExportCount: isPartnerSamplePackUpload
+        ? priorExports + 1
+        : priorWeeklyExportCount,
+      ...(store.pilot?.baselineNote
+        ? { baselineNote: store.pilot.baselineNote }
+        : {}),
+      ...(uploadedBasename ? { lastUploadedFileName: uploadedBasename } : {}),
+    };
+
+    const [{ signals: newSignals, llm }] = await Promise.all([
+      runHybridDetection(
+        ingestedConversations,
+        ingestedMessages,
+        store.tenant.id,
+        store.taxonomyOverrides
+      ),
+      syncPilotSettingsToBackend(store.tenant.id, store.pilot),
+    ]);
 
     if (replaceShowcase) {
       store.signals = mergeSignalsPreservingFeedback(priorSignals, newSignals);
@@ -174,21 +193,6 @@ export async function POST(request: Request) {
       ];
     }
 
-    // Weekly partner drop-in ingest advances week-1 mid-week cadence (cold demo does not).
-    store.pilot = {
-      baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
-      updatedAt: new Date().toISOString(),
-      weeklyExportCount: isPartnerSamplePackUpload
-        ? priorExports + 1
-        : priorWeeklyExportCount,
-      ...(store.pilot?.baselineNote
-        ? { baselineNote: store.pilot.baselineNote }
-        : {}),
-      ...(uploadedBasename ? { lastUploadedFileName: uploadedBasename } : {}),
-    };
-
-    // Dual-write pilot to Neon so /tmp wipe does not reset mid-week gate.
-    await syncPilotSettingsToBackend(store.tenant.id, store.pilot);
     ensureSupervisedActions(store);
     await writeStore(store);
 

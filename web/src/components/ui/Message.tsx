@@ -7,16 +7,6 @@ export const MESSAGE_AVATAR_SIZE = 32;
 
 export type MessageAlign = "start" | "end";
 
-function MessageGroup({ className, ...props }: ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="message-group"
-      className={cn("flex min-w-0 flex-col gap-2", className)}
-      {...props}
-    />
-  );
-}
-
 /**
  * June 2026 shadcn Message — adapted for Insights transcript.
  * Row is always full-width so packing can hug an edge:
@@ -71,19 +61,6 @@ function MessageContent({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-function MessageHeader({ className, ...props }: ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="message-header"
-      className={cn(
-        "flex max-w-full min-w-0 items-center px-3 text-label-12 font-medium text-sio-fg-muted group-has-data-[variant=ghost]/message:px-0",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 function MessageFooter({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
@@ -98,10 +75,8 @@ function MessageFooter({ className, ...props }: ComponentProps<"div">) {
 }
 
 export {
-  MessageGroup,
   Message,
   MessageAvatar,
   MessageContent,
   MessageFooter,
-  MessageHeader,
 };

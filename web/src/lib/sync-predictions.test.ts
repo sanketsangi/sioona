@@ -31,11 +31,18 @@ const createdBody = {
   created_at: "2026-08-01T00:00:00.000Z",
 };
 
-function okResponse() {
+function okBulkResponse(
+  predictions: Array<Record<string, unknown>> = [createdBody],
+  counts?: { created?: number; updated?: number }
+) {
   return {
     ok: true,
     status: 201,
-    json: async () => createdBody,
+    json: async () => ({
+      predictions,
+      created: counts?.created ?? predictions.length,
+      updated: counts?.updated ?? 0,
+    }),
   };
 }
 
@@ -45,8 +52,8 @@ afterEach(() => {
 });
 
 describe("syncPredictionsToBackend", () => {
-  it("dual-writes prediction and stores backendSignalId", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResponse());
+  it("dual-writes prediction via bulk and stores backendSignalId", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okBulkResponse());
     vi.stubGlobal("fetch", fetchMock);
 
     const { signals, sync } = await syncPredictionsToBackend(
@@ -66,7 +73,7 @@ describe("syncPredictionsToBackend", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/v1/predictions"),
+      expect.stringContaining("/v1/predictions/bulk"),
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -77,11 +84,12 @@ describe("syncPredictionsToBackend", () => {
   });
 
   it("upserts signals that already have backendSignalId", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => ({ ...createdBody, id: "existing-id" }),
-    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      okBulkResponse([{ ...createdBody, id: "existing-id" }], {
+        created: 0,
+        updated: 1,
+      })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const { signals, sync } = await syncPredictionsToBackend(
@@ -100,7 +108,7 @@ describe("syncPredictionsToBackend", () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error("ECONNRESET"))
-      .mockResolvedValueOnce(okResponse());
+      .mockResolvedValueOnce(okBulkResponse());
     vi.stubGlobal("fetch", fetchMock);
     const sleep = vi.fn().mockResolvedValue(undefined);
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -125,7 +133,7 @@ describe("syncPredictionsToBackend", () => {
       .fn()
       .mockRejectedValueOnce(new Error("ECONNRESET"))
       .mockRejectedValueOnce(new Error("ETIMEDOUT"))
-      .mockResolvedValueOnce(okResponse());
+      .mockResolvedValueOnce(okBulkResponse());
     vi.stubGlobal("fetch", fetchMock);
     const sleep = vi.fn().mockResolvedValue(undefined);
 
@@ -150,17 +158,24 @@ describe("syncPredictionsToBackend", () => {
     });
   });
 
-  it("keeps input order when syncing several signals in parallel", async () => {
+  it("keeps input order when syncing several signals in one bulk request", async () => {
     const fetchMock = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
-      const body = JSON.parse(String(init.body)) as { summary: string };
-      await new Promise((r) => setTimeout(r, body.summary === "first" ? 20 : 0));
+      const body = JSON.parse(String(init.body)) as {
+        predictions: Array<{ summary: string; conversation_id: string; signal_type: string }>;
+      };
       return {
         ok: true,
         status: 201,
         json: async () => ({
-          ...createdBody,
-          id: `id-${body.summary}`,
-          summary: body.summary,
+          created: body.predictions.length,
+          updated: 0,
+          predictions: body.predictions.map((row) => ({
+            ...createdBody,
+            id: `id-${row.summary}`,
+            conversation_id: row.conversation_id,
+            signal_type: row.signal_type,
+            summary: row.summary,
+          })),
         }),
       };
     });
@@ -169,8 +184,8 @@ describe("syncPredictionsToBackend", () => {
     const { signals, sync } = await syncPredictionsToBackend(
       [
         { ...baseSignal, id: "a", summary: "first" },
-        { ...baseSignal, id: "b", summary: "second" },
-        { ...baseSignal, id: "c", summary: "third" },
+        { ...baseSignal, id: "b", conversationId: "conv_2", summary: "second" },
+        { ...baseSignal, id: "c", conversationId: "conv_3", summary: "third" },
       ],
       "tenant_demo"
     );
@@ -182,17 +197,22 @@ describe("syncPredictionsToBackend", () => {
       "id-third",
     ]);
     expect(sync.created).toBe(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("reports 0 then per-signal counts as rows settle", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(okResponse()));
+  it("reports 0 then chunk completion as bulk settles", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(okBulkResponse([
+      { ...createdBody, conversation_id: "conv_1", id: "id-a" },
+      { ...createdBody, conversation_id: "conv_2", id: "id-b" },
+      { ...createdBody, conversation_id: "conv_3", id: "id-c" },
+    ])));
     const ticks: Array<{ done: number; total: number }> = [];
 
     await syncPredictionsToBackend(
       [
-        { ...baseSignal, id: "a" },
-        { ...baseSignal, id: "b" },
-        { ...baseSignal, id: "c" },
+        { ...baseSignal, id: "a", conversationId: "conv_1" },
+        { ...baseSignal, id: "b", conversationId: "conv_2" },
+        { ...baseSignal, id: "c", conversationId: "conv_3" },
       ],
       "tenant_demo",
       {
@@ -204,7 +224,7 @@ describe("syncPredictionsToBackend", () => {
 
     expect(ticks[0]).toEqual({ done: 0, total: 3 });
     expect(ticks.at(-1)).toEqual({ done: 3, total: 3 });
-    expect(ticks.map((tick) => tick.done)).toEqual([0, 1, 2, 3]);
+    expect(ticks.map((tick) => tick.done)).toEqual([0, 3]);
   });
 
   it("leaves signal unchanged and counts one failure after all retries", async () => {
@@ -227,25 +247,58 @@ describe("syncPredictionsToBackend", () => {
     expect(sync.attempted).toBe(1);
     expect(warn).toHaveBeenCalled();
   });
+
+  it("falls back to per-signal POSTs when bulk endpoint is missing", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).includes("/v1/predictions/bulk")) {
+        return { ok: false, status: 404, statusText: "Not Found", json: async () => ({}) };
+      }
+      return {
+        ok: true,
+        status: 201,
+        json: async () => createdBody,
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { signals, sync } = await syncPredictionsToBackend(
+      [baseSignal, { ...baseSignal, id: "sig_2", conversationId: "conv_2" }],
+      "tenant_demo"
+    );
+
+    expect(signals.every((s) => s.backendSignalId === createdBody.id)).toBe(true);
+    expect(sync.created).toBe(2);
+    expect(sync.failed).toBe(0);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/bulk"))).toBe(
+      true
+    );
+    expect(
+      fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith("/v1/predictions")
+      ).length
+    ).toBe(2);
+    expect(warn).toHaveBeenCalled();
+  });
 });
 
 describe("dual-write → SignalScore overlay contract", () => {
   it("applies Neon score after dual-write path", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 201,
-        json: async () => ({
-          id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-          tenant_id: "tenant_demo",
-          conversation_id: "conv_1",
-          signal_type: "lead",
-          confidence: 0.9,
-          summary: "Buying intent",
-          created_at: "2026-08-01T00:00:00.000Z",
-        }),
-      })
+      vi.fn().mockResolvedValue(
+        okBulkResponse([
+          {
+            id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            tenant_id: "tenant_demo",
+            conversation_id: "conv_1",
+            signal_type: "lead",
+            confidence: 0.9,
+            summary: "Buying intent",
+            created_at: "2026-08-01T00:00:00.000Z",
+          },
+        ])
+      )
     );
 
     const { signals } = await syncPredictionsToBackend(

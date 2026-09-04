@@ -436,7 +436,7 @@ describe("PlatformPage deploy reliability", () => {
     expect(props.cadencePreviewId).toBe("sig_follow");
   });
 
-  it("scopes SignalScore keep-set to store plus overlay conversation ids", async () => {
+  it("omits SignalScore conversation ids when JSON has chats (Neon fills hydrate lag)", async () => {
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
       predictions: [
@@ -471,7 +471,55 @@ describe("PlatformPage deploy reliability", () => {
       searchParams: Promise.resolve({ view: "eval" }),
     });
 
-    const keepSet = ["conv_1", "conv_2", "conv_hydrated"];
+    // Overlay still hydrates the missing chat for UI; FastAPI score omits
+    // conversation_id so Neon can count in-window reviews not yet in JSON.
+    expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
+      "conv_hydrated",
+    ]);
+    expect(
+      vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
+    ).toEqual([undefined, undefined]);
+    expect(fetchSignalScoreSafe).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes overlay keep-set to SignalScore when JSON store is empty", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [
+        {
+          id: "hydrate-pred",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_hydrated",
+          signal_type: "retention",
+          confidence: 0.81,
+          summary: "Neon-only",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(fetchOverlayConversations).mockResolvedValue({
+      conversations: [
+        {
+          id: "conv_hydrated",
+          tenantId: "tenant_demo",
+          channel: "whatsapp",
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+        },
+      ],
+      messages: [],
+    });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+    const empty = mockStore([]);
+    empty.conversations = [];
+    stubStore(empty);
+
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "eval" }),
+    });
+
+    const keepSet = ["conv_hydrated"];
     expect(
       vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
     ).toEqual([keepSet, keepSet]);

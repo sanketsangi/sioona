@@ -46,6 +46,34 @@ export type ReadStoreLoad = {
   coldStart: boolean;
 };
 
+/** In-process cache of the last parsed store.json (mtime+size keyed). */
+type StoreFileCache = {
+  path: string;
+  mtimeMs: number;
+  size: number;
+  store: StoreData;
+};
+
+let storeFileCache: StoreFileCache | null = null;
+
+function cloneStore(store: StoreData): StoreData {
+  return normalizeStore(structuredClone(store));
+}
+
+function cacheStoreSnapshot(
+  storePath: string,
+  stat: { mtimeMs: number; size: number },
+  store: StoreData
+): void {
+  storeFileCache = {
+    path: storePath,
+    mtimeMs: stat.mtimeMs,
+    size: stat.size,
+    // Own snapshot — callers get a separate clone via cloneStore().
+    store,
+  };
+}
+
 /** Seed showcase from testing.json (dynamic import avoids cycle with writeStore). */
 async function seedShowcaseStore(
   options?: Pick<ReadStoreOptions, "syncPredictions">
@@ -84,6 +112,15 @@ const BUNDLED_STORE_PATH = path.join(BUNDLED_DATA_DIR, "store.json");
 const TMP_DATA_DIR = path.join(os.tmpdir(), "sioona-store");
 const TMP_STORE_PATH = path.join(TMP_DATA_DIR, "store.json");
 
+/** Per-worker tmp store under Vitest so parallel files never race data/store.json. */
+function vitestStoreCandidate(): [string, string] | null {
+  if (!process.env.VITEST) return null;
+  const worker =
+    process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "0";
+  const dir = path.join(os.tmpdir(), `sioona-store-vitest-${worker}`);
+  return [dir, path.join(dir, "store.json")];
+}
+
 // Resolved once to the first writable store path; `null` means no writable
 // filesystem, in which case we keep an in-memory seed so reads never throw.
 let resolvedStorePath: string | null | undefined;
@@ -92,10 +129,13 @@ let memoryStore: StoreData | null = null;
 /** Pick (and cache) the first writable location for the JSON store. */
 async function resolveStorePath(): Promise<string | null> {
   if (resolvedStorePath !== undefined) return resolvedStorePath;
-  const candidates: Array<[string, string]> = [
+  const candidates: Array<[string, string]> = [];
+  const vitest = vitestStoreCandidate();
+  if (vitest) candidates.push(vitest);
+  candidates.push(
     [BUNDLED_DATA_DIR, BUNDLED_STORE_PATH],
-    [TMP_DATA_DIR, TMP_STORE_PATH],
-  ];
+    [TMP_DATA_DIR, TMP_STORE_PATH]
+  );
   for (const [dir, file] of candidates) {
     try {
       await fs.mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
@@ -171,12 +211,22 @@ export async function loadStore(
   const storePath = await resolveStorePath();
   if (storePath) {
     try {
+      const stat = await fs.stat(/*turbopackIgnore: true*/ storePath);
+      if (
+        storeFileCache &&
+        storeFileCache.path === storePath &&
+        storeFileCache.mtimeMs === stat.mtimeMs &&
+        storeFileCache.size === stat.size
+      ) {
+        return { store: cloneStore(storeFileCache.store), coldStart: false };
+      }
       const raw = await fs.readFile(/*turbopackIgnore: true*/ storePath, "utf8");
-      return {
-        store: normalizeStore(JSON.parse(raw) as StoreData),
-        coldStart: false,
-      };
+      const store = normalizeStore(JSON.parse(raw) as StoreData);
+      // Cache a private clone; return another so cache ≠ caller mutations.
+      cacheStoreSnapshot(storePath, stat, structuredClone(store));
+      return { store: cloneStore(store), coldStart: false };
     } catch {
+      storeFileCache = null;
       // No persisted file yet — fall through to seed from bundled fixtures.
     }
   } else if (memoryStore) {
@@ -208,21 +258,27 @@ export async function writeStore(data: StoreData): Promise<void> {
     // Fully read-only filesystem: keep the store in memory so a GET before any
     // write still returns seeded fixtures without throwing (per-instance only).
     memoryStore = normalized;
+    storeFileCache = null;
     return;
   }
   try {
     await fs.mkdir(/*turbopackIgnore: true*/ path.dirname(storePath), {
       recursive: true,
     });
+    // Compact JSON — same parse result, less I/O on every feedback/Acted/ingest.
     await fs.writeFile(
       /*turbopackIgnore: true*/ storePath,
-      JSON.stringify(normalized, null, 2),
+      JSON.stringify(normalized),
       "utf8"
     );
+    const stat = await fs.stat(/*turbopackIgnore: true*/ storePath);
+    // Snapshot for cache — caller may keep mutating `data` after write.
+    cacheStoreSnapshot(storePath, stat, structuredClone(normalized));
   } catch {
     // Became unwritable at runtime — degrade to in-memory rather than throwing.
     resolvedStorePath = null;
     memoryStore = normalized;
+    storeFileCache = null;
   }
 }
 
@@ -271,17 +327,6 @@ export async function replaceSignalsPreservingFeedback(
 ): Promise<StoreData> {
   const store = await readStore();
   store.signals = mergeSignalsPreservingFeedback(store.signals, signals);
-  ensureSupervisedActions(store);
-  await writeStore(store);
-  return store;
-}
-
-export async function upsertSignals(signals: Signal[]): Promise<StoreData> {
-  const store = await readStore();
-  const byConversation = new Set(signals.map((s) => s.conversationId));
-  const kept = store.signals.filter((s) => !byConversation.has(s.conversationId));
-  const merged = mergeSignalsPreservingFeedback(store.signals, signals);
-  store.signals = [...kept, ...merged];
   ensureSupervisedActions(store);
   await writeStore(store);
   return store;

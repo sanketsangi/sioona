@@ -50,17 +50,34 @@ export function predictionToStubSignal(prediction: BackendPrediction): Signal {
   };
 }
 
+function reviewedMatchKey(signal: Pick<Signal, "conversationId" | "type">): string {
+  return `${signal.conversationId}:${signal.type}`;
+}
+
+/** O(1) lookup indexes for joining Neon predictions to JSON signals. */
+function buildJsonSignalIndex(signals: Signal[]): {
+  byBackendId: Map<string, Signal>;
+  byConvType: Map<string, Signal>;
+} {
+  const byBackendId = new Map<string, Signal>();
+  const byConvType = new Map<string, Signal>();
+  for (const signal of signals) {
+    if (signal.backendSignalId) {
+      byBackendId.set(signal.backendSignalId, signal);
+    }
+    byConvType.set(reviewedMatchKey(signal), signal);
+  }
+  return { byBackendId, byConvType };
+}
+
 function findJsonSignal(
   prediction: BackendPrediction,
-  signals: Signal[]
+  index: ReturnType<typeof buildJsonSignalIndex>
 ): Signal | undefined {
-  const byId = signals.find((s) => s.backendSignalId === prediction.id);
+  const byId = index.byBackendId.get(prediction.id);
   if (byId) return byId;
-
-  return signals.find(
-    (s) =>
-      s.conversationId === prediction.conversation_id &&
-      s.type === prediction.signal_type
+  return index.byConvType.get(
+    `${prediction.conversation_id}:${prediction.signal_type}`
   );
 }
 
@@ -78,9 +95,10 @@ export function joinNeedsReviewPredictions(
 ): Signal[] {
   const seenJsonIds = new Set<string>();
   const joined: Signal[] = [];
+  const index = buildJsonSignalIndex(jsonSignals);
 
   for (const prediction of predictions) {
-    const matched = findJsonSignal(prediction, jsonSignals);
+    const matched = findJsonSignal(prediction, index);
     if (!matched) {
       const stub = predictionToStubSignal(prediction);
       if (seenJsonIds.has(stub.id)) continue;
@@ -136,10 +154,6 @@ const FEEDBACK_LABELS = new Set<BackendFeedbackLabel>([
   "incorrect",
   "partially_correct",
 ]);
-
-function reviewedMatchKey(signal: Pick<Signal, "conversationId" | "type">): string {
-  return `${signal.conversationId}:${signal.type}`;
-}
 
 function neonReviewedKeys(rows: BackendPredictionWithFeedback[] | undefined): {
   backendIds: Set<string>;
@@ -223,12 +237,13 @@ export function joinTenantSignals(
   const seenIds = new Set<string>();
   const seenKeys = new Set<string>();
   const joined: Signal[] = [];
+  const index = buildJsonSignalIndex(jsonSignals);
 
   for (const row of rows) {
     const feedback = feedbackFromRow(row);
     if (!feedback) continue;
     const status = row.acted ? ("acted" as const) : ("reviewed" as const);
-    const matched = findJsonSignal(row, jsonSignals);
+    const matched = findJsonSignal(row, index);
     if (matched) {
       if (seenIds.has(matched.id)) continue;
       const key = reviewedMatchKey(matched);

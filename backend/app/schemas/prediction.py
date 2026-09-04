@@ -17,6 +17,12 @@ class PredictionCreate(BaseModel):
     summary: str = Field(..., min_length=1)
 
 
+class PredictionBulkUpsert(BaseModel):
+    """Bulk upsert — Partner Demo / ingest dual-write (~50–100 signals)."""
+
+    predictions: list[PredictionCreate] = Field(default_factory=list)
+
+
 class PredictionActedUpdate(BaseModel):
     """Shadow Mode: persist Acted on a reviewed prediction."""
 
@@ -36,6 +42,14 @@ class PredictionResponse(BaseModel):
     summary: str
     acted: bool = False
     created_at: datetime
+
+
+class PredictionBulkResponse(BaseModel):
+    """Bulk upsert result with per-row predictions and counts."""
+
+    predictions: list[PredictionResponse]
+    created: int
+    updated: int
 
 
 class PredictionWithFeedbackResponse(PredictionResponse):

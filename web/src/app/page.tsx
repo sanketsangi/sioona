@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { EvalView } from "@/components/views/EvalView";
-import { InsightsView } from "@/components/views/InsightsView";
-import { TaxonomyView } from "@/components/views/TaxonomyView";
-import { UploadView } from "@/components/views/UploadView";
 import {
   fetchNeedsReview,
   type NeedsReviewResult,
@@ -344,6 +341,71 @@ export default async function PlatformPage({
       ? resolveInsightsVaultFile(sp.file)
       : parseVaultFile(sp.file);
 
+  // Load only the active view module so Eval's day-picker stays off Insights/Upload.
+  let viewNode: ReactNode = null;
+  if (view === "insights") {
+    const { InsightsView } = await import("@/components/views/InsightsView");
+    viewNode = (
+      <InsightsView
+        store={store}
+        demo={sp.demo === "1"}
+        importedCount={importedCount}
+        newSignalCount={newSignalCount}
+        jsonKeepSet={jsonKeepSet}
+        statusFilter={statusFilter}
+        statusOmitted={statusOmitted}
+        typeFilter={typeFilter}
+        actionFilter={actionFilter}
+        page={page}
+        previewId={previewId}
+        backendScore={backendScore}
+        needsReview={needsReview}
+        tenantSignals={tenantSignals}
+        overlayChats={overlayChats}
+        scoreFrom={scoreFromQuery}
+        syncFailed={syncFailed}
+        syncCreated={syncCreated}
+        llmAdded={parseLlmAddedParam(sp.llmAdded)}
+        llmFailed={parseLlmFailedParam(sp.llmFailed)}
+        cadenceAction={cadenceAction}
+        cadencePreviewId={cadencePreviewId}
+        workspaceMode={workspaceMode}
+        vaultFile={vaultFile}
+        precomputedPending={pendingRaw}
+        precomputedReviewed={reviewedRaw}
+      />
+    );
+  } else if (view === "upload") {
+    const { UploadView } = await import("@/components/views/UploadView");
+    viewNode = (
+      <UploadView
+        hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
+        lastUploadedFileName={store.pilot?.lastUploadedFileName}
+        cadenceAction={cadenceAction}
+        cadencePreviewId={cadencePreviewId}
+      />
+    );
+  } else if (view === "eval") {
+    const { EvalView } = await import("@/components/views/EvalView");
+    viewNode = (
+      <EvalView
+        store={store}
+        panelRaw={sp.panel}
+        labeledRaw={sp.labeled}
+        convPageRaw={sp.convPage}
+        adaptPageRaw={sp.adaptPage}
+        backendScore={backendScore}
+        allTimeScore={allTimeScore}
+        scoreWindow={scoreWindow}
+        cadenceAction={cadenceAction}
+        cadencePreviewId={cadencePreviewId}
+      />
+    );
+  } else if (view === "taxonomy") {
+    const { TaxonomyView } = await import("@/components/views/TaxonomyView");
+    viewNode = <TaxonomyView typePageRaw={sp.taxPage} />;
+  }
+
   return (
     <AppShell
       activeView={view}
@@ -353,57 +415,7 @@ export default async function PlatformPage({
       vaultFile={vaultFile}
       notifications={notifications}
     >
-      {view === "insights" ? (
-        <InsightsView
-          store={store}
-          demo={sp.demo === "1"}
-          importedCount={importedCount}
-          newSignalCount={newSignalCount}
-          jsonKeepSet={jsonKeepSet}
-          statusFilter={statusFilter}
-          statusOmitted={statusOmitted}
-          typeFilter={typeFilter}
-          actionFilter={actionFilter}
-          page={page}
-          previewId={previewId}
-          backendScore={backendScore}
-          needsReview={needsReview}
-          tenantSignals={tenantSignals}
-          overlayChats={overlayChats}
-          scoreFrom={scoreFromQuery}
-          syncFailed={syncFailed}
-          syncCreated={syncCreated}
-          llmAdded={parseLlmAddedParam(sp.llmAdded)}
-          llmFailed={parseLlmFailedParam(sp.llmFailed)}
-          cadenceAction={cadenceAction}
-          cadencePreviewId={cadencePreviewId}
-          workspaceMode={workspaceMode}
-          vaultFile={vaultFile}
-        />
-      ) : null}
-      {view === "upload" ? (
-        <UploadView
-          hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
-          lastUploadedFileName={store.pilot?.lastUploadedFileName}
-          cadenceAction={cadenceAction}
-          cadencePreviewId={cadencePreviewId}
-        />
-      ) : null}
-      {view === "eval" ? (
-        <EvalView
-          store={store}
-          panelRaw={sp.panel}
-          labeledRaw={sp.labeled}
-          convPageRaw={sp.convPage}
-          adaptPageRaw={sp.adaptPage}
-          backendScore={backendScore}
-          allTimeScore={allTimeScore}
-          scoreWindow={scoreWindow}
-          cadenceAction={cadenceAction}
-          cadencePreviewId={cadencePreviewId}
-        />
-      ) : null}
-      {view === "taxonomy" ? <TaxonomyView typePageRaw={sp.taxPage} /> : null}
+      {viewNode}
     </AppShell>
   );
 }
