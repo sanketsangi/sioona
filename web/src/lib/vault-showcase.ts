@@ -87,16 +87,19 @@ export const VAULT_SHOWCASE_STALL_MS = 30_000;
 
 /**
  * Land on Insights after a finished wipe+seed even if the 30s soft-fail
- * already painted. Discarding success leaves the store on the new pack
- * while chrome still shows Retry (another wipe). Stall only hides
- * in-flight progress. Cancel / unmount and Retry (new runId) do not land.
+ * already painted, or Cancel unmounted the loader. Discarding success
+ * leaves the store on the new pack while chrome still shows Retry
+ * (another wipe) or Cancel to a stale keep-set that auto-loads again.
+ * Stall only hides in-flight progress. Retry (new runId) stays discarded.
+ * In-flight Cancel aborts the POST so consume does not finish.
  */
 export function shouldLandShowcaseLoad(opts: {
-  cancelled: boolean;
+  /** Unmount / Cancel — ignored when this run's consume already finished. */
+  cancelled?: boolean;
   runId: number;
   currentRunId: number;
 }): boolean {
-  return !opts.cancelled && opts.runId === opts.currentRunId;
+  return opts.runId === opts.currentRunId;
 }
 
 /**
