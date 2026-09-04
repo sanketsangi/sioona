@@ -17,15 +17,15 @@ import {
 import { syncQueryExtras } from "@/lib/prediction-sync";
 import { humanizeInternalError } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
-import { defaultInsightsHref, vaultInsightsHref } from "@/lib/vault-file";
 import {
   resolveVaultShowcaseKind,
+  shouldLandShowcaseLoad,
   VAULT_SHOWCASE_STALL_MS,
+  vaultShowcaseCancelHref,
   vaultShowcaseDisplayName,
   vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
-  shouldLandShowcaseLoad,
   vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
   type VaultShowcaseKind,
@@ -44,7 +44,7 @@ export function VaultShowcaseLoader({
   keepSetFileName = null,
 }: {
   fileName: string;
-  /** Current keep-set — Cancel returns here instead of looping the load. */
+  /** Current keep-set — Cancel returns here; empty keep-set goes to Upload. */
   keepSetFileName?: string | null;
 }) {
   const router = useRouter();
@@ -65,6 +65,7 @@ export function VaultShowcaseLoader({
     const runId = ++runIdRef.current;
     let cancelled = false;
     let stalled = false;
+    const abort = new AbortController();
 
     setError(null);
     setStatus(vaultShowcaseLoadingLabel(showcaseKind));
@@ -76,6 +77,7 @@ export function VaultShowcaseLoader({
       stalled = true;
       setError(vaultShowcaseStallMessage(showcaseKind));
       setStatus(null);
+      // Do not abort — a wipe that finishes after stall still lands.
     }, VAULT_SHOWCASE_STALL_MS);
 
     async function load() {
@@ -87,6 +89,7 @@ export function VaultShowcaseLoader({
             Accept: PARTNER_DEMO_NDJSON_CONTENT_TYPE,
           },
           body: JSON.stringify({ action }),
+          signal: abort.signal,
         });
         let lastStep: PartnerDemoStep | null = null;
         const data = await consumePartnerDemoNdjson(res, {
@@ -105,7 +108,6 @@ export function VaultShowcaseLoader({
         });
         if (
           !shouldLandShowcaseLoad({
-            cancelled,
             runId,
             currentRunId: runIdRef.current,
           })
@@ -130,6 +132,7 @@ export function VaultShowcaseLoader({
         router.replace(`/?${query.toString()}`);
         router.refresh();
       } catch (err) {
+        if (abort.signal.aborted) return;
         if (cancelled || stalled || runId !== runIdRef.current) return;
         const raw = err instanceof Error ? err.message : failedMessage;
         setError(humanizeInternalError(raw, failedMessage));
@@ -140,15 +143,14 @@ export function VaultShowcaseLoader({
     void load();
     return () => {
       cancelled = true;
+      abort.abort();
       window.clearTimeout(stallTimer);
     };
   }, [kind, attempt, router]);
 
   if (!kind) return null;
 
-  const cancelHref = keepSetFileName
-    ? vaultInsightsHref(keepSetFileName)
-    : defaultInsightsHref();
+  const cancelHref = vaultShowcaseCancelHref(keepSetFileName);
 
   return (
     <VaultShowcaseLoadingPanel

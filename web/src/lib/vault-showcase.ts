@@ -8,6 +8,8 @@ import {
   matchesVaultSampleName,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
+import { vaultInsightsHref } from "@/lib/vault-file";
+import { viewHref } from "@/lib/views";
 
 export type VaultShowcaseKind = "sample" | "partner";
 
@@ -85,15 +87,29 @@ export const VAULT_SHOWCASE_STALL_MS = 30_000;
 
 /**
  * Land on Insights after a finished wipe+seed even if the 30s soft-fail
- * already painted. Discarding success leaves the store on the new pack
- * while chrome still shows failure / Retry (another wipe) or Cancel to
- * a stale keep-set. Stall only hides in-flight progress, not a complete result.
- * Cancelled / superseded runs stay discarded.
+ * already painted, or Cancel unmounted the loader. Discarding success
+ * leaves the store on the new pack while chrome still shows Retry
+ * (another wipe) or Cancel to a stale keep-set that auto-loads again.
+ * Stall only hides in-flight progress. Retry (new runId) stays discarded.
  */
 export function shouldLandShowcaseLoad(opts: {
-  cancelled: boolean;
+  /** Unmount / Cancel — ignored when this run's consume already finished. */
+  cancelled?: boolean;
   runId: number;
   currentRunId: number;
 }): boolean {
-  return !opts.cancelled && opts.runId === opts.currentRunId;
+  return opts.runId === opts.currentRunId;
+}
+
+/**
+ * Cancel must leave the in-flight load. With no keep-set name, Sample
+ * Insights is the same URL that started the loader (bare Insights
+ * defaults to Sample and auto-loads). Upload does not re-trigger it.
+ */
+export function vaultShowcaseCancelHref(
+  keepSetFileName?: string | null,
+): string {
+  const name = keepSetFileName?.trim();
+  if (name) return vaultInsightsHref(name);
+  return viewHref("upload");
 }

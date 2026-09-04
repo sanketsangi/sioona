@@ -6,11 +6,12 @@ import {
 import {
   isVaultShowcaseFile,
   resolveVaultShowcaseKind,
+  shouldLandShowcaseLoad,
   vaultShowcaseAlreadyActive,
+  vaultShowcaseCancelHref,
   vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
-  shouldLandShowcaseLoad,
   vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
 } from "./vault-showcase";
@@ -76,21 +77,23 @@ describe("shouldLandShowcaseLoad", () => {
   it("lands a finished wipe even after the 30s stall painted", () => {
     expect(
       shouldLandShowcaseLoad({
-        cancelled: false,
         runId: 1,
         currentRunId: 1,
       }),
     ).toBe(true);
   });
 
-  it("does not land when the effect unmounted or Retry superseded the run", () => {
+  it("lands when Cancel unmounted after consume already finished", () => {
     expect(
       shouldLandShowcaseLoad({
         cancelled: true,
         runId: 1,
         currentRunId: 1,
       }),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("does not land a Retry-superseded run", () => {
     expect(
       shouldLandShowcaseLoad({
         cancelled: false,
@@ -98,5 +101,20 @@ describe("shouldLandShowcaseLoad", () => {
         currentRunId: 2,
       }),
     ).toBe(false);
+  });
+});
+
+describe("vaultShowcaseCancelHref", () => {
+  it("returns the current keep-set Insights href", () => {
+    const href = vaultShowcaseCancelHref("Zerodha_week_5_batch_01.json");
+    const params = new URL(href, "http://localhost").searchParams;
+    expect(params.get("view")).toBe("insights");
+    expect(params.get("file")).toBe("Zerodha_week_5_batch_01.json");
+  });
+
+  it("goes to Upload when the keep-set is empty so Cancel leaves the load", () => {
+    expect(vaultShowcaseCancelHref(null)).toBe("/?view=upload");
+    expect(vaultShowcaseCancelHref(undefined)).toBe("/?view=upload");
+    expect(vaultShowcaseCancelHref("   ")).toBe("/?view=upload");
   });
 });
