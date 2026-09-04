@@ -108,6 +108,7 @@ export function VaultShowcaseLoader({
         });
         if (
           !shouldLandShowcaseLoad({
+            cancelled,
             runId,
             currentRunId: runIdRef.current,
           })

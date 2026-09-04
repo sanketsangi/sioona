@@ -77,23 +77,21 @@ describe("shouldLandShowcaseLoad", () => {
   it("lands a finished wipe even after the 30s stall painted", () => {
     expect(
       shouldLandShowcaseLoad({
+        cancelled: false,
         runId: 1,
         currentRunId: 1,
       }),
     ).toBe(true);
   });
 
-  it("lands when Cancel unmounted after consume already finished", () => {
+  it("does not land when Cancel unmounted or Retry superseded the run", () => {
     expect(
       shouldLandShowcaseLoad({
         cancelled: true,
         runId: 1,
         currentRunId: 1,
       }),
-    ).toBe(true);
-  });
-
-  it("does not land a Retry-superseded run", () => {
+    ).toBe(false);
     expect(
       shouldLandShowcaseLoad({
         cancelled: false,
