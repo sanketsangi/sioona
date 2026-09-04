@@ -34,6 +34,8 @@ export type MarkActedWalk = {
   mode?: WorkspaceMode;
   /** Replace-ingest landing — keep leftover Neon overlay off. */
   replaced?: boolean;
+  /** Preserve Vault `?file=` scope on Mark Acted advances. */
+  file?: string | null;
 };
 
 /**
@@ -89,6 +91,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
           scoreFrom: walk.scoreFrom,
           mode: walk.mode,
           replaced: walk.replaced,
+          file: walk.file,
         });
         if (href) {
           router.push(href, { scroll: false });
@@ -109,6 +112,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
       router,
       signal,
       walk.actionFilter,
+      walk.file,
       walk.mode,
       walk.nextPendingPreviewId,
       walk.nextPreviewId,

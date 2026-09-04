@@ -218,6 +218,8 @@ type QueueHref = (next: {
 }) => string;
 
 type EmptyNext = {
+  /** Optional empty-panel title (Vault file mismatch, etc.). */
+  title?: string;
   description: string;
   href: string;
   label: string;
@@ -814,7 +816,7 @@ export function SignalQueue({
               Retry Queue
             </Link>
             <Link href={viewHref("upload")} className="btn-secondary">
-              Upload Chats
+              Uploaded Chats
             </Link>
           </div>
         </QueueEmptyState>
@@ -848,7 +850,7 @@ export function SignalQueue({
               Retry Queue
             </Link>
             <Link href={viewHref("upload")} className="btn-secondary">
-              Upload Chats
+              Uploaded Chats
             </Link>
           </div>
         </QueueEmptyState>
@@ -857,15 +859,22 @@ export function SignalQueue({
   }
 
   if (pendingSignals.length === 0 && reviewedSignals.length === 0) {
+    const next = pendingClear;
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {filterChrome}
         <QueueEmptyState
-          title="No Signals Yet"
-          description="Upload chats or re-run detection to populate Shadow Mode."
+          title={next?.title ?? "No Signals Yet"}
+          description={
+            next?.description ??
+            "Upload chats or re-run detection to populate Shadow Mode."
+          }
         >
-          <Link href={viewHref("upload")} className="btn-primary mt-4">
-            Upload Chats
+          <Link
+            href={next?.href ?? viewHref("upload")}
+            className="btn-primary mt-4"
+          >
+            {next?.label ?? "Uploaded Chats"}
             <ArrowRight className="size-3.5" weight="bold" aria-hidden />
           </Link>
         </QueueEmptyState>
@@ -894,7 +903,7 @@ export function SignalQueue({
     }
     if (statusFilter === "new") {
       return {
-        title: "No Signals Need Review",
+        title: pendingClear?.title ?? "No Signals Need Review",
         description:
           pendingClear?.description ??
           "Upload chats or re-run detection to dual-write predictions to Neon.",
@@ -905,9 +914,11 @@ export function SignalQueue({
       // Empty Correct with nothing pending mirrors Pending empty (cadence CTA).
       const mirrorPendingEmpty = pendingCount === 0;
       return {
-        title: mirrorPendingEmpty
-          ? "No Signals Need Review"
-          : "No Correct Signals",
+        title:
+          followUpEmpty?.title ??
+          (mirrorPendingEmpty
+            ? "No Signals Need Review"
+            : "No Correct Signals"),
         description:
           followUpEmpty?.description ??
           (mirrorPendingEmpty
@@ -1221,7 +1232,7 @@ function QueueFilters({
               </span>
             ) : (
               <>
-                <FilterIcon className="block size-4 shrink-0 text-sio-fg-subtle" />
+                <FilterIcon className="block size-4 shrink-0 text-sio-fg-base" />
                 <span
                   className="w-16 text-left font-medium leading-none whitespace-nowrap"
                   data-wide-only="true"

@@ -73,12 +73,13 @@ import {
   resolveWorkspaceMode,
   type PlatformView,
 } from "@/lib/views";
+import { parseVaultFile, resolveInsightsVaultFile } from "@/lib/vault-file";
 
 export const dynamic = "force-dynamic";
 
 const TITLES: Record<PlatformView, string> = {
   insights: "Insights",
-  upload: "Upload Chats",
+  upload: "Uploaded Chats",
   eval: "Eval & SignalScore",
   taxonomy: "Signal Taxonomy",
 };
@@ -124,6 +125,7 @@ export default async function PlatformPage({
     wipeFailed?: string;
     mode?: string;
     replaced?: string;
+    file?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -329,6 +331,11 @@ export default async function PlatformPage({
   const typeFilter = parseTypeFilter(sp.type);
   const actionFilter = parseActionFilter(sp.action);
   const page = parsePage(sp.page);
+  // Bare Insights (no ?file=) defaults to Sample so app start shows Groww_batch_02.
+  const vaultFile =
+    view === "insights"
+      ? resolveInsightsVaultFile(sp.file)
+      : parseVaultFile(sp.file);
 
   return (
     <AppShell
@@ -336,6 +343,7 @@ export default async function PlatformPage({
       workspaceMode={workspaceMode}
       title={title}
       lastUploadedFileName={store.pilot?.lastUploadedFileName}
+      vaultFile={vaultFile}
       notifications={notifications}
     >
       {view === "insights" ? (
@@ -363,6 +371,7 @@ export default async function PlatformPage({
           cadenceAction={cadenceAction}
           cadencePreviewId={cadencePreviewId}
           workspaceMode={workspaceMode}
+          vaultFile={vaultFile}
         />
       ) : null}
       {view === "upload" ? (

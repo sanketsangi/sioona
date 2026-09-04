@@ -25,6 +25,7 @@ export function buildSignalReviewTriage(opts: {
   replaced?: boolean;
   typeFilter?: TypeFilter;
   actionFilter?: ActionFilter;
+  file?: string | null;
 }): SignalReviewTriage {
   const walk = opts.walkPendingSignals ?? opts.pendingSignals;
   const isPendingReview = opts.pendingSignals.some(
@@ -39,6 +40,7 @@ export function buildSignalReviewTriage(opts: {
     replaced: opts.replaced,
     typeFilter: opts.typeFilter,
     actionFilter: opts.actionFilter,
+    file: opts.file,
   };
 }
 

@@ -14,6 +14,7 @@ export function AppShell({
   children,
   title,
   lastUploadedFileName,
+  vaultFile = null,
   activeView,
   workspaceMode = "shadow",
   detailOpen = false,
@@ -22,6 +23,8 @@ export function AppShell({
   children: React.ReactNode;
   title?: string;
   lastUploadedFileName?: string;
+  /** `?file=` vault scope — active pill on AppSidebar. */
+  vaultFile?: string | null;
   activeView: PlatformView;
   workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
@@ -52,6 +55,7 @@ export function AppShell({
         activeView={activeView}
         detailOpen={detailOpen}
         lastUploadedFileName={lastUploadedFileName}
+        vaultFile={vaultFile}
       />
 
       <SidebarInset

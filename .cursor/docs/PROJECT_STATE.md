@@ -21,7 +21,17 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-04):** Week-5 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-6-or-later (not Batch-02) → mid-week `replaced=false` (count now **1**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (data/gate, 2026-09-04):** Week-5 pack ingested + keep-set closed — Day-1 replace honest (count was null); go logged with `scoreFrom` above. Not Adapt / not Auth0 / not Batch-02 / not Partner Demo wipe / not outbound.
+**This pass (code, 2026-09-04):** Bare Insights defaults to Sample (`Groww_batch_02`) — omitted `?file=` resolves to Sample (auto-load on mismatch); Workspace Insights + brand → Sample href; empty Vault pill → Sample. Touch: `vault-file.ts`, `page.tsx`, `AppSidebar`. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-04):** Sample / Partner Demo packs pre-detect into an in-process cache (`warmup_showcase` from sidebar) — Vault / Run Partner Demo / Reset writeStore from cache (skip re-detect); Neon wipe+dual-write deferred with `replaced=1` so Insights signal queue paints instantly. Real Upload still waits on detect. Touch: `showcase-pack-cache.ts`, `demo.ts`, `store/route.ts`, `AppSidebar`, Partner/Reset/VaultShowcase loaders. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-04):** Showcase loads feel instant — Vault Sample / Partner Demo already on keep-set skip wipe+seed (navigate Insights); Run Partner Demo / Reset / Vault mismatch complete after wipe+detect+JSON write; Neon dual-write deferred via `after()` (same as ingest). Real Upload still waits on detect. Touch: `demo.ts`, `store/route.ts`, `PartnerDemoButton`, `ResetDemoButton`, `VaultShowcaseLoader`, `vault-showcase.ts`. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-04):** Vault Sample / Partner Demo click auto-loads showcase into Insights — `?file=` mismatch → `VaultShowcaseLoader` runs Reset / Partner Demo NDJSON (few seconds) then Insights for that pack; sidebar prefetches both vault Insights hrefs. Upload-only mismatches still empty + Upload CTA. Touch: `VaultShowcaseLoader`, `vault-showcase.ts`, `InsightsView`, `AppSidebar`. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-04):** Vault file rows open Insights scoped by `?file=` — Sample / Partner Demo / Upload Chats Links → `/?view=insights&file=…`; active pill follows URL (else `lastUploadedFileName`); mismatch keep-set shows empty + Upload next step (no wipe). Touch: `AppSidebar`, `vault-file.ts`, `InsightsView`, `page.tsx`, walk/feedback `file` preserve, Reset/Partner Demo/Upload landings. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (data/gate, 2026-09-04):** Week-5 pack ingested + keep-set closed — Day-1 replace honest (count was null); go logged with `scoreFrom` above. Not Adapt / not Auth0 / not Batch-02 / not Partner Demo wipe / not outbound.
 
 **Prior pass (docs, 2026-09-04):** GTM pack from product_context §6 — vertical wedge, pilot one-pager + redaction checklist, LinkedIn 7-day ask + 2-week cadence, Eval keep-set ≥80% go, do-not-sell list, honest Approve/Acted (never sends). Touch: `PRODUCT.md`, `PARTNER_DEMO.md`, `sioona_product_context.md` §6. No product code. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 

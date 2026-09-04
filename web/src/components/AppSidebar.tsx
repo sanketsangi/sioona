@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { ComponentProps } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, type ComponentProps } from "react";
 import { CaretRight, Tag } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
@@ -44,6 +45,11 @@ import {
   matchesVaultSampleName,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
+import {
+  defaultInsightsHref,
+  resolveVaultActiveFile,
+  vaultInsightsHref,
+} from "@/lib/vault-file";
 import { viewHref, type PlatformView } from "@/lib/views";
 
 const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
@@ -73,7 +79,11 @@ function WorkspaceNav({
             <SidebarMenuItem key={item.view}>
               <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                 <Link
-                  href={viewHref(item.view)}
+                  href={
+                    item.view === "insights"
+                      ? defaultInsightsHref()
+                      : viewHref(item.view)
+                  }
                   aria-current={active ? "page" : undefined}
                   onClick={() => {
                     if (isMobile) setOpenMobile(false);
@@ -103,19 +113,41 @@ function WorkspaceNav({
   );
 }
 
-function VaultNav({ lastUploadedFileName }: { lastUploadedFileName?: string }) {
+function VaultNav({
+  lastUploadedFileName,
+  vaultFile,
+}: {
+  lastUploadedFileName?: string;
+  /** `?file=` — drives Vault active pill when Insights is file-scoped. */
+  vaultFile?: string | null;
+}) {
   const { isMobile, setOpenMobile } = useSidebar();
   const filename = lastUploadedFileName?.trim() || undefined;
+  const activeFile = resolveVaultActiveFile({
+    vaultFile,
+    lastUploadedFileName: filename,
+  });
   const growwActive = matchesVaultSampleName(
-    filename,
+    activeFile,
     GROWW_SHOWCASE_SAMPLE_NAME,
   );
   const zerodhaActive = matchesVaultSampleName(
-    filename,
+    activeFile,
     ZERODHA_BATCH02_SAMPLE_NAME,
   );
-  const uploadedFile =
-    filename && !growwActive && !zerodhaActive ? filename : undefined;
+  // Catalog row for the last partner upload (not Sample / Partner Demo chrome).
+  const uploadedCatalog =
+    filename &&
+    !matchesVaultSampleName(filename, GROWW_SHOWCASE_SAMPLE_NAME) &&
+    !matchesVaultSampleName(filename, ZERODHA_BATCH02_SAMPLE_NAME)
+      ? filename
+      : undefined;
+  const uploadedActive = Boolean(
+    uploadedCatalog &&
+      activeFile &&
+      (activeFile === uploadedCatalog ||
+        matchesVaultSampleName(activeFile, uploadedCatalog.replace(/\.[^.]+$/, ""))),
+  );
 
   const groups: {
     title: string;
@@ -135,10 +167,10 @@ function VaultNav({ lastUploadedFileName }: { lastUploadedFileName?: string }) {
       ],
     },
     {
-      title: "Upload Chats",
+      title: "Uploaded Chats",
       icon: "upload",
-      files: uploadedFile
-        ? [{ name: uploadedFile, isActive: true }]
+      files: uploadedCatalog
+        ? [{ name: uploadedCatalog, isActive: uploadedActive }]
         : [],
     },
   ];
@@ -157,6 +189,19 @@ function VaultNav({ lastUploadedFileName }: { lastUploadedFileName?: string }) {
   function closeMobile() {
     if (isMobile) setOpenMobile(false);
   }
+
+  const router = useRouter();
+  // Warm Insights RSC + pre-detect Sample / Partner Demo packs on the server
+  // so vault clicks writeStore instantly and the signal queue feels immediate.
+  useEffect(() => {
+    router.prefetch(vaultInsightsHref(GROWW_SHOWCASE_SAMPLE_NAME));
+    router.prefetch(vaultInsightsHref(ZERODHA_BATCH02_SAMPLE_NAME));
+    void fetch("/api/store", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "warmup_showcase" }),
+    }).catch(() => undefined);
+  }, [router]);
 
   return (
     <SidebarGroup>
@@ -188,7 +233,7 @@ function VaultNav({ lastUploadedFileName }: { lastUploadedFileName?: string }) {
                       <SidebarMenuSubItem key={file.name}>
                         <SidebarMenuSubButton asChild isActive={file.isActive}>
                           <Link
-                            href={viewHref("upload")}
+                            href={vaultInsightsHref(file.name)}
                             title={file.name}
                             translate="no"
                             onClick={closeMobile}
@@ -227,7 +272,7 @@ function SidebarBrand() {
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" asChild tooltip="Sioona">
             <Link
-              href={viewHref("insights")}
+              href={defaultInsightsHref()}
               aria-label="Sioona"
               translate="no"
               onClick={() => {
@@ -276,11 +321,13 @@ export function AppSidebar({
   activeView,
   detailOpen = false,
   lastUploadedFileName,
+  vaultFile = null,
   ...props
 }: ComponentProps<typeof Sidebar> & {
   activeView: PlatformView;
   detailOpen?: boolean;
   lastUploadedFileName?: string;
+  vaultFile?: string | null;
 }) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -290,7 +337,10 @@ export function AppSidebar({
       <SidebarContent>
         <WorkspaceNav activeView={activeView} detailOpen={detailOpen} />
         <SidebarSeparator />
-        <VaultNav lastUploadedFileName={lastUploadedFileName} />
+        <VaultNav
+          lastUploadedFileName={lastUploadedFileName}
+          vaultFile={vaultFile}
+        />
       </SidebarContent>
       <SidebarFooter>
         <AppSidebarFooter />

@@ -63,6 +63,12 @@ import {
   pilotCadenceHelperCopy,
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
+import {
+  vaultFileEmptyNext,
+  vaultFileMatchesKeepSet,
+} from "@/lib/vault-file";
+import { isVaultShowcaseFile } from "@/lib/vault-showcase";
+import { VaultShowcaseLoader } from "@/components/VaultShowcaseLoader";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
 function resolveCustomerName(
@@ -101,6 +107,7 @@ export function InsightsView({
   cadencePreviewId = null,
   workspaceMode = "shadow",
   backendScore = null,
+  vaultFile = null,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -132,7 +139,21 @@ export function InsightsView({
   cadencePreviewId?: string | null;
   /** Action Mode keeps Follow-up Act queue in the URL. */
   workspaceMode?: WorkspaceMode;
+  /** Vault `?file=` — scope queue to that keep-set name when it matches. */
+  vaultFile?: string | null;
 }) {
+  const keepSetMatches =
+    !vaultFile ||
+    vaultFileMatchesKeepSet(vaultFile, store.pilot?.lastUploadedFileName);
+  const vaultMismatch = Boolean(vaultFile && !keepSetMatches);
+  /** Sample / Partner Demo — auto wipe+seed instead of empty Upload CTA. */
+  const vaultShowcaseLoading = Boolean(
+    vaultMismatch && vaultFile && isVaultShowcaseFile(vaultFile),
+  );
+  const vaultEmpty =
+    vaultMismatch && vaultFile && !isVaultShowcaseFile(vaultFile)
+      ? vaultFileEmptyNext(vaultFile)
+      : null;
   const queueError = needsReview.ok ? null : needsReview.error;
   const tenantSignalsError = tenantSignals.ok ? null : tenantSignals.error;
   const pendingJoined = needsReview.ok
@@ -150,18 +171,22 @@ export function InsightsView({
     store.messages,
     jsonKeepSet ? null : overlayChats,
   );
-  const pendingSignals = applyChatEvidenceToSignals(
-    filterPendingWithChat(pendingJoined, chats.conversations),
-    chats,
-    store.taxonomyOverrides,
-  );
-  const reviewedSignals = applyChatEvidenceToSignals(
-    jsonKeepSet
-      ? filterPendingWithChat(reviewedJoined, chats.conversations)
-      : reviewedJoined,
-    chats,
-    store.taxonomyOverrides,
-  );
+  const pendingSignals = vaultMismatch
+    ? []
+    : applyChatEvidenceToSignals(
+        filterPendingWithChat(pendingJoined, chats.conversations),
+        chats,
+        store.taxonomyOverrides,
+      );
+  const reviewedSignals = vaultMismatch
+    ? []
+    : applyChatEvidenceToSignals(
+        jsonKeepSet
+          ? filterPendingWithChat(reviewedJoined, chats.conversations)
+          : reviewedJoined,
+        chats,
+        store.taxonomyOverrides,
+      );
   // Prev / Next / Skip + Mark Acted advances walk the filtered subset
   // (status list is separate; walk is always pending / Follow-up ∩ type ∩ action).
   const supervisedActions = store.supervisedActions ?? [];
@@ -230,6 +255,7 @@ export function InsightsView({
     llmFailed: llmFailed > 0 ? String(llmFailed) : null,
     scoreFrom,
     mode: workspaceMode === "action" ? "action" : null,
+    file: vaultFile,
   };
 
   // Prefer Neon Correct when the same id is also JSON-unreviewed pending.
@@ -288,10 +314,24 @@ export function InsightsView({
   };
   // Pending empty next step (mid-week Upload, etc.) — also used when Correct is
   // empty and there is nothing pending to review (same panel copy).
-  const pendingClear =
-    cadenceAction.id === "reviews" ? null : cadenceEmpty;
-  const followUpEmpty =
-    pendingSignals.length > 0
+  const pendingClear = vaultEmpty
+    ? {
+        title: vaultEmpty.title,
+        description: vaultEmpty.description,
+        href: vaultEmpty.href,
+        label: vaultEmpty.label,
+      }
+    : cadenceAction.id === "reviews"
+      ? null
+      : cadenceEmpty;
+  const followUpEmpty = vaultEmpty
+    ? {
+        title: vaultEmpty.title,
+        description: vaultEmpty.description,
+        href: vaultEmpty.href,
+        label: vaultEmpty.label,
+      }
+    : pendingSignals.length > 0
       ? {
           description: "Review pending detections first.",
           href: pendingHref,
@@ -308,6 +348,7 @@ export function InsightsView({
         replaced: jsonKeepSet,
         typeFilter,
         actionFilter,
+        file: vaultFile,
       })
     : null;
   const walkHrefOpts = {
@@ -317,6 +358,7 @@ export function InsightsView({
     scoreFrom,
     mode: workspaceMode,
     replaced: jsonKeepSet,
+    file: vaultFile,
   };
   // Any open ?preview= while filtered needs-review remains — including after
   // Correct / Mark as Acted (follow-up / Done origin). Hide only when the
@@ -362,6 +404,7 @@ export function InsightsView({
         scoreFrom,
         mode: workspaceMode,
         replaced: jsonKeepSet,
+        file: vaultFile,
       }
     : null;
   const queueProps = {
@@ -443,37 +486,48 @@ export function InsightsView({
             <h2 className="min-w-0 shrink-0 scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
               Conversation that needs your attention
             </h2>
-            <InsightsQueueMetrics
-              conversationCount={chats.conversations.length}
-              signals={[
-                ...pendingSignals,
-                ...reviewedSignals.filter(
-                  (signal) => !pendingSignals.some((pending) => pending.id === signal.id),
-                ),
-              ]}
-              pendingSignals={pendingSignals}
-              reviewedCount={backendScore?.reviewed_count ?? null}
-            />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-              <div className="flex w-full min-w-0 shrink-0">
-                <SignalQueueFilters
+            {vaultShowcaseLoading && vaultFile ? (
+              <VaultShowcaseLoader fileName={vaultFile} />
+            ) : (
+              <>
+                <InsightsQueueMetrics
+                  conversationCount={
+                    vaultMismatch ? 0 : chats.conversations.length
+                  }
+                  signals={[
+                    ...pendingSignals,
+                    ...reviewedSignals.filter(
+                      (signal) =>
+                        !pendingSignals.some((pending) => pending.id === signal.id),
+                    ),
+                  ]}
                   pendingSignals={pendingSignals}
-                  reviewedSignals={reviewedSignals}
-                  queueError={queueError}
-                  statusFilter={statusFilter}
-                  typeFilter={typeFilter}
-                  actionFilter={actionFilter}
-                  page={page}
-                  previewId={reviewOpen ? null : previewId}
-                  queryExtras={queryExtras}
-                  supervisedActions={store.supervisedActions ?? []}
+                  reviewedCount={
+                    vaultMismatch ? 0 : (backendScore?.reviewed_count ?? null)
+                  }
                 />
-              </div>
-              <SignalQueue
-                {...queueProps}
-                previewId={reviewOpen ? null : previewId}
-              />
-            </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+                  <div className="flex w-full min-w-0 shrink-0">
+                    <SignalQueueFilters
+                      pendingSignals={pendingSignals}
+                      reviewedSignals={reviewedSignals}
+                      queueError={queueError}
+                      statusFilter={statusFilter}
+                      typeFilter={typeFilter}
+                      actionFilter={actionFilter}
+                      page={page}
+                      previewId={reviewOpen ? null : previewId}
+                      queryExtras={queryExtras}
+                      supervisedActions={store.supervisedActions ?? []}
+                    />
+                  </div>
+                  <SignalQueue
+                    {...queueProps}
+                    previewId={reviewOpen ? null : previewId}
+                  />
+                </div>
+              </>
+            )}
           </div>
         }
         review={

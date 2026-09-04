@@ -140,6 +140,7 @@ export function FeedbackControls({
                 replaced: triage.replaced,
                 typeFilter: triage.typeFilter,
                 actionFilter: triage.actionFilter,
+                file: triage.file,
               })
             : null;
 

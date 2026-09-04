@@ -27,6 +27,8 @@ export type SignalReviewTriage = {
   typeFilter?: TypeFilter;
   /** Preserve Approve / Review CTA filter on feedback / walk advances. */
   actionFilter?: ActionFilter;
+  /** Preserve Vault `?file=` scope on feedback / walk advances. */
+  file?: string | null;
 };
 
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
@@ -282,6 +284,7 @@ export function pendingReviewWalkHref(opts: {
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
+  file?: string | null;
 }): string {
   const mode = opts.mode ?? "shadow";
   const status = opts.statusFilter ?? "all";
@@ -295,6 +298,7 @@ export function pendingReviewWalkHref(opts: {
     action: action === "all" ? null : action,
     preview: opts.previewId,
     replaced: replacedQueryValue(opts.replaced),
+    file: opts.file,
   });
 }
 
@@ -306,6 +310,7 @@ function pendingReviewQueueHref(opts: {
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
+  file?: string | null;
 }): string {
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
@@ -320,6 +325,7 @@ function pendingReviewQueueHref(opts: {
     action: action === "all" ? null : action,
     preview: opts.nextPreviewId || null,
     replaced,
+    file: opts.file,
   });
 }
 
@@ -341,6 +347,7 @@ export function afterFeedbackHref(opts: {
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
+  file?: string | null;
 }): string | null {
   if (!opts.wasPending) return null;
   const modeExtra =
@@ -356,6 +363,7 @@ export function afterFeedbackHref(opts: {
       action: action === "all" ? null : action,
       preview: opts.currentSignalId,
       replaced: replacedQueryValue(opts.replaced),
+      file: opts.file,
     });
   }
   return pendingReviewQueueHref({
@@ -365,6 +373,7 @@ export function afterFeedbackHref(opts: {
     replaced: opts.replaced,
     typeFilter: opts.typeFilter,
     actionFilter: opts.actionFilter,
+    file: opts.file,
   });
 }
 
@@ -386,6 +395,7 @@ export function afterMarkActedHref(opts: {
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
+  file?: string | null;
 }): string | null {
   if (!opts.acted || opts.feedbackLabel !== "correct") return null;
   const modeExtra =
@@ -401,6 +411,7 @@ export function afterMarkActedHref(opts: {
       action: action === "all" ? null : action,
       preview: opts.nextPreviewId,
       replaced: replacedQueryValue(opts.replaced),
+      file: opts.file,
     });
   }
   if (opts.nextPendingPreviewId) {
@@ -411,6 +422,7 @@ export function afterMarkActedHref(opts: {
       replaced: opts.replaced,
       typeFilter: opts.typeFilter,
       actionFilter: opts.actionFilter,
+      file: opts.file,
     });
   }
   return null;

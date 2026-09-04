@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { FolderIcon } from "@/components/icons/FolderIcon";
@@ -18,6 +18,7 @@ import {
   PARTNER_DEMO_REPLACE_CONFIRM_CODE,
   PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
 } from "@/lib/partner-demo-replace-guard";
+import { lastUploadedFileName as uploadBasename } from "@/lib/upload-filename";
 import {
   CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
   HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
@@ -39,6 +40,8 @@ const FORMAT_LABELS: Record<string, string> = {
 };
 
 const FILE_ACCEPT = ".csv,.json,.txt,text/csv,application/json,text/plain";
+/** Quiet upload/validation pills dismiss so the drop zone stays clean. */
+const ERROR_DISMISS_MS = 4000;
 
 export function UploadForm({
   hasPartnerExport = false,
@@ -71,6 +74,12 @@ export function UploadForm({
   const onDemoErrorChange = useCallback((message: string | null) => {
     setDemoError(message);
   }, []);
+
+  useEffect(() => {
+    if (!error) return;
+    const timer = window.setTimeout(() => setError(null), ERROR_DISMISS_MS);
+    return () => window.clearTimeout(timer);
+  }, [error]);
 
   function clearPendingConfirm() {
     setPendingPartnerDemoReplace(false);
@@ -166,6 +175,8 @@ export function UploadForm({
       if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
       // JSON is the keep-set until deferred prune finishes — skip leftover Neon overlay.
       if (data.replaced) query.set("replaced", "1");
+      const uploadedName = uploadBasename(file?.name);
+      if (uploadedName) query.set("file", uploadedName);
       // JSON already has newSignals; do not wait for Neon dual-write.
       router.push(`/?${query.toString()}`);
     } catch (err) {
@@ -252,6 +263,7 @@ export function UploadForm({
           aria-invalid={error ? true : undefined}
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
+            setError(null);
             clearPendingConfirm();
           }}
           className="absolute inset-0 z-10 h-full min-h-full w-full cursor-pointer rounded-[var(--radius-control)] border-0 bg-transparent p-0 opacity-0 file:hidden focus-visible:border-0 focus-visible:ring-0"
@@ -297,10 +309,14 @@ export function UploadForm({
               </button>
               <PartnerDemoButton
                 label="Run Partner Demo"
+                lastUploadedFileName={lastUploadedFileName}
                 className="btn-secondary rounded-[var(--radius-panel)]"
                 onErrorChange={onDemoErrorChange}
               />
-              <ResetDemoButton onErrorChange={onDemoErrorChange} />
+              <ResetDemoButton
+                lastUploadedFileName={lastUploadedFileName}
+                onErrorChange={onDemoErrorChange}
+              />
             </>
           )}
           <div
@@ -313,7 +329,9 @@ export function UploadForm({
                 role="alert"
                 className="max-w-[min(100%,20rem)] rounded-full bg-sio-status-danger-bg px-3 py-1 text-center font-sans font-medium text-copy-14 text-pretty text-sio-status-danger-fg"
               >
-                {error}. Check the file format and try again.
+                {error.includes("file first")
+                  ? error
+                  : `${error.endsWith(".") ? error.slice(0, -1) : error}. Check the file format and try again.`}
               </p>
             ) : null}
           </div>

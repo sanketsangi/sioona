@@ -15,15 +15,20 @@ import {
   hasSyncFailures,
   syncQueryExtras,
 } from "@/lib/prediction-sync";
+import { ZERODHA_BATCH02_SAMPLE_NAME } from "@/lib/partner-demo-replace-guard";
 import { cn } from "@/lib/utils";
+import { vaultShowcaseAlreadyActive } from "@/lib/vault-showcase";
 
 export function PartnerDemoButton({
   className = "btn-primary",
   label = "Start Partner Demo",
+  lastUploadedFileName,
   onErrorChange,
 }: {
   className?: string;
   label?: string;
+  /** When already Zerodha Batch-02, skip wipe+seed and open Insights. */
+  lastUploadedFileName?: string | null;
   /** Surface demo failure in-panel (parent owns the alert). */
   onErrorChange?: (error: string | null) => void;
 }) {
@@ -48,10 +53,42 @@ export function PartnerDemoButton({
     }
   }, [loading]);
 
+  function openPartnerInsights(extras?: {
+    syncFailed?: string;
+    syncCreated?: string;
+    llmAdded?: string;
+    llmFailed?: string;
+    wipeFailed?: boolean;
+    /** Fresh showcase apply — hide leftover Neon overlay until prune. */
+    replaced?: boolean;
+  }) {
+    const query = new URLSearchParams({
+      view: "insights",
+      demo: "1",
+      file: ZERODHA_BATCH02_SAMPLE_NAME,
+    });
+    if (extras?.replaced) query.set("replaced", "1");
+    if (extras?.syncFailed) query.set("syncFailed", extras.syncFailed);
+    if (extras?.syncCreated) query.set("syncCreated", extras.syncCreated);
+    if (extras?.llmAdded) query.set("llmAdded", extras.llmAdded);
+    if (extras?.llmFailed) query.set("llmFailed", extras.llmFailed);
+    if (extras?.wipeFailed) query.set("wipeFailed", "1");
+    router.replace(`/?${query.toString()}`);
+    router.refresh();
+  }
+
   async function run() {
+    // Already on Partner Demo keep-set — open Insights without wipe+seed.
+    if (vaultShowcaseAlreadyActive("partner", lastUploadedFileName)) {
+      openPartnerInsights();
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSyncWarning(null);
+    // Wake sleeping Render while wipe starts (fail-soft).
+    void fetch("/api/backend-health").catch(() => undefined);
     // First real stream step is wipe → partner-facing "Uploading…"
     setPipelineStatus("Uploading…");
     try {
@@ -73,14 +110,8 @@ export function PartnerDemoButton({
       });
 
       const sync = data.predictionSync;
-      const query = new URLSearchParams({ view: "insights", demo: "1" });
       const extras = syncQueryExtras(sync);
-      if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
-      if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
       const llmExtras = llmQueryExtras(data.detectLlm);
-      if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
-      if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
-      if (data.wipeFailed) query.set("wipeFailed", "1");
 
       if (hasSyncFailures(sync) && sync) {
         setSyncWarning(
@@ -94,8 +125,14 @@ export function PartnerDemoButton({
 
       // replace: drop a stale `?preview=sig_neon_…` from the prior queue so
       // Back does not reopen an orphan card after the store reset.
-      router.replace(`/?${query.toString()}`);
-      router.refresh();
+      openPartnerInsights({
+        replaced: true,
+        syncFailed: extras.syncFailed,
+        syncCreated: extras.syncCreated,
+        llmAdded: llmExtras.llmAdded,
+        llmFailed: llmExtras.llmFailed,
+        wipeFailed: data.wipeFailed,
+      });
     } catch (err) {
       hadErrorRef.current = true;
       setError(err instanceof Error ? err.message : "Demo failed");

@@ -11,11 +11,16 @@ import {
   type PartnerDemoStep,
 } from "@/lib/partner-demo-progress";
 import { cn } from "@/lib/utils";
+import { GROWW_SHOWCASE_SAMPLE_NAME } from "@/lib/partner-demo-replace-guard";
+import { vaultShowcaseAlreadyActive } from "@/lib/vault-showcase";
 import { viewHref } from "@/lib/views";
 
 export function ResetDemoButton({
+  lastUploadedFileName,
   onErrorChange,
 }: {
+  /** When already Groww Sample, skip wipe+seed and open Insights. */
+  lastUploadedFileName?: string | null;
   /** Surface reset failure in-panel (parent owns the alert). */
   onErrorChange?: (error: string | null) => void;
 }) {
@@ -37,10 +42,30 @@ export function ResetDemoButton({
     }
   }, [loading]);
 
+  function openSampleInsights(opts?: {
+    wipeFailed?: boolean;
+    replaced?: boolean;
+  }) {
+    router.refresh();
+    router.push(
+      viewHref("insights", {
+        wipeFailed: opts?.wipeFailed ? "1" : undefined,
+        replaced: opts?.replaced ? "1" : undefined,
+        file: GROWW_SHOWCASE_SAMPLE_NAME,
+      })
+    );
+  }
+
   async function reset() {
+    if (vaultShowcaseAlreadyActive("sample", lastUploadedFileName)) {
+      openSampleInsights();
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setPipelineStatus("Resetting…");
+    void fetch("/api/backend-health").catch(() => undefined);
     try {
       const res = await fetch("/api/store", {
         method: "POST",
@@ -60,12 +85,7 @@ export function ResetDemoButton({
         },
       });
 
-      router.refresh();
-      router.push(
-        viewHref("insights", {
-          wipeFailed: data.wipeFailed ? "1" : undefined,
-        })
-      );
+      openSampleInsights({ wipeFailed: data.wipeFailed, replaced: true });
     } catch (err) {
       hadErrorRef.current = true;
       const raw = err instanceof Error ? err.message : "Reset failed";

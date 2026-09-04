@@ -259,7 +259,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toContain("No Signals Need Follow-Up");
     expect(html).toContain("Add Filter");
     expect(html).toContain('data-slot="popover-trigger"');
-    expect(html).toContain("block size-4 shrink-0 text-sio-fg-subtle");
+    expect(html).toContain("block size-4 shrink-0 text-sio-fg-base");
     expect(html).not.toContain("translate-y-[1.5px]");
     expect(html).toContain("w-[110px]");
     expect(html).toContain("w-16");
@@ -801,6 +801,78 @@ describe("InsightsView Neon pending overlay", () => {
 
     expect(html).toContain("No Signals Yet");
     expect(html).not.toContain("Leftover Groww pending");
+  });
+
+  it("auto-loads Sample when Vault ?file= is not the keep-set", () => {
+    const pending = makePendingSignals(2);
+    const store = storeFromSignals(pending);
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Zerodha_week_5_batch_01.json",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Groww_batch_02",
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Groww_batch_02");
+    expect(html).toContain("Loading Sample…");
+    expect(html).not.toContain("Sample Not Loaded");
+    expect(html).not.toContain("Pending signal 1");
+  });
+
+  it("keeps Upload CTA when a non-showcase Vault file is not loaded", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_week_5_batch_01.json",
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("File Not Loaded");
+    expect(html).toContain("Uploaded Chats");
   });
 });
 
