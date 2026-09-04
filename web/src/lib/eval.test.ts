@@ -6,9 +6,11 @@ import {
   applyBackendSignalScoreToPilot,
   computeEvalMetrics,
   computePilotMetrics,
+  decidePilotGoNoGo,
   REVIEW_PRECISION_TARGET,
   sortSignals,
 } from "./eval";
+import { PILOT_MIN_REVIEWS } from "./pilot-cadence";
 import { mergeSignalsPreservingFeedback } from "./store";
 import type { Signal, StoreData } from "./types";
 
@@ -94,6 +96,93 @@ describe("computeEvalMetrics", () => {
     expect(metrics.correctCount).toBe(1);
     expect(metrics.incorrectCount).toBe(1);
     expect(metrics.reviewPrecision).toBe(0.5);
+  });
+
+  it("ignores non-canonical feedback labels in review precision", () => {
+    const [base] = runDetection(
+      sampleStore.conversations,
+      sampleStore.messages,
+      sampleStore.tenant.id
+    );
+    const metrics = computeEvalMetrics(
+      withSignals([
+        {
+          ...base,
+          status: "reviewed",
+          feedback: {
+            label: "accept" as never,
+            reviewedAt: "2026-08-01T00:00:00.000Z",
+          },
+        },
+        {
+          ...base,
+          id: `${base.id}_ok`,
+          status: "reviewed",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-08-01T00:00:00.000Z",
+          },
+        },
+      ])
+    );
+    expect(metrics.reviewedCount).toBe(1);
+    expect(metrics.correctCount).toBe(1);
+    expect(metrics.reviewPrecision).toBe(1);
+  });
+});
+
+describe("decidePilotGoNoGo", () => {
+  it("requires n ≥ PILOT_MIN_REVIEWS for go from keep-set precision", () => {
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: PILOT_MIN_REVIEWS,
+        reviewPrecision: REVIEW_PRECISION_TARGET,
+      })
+    ).toBe("go");
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: PILOT_MIN_REVIEWS - 1,
+        reviewPrecision: 1,
+      })
+    ).toBe("insufficient_data");
+  });
+
+  it("holds when n ≥ min and precision is below target", () => {
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: PILOT_MIN_REVIEWS,
+        reviewPrecision: 0.5,
+      })
+    ).toBe("hold");
+  });
+
+  it("holds early when reviews exist but precision is below target", () => {
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: 2,
+        reviewPrecision: 0.5,
+      })
+    ).toBe("hold");
+  });
+
+  it("allows labeled-fixture go only when opted in", () => {
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: 0,
+        reviewPrecision: null,
+        allowLabeledFixtureGo: true,
+        labeledConversations: 10,
+        labeledPrecision: 1,
+      })
+    ).toBe("go");
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: 0,
+        reviewPrecision: null,
+        labeledConversations: 10,
+        labeledPrecision: 1,
+      })
+    ).toBe("insufficient_data");
   });
 });
 

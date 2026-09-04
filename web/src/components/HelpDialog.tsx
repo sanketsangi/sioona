@@ -23,7 +23,7 @@ const HELP_FAQ: { question: string; answer: string }[] = [
   {
     question: "What is Shadow Mode?",
     answer:
-      "You review Detect output on existing chats. Nothing sends to customers — scores and Mark Acted are display-only.",
+      "You review Detect output on existing chats. You run any follow-up in your own tools — Sioona never sends or CRM-tags. Scores and Mark Acted are display-only.",
   },
   {
     question: "What signals does Detect find?",
@@ -41,9 +41,9 @@ const HELP_FAQ: { question: string; answer: string }[] = [
       "Human keep-set review precision on Eval for the week window. Pilot win is ≥80% — not labeled P/R.",
   },
   {
-    question: "Does Mark Acted send a message?",
+    question: "Does Mark Acted, Approve, or Suggested Next Action send anything?",
     answer:
-      "No. Mark Acted only records that you handled a Correct review. Action Mode stays display-only.",
+      "No. Copy Reply, Approve Draft, and Mark Acted only record review state. You execute outside Sioona in your own tools — Sioona never sends or CRM-tags.",
   },
 ];
 

@@ -1,7 +1,15 @@
 import type { BackendSignalScore } from "./backend-client";
-import type { Signal, SignalType, StoreData } from "./types";
+import { PILOT_MIN_REVIEWS } from "./pilot-cadence";
+import type { FeedbackLabel, Signal, SignalType, StoreData } from "./types";
 
 const SIGNAL_TYPES: SignalType[] = ["lead", "retention", "upsell"];
+
+/** Canonical human review labels — same set FastAPI scores. */
+const REVIEW_FEEDBACK_LABELS = new Set<FeedbackLabel>([
+  "correct",
+  "incorrect",
+  "partially_correct",
+]);
 
 /** Queue / list rank — retention is the primary product signal. */
 export const SIGNAL_TYPE_RANK: Record<SignalType, number> = {
@@ -120,7 +128,9 @@ export function computeEvalMetrics(store: StoreData): EvalMetrics {
     }
   }
 
-  const reviewed = store.signals.filter((s) => s.feedback);
+  const reviewed = store.signals.filter(
+    (s) => s.feedback && REVIEW_FEEDBACK_LABELS.has(s.feedback.label)
+  );
   const correct = reviewed.filter((s) => s.feedback?.label === "correct");
   const incorrect = reviewed.filter((s) => s.feedback?.label === "incorrect");
   const partiallyCorrect = reviewed.filter(
@@ -169,9 +179,8 @@ export function sortSignals(signals: Signal[]): Signal[] {
   });
 }
 
-/** Pilot go/no-go threshold for human review precision. */
+/** Pilot go/no-go threshold for human review precision (keep-set SignalScore). */
 export const REVIEW_PRECISION_TARGET = 0.8;
-const MIN_REVIEWS_FOR_GO_NO_GO = 5;
 
 export type PilotGoNoGo = "go" | "hold" | "insufficient_data";
 
@@ -199,6 +208,49 @@ export interface PilotMetrics {
   offerSummary: string;
 }
 
+/**
+ * Keep-set SignalScore verdict from human reviews only.
+ *
+ * - n ≥ {@link PILOT_MIN_REVIEWS} and precision ≥ target → go
+ * - n ≥ {@link PILOT_MIN_REVIEWS} and precision below target → hold
+ * - optional labeled-fixture shortcut (offline JSON only)
+ * - 0 < n < min with precision below target → hold
+ * - otherwise → insufficient_data
+ */
+export function decidePilotGoNoGo(input: {
+  reviewedCount: number;
+  reviewPrecision: number | null;
+  /** Offline JSON only: labeled P/R ≥ target with ≥10 labeled chats. */
+  allowLabeledFixtureGo?: boolean;
+  labeledConversations?: number;
+  labeledPrecision?: number | null;
+  minReviews?: number;
+  precisionTarget?: number;
+}): PilotGoNoGo {
+  const minReviews = input.minReviews ?? PILOT_MIN_REVIEWS;
+  const precisionTarget = input.precisionTarget ?? REVIEW_PRECISION_TARGET;
+  const meetsTarget =
+    input.reviewPrecision === null
+      ? null
+      : input.reviewPrecision >= precisionTarget;
+
+  if (input.reviewedCount >= minReviews) {
+    return meetsTarget === true ? "go" : "hold";
+  }
+  if (
+    input.allowLabeledFixtureGo &&
+    (input.labeledConversations ?? 0) >= 10 &&
+    input.labeledPrecision != null &&
+    input.labeledPrecision >= precisionTarget
+  ) {
+    return "go";
+  }
+  if (input.reviewedCount > 0 && meetsTarget === false) {
+    return "hold";
+  }
+  return "insufficient_data";
+}
+
 export function computePilotMetrics(store: StoreData): PilotMetrics {
   const evalMetrics = computeEvalMetrics(store);
   const baselineOpportunities = Math.max(
@@ -220,22 +272,13 @@ export function computePilotMetrics(store: StoreData): PilotMetrics {
       ? null
       : evalMetrics.reviewPrecision >= REVIEW_PRECISION_TARGET;
 
-  let goNoGo: PilotGoNoGo = "insufficient_data";
-  if (evalMetrics.reviewedCount >= MIN_REVIEWS_FOR_GO_NO_GO) {
-    goNoGo =
-      meetsReviewPrecisionTarget === true
-        ? "go"
-        : "hold";
-  } else if (
-    evalMetrics.labeledConversations >= 10 &&
-    evalMetrics.labeledPrecision !== null &&
-    evalMetrics.labeledPrecision >= REVIEW_PRECISION_TARGET
-  ) {
-    // Fixture / labeled-set gate before enough human reviews accumulate
-    goNoGo = "go";
-  } else if (evalMetrics.reviewedCount > 0 && meetsReviewPrecisionTarget === false) {
-    goNoGo = "hold";
-  }
+  const goNoGo = decidePilotGoNoGo({
+    reviewedCount: evalMetrics.reviewedCount,
+    reviewPrecision: evalMetrics.reviewPrecision,
+    allowLabeledFixtureGo: true,
+    labeledConversations: evalMetrics.labeledConversations,
+    labeledPrecision: evalMetrics.labeledPrecision,
+  });
 
   return {
     sioonaOpportunities,
@@ -296,18 +339,12 @@ export function applyBackendSignalScoreToPilot(
       ? null
       : reviewPrecision >= REVIEW_PRECISION_TARGET;
 
-  let goNoGo: PilotGoNoGo = "insufficient_data";
-  if (reviewedCount >= MIN_REVIEWS_FOR_GO_NO_GO) {
-    goNoGo = meetsReviewPrecisionTarget === true ? "go" : "hold";
-  } else if (reviewedCount > 0 && meetsReviewPrecisionTarget === false) {
-    goNoGo = "hold";
-  }
-
   return {
     ...base,
     reviewPrecision,
     meetsReviewPrecisionTarget,
     reviewedCount,
-    goNoGo,
+    // Neon window ∩ keep-set only — never the labeled-fixture shortcut.
+    goNoGo: decidePilotGoNoGo({ reviewedCount, reviewPrecision }),
   };
 }

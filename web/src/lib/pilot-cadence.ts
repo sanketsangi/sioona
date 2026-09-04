@@ -61,7 +61,7 @@ export function computePilotCadenceSteps(
     },
     {
       id: "reviews",
-      label: `Mark ≥${minReviews} SignalScore reviews`,
+      label: `Mark ≥${minReviews} Corrects this window`,
       done: reviewsDone,
     },
     {
@@ -71,7 +71,7 @@ export function computePilotCadenceSteps(
     },
     {
       id: "gonogo",
-      label: "Share go/no-go",
+      label: "Share ≥80% Go on Eval",
       done: goNoGoReady,
     },
   ];
@@ -166,7 +166,7 @@ export function pilotCadenceHelperCopy(
   if (action.id === "nextweek") {
     switch (surface) {
       case "insights":
-        return "Queue is clear for this window. Share go/no-go on Eval, or re-upload next week’s export (upsert, not replace).";
+        return "Queue is clear for this window. Share ≥80% Go on Eval, or re-upload next week’s export (upsert, not replace).";
       case "upload":
         return "This week’s keep-set is closed. Re-upload the weekly export — matching chats upsert, not a Day-1 replace.";
       case "eval":
@@ -182,11 +182,11 @@ export function pilotCadenceHelperCopy(
     case "midweek":
       return "Mid-week — re-upload the weekly export (upsert by external id).";
     case "reviews":
-      return `Mark ≥${PILOT_MIN_REVIEWS} SignalScore reviews in Insights.`;
+      return `Mark ≥${PILOT_MIN_REVIEWS} Corrects this window in Insights — Go needs keep-set ≥80%.`;
     case "baseline":
       return "Set the partner baseline on Eval so lift is credible.";
     case "gonogo":
-      return "Open Eval to share this window’s go/no-go.";
+      return "Open Eval to share Go when keep-set SignalScore is ≥80%.";
   }
 }
 

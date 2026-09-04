@@ -1,38 +1,56 @@
 """SignalScore calculation from human-reviewed predictions."""
 
-from collections import defaultdict
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import Select, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from app.models.conversation import Conversation
 from app.models.signal_feedback import (
     FEEDBACK_CORRECT,
     FEEDBACK_INCORRECT,
-    FEEDBACK_PARTIALLY_CORRECT,
+    FEEDBACK_LABELS,
     SignalFeedback,
 )
 from app.models.signal_prediction import SignalPrediction
 
 
 @dataclass
-class TypeScoreBucket:
-    """Counts for one signal_type."""
+class ScoreCounts:
+    """Canonical feedback tallies. ``reviewed_count`` is always the sum of labels."""
 
-    signal_type: str
     reviewed_count: int = 0
     correct_count: int = 0
     incorrect_count: int = 0
     partially_correct_count: int = 0
 
+    def add(self, label: str, n: int = 1) -> None:
+        """Accumulate only canonical labels; ignore corrupt / legacy rows."""
+        if n <= 0 or label not in FEEDBACK_LABELS:
+            return
+        self.reviewed_count += n
+        if label == FEEDBACK_CORRECT:
+            self.correct_count += n
+        elif label == FEEDBACK_INCORRECT:
+            self.incorrect_count += n
+        else:
+            self.partially_correct_count += n
+
     @property
     def signal_score(self) -> float | None:
+        """correct / reviewed; null when nothing has been reviewed."""
         if self.reviewed_count == 0:
             return None
         return self.correct_count / self.reviewed_count
+
+
+@dataclass
+class TypeScoreBucket(ScoreCounts):
+    """Counts for one signal_type."""
+
+    signal_type: str = ""
 
 
 @dataclass
@@ -44,7 +62,7 @@ class SignalScoreResult:
     correct_count: int
     incorrect_count: int
     partially_correct_count: int
-    by_signal_type: list[TypeScoreBucket]
+    by_signal_type: list[TypeScoreBucket] = field(default_factory=list)
 
     @property
     def signal_score(self) -> float | None:
@@ -89,7 +107,7 @@ def resolve_score_keep_set(
     return None
 
 
-def _reviewed_query(
+def _reviewed_tally_query(
     tenant_id: str,
     *,
     date_from: datetime | None,
@@ -97,16 +115,23 @@ def _reviewed_query(
     signal_type: str | None,
     conversation_ids: frozenset[str] | None,
 ) -> Select:
-    """Build join of predictions with feedback for a tenant.
+    """Group reviewed predictions by type × canonical feedback label.
 
     ``date_from`` / ``date_to`` bound ``SignalFeedback.reviewed_at`` (not
     prediction ``created_at``) so week windows reflect when reviews happened.
+    Non-canonical feedback labels are excluded so they cannot dilute the score.
     """
     stmt = (
-        select(SignalPrediction, SignalFeedback)
+        select(
+            SignalPrediction.signal_type,
+            SignalFeedback.feedback,
+            func.count().label("n"),
+        )
         .join(SignalFeedback, SignalFeedback.signal_id == SignalPrediction.id)
         .where(SignalPrediction.tenant_id == tenant_id)
         .where(SignalFeedback.tenant_id == tenant_id)
+        .where(SignalFeedback.feedback.in_(FEEDBACK_LABELS))
+        .group_by(SignalPrediction.signal_type, SignalFeedback.feedback)
     )
     if date_from is not None:
         stmt = stmt.where(SignalFeedback.reviewed_at >= date_from)
@@ -143,7 +168,7 @@ def calculate_signal_score(
         return _empty_score(tenant_id)
 
     rows = db.execute(
-        _reviewed_query(
+        _reviewed_tally_query(
             tenant_id,
             date_from=date_from,
             date_to=date_to,
@@ -152,38 +177,22 @@ def calculate_signal_score(
         )
     ).all()
 
-    buckets: dict[str, TypeScoreBucket] = defaultdict(
-        lambda: TypeScoreBucket(signal_type="")
-    )
-    reviewed_count = 0
-    correct_count = 0
-    incorrect_count = 0
-    partially_correct_count = 0
+    overall = ScoreCounts()
+    buckets: dict[str, TypeScoreBucket] = {}
 
-    for prediction, feedback in rows:
-        reviewed_count += 1
-        key = prediction.signal_type
-        if key not in buckets:
-            buckets[key] = TypeScoreBucket(signal_type=key)
-        bucket = buckets[key]
-        bucket.reviewed_count += 1
+    for type_key, label, n in rows:
+        overall.add(label, n)
+        bucket = buckets.get(type_key)
+        if bucket is None:
+            bucket = TypeScoreBucket(signal_type=type_key)
+            buckets[type_key] = bucket
+        bucket.add(label, n)
 
-        if feedback.feedback == FEEDBACK_CORRECT:
-            correct_count += 1
-            bucket.correct_count += 1
-        elif feedback.feedback == FEEDBACK_INCORRECT:
-            incorrect_count += 1
-            bucket.incorrect_count += 1
-        elif feedback.feedback == FEEDBACK_PARTIALLY_CORRECT:
-            partially_correct_count += 1
-            bucket.partially_correct_count += 1
-
-    by_type = sorted(buckets.values(), key=lambda b: b.signal_type)
     return SignalScoreResult(
         tenant_id=tenant_id,
-        reviewed_count=reviewed_count,
-        correct_count=correct_count,
-        incorrect_count=incorrect_count,
-        partially_correct_count=partially_correct_count,
-        by_signal_type=by_type,
+        reviewed_count=overall.reviewed_count,
+        correct_count=overall.correct_count,
+        incorrect_count=overall.incorrect_count,
+        partially_correct_count=overall.partially_correct_count,
+        by_signal_type=sorted(buckets.values(), key=lambda b: b.signal_type),
     )

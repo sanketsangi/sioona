@@ -164,7 +164,7 @@ function MetricCell({
 /**
  * Keep-set snapshot under the Insights queue heading — coverage, signals,
  * and pending needs-review depth. Quiet n / ≥5 footer is windowed Neon
- * reviewed_count only — not Eval SignalScore / go-no-go.
+ * reviewed_count toward ≥80% Go — not the win by itself.
  */
 export function InsightsQueueMetrics({
   conversationCount,
@@ -234,7 +234,8 @@ export function InsightsQueueMetrics({
               "border-t border-sio-border-base py-2 tabular text-label-12 text-sio-fg-muted",
             )}
           >
-            This window reviewed {reviewedCount} / ≥{PILOT_MIN_REVIEWS}
+            This window {reviewedCount} / ≥{PILOT_MIN_REVIEWS} toward ≥80%
+            Go
           </p>
         ) : null}
       </EvalCard>

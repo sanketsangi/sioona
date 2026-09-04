@@ -146,11 +146,11 @@ flowchart LR
 
 **Keep:** overlay; Shadow Mode before actions; HITL for high stakes; India-first sequencing; open-model direction; privacy multi-tenant; Geist / Vercel UI (not navy-cyan lore).
 
-**Sell today:** one anonymized export → Shadow Mode → precision + lift vs baseline. No chatbot replacement. No autonomous actions. No outcome-fee pitch.
+**Sell today:** one anonymized export → Shadow Mode → keep-set SignalScore (≥80% go) + lift vs baseline. No chatbot replacement. No autonomous actions. No outcome-fee pitch. Approve / Acted never send — partner runs follow-up outside.
 
 **Do not build yet (unless explicitly asked):** Auth0, live webhooks, Action Mode outbound, pgvector / vLLM / QLoRA / LangGraph, taxonomy expansion to fake recall, outcome billing, on-prem, computer-use / swarm.
 
-**GTM still needs (product-adjacent, not this repo’s Phase B code):** sharp vertical wedge narrative, pilot one-pager + anonymization guide, outreach cadence, brutal honesty on real-export eval.
+**GTM pack (shipped 2026-09-04):** vertical wedge (India broking/fintech CS, retention-first), pilot one-pager + anonymization/redaction checklist, LinkedIn 7-day ask + 2-week cadence, Eval go gate honesty, do-not-sell list — in [`PRODUCT.md`](../../PRODUCT.md) (Sell today) + [`PARTNER_DEMO.md`](../../PARTNER_DEMO.md). Not Phase B code.
 
 ---
 

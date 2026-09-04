@@ -60,7 +60,8 @@ type SignalReviewSuggestedActionProps = {
 /** ≤2 quote lines in Why This Fired (UI_DESIGN). */
 const MAX_WHY_QUOTES = 2;
 
-const ACTED_TOOLTIP = "Does not send the suggested action.";
+const ACTED_TOOLTIP =
+  "You run this in your tools — Sioona never sends or CRM-tags.";
 
 function EvidenceChip({
   text,
@@ -217,12 +218,12 @@ function SupportHeading({
 /**
  * Suggested Next Action + Why This Fired + Matched + Retention Email —
  * single Card well. Header matches Feedback / Ground Truth
- * (`InsightsReviewPaneHeader`). Copy Reply (clipboard-only, never sent)
- * sits left of Mark as Acted. Mark as Acted stays in the header; without
- * Correct feedback a dialog sends the operator to Feedback. Quotes and
- * match chips that join a stored message jump the transcript. Retention
- * Email nests below Matched when present (flattened section). Neon stubs
- * / missing join stay honest.
+ * (`InsightsReviewPaneHeader`). Copy Reply (clipboard-only; you paste in
+ * your tools — Sioona never sends) sits left of Mark as Acted. Mark as
+ * Acted stays in the header; without Correct feedback a dialog sends the
+ * operator to Feedback. Quotes and match chips that join a stored message
+ * jump the transcript. Retention Email nests below Matched when present
+ * (flattened section). Neon stubs / missing join stay honest.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -457,8 +458,8 @@ export function SignalReviewSuggestedAction({
                   </DialogTitle>
                   <DialogDescription>
                     {hasFeedback
-                      ? "Mark as Acted is only for Correct reviews. Update Feedback to Correct, then try again. This does not send a message."
-                      : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Mark as Acted records that you handled a Correct review and does not send a message."}
+                      ? "Mark as Acted is only for Correct reviews. Update Feedback to Correct, then try again. You run the step in your tools — Sioona never sends or CRM-tags."
+                      : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Mark as Acted records that you handled a Correct review. You execute outside — Sioona never sends or CRM-tags."}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -495,7 +496,8 @@ export function SignalReviewSuggestedAction({
         >
           {isActed ? (
             <p className="text-label-12 leading-5 text-sio-fg-muted">
-              Marked as Acted — not sent.
+              Marked as Acted — run it in your tools; Sioona never sends or
+              CRM-tags.
             </p>
           ) : null}
           <p
@@ -510,7 +512,7 @@ export function SignalReviewSuggestedAction({
           </p>
           <p id={copyStatusId} className="sr-only" aria-live="polite">
             {copyState === "copied"
-              ? "Reply copied to clipboard. Not sent."
+              ? "Reply copied to clipboard. Paste it in your tools — Sioona never sends."
               : copyState === "error"
                 ? "Could not copy reply. Try again."
                 : null}

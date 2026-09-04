@@ -149,8 +149,10 @@ describe("RetentionEmailAction", () => {
       "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
     );
     expect(html).toContain("flex-nowrap");
-    expect(html).toContain("the email is not sent");
-    expect(html).toContain("Records approval. Does not send the email.");
+    expect(html).toContain("Sioona never sends or CRM-tags");
+    expect(html).toContain(
+      "You send from your tools — Sioona never sends or CRM-tags.",
+    );
     expect(html).toContain("data-review-slot=\"retention-email\"");
     // Standalone keeps pane-header chrome.
     expect(html).toContain("border-b border-sio-border-base");
@@ -243,7 +245,9 @@ describe("RetentionEmailAction", () => {
         action,
       }),
     );
-    expect(html).toContain("Approved — not sent.");
+    expect(html).toContain(
+      "Approved — not sent. Run it in your tools; Sioona never CRM-tags.",
+    );
     expect(html).toContain("Approved");
     expect(html).not.toContain("High-confidence retention draft");
     expect(html).not.toContain("Approve &amp; Send");
@@ -271,7 +275,9 @@ describe("RetentionEmailAction", () => {
     );
 
     expect(html).toContain("Edited");
-    expect(html).toContain("Edited draft saved — not sent.");
+    expect(html).toContain(
+      "Edited draft saved — not sent. You send from your tools.",
+    );
     expect(html).toContain("Approve Draft");
     expect(html).toContain(">Edit<");
     expect(html).toContain(">Dismiss<");
@@ -293,7 +299,9 @@ describe("RetentionEmailAction", () => {
         action,
       }),
     );
-    expect(html).toContain("Dismissed. No email will be sent.");
+    expect(html).toContain(
+      "Dismissed. Sioona never sends — nothing to run outside.",
+    );
     expect(html).toContain("Approve Draft");
     expect(html).toContain(">Edit<");
     expect(html).toContain(">Dismiss<");

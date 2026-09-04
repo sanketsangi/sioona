@@ -1,12 +1,111 @@
-# Partner Demo — 5-Minute Call Script
+# Partner Demo — GTM Pack + 5-Minute Call Script
 
-Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing.
+Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing. Sell-today summary also lives in [`PRODUCT.md`](./PRODUCT.md).
 
-## One-sentence ask
+## One-liner offer
 
-> Send one Intercom or WhatsApp export; we’ll show opportunity lift and review precision before any integration work.
+> Send one anonymized Intercom or WhatsApp export; we’ll show keep-set SignalScore (≥80% go) and opportunity lift vs your baseline — before any integration, Auth0, or outbound send.
 
 **Week-4 partner note (paste-ready):** [`.cursor/docs/WEEK4_SHAREOUT.md`](.cursor/docs/WEEK4_SHAREOUT.md) — week-window keep-set SignalScore, not labeled P/R.
+
+---
+
+## Pilot one-pager (2-week Shadow Mode)
+
+| | |
+| --- | --- |
+| **Who** | India mid-market broking / fintech CS leads on Intercom or WhatsApp |
+| **Wedge** | **Retention** signals already in chats (close / switch / pause / churn risk). Lead + upsell stay available; retention is the story |
+| **Offer** | Single-tenant Insights + Shadow Mode + human-gated suggestions. No autonomy. No Auth0 sell. |
+| **Ask** | One redacted weekly export now; second mid-week upsert; ~30–45 min review across the window |
+| **Win** | Eval keep-set SignalScore ≥**80%** on the week window (n ≥ 5 human reviews). Lift vs partner baseline documented on Eval. |
+| **Honest approve** | Approve Draft / Correct / Mark Acted never send. Partner executes follow-up outside Sioona. Acted = display-only. |
+| **Not in pilot** | Live webhooks, CRM writeback, Action Mode outbound, chatbot replacement, outcome fees |
+
+**Cadence (partner-facing):**
+
+| Day | Ask |
+| --- | --- |
+| 0 | Redacted export + baseline (“how many opportunities do you find today?”) |
+| 1–3 | Upload → Insights → Correct / Incorrect / Partially correct (≥5) → Mark Acted on Corrects |
+| ~7 | Mid-week upsert (`replaced=false`) — same external IDs, new messages |
+| 10–14 | Eval share-out: keep-set go/hold + lift; decide paid pilot or stop |
+
+Empty Neon window = **Insufficient Data** (never a labeled Go). Hold → more reviews, not Adapt phrase chasing.
+
+---
+
+## Anonymization guide (redaction checklist)
+
+Partners should redact **before** share when possible. Ingest also runs `redactText` (email, phone, PAN, Aadhaar, long account numbers → `[email]` / `[phone]` / `[pan]` / `[aadhaar]` / `[account]`). Masking is defense-in-depth — not a DLP substitute. **Never commit** `*.local.csv`, raw PII, or `store.json`.
+
+**Before sending the file**
+
+- [ ] Strip or mask customer names if policy requires (first name only is often enough)
+- [ ] Remove emails, phones, PAN, Aadhaar, account / client codes (or rely on ingest tokens)
+- [ ] Drop internal agent notes that contain KYC scans, screenshots, or ticket URLs with tokens
+- [ ] Prefer Intercom JSON / WhatsApp `.txt` / Sioona CSV — no CRM dumps, no payment rails
+- [ ] Confirm the export is **support / sales chat only** for the pilot week (or a clear sample)
+- [ ] Label optional `ground_truth` only on a held-out measurement pack — not required for Eval go
+- [ ] Store the file as `*.local.csv` (gitignored) if it lands in-repo; do not push
+
+**What we store:** redacted message text + detected signals + human feedback / Acted. Single demo tenant today — do not promise multi-org isolation or Auth0.
+
+**What we do not need:** live mailbox access, API keys to Intercom/WhatsApp, CRM credentials.
+
+---
+
+## LinkedIn outreach cadence
+
+**7-day ask (connection → export):**
+
+| Day | Touch | Copy spine (edit voice; keep honesty) |
+| --- | --- | --- |
+| 0 | Connection note | Short: India broking/fintech CS + retention in chats — not a chatbot pitch |
+| 1 | Value note | One anonymized export → Shadow Mode → keep-set SignalScore + lift before any integration |
+| 3 | Soft bump | Offer cold demo link (`sioona-demo.vercel.app`) or 15-min screen share |
+| 5 | Objection handle | Nothing sends; Approve / Acted are human-only; no webhooks in the pilot |
+| 7 | Clear ask | “Can you send one redacted weekly Intercom/WhatsApp export this week?” |
+
+**2-week pilot cadence (after export lands):**
+
+| Window | Internal + partner |
+| --- | --- |
+| Week 1 | Day-1 upload → ≥5 reviews + Acted → set baseline on Eval |
+| Mid | Upsert `replaced=false` (second dump or same week refresh) |
+| Week 2 | Finish reviews → Eval go (≥80%) or Hold → paid/committed ask or clean stop |
+
+**Do not** message Auth0 timelines, live connectors, autonomous send, or outcome pricing in outreach. Vertical = retention wedge for India finance chat teams.
+
+---
+
+## Eval go gate (brutal honesty)
+
+| Claim | Use? |
+| --- | --- |
+| Keep-set SignalScore ≥80% on Eval week window (n ≥ 5) | **Yes — pilot win** |
+| Opportunity lift vs partner-set baseline | Yes — document on Eval |
+| Showcase / labeled CLI P/R | Measurement only — **not** a customer claim |
+| Empty window / Insufficient Data | Not a go |
+| Partner Demo wipe alone | Not a go until human reviews land |
+
+---
+
+## Do not sell (on the call or LinkedIn)
+
+- Live Intercom / WhatsApp webhooks, Auth0, CRM APIs
+- Autonomous actions / Action Mode outbound / “Sioona will email the customer”
+- Chatbot or Gong replacement; outcome-based fees
+- Fixture or Adapt-CLI 100% as the pilot promise
+- On-prem, vLLM, QLoRA, LangGraph as near-term scope
+
+Phase 1 sells: one redacted export → scored signals → human trust via SignalScore → Eval keep-set go.
+
+---
+
+## One-sentence ask (call open)
+
+Same as the one-liner offer above — anonymized export, keep-set SignalScore + lift, nothing sends.
 
 ## Cold demo (no partner data)
 
@@ -83,7 +182,6 @@ Eval lanes (not listed on Upload; not merged into Insights):
 
 ## What not to promise on the call
 
-- Live Intercom/WhatsApp webhooks, Auth0, or autonomous actions
-- Outcome-based fees or chatbot replacement
+See **Do not sell** above. Short list: no live webhooks, Auth0, CRM APIs, autonomous send, outcome fees, or chatbot replacement.
 
-Phase 1 sells: ingest → scored signals → human trust via SignalScore → precision gate.
+Phase 1 sells: ingest → scored signals → human trust via SignalScore → Eval keep-set go (≥80%).

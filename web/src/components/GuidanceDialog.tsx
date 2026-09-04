@@ -29,15 +29,17 @@ const CADENCE_STEPS: { title: string; detail: string }[] = [
     detail: "Upsert by external id; matching chats update without a Day-1 replace.",
   },
   {
-    title: "Ongoing — Mark ≥5 SignalScore reviews",
-    detail: "Confirm or correct detections in Insights pending.",
+    title: "Ongoing — Mark ≥5 Corrects this window",
+    detail:
+      "Confirm detections in Insights pending. Corrects feed the keep-set score — not review count alone.",
   },
   {
-    title: "Before share-out — Set baseline + go/no-go",
-    detail: "Set the partner baseline on Eval, then share this window’s call.",
+    title: "Before share-out — Set baseline + ≥80% Go",
+    detail:
+      "Set the partner baseline on Eval, then share Go when keep-set SignalScore is ≥80%.",
   },
   {
-    title: "After go — Mark Acted, then next week",
+    title: "After Go — Mark Acted, then next week",
     detail:
       "Mark Acted on Correct reviews (does not send), then re-upload next week’s export.",
   },
@@ -78,8 +80,9 @@ export function GuidanceDialog({
         <DialogHeader>
           <DialogTitle>Pilot Guidance</DialogTitle>
           <DialogDescription>
-            Two-week Shadow Mode pilot. Win = keep-set Signal Score ≥80% on
-            Eval for the week window.
+            Two-week Shadow Mode pilot. Win = ≥5 Corrects in the week window
+            and keep-set SignalScore ≥80% on Eval (Go) — not review count
+            alone.
           </DialogDescription>
         </DialogHeader>
         <ol className="hide-scrollbar max-h-[min(60vh,24rem)] list-decimal space-y-4 overflow-y-auto overscroll-contain pl-5">

@@ -73,7 +73,7 @@ function storeFromSignals(signals: Signal[]): StoreData {
 
 const cadenceReviews = {
   id: "reviews" as const,
-  label: "Mark ≥5 SignalScore reviews",
+  label: "Mark ≥5 Corrects this window",
 };
 
 const cadenceMidweek = {
@@ -168,11 +168,11 @@ function renderPendingPreview(opts: {
   );
 }
 
-describe("InsightsView window reviewed footer", () => {
-  it("empty Neon window shows 0 / ≥5 without Go or labeled P/R", () => {
+describe("InsightsView window n / ≥5 footer", () => {
+  it("empty Neon window shows 0 / ≥5 toward ≥80% Go without labeled P/R", () => {
     const html = renderPendingList(emptyWindowScore);
 
-    expect(html).toContain("This window reviewed 0 / ≥5");
+    expect(html).toContain("This window 0 / ≥5 toward ≥80% Go");
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toContain("Labeled Eval");
     expect(html).not.toContain("Precision By Signal Type");
@@ -180,11 +180,11 @@ describe("InsightsView window reviewed footer", () => {
     expect(html).not.toMatch(/>Hold</);
   });
 
-  it("n≥5 window shows n / ≥5 without Go or labeled P/R", () => {
+  it("n≥5 window shows n / ≥5 toward ≥80% Go without labeled P/R", () => {
     const html = renderPendingList(goWindowScore);
 
-    expect(html).toContain("This window reviewed 6 / ≥5");
-    expect(html).not.toContain("This window reviewed 0 / ≥5");
+    expect(html).toContain("This window 6 / ≥5 toward ≥80% Go");
+    expect(html).not.toContain("This window 0 / ≥5 toward ≥80% Go");
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toContain("Labeled Eval");
     expect(html).not.toContain("Precision By Signal Type");

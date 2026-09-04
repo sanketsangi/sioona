@@ -13,7 +13,8 @@ import {
 import type { Signal } from "@/lib/types";
 import { useMarkActed } from "@/lib/use-mark-acted";
 
-const ACTED_TOOLTIP = "Does not send the suggested action.";
+const ACTED_TOOLTIP =
+  "You run this in your tools — Sioona never sends or CRM-tags.";
 
 /**
  * Insights Follow-up list Action — Mark as Acted without opening preview.

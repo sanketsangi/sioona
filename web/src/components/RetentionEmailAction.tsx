@@ -60,7 +60,8 @@ const STATUS_LABEL: Record<SupervisedActionStatus, string> = {
   dismissed: "Dismissed",
 };
 
-const APPROVE_TOOLTIP = "Records approval. Does not send the email.";
+const APPROVE_TOOLTIP =
+  "Records approval. You send from your tools — Sioona never sends or CRM-tags.";
 
 /** Quieter subsection labels — matches Why This Fired / Matched (UI_DESIGN). */
 const SECTION_LABEL_CLASS =
@@ -76,11 +77,11 @@ const DRAFT_WELL_CLASS =
 function statusMessage(status: SupervisedActionStatus): string | null {
   switch (status) {
     case "approved":
-      return "Approved — not sent.";
+      return "Approved — not sent. Run it in your tools; Sioona never CRM-tags.";
     case "edited":
-      return "Edited draft saved — not sent.";
+      return "Edited draft saved — not sent. You send from your tools.";
     case "dismissed":
-      return "Dismissed. No email will be sent.";
+      return "Dismissed. Sioona never sends — nothing to run outside.";
     default:
       return null;
   }
@@ -406,8 +407,8 @@ export function RetentionEmailAction({
     <>
       {currentAction.status === "pending" ? (
         <p className="text-pretty text-copy-14 text-sio-fg-subtle">
-          High-confidence retention draft. Approve records intent only — the
-          email is not sent.
+          High-confidence retention draft. Approve records intent only — you
+          send from your tools; Sioona never sends or CRM-tags.
         </p>
       ) : null}
 
@@ -447,7 +448,8 @@ export function RetentionEmailAction({
             <DialogTitle>Change Decision?</DialogTitle>
             <DialogDescription>
               This draft was already {reviseStatusLabel}. Updating records a new
-              decision only — the email is still not sent.
+              decision only — you still send from your tools; Sioona never sends
+              or CRM-tags.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -582,8 +584,8 @@ export function RetentionEmailAction({
                       <DialogHeader>
                         <DialogTitle>Approve Draft</DialogTitle>
                         <DialogDescription>
-                          This records your approval for later evaluation. The
-                          email is not sent.
+                          This records your approval for later evaluation. You
+                          send from your tools — Sioona never sends or CRM-tags.
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>

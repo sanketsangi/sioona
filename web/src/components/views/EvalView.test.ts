@@ -48,7 +48,7 @@ const scoreWindow: SignalScoreWindow = {
 
 const cadenceReviews = {
   id: "reviews" as const,
-  label: "Mark ≥5 SignalScore reviews",
+  label: "Mark ≥5 Corrects this window",
 };
 
 const emptyScore: BackendSignalScore = {

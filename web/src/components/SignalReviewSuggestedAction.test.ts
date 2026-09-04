@@ -376,7 +376,9 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).toContain("Marked as Acted — not sent.");
+    expect(html).toContain(
+      "Marked as Acted — run it in your tools; Sioona never sends or CRM-tags.",
+    );
     expect(html).not.toContain("Mark as Acted");
     expect(html).not.toContain('aria-keyshortcuts="A Enter"');
     expect(html).not.toContain("status-dot");

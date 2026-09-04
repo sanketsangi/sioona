@@ -92,6 +92,38 @@ describe("computePilotCadenceSteps", () => {
   });
 });
 
+describe("pilot cadence win copy", () => {
+  it("labels the reviews step as ≥N Corrects, not reviews alone", () => {
+    const steps = computePilotCadenceSteps({
+      hasDay1: true,
+      hasMidWeekUpload: true,
+      reviewedCount: 2,
+      hasBaseline: false,
+    });
+    const reviews = steps.find((s) => s.id === "reviews");
+    expect(reviews?.label).toMatch(/Corrects this window/);
+    expect(reviews?.label).not.toMatch(/SignalScore reviews/);
+    expect(steps.find((s) => s.id === "gonogo")?.label).toMatch(/≥80% Go/);
+  });
+
+  it("helper copy states Corrects + ≥80% Go", () => {
+    const reviewsAction = {
+      id: "reviews" as const,
+      label: "Mark ≥5 Corrects this window",
+    };
+    const goAction = {
+      id: "gonogo" as const,
+      label: "Share ≥80% Go on Eval",
+    };
+    expect(pilotCadenceHelperCopy("insights", reviewsAction)).toMatch(
+      /Corrects this window/
+    );
+    expect(pilotCadenceHelperCopy("insights", reviewsAction)).toMatch(/≥80%/);
+    expect(pilotCadenceHelperCopy("eval", goAction)).toMatch(/≥80%/);
+    expect(pilotCadenceHelperCopy("eval", goAction)).toMatch(/Go/);
+  });
+});
+
 describe("nextPilotCadenceAction", () => {
   it("points incomplete checklists at the first open step", () => {
     const steps = computePilotCadenceSteps({

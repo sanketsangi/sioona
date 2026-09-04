@@ -5,7 +5,32 @@
 
 Overlay conversation intelligence for finance / high-volume chat teams. Sits on top of Intercom, Zendesk, WhatsApp, and similar tools. **Not** a chatbot replacement.
 
-**Now:** 2-week Shadow Mode pilot — win = keep-set SignalScore ≥80% on Eval (week window). Phase 1 loop is **largely built / hosted**. Daily SoT: [`.cursor/docs/PROJECT_STATE.md`](./.cursor/docs/PROJECT_STATE.md). North star: [`.cursor/plans/sioona_product_context.md`](./.cursor/plans/sioona_product_context.md).
+**Now:** 2-week Shadow Mode pilot — win = keep-set SignalScore ≥80% on Eval (week window). Phase 1 loop is **largely built / hosted**. Daily SoT: [`.cursor/docs/PROJECT_STATE.md`](./.cursor/docs/PROJECT_STATE.md). North star: [`.cursor/plans/sioona_product_context.md`](./.cursor/plans/sioona_product_context.md). Pilot ask + redaction + outreach: [`PARTNER_DEMO.md`](./PARTNER_DEMO.md).
+
+## Sell today (GTM)
+
+**One-liner offer:** Send one anonymized Intercom / WhatsApp export; we run Shadow Mode and show keep-set SignalScore + opportunity lift vs your baseline — before any integration.
+
+**Vertical wedge:** India mid-market broking / fintech CS on Intercom or WhatsApp. Primary Detect signal = **retention** (churn / close / switch / pause intent in existing chats). Lead and upsell stay in taxonomy; do not lead with “AI agent” or chatbot replacement.
+
+**What the partner gets (2 weeks):**
+1. Day 1 — upload redacted export → Insights pending queue
+2. Mid-week — weekly upsert (`replaced=false`) → ≥5 human Correct reviews + Mark Acted (display-only)
+3. Share-out — Eval week-window keep-set SignalScore; **go = ≥80%** (n ≥ 5). Lift vs the baseline they set (“how many opportunities do you find today?”)
+
+**Honest gate:** Approve Draft / Correct / Mark Acted are human decisions only. **Nothing sends.** Partner runs follow-up outside Sioona (email, CRM, phone). Acted is display-only cadence, not outbound.
+
+**Eval go gate (customer claim):** keep-set SignalScore on the Eval week window ≥80% with enough reviews — **not** labeled fixture P/R, **not** Adapt CLI scores, **not** empty-window “Insufficient Data.”
+
+### Do not sell
+
+- Auth0 / multi-tenant SSO, live Intercom/WhatsApp webhooks, CRM APIs
+- Action Mode outbound send, autonomous agents, computer-use / swarm
+- Chatbot replacement, Gong replacement, outcome-based fees
+- “100% precision” from showcase packs; labeled P/R as the pilot win
+- On-prem, vLLM / QLoRA / LangGraph as near-term deliverables
+
+WTP band to **validate** (not pitch as fact): ≈ ₹25k–90k/mo Insights. GTM goal = 2–3 committed pilots — sales goal, not a precision substitute. Full pilot one-pager, redaction checklist, and LinkedIn cadence → [`PARTNER_DEMO.md`](./PARTNER_DEMO.md).
 
 ## Phase 1 loop (largely built)
 

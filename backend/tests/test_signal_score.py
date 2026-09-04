@@ -493,7 +493,82 @@ def test_signal_score_neon_keep_set_is_tenant_scoped(db: Session) -> None:
     assert result.signal_score == pytest.approx(1.0)
 
 
-def test_needs_review_clamps_limit(db: Session) -> None:
+def test_signal_score_excludes_non_canonical_feedback(db: Session) -> None:
+    """Corrupt / legacy labels must not dilute SignalScore."""
+    from app.models.signal_feedback import SignalFeedback
+
+    good = _pred(db, conversation_id="c_good")
+    bad = _pred(db, conversation_id="c_bad")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=good.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    db.add(
+        SignalFeedback(
+            tenant_id="tenant_a",
+            signal_id=bad.id,
+            feedback="accept",  # legacy JSON label — not canonical
+            reviewed_by="r1",
+        )
+    )
+    db.commit()
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert result.reviewed_count == 1
+    assert result.correct_count == 1
+    assert result.incorrect_count == 0
+    assert result.partially_correct_count == 0
+    assert result.signal_score == pytest.approx(1.0)
+    assert (
+        result.correct_count
+        + result.incorrect_count
+        + result.partially_correct_count
+        == result.reviewed_count
+    )
+
+
+def test_signal_score_counts_invariant(db: Session) -> None:
+    lead = _pred(db, conversation_id="c1", signal_type="lead")
+    ret = _pred(db, conversation_id="c2", signal_type="retention")
+    up = _pred(db, conversation_id="c3", signal_type="upsell")
+    record_feedback(
+        db, tenant_id="tenant_a", signal_id=lead.id, feedback="correct", reviewed_by="r1"
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=ret.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=up.id,
+        feedback="partially_correct",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert (
+        result.correct_count
+        + result.incorrect_count
+        + result.partially_correct_count
+        == result.reviewed_count
+    )
+    for bucket in result.by_signal_type:
+        assert (
+            bucket.correct_count
+            + bucket.incorrect_count
+            + bucket.partially_correct_count
+            == bucket.reviewed_count
+        )
+        assert bucket.signal_score == pytest.approx(
+            bucket.correct_count / bucket.reviewed_count
+        )
     for index in range(105):
         _pred(db, conversation_id=f"c_clamp_{index}")
 

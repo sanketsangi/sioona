@@ -14,7 +14,8 @@ import {
   type MarkActedWalk,
 } from "@/lib/use-mark-acted";
 
-const ACTED_TOOLTIP = "Does not send the suggested action.";
+const ACTED_TOOLTIP =
+  "You run this in your tools — Sioona never sends or CRM-tags.";
 
 /**
  * Insights review header — Mark as Pending undo after Acted.
@@ -36,7 +37,8 @@ export function MarkActedHeaderAction({
     <TooltipProvider delayDuration={400}>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <p className="sr-only" aria-live="polite">
-          Marked as Acted. Suggested action was not sent.
+          Marked as Acted — run it in your tools; Sioona never sends or
+          CRM-tags.
         </p>
         <Tooltip>
           <TooltipTrigger asChild>
