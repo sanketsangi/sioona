@@ -10,6 +10,7 @@ import {
   vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
+  shouldLandShowcaseLoad,
   vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
 } from "./vault-showcase";
@@ -68,5 +69,34 @@ describe("vaultShowcaseLoadingLabel", () => {
     expect(vaultShowcaseExpectation()).toMatch(/20 seconds/);
     expect(vaultShowcaseStallMessage("partner")).toMatch(/longer than expected/);
     expect(vaultShowcaseFailedMessage("sample")).toContain("Sample");
+  });
+});
+
+describe("shouldLandShowcaseLoad", () => {
+  it("lands a finished wipe even after the 30s stall painted", () => {
+    expect(
+      shouldLandShowcaseLoad({
+        cancelled: false,
+        runId: 1,
+        currentRunId: 1,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not land when the effect unmounted or Retry superseded the run", () => {
+    expect(
+      shouldLandShowcaseLoad({
+        cancelled: true,
+        runId: 1,
+        currentRunId: 1,
+      }),
+    ).toBe(false);
+    expect(
+      shouldLandShowcaseLoad({
+        cancelled: false,
+        runId: 1,
+        currentRunId: 2,
+      }),
+    ).toBe(false);
   });
 });

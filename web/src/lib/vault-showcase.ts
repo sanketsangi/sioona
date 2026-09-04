@@ -82,3 +82,18 @@ export function vaultShowcaseStallMessage(kind: VaultShowcaseKind): string {
 
 /** How long the loader may spin before a soft-fail. */
 export const VAULT_SHOWCASE_STALL_MS = 30_000;
+
+/**
+ * Land on Insights after a finished wipe+seed even if the 30s soft-fail
+ * already painted. Discarding success leaves the store on the new pack
+ * while chrome still shows failure / Retry (another wipe) or Cancel to
+ * a stale keep-set. Stall only hides in-flight progress, not a complete result.
+ * Cancelled / superseded runs stay discarded.
+ */
+export function shouldLandShowcaseLoad(opts: {
+  cancelled: boolean;
+  runId: number;
+  currentRunId: number;
+}): boolean {
+  return !opts.cancelled && opts.runId === opts.currentRunId;
+}

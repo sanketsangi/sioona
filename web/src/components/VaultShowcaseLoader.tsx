@@ -25,6 +25,7 @@ import {
   vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
+  shouldLandShowcaseLoad,
   vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
   type VaultShowcaseKind,
@@ -91,6 +92,7 @@ export function VaultShowcaseLoader({
         const data = await consumePartnerDemoNdjson(res, {
           failedMessage,
           onProgress: (event) => {
+            // Stall already shows a soft-fail — don't flip back to progress copy.
             if (cancelled || stalled || runId !== runIdRef.current) return;
             if (event.step === lastStep) return;
             lastStep = event.step;
@@ -101,7 +103,15 @@ export function VaultShowcaseLoader({
             );
           },
         });
-        if (cancelled || stalled || runId !== runIdRef.current) return;
+        if (
+          !shouldLandShowcaseLoad({
+            cancelled,
+            runId,
+            currentRunId: runIdRef.current,
+          })
+        ) {
+          return;
+        }
 
         const query = new URLSearchParams({
           view: "insights",
