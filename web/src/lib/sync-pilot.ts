@@ -91,34 +91,9 @@ export async function refreshStorePilotFromNeon(
 }
 
 /**
- * True when JSON pilot moved on during the Neon GET (Partner Demo / Reset /
- * replace). Do not persist a healed object built from the pre-GET snapshot.
- */
-export function localPilotSupersedesHeal(
-  current: PilotSettings | undefined,
-  snapshot: PilotSettings | undefined,
-): boolean {
-  const currentName = current?.lastUploadedFileName?.trim() ?? "";
-  const snapshotName = snapshot?.lastUploadedFileName?.trim() ?? "";
-  if (currentName !== snapshotName) return true;
-
-  const currentAt = current?.updatedAt?.trim();
-  const snapshotAt = snapshot?.updatedAt?.trim();
-  if (!currentAt || currentAt === snapshotAt) return false;
-  if (!snapshotAt) return true;
-  const currentMs = Date.parse(currentAt);
-  const snapshotMs = Date.parse(snapshotAt);
-  if (!Number.isFinite(currentMs) || !Number.isFinite(snapshotMs)) {
-    return currentAt !== snapshotAt;
-  }
-  return currentMs > snapshotMs;
-}
-
-/**
  * Persist a healed pilot onto the latest JSON snapshot.
  * SSR holds `storeRaw` across the Neon GET; a full write of that snapshot
  * would clobber concurrent feedback / Acted on the same instance.
- * Skips when Partner Demo / replace wrote a newer keep-set during the GET.
  */
 export async function persistHealedPilot(
   healed: StoreData,
@@ -127,53 +102,22 @@ export async function persistHealedPilot(
   if (healed === original) return;
   const { readStore, writeStore } = await import("./store");
   const latest = await readStore();
-  if (localPilotSupersedesHeal(latest.pilot, original.pilot)) return;
   await writeStore({ ...latest, pilot: healed.pilot });
 }
 
 /**
- * Insights/Eval after-paint heal must not revert a just-written JSON
- * keep-set filename to a stale Neon pack (Partner Demo wipe still in flight).
- * Upload still awaits `overlayPilotFromRemote` so Neon can win there.
- */
-export function preserveLocalKeepSetFilename(
-  healed: StoreData,
-  latest: StoreData
-): StoreData {
-  const localName = latest.pilot?.lastUploadedFileName?.trim();
-  if (!localName || !latest.pilot) return healed;
-  if (healed.pilot?.lastUploadedFileName === localName) return healed;
-  if (!healed.pilot) {
-    return {
-      ...healed,
-      pilot: { ...latest.pilot, lastUploadedFileName: localName },
-    };
-  }
-  return {
-    ...healed,
-    pilot: { ...healed.pilot, lastUploadedFileName: localName },
-  };
-}
-
-/**
- * Off-TTFB Neon `GET …/pilot` + heal. Re-read after the GET so a Partner
- * Demo / replace that landed mid-flight is not overwritten by stale Neon.
+ * Off-TTFB Neon `GET …/pilot` + heal. Insights/Eval first paint uses JSON
+ * `store.pilot` (header filename / cadence helper). Upload still awaits
+ * `refreshStorePilotFromNeon` on GET / so cadence chrome is live.
  */
 export async function persistDeferredPilotRefresh(
   tenantId: string
 ): Promise<void> {
   const { readStore } = await import("./store");
-  const snapshot = await readStore();
-  if (snapshot.tenant.id !== tenantId) return;
-  const healed = await refreshStorePilotFromNeon(snapshot);
-  // Re-read after the GET — Partner Demo / replace may have landed.
-  const current = await readStore();
-  if (current.tenant.id !== tenantId) return;
-  if (localPilotSupersedesHeal(current.pilot, snapshot.pilot)) return;
-  await persistHealedPilot(
-    preserveLocalKeepSetFilename(healed, current),
-    snapshot,
-  );
+  const latest = await readStore();
+  if (latest.tenant.id !== tenantId) return;
+  const healed = await refreshStorePilotFromNeon(latest);
+  await persistHealedPilot(healed, latest);
 }
 
 export async function syncPilotSettingsToBackend(

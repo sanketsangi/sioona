@@ -45,7 +45,7 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe("SignalReviewSuggestedAction", () => {
-  it("uses Feedback-style wells: Recommended Actions then Why This Fired", () => {
+  it("uses a single Feedback-style Card well with Mark as Acted and match tags", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -104,13 +104,13 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("overflow-y-auto");
     expect(html).not.toContain("overscroll-contain");
     expect(html).not.toContain("flex min-h-0 min-w-0 flex-1 flex-col");
-    expect(html.match(/data-slot="card"/g)?.length).toBe(2);
+    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
     expect(html).toContain("data-slot=\"separator\"");
     expect(html).toContain("insights-review-well");
     expect(html).not.toContain("xl:grid-cols-2");
     expect(html).not.toContain("bg-sio-bg-muted/50");
-    // Actions well + Why This Fired well; action band uses balanced py.
-    expect(html.match(/insights-review-well/g)?.length).toBe(2);
+    // One outer well — no nested Card; action band uses balanced py.
+    expect(html.match(/insights-review-well/g)?.length).toBe(1);
     expect(html).toContain("justify-center gap-1.5 py-3");
     expect(html).toContain('data-slot="label"');
     expect(html).not.toContain("border-l-2");
@@ -132,21 +132,20 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).not.toContain("evidence-highlight");
     expect(html).toContain("px-3 py-2");
-    // Retention Email stays on Recommended Actions; Why This Fired is a sibling well.
+    // Matched is a sibling Label section, not a muted sublabel under Why.
+    // Retention Email nests below Matched inside the same Recommended Actions card.
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Retention Email[\s\S]*Why This Fired[\s\S]*Matched[\s\S]*pause my SIP/,
+      /Why This Fired[\s\S]*Matched[\s\S]*pause my SIP[\s\S]*Retention Email/,
     );
-    expect(html).toContain("Label in Feedback first");
     expect(html).toContain('data-review-slot="retention-email"');
     expect(html).toContain("Approve Draft");
     const matchedIdx = html.indexOf("Matched");
     const retentionIdx = html.indexOf("Retention Email");
     expect(matchedIdx).toBeGreaterThan(-1);
-    expect(retentionIdx).toBeGreaterThan(-1);
-    expect(retentionIdx).toBeLessThan(matchedIdx);
+    expect(retentionIdx).toBeGreaterThan(matchedIdx);
   });
 
-  it("nests Retention Email inside Recommended Actions, before Why This Fired", () => {
+  it("nests Retention Email below Matched in one Recommended Actions card", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -154,19 +153,19 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html.match(/data-slot="card"/g)?.length).toBe(2);
+    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
     expect(html).toContain("Recommended Actions");
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Retention Email[\s\S]*Approve Draft[\s\S]*Why This Fired/,
+      /Matched[\s\S]*Retention Email[\s\S]*Approve Draft/,
     );
+    expect(html.indexOf("Matched")).toBeLessThan(html.indexOf("Retention Email"));
     expect(html.indexOf("Retention Email")).toBeLessThan(
       html.indexOf("Approve Draft"),
     );
-    expect(html.indexOf("Approve Draft")).toBeLessThan(html.indexOf("Why This Fired"));
     expect(html).toContain('data-review-slot="retention-email"');
     expect(html).not.toContain("insights-review-pane insights-review-well");
-    // Actions + Why pane headers.
-    expect(html.match(/border-b border-sio-border-base/g)?.length).toBe(2);
+    // Quiet inner section — only the outer Recommended Actions pane header.
+    expect(html.match(/border-b border-sio-border-base/g)?.length).toBe(1);
     expect(html).toContain("surface-quiet");
     // Embedded Retention Email uses h3 + Pending chip (not a Label heading).
     expect(html).toMatch(
@@ -220,6 +219,9 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Matched");
     expect(html).toContain("pause my SIP");
     expect(html).not.toContain("Why This Fired");
+    expect(html).toContain("data-slot=\"separator\"");
+    // Support block separator only — Retention Email is surface-quiet, not a Separator.
+    expect(html.match(/data-slot="separator"/g)?.length).toBe(1);
   });
 
   it("renders keyword match chips under Matched", () => {
@@ -240,8 +242,8 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("ledger");
     expect(html).toContain("Phrase");
     expect(html).toContain("prior tickets");
-    // Why / Matched separator inside the Why well.
-    expect(html.match(/data-slot="separator"/g)?.length).toBe(1);
+    // Why|Matched separators only — Retention Email nests as surface-quiet.
+    expect(html.match(/data-slot="separator"/g)?.length).toBe(2);
   });
 
   it("turns joined quotes into conversation jump controls", () => {
