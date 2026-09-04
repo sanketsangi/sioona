@@ -1092,7 +1092,9 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Hi Priya, thanks for reaching out");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
-    expect(html).not.toContain("Open Conversation");
+    expect(html).toContain("Open Conversation");
+    expect(html).toContain("h-8 gap-2 shrink-0");
+    expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
@@ -1202,7 +1204,9 @@ describe("InsightsView review conversation + action", () => {
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );
     expect(html).not.toContain("Mark as Pending");
-    expect(html).not.toContain("Open Conversation");
+    expect(html).toContain("Open Conversation");
+    expect(html).toContain("h-8 gap-2 shrink-0");
+    expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
@@ -1325,6 +1329,9 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("insights-review-feedback");
     expect(html).toContain("insights-review-split");
     expect(html).toContain('data-review-slot="transcript"');
+    // Mid-width: Open Conversation drawer trigger; wide CSS shows the 385px well.
+    expect(html).toContain("Open Conversation");
+    expect(html).toContain('aria-haspopup="dialog"');
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
     expect(feedbackSlot).toBeGreaterThan(-1);
     expect(html.indexOf(">Feedback<", feedbackSlot)).toBeLessThan(

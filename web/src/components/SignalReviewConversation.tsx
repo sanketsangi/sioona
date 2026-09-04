@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { ConversationMessages } from "@/components/ConversationMessages";
 import { REVIEW_PANE_TITLE_CLASS } from "@/components/InsightsReviewPaneHeader";
 import { SignalUser } from "@/components/SignalUser";
@@ -20,20 +20,23 @@ type SignalReviewConversationProps = {
   messages: ChatMessage[];
   customerName: string;
   highlightedMessageId?: string | null;
+  /** Optional trailing header control (e.g. drawer Close). */
+  headerAction?: ReactNode;
   className?: string;
 };
 
 /**
  * Insights review messaging well — sticky customer header + MessageScroller
  * transcript (June 2026 shadcn chat + scroll-fade). Why This Fired jumps land
- * via scrollToMessage on evidence bubbles. Bubble clocks stay off (drawer
- * keeps them). Empty is honest (no invented chat). No Attachment / composer /
- * streaming chrome. Chrome is fixed to the review screenshot.
+ * via scrollToMessage on evidence bubbles. Bubble clocks stay off. Empty is
+ * honest (no invented chat). Same chrome in the inline well and Conversation
+ * Drawer. No Attachment / composer / streaming chrome.
  */
 export function SignalReviewConversation({
   messages,
   customerName,
   highlightedMessageId = null,
+  headerAction = null,
   className,
 }: SignalReviewConversationProps) {
   const headingId = useId();
@@ -60,6 +63,9 @@ export function SignalReviewConversation({
             {who}
           </h3>
         </div>
+        {headerAction ? (
+          <div className="flex shrink-0 items-center">{headerAction}</div>
+        ) : null}
       </header>
 
       {hasMessages ? (

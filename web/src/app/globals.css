@@ -460,16 +460,13 @@
 
   /*
    * Insights review: one panel. Phone/tablet stack Recommended Actions
-   * (Retention Email nested) → transcript well → Feedback
-   * (`.insights-review-split` scrolls when the stack overflows; rail is
-   * display:contents). Laptop+ splits rail | Conversation; the rail is
-   * the only left-column scroller (Recommended Actions → Feedback).
-   * Recommended Actions hugs content (no inner card scrollbar).
-   * Conversation well / `.insights-review-chat-body` hug the thread. Wide: well
-   * caps at the column and the body scrolls. Stacked: well stays content-sized;
-   * the split scrolls when the stack overflows.
-   * Rail / stacked-split keep overflow scroll but hide scrollbar chrome so
-   * Feedback / GT stay reachable without a visible gutter.
+   * (Retention Email nested) → Feedback; Conversation opens in a right
+   * Drawer (Open Conversation / Why This Fired). Laptop+ splits
+   * rail | fixed 385px Conversation; the rail is the only left-column
+   * scroller. Recommended Actions hugs content (no inner card scrollbar).
+   * Conversation well is 385px when the split is active; MessageScroller
+   * scrolls inside. Rail / stacked-split keep overflow scroll but hide
+   * scrollbar chrome so Feedback / GT stay reachable without a visible gutter.
    */
   .insights-review {
     container-type: inline-size;
@@ -516,16 +513,12 @@
     flex: 0 0 auto;
   }
 
+  /*
+   * Stacked / narrow: hide the inline transcript — Open Conversation and
+   * Why This Fired open the right-side ConversationDrawer instead.
+   */
   .insights-review-split [data-review-slot="transcript"] {
-    order: 2;
-    display: flex;
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    /* Hug the thread; do not shrink under Why/Feedback (that collapsed the well). */
-    flex: 0 0 auto;
-    flex-direction: column;
-    overflow: hidden;
+    display: none;
   }
 
   .insights-review-split [data-review-slot="transcript"] .insights-review-chat-body {
@@ -747,8 +740,8 @@
       display: grid;
       flex: 1 1 0%;
       grid-template-areas: "rail transcript";
-      /* ~57.25% review rail | ~42.75% Conversation (chat is 90% of prior 47.5%) */
-      grid-template-columns: minmax(0, 57.25fr) minmax(0, 42.75fr);
+      /* Recommended Actions fills leftover; Conversation is fixed 385px. */
+      grid-template-columns: minmax(0, 1fr) 385px;
       grid-template-rows: minmax(0, 1fr);
       overflow: hidden;
     }
@@ -767,12 +760,17 @@
 
     .insights-review-split [data-review-slot="transcript"] {
       grid-area: transcript;
-      align-self: start;
-      width: auto;
+      display: flex;
+      align-self: stretch;
+      width: 385px;
+      min-width: 385px;
+      max-width: 385px;
       height: auto;
       max-height: 100%;
       min-height: 0;
       flex: unset;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     .insights-review-rail > [data-review-slot="why"],
@@ -1604,6 +1602,102 @@
 
   @media (prefers-reduced-motion: reduce) {
     .sio-word-appear {
+      animation: none;
+    }
+  }
+
+  /* Conversation drawer — portaled to body; above sidebar (z-50) and skip link (z-[60]).
+   * Panel width matches SignalReviewConversation (385px); no extra inner chrome. */
+  .conversation-drawer-root {
+    @apply fixed inset-0 z-[70];
+  }
+
+  .conversation-drawer-backdrop {
+    @apply absolute inset-0;
+    background: var(--sio-bg-overlay);
+    animation: sio-fade-in 180ms ease-out both;
+  }
+
+  .conversation-drawer-panel {
+    @apply absolute flex flex-col overflow-hidden bg-sio-bg-base;
+    overscroll-behavior: contain;
+    border: 1px solid var(--sio-border-base);
+    /* Mobile: bottom sheet — same 385px chat column as the review well */
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: min(100%, 385px);
+    max-width: 385px;
+    max-height: 85dvh;
+    margin-inline: auto;
+    border-bottom: none;
+    border-radius: var(--radius-group) var(--radius-group) 0 0;
+    padding: 0;
+    padding-bottom: max(0px, env(safe-area-inset-bottom));
+    animation: sio-conversation-drawer-up 200ms ease-out both;
+  }
+
+  .conversation-drawer-panel.conversation-drawer-panel--chat {
+    gap: 0;
+  }
+
+  .conversation-drawer-handle {
+    @apply flex shrink-0 cursor-grab items-center justify-center pt-2.5 pb-1.5 active:cursor-grabbing md:hidden;
+    touch-action: none;
+  }
+
+  .conversation-drawer-handle-bar {
+    @apply block h-1 w-10 rounded-full bg-sio-border-base;
+  }
+
+  @media (min-width: 768px) {
+    .conversation-drawer-panel {
+      /* Desktop: right inset sheet — exact review conversation width */
+      top: 0.75rem;
+      right: 0.75rem;
+      bottom: 0.75rem;
+      left: auto;
+      width: 385px;
+      max-width: 385px;
+      max-height: none;
+      margin-inline: 0;
+      border-bottom: 1px solid var(--sio-border-base);
+      border-radius: var(--radius-panel);
+      padding: 0;
+      animation: sio-conversation-drawer-right 200ms ease-out both;
+    }
+
+    .conversation-drawer-handle {
+      display: none;
+    }
+  }
+
+  @keyframes sio-conversation-drawer-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes sio-conversation-drawer-right {
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .conversation-drawer-backdrop,
+    .conversation-drawer-panel {
       animation: none;
     }
   }
