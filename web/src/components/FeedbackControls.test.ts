@@ -59,7 +59,7 @@ describe("FeedbackControls", () => {
     expect(html).toContain("Partially Correct");
     expect(html).toContain("Optional note");
     expect(html).toContain(
-      "C / I / P shortcuts · Enter → Correct · saves to Neon.",
+      "Needed for this week’s score. C / I / P · Enter → Correct. Replies stay drafts.",
     );
     expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
     expect(html).not.toContain("text-label-12 text-sio-fg-muted");

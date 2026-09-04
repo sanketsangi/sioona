@@ -73,7 +73,12 @@ import {
   resolveWorkspaceMode,
   type PlatformView,
 } from "@/lib/views";
-import { parseVaultFile, resolveInsightsVaultFile } from "@/lib/vault-file";
+import {
+  isVaultBatchRenderable,
+  parseVaultFile,
+  resolveHeaderBatchName,
+  resolveInsightsVaultFile,
+} from "@/lib/vault-file";
 
 export const dynamic = "force-dynamic";
 
@@ -305,13 +310,24 @@ export default async function PlatformPage({
   ]).length;
   const scoreFromQuery =
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
+  // Bare Insights (no ?file=) defaults to Sample so app start shows Groww_batch_02.
+  const vaultFile =
+    view === "insights"
+      ? resolveInsightsVaultFile(sp.file)
+      : parseVaultFile(sp.file);
+  const keepSetFileName = store.pilot?.lastUploadedFileName;
+  const headerBatchName = resolveHeaderBatchName({
+    vaultFile,
+    lastUploadedFileName: keepSetFileName,
+  });
+  const batchRenderable = isVaultBatchRenderable(vaultFile, keepSetFileName);
   const notifications = buildHeaderNotifications({
     pendingCount,
     queueError,
     syncFailed: hasSyncFailure ? syncFailed : 0,
     syncCreated: hasSyncFailure ? syncCreated : 0,
     scoreUnavailable: fetches.windowedScore && backendScore == null,
-    demoReady: sp.demo === "1",
+    demoReady: sp.demo === "1" && batchRenderable,
     wipeFailed,
   });
 
@@ -331,18 +347,14 @@ export default async function PlatformPage({
   const typeFilter = parseTypeFilter(sp.type);
   const actionFilter = parseActionFilter(sp.action);
   const page = parsePage(sp.page);
-  // Bare Insights (no ?file=) defaults to Sample so app start shows Groww_batch_02.
-  const vaultFile =
-    view === "insights"
-      ? resolveInsightsVaultFile(sp.file)
-      : parseVaultFile(sp.file);
 
   return (
     <AppShell
       activeView={view}
       workspaceMode={workspaceMode}
       title={title}
-      lastUploadedFileName={store.pilot?.lastUploadedFileName}
+      lastUploadedFileName={keepSetFileName}
+      headerBatchName={headerBatchName}
       vaultFile={vaultFile}
       notifications={notifications}
     >

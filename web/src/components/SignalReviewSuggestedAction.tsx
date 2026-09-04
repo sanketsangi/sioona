@@ -379,12 +379,15 @@ export function SignalReviewSuggestedAction({
   const showMatched = matches.length > 0;
   const showSupport = showWhy || showMatched;
 
+  const wellClass = cn("insights-review-pane", evalCardClassName, className);
+
   return (
+    <>
     <Card
       ref={sectionRef}
       size="sm"
-      data-review-slot="why"
-      className={cn("insights-review-pane", evalCardClassName, className)}
+      data-review-slot="actions"
+      className={wellClass}
       aria-labelledby={headingId}
     >
       <InsightsReviewPaneHeader id={headingId} title="Recommended Actions">
@@ -499,6 +502,11 @@ export function SignalReviewSuggestedAction({
               Marked as Acted — run it in your tools; Sioona never sends or
               CRM-tags.
             </p>
+          ) : !hasFeedback ? (
+            <p className="text-label-12 leading-5 text-sio-fg-muted">
+              Label in Feedback first — needed for this week’s ≥80% score.
+              Mark as Acted stays a draft; nothing is sent.
+            </p>
           ) : null}
           <p
             className={
@@ -532,96 +540,6 @@ export function SignalReviewSuggestedAction({
           ) : null}
         </div>
 
-        {showSupport ? (
-          <>
-            <Separator className="bg-sio-border-base" />
-            <div
-              className={cn(
-                evalCardPadClassName,
-                "flex min-w-0 flex-col gap-3 py-3",
-              )}
-            >
-              {showWhy ? (
-                <section
-                  aria-labelledby={whyId}
-                  className="flex min-w-0 flex-col gap-2"
-                >
-                  <SupportHeading id={whyId}>Why This Fired</SupportHeading>
-
-                  {quotes.length > 0 ? (
-                    <ul className="flex flex-col gap-3">
-                      {quotes.map(({ item, text, messageId }) => {
-                        const canJump = Boolean(messageId && onFocusMessage);
-                        return (
-                          <li key={item} className="min-w-0">
-                            <WhyQuote
-                              text={text}
-                              active={Boolean(
-                                messageId && messageId === focusedMessageId,
-                              )}
-                              controlsId={
-                                messageId
-                                  ? conversationMessageDomId(messageId)
-                                  : null
-                              }
-                              onSelect={
-                                canJump && messageId
-                                  ? () => onFocusMessage?.(messageId)
-                                  : null
-                              }
-                            />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted">
-                      {isNeonStub
-                        ? "No local evidence — detection join missing."
-                        : "No local evidence."}
-                    </p>
-                  )}
-                </section>
-              ) : null}
-
-              {showWhy && showMatched ? (
-                <Separator className="bg-sio-border-base" />
-              ) : null}
-
-              {showMatched ? (
-                <section
-                  aria-labelledby={matchedId}
-                  className="flex min-w-0 flex-col gap-1.5"
-                >
-                  <SupportHeading id={matchedId}>Matched</SupportHeading>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {matches.map(({ item, text, messageId }) => (
-                      <li key={item} className="min-w-0 max-w-full">
-                        <EvidenceChip
-                          text={text}
-                          active={Boolean(
-                            messageId && messageId === focusedMessageId,
-                          )}
-                          controlsId={
-                            messageId
-                              ? conversationMessageDomId(messageId)
-                              : null
-                          }
-                          onSelect={
-                            messageId && onFocusMessage
-                              ? () => onFocusMessage(messageId)
-                              : null
-                          }
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-            </div>
-          </>
-        ) : null}
-
         <RetentionEmailAction
           embedded
           signal={signal}
@@ -630,5 +548,105 @@ export function SignalReviewSuggestedAction({
         />
       </CardContent>
     </Card>
+    {showSupport ? (
+      <Card
+        size="sm"
+        data-review-slot="why"
+        className={wellClass}
+        aria-labelledby={showWhy ? whyId : matchedId}
+      >
+        <InsightsReviewPaneHeader
+          id={showWhy ? whyId : matchedId}
+          title={showWhy ? "Why This Fired" : "Matched"}
+        />
+        <CardContent className="flex min-w-0 flex-col px-0">
+          <div
+            className={cn(
+              evalCardPadClassName,
+              "flex min-w-0 flex-col gap-3 py-3",
+            )}
+          >
+            {showWhy ? (
+              <section
+                aria-labelledby={whyId}
+                className="flex min-w-0 flex-col gap-2"
+              >
+                {quotes.length > 0 ? (
+                  <ul className="flex flex-col gap-3">
+                    {quotes.map(({ item, text, messageId }) => {
+                      const canJump = Boolean(messageId && onFocusMessage);
+                      return (
+                        <li key={item} className="min-w-0">
+                          <WhyQuote
+                            text={text}
+                            active={Boolean(
+                              messageId && messageId === focusedMessageId,
+                            )}
+                            controlsId={
+                              messageId
+                                ? conversationMessageDomId(messageId)
+                                : null
+                            }
+                            onSelect={
+                              canJump && messageId
+                                ? () => onFocusMessage?.(messageId)
+                                : null
+                            }
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted">
+                    {isNeonStub
+                      ? "No local evidence — detection join missing."
+                      : "No local evidence."}
+                  </p>
+                )}
+              </section>
+            ) : null}
+
+            {showWhy && showMatched ? (
+              <Separator className="bg-sio-border-base" />
+            ) : null}
+
+            {showMatched ? (
+              <section
+                aria-labelledby={matchedId}
+                className="flex min-w-0 flex-col gap-1.5"
+              >
+                {showWhy ? (
+                  <SupportHeading id={matchedId}>Matched</SupportHeading>
+                ) : null}
+                <ul className="flex flex-wrap gap-1.5">
+                  {matches.map(({ item, text, messageId }) => (
+                    <li key={item} className="min-w-0 max-w-full">
+                      <EvidenceChip
+                        text={text}
+                        active={Boolean(
+                          messageId && messageId === focusedMessageId,
+                        )}
+                        controlsId={
+                          messageId
+                            ? conversationMessageDomId(messageId)
+                            : null
+                        }
+                        onSelect={
+                          messageId && onFocusMessage
+                            ? () => onFocusMessage(messageId)
+                            : null
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    ) : null}
+    </>
   );
 }
