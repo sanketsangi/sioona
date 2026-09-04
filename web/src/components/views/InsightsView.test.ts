@@ -134,14 +134,18 @@ function renderPendingPreview(opts: {
   previewId: string;
   scoreFrom?: string;
   jsonKeepSet?: boolean;
+  actionFilter?: "all" | "approve" | "review";
+  typeFilter?: "all" | "lead" | "retention" | "upsell";
+  signals?: Signal[];
 }) {
-  const pending = makePendingSignals(opts.count);
+  const pending = opts.signals ?? makePendingSignals(opts.count);
   const store = storeFromSignals(pending);
   return renderToStaticMarkup(
     createElement(InsightsView, {
       store,
       statusFilter: "new",
-      typeFilter: "all",
+      typeFilter: opts.typeFilter ?? "all",
+      actionFilter: opts.actionFilter ?? "all",
       page: 1,
       previewId: opts.previewId,
       scoreFrom: opts.scoreFrom,
@@ -153,7 +157,7 @@ function renderPendingPreview(opts: {
           tenant_id: "tenant_demo",
           conversation_id: s.conversationId,
           signal_type: s.type,
-          confidence: s.score,
+          confidence: s.confidence ?? s.score,
           summary: s.summary,
           created_at: s.createdAt,
         })),
@@ -474,11 +478,13 @@ describe("InsightsView pending landing empty Follow-up", () => {
       }),
     );
 
-    expect(html).toContain("Mark as Acted");
+    // List button posts Acted without opening preview (stay on Follow-up).
+    expect(html).toContain('aria-label="Mark as Acted for Pause SIP follow-up"');
     expect(html).not.toContain(">Review</a>");
+    expect(html).not.toContain(">Mark as Acted</a>");
   });
 
-  it("Done list Action is View (not Review)", () => {
+  it("Done list Action is Review (not Mark as Acted)", () => {
     const acted: Signal = {
       id: "sig_done_list",
       tenantId: "tenant_demo",
@@ -533,8 +539,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
       }),
     );
 
-    expect(html).toContain(">View</a>");
-    expect(html).not.toContain(">Review</a>");
+    expect(html).toContain(">Review</a>");
+    expect(html).not.toContain(">View</a>");
     expect(html).not.toContain('aria-label="Mark as Acted for');
   });
 
@@ -882,6 +888,84 @@ describe("InsightsView pending review walk", () => {
     );
   });
 
+  it("Prev/Next/Skip walk only Approve signals when action=approve", () => {
+    const mixed: Signal[] = [
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_review_1",
+        conversationId: "conv_review_1",
+        backendSignalId: "pred-review-1",
+        type: "lead",
+        score: 0.9,
+        confidence: 0.9,
+      },
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_approve_1",
+        conversationId: "conv_approve_1",
+        backendSignalId: "pred-approve-1",
+        type: "retention",
+        score: 0.9,
+        confidence: 0.9,
+        summary: "Approve signal 1",
+      },
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_review_2",
+        conversationId: "conv_review_2",
+        backendSignalId: "pred-review-2",
+        type: "lead",
+        score: 0.85,
+        confidence: 0.85,
+      },
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_approve_2",
+        conversationId: "conv_approve_2",
+        backendSignalId: "pred-approve-2",
+        type: "retention",
+        score: 0.88,
+        confidence: 0.88,
+        summary: "Approve signal 2",
+      },
+    ];
+    const html = renderPendingPreview({
+      count: mixed.length,
+      previewId: "sig_approve_1",
+      actionFilter: "approve",
+      signals: mixed,
+    });
+
+    expect(html).toContain(
+      'href="/?view=insights&amp;status=new&amp;action=approve&amp;preview=sig_approve_2"',
+    );
+    expect(html).not.toContain("preview=sig_review_1");
+    expect(html).not.toContain("preview=sig_review_2");
+    const skipHref = html.match(
+      /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
+    )?.[1];
+    expect(skipHref).toBe(
+      "/?view=insights&amp;status=new&amp;action=approve&amp;preview=sig_approve_2",
+    );
+
+    const lastHtml = renderPendingPreview({
+      count: mixed.length,
+      previewId: "sig_approve_2",
+      actionFilter: "approve",
+      signals: mixed,
+    });
+    expect(lastHtml).toContain(
+      'href="/?view=insights&amp;status=new&amp;action=approve&amp;preview=sig_approve_1"',
+    );
+    const lastSkip = lastHtml.match(
+      /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
+    )?.[1];
+    expect(lastSkip).toBe(
+      "/?view=insights&amp;status=new&amp;action=approve",
+    );
+    expect(lastSkip).not.toContain("preview=");
+  });
+
   it("keeps Prev/Next/Skip after Correct while pending remains", () => {
     const pending = makePendingSignals(2);
     const corrected = {
@@ -1008,9 +1092,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Hi Priya, thanks for reaching out");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
-    expect(html).toContain("Open Conversation");
-    expect(html).toContain("h-8 gap-2 shrink-0");
-    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).not.toContain("Open Conversation");
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
@@ -1120,9 +1202,7 @@ describe("InsightsView review conversation + action", () => {
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );
     expect(html).not.toContain("Mark as Pending");
-    expect(html).toContain("Open Conversation");
-    expect(html).toContain("h-8 gap-2 shrink-0");
-    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).not.toContain("Open Conversation");
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",

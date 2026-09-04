@@ -23,6 +23,10 @@ export type SignalReviewTriage = {
   mode?: WorkspaceMode;
   /** Replace-ingest landing — keep leftover Neon overlay off. */
   replaced?: boolean;
+  /** Preserve queue type filter on feedback / walk advances. */
+  typeFilter?: TypeFilter;
+  /** Preserve Approve / Review CTA filter on feedback / walk advances. */
+  actionFilter?: ActionFilter;
 };
 
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
@@ -300,23 +304,21 @@ function pendingReviewQueueHref(opts: {
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
+  typeFilter?: TypeFilter | null;
+  actionFilter?: ActionFilter | null;
 }): string {
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
   const replaced = replacedQueryValue(opts.replaced);
-  if (opts.nextPreviewId) {
-    return viewHref("insights", {
-      ...modeExtra,
-      scoreFrom: opts.scoreFrom,
-      status: "new",
-      preview: opts.nextPreviewId,
-      replaced,
-    });
-  }
+  const type = opts.typeFilter ?? "all";
+  const action = opts.actionFilter ?? "all";
   return viewHref("insights", {
     ...modeExtra,
     scoreFrom: opts.scoreFrom,
     status: "new",
+    type: type === "all" ? null : type,
+    action: action === "all" ? null : action,
+    preview: opts.nextPreviewId || null,
     replaced,
   });
 }
@@ -337,15 +339,21 @@ export function afterFeedbackHref(opts: {
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
+  typeFilter?: TypeFilter | null;
+  actionFilter?: ActionFilter | null;
 }): string | null {
   if (!opts.wasPending) return null;
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
+  const type = opts.typeFilter ?? "all";
+  const action = opts.actionFilter ?? "all";
   if (opts.label === "correct" && opts.currentSignalId) {
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
       status: "followup",
+      type: type === "all" ? null : type,
+      action: action === "all" ? null : action,
       preview: opts.currentSignalId,
       replaced: replacedQueryValue(opts.replaced),
     });
@@ -355,6 +363,8 @@ export function afterFeedbackHref(opts: {
     scoreFrom: opts.scoreFrom,
     mode: opts.mode,
     replaced: opts.replaced,
+    typeFilter: opts.typeFilter,
+    actionFilter: opts.actionFilter,
   });
 }
 
@@ -374,15 +384,21 @@ export function afterMarkActedHref(opts: {
   scoreFrom?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
+  typeFilter?: TypeFilter | null;
+  actionFilter?: ActionFilter | null;
 }): string | null {
   if (!opts.acted || opts.feedbackLabel !== "correct") return null;
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
+  const type = opts.typeFilter ?? "all";
+  const action = opts.actionFilter ?? "all";
   if (opts.nextPreviewId) {
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
       status: "followup",
+      type: type === "all" ? null : type,
+      action: action === "all" ? null : action,
       preview: opts.nextPreviewId,
       replaced: replacedQueryValue(opts.replaced),
     });
@@ -393,6 +409,8 @@ export function afterMarkActedHref(opts: {
       scoreFrom: opts.scoreFrom,
       mode: opts.mode,
       replaced: opts.replaced,
+      typeFilter: opts.typeFilter,
+      actionFilter: opts.actionFilter,
     });
   }
   return null;

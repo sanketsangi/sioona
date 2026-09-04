@@ -513,9 +513,39 @@ describe("resolvePreviewSignal", () => {
     );
   });
 
+  it("prefers pending twin when reviewed copy has no feedback", () => {
+    const pending: Signal = { ...baseSignal, id: "sig_same", status: "new" };
+    const reviewed: Signal = {
+      ...baseSignal,
+      id: "sig_same",
+      status: "reviewed",
+    };
+    expect(resolvePreviewSignal("sig_same", [pending], [reviewed])).toEqual(
+      pending,
+    );
+  });
+
   it("uses pending when only pending matches", () => {
     const pending: Signal = { ...baseSignal, id: "sig_p", status: "new" };
     expect(resolvePreviewSignal("sig_p", [pending], [])?.id).toBe("sig_p");
+  });
+
+  it("uses reviewed when only reviewed matches", () => {
+    const reviewed: Signal = {
+      ...baseSignal,
+      id: "sig_r",
+      status: "reviewed",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    };
+    expect(resolvePreviewSignal("sig_r", [], [reviewed])).toEqual(reviewed);
+  });
+
+  it("returns null when preview id is missing or unmatched", () => {
+    expect(resolvePreviewSignal(null, [], [])).toBeNull();
+    expect(resolvePreviewSignal("sig_missing", [], [])).toBeNull();
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { Check, PencilSimple, X } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type TransitionEvent } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
@@ -73,12 +73,6 @@ const EVIDENCE_WELL_CLASS =
 const DRAFT_WELL_CLASS =
   "flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-base";
 
-/**
- * Embedded header icon is size-4 + gap-2 — hang body so helper / wells /
- * CTAs share the title text column (optical lockup, AGENTS.md).
- */
-const EMBEDDED_BODY_INSET_CLASS = "ps-6";
-
 function statusMessage(status: SupervisedActionStatus): string | null {
   switch (status) {
     case "approved":
@@ -127,14 +121,14 @@ export type QueueActionKind = "mark_acted" | "view" | "approve" | "review";
 
 const QUEUE_ACTION_LABEL: Record<QueueActionKind, string> = {
   mark_acted: "Mark as Acted",
-  view: "View",
+  view: "Review",
   approve: "Approve",
   review: "Review",
 };
 
 /**
  * Queue Action kind by signal state.
- * Follow-up Correct ¬acted → Mark as Acted; Done → View;
+ * Follow-up Correct ¬acted → Mark as Acted; Done → Review;
  * pending with Retention Email → Approve; else Review.
  */
 export function queueActionKindForSignal(
@@ -158,13 +152,12 @@ export function queueActionLabelForSignal(
   signal: Signal,
   customerName: string,
   stored?: SupervisedAction | null,
-): "Approve" | "Review" | "Mark as Acted" | "View" {
+): "Approve" | "Review" | "Mark as Acted" {
   const kind = queueActionKindForSignal(signal, customerName, stored);
   return queueActionLabelForKind(kind) as
     | "Approve"
     | "Review"
-    | "Mark as Acted"
-    | "View";
+    | "Mark as Acted";
 }
 
 type RetentionEmailActionProps = {
@@ -206,6 +199,8 @@ export function RetentionEmailAction({
   );
   const [action, setAction] = useState<SupervisedAction | null>(initial);
   const [editing, setEditing] = useState(false);
+  /** Keep the edit form mounted through the exit crossfade. */
+  const [editMounted, setEditMounted] = useState(false);
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [pending, setPending] = useState<SupervisedActionDecision | null>(null);
@@ -216,6 +211,8 @@ export function RetentionEmailAction({
     "approve" | "edit" | "dismiss" | null
   >(null);
   const reviseConfirmRef = useRef<HTMLButtonElement>(null);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const resetFieldsOnUnmountRef = useRef(false);
 
   useEffect(() => {
     const next = resolveRetentionEmailAction(
@@ -227,6 +224,7 @@ export function RetentionEmailAction({
     setSubject(next?.subject ?? "");
     setBody(next?.body ?? "");
     setEditing(false);
+    setEditMounted(false);
     setError(null);
     setConfirm(null);
     setReviseIntent(null);
@@ -278,7 +276,14 @@ export function RetentionEmailAction({
       setAction(saved);
       setSubject(saved.subject);
       setBody(saved.body);
+      resetFieldsOnUnmountRef.current = false;
       setEditing(false);
+      if (
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        setEditMounted(false);
+      }
       setConfirm(null);
       router.refresh();
     } catch (err) {
@@ -293,17 +298,63 @@ export function RetentionEmailAction({
     }
   }
 
-  function startEdit() {
-    setEditing(true);
+  function prefersReducedMotion() {
+    return (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    );
+  }
+
+  function unmountEdit() {
+    setEditMounted(false);
+    setEditing(false);
+    if (resetFieldsOnUnmountRef.current && action) {
+      setSubject(action.subject);
+      setBody(action.body);
+    }
+    resetFieldsOnUnmountRef.current = false;
     setError(null);
-    requestAnimationFrame(() => subjectRef.current?.focus());
+    requestAnimationFrame(() => editButtonRef.current?.focus());
+  }
+
+  function startEdit() {
+    setError(null);
+    resetFieldsOnUnmountRef.current = false;
+    setEditMounted(true);
+    if (prefersReducedMotion()) {
+      setEditing(true);
+      requestAnimationFrame(() => subjectRef.current?.focus());
+      return;
+    }
+    // Mount at opacity 0 (mode=view), then flip to edit so enter crossfades.
+    requestAnimationFrame(() => {
+      setEditing(true);
+      requestAnimationFrame(() => subjectRef.current?.focus());
+    });
+  }
+
+  function endEdit(resetFields: boolean) {
+    resetFieldsOnUnmountRef.current = resetFields;
+    if (!editMounted) {
+      unmountEdit();
+      return;
+    }
+    if (prefersReducedMotion() || !editing) {
+      unmountEdit();
+      return;
+    }
+    setEditing(false);
   }
 
   function cancelEdit() {
-    setSubject(currentAction.subject);
-    setBody(currentAction.body);
-    setEditing(false);
-    setError(null);
+    endEdit(true);
+  }
+
+  function onEditPaneTransitionEnd(event: TransitionEvent<HTMLFormElement>) {
+    if (event.propertyName !== "opacity") return;
+    if (event.target !== event.currentTarget) return;
+    if (editing || !editMounted) return;
+    unmountEdit();
   }
 
   const needsReviseWarn =
@@ -458,79 +509,15 @@ export function RetentionEmailAction({
             <span>Draft</span>
           </h4>
 
-          {editing ? (
-            <form
-              className="flex min-w-0 flex-col gap-1.5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submit("edited");
-              }}
+          <div
+            className="retention-email-draft-swap"
+            data-draft-mode={editing ? "edit" : "view"}
+          >
+            <div
+              className="retention-email-draft-pane retention-email-draft-pane-view flex min-w-0 flex-col gap-1.5"
+              aria-hidden={editing}
+              {...(editing ? { inert: true } : {})}
             >
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor={subjectId} className="text-label-12">
-                  Subject
-                </Label>
-                <Input
-                  ref={subjectRef}
-                  id={subjectId}
-                  name="retentionEmailSubject"
-                  type="text"
-                  autoComplete="off"
-                  spellCheck
-                  value={subject}
-                  onChange={(event) => setSubject(event.target.value)}
-                  placeholder="e.g. Checking in on your account…"
-                  className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:min-h-9 md:text-sm"
-                  aria-invalid={!subject.trim()}
-                />
-              </div>
-              <div className="flex min-w-0 flex-col gap-1.5">
-                <Label htmlFor={bodyId} className="text-label-12">
-                  Body
-                </Label>
-                <Textarea
-                  id={bodyId}
-                  name="retentionEmailBody"
-                  rows={6}
-                  value={body}
-                  onChange={(event) => setBody(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (
-                      (event.metaKey || event.ctrlKey) &&
-                      event.key === "Enter"
-                    ) {
-                      event.preventDefault();
-                      void submit("edited");
-                    }
-                  }}
-                  placeholder="Short, polite follow-up…"
-                  className="min-h-24 resize-y border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:text-sm"
-                  aria-invalid={!body.trim()}
-                />
-              </div>
-              <div className="flex flex-wrap gap-2 pt-0.5">
-                <Button
-                  type="submit"
-                  className="btn-primary min-h-11 touch-manipulation md:min-h-9"
-                  disabled={busy}
-                  aria-busy={pending === "edited"}
-                >
-                  {pending === "edited" ? <ButtonSpinner /> : null}
-                  Save Edit
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="btn-secondary min-h-11 touch-manipulation md:min-h-9"
-                  disabled={busy}
-                  onClick={cancelEdit}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <>
               <p
                 className="m-0 break-words text-label-14 font-medium leading-5 text-sio-fg-base"
                 translate="no"
@@ -624,6 +611,7 @@ export function RetentionEmailAction({
                   </Dialog>
 
                   <Button
+                    ref={editButtonRef}
                     type="button"
                     variant="outline"
                     className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
@@ -697,8 +685,88 @@ export function RetentionEmailAction({
                   </Dialog>
                 </div>
               ) : null}
-            </>
-          )}
+            </div>
+
+            {editMounted ? (
+            <form
+              className="retention-email-draft-pane retention-email-draft-pane-edit flex min-w-0 flex-col gap-1.5"
+              aria-hidden={!editing}
+              {...(!editing ? { inert: true } : {})}
+              onTransitionEnd={onEditPaneTransitionEnd}
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit("edited");
+              }}
+            >
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor={subjectId} className="text-label-12">
+                  Subject
+                </Label>
+                <Input
+                  ref={subjectRef}
+                  id={subjectId}
+                  name="retentionEmailSubject"
+                  type="text"
+                  autoComplete="off"
+                  spellCheck
+                  value={subject}
+                  onChange={(event) => setSubject(event.target.value)}
+                  placeholder="e.g. Checking in on your account…"
+                  className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:min-h-9 md:text-sm"
+                  aria-invalid={!subject.trim()}
+                  tabIndex={editing ? undefined : -1}
+                />
+              </div>
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <Label htmlFor={bodyId} className="text-label-12">
+                  Body
+                </Label>
+                <Textarea
+                  id={bodyId}
+                  name="retentionEmailBody"
+                  rows={6}
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      (event.metaKey || event.ctrlKey) &&
+                      event.key === "Enter"
+                    ) {
+                      event.preventDefault();
+                      void submit("edited");
+                    }
+                  }}
+                  placeholder="Short, polite follow-up…"
+                  className="min-h-24 resize-y border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:text-sm"
+                  aria-invalid={!body.trim()}
+                  tabIndex={editing ? undefined : -1}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                <Button
+                  type="submit"
+                  className="btn-primary min-h-11 touch-manipulation md:min-h-9"
+                  disabled={busy}
+                  aria-busy={pending === "edited"}
+                  tabIndex={editing ? undefined : -1}
+                >
+                  {pending === "edited" ? <ButtonSpinner /> : null}
+                  Save Edit
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="btn-secondary min-h-11 touch-manipulation md:min-h-9"
+                  disabled={busy}
+                  onClick={cancelEdit}
+                  tabIndex={editing ? undefined : -1}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+            ) : null}
+          </div>
         </section>
       </div>
     </>
@@ -727,13 +795,7 @@ export function RetentionEmailAction({
           </div>
           {statusChip}
         </div>
-        {/* Hang under title text — same left edge for helper, wells, CTAs. */}
-        <div
-          className={cn(
-            "flex min-w-0 flex-col gap-2",
-            EMBEDDED_BODY_INSET_CLASS,
-          )}
-        >
+        <div className="flex min-w-0 flex-col gap-2">
           {bodyInner}
         </div>
       </section>

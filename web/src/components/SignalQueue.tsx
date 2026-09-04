@@ -43,7 +43,11 @@ import {
   SignalReviewPanel,
 } from "@/components/SignalReviewPanel";
 import { SignalReviewBody } from "@/components/SignalReviewBody";
-import { queueActionLabelForSignal } from "@/components/RetentionEmailAction";
+import { QueueMarkActedAction } from "@/components/QueueMarkActedAction";
+import {
+  queueActionKindForSignal,
+  queueActionLabelForSignal,
+} from "@/components/RetentionEmailAction";
 import { findSupervisedAction } from "@/lib/supervised-actions";
 import { PagerIconLink } from "@/components/PagerIconLink";
 import { Button } from "@/components/ui/button";
@@ -579,10 +583,19 @@ function QueueSignalsDataTable({
               const summaryForLabel =
                 queueSignalSummary(signal.summary || "", customerName) ||
                 "signal";
+              const storedAction = findSupervisedAction(
+                supervisedActions,
+                signal,
+              );
+              const actionKind = queueActionKindForSignal(
+                signal,
+                customerName,
+                storedAction,
+              );
               const actionLabel = queueActionLabelForSignal(
                 signal,
                 customerName,
-                findSupervisedAction(supervisedActions, signal),
+                storedAction,
               );
               const openVerb =
                 actionLabel === "Approve"
@@ -597,16 +610,23 @@ function QueueSignalsDataTable({
                   previewHref={previewHref}
                   previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. ${openVerb} ${summaryForLabel}`}
                   action={
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className={QUEUE_REVIEW_ACTION_CLASS}
-                    >
-                      <Link href={previewHref} scroll={false}>
-                        {actionLabel}
-                      </Link>
-                    </Button>
+                    actionKind === "mark_acted" ? (
+                      <QueueMarkActedAction
+                        signal={signal}
+                        summaryForLabel={summaryForLabel}
+                      />
+                    ) : (
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className={QUEUE_REVIEW_ACTION_CLASS}
+                      >
+                        <Link href={previewHref} scroll={false}>
+                          {actionLabel}
+                        </Link>
+                      </Button>
+                    )
                   }
                 />
               );

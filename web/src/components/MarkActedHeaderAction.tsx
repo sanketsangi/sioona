@@ -17,26 +17,15 @@ import {
 const ACTED_TOOLTIP = "Does not send the suggested action.";
 
 /**
- * Insights review header — Mark as Pending undo beside Open Conversation.
+ * Insights review header — Mark as Pending undo after Acted.
  * Suggested Next Action owns the Mark as Acted primary (Correct ¬acted).
  */
 export function MarkActedHeaderAction({
   signal,
-  nextPreviewId = null,
-  nextPendingPreviewId = null,
-  statusFilter = "all",
-  scoreFrom = null,
-  mode = "shadow",
+  ...walk
 }: {
   signal: Signal;
 } & MarkActedWalk) {
-  const walk: MarkActedWalk = {
-    nextPreviewId,
-    nextPendingPreviewId,
-    statusFilter,
-    scoreFrom,
-    mode,
-  };
   const { actedPending, canMarkActed, error, hasFeedback, isActed, setActed } =
     useMarkActed(signal, walk);
 

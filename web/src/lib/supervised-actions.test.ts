@@ -247,13 +247,14 @@ describe("applySupervisedActionDecision", () => {
     expect(result.action.body).toContain("Second revision.");
   });
 
-  it("rejects a second decision after approve or dismiss", () => {
+  it("allows revising after approve or dismiss", () => {
     const store = emptyStore([signal()]);
     const [action] = ensureSupervisedActions(store).created;
     applySupervisedActionDecision(store, action.id, "dismissed");
-    expect(
-      applySupervisedActionDecision(store, action.id, "approved"),
-    ).toEqual({ ok: false, reason: "already_decided" });
+    const result = applySupervisedActionDecision(store, action.id, "approved");
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.action.status).toBe("approved");
   });
 });
 

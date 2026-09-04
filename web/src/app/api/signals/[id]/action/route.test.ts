@@ -135,7 +135,7 @@ describe("POST /api/signals/[id]/action", () => {
     expect(data.action.status).toBe("edited");
   });
 
-  it("rejects a second decision after dismiss", async () => {
+  it("allows a second decision after dismiss", async () => {
     const store = await readStore();
     store.signals.push({
       id: "sig_ret_twice",
@@ -159,7 +159,9 @@ describe("POST /api/signals/[id]/action", () => {
       actionRequest("sig_ret_twice", { decision: "approved" }),
       { params: Promise.resolve({ id: "sig_ret_twice" }) },
     );
-    expect(second.status).toBe(409);
+    expect(second.status).toBe(200);
+    const data = (await second.json()) as { action: { status: string } };
+    expect(data.action.status).toBe("approved");
   });
 
   it("approves a Neon-only stub when JSON has no matching signal", async () => {

@@ -138,6 +138,8 @@ export function FeedbackControls({
                 scoreFrom: triage.scoreFrom,
                 mode: triage.mode,
                 replaced: triage.replaced,
+                typeFilter: triage.typeFilter,
+                actionFilter: triage.actionFilter,
               })
             : null;
 

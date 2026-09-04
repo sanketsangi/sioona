@@ -23,6 +23,9 @@ describe("buildSignalReviewTriage", () => {
       nextPendingPreviewId: "sig_b",
       scoreFrom: undefined,
       mode: undefined,
+      replaced: undefined,
+      typeFilter: undefined,
+      actionFilter: undefined,
     });
   });
 
@@ -38,6 +41,30 @@ describe("buildSignalReviewTriage", () => {
       nextPendingPreviewId: null,
       scoreFrom: undefined,
       mode: undefined,
+      replaced: undefined,
+      typeFilter: undefined,
+      actionFilter: undefined,
+    });
+  });
+
+  it("walks the filtered subset while keeping isPendingReview on full pending", () => {
+    expect(
+      buildSignalReviewTriage({
+        pendingSignals: pending,
+        walkPendingSignals: [{ id: "sig_b" }],
+        previewSignal: { id: "sig_a" },
+        actionFilter: "approve",
+        typeFilter: "retention",
+      }),
+    ).toEqual({
+      isPendingReview: true,
+      prevPendingPreviewId: null,
+      nextPendingPreviewId: "sig_b",
+      scoreFrom: undefined,
+      mode: undefined,
+      replaced: undefined,
+      typeFilter: "retention",
+      actionFilter: "approve",
     });
   });
 
@@ -55,6 +82,9 @@ describe("buildSignalReviewTriage", () => {
       nextPendingPreviewId: "sig_a",
       scoreFrom: "2026-08-17",
       mode: "action",
+      replaced: undefined,
+      typeFilter: undefined,
+      actionFilter: undefined,
     });
   });
 

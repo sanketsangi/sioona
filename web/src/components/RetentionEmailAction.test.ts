@@ -78,7 +78,7 @@ describe("queueActionLabelForSignal", () => {
     ).toBe("Mark as Acted");
   });
 
-  it("returns View for acted Done rows", () => {
+  it("returns Review for acted Done rows", () => {
     expect(
       queueActionLabelForSignal(
         signal({
@@ -90,7 +90,7 @@ describe("queueActionLabelForSignal", () => {
         }),
         "Priya",
       ),
-    ).toBe("View");
+    ).toBe("Review");
   });
 });
 
@@ -141,6 +141,9 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Checking in on your account");
     expect(html).toContain("Hi Priya,");
     expect(html).toContain("retention-email-columns");
+    expect(html).toContain("retention-email-draft-swap");
+    expect(html).toContain('data-draft-mode="view"');
+    expect(html).not.toContain("Save Edit");
     // Vertical stack lives in .retention-email-columns (globals.css).
     expect(html).not.toContain(
       "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
@@ -178,8 +181,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("mb-3");
     expect(html).toContain("mt-3");
     expect(html).toContain("gap-2");
-    // Hang body under title text (icon size-4 + gap-2).
-    expect(html).toContain("ps-6");
+    expect(html).not.toContain("ps-6");
     expect(html).toContain("border-sio-border-subtle");
     expect(html).toContain("gap-1.5");
     // align-items:stretch lives on .retention-email-columns in globals.css

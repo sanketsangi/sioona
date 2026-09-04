@@ -2,7 +2,9 @@ import type { FeedbackLabel } from "./types";
 import {
   nextPendingPreviewId,
   prevPendingPreviewId,
+  type ActionFilter,
   type SignalReviewTriage,
+  type TypeFilter,
   type WorkspaceMode,
 } from "./views";
 
@@ -10,28 +12,33 @@ export type PendingWalkDirection = "prev" | "next";
 
 /** Build triage context for an open `?preview=` panel. */
 export function buildSignalReviewTriage(opts: {
+  /** Full needs-review list — drives `isPendingReview` (feedback advance). */
   pendingSignals: { id: string }[];
+  /**
+   * Filtered walk order for Prev / Next / Skip (type + action).
+   * Defaults to `pendingSignals` when omitted.
+   */
+  walkPendingSignals?: { id: string }[];
   previewSignal: { id: string };
   scoreFrom?: string | null;
   mode?: WorkspaceMode;
   replaced?: boolean;
+  typeFilter?: TypeFilter;
+  actionFilter?: ActionFilter;
 }): SignalReviewTriage {
+  const walk = opts.walkPendingSignals ?? opts.pendingSignals;
   const isPendingReview = opts.pendingSignals.some(
     (pending) => pending.id === opts.previewSignal.id,
   );
   return {
     isPendingReview,
-    prevPendingPreviewId: prevPendingPreviewId(
-      opts.pendingSignals,
-      opts.previewSignal.id,
-    ),
-    nextPendingPreviewId: nextPendingPreviewId(
-      opts.pendingSignals,
-      opts.previewSignal.id,
-    ),
+    prevPendingPreviewId: prevPendingPreviewId(walk, opts.previewSignal.id),
+    nextPendingPreviewId: nextPendingPreviewId(walk, opts.previewSignal.id),
     scoreFrom: opts.scoreFrom,
     mode: opts.mode,
     replaced: opts.replaced,
+    typeFilter: opts.typeFilter,
+    actionFilter: opts.actionFilter,
   };
 }
 

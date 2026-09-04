@@ -306,13 +306,12 @@ export type DecideSupervisedActionResult =
   | { ok: true; action: SupervisedAction }
   | {
       ok: false;
-      reason: "not_found" | "already_decided" | "invalid_body";
+      reason: "not_found" | "invalid_body";
     };
 
 /**
  * Record a human decision. Never sends mail.
- * `edited` keeps the draft open for re-edit / Approve / Dismiss.
- * Only `approved` and `dismissed` lock the draft.
+ * Partners may revise after Approve / Dismiss (chip updates; still not sent).
  */
 export function applySupervisedActionDecision(
   store: StoreData,
@@ -324,9 +323,6 @@ export function applySupervisedActionDecision(
     (item) => item.id === actionId,
   );
   if (!action) return { ok: false, reason: "not_found" };
-  if (action.status === "approved" || action.status === "dismissed") {
-    return { ok: false, reason: "already_decided" };
-  }
 
   const nextSubject = (edits?.subject ?? action.subject).trim();
   const nextBody = (edits?.body ?? action.body).trim();
@@ -336,7 +332,8 @@ export function applySupervisedActionDecision(
 
   action.subject = nextSubject;
   action.body = nextBody;
-  // Approve is always terminal — do not remap to `edited` when the copy differs.
+  // Approve is always terminal for send intent — still never sends.
+  // Re-decision overwrites status so Edit / Dismiss / re-Approve work.
   action.status = decision;
   action.decidedAt = nowIso();
 

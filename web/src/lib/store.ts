@@ -309,7 +309,7 @@ export type DecideSupervisedActionStoreResult =
   | { ok: true; action: SupervisedAction }
   | {
       ok: false;
-      reason: "not_found" | "already_decided" | "invalid_body";
+      reason: "not_found" | "invalid_body";
     };
 
 export async function decideSupervisedAction(

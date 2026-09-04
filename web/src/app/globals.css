@@ -625,6 +625,68 @@
     overscroll-behavior: contain;
   }
 
+  /*
+   * Draft view ↔ edit — stacked crossfade inside the Draft well.
+   * Active pane stays in flow (sets height); inactive is absolute so it
+   * fades out without stretching the well. Opacity + translateY only.
+   */
+  .retention-email-draft-swap {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .retention-email-draft-pane {
+    min-width: 0;
+    transition-property: opacity, transform;
+    transition-duration: 180ms;
+    transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .retention-email-draft-pane-view,
+  .retention-email-draft-pane-edit {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  [data-draft-mode="view"] .retention-email-draft-pane-view,
+  [data-draft-mode="edit"] .retention-email-draft-pane-edit {
+    position: relative;
+    z-index: 1;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  [data-draft-mode="view"] .retention-email-draft-pane-edit,
+  [data-draft-mode="edit"] .retention-email-draft-pane-view {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    width: 100%;
+    z-index: 0;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+  }
+
+  [data-draft-mode="view"] .retention-email-draft-pane-edit {
+    transform: translateY(-4px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .retention-email-draft-pane {
+      transition-duration: 0.01ms;
+      transition-property: none;
+    }
+
+    [data-draft-mode="view"] .retention-email-draft-pane-edit,
+    [data-draft-mode="edit"] .retention-email-draft-pane-view {
+      transform: none;
+    }
+  }
+
   @container retention-email (max-width: 24rem) {
     .retention-email-columns {
       gap: 0.5rem;
@@ -1560,96 +1622,6 @@
   @media (prefers-reduced-motion: reduce) {
     .sidebar-drawer-backdrop,
     .sidebar-drawer {
-      animation: none;
-    }
-  }
-
-  /* Conversation drawer — portaled to body; above sidebar (z-50) and skip link (z-[60]) */
-  .conversation-drawer-root {
-    @apply fixed inset-0 z-[70];
-  }
-
-  .conversation-drawer-backdrop {
-    @apply absolute inset-0;
-    background: var(--sio-bg-overlay);
-    animation: sio-fade-in 180ms ease-out both;
-  }
-
-  .conversation-drawer-panel {
-    @apply absolute flex flex-col overflow-hidden bg-sio-bg-base;
-    overscroll-behavior: contain;
-    border: 1px solid var(--sio-border-base);
-    /* Mobile: bottom sheet — system panel radius on the open edge */
-    inset-inline: 0;
-    bottom: 0;
-    top: auto;
-    max-height: 85dvh;
-    border-bottom: none;
-    border-radius: var(--radius-group) var(--radius-group) 0 0;
-    padding-top: 0;
-    padding-right: max(1rem, env(safe-area-inset-right));
-    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-    padding-left: max(1rem, env(safe-area-inset-left));
-    animation: sio-conversation-drawer-up 200ms ease-out both;
-  }
-
-  .conversation-drawer-handle {
-    @apply flex shrink-0 cursor-grab items-center justify-center pt-2.5 pb-1.5 active:cursor-grabbing md:hidden;
-    touch-action: none;
-  }
-
-  .conversation-drawer-handle-bar {
-    @apply block h-1 w-10 rounded-full bg-sio-border-base;
-  }
-
-  @media (min-width: 768px) {
-    .conversation-drawer-panel {
-      /* Desktop: inset chat sheet — radius + gutter on all sides */
-      top: 0.75rem;
-      right: 0.75rem;
-      bottom: 0.75rem;
-      left: auto;
-      width: min(calc(100% - 1.5rem), 32rem);
-      max-height: none;
-      border-bottom: 1px solid var(--sio-border-base);
-      border-radius: var(--radius-panel);
-      padding-top: max(0.75rem, env(safe-area-inset-top));
-      padding-right: max(1rem, env(safe-area-inset-right));
-      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-      padding-left: max(1rem, env(safe-area-inset-left));
-      animation: sio-conversation-drawer-right 200ms ease-out both;
-    }
-
-    .conversation-drawer-handle {
-      display: none;
-    }
-  }
-
-  @keyframes sio-conversation-drawer-up {
-    from {
-      opacity: 0;
-      transform: translateY(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes sio-conversation-drawer-right {
-    from {
-      opacity: 0;
-      transform: translateX(12px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .conversation-drawer-backdrop,
-    .conversation-drawer-panel {
       animation: none;
     }
   }

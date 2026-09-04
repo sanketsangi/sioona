@@ -1,9 +1,9 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-03  
+**Last updated:** 2026-09-04  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` tip `961f2ee` (TS18047 closed — RetentionEmailAction `currentAction` narrow); **live sioona-demo Production success** `961f2ee`
+**Branch:** `main` tip (review-friction pass this tree — list Mark Acted + filter walk + Retention Email revise); **live sioona-demo Production** last logged success `646cc7b` (redeploy pending this pass)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -19,11 +19,21 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-02):** Skip logged (above). Week-4 Batch-02 is **held-out CLI only** (labeled P/R — not Eval go, not ingest). Next unused weekly dump is still Week-5-or-later (not Batch-02, not week3) → mid-week `replaced=false` → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
+**This pass (code, 2026-09-04):** Insights review friction for Acted cadence — Follow-up list Action is a real **Mark as Acted** button (`QueueMarkActedAction`, same Neon POST as rail, stay on list); Done → **Review**; Prev/Next/Skip + feedback + Mark Acted walks preserve `type`/`action` filters; drop Open Conversation drawer (transcript is the review well); Retention Email revise after Approve/Dismiss (Change Decision? dialog; store overwrite; never sends). Full local gate: web Vitest **759** passed / **5** skipped; backend pytest **63** passed. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**This pass (verify/fix, 2026-09-03):** Core-flow audit — ingest/detect/Insights/score/dual-write/eval/API green; sole fix: Insights `SignalQueue` `?preview=` now uses `resolvePreviewSignal` (reviewed-with-feedback wins; matches InsightsView). Web Vitest **755** passed / **5** skipped; backend pytest **63** passed. No redesign. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**This pass (code, 2026-09-03):** Retention Email revise UX — no red inline “already has a decision”; Approved/Dismissed → shadcn **Change Decision?** Dialog before Edit / re-Approve / Dismiss; store allows overwrite (still never sends). Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**This pass (code, 2026-09-03):** Retention Email keeps **Approve Draft / Edit / Dismiss** after Approved (and Edited / Dismissed) so partners can revise; status chip + “Approved — not sent.” stay. Still decision-only — never sends. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**This pass (code, 2026-09-03):** Insights queue Action column is cadence-aware — Follow-up Correct ¬acted → **Mark as Acted** label (list CTA); Done → View→ later **Review**; Pending → Approve/Review as before. **Superseded** for real list Mark Acted button by 2026-09-04 pass. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
 **This pass (code, 2026-09-03):** ModeToggle Shadow href omits `?preview=` (keeps filters; strips mode+preview like Action list landing) so SSR/client no longer mismatch when preview is present only on one side. Not Adapt / not Auth0 / not outbound / not a keep-set go.
 
 **This pass (code, 2026-09-03):** Retention Email Approve on Neon-only stubs (`sig_neon_*`) no longer 404s `Signal not found`. Action route synthesizes from client conversation/type/confidence (same drift path as feedback / Mark Acted); client posts evidence/summary. Decision-only — never sends. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 
-**This pass (code, 2026-09-03):** Retention Email CTA honesty — primary button renamed **Approve Draft** (matches dialog; still decision-only, never send). Tip + live Production **`961f2ee`** (`currentAction` narrow closed TS18047 on prior tip `2806774`). Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+**This pass (code, 2026-09-03):** Retention Email CTA honesty — primary button renamed **Approve Draft** (matches dialog; still decision-only, never send). Tip closed TS18047; live Production now **`646cc7b`** (nested Retention Email + transcript chrome). Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 
 **This pass (verify, 2026-09-03):** Full local deploy gate — web Vitest **740** passed / **5** skipped; backend pytest **63** passed; localhost 7-step smoke **green** (health ok; Insights/Upload/Eval **200**; legacy `307` → `/?view=insights&preview=sig_test`; needs-review JSON array; signal-score `reviewed_count` **31**). Critical-flow suites **not re-run** (no setup breaks). Residual failures: **none**. **Batch-02 remains held-out.** Not a keep-set go / not Batch-02 ingest / not Partner Demo wipe.
 
@@ -127,7 +137,8 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 | Deploy gate (2026-08-31 / Insights polish #77) | origin `a98fd86`; web Vitest **537** passed / **5** skipped; backend pytest **63** passed; hosted 7-step smoke **green** (health ok; Insights/Upload/Eval **200**; Insights `?preview=` **200**; legacy Location `/insights/sig_test` → `/?view=insights&preview=sig_test`; needs-review JSON **20**; signal-score `reviewed_count` **8**). Production already on `a98fd86`. Queue/preview Neon SoT. Not a keep-set go / not Partner Demo wipe |
 | Deploy gate (2026-08-31 / Eval first-fold #78) | origin `b37539b`; web Vitest **548** passed / **5** skipped; backend pytest **63** passed; hosted 7-step smoke **green** (health ok; Insights/Upload/Eval **200**; Insights `?preview=` **200**; legacy Location `/insights/sig_test` → `/?view=insights&preview=sig_test`; needs-review JSON **14**; signal-score `reviewed_count` **6**). Production on `b37539b`. Eval `n / ≥5` + verdict + cadence live; empty `?scoreFrom=2026-08-31T10:41:38.000Z` stays **Insufficient Data** (never labeled Go). Queue/preview Neon SoT. Not a keep-set go / not Partner Demo wipe |
 | Deploy gate (2026-08-31 / ingest weekly-pack #79) | origin `9187c5b`; web Vitest **560** passed / **5** skipped; backend pytest **63** passed; hosted 7-step smoke **green** (health ok; Insights/Upload/Eval **200**; Insights `?preview=` **200**; legacy Location `/insights/sig_test` → `/?view=insights&preview=sig_test`; needs-review JSON **20**; signal-score `reviewed_count` **10**). Production on `9187c5b`. Week5-style names upsert when Neon count > 0; Batch-02 409 without Confirm Ingest. Queue/preview Neon SoT. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest |
-| Deploy gate (2026-09-03 / live `961f2ee`) | Live Production **success** `961f2ee` (TS18047 closed via RetentionEmailAction `currentAction` narrow; #93 retention drafts live). CTA honesty: **Approve Draft** (decision-only). Open PRs **none**. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Adapt / not Auth0 / not outbound |
+| Deploy gate (2026-09-03 / live `646cc7b`) | Live Production **success** `646cc7b` (Retention Email nested under Recommended Actions + transcript chrome). Prior tip `961f2ee` (TS18047 / Approve Draft) still ancestor. Open PRs **none**. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Adapt / not Auth0 / not outbound |
+| Deploy gate (2026-09-03 / live `961f2ee`) | Then Live Production **success** `961f2ee` (TS18047 closed via RetentionEmailAction `currentAction` narrow; #93 retention drafts live). CTA honesty: **Approve Draft** (decision-only). **Superseded** by `646cc7b`. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Adapt / not Auth0 / not outbound |
 | Deploy gate (2026-09-02 / live `c9040d8`) | Then Live Production **success** `c9040d8` (Detect recall + Acted heal + weekly-pack + ingest after()). Web Vitest **723** passed / **5** skipped; backend pytest **63** passed. Hosted 7-step smoke **green**. Empty `?scoreFrom=2026-09-02T20:53:50.000Z` → **Insufficient Data**. Tip `2806774` (#93) Vercel Production **failed** (TS18047) — **superseded** by `961f2ee`. Open PRs **none**. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest |
 | Deploy gate (2026-09-01 / `09f9687`) | origin `09f9687`; web Vitest **598** passed / **6** skipped; backend pytest **63** passed; local 7-step smoke **green** (Insights/Upload/Eval **200**; Insights `?preview=` **200**; legacy Location `/insights/sig_test` → `/?view=insights&preview=sig_test`; sqlite health ok; needs-review **0**; signal-score `reviewed_count` **0**). Eval empty window **Insufficient Data**; Insights **0 / ≥5**. Open PRs **none**. Hosted 7-step curl **not run** — Cloud Agent egress omits `*.vercel.app` / `*.onrender.com` (curl 35 SSL_ERROR_SYSCALL); Vercel GitHub status **success** on `sioona-demo.vercel.app`. Not a keep-set go / not Partner Demo wipe / not Batch-02 ingest |
 | Local tests (2026-08-20) | **pass** — web Vitest **416** passed / **5** skipped; backend pytest **56** passed (Partner Demo baseline preserve + Neon pilot overlay). No residual failures. Skipped file: `web/src/lib/groww-batch02.eval.test.ts` (`describe.skipIf(!PACK_PRESENT)`). Not a hosted deploy gate. |
@@ -232,7 +243,10 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Deploy gate **logged 2026-08-31** (`a98fd86` / #77 Insights polish) — web 537 / backend 63 pass; sioona-demo Production already on SHA; hosted 7-step smoke green (Insights/Upload/Eval 200; preview 200; needs-review 20; signal-score `reviewed_count` 8); queue/preview Neon SoT; not a keep-set go / not Partner Demo wipe
 - Deploy gate **logged 2026-08-31** (`b37539b` / #78 Eval first-fold + Feedback/GT) — web 548 / backend 63 pass; sioona-demo Production on SHA; hosted 7-step smoke green (Insights/Upload/Eval 200; preview 200; needs-review 14; signal-score `reviewed_count` 6); empty-window `?scoreFrom=` Insufficient Data (never labeled Go); queue/preview Neon SoT; not a keep-set go / not Partner Demo wipe
 - Deploy gate **logged 2026-08-31** (`9187c5b` / #79 ingest weekly-pack) — web 560 / backend 63 pass; sioona-demo Production on SHA; hosted 7-step smoke green (Insights/Upload/Eval 200; preview 200; needs-review 20; signal-score `reviewed_count` 10); week5-style upsert + Batch-02 409 without confirm; queue/preview Neon SoT; not a keep-set go / not Partner Demo wipe / not Batch-02 ingest
-- Deploy gate **logged 2026-09-03** (live `961f2ee`) — TS18047 closed; Production on tip; Retention Email CTA **Approve Draft** (decision-only); not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Adapt / not Auth0 / not outbound
+- Deploy gate **logged 2026-09-03** (live `646cc7b`) — Production on tip (nested Retention Email + transcript chrome); prior `961f2ee` Approve Draft / TS18047 closed; not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Adapt / not Auth0 / not outbound
+- Deploy gate **logged 2026-09-03** (live `961f2ee`) — TS18047 closed; then Production on tip; Retention Email CTA **Approve Draft** (decision-only); **superseded** by `646cc7b`; not a keep-set go / not Partner Demo wipe / not Batch-02 ingest / not Adapt / not Auth0 / not outbound
+- Insights queue Action cadence **this pass (2026-09-04)** — Follow-up list **Mark as Acted** button (Neon POST, stay on list); Done **Review**; filter-preserving walk; drop Open Conversation drawer; Retention Email revise; not outbound / not a keep-set go
+- Insights queue Action cadence **prior (2026-09-03)** — Follow-up list **Mark as Acted** label (link); Done **View**; **superseded** by 2026-09-04 real list button
 - Deploy gate **logged 2026-09-02** (live `c9040d8`) — web 723 / backend 63 pass; hosted 7-step smoke green; empty-window Insufficient Data; Detect recall + Acted heal + weekly-pack + ingest after() live; tip `2806774` Vercel failed TS18047 — **superseded** by `961f2ee`; not a keep-set go / not Partner Demo wipe / not Batch-02 ingest
 - Deploy gate **logged 2026-09-01** (`09f9687`) — web 598 / backend 63 pass; local Insights/Upload/Eval 200 + empty-window Insufficient Data; open PRs none; hosted curl blocked by Cloud Agent egress; Vercel GitHub status success for Production aliases; not a keep-set go / not Partner Demo wipe / not Batch-02 ingest
 - Partner Demo keep-set re-query **stopped 2026-08-21** — `scoreFrom=2026-08-20T23:44:44.000Z`; `zrdh_*` n=0 / no go; Groww_batch_02 overwrite (14 Correct ignored); remaining `zrdh_*` pending 0
@@ -248,7 +262,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 ## 7. Later / do not start
 
-*(Unchanged 2026-09-03 — guard verify pass did not start any of these.)*
+*(Unchanged 2026-09-04 — review-friction pass did not start any of these.)*
 
 - Auth0 / real tenant isolation
 - vLLM, QLoRA, LangGraph, pgvector
@@ -265,7 +279,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 - Ask = Architect (prompts). Agent = build. Small verifiable steps.
 - Ask stack map: `.cursor/docs/architecture.md`. This file = heading / gates / do-not-start.
 - Tests: `cd web && npm test`; `cd backend && .venv/bin/python -m pytest`.
-- **Tests status (2026-09-03, this tree):** Full local gate — web Vitest **740** passed / **5** skipped; backend pytest **63** passed; localhost 7-step smoke **green**. Residual failures: **none**. Critical-flow suites not re-run (no setup breaks). Open PRs none. Not a keep-set go. Batch-02 remains held-out. Tip + live Production **`961f2ee`** (TS18047 closed). Prior 2026-09-02 full suite: web Vitest **723** / **5** skipped; backend pytest **63**.
+- **Tests status (2026-09-04, this tree):** Full local gate — web Vitest **759** passed / **5** skipped; backend pytest **63** passed. Residual failures: **none**. Open PRs none. Not a keep-set go. Batch-02 remains held-out. Review-friction uncommitted→push/deploy this pass; last logged live Production **`646cc7b`**.
 - **Guard re-verify (2026-09-03):** ingest 409 Batch-02 sans confirm + Partner Demo silent-replace 409 + weekly-pack / replace-guard unit suites — **43** passed (targeted; not a full deploy gate). Batch-02 held-out + §7 do-not-start **unchanged**.
 - Update **this file** when heading, gates, or blockers change; update `architecture.md` when topology / SoT / seams change.
 - Signal chrome locked — reuse chips; do not invent status/score/type UI.

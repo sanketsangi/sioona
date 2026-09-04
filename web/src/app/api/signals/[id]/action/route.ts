@@ -185,12 +185,6 @@ export async function POST(
       if (result.reason === "not_found") {
         return NextResponse.json({ error: "Action not found" }, { status: 404 });
       }
-      if (result.reason === "already_decided") {
-        return NextResponse.json(
-          { error: "This draft already has a decision." },
-          { status: 409 }
-        );
-      }
       return NextResponse.json(
         { error: "Subject and body are required." },
         { status: 400 }

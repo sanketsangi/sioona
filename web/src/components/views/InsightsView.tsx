@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { ReDetectButton } from "@/components/ReDetectButton";
-import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
 import { ReviewWalkHeader } from "@/components/ReviewWalkHeader";
 import {
@@ -25,7 +24,6 @@ import type { BackendSignalScore } from "@/lib/backend-client";
 import {
   customerNameFromExternalId,
   queueSignalSummary,
-  signalTypeLabel,
 } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
@@ -38,6 +36,7 @@ import {
   applyChatEvidenceToSignals,
   filterPendingWithChat,
   pendingQueueSignals,
+  queueSignalsForFilter,
   resolvePreviewSignal,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
@@ -161,6 +160,25 @@ export function InsightsView({
     chats,
     store.taxonomyOverrides,
   );
+  // Prev / Next / Skip + Mark Acted advances walk the filtered subset
+  // (status list is separate; walk is always pending / Follow-up ∩ type ∩ action).
+  const supervisedActions = store.supervisedActions ?? [];
+  const walkPendingSignals = queueSignalsForFilter({
+    pending: pendingSignals,
+    reviewed: [],
+    status: "new",
+    type: typeFilter,
+    action: actionFilter,
+    supervisedActions,
+  }).filtered;
+  const walkFollowUpSignals = queueSignalsForFilter({
+    pending: [],
+    reviewed: reviewedSignals,
+    status: "followup",
+    type: typeFilter,
+    action: actionFilter,
+    supervisedActions,
+  }).filtered;
   const customerNames: Record<string, string> = {};
   const conversationsById: Record<string, Conversation> = {};
   for (const conversation of chats.conversations) {
@@ -225,9 +243,6 @@ export function InsightsView({
         previewSignal.summary || "",
       )
     : null;
-  const previewMessages = previewSignal
-    ? (messagesByConversationId[previewSignal.conversationId] ?? [])
-    : [];
   const reviewOpen = Boolean(previewSignal && previewCustomerName != null);
   const breadcrumbPageLabel = (() => {
     if (!previewSignal || previewCustomerName == null) return null;
@@ -281,10 +296,13 @@ export function InsightsView({
   const previewTriage = previewSignal
     ? buildSignalReviewTriage({
         pendingSignals,
+        walkPendingSignals,
         previewSignal,
         scoreFrom,
         mode: workspaceMode,
         replaced: jsonKeepSet,
+        typeFilter,
+        actionFilter,
       })
     : null;
   const walkHrefOpts = {
@@ -295,11 +313,12 @@ export function InsightsView({
     mode: workspaceMode,
     replaced: jsonKeepSet,
   };
-  // Any open ?preview= while needs-review remains — including after Correct /
-  // Mark as Acted (follow-up / Done origin). Hide only when the pending queue
-  // is empty. Prev/Next/Skip still walk pending (last Skip → list).
+  // Any open ?preview= while filtered needs-review remains — including after
+  // Correct / Mark as Acted (follow-up / Done origin). Hide only when the
+  // filtered pending walk is empty. Prev/Next/Skip walk filtered pending
+  // (type + action); last Skip → filtered list.
   const pendingWalk =
-    previewSignal && pendingSignals.length > 0
+    previewSignal && walkPendingSignals.length > 0
       ? {
           prevHref: previewTriage?.prevPendingPreviewId
             ? pendingReviewWalkHref({
@@ -315,20 +334,26 @@ export function InsightsView({
             : null,
           skipHref: pendingReviewWalkHref({
             ...walkHrefOpts,
-            previewId: skipPendingPreviewId(pendingSignals, previewSignal.id),
+            previewId: skipPendingPreviewId(
+              walkPendingSignals,
+              previewSignal.id,
+            ),
           }),
         }
       : null;
-  // After Mark as Acted: next Correct panel, else next pending review.
-  // Origin filter is unused — empty Pending / Follow-up lists are not a destination.
+  // After Mark as Acted: next Correct panel in the filtered Follow-up set,
+  // else next filtered pending review.
+  // Origin status filter is unused — empty Pending / Follow-up lists are not a destination.
   const actedWalk = previewSignal
     ? {
         nextPreviewId: nextUnactedCorrectId(
-          reviewedSignals,
+          walkFollowUpSignals,
           previewSignal.id,
         ),
         nextPendingPreviewId: previewTriage?.nextPendingPreviewId ?? null,
         statusFilter,
+        typeFilter,
+        actionFilter,
         scoreFrom,
         mode: workspaceMode,
         replaced: jsonKeepSet,
@@ -358,7 +383,7 @@ export function InsightsView({
     },
     reviewTriage: previewTriage ?? undefined,
     actedWalk,
-    supervisedActions: store.supervisedActions ?? [],
+    supervisedActions,
   };
 
   return (
@@ -495,24 +520,10 @@ export function InsightsView({
                         skipHref={pendingWalk.skipHref}
                       />
                     ) : null}
-                    <OpenConversationHeaderAction
-                      messages={previewMessages}
-                      customerName={previewCustomerName}
-                      typeLabel={signalTypeLabel(previewSignal.type)}
-                      summary={previewSignal.summary || ""}
-                    />
                     <MarkActedHeaderAction
                       key={previewSignal.id}
                       signal={previewSignal}
-                      nextPreviewId={
-                        actedWalk?.nextPreviewId ?? null
-                      }
-                      nextPendingPreviewId={
-                        actedWalk?.nextPendingPreviewId ?? null
-                      }
-                      statusFilter={statusFilter}
-                      scoreFrom={scoreFrom}
-                      mode={workspaceMode}
+                      {...(actedWalk ?? {})}
                     />
                   </>
                 ) : null}

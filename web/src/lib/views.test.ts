@@ -470,6 +470,40 @@ describe("afterFeedbackHref", () => {
     ).toBe("/?view=insights&mode=action&status=new&preview=sig_next");
   });
 
+  it("preserves type + action filters on Correct and Incorrect advances", () => {
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "correct",
+        currentSignalId: "sig_keep",
+        typeFilter: "retention",
+        actionFilter: "approve",
+        scoreFrom: "2026-08-17",
+      }),
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=followup&type=retention&action=approve&preview=sig_keep",
+    );
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "incorrect",
+        nextPendingPreviewId: "sig_next",
+        typeFilter: "retention",
+        actionFilter: "approve",
+      }),
+    ).toBe(
+      "/?view=insights&status=new&type=retention&action=approve&preview=sig_next",
+    );
+    expect(
+      afterFeedbackHref({
+        wasPending: true,
+        label: "incorrect",
+        nextPendingPreviewId: null,
+        actionFilter: "approve",
+      }),
+    ).toBe("/?view=insights&status=new&action=approve");
+  });
+
   it("stays on the panel when re-editing reviewed feedback", () => {
     expect(
       afterFeedbackHref({
@@ -636,5 +670,29 @@ describe("afterMarkActedHref", () => {
         nextPendingPreviewId: "sig_next",
       })
     ).toBeNull();
+  });
+
+  it("preserves type + action filters on Mark Acted advances", () => {
+    expect(
+      afterMarkActedHref({
+        acted: true,
+        feedbackLabel: "correct",
+        nextPreviewId: "sig_follow_next",
+        typeFilter: "retention",
+        actionFilter: "approve",
+      }),
+    ).toBe(
+      "/?view=insights&status=followup&type=retention&action=approve&preview=sig_follow_next",
+    );
+    expect(
+      afterMarkActedHref({
+        acted: true,
+        feedbackLabel: "correct",
+        nextPendingPreviewId: "sig_pending_next",
+        actionFilter: "approve",
+      }),
+    ).toBe(
+      "/?view=insights&status=new&action=approve&preview=sig_pending_next",
+    );
   });
 });

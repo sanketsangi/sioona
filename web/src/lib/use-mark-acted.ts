@@ -12,7 +12,9 @@ import { postSignalActed } from "@/lib/signal-acted-client";
 import type { Signal } from "@/lib/types";
 import {
   afterMarkActedHref,
+  type ActionFilter,
   type StatusFilter,
+  type TypeFilter,
   type WorkspaceMode,
 } from "@/lib/views";
 
@@ -23,6 +25,10 @@ export type MarkActedWalk = {
   nextPendingPreviewId?: string | null;
   /** Current Insights status filter — kept for callers; not used to land on empty lists. */
   statusFilter?: StatusFilter;
+  /** Preserve type filter on Mark Acted advances. */
+  typeFilter?: TypeFilter;
+  /** Preserve Approve / Review CTA filter on Mark Acted advances. */
+  actionFilter?: ActionFilter;
   scoreFrom?: string | null;
   /** Preserve Action Mode on next Follow-up deep links. */
   mode?: WorkspaceMode;
@@ -78,6 +84,8 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
           nextPreviewId: walk.nextPreviewId,
           nextPendingPreviewId: walk.nextPendingPreviewId,
           statusFilter: walk.statusFilter,
+          typeFilter: walk.typeFilter,
+          actionFilter: walk.actionFilter,
           scoreFrom: walk.scoreFrom,
           mode: walk.mode,
           replaced: walk.replaced,
@@ -100,12 +108,14 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
       resolvedLabel,
       router,
       signal,
+      walk.actionFilter,
       walk.mode,
       walk.nextPendingPreviewId,
       walk.nextPreviewId,
       walk.replaced,
       walk.scoreFrom,
       walk.statusFilter,
+      walk.typeFilter,
     ],
   );
 
