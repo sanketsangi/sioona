@@ -35,9 +35,9 @@ type SignalReviewBodyProps = {
 
 /**
  * Insights review body: Conversation well and review rail as sibling
- * cards (gap-4). Narrow: Feedback → Recommended Actions → Why This Fired;
- * Conversation opens in a right Drawer. Wide: flexible rail | fixed 385px
- * Conversation (always docked — no overlay). Highlight resets when
+ * cards (gap-4). Narrow: Recommended Actions → Feedback; Conversation
+ * opens in a right Drawer (Open Conversation / Why This Fired). Wide:
+ * flexible rail | fixed 385px Conversation. Highlight resets when
  * `signal.id` changes (parent should key this).
  */
 export function SignalReviewBody({
@@ -87,18 +87,16 @@ export function SignalReviewBody({
       aria-labelledby={`signal-review-heading-${signal.id}`}
     >
       <div className="insights-review-rail">
-        {!splitWide && messages.length > 0 ? (
-          <div className="flex shrink-0 justify-end">
-            <ConversationDrawer
-              messages={messages}
-              customerName={customerName}
-              open={drawerOpen}
-              onOpenChange={setDrawerOpen}
-              highlightedMessageId={focusedMessageId}
-              triggerLabel="Open Conversation"
-            />
-          </div>
-        ) : null}
+        <SignalReviewSuggestedAction
+          signal={signal}
+          messages={messages}
+          customerName={customerName}
+          focusedMessageId={focusedMessageId}
+          onFocusMessage={focusMessage}
+          actedWalk={actedWalk}
+          supervisedAction={supervisedAction}
+          className="insights-review-pane insights-review-well overflow-hidden"
+        />
         <div
           data-review-slot="feedback"
           className="insights-review-feedback"
@@ -116,16 +114,6 @@ export function SignalReviewBody({
             />
           ) : null}
         </div>
-        <SignalReviewSuggestedAction
-          signal={signal}
-          messages={messages}
-          customerName={customerName}
-          focusedMessageId={focusedMessageId}
-          onFocusMessage={focusMessage}
-          actedWalk={actedWalk}
-          supervisedAction={supervisedAction}
-          className="insights-review-pane insights-review-well overflow-hidden"
-        />
       </div>
       {/*
         Wide: inline 385px well. Narrow: CSS hides the slot; unmount while the
@@ -139,6 +127,15 @@ export function SignalReviewBody({
           className="insights-review-well overflow-hidden"
         />
       ) : null}
+      {/* Why This Fired drawer when the inline well is hidden (narrow). */}
+      <ConversationDrawer
+        messages={messages}
+        customerName={customerName}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        highlightedMessageId={focusedMessageId}
+        showTrigger={false}
+      />
     </div>
   );
 }

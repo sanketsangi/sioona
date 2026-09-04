@@ -505,23 +505,8 @@
   }
 
   /* Descendant (not >) so display:contents rail children still participate. */
-  .insights-review-split [data-review-slot="feedback"] {
-    order: 1;
-    min-width: 0;
-    min-height: min-content;
-    flex: 0 0 auto;
-  }
-
-  .insights-review-split [data-review-slot="actions"] {
-    order: 2;
-    min-width: 0;
-    min-height: min-content;
-    height: max-content;
-    flex: 0 0 auto;
-  }
-
   .insights-review-split [data-review-slot="why"] {
-    order: 3;
+    order: 1;
     min-width: 0;
     min-height: min-content;
     height: max-content;
@@ -712,7 +697,8 @@
     flex: 0 0 auto;
   }
 
-  .insights-review-rail > [data-review-slot="actions"] {
+  .insights-review-split [data-review-slot="feedback"] {
+    order: 4;
     min-width: 0;
     min-height: min-content;
     flex: 0 0 auto;
@@ -788,7 +774,6 @@
     }
 
     .insights-review-rail > [data-review-slot="why"],
-    .insights-review-rail > [data-review-slot="actions"],
     .insights-review-rail > [data-review-slot="feedback"] {
       flex: 0 0 auto;
     }

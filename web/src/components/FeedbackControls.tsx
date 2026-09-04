@@ -211,10 +211,10 @@ export function FeedbackControls({
         >
           <p className="text-pretty text-copy-14 text-sio-fg-subtle">
             {canAdvance
-              ? "Needed for this week’s score. C → Follow-up Act · I / P → next pending · Enter → Correct."
+              ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
               : isUnactedCorrect
                 ? "Copy Reply, then A / Enter → Mark as Acted (does not send)."
-                : "Needed for this week’s score. C / I / P · Enter → Correct. Replies stay drafts."}
+                : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
           </p>
           <p className="sr-only" aria-live="polite">
             {justSaved

@@ -6,13 +6,9 @@ import {
 import {
   isVaultShowcaseFile,
   resolveVaultShowcaseKind,
-  shouldLandShowcaseLoad,
   vaultShowcaseAlreadyActive,
-  vaultShowcaseCancelHref,
-  vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
-  vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
 } from "./vault-showcase";
 
@@ -64,57 +60,11 @@ describe("vaultShowcaseStoreAction", () => {
 });
 
 describe("vaultShowcaseLoadingLabel", () => {
-  it("uses Finding signals for both showcase packs", () => {
-    expect(vaultShowcaseLoadingLabel("sample")).toBe("Finding signals…");
-    expect(vaultShowcaseLoadingLabel("partner")).toBe("Finding signals…");
-    expect(vaultShowcaseExpectation()).toMatch(/20 seconds/);
-    expect(vaultShowcaseStallMessage("partner")).toMatch(/longer than expected/);
+  it("uses Title Case loading ellipsis", () => {
+    expect(vaultShowcaseLoadingLabel("sample")).toBe("Loading Sample…");
+    expect(vaultShowcaseLoadingLabel("partner")).toBe(
+      "Loading Partner Demo…",
+    );
     expect(vaultShowcaseFailedMessage("sample")).toContain("Sample");
-  });
-});
-
-describe("shouldLandShowcaseLoad", () => {
-  it("lands a finished wipe even after the 30s stall painted", () => {
-    expect(
-      shouldLandShowcaseLoad({
-        runId: 1,
-        currentRunId: 1,
-      }),
-    ).toBe(true);
-  });
-
-  it("lands when Cancel unmounted after consume already finished", () => {
-    expect(
-      shouldLandShowcaseLoad({
-        cancelled: true,
-        runId: 1,
-        currentRunId: 1,
-      }),
-    ).toBe(true);
-  });
-
-  it("does not land a Retry-superseded run", () => {
-    expect(
-      shouldLandShowcaseLoad({
-        cancelled: false,
-        runId: 1,
-        currentRunId: 2,
-      }),
-    ).toBe(false);
-  });
-});
-
-describe("vaultShowcaseCancelHref", () => {
-  it("returns the current keep-set Insights href", () => {
-    const href = vaultShowcaseCancelHref("Zerodha_week_5_batch_01.json");
-    const params = new URL(href, "http://localhost").searchParams;
-    expect(params.get("view")).toBe("insights");
-    expect(params.get("file")).toBe("Zerodha_week_5_batch_01.json");
-  });
-
-  it("goes to Upload when the keep-set is empty so Cancel leaves the load", () => {
-    expect(vaultShowcaseCancelHref(null)).toBe("/?view=upload");
-    expect(vaultShowcaseCancelHref(undefined)).toBe("/?view=upload");
-    expect(vaultShowcaseCancelHref("   ")).toBe("/?view=upload");
   });
 });

@@ -20,10 +20,7 @@ export type PartnerExportEvalApiOk = {
 export type PartnerExportEvalApiErr = {
   ok: false;
   code: "missing_file" | "error";
-  /** Product-safe copy — never filesystem paths or CLI. */
   message: string;
-  /** Dev/internal only — omitted from production API responses. */
-  debugMessage?: string;
 };
 
 export type PartnerExportEvalApiResponse =

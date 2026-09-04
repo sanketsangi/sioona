@@ -14,7 +14,6 @@ export function AppShell({
   children,
   title,
   lastUploadedFileName,
-  headerBatchName,
   vaultFile = null,
   activeView,
   workspaceMode = "shadow",
@@ -24,8 +23,6 @@ export function AppShell({
   children: React.ReactNode;
   title?: string;
   lastUploadedFileName?: string;
-  /** Selected vault / keep-set name shown in the header breadcrumb. */
-  headerBatchName?: string;
   /** `?file=` vault scope — active pill on AppSidebar. */
   vaultFile?: string | null;
   activeView: PlatformView;
@@ -68,7 +65,7 @@ export function AppShell({
       >
         <AppHeader
           title={title}
-          lastUploadedFileName={headerBatchName ?? lastUploadedFileName}
+          lastUploadedFileName={lastUploadedFileName}
           activeView={activeView}
           workspaceMode={workspaceMode}
           detailOpen={detailOpen}

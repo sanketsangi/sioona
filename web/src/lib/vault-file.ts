@@ -67,33 +67,6 @@ export function vaultFileMatchesKeepSet(
   return fileStem === lastStem;
 }
 
-/**
- * Header breadcrumb: selected vault file wins so chrome matches the
- * sidebar pill while a showcase pack is still loading.
- */
-export function resolveHeaderBatchName(opts: {
-  vaultFile?: string | null;
-  lastUploadedFileName?: string | null;
-}): string | undefined {
-  const fromUrl = parseVaultFile(opts.vaultFile);
-  if (fromUrl) return fromUrl;
-  const last = opts.lastUploadedFileName?.trim();
-  return last || undefined;
-}
-
-/**
- * True when Insights/Eval can render the selected vault's keep-set
- * (not a showcase loader / mismatch empty). Ready notifications use this.
- */
-export function isVaultBatchRenderable(
-  vaultFile: string | null | undefined,
-  lastUploadedFileName: string | null | undefined,
-): boolean {
-  const file = parseVaultFile(vaultFile);
-  if (!file) return true;
-  return vaultFileMatchesKeepSet(file, lastUploadedFileName);
-}
-
 /** Which vault row should show the active pill. */
 export function resolveVaultActiveFile(opts: {
   /** `?file=` when present — wins over keep-set breadcrumb. */
