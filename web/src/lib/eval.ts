@@ -325,12 +325,20 @@ export function applyBackendSignalScore(
  * When Neon score is present (including empty review window), go/no-go uses
  * that window ∩ keep-set only — never the labeled-fixture shortcut, so week-2
  * empty windows stay Insufficient Data instead of recycling week-1 Go.
+ * Offline / missing score is also Insufficient Data (never a labeled Go).
  */
 export function applyBackendSignalScoreToPilot(
   store: StoreData,
   score: BackendSignalScore | null
 ): PilotMetrics {
-  if (!score) return computePilotMetrics(store);
+  if (!score) {
+    const base = computePilotMetrics(store);
+    return {
+      ...base,
+      goNoGo: "insufficient_data",
+      meetsReviewPrecisionTarget: null,
+    };
+  }
   const base = computePilotMetrics(store);
   const reviewPrecision = score.signal_score;
   const reviewedCount = score.reviewed_count;

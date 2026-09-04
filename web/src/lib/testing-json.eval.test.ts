@@ -97,7 +97,15 @@ describe("testing.json synthetic eval", () => {
     expect(summary).toContain("upsell:");
     expect(Array.isArray(confusion)).toBe(true);
 
-    // Heuristic measurement baseline (Detect v2 off). Hybrid lift is in detect-llm.test.ts.
+    // Precision-first Detect gate (heuristics; Detect v2 off). Hybrid lift is in detect-llm.test.ts.
+    expect(metrics.labeledPrecision).toBe(1);
+    expect(metrics.falsePositives).toBe(0);
     expect(metrics.labeledRecall).not.toBeNull();
+    // True-gap FN: family-forwarded competitor research + support slowness
+    // without leave/close/switch verb. Do not recover via competitor-name FPs.
+    const fnIds = confusion
+      .filter((c) => c.kind === "false_negative")
+      .map((c) => c.externalId);
+    expect(fnIds).toEqual(["trisha_mehta_07"]);
   });
 });

@@ -106,7 +106,7 @@ export function SignalReviewConversation({
               size="lg"
               className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
             >
-              <Link href={viewHref("upload")}>Upload Chats</Link>
+              <Link href={viewHref("upload")}>Uploaded Chats</Link>
             </Button>
           </div>
         </div>

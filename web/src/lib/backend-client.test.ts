@@ -522,7 +522,7 @@ describe("getSignalScore keep-set", () => {
     by_signal_type: [],
   };
 
-  it("appends repeated conversation_id query params", async () => {
+  it("POSTs keep-set conversation ids in the body", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -535,10 +535,10 @@ describe("getSignalScore keep-set", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /\/v1\/tenants\/tenant_demo\/signal-score\?conversation_id=pack_1&conversation_id=pack_2$/
-      ),
+      expect.stringMatching(/\/v1\/tenants\/tenant_demo\/signal-score$/),
       expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ conversation_ids: ["pack_1", "pack_2"] }),
         headers: expect.objectContaining({
           "X-Tenant-Id": "tenant_demo",
         }),
@@ -546,7 +546,7 @@ describe("getSignalScore keep-set", () => {
     );
   });
 
-  it("sends empty conversation_id for an explicit empty keep-set", async () => {
+  it("POSTs empty conversation_ids for an explicit empty keep-set", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -563,10 +563,11 @@ describe("getSignalScore keep-set", () => {
     await getSignalScore("tenant_demo", { conversationIds: [] });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(
-        /\/v1\/tenants\/tenant_demo\/signal-score\?conversation_id=$/
-      ),
-      expect.any(Object)
+      expect.stringMatching(/\/v1\/tenants\/tenant_demo\/signal-score$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ conversation_ids: [] }),
+      })
     );
   });
 
@@ -583,6 +584,25 @@ describe("getSignalScore keep-set", () => {
     const url = String(fetchMock.mock.calls[0]?.[0]);
     expect(url).toContain("/v1/tenants/tenant_demo/signal-score");
     expect(url).not.toContain("conversation_id");
+    expect(fetchMock.mock.calls[0]?.[1]).not.toMatchObject({ method: "POST" });
+  });
+
+  it("sets date_from query params when keep-set is omitted", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => scoreBody,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getSignalScore("tenant_demo", {
+      date_from: "2026-09-04T10:11:15.000Z",
+    });
+
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain("date_from=2026-09-04T10%3A11%3A15.000Z");
+    expect(url).not.toContain("conversation_id");
+    expect(fetchMock.mock.calls[0]?.[1]).not.toMatchObject({ method: "POST" });
   });
 
   it("sets date_from and date_to query params when provided", async () => {
@@ -599,10 +619,17 @@ describe("getSignalScore keep-set", () => {
       date_to: "2026-08-14T12:00:00.000Z",
     });
 
-    const url = String(fetchMock.mock.calls[0]?.[0]);
-    expect(url).toContain("date_from=2026-08-07T12%3A00%3A00.000Z");
-    expect(url).toContain("date_to=2026-08-14T12%3A00%3A00.000Z");
-    expect(url).toContain("conversation_id=pack_1");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/v1\/tenants\/tenant_demo\/signal-score$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          conversation_ids: ["pack_1"],
+          date_from: "2026-08-07T12:00:00.000Z",
+          date_to: "2026-08-14T12:00:00.000Z",
+        }),
+      })
+    );
   });
 });
 

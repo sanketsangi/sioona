@@ -156,9 +156,15 @@ def test_signal_score_filters_by_signal_type(db: Session) -> None:
     )
 
     result = calculate_signal_score(db, "tenant_a", signal_type="lead")
-    assert result.reviewed_count == 1
+    assert result.reviewed_count == 2
     assert result.correct_count == 1
-    assert result.signal_score == pytest.approx(1.0)
+    assert result.incorrect_count == 1
+    assert result.signal_score == pytest.approx(0.5)
+    by_type = {b.signal_type: b for b in result.by_signal_type}
+    assert list(by_type) == ["lead"]
+    assert by_type["lead"].reviewed_count == 1
+    assert by_type["lead"].correct_count == 1
+    assert by_type["lead"].signal_score == pytest.approx(1.0)
 
 
 def test_signal_score_filters_by_date_range(db: Session) -> None:
@@ -249,6 +255,62 @@ def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
     assert empty_keep.signal_score is None
 
 
+def test_week_window_counts_every_in_window_correct(db: Session) -> None:
+    """Keep-set week window counts every in-window Correct; overall ≠ one type."""
+    lead = _pred(db, conversation_id="pack_lead", signal_type="lead")
+    ret = _pred(db, conversation_id="pack_ret", signal_type="retention")
+    up = _pred(db, conversation_id="pack_up", signal_type="upsell")
+    old = _pred(db, conversation_id="pack_old", signal_type="lead")
+    orphan = _pred(db, conversation_id="orphan_demo", signal_type="retention")
+
+    in_window = datetime(2026, 9, 4, 12, tzinfo=timezone.utc)
+    out_window = datetime(2026, 8, 1, tzinfo=timezone.utc)
+    for pred, label, reviewed_at in (
+        (lead, "correct", in_window),
+        (ret, "correct", in_window),
+        (up, "correct", in_window),
+        (old, "correct", out_window),
+        (orphan, "correct", in_window),
+    ):
+        fb = record_feedback(
+            db,
+            tenant_id="tenant_a",
+            signal_id=pred.id,
+            feedback=label,
+            reviewed_by="r1",
+        )
+        fb.reviewed_at = reviewed_at
+    db.commit()
+
+    result = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 9, 4, 10, 11, 15, tzinfo=timezone.utc),
+        conversation_ids=["pack_lead", "pack_ret", "pack_up", "pack_old"],
+    )
+    assert result.reviewed_count == 3
+    assert result.correct_count == 3
+    assert result.incorrect_count == 0
+    assert result.partially_correct_count == 0
+    assert result.signal_score == pytest.approx(1.0)
+    by_type = {b.signal_type: b for b in result.by_signal_type}
+    assert by_type["lead"].correct_count == 1
+    assert by_type["retention"].correct_count == 1
+    assert by_type["upsell"].correct_count == 1
+    assert (
+        sum(b.reviewed_count for b in result.by_signal_type) == result.reviewed_count
+    )
+
+    naive_from = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 9, 4, 10, 11, 15),  # naive UTC
+        conversation_ids=["pack_lead", "pack_ret", "pack_up", "pack_old"],
+    )
+    assert naive_from.reviewed_count == 3
+    assert naive_from.correct_count == 3
+
+
 def test_record_feedback_rejects_invalid_label(db: Session) -> None:
     p = _pred(db)
     with pytest.raises(InvalidFeedbackLabelError):
@@ -316,6 +378,25 @@ def test_needs_review_excludes_reviewed(db: Session) -> None:
     ids = [s.id for s in queue]
     assert open_sig.id in ids
     assert reviewed.id not in ids
+
+
+def test_needs_review_still_queues_non_canonical_feedback(db: Session) -> None:
+    """Legacy / corrupt labels are not 'reviewed' for the pending queue."""
+    from app.models.signal_feedback import SignalFeedback
+
+    open_sig = _pred(db, conversation_id="c_legacy")
+    db.add(
+        SignalFeedback(
+            tenant_id="tenant_a",
+            signal_id=open_sig.id,
+            feedback="accept",
+            reviewed_by="r1",
+        )
+    )
+    db.commit()
+
+    queue = list_signals_needing_review(db, "tenant_a", limit=20)
+    assert open_sig.id in {row.id for row in queue}
 
 
 def test_needs_review_ranks_retention_first(db: Session) -> None:

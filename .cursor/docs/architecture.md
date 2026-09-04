@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-08-30
+**Last updated:** 2026-09-04
 
 ---
 
@@ -89,7 +89,7 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 ## 5. Detect pipeline
 
 1. **Ingest** — CSV/JSON / Intercom / WhatsApp → PII redact → Day-1 replace or mid-week `externalId` upsert (`replaced=false`).
-2. **Pass 1** — `detect.ts` heuristics on customer messages; effective taxonomy = base ⊕ overrides; threshold ~0.35; structural intent patterns + fraud/complaint suppress on lead/upsell (`detect-patterns.ts`).
+2. **Pass 1** — `detect.ts` heuristics on customer messages; effective taxonomy = base ⊕ overrides; threshold ~0.35; structural intent patterns + fraud/complaint suppress on lead/upsell (`detect-patterns.ts`). Precision-first: ticket/chat/login/document ops and bare competitor-name mentions do not fire; ≥2 keyword-only rule.
 3. **Pass 2** — `detect-llm.ts` Groq only on **zero-signal** misses (`DETECT_LLM=1` + `GROQ_API_KEY`); never overrides hits; fail-soft. **Detect v2 closed / hosted.**
 4. **Persist** — replace signals preserving feedback → `syncPredictionsToBackend` upsert `(tenant, conversation, type)`.
 
@@ -107,7 +107,7 @@ Primary wedge type: **retention**.
 | Conversations    | bulk/upsert/list/prune/delete; `PATCH` ground_truth; list accepts repeat `conversation_id` (overlay) |
 | Feedback / Acted | `POST /v1/signals/{id}/feedback`, `…/acted`                                                           |
 | Queue / hydrate  | `GET …/signals/needs-review`, `GET …/signals`                                                         |
-| Score            | `GET …/signal-score` — `correct/reviewed`; optional keep-set + `date_from`/`date_to` on `reviewed_at` |
+| Score            | `GET`/`POST …/signal-score` — `correct/reviewed`; keep-set + `date_from`/`date_to` on `reviewed_at`; POST body for large keep-sets; `signal_type` filters `by_signal_type` only |
 | Pilot            | `GET`/`PUT …/pilot`                                                                                   |
 | Wipe             | `DELETE …/data`                                                                                       |
 
@@ -134,7 +134,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - Render free cold starts (~15m) → queue/score timeouts. Insights/Eval auto-wake `/api/backend-health` once, then refresh (cooldown; partner-safe copy).
 - Soft tenancy (spoofable header).
 - Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations?conversation_id=`, not written to JSON). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
-- Eval keep-set SignalScore is JSON conversation ids ∪ overlay ids so stub reviews count toward the week window. Overlay stays request-scoped (not written to JSON).
+- Eval keep-set SignalScore: when JSON has chats, omit `conversation_id` so Neon `conversations` fill hydrate-lag holes (hosted n matches in-window Corrects). `?replaced=1` and empty JSON still pass an explicit keep-set (JSON-only / overlay stubs / `[]` → 0). Large keep-sets POST in the body. Orphan leftover predictions stay out (not in `conversations`). Overlay stays request-scoped (not written to JSON).
 - Message upsert does not delete omitted messages until prune/wipe.
 
 ---

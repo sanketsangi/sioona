@@ -4,6 +4,8 @@
  * These encode product rules (first-product lead, close/switch retention,
  * same-id adjacent upsell, fraud/complaint → none) without copying
  * conversation ids, customer names, or held-out planted phrases.
+ * Precision-first: ticket/chat/login/document ops must not fire; competitor
+ * names only with I'm/sitting/already/now (not "research on Angel").
  */
 
 import type { SignalType } from "./types";
@@ -44,14 +46,16 @@ const LEAD_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "want-etf",
-    re: /\bwant\s+.{0,36}\b(?:one )?(?:index )?etf\b/i,
+    // "want … ETF" as a buy, not "want to know why my ETF NAV …"
+    re: /\bwant(?!\s+to (?:know|check|see|understand)\b)\s+.{0,36}\b(?:one )?(?:index )?etf\b/i,
   },
 ];
 
 const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   {
     label: "need-closed",
-    re: /\b(?:need|get|keep|want)\s+.{0,40}\bclosed\b/i,
+    // Account/broker close — not "need this ticket/chat closed"
+    re: /\b(?:need|get|keep|want)\s+(?:(?!\b(?:ticket|chat|request|issue|thread|incident)\b).){0,40}\bclosed\b/i,
   },
   {
     label: "start-closure",
@@ -63,7 +67,11 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "delete-close",
-    re: /\b(?:delete\s*\/\s*close|delete or close|close\s+\w+\s+please)\b/i,
+    re: /\b(?:delete\s*\/\s*close|delete or close)\b/i,
+  },
+  {
+    label: "close-account-please",
+    re: /\bclose\s+(?:my |the )?(?:account|demat|wallet|card|folio)\s+please\b/i,
   },
   {
     label: "stop-everything",
@@ -115,7 +123,8 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "on-competitor",
-    re: /\b(?:sitting )?on\s+(?:dhan|upstox|angel|kuvera|fyers)\b/i,
+    // "I'm / sitting / already on Dhan" — not "research on Angel" / "blog on Upstox"
+    re: /\b(?:i'?m|sitting|already|still|now) on\s+(?:dhan|upstox|angel|kuvera|fyers)\b/i,
   },
   {
     label: "wont-keep-here",
@@ -138,19 +147,23 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
 const UPSELL_PATTERNS: Array<{ label: string; re: RegExp }> = [
   {
     label: "family-view",
-    re: /\bfamily (?:view|login|profile|folio|account)\b/i,
+    // Ask for a family product surface — not "family view of the ticket"
+    re: /\b(?:is there a family view|want a family view|need a family view|family (?:login|profile|folio|account))\b/i,
   },
   {
     label: "do-you-also",
-    re: /\bdo you also\s+(?:sell|offer|have|provide)\b/i,
+    // "do you also have weekend hours / an office" is ops; sell/offer/provide is product
+    re: /\bdo you also\s+(?:sell|offer|provide)\b|\bdo you also have\s+.{0,40}\b(?:insurance|fd|mtf|gold|commodity|advisory|sip|etf|pms|aif)\b/i,
   },
   {
     label: "can-i-also",
-    re: /\bcan i also\s+(?:start|add|buy|open|get|enable)\b/i,
+    // "can I also get a statement / contract note" is ops; start/add/buy is adjacent product
+    re: /\bcan i also\s+(?:start|add|buy|open|enable)\b/i,
   },
   {
     label: "turn-on-mtf",
-    re: /\bturn on mtf\b/i,
+    // Request to enable MTF — not "Turn on MTF is stuck on loading"
+    re: /\b(?:can i|want to|please|how do i|able to)\s+turn on mtf\b/i,
   },
   {
     label: "pledge-margin",
@@ -158,15 +171,17 @@ const UPSELL_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "increase-margin",
-    re: /\bincrease\s+.{0,16}margin\b/i,
+    re: /\bincrease\s+(?:my |the |overnight )?margin\b/i,
   },
   {
     label: "term-insurance",
-    re: /\bterm insurance\b/i,
+    // Buy/offer intent — not "where is my term insurance policy PDF"
+    re: /\b(?:sell|offer|buy|add|get|start|want|need|looking at|interested in)\s+.{0,28}term insurance\b/i,
   },
   {
     label: "same-login",
-    re: /\bsame (?:id|login)\b/i,
+    // Same-id adjacent product — not "same login isn't working"
+    re: /\b(?:(?:insurance|fd|mtf|gold|sip|commodity|family|pledge|margin|etf|advisory).{0,56}same (?:id|login)|same (?:id|login).{0,56}(?:insurance|fd|mtf|gold|sip|commodity|family|pledge|margin|etf|advisory))\b/i,
   },
   {
     label: "already-have-adjacent",

@@ -382,24 +382,31 @@ export async function getSignalScore(
     conversationIds?: string[];
   }
 ): Promise<BackendSignalScore> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/signal-score`;
+  if (opts?.conversationIds !== undefined) {
+    const body: {
+      conversation_ids: string[];
+      date_from?: string;
+      date_to?: string;
+      signal_type?: string;
+    } = { conversation_ids: opts.conversationIds };
+    if (opts.date_from) body.date_from = opts.date_from;
+    if (opts.date_to) body.date_to = opts.date_to;
+    if (opts.signal_type) body.signal_type = opts.signal_type;
+    return backendFetch<BackendSignalScore>(tenantId, path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
   const params = new URLSearchParams();
   if (opts?.date_from) params.set("date_from", opts.date_from);
   if (opts?.date_to) params.set("date_to", opts.date_to);
   if (opts?.signal_type) params.set("signal_type", opts.signal_type);
-  if (opts?.conversationIds !== undefined) {
-    if (opts.conversationIds.length === 0) {
-      params.append("conversation_id", "");
-    } else {
-      for (const id of opts.conversationIds) {
-        params.append("conversation_id", id);
-      }
-    }
-  }
   const qs = params.toString();
-  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/signal-score${
-    qs ? `?${qs}` : ""
-  }`;
-  return backendFetch<BackendSignalScore>(tenantId, path);
+  return backendFetch<BackendSignalScore>(
+    tenantId,
+    qs ? `${path}?${qs}` : path
+  );
 }
 
 export async function getNeedsReview(

@@ -181,9 +181,12 @@ export function pendingQueueSignals(
   jsonSignals: Signal[],
   reviewedRows?: BackendPredictionWithFeedback[]
 ): Signal[] {
-  const fromNeon = joinNeedsReviewPredictions(predictions, jsonSignals);
-  const seen = new Set(fromNeon.map((s) => s.id));
   const reviewed = neonReviewedKeys(reviewedRows);
+  const fromNeon = joinNeedsReviewPredictions(predictions, jsonSignals).filter(
+    (signal) =>
+      reviewedRows === undefined || !isNeonReviewedLocal(signal, reviewed)
+  );
+  const seen = new Set(fromNeon.map((s) => s.id));
   const localOnly: Signal[] = [];
   for (const signal of jsonSignals) {
     if (signal.feedback) continue;
@@ -385,7 +388,8 @@ export function queueSignalsForFilter(opts: {
  */
 export function keepSetConversationIds(
   storeConversations: Conversation[],
-  overlayConversations?: Conversation[] | null
+  overlayConversations?: Conversation[] | null,
+  extraIds?: readonly string[] | null
 ): string[] {
   const ids: string[] = [];
   const seen = new Set<string>();
@@ -398,7 +402,32 @@ export function keepSetConversationIds(
     seen.add(id);
     ids.push(id);
   }
+  for (const raw of extraIds ?? []) {
+    const id = raw?.trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
   return ids;
+}
+
+/**
+ * Conversation ids sent to FastAPI SignalScore.
+ *
+ * - `replaced=1` / empty JSON: pass the explicit keep-set (JSON-only, overlay
+ *   stubs, or `[]` → 0 reviewed).
+ * - JSON has chats: omit ids so Neon conversations fill hydrate-lag holes
+ *   (hosted n matches in-window reviews). Orphan leftover predictions stay
+ *   out because they are not in `conversations`.
+ */
+export function signalScoreConversationIds(opts: {
+  keepSetIds: string[];
+  jsonKeepSet?: boolean;
+  jsonConversationCount: number;
+}): string[] | undefined {
+  if (opts.jsonKeepSet) return opts.keepSetIds;
+  if (opts.jsonConversationCount === 0) return opts.keepSetIds;
+  return undefined;
 }
 
 /** Conversation ids on queue rows that are missing from the JSON store. */

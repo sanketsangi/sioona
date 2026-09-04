@@ -124,4 +124,44 @@ describe("SignalScoreSummary compact", () => {
     expect(html).not.toContain("use Adapt");
     expect(html).not.toContain("Insufficient Data");
   });
+
+  it("keeps Overall distinct from by-signal-type chips", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalScoreSummary, {
+        score: {
+          tenant_id: "tenant_demo",
+          reviewed_count: 8,
+          correct_count: 8,
+          incorrect_count: 0,
+          partially_correct_count: 0,
+          signal_score: 1,
+          by_signal_type: [
+            {
+              signal_type: "lead",
+              signal_score: 1,
+              reviewed_count: 3,
+              correct_count: 3,
+              incorrect_count: 0,
+              partially_correct_count: 0,
+            },
+            {
+              signal_type: "retention",
+              signal_score: 1,
+              reviewed_count: 5,
+              correct_count: 5,
+              incorrect_count: 0,
+              partially_correct_count: 0,
+            },
+          ],
+        },
+        compact: true,
+        goNoGo: "go",
+      }),
+    );
+
+    expect(html).toMatch(/Overall[\s\S]*?100%/);
+    expect(html).toContain("8 / 5");
+    expect(html).toContain("(3/3)");
+    expect(html).toContain("(5/5)");
+  });
 });

@@ -195,7 +195,7 @@ export function LabeledTables({
                 table.
               </p>
               <Link href={viewHref("upload")} className="btn-primary mt-4">
-                Upload Chats
+                Uploaded Chats
               </Link>
             </div>
           ) : (

@@ -30,7 +30,7 @@ describe("computeEvalMetrics", () => {
     );
     const metrics = computeEvalMetrics(withSignals(signals));
 
-    expect(metrics.labeledConversations).toBe(27);
+    expect(metrics.labeledConversations).toBe(31);
     expect(metrics.labeledPrecision).toBe(1);
     expect(metrics.labeledRecall).toBe(1);
     expect(metrics.byType).toHaveLength(3);
@@ -260,6 +260,20 @@ describe("applyBackendSignalScoreToPilot", () => {
     expect(pilot.reviewedCount).toBe(0);
     expect(pilot.reviewPrecision).toBeNull();
     expect(pilot.goNoGo).toBe("insufficient_data");
+  });
+
+  it("offline / missing Neon score is insufficient_data (never labeled Go)", () => {
+    const signals = runDetection(
+      sampleStore.conversations,
+      sampleStore.messages,
+      sampleStore.tenant.id
+    );
+    const store = withSignals(signals);
+    expect(computePilotMetrics(store).goNoGo).toBe("go");
+
+    const pilot = applyBackendSignalScoreToPilot(store, null);
+    expect(pilot.goNoGo).toBe("insufficient_data");
+    expect(pilot.meetsReviewPrecisionTarget).toBeNull();
   });
 
   it("windowed reviews drive go when n≥5 and precision ≥ target", () => {

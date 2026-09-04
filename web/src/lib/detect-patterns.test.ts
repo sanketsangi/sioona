@@ -61,6 +61,21 @@ describe("matchIntentPatterns", () => {
     );
   });
 
+  it("fires lead on want-one-index-etf but not NAV lookup", () => {
+    expect(
+      matchIntentPatterns(
+        "want groww for one index etf, 700 a month",
+        "lead"
+      ).map((h) => h.label)
+    ).toContain("want-etf");
+    expect(
+      matchIntentPatterns(
+        "i want to know why my nifty etf nav looks wrong today",
+        "lead"
+      )
+    ).toEqual([]);
+  });
+
   it("fires retention on stop-using and competitor fill", () => {
     const hits = matchIntentPatterns(
       "human comment today or i stop using this app. if this isn't live i'm filling angel.",
@@ -71,6 +86,46 @@ describe("matchIntentPatterns", () => {
     );
   });
 
+  it("fires retention on sitting/I'm on competitor, not research-on-broker", () => {
+    expect(
+      matchIntentPatterns("i'm sitting on dhan that day", "retention").map(
+        (h) => h.label
+      )
+    ).toContain("on-competitor");
+    expect(
+      matchIntentPatterns("if thursday pad dies i'm on dhan that open", "retention").map(
+        (h) => h.label
+      )
+    ).toContain("on-competitor");
+    expect(
+      matchIntentPatterns(
+        "can you compare the research on angel vs your app?",
+        "retention"
+      )
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns("i read a blog on upstox margin, just curious", "retention")
+    ).toEqual([]);
+  });
+
+  it("does not fire need-closed on ticket/chat ops", () => {
+    expect(
+      matchIntentPatterns("i need this ticket closed, thanks", "retention")
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "can i get this chat closed after the screenshot?",
+        "retention"
+      )
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "need this resident account closed before i move abroad",
+        "retention"
+      ).map((h) => h.label)
+    ).toContain("need-closed");
+  });
+
   it("fires upsell on family view and same-login adjacent asks", () => {
     const hits = matchIntentPatterns(
       "is there a family view? do you also sell term insurance? same login.",
@@ -79,5 +134,41 @@ describe("matchIntentPatterns", () => {
     expect(hits.map((h) => h.label)).toEqual(
       expect.arrayContaining(["family-view", "do-you-also", "term-insurance", "same-login"])
     );
+  });
+
+  it("does not fire upsell patterns on support/ops language", () => {
+    expect(
+      matchIntentPatterns("same login isn't working on the web app", "upsell")
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns("do you also have weekend support hours?", "upsell")
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "can i also get last year's capital gains statement?",
+        "upsell"
+      )
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "where is my term insurance policy pdf in the app?",
+        "upsell"
+      )
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "family view of the ticket — my wife also emailed support",
+        "upsell"
+      )
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns("turn on mtf is stuck on loading", "upsell")
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "please increase the timeout, margin calculator keeps failing",
+        "upsell"
+      )
+    ).toEqual([]);
   });
 });

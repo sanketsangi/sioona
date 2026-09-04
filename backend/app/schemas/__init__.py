@@ -15,7 +15,11 @@ from app.schemas.prediction import (
     PredictionResponse,
     PredictionWithFeedbackResponse,
 )
-from app.schemas.signal_score import SignalScoreByType, SignalScoreResponse
+from app.schemas.signal_score import (
+    SignalScoreByType,
+    SignalScoreRequest,
+    SignalScoreResponse,
+)
 
 __all__ = [
     "ConversationBulkResponse",
@@ -31,5 +35,6 @@ __all__ = [
     "PredictionResponse",
     "PredictionWithFeedbackResponse",
     "SignalScoreByType",
+    "SignalScoreRequest",
     "SignalScoreResponse",
 ]

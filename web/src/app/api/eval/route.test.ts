@@ -29,13 +29,13 @@ describe("GET /api/eval", () => {
     vi.restoreAllMocks();
   });
 
-  it("forwards scoreFrom over env and scopes SignalScore to the JSON keep-set", async () => {
+  it("forwards scoreFrom over env and omits keep-set ids when JSON has chats", async () => {
     vi.stubEnv("SIGNAL_SCORE_FROM", "2026-07-01T00:00:00.000Z");
     const scoreSpy = vi
       .spyOn(fetchSignalScore, "fetchSignalScoreSafe")
       .mockResolvedValue(emptyWindowScore);
 
-    const store = await readStore();
+    await readStore();
     const res = await GET(
       new Request("http://localhost/api/eval?scoreFrom=2026-08-01")
     );
@@ -45,7 +45,7 @@ describe("GET /api/eval", () => {
     };
 
     expect(res.status).toBe(200);
-    expect(scoreSpy).toHaveBeenCalledWith("tenant_demo", store.conversations.map((c) => c.id), {
+    expect(scoreSpy).toHaveBeenCalledWith("tenant_demo", undefined, {
       dateFrom: "2026-08-01T00:00:00.000Z",
     });
     expect(body.signalScoreSource).toBe("backend");
@@ -64,12 +64,12 @@ describe("GET /api/eval", () => {
     expect(res.status).toBe(200);
     expect(scoreSpy).toHaveBeenCalledWith(
       "tenant_demo",
-      expect.any(Array),
+      undefined,
       { dateFrom: "2026-08-07T12:00:00.000Z" }
     );
   });
 
-  it("unions overlay conversation ids into the keep-set", async () => {
+  it("omits keep-set ids when JSON has chats even if overlay loaded", async () => {
     const hydrate = await import("@/lib/hydrate-conversations");
     vi.spyOn(hydrate, "fetchOverlayConversations").mockResolvedValue({
       conversations: [
@@ -87,13 +87,10 @@ describe("GET /api/eval", () => {
       .spyOn(fetchSignalScore, "fetchSignalScoreSafe")
       .mockResolvedValue(emptyWindowScore);
 
-    const store = await readStore();
+    await readStore();
     const res = await GET(new Request("http://localhost/api/eval"));
     expect(res.status).toBe(200);
-    expect(scoreSpy.mock.calls[0]?.[1]).toEqual([
-      ...store.conversations.map((c) => c.id),
-      "conv_hydrated",
-    ]);
+    expect(scoreSpy.mock.calls[0]?.[1]).toBeUndefined();
   });
 
   it("falls back to json_legacy when FastAPI is unreachable", async () => {

@@ -3,7 +3,7 @@
 from sqlalchemy import case, exists, select
 from sqlalchemy.orm import Session
 
-from app.models.signal_feedback import SignalFeedback
+from app.models.signal_feedback import FEEDBACK_LABELS, SignalFeedback
 from app.models.signal_prediction import SignalPrediction
 
 # Retention is the primary product signal; then upsell; then lead.
@@ -27,9 +27,14 @@ def list_signals_needing_review(
     if limit > 100:
         limit = 100
 
+    # Canonical labels only — leftover `accept` / corrupt rows still need a
+    # real Correct / Incorrect / Partially Correct. Tenant-scoped so a stray
+    # row on another tenant cannot hide this prediction.
     unreviewed = ~exists(
         select(SignalFeedback.id).where(
-            SignalFeedback.signal_id == SignalPrediction.id
+            SignalFeedback.signal_id == SignalPrediction.id,
+            SignalFeedback.tenant_id == tenant_id,
+            SignalFeedback.feedback.in_(FEEDBACK_LABELS),
         )
     )
     stmt = (

@@ -18,6 +18,7 @@ import {
   quotesFromCustomerMessages,
   resolvePreviewSignal,
   reviewedQueueSignals,
+  signalScoreConversationIds,
   reviewedSignalsFromStore,
 } from "./join-needs-review";
 import {
@@ -377,6 +378,24 @@ describe("pendingQueueSignals Neon reviewed exclusion", () => {
     const pending = pendingQueueSignals([], json, [
       tenantRow({
         id: "neon-reviewed",
+        conversation_id: "conv_1",
+        signal_type: "lead",
+      }),
+    ]);
+    expect(pending).toEqual([]);
+  });
+
+  it("does not re-open needs-review rows already reviewed in Neon", () => {
+    const preds = [prediction({ id: "aaa" })];
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        backendSignalId: "aaa",
+      },
+    ];
+    const pending = pendingQueueSignals(preds, json, [
+      tenantRow({
+        id: "aaa",
         conversation_id: "conv_1",
         signal_type: "lead",
       }),
@@ -793,6 +812,37 @@ describe("missingConversationIds / chat evidence", () => {
     expect(keepSetConversationIds([], [overlay])).toEqual(["conv_hydrated"]);
     expect(keepSetConversationIds([conv], null)).toEqual(["conv_1"]);
     expect(keepSetConversationIds([], null)).toEqual([]);
+    expect(
+      keepSetConversationIds([conv], null, ["conv_hydrated", "conv_1", "  "])
+    ).toEqual(["conv_1", "conv_hydrated"]);
+  });
+
+  it("omits FastAPI keep-set ids when JSON has chats (Neon fills hydrate lag)", () => {
+    expect(
+      signalScoreConversationIds({
+        keepSetIds: ["conv_1", "conv_hydrated"],
+        jsonConversationCount: 2,
+      })
+    ).toBeUndefined();
+    expect(
+      signalScoreConversationIds({
+        keepSetIds: ["conv_1", "conv_2"],
+        jsonKeepSet: true,
+        jsonConversationCount: 2,
+      })
+    ).toEqual(["conv_1", "conv_2"]);
+    expect(
+      signalScoreConversationIds({
+        keepSetIds: ["conv_hydrated"],
+        jsonConversationCount: 0,
+      })
+    ).toEqual(["conv_hydrated"]);
+    expect(
+      signalScoreConversationIds({
+        keepSetIds: [],
+        jsonConversationCount: 0,
+      })
+    ).toEqual([]);
   });
 
   it("builds quote evidence from the last customer messages", () => {

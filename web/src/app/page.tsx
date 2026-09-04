@@ -31,6 +31,7 @@ import {
   filterPendingWithChat,
   followUpSignals,
   keepSetConversationIds,
+  signalScoreConversationIds,
   missingConversationIds,
   pendingQueueSignals,
   reviewedQueueSignals,
@@ -276,16 +277,22 @@ export default async function PlatformPage({
   }
   const keepSetIds = keepSetConversationIds(
     store.conversations,
-    overlayChats?.conversations
+    overlayChats?.conversations,
+    store.signals.map((signal) => signal.conversationId)
   );
+  const scoreKeepSet = signalScoreConversationIds({
+    keepSetIds,
+    jsonKeepSet,
+    jsonConversationCount: store.conversations.length,
+  });
   const [backendScore, allTimeScore] = await Promise.all([
     fetches.windowedScore
-      ? fetchSignalScoreSafe(store.tenant.id, keepSetIds, {
+      ? fetchSignalScoreSafe(store.tenant.id, scoreKeepSet, {
           dateFrom: scoreDateFrom,
         })
       : Promise.resolve(null),
     fetches.allTimeScore
-      ? fetchSignalScoreSafe(store.tenant.id, keepSetIds)
+      ? fetchSignalScoreSafe(store.tenant.id, scoreKeepSet)
       : Promise.resolve(null),
   ]);
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);

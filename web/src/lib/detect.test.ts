@@ -337,6 +337,17 @@ describe("runDetection", () => {
       "Hey! Quick question — if I pause my SIP for 2 months, does it affect anything?",
       "Hi, I want to prepay ₹50,000 towards my personal loan this month. Is there any charge?",
       "Quick question, what does XIRR mean in my portfolio?",
+      "I need this ticket closed, thanks.",
+      "Can I get this chat closed after the screenshot?",
+      "Close this please, I'm done.",
+      "Same login isn't working on the web app. Please fix.",
+      "Do you also have weekend support hours?",
+      "Can I also get last year's capital gains statement?",
+      "Can you compare the research on Angel vs your app?",
+      "Where is my term insurance policy PDF in the app?",
+      "I want to know why my Nifty ETF NAV looks wrong today.",
+      "Family view of the ticket — my wife also emailed support.",
+      "Turn on MTF is stuck on loading. App issue.",
     ];
     for (const text of hardNegatives) {
       const { conversation, messages } = conv("c_soft_ops", "none", text);
@@ -464,6 +475,16 @@ describe("runDetection", () => {
   it("requires keyword co-evidence when no phrase matched", () => {
     expect(scoreType("My wallet balance looks fine.", "lead").score).toBe(0);
     expect(scoreType("UPI is working again.", "lead").score).toBe(0);
+  });
+
+  it("keeps the ≥2 keyword-only rule (one strong keyword does not fire)", () => {
+    expect(scoreType("Asking about a demat.", "lead").score).toBe(0);
+    const two = scoreType(
+      "Asking about a demat and a trading account.",
+      "lead"
+    );
+    expect(two.suppressed).toBe(false);
+    expect(two.score).toBeGreaterThanOrEqual(0.35);
   });
 
   it("does not fire a taxonomy phrase that is locally negated", () => {

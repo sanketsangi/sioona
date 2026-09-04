@@ -1621,6 +1621,31 @@
     }
   }
 
+  /* Vault Sample / Partner Demo seed — Linear/Vercel-style track + queue skeleton. */
+  .sio-showcase-progress {
+    @apply relative h-1 w-full overflow-hidden rounded-full bg-sio-bg-muted;
+  }
+
+  .sio-showcase-progress-fill {
+    @apply h-full w-full origin-left rounded-full bg-sio-fg-base;
+    transform: scaleX(0);
+    transition: transform 280ms ease-out;
+  }
+
+  .sio-showcase-skeleton-cell {
+    animation-delay: var(--sio-skeleton-delay, 0ms);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sio-showcase-progress-fill {
+      transition: none;
+    }
+
+    .sio-showcase-skeleton-cell {
+      animation: none;
+    }
+  }
+
   /* Conversation drawer — portaled to body; above sidebar (z-50) and skip link (z-[60]).
    * Panel width matches SignalReviewConversation (385px); no extra inner chrome. */
   .conversation-drawer-root {

@@ -20,7 +20,7 @@ Taxonomy SoT: `web/src/lib/taxonomy.ts`. Types: `web/src/lib/types.ts`.
 ## Detection (`detect.ts` + `detect-llm.ts`)
 
 - Score **customer** messages only (ignore agent/system for matching)
-- Pass 1: keyword/phrase heuristics; threshold ~0.35; top-1 (+ near-tie); structural intent patterns + fraud/complaint suppress on lead/upsell (`detect-patterns.ts`); skip locally negated phrase/keyword hits; two strong keywords clear the bar
+- Pass 1: keyword/phrase heuristics; threshold ~0.35; top-1 (+ near-tie); structural intent patterns + fraud/complaint suppress on lead/upsell (`detect-patterns.ts`); skip locally negated phrase/keyword hits; two strong keywords clear the bar. Precision-first: ticket/chat/login/document ops and bare competitor-name mentions must not fire.
 - Phrases weigh more than keywords; weak/ambiguous keywords weigh less
 - Short tokens use word boundaries; `negativePhrases` in taxonomy zero that type’s score
 - Pass 2 (Detect v2): `runHybridDetection` — Groq Qwen on conversations with **zero** heuristic signals only; never overrides a heuristic hit; env `DETECT_LLM=1` + `GROQ_API_KEY`; max 8 calls; fail-soft

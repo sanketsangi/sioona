@@ -56,6 +56,26 @@ describe("fetchSignalScoreSafe", () => {
     });
   });
 
+  it("omits conversationIds when keep-set is undefined (Neon conversations)", async () => {
+    vi.mocked(getSignalScore).mockResolvedValue({
+      tenant_id: "tenant_demo",
+      signal_score: 1,
+      reviewed_count: 8,
+      correct_count: 8,
+      incorrect_count: 0,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+
+    await fetchSignalScoreSafe("tenant_demo", undefined, {
+      dateFrom: "2026-09-04T10:11:15.000Z",
+    });
+
+    expect(getSignalScore).toHaveBeenCalledWith("tenant_demo", {
+      date_from: "2026-09-04T10:11:15.000Z",
+    });
+  });
+
   it("returns null when the backend is unreachable", async () => {
     vi.mocked(getSignalScore).mockRejectedValue(new Error("ECONNREFUSED"));
 

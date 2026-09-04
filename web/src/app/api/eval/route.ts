@@ -14,6 +14,7 @@ import {
   pendingQueueSignals,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
+  signalScoreConversationIds,
 } from "@/lib/join-needs-review";
 import { resolveSignalScoreDateFrom } from "@/lib/signal-score-window";
 import { readStore } from "@/lib/store";
@@ -41,7 +42,8 @@ export async function GET(request: Request) {
   );
   const keepSetIds = keepSetConversationIds(
     store.conversations,
-    overlayChats?.conversations
+    overlayChats?.conversations,
+    store.signals.map((signal) => signal.conversationId)
   );
   const scoreDateFrom = resolveSignalScoreDateFrom({
     scoreFrom: url.searchParams.get("scoreFrom"),
@@ -49,7 +51,10 @@ export async function GET(request: Request) {
   });
   const backendScore = await fetchSignalScoreSafe(
     store.tenant.id,
-    keepSetIds,
+    signalScoreConversationIds({
+      keepSetIds,
+      jsonConversationCount: store.conversations.length,
+    }),
     { dateFrom: scoreDateFrom }
   );
   const metrics = applyBackendSignalScore(

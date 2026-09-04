@@ -5,7 +5,7 @@ export const UPLOAD_TIP_INTERVAL_MS = 4500;
 export const UPLOAD_TIPS = [
   "Heuristics run first — a typical export finishes in about a minute.",
   "New signals land in Insights pending for Correct / Incorrect review.",
-  "Partner Demo wipes Neon, then seeds Zerodha chats — usually under a minute.",
+  "Partner Demo wipes Neon, then seeds Zerodha chats — Insights opens after detect; Neon sync finishes in the background.",
   "Shadow Mode scores only — nothing sends to customers.",
   "After detect, clear Needs Review so Eval’s week window has reviews to score.",
   "Reset Demo Data restores Groww Day-1 samples in a few seconds.",

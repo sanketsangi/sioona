@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -83,6 +83,15 @@ def _empty_score(tenant_id: str) -> SignalScoreResult:
     )
 
 
+def _aware_utc(value: datetime | None) -> datetime | None:
+    """Normalize score bounds to aware UTC so naive query datetimes cannot drop reviews."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def resolve_score_keep_set(
     db: Session,
     tenant_id: str,
@@ -112,7 +121,6 @@ def _reviewed_tally_query(
     *,
     date_from: datetime | None,
     date_to: datetime | None,
-    signal_type: str | None,
     conversation_ids: frozenset[str] | None,
 ) -> Select:
     """Group reviewed predictions by type × canonical feedback label.
@@ -137,8 +145,6 @@ def _reviewed_tally_query(
         stmt = stmt.where(SignalFeedback.reviewed_at >= date_from)
     if date_to is not None:
         stmt = stmt.where(SignalFeedback.reviewed_at <= date_to)
-    if signal_type is not None:
-        stmt = stmt.where(SignalPrediction.signal_type == signal_type)
     if conversation_ids is not None:
         stmt = stmt.where(SignalPrediction.conversation_id.in_(conversation_ids))
     return stmt
@@ -158,6 +164,10 @@ def calculate_signal_score(
     SignalScore = count(correct) / count(reviewed).
     partially_correct and incorrect count in the denominator only.
 
+    Overall is always the keep-set ∩ window total. ``by_signal_type`` is the
+    same tally split by type (optionally one type when ``signal_type`` is set).
+    The type filter never replaces overall.
+
     When ``conversation_ids`` is provided, only reviews whose prediction
     ``conversation_id`` is in that keep-set count. Orphan leftover reviews
     (e.g. Partner Demo) may remain in Neon; they are not deleted and are
@@ -170,9 +180,8 @@ def calculate_signal_score(
     rows = db.execute(
         _reviewed_tally_query(
             tenant_id,
-            date_from=date_from,
-            date_to=date_to,
-            signal_type=signal_type,
+            date_from=_aware_utc(date_from),
+            date_to=_aware_utc(date_to),
             conversation_ids=keep_set,
         )
     ).all()
@@ -188,11 +197,15 @@ def calculate_signal_score(
             buckets[type_key] = bucket
         bucket.add(label, n)
 
+    by_type = sorted(buckets.values(), key=lambda b: b.signal_type)
+    if signal_type is not None:
+        by_type = [bucket for bucket in by_type if bucket.signal_type == signal_type]
+
     return SignalScoreResult(
         tenant_id=tenant_id,
         reviewed_count=overall.reviewed_count,
         correct_count=overall.correct_count,
         incorrect_count=overall.incorrect_count,
         partially_correct_count=overall.partially_correct_count,
-        by_signal_type=sorted(buckets.values(), key=lambda b: b.signal_type),
+        by_signal_type=by_type,
     )

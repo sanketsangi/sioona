@@ -87,7 +87,7 @@ describe("SignalReviewConversation", () => {
     expect(html).not.toContain("Showing last");
   });
 
-  it("offers Upload Chats when no transcript is stored", () => {
+  it("offers Uploaded Chats when no transcript is stored", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewConversation, {
         messages: [],
@@ -97,7 +97,7 @@ describe("SignalReviewConversation", () => {
 
     expect(html).toContain("No messages stored");
     expect(html).toContain("No invented chat.");
-    expect(html).toContain("Upload Chats");
+    expect(html).toContain("Uploaded Chats");
     expect(html).toContain("view=upload");
     expect(html).toContain("Priya");
     expect(html).not.toContain("Conversation");
