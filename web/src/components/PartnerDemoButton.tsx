@@ -127,10 +127,10 @@ export function PartnerDemoButton({
       // Back does not reopen an orphan card after the store reset.
       openPartnerInsights({
         replaced: true,
-        syncFailed: extras.syncFailed,
-        syncCreated: extras.syncCreated,
-        llmAdded: llmExtras.llmAdded,
-        llmFailed: llmExtras.llmFailed,
+        syncFailed: extras.syncFailed ?? undefined,
+        syncCreated: extras.syncCreated ?? undefined,
+        llmAdded: llmExtras.llmAdded ?? undefined,
+        llmFailed: llmExtras.llmFailed ?? undefined,
         wipeFailed: data.wipeFailed,
       });
     } catch (err) {

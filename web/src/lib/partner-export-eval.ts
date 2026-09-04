@@ -20,6 +20,15 @@ import type { StoreData, TaxonomyOverrides } from "./types";
 
 export { PARTNER_EXPORT_ADAPT_OVERRIDES };
 
+/** Opt out of Turbopack whole-project fs tracing on Vercel builds. */
+function pathExists(absolutePath: string): boolean {
+  return existsSync(/*turbopackIgnore: true*/ absolutePath);
+}
+
+function readUtf8(absolutePath: string): string {
+  return readFileSync(/*turbopackIgnore: true*/ absolutePath, "utf8");
+}
+
 const SAMPLES_DIR = path.join(process.cwd(), "data/samples");
 const FIXTURES_DIR = path.join(process.cwd(), "src/data/fixtures");
 
@@ -97,7 +106,7 @@ function resolveTemplatePath(samplesDir: string): string | null {
     path.join(samplesDir, PARTNER_EXPORT_TEMPLATE_FILE),
     path.join(FIXTURES_DIR, PARTNER_EXPORT_TEMPLATE_FILE),
   ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+  return candidates.find((candidate) => pathExists(candidate)) ?? null;
 }
 
 export function resolvePartnerExportPath(
@@ -109,7 +118,7 @@ export function resolvePartnerExportPath(
 ): { source: PartnerExportSource; filename: string; absolutePath: string } {
   if (preferWeek2) {
     const week2Path = path.join(samplesDir, PARTNER_EXPORT_WEEK2_LOCAL_FILE);
-    if (!existsSync(week2Path)) {
+    if (!pathExists(week2Path)) {
       throw new Error(
         `Missing week-2 partner export at ${week2Path}. Copy ${PARTNER_EXPORT_TEMPLATE_FILE} to ${PARTNER_EXPORT_WEEK2_LOCAL_FILE}, redact, label ground_truth, then re-run with --week2. Do not use week-1 ${PARTNER_EXPORT_LOCAL_FILE} as week-2.`
       );
@@ -124,7 +133,7 @@ export function resolvePartnerExportPath(
   const localPath = path.join(samplesDir, PARTNER_EXPORT_LOCAL_FILE);
   const templatePath = resolveTemplatePath(samplesDir);
 
-  if (!preferTemplate && existsSync(localPath)) {
+  if (!preferTemplate && pathExists(localPath)) {
     return {
       source: "local",
       filename: PARTNER_EXPORT_LOCAL_FILE,
@@ -183,7 +192,7 @@ export function resolveWeek4Batch02Path(
     explicitPath?.trim() ||
     week4Batch02PathFromEnv(env) ||
     DEFAULT_ZERODHA_WEEK4_BATCH02_PATH;
-  if (!existsSync(absolutePath)) {
+  if (!pathExists(absolutePath)) {
     throw new Error(
       `Missing week-4 Batch-02 held-out pack at ${absolutePath}. Score ${ZERODHA_WEEK4_BATCH02_FILE} from Synthetic-Data in place (do not copy into web/data/samples/). Do not ingest to tenant_demo.`
     );
@@ -246,7 +255,7 @@ export async function loadPartnerExportEval(options?: {
         options?.preferTemplate ?? false,
         options?.preferWeek2 ?? false
       );
-  const content = readFileSync(resolved.absolutePath, "utf8");
+  const content = readUtf8(resolved.absolutePath);
   const doc = parseIngestDocument(resolved.filename, content);
   const { conversations, messages } = toStoreRecords(
     doc.conversations,

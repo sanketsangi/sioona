@@ -98,10 +98,10 @@ async function resolveStorePath(): Promise<string | null> {
   ];
   for (const [dir, file] of candidates) {
     try {
-      await fs.mkdir(dir, { recursive: true });
+      await fs.mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
       const probe = path.join(dir, ".write-probe");
-      await fs.writeFile(probe, "ok", "utf8");
-      await fs.rm(probe, { force: true });
+      await fs.writeFile(/*turbopackIgnore: true*/ probe, "ok", "utf8");
+      await fs.rm(/*turbopackIgnore: true*/ probe, { force: true });
       resolvedStorePath = file;
       return file;
     } catch {
@@ -171,7 +171,7 @@ export async function loadStore(
   const storePath = await resolveStorePath();
   if (storePath) {
     try {
-      const raw = await fs.readFile(storePath, "utf8");
+      const raw = await fs.readFile(/*turbopackIgnore: true*/ storePath, "utf8");
       return {
         store: normalizeStore(JSON.parse(raw) as StoreData),
         coldStart: false,
@@ -211,9 +211,11 @@ export async function writeStore(data: StoreData): Promise<void> {
     return;
   }
   try {
-    await fs.mkdir(path.dirname(storePath), { recursive: true });
+    await fs.mkdir(/*turbopackIgnore: true*/ path.dirname(storePath), {
+      recursive: true,
+    });
     await fs.writeFile(
-      storePath,
+      /*turbopackIgnore: true*/ storePath,
       JSON.stringify(normalized, null, 2),
       "utf8"
     );

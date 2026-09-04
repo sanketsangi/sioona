@@ -17,6 +17,15 @@ const TENANT_ID = "tenant_demo";
 const TESTING_JSON_FILENAME = "testing.json";
 const ZERODHA_BATCH02_FILENAME = "zerodha_batch_02.json";
 
+/** Opt out of Turbopack whole-project fs tracing on Vercel builds. */
+function pathExists(absolutePath: string): boolean {
+  return existsSync(/*turbopackIgnore: true*/ absolutePath);
+}
+
+function readUtf8(absolutePath: string): string {
+  return readFileSync(/*turbopackIgnore: true*/ absolutePath, "utf8");
+}
+
 /** Showcase chrome names — re-export from client-safe guard (avoid fs on client). */
 export {
   GROWW_SHOWCASE_SAMPLE_NAME,
@@ -80,17 +89,17 @@ interface RawConversation {
 export function resolveTestingJsonPath(repoRoot?: string): string {
   const cwd = process.cwd();
   const samplesCopy = path.join(cwd, "data", "samples", TESTING_JSON_FILENAME);
-  if (existsSync(samplesCopy)) return samplesCopy;
+  if (pathExists(samplesCopy)) return samplesCopy;
 
   if (repoRoot) {
     return path.join(repoRoot, TESTING_JSON_FILENAME);
   }
 
   const fromWebCwd = path.join(cwd, "..", TESTING_JSON_FILENAME);
-  if (existsSync(fromWebCwd)) return fromWebCwd;
+  if (pathExists(fromWebCwd)) return fromWebCwd;
 
   const fromRepoCwd = path.join(cwd, TESTING_JSON_FILENAME);
-  if (existsSync(fromRepoCwd)) return fromRepoCwd;
+  if (pathExists(fromRepoCwd)) return fromRepoCwd;
 
   // Default expectation when none exist yet (clearer error from caller).
   return samplesCopy;
@@ -107,7 +116,7 @@ export function resolveZerodhaBatch02Path(repoRoot?: string): string {
     "samples",
     ZERODHA_BATCH02_FILENAME
   );
-  if (existsSync(samplesCopy)) return samplesCopy;
+  if (pathExists(samplesCopy)) return samplesCopy;
 
   if (repoRoot) {
     return path.join(repoRoot, "web", "data", "samples", ZERODHA_BATCH02_FILENAME);
@@ -120,7 +129,7 @@ export function resolveZerodhaBatch02Path(repoRoot?: string): string {
     "samples",
     ZERODHA_BATCH02_FILENAME
   );
-  if (existsSync(fromRepoCwd)) return fromRepoCwd;
+  if (pathExists(fromRepoCwd)) return fromRepoCwd;
 
   return samplesCopy;
 }
@@ -311,13 +320,13 @@ export function loadTestingJsonEval(options?: {
   const absolutePath =
     options?.absolutePath ?? resolveTestingJsonPath(options?.repoRoot);
 
-  if (!existsSync(absolutePath)) {
+  if (!pathExists(absolutePath)) {
     throw new Error(
       `Missing ${TESTING_JSON_FILENAME} at ${absolutePath}. Expected at repo root.`
     );
   }
 
-  const content = readFileSync(absolutePath, "utf8");
+  const content = readUtf8(absolutePath);
   const inputs = parseTestingJsonDocument(content);
   const { conversations, messages } = toStoreRecords(inputs, tenantId);
   const signals = runDetection(conversations, messages, tenantId);

@@ -72,7 +72,7 @@ async function loadShowcaseJsonIntoStore(
 ): Promise<LoadTestingJsonResult> {
   const absolutePath =
     options.absolutePath ?? options.resolvePath(options.repoRoot);
-  const content = await fs.readFile(absolutePath, "utf8");
+  const content = await fs.readFile(/*turbopackIgnore: true*/ absolutePath, "utf8");
   const inputs = parseTestingJsonDocument(content);
 
   const tenantId = emptyShowcaseStore.tenant.id;

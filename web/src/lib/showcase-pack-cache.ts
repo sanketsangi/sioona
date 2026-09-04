@@ -57,7 +57,7 @@ async function buildShowcasePack(
 ): Promise<ShowcasePackCorpus> {
   const { sampleName, resolvePath } = resolveKindPaths(kind);
   const absolutePath = resolvePath();
-  const content = await fs.readFile(absolutePath, "utf8");
+  const content = await fs.readFile(/*turbopackIgnore: true*/ absolutePath, "utf8");
   const inputs = parseTestingJsonDocument(content);
   const tenantId = emptyShowcaseStore.tenant.id;
   const { conversations, messages } = toStoreRecords(inputs, tenantId, {
