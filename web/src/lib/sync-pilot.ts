@@ -119,15 +119,18 @@ export function preserveLocalKeepSetFilename(
   healed: StoreData,
   latest: StoreData
 ): StoreData {
-  const local = latest.pilot?.lastUploadedFileName?.trim();
-  if (!local) return healed;
-  if (healed.pilot?.lastUploadedFileName === local) return healed;
+  const localName = latest.pilot?.lastUploadedFileName?.trim();
+  if (!localName || !latest.pilot) return healed;
+  if (healed.pilot?.lastUploadedFileName === localName) return healed;
   if (!healed.pilot) {
-    return { ...healed, pilot: { ...latest.pilot, lastUploadedFileName: local } };
+    return {
+      ...healed,
+      pilot: { ...latest.pilot, lastUploadedFileName: localName },
+    };
   }
   return {
     ...healed,
-    pilot: { ...healed.pilot, lastUploadedFileName: local },
+    pilot: { ...healed.pilot, lastUploadedFileName: localName },
   };
 }
 

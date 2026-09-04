@@ -312,6 +312,18 @@ describe("preserveLocalKeepSetFilename", () => {
     const next = preserveLocalKeepSetFilename(healed, latest);
     expect(next.pilot?.lastUploadedFileName).toBe("Zerodha_batch_02");
   });
+
+  it("restores keep-set name when healed pilot is missing", async () => {
+    const latest = await readStore();
+    latest.pilot = {
+      baselineOpportunities: 4,
+      lastUploadedFileName: "Zerodha_batch_02",
+    };
+    const healed = { ...latest, pilot: undefined };
+    const next = preserveLocalKeepSetFilename(healed, latest);
+    expect(next.pilot?.lastUploadedFileName).toBe("Zerodha_batch_02");
+    expect(next.pilot?.baselineOpportunities).toBe(4);
+  });
 });
 
 describe("overlayPilotFromRemote", () => {
