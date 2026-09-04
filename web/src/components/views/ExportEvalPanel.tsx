@@ -130,55 +130,6 @@ function ByTypeTable({ metrics }: { metrics: EvalMetrics }) {
   );
 }
 
-export const EXPORT_EVAL_EMPTY_TITLE = "Week-2 export isn’t ready yet";
-export const EXPORT_EVAL_EMPTY_BODY =
-  "Upload a labeled partner export to unlock this measurement. Nothing is sent — this view is measurement only, not SignalScore.";
-
-export function ExportEvalEmptyState({
-  error,
-}: {
-  error?: PartnerExportEvalApiResponse & { ok: false } | null;
-}) {
-  const showTechnical =
-    process.env.NODE_ENV === "development" && Boolean(error?.debugMessage);
-
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
-      <Note>
-        <NoteContent>
-          <p className="text-balance text-heading-16 text-sio-fg-base">
-            {EXPORT_EVAL_EMPTY_TITLE}
-          </p>
-          <p className="mt-1 text-pretty text-copy-14 text-sio-fg-subtle">
-            {EXPORT_EVAL_EMPTY_BODY}
-          </p>
-          {showTechnical ? (
-            <details className="mt-3 text-label-12 text-sio-fg-muted">
-              <summary className="cursor-pointer text-sio-fg-subtle hover:text-sio-fg-base">
-                Technical details
-              </summary>
-              <p className="mt-1.5 break-words font-mono text-label-12 text-sio-fg-muted">
-                {error?.debugMessage}
-              </p>
-            </details>
-          ) : null}
-        </NoteContent>
-      </Note>
-      <div className="flex flex-wrap gap-2">
-        <Link href={viewHref("upload")} className="btn-primary">
-          Upload export
-        </Link>
-        <Link
-          href={viewHref("eval", { panel: "metrics" })}
-          className="btn-secondary"
-        >
-          Back to Metrics
-        </Link>
-      </div>
-    </div>
-  );
-}
-
 function ConfusionList({
   title,
   examples,
@@ -254,7 +205,43 @@ export function ExportEvalPanel() {
   }
 
   if (!data || !data.ok) {
-    return <ExportEvalEmptyState error={data} />;
+    const missing = data?.code === "missing_file";
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+        <Note>
+          <NoteContent>
+            <p className="text-balance text-heading-16 text-sio-fg-base">
+              {missing
+                ? "Week-2 export file not found"
+                : "Export eval unavailable"}
+            </p>
+            <p className="mt-1 text-pretty text-copy-14 text-sio-fg-subtle">
+              {data?.message ??
+                "Place real-partner-export.week2.local.csv under web/data/samples/ (gitignored), then reload."}
+            </p>
+            <p className="mt-2 text-pretty text-label-12 text-sio-fg-muted">
+              CLI:{" "}
+              <code className="font-mono text-sio-fg-base">
+                cd web && npm run eval:partner-export -- --week2
+              </code>
+              . Never commit *.local.csv / PII. This panel is measurement only —
+              not SignalScore.
+            </p>
+          </NoteContent>
+        </Note>
+        <div className="flex flex-wrap gap-2">
+          <Link href={viewHref("upload")} className="btn-secondary">
+            Upload Chats
+          </Link>
+          <Link
+            href={viewHref("eval", { panel: "metrics" })}
+            className="btn-tertiary"
+          >
+            Back to Metrics
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const hybridLine =

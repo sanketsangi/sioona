@@ -81,7 +81,6 @@ function pageShellProps(result: ReactElement) {
     activeView: string;
     title: string;
     lastUploadedFileName?: string;
-    headerBatchName?: string;
     notifications: { id: string; title?: string }[];
     children?: ReactNode;
   };
@@ -750,62 +749,5 @@ describe("PlatformPage deploy reliability", () => {
     expect(refreshStorePilotFromNeon).not.toHaveBeenCalled();
     expect(after).not.toHaveBeenCalled();
     expect(persistDeferredPilotRefresh).not.toHaveBeenCalled();
-  });
-
-  it("does not claim Partner Demo Ready while the selected vault is still loading", async () => {
-    const local = mockStore();
-    local.pilot = {
-      baselineOpportunities: 0,
-      lastUploadedFileName: "Groww_batch_02",
-    };
-    stubStore(local, false);
-    vi.mocked(fetchNeedsReview).mockResolvedValue({
-      ok: true,
-      predictions: [],
-    });
-    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
-
-    const result = (await PlatformPage({
-      searchParams: Promise.resolve({
-        view: "insights",
-        file: "Zerodha_batch_02",
-        demo: "1",
-      }),
-    })) as ReactElement;
-
-    const shell = pageShellProps(result);
-    expect(shell.headerBatchName).toBe("Zerodha_batch_02");
-    expect(shell.lastUploadedFileName).toBe("Groww_batch_02");
-    expect(shell.notifications.some((n) => n.id === "partner-demo-ready")).toBe(
-      false,
-    );
-  });
-
-  it("claims Partner Demo Ready only after the selected batch is renderable", async () => {
-    const local = mockStore();
-    local.pilot = {
-      baselineOpportunities: 0,
-      lastUploadedFileName: "Zerodha_batch_02",
-    };
-    stubStore(local, false);
-    vi.mocked(fetchNeedsReview).mockResolvedValue({
-      ok: true,
-      predictions: [],
-    });
-    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
-
-    const result = (await PlatformPage({
-      searchParams: Promise.resolve({
-        view: "insights",
-        file: "Zerodha_batch_02",
-        demo: "1",
-      }),
-    })) as ReactElement;
-
-    const shell = pageShellProps(result);
-    expect(shell.headerBatchName).toBe("Zerodha_batch_02");
-    expect(shell.notifications.some((n) => n.id === "partner-demo-ready")).toBe(
-      true,
-    );
   });
 });

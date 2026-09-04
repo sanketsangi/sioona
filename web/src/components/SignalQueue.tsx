@@ -36,7 +36,6 @@ import { LayersIcon } from "@/components/icons/LayersIcon";
 import { XIcon } from "@/components/icons/XIcon";
 import {
   SignalQueueRow,
-  SignalQueueCard,
   QUEUE_REVIEW_ACTION_CLASS,
 } from "@/components/SignalQueueRow";
 import {
@@ -549,7 +548,7 @@ function QueueSignalsDataTable({
 
   return (
     <QueueCard>
-      <div className="hide-scrollbar relative hidden min-h-0 flex-1 overflow-auto md:block">
+      <div className="hide-scrollbar relative min-h-0 flex-1 overflow-auto">
         <Table className="min-w-[640px]">
           <TableHeader className={QUEUE_TABLE_HEADER_CLASS}>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -570,48 +569,73 @@ function QueueSignalsDataTable({
           </TableHeader>
           <TableBody>
             {rows.map((row) => {
-              const item = queueRowItem(
-                row.original,
+              const signal = row.original;
+              const score = formatScore(signal.score);
+              const typeLabel = signalTypeLabel(signal.type);
+              const statusText = signalReviewStatusLabel(signal);
+              const customerName = resolveCustomerName(
+                signal.conversationId,
                 customerNames,
-                queueHref,
-                safePage,
-                supervisedActions,
+                signal.summary || "",
               );
+              const previewHref = queueHref({
+                preview: signal.id,
+                page: safePage,
+              });
+              const summaryForLabel =
+                queueSignalSummary(signal.summary || "", customerName) ||
+                "signal";
+              const storedAction = findSupervisedAction(
+                supervisedActions,
+                signal,
+              );
+              const actionKind = queueActionKindForSignal(
+                signal,
+                customerName,
+                storedAction,
+              );
+              const actionLabel = queueActionLabelForSignal(
+                signal,
+                customerName,
+                storedAction,
+              );
+              const openVerb =
+                actionLabel === "Approve"
+                  ? "Open approval for"
+                  : "Open review for";
+
               return (
                 <SignalQueueRow
                   key={row.id}
-                  signal={item.signal}
-                  customerName={item.customerName}
-                  previewHref={item.previewHref}
-                  previewAriaLabel={item.previewAriaLabel}
-                  action={item.tableAction}
+                  signal={signal}
+                  customerName={customerName}
+                  previewHref={previewHref}
+                  previewAriaLabel={`${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. ${openVerb} ${summaryForLabel}`}
+                  action={
+                    actionKind === "mark_acted" ? (
+                      <QueueMarkActedAction
+                        signal={signal}
+                        summaryForLabel={summaryForLabel}
+                      />
+                    ) : (
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className={QUEUE_REVIEW_ACTION_CLASS}
+                      >
+                        <Link href={previewHref} scroll={false}>
+                          {actionLabel}
+                        </Link>
+                      </Button>
+                    )
+                  }
                 />
               );
             })}
           </TableBody>
         </Table>
       </div>
-      <ul className="flex min-h-0 flex-1 flex-col gap-3 overflow-auto p-3 md:hidden">
-        {rows.map((row) => {
-          const item = queueRowItem(
-            row.original,
-            customerNames,
-            queueHref,
-            safePage,
-            supervisedActions,
-          );
-          return (
-            <SignalQueueCard
-              key={`card-${row.id}`}
-              signal={item.signal}
-              customerName={item.customerName}
-              previewHref={item.previewHref}
-              previewAriaLabel={item.previewAriaLabel}
-              action={item.cardAction}
-            />
-          );
-        })}
-      </ul>
       <QueueTablePager
         page={safePage}
         pageCount={pageCount}
@@ -620,87 +644,6 @@ function QueueSignalsDataTable({
       />
     </QueueCard>
   );
-}
-
-function queueRowItem(
-  signal: Signal,
-  customerNames: Record<string, string>,
-  queueHref: QueueHref,
-  safePage: number,
-  supervisedActions: SupervisedAction[],
-) {
-  const score = formatScore(signal.score);
-  const typeLabel = signalTypeLabel(signal.type);
-  const statusText = signalReviewStatusLabel(signal);
-  const customerName = resolveCustomerName(
-    signal.conversationId,
-    customerNames,
-    signal.summary || "",
-  );
-  const previewHref = queueHref({
-    preview: signal.id,
-    page: safePage,
-  });
-  const summaryForLabel =
-    queueSignalSummary(signal.summary || "", customerName) || "signal";
-  const storedAction = findSupervisedAction(supervisedActions, signal);
-  const actionKind = queueActionKindForSignal(
-    signal,
-    customerName,
-    storedAction,
-  );
-  const actionLabel = queueActionLabelForSignal(
-    signal,
-    customerName,
-    storedAction,
-  );
-  const openVerb =
-    actionLabel === "Approve" ? "Open approval for" : "Open review for";
-  const tableAction =
-    actionKind === "mark_acted" ? (
-      <QueueMarkActedAction
-        signal={signal}
-        summaryForLabel={summaryForLabel}
-      />
-    ) : (
-      <Button
-        asChild
-        variant="outline"
-        size="sm"
-        className={QUEUE_REVIEW_ACTION_CLASS}
-      >
-        <Link href={previewHref} scroll={false}>
-          {actionLabel}
-        </Link>
-      </Button>
-    );
-  const cardAction =
-    actionKind === "mark_acted" ? (
-      <QueueMarkActedAction
-        signal={signal}
-        summaryForLabel={summaryForLabel}
-      />
-    ) : (
-      <Button
-        asChild
-        variant="outline"
-        size="sm"
-        className={cn(QUEUE_REVIEW_ACTION_CLASS, "min-h-11 w-full")}
-      >
-        <Link href={previewHref} scroll={false}>
-          {actionLabel}
-        </Link>
-      </Button>
-    );
-
-  return {
-    signal,
-    customerName,
-    previewHref,
-    previewAriaLabel: `${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. ${openVerb} ${summaryForLabel}`,
-    tableAction,
-    cardAction,
-  };
 }
 
 export function SignalQueue({
