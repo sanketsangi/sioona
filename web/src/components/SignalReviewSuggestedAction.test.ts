@@ -61,9 +61,16 @@ describe("SignalReviewSuggestedAction", () => {
       "Hi Priya — I saw your note about “Please pause my SIP this month”. I can look into this and call you today if helpful. When works for a quick chat?",
     );
     expect(html).toContain("Copy Reply");
+    expect(html).toContain("Copied…");
     expect(html).toContain("Copy Reply to clipboard");
     expect(html).toContain("btn-secondary shrink-0");
+    expect(html).toContain("active:translate-y-0");
+    expect(html).toContain(
+      "relative inline-grid size-3.5 shrink-0 place-items-center",
+    );
+    expect(html).toContain("relative inline-grid justify-items-center text-center");
     expect(html).toContain('data-variant="outline"');
+    expect(html).not.toContain('data-copied="true"');
     expect(html).toMatch(
       /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
     );
@@ -117,7 +124,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("M14.5 8C14.5 11.5899");
     expect(html).toContain('fill="currentColor"');
     expect(html).not.toContain('fill="#666666"');
-    expect(html).toContain("flex min-w-0 items-start gap-2");
+    expect(html).toContain("flex min-w-0 items-center gap-2");
     expect(html).toContain("“Please pause my SIP this month”");
     expect(html).toContain('data-pill-background="true"');
     expect(html).toContain("rounded-[10ex]");
@@ -126,12 +133,18 @@ describe("SignalReviewSuggestedAction", () => {
       "relative flex h-8 max-w-full flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
     );
     expect(html).not.toContain("min-h-11 max-w-full flex-row");
-    // WhyQuote: outline surface with shared radius + border-border.
+    // WhyQuote: h-9 control chrome + shared radius (not min-h-11 / py-2 padding).
     expect(html).toContain(
-      "rounded-[var(--radius-control)] border border-border",
+      "h-9 w-full rounded-[var(--radius-control)] border border-border",
+    );
+    expect(html).toContain(
+      "h-9 w-full rounded-[var(--radius-control)] border border-border bg-sio-bg-base px-3 text-left font-normal",
     );
     expect(html).not.toContain("evidence-highlight");
-    expect(html).toContain("px-3 py-2");
+    expect(html).not.toContain("min-h-11 justify-start");
+    expect(html).not.toContain("lg:min-h-9");
+    expect(html).not.toContain("h-auto w-full rounded-[var(--radius-control)]");
+    expect(html).not.toContain("line-clamp-2");
     // Matched is a sibling Label section, not a muted sublabel under Why.
     // Retention Email nests below Matched inside the same Recommended Actions card.
     expect(html).toMatch(
@@ -178,6 +191,31 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain(
       "leading-5 font-medium tracking-normal text-sio-fg-subtle",
     );
+    // Why This Fired owns the quote — no duplicate Retention Evidence well.
+    expect(html).toContain("Why This Fired");
+    expect(html).toContain("“Please pause my SIP this month”");
+    expect(html).not.toContain('data-retention-email-panel="evidence"');
+    expect(html).toContain('data-retention-email-panel="draft"');
+    expect(html).toContain("Approve Draft");
+  });
+
+  it("keeps Retention Email Evidence when Why is hidden (matches only)", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          evidence: ['phrase: "pause my SIP"'],
+        }),
+        customerName: "Priya",
+      }),
+    );
+
+    expect(html).not.toContain("Why This Fired");
+    expect(html).toContain("Matched");
+    expect(html).toContain("Retention Email");
+    expect(html).toContain('data-retention-email-panel="evidence"');
+    expect(html).toContain("No local evidence quote.");
+    expect(html).toContain('data-retention-email-panel="draft"');
+    expect(html).toContain("Approve Draft");
   });
 
   it("omits Retention Email for non-retention signals", () => {
@@ -199,12 +237,17 @@ describe("SignalReviewSuggestedAction", () => {
         signal: signal({
           evidence: ['quote: "Please pause my SIP this month"'],
         }),
+        customerName: "Priya",
       }),
     );
 
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("Matched");
+    // Screenshot case: one quote under Why — not again under Retention Evidence.
+    expect(html).not.toContain('data-retention-email-panel="evidence"');
+    expect(html).toContain('data-retention-email-panel="draft"');
+    expect(html).toContain("Approve Draft");
   });
 
   it("shows Matched alone when there are matches but no quotes", () => {
@@ -261,10 +304,19 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("aria-pressed");
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
+    expect(html).toContain('data-size="lg"');
     expect(html).not.toContain("border-l-2");
     expect(html).toContain("M14.5 8C14.5 11.5899");
     expect(html).toContain('fill="currentColor"');
     expect(html).toContain("“Please pause my SIP this month”");
+    // Active merges border-transparent over border-border — still h-9 chrome.
+    expect(html).toContain(
+      "h-9 w-full rounded-[var(--radius-control)] border px-3 text-left font-normal evidence-highlight border-transparent",
+    );
+    // Mobile hit expand — chrome stays h-9 (not taller min-h-11).
+    expect(html).toContain("before:-inset-y-1 before:inset-x-0");
+    expect(html).toContain("md:before:hidden");
+    expect(html).not.toContain("min-h-11 justify-start");
     expect(html).toContain("rounded-[var(--radius-control)] border");
     expect(html).toContain("evidence-highlight");
     expect(html).toContain("border-transparent");
@@ -362,7 +414,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("No local evidence — detection join missing.");
   });
 
-  it("keeps Copy Reply after Acted and omits Mark as Acted", () => {
+  it("keeps Copy Reply after Acted with disabled Marked as Acted", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -376,7 +428,11 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).toContain(
+    expect(html).toContain("Marked as Acted");
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("disabled:opacity-100");
+    expect(html).toContain('aria-label="Marked as Acted"');
+    expect(html).not.toContain(
       "Marked as Acted — run it in your tools; Sioona never sends or CRM-tags.",
     );
     expect(html).not.toContain("Mark as Acted");

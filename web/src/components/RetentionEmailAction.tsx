@@ -118,10 +118,16 @@ export function resolveRetentionEmailAction(
 }
 
 /** Insights list Action column — cadence-aware, not outbound. */
-export type QueueActionKind = "mark_acted" | "view" | "approve" | "review";
+export type QueueActionKind =
+  | "mark_acted"
+  | "acted"
+  | "view"
+  | "approve"
+  | "review";
 
 const QUEUE_ACTION_LABEL: Record<QueueActionKind, string> = {
   mark_acted: "Mark as Acted",
+  acted: "Marked as Acted",
   view: "Review",
   approve: "Approve",
   review: "Review",
@@ -129,7 +135,7 @@ const QUEUE_ACTION_LABEL: Record<QueueActionKind, string> = {
 
 /**
  * Queue Action kind by signal state.
- * Follow-up Correct ¬acted → Mark as Acted; Done → Review;
+ * Follow-up Correct ¬acted → Mark as Acted; Done → Marked as Acted;
  * pending with Retention Email → Approve; else Review.
  */
 export function queueActionKindForSignal(
@@ -137,7 +143,7 @@ export function queueActionKindForSignal(
   customerName: string,
   stored?: SupervisedAction | null,
 ): QueueActionKind {
-  if (signal.status === "acted") return "view";
+  if (signal.status === "acted") return "acted";
   if (signal.feedback?.label === "correct") return "mark_acted";
   return resolveRetentionEmailAction(signal, customerName, stored)
     ? "approve"
@@ -153,12 +159,13 @@ export function queueActionLabelForSignal(
   signal: Signal,
   customerName: string,
   stored?: SupervisedAction | null,
-): "Approve" | "Review" | "Mark as Acted" {
+): "Approve" | "Review" | "Mark as Acted" | "Marked as Acted" {
   const kind = queueActionKindForSignal(signal, customerName, stored);
   return queueActionLabelForKind(kind) as
     | "Approve"
     | "Review"
-    | "Mark as Acted";
+    | "Mark as Acted"
+    | "Marked as Acted";
 }
 
 type RetentionEmailActionProps = {
@@ -167,6 +174,12 @@ type RetentionEmailActionProps = {
   action?: SupervisedAction | null;
   /** Nest under Recommended Actions — section chrome, no Card. */
   embedded?: boolean;
+  /**
+   * When Why This Fired already shows quote evidence, omit the duplicate
+   * Evidence well. Keep Draft + Approve / Edit / Dismiss. Default false
+   * (standalone / Why hidden / Why empty → keep Evidence).
+   */
+  omitEvidence?: boolean;
   className?: string;
 };
 
@@ -180,6 +193,7 @@ export function RetentionEmailAction({
   customerName = "",
   action: storedAction = null,
   embedded = false,
+  omitEvidence = false,
   className,
 }: RetentionEmailActionProps) {
   const headingId = useId();
@@ -470,33 +484,35 @@ export function RetentionEmailAction({
         </DialogContent>
       </Dialog>
 
-      {/* Evidence always visible; edit opens inside the Draft well only. */}
+      {/* Evidence when Why is hidden/empty; edit opens inside the Draft well only. */}
       <div className="retention-email-columns">
-        <section
-          data-retention-email-panel="evidence"
-          aria-labelledby={evidenceId}
-          className={EVIDENCE_WELL_CLASS}
-        >
-          <h4
-            id={evidenceId}
-            className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
+        {omitEvidence ? null : (
+          <section
+            data-retention-email-panel="evidence"
+            aria-labelledby={evidenceId}
+            className={EVIDENCE_WELL_CLASS}
           >
-            <RetentionEmailEvidenceIcon className="size-4 shrink-0 text-sio-fg-subtle" />
-            <span>Evidence</span>
-          </h4>
-          {currentAction.evidenceQuote ? (
-            <blockquote
-              className="m-0 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base"
-              translate="no"
+            <h4
+              id={evidenceId}
+              className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
             >
-              “{currentAction.evidenceQuote}”
-            </blockquote>
-          ) : (
-            <p className="m-0 text-pretty text-copy-14 leading-5 text-sio-fg-muted">
-              No local evidence quote.
-            </p>
-          )}
-        </section>
+              <RetentionEmailEvidenceIcon className="size-4 shrink-0 text-sio-fg-subtle" />
+              <span>Evidence</span>
+            </h4>
+            {currentAction.evidenceQuote ? (
+              <blockquote
+                className="m-0 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base"
+                translate="no"
+              >
+                “{currentAction.evidenceQuote}”
+              </blockquote>
+            ) : (
+              <p className="m-0 text-pretty text-copy-14 leading-5 text-sio-fg-muted">
+                No local evidence quote.
+              </p>
+            )}
+          </section>
+        )}
 
         <section
           data-retention-email-panel="draft"

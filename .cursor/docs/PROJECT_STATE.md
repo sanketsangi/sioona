@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-04  
+**Last updated:** 2026-09-05  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` tip `100dcac` (list Mark Acted + filter walk + Retention Email revise); **live sioona-demo Production success** `100dcac`
@@ -21,7 +21,35 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-04):** Week-5 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-6-or-later (not Batch-02) → mid-week `replaced=false` (count now **1**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-04):** Production deploy fix — Turbopack was failing `next build` on dynamic `fs` tracing through `testing-json-eval` / store / showcase pack paths (`turbopackIgnore`); CI reliability title matches **Uploaded Chats**; PartnerDemoButton null→undefined for sync/LLM query extras. Touch: `testing-json-eval.ts`, `store.ts`, `showcase-pack-cache.ts`, `load-testing-json-store.ts`, `partner-export-eval.ts`, `PartnerDemoButton.tsx`, `page.reliability.test.ts`. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+**This pass (code, 2026-09-05):** Acted chrome — Recommended Actions drops muted helper paragraph; header keeps disabled **Marked as Acted** + Copy Reply; Done queue Action label is **Marked as Acted** (not Review). Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` queue kinds, `SignalReviewPanel`, InsightsView tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Copy Reply uses shadcn-style stacked icon/label swap (scale+opacity); fixed grid width so click never shrinks the control; `active:translate-y-0`. Touch: `SignalReviewSuggestedAction` + tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Feedback C/I/P double-POST race — sync `inflightRef` guard (state `pending` was too slow); skip no-op re-submit of already-saved label; ignore navigate after unmount. No chrome change. Touch: `FeedbackControls` + tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Feedback Correct is default inverse (black) while Pending; after C/I/P choice, exclusive inverse on the selected label (`isFeedbackPrimaryChrome`). `aria-pressed` still only on saved/optimistic label. Touch: `FeedbackControls` + tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Feedback + Ground Truth drop visible “Saving…” under actions (layout jump); busy stays spinner + `aria-busy` + sr-only live region. Touch: `FeedbackControls`, `GroundTruthControl`. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Feedback C/I/P exclusive inverse — only the pressed label is `bg-sio-bg-inverse` / `text-sio-fg-on-color`; Correct is outline when not selected — **superseded** by Correct-default-primary-while-pending above. Optimistic chrome + Neon POST/rollback unchanged. Touch: `FeedbackControls` + exclusive-inverse tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Adapt From Reviews CTA matches Open Conversation outline chrome (`variant="outline"` `size="default"` `h-8 gap-2 shrink-0` → `border-border` / `bg-background`). Touch: `FeedbackControls` + size/class tests. Not Adapt API / not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Selected Incorrect / Partially Correct use the same solid inverse pressed chrome as Correct (`bg-sio-bg-inverse` / `text-sio-fg-on-color`); unselected I/P stay outline — **superseded** by exclusive Correct-outline-when-unselected above. Touch: `FeedbackControls` + aria-pressed tests. Not Neon/API / not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Incorrect/Partial Adapt Note matches helper-note density (`InsightsReviewHelperNote` action slot); Adapt From Reviews was outline lg / min-h-11 — **superseded** by Open Conversation h-8 match above. Not Adapt API / not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Feedback C/I/P is optimistic — pressed + chip update immediately; `postSignalFeedback` still hits FastAPI/Neon; failure rolls chrome back + error; Correct→Follow-up / I·P→next walk only after save. Touch: `FeedbackControls` (`reduceFeedbackChromeLabel`) + tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Why This Fired WhyQuote is h-9 (~36px) control chrome; mobile hit ≥44px via `before:-inset-y-1` (not taller min-h-11). Jump + pressed chrome kept. Touch: `SignalReviewSuggestedAction` + tests. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** InsightsReviewHelperNote matches Geist Note density (muted fill, subtle border, copy-14, px-3 py-1.5, min-h-10, flex-wrap/items-center, pr-10). Feedback/GT helpers share it; behavior unchanged. Not Detect / not Eval logic / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Feedback + Ground Truth helper lines share quiet `Note` chrome (`InsightsReviewHelperNote`); shorter copy; C/I/P + GT toggles unchanged. Not Detect / not Eval logic / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-05):** Retention Email drops duplicate Evidence quote when Why This Fired already shows quotes; Draft + Approve / Edit / Dismiss stay. Evidence well kept when Why is hidden or empty. Touch: `RetentionEmailAction` (`omitEvidence`), `SignalReviewSuggestedAction` handoff + tests. Not Detect / not taxonomy / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-04):** Production deploy fix — Turbopack was failing `next build` on dynamic `fs` tracing through `testing-json-eval` / store / showcase pack paths (`turbopackIgnore`); CI reliability title matches **Uploaded Chats**; PartnerDemoButton null→undefined for sync/LLM query extras. Touch: `testing-json-eval.ts`, `store.ts`, `showcase-pack-cache.ts`, `load-testing-json-store.ts`, `partner-export-eval.ts`, `PartnerDemoButton.tsx`, `page.reliability.test.ts`. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-04):** Retention Correct→draft quality + honest Eval lift — Suggested Next Action / Copy Reply and Retention Email drafts are desk-ready (acknowledge quote + same-day callback; decision-only, never sends). Partner baseline survives showcase wipe: deferred Neon wipe re-PUTs JSON pilot; overlay keeps JSON partner baseline when Neon is still cold-demo. Eval Pilot shows **Lift vs baseline** with `found − baseline` (or set-baseline hint when 0). Touch: `suggested-action-display.ts`, `supervised-actions.ts`, `demo-baseline.ts`, `demo.ts`, `sync-pilot.ts`, `store/route.ts`, `EvalView.tsx` + tests. Not Detect / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 

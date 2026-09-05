@@ -491,7 +491,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toContain(">Mark as Acted</a>");
   });
 
-  it("Done list Action is Review (not Mark as Acted)", () => {
+  it("Done list Action is Marked as Acted (not Review)", () => {
     const acted: Signal = {
       id: "sig_done_list",
       tenantId: "tenant_demo",
@@ -546,7 +546,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
       }),
     );
 
-    expect(html).toContain(">Review</a>");
+    expect(html).toContain(">Marked as Acted</a>");
+    expect(html).not.toContain(">Review</a>");
     expect(html).not.toContain(">View</a>");
     expect(html).not.toContain('aria-label="Mark as Acted for');
   });
@@ -1313,7 +1314,9 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Hi Priya — I saw your note about");
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain("Copy Reply, then A / Enter → Mark as Acted");
+    expect(html).toContain(
+      "Copy Reply, then A / Enter → Acted (does not send).",
+    );
     expect(html).not.toContain(
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );
@@ -1381,7 +1384,9 @@ describe("InsightsView review conversation + action", () => {
       "Mark as Acted on Suggested Next Action (does not send).",
     );
     expect(html).toContain("Mark as Acted");
-    expect(html).toContain("Copy Reply, then A / Enter → Mark as Acted");
+    expect(html).toContain(
+      "Copy Reply, then A / Enter → Acted (does not send).",
+    );
     expect(html).not.toContain(
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );

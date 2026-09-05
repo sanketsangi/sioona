@@ -38,10 +38,7 @@ import {
 } from "@/lib/review-triage";
 import { resolveSuggestedAction } from "@/lib/suggested-action-display";
 import type { Message, Signal, SupervisedAction } from "@/lib/types";
-import {
-  useMarkActed,
-  type MarkActedWalk,
-} from "@/lib/use-mark-acted";
+import { useMarkActed, type MarkActedWalk } from "@/lib/use-mark-acted";
 import { cn } from "@/lib/utils";
 
 type SignalReviewSuggestedActionProps = {
@@ -161,15 +158,15 @@ function WhyQuote({
   onSelect: (() => void) | null;
 }) {
   const quoteBody = (
-    <span className="flex min-w-0 items-start gap-2">
-      <CheckCircleIcon className="mt-0.5 size-4 shrink-0 text-sio-fg-subtle" />
-      <span className="min-w-0 line-clamp-2 break-words text-pretty text-copy-14 leading-5 text-sio-fg-base">
+    <span className="flex min-w-0 items-center gap-2">
+      <CheckCircleIcon className="size-4 shrink-0 text-sio-fg-subtle" />
+      <span className="min-w-0 truncate text-copy-14 leading-5 text-sio-fg-base">
         “{text}”
       </span>
     </span>
   );
   const surface = cn(
-    "h-auto w-full rounded-[var(--radius-control)] border border-border bg-sio-bg-base px-3 py-2 text-left font-normal whitespace-normal",
+    "h-9 w-full rounded-[var(--radius-control)] border border-border bg-sio-bg-base px-3 text-left font-normal",
     active && "evidence-highlight border-transparent bg-sio-bg-interactive",
   );
 
@@ -178,9 +175,11 @@ function WhyQuote({
       <Button
         type="button"
         variant="outline"
+        size="lg"
         className={cn(
           surface,
-          "min-h-11 justify-start touch-manipulation transition-[color,background-color,border-color,box-shadow] duration-150 lg:min-h-9",
+          // Visual chrome stays h-9; expand hit ≥44px on mobile without taller chrome.
+          "relative justify-start touch-manipulation transition-[color,background-color,border-color,box-shadow] duration-150 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] md:before:hidden",
           active
             ? "hover:border-transparent hover:bg-sio-bg-interactive"
             : "hover:border-sio-border-strong hover:bg-sio-bg-interactive",
@@ -198,13 +197,7 @@ function WhyQuote({
   return <div className={surface}>{quoteBody}</div>;
 }
 
-function SupportHeading({
-  id,
-  children,
-}: {
-  id: string;
-  children: string;
-}) {
+function SupportHeading({ id, children }: { id: string; children: string }) {
   return (
     <Label
       id={id}
@@ -245,14 +238,8 @@ export function SignalReviewSuggestedAction({
     "idle",
   );
   const walk = actedWalk ?? {};
-  const {
-    actedPending,
-    canMarkActed,
-    error,
-    hasFeedback,
-    isActed,
-    setActed,
-  } = useMarkActed(signal, walk);
+  const { actedPending, canMarkActed, error, hasFeedback, isActed, setActed } =
+    useMarkActed(signal, walk);
   const actionText = resolveSuggestedAction({
     type: signal.type,
     customerName,
@@ -261,17 +248,17 @@ export function SignalReviewSuggestedAction({
   });
   const missingAction = !actionText;
   const isNeonStub = isNeonStubSignalId(signal.id);
-  const showActedButton = !isActed;
   const giveFeedbackRef = useRef<HTMLButtonElement>(null);
   const [feedbackGateOpen, setFeedbackGateOpen] = useState(false);
 
   const requestMarkActed = useCallback(() => {
+    if (isActed || actedPending) return;
     if (canMarkActed) {
       void setActed(true);
       return;
     }
     setFeedbackGateOpen(true);
-  }, [canMarkActed, setActed]);
+  }, [actedPending, canMarkActed, isActed, setActed]);
 
   function goToFeedback() {
     setFeedbackGateOpen(false);
@@ -289,7 +276,7 @@ export function SignalReviewSuggestedAction({
   }
 
   useEffect(() => {
-    if (!showActedButton) return;
+    if (isActed) return;
     const keyboardRoot =
       sectionRef.current?.closest("[data-review-keyboard-root]") ??
       sectionRef.current;
@@ -310,7 +297,7 @@ export function SignalReviewSuggestedAction({
 
     el.addEventListener("keydown", onKeyDown);
     return () => el.removeEventListener("keydown", onKeyDown);
-  }, [actedPending, requestMarkActed, showActedButton]);
+  }, [actedPending, isActed, requestMarkActed]);
 
   useEffect(() => {
     return () => {
@@ -328,14 +315,20 @@ export function SignalReviewSuggestedAction({
       if (copyTimerRef.current != null) {
         window.clearTimeout(copyTimerRef.current);
       }
-      copyTimerRef.current = window.setTimeout(() => setCopyState("idle"), 2000);
+      copyTimerRef.current = window.setTimeout(
+        () => setCopyState("idle"),
+        2000,
+      );
     };
     const markError = () => {
       setCopyState("error");
       if (copyTimerRef.current != null) {
         window.clearTimeout(copyTimerRef.current);
       }
-      copyTimerRef.current = window.setTimeout(() => setCopyState("idle"), 2500);
+      copyTimerRef.current = window.setTimeout(
+        () => setCopyState("idle"),
+        2500,
+      );
     };
     try {
       if (navigator.clipboard?.writeText) {
@@ -392,24 +385,70 @@ export function SignalReviewSuggestedAction({
           <Button
             type="button"
             variant="outline"
-            className="btn-secondary shrink-0"
+            data-copied={copyState === "copied" ? "true" : undefined}
+            className={cn("btn-secondary shrink-0 active:translate-y-0")}
             disabled={missingAction}
             aria-label="Copy Reply to clipboard"
             aria-describedby={copyStatusId}
             onClick={() => void copyReply()}
           >
-            {copyState === "copied" ? (
-              <Check
-                className="size-3.5 shrink-0"
-                weight="bold"
-                aria-hidden
+            {/* shadcn-style icon swap — same grid cell so width/height stay fixed */}
+            <span
+              className="relative inline-grid size-3.5 shrink-0 place-items-center"
+              aria-hidden
+            >
+              <CopyIcon
+                className={cn(
+                  "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
+                  copyState === "copied"
+                    ? "scale-0 opacity-0"
+                    : "scale-100 opacity-100",
+                )}
               />
-            ) : (
-              <CopyIcon className="size-4 shrink-0" />
-            )}
-            {copyState === "copied" ? "Copied…" : "Copy Reply"}
+              <Check
+                className={cn(
+                  "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
+                  copyState === "copied"
+                    ? "scale-100 opacity-100"
+                    : "scale-0 opacity-0",
+                )}
+                weight="bold"
+              />
+            </span>
+            {/* Stack labels so “Copied…” never shrinks past “Copy Reply”; center the shorter label. */}
+            <span className="relative inline-grid justify-items-center text-center">
+              <span
+                className={cn(
+                  "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
+                  copyState === "copied" ? "opacity-100" : "opacity-0",
+                )}
+                aria-hidden={copyState !== "copied"}
+              >
+                Copied…
+              </span>
+              <span
+                className={cn(
+                  "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
+                  copyState === "copied" ? "opacity-0" : "opacity-100",
+                )}
+                aria-hidden={copyState === "copied"}
+              >
+                Copy Reply
+              </span>
+            </span>
           </Button>
-          {showActedButton ? (
+          {isActed ? (
+            <Button
+              type="button"
+              className="btn-primary shrink-0 disabled:opacity-100"
+              disabled
+              aria-pressed="true"
+              aria-label="Marked as Acted"
+            >
+              <Check className="size-3.5 shrink-0" weight="bold" aria-hidden />
+              Marked as Acted
+            </Button>
+          ) : (
             <Dialog open={feedbackGateOpen} onOpenChange={setFeedbackGateOpen}>
               <TooltipProvider delayDuration={400}>
                 <Tooltip>
@@ -483,7 +522,7 @@ export function SignalReviewSuggestedAction({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          ) : null}
+          )}
         </div>
       </InsightsReviewPaneHeader>
 
@@ -494,12 +533,6 @@ export function SignalReviewSuggestedAction({
             "flex min-w-0 flex-col justify-center gap-1.5 py-3",
           )}
         >
-          {isActed ? (
-            <p className="text-label-12 leading-5 text-sio-fg-muted">
-              Marked as Acted — run it in your tools; Sioona never sends or
-              CRM-tags.
-            </p>
-          ) : null}
           <p
             className={
               "break-words text-pretty text-copy-16 " +
@@ -526,7 +559,10 @@ export function SignalReviewSuggestedAction({
             </p>
           ) : null}
           {error ? (
-            <p className="text-label-12 leading-5 text-sio-status-danger-fg" role="alert">
+            <p
+              className="text-label-12 leading-5 text-sio-status-danger-fg"
+              role="alert"
+            >
               {error}
             </p>
           ) : null}
@@ -624,6 +660,8 @@ export function SignalReviewSuggestedAction({
 
         <RetentionEmailAction
           embedded
+          // Why This Fired already owns quote evidence — avoid a second copy.
+          omitEvidence={showWhy && quotes.length > 0}
           signal={signal}
           customerName={customerName}
           action={supervisedAction}

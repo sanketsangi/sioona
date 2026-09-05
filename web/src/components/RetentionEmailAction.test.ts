@@ -78,7 +78,7 @@ describe("queueActionLabelForSignal", () => {
     ).toBe("Mark as Acted");
   });
 
-  it("returns Review for acted Done rows", () => {
+  it("returns Marked as Acted for acted Done rows", () => {
     expect(
       queueActionLabelForSignal(
         signal({
@@ -90,7 +90,7 @@ describe("queueActionLabelForSignal", () => {
         }),
         "Priya",
       ),
-    ).toBe("Review");
+    ).toBe("Marked as Acted");
   });
 });
 
@@ -108,6 +108,21 @@ describe("queueActionKindForSignal", () => {
         "Priya",
       ),
     ).toBe("mark_acted");
+  });
+
+  it("returns acted for Done rows", () => {
+    expect(
+      queueActionKindForSignal(
+        signal({
+          status: "acted",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-09-03T00:00:00.000Z",
+          },
+        }),
+        "Priya",
+      ),
+    ).toBe("acted");
   });
 });
 
@@ -218,6 +233,36 @@ describe("RetentionEmailAction", () => {
     expect(html).not.toContain("data-slot=\"separator\"");
     expect(html).not.toContain("border-b border-sio-border-base");
     expect(html).not.toContain('data-slot="label"');
+  });
+
+  it("omits Evidence well when Why This Fired already owns the quote", () => {
+    const action = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "I want to close my account"'],
+    });
+    const html = renderToStaticMarkup(
+      createElement(RetentionEmailAction, {
+        signal: signal(),
+        customerName: "Priya",
+        action,
+        embedded: true,
+        omitEvidence: true,
+      }),
+    );
+
+    expect(html).toContain("Retention Email");
+    expect(html).toContain("Draft");
+    expect(html).toContain("Approve Draft");
+    expect(html).toContain(">Edit<");
+    expect(html).toContain(">Dismiss<");
+    expect(html).toContain('data-retention-email-panel="draft"');
+    expect(html).not.toContain('data-retention-email-panel="evidence"');
+    expect(html).not.toContain(
+      '<span>Evidence</span>',
+    );
+    // Draft body may still mention the quote; only the Evidence well is gone.
+    expect(html).toContain("I want to close my account");
   });
 
   it("renders nothing for lead signals without a stored action", () => {

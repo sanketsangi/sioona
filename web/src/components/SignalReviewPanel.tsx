@@ -16,8 +16,8 @@ type SignalReviewPanelProps = {
   customerName: string;
   /** Sticky column header row (same chrome as the list DataTable). */
   header: ReactNode;
-  /** Queue CTA — Approve / Review / Mark as Acted by signal state. */
-  actionLabel?: "Approve" | "Review" | "Mark as Acted";
+  /** Queue CTA — Approve / Review / Mark as Acted / Marked as Acted by signal state. */
+  actionLabel?: "Approve" | "Review" | "Mark as Acted" | "Marked as Acted";
 };
 
 /**

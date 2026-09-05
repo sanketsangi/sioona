@@ -9,6 +9,7 @@ import {
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
+import { InsightsReviewHelperNote } from "@/components/InsightsReviewHelperNote";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { LeadIcon } from "@/components/icons/LeadIcon";
@@ -173,9 +174,11 @@ export function GroundTruthControl({
             "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
           )}
         >
-          <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-subtle">
-            Label this conversation so Eval can compute labeled precision and
-            recall for Lead, Retention, Upsell, or None.
+          <InsightsReviewHelperNote>
+            Optional Eval gold label — Lead, Retention, Upsell, or None.
+          </InsightsReviewHelperNote>
+          <p className="sr-only" aria-live="polite">
+            {pending ? "Saving…" : null}
           </p>
 
           <ToggleGroup
@@ -221,12 +224,6 @@ export function GroundTruthControl({
               );
             })}
           </ToggleGroup>
-
-          {pending ? (
-            <p className="text-label-12 text-sio-fg-muted" aria-live="polite">
-              Saving…
-            </p>
-          ) : null}
 
           {error ? (
             <p className="text-label-12 text-sio-status-danger-fg" role="alert">

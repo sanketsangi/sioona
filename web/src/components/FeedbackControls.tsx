@@ -12,6 +12,7 @@ import {
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
+import { InsightsReviewHelperNote } from "@/components/InsightsReviewHelperNote";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
@@ -21,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Note, NoteAction, NoteContent } from "@/components/ui/Note";
 import { emitFeedbackSaved } from "@/lib/feedback-saved";
 import {
   feedbackLabelForShortcutKey,
@@ -37,7 +37,6 @@ const options: {
   title: string;
   hint: string;
   shortcut: string;
-  primary?: boolean;
   Icon: ComponentType<{ className?: string; "data-icon"?: string }>;
 }[] = [
   {
@@ -45,7 +44,6 @@ const options: {
     title: "Correct",
     hint: "Signal is correct and useful",
     shortcut: "C",
-    primary: true,
     Icon: GoodIcon,
   },
   {
@@ -77,6 +75,52 @@ const outlineBtn =
 const primaryBtn =
   "min-h-11 w-full touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
 
+/**
+ * Inverse fill chrome: Correct is the default primary while Pending;
+ * after a choice, only the selected label stays inverse (exclusive).
+ * Does not imply aria-pressed — that stays on the saved/optimistic label.
+ */
+export function isFeedbackPrimaryChrome(
+  optionLabel: FeedbackLabel,
+  feedbackLabel: FeedbackLabel | null,
+): boolean {
+  if (feedbackLabel === null) return optionLabel === "correct";
+  return feedbackLabel === optionLabel;
+}
+
+/**
+ * Skip a no-op re-POST when this label is already persisted and the note
+ * is unchanged. Does not block first save or label changes.
+ */
+export function shouldSkipFeedbackResubmit(opts: {
+  label: FeedbackLabel;
+  serverLabel: FeedbackLabel | null;
+  noteDirty: boolean;
+}): boolean {
+  if (opts.noteDirty) return false;
+  return opts.serverLabel === opts.label;
+}
+
+/** Optimistic Feedback chrome transitions — select / Neon rollback / server reconcile. */
+export type FeedbackChromeEvent =
+  | { type: "select"; label: FeedbackLabel }
+  | { type: "rollback"; previous: FeedbackLabel | null }
+  | { type: "reconcile"; serverLabel: FeedbackLabel | null };
+
+export function reduceFeedbackChromeLabel(
+  _current: FeedbackLabel | null,
+  event: FeedbackChromeEvent,
+): FeedbackLabel | null {
+  switch (event.type) {
+    case "select":
+      return event.label;
+    case "rollback":
+      return event.previous;
+    case "reconcile":
+      return event.serverLabel;
+  }
+}
+
 export function FeedbackControls({
   signal,
   triage,
@@ -88,16 +132,41 @@ export function FeedbackControls({
 }) {
   const router = useRouter();
   const panelRef = useRef<HTMLDivElement>(null);
+  /** Sync guard — `pending` state is too slow and allowed double POSTs. */
+  const inflightRef = useRef(false);
   const headingId = useId();
   const noteId = useId();
   const initialNote = signal.feedback?.note ?? "";
+  const serverLabel = signal.feedback?.label ?? null;
   const [note, setNote] = useState(initialNote);
   const [pending, setPending] = useState<FeedbackLabel | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [justSaved, setJustSaved] = useState<FeedbackLabel | null>(null);
+  /** Local chrome (optimistic select + post-save bridge until Neon hydrates). */
+  const [localLabel, setLocalLabel] = useState<FeedbackLabel | null>(
+    serverLabel,
+  );
+  const [prevServerKey, setPrevServerKey] = useState(
+    () => `${signal.id}:${serverLabel ?? ""}`,
+  );
+  const [savedAnnounce, setSavedAnnounce] = useState<FeedbackLabel | null>(
+    null,
+  );
   const dirty = note.trim() !== initialNote.trim();
 
-  const feedbackLabel = signal.feedback?.label ?? justSaved;
+  const serverKey = `${signal.id}:${serverLabel ?? ""}`;
+  if (serverKey !== prevServerKey) {
+    setPrevServerKey(serverKey);
+    setLocalLabel(
+      reduceFeedbackChromeLabel(localLabel, {
+        type: "reconcile",
+        serverLabel,
+      }),
+    );
+    setNote(initialNote);
+    setSavedAnnounce(null);
+  }
+
+  const feedbackLabel = localLabel;
   const busy = pending !== null;
   const needsAdapt =
     feedbackLabel === "incorrect" || feedbackLabel === "partially_correct";
@@ -120,12 +189,29 @@ export function FeedbackControls({
 
   const submit = useCallback(
     async (label: FeedbackLabel) => {
+      if (inflightRef.current) return;
+      if (
+        shouldSkipFeedbackResubmit({
+          label,
+          serverLabel,
+          noteDirty: dirty,
+        })
+      ) {
+        return;
+      }
       const wasPending = !signal.feedback;
+      const previous = localLabel;
+      // Instant pressed + chip; Neon POST runs in the background.
+      inflightRef.current = true;
+      setLocalLabel(
+        reduceFeedbackChromeLabel(localLabel, { type: "select", label }),
+      );
       setPending(label);
       setError(null);
+      setSavedAnnounce(null);
       try {
         await postSignalFeedback(signal, label, note);
-        setJustSaved(label);
+        setSavedAnnounce(label);
         emitFeedbackSaved(signal.id);
 
         const advanceHref =
@@ -144,18 +230,28 @@ export function FeedbackControls({
               })
             : null;
 
+        // Drop stale navigation if this panel already unmounted (signal walk).
+        if (panelRef.current == null) return;
+
         if (advanceHref) {
           router.push(advanceHref, { scroll: false });
         } else {
           router.refresh();
         }
       } catch (err) {
+        setLocalLabel(
+          reduceFeedbackChromeLabel(localLabel, {
+            type: "rollback",
+            previous,
+          }),
+        );
         setError(err instanceof Error ? err.message : "Failed to save feedback");
       } finally {
+        inflightRef.current = false;
         setPending(null);
       }
     },
-    [note, router, signal, triage],
+    [dirty, localLabel, note, router, serverLabel, signal, triage],
   );
 
   useEffect(() => {
@@ -167,7 +263,7 @@ export function FeedbackControls({
 
     const onKeyDown = (e: Event) => {
       if (!(e instanceof KeyboardEvent)) return;
-      if (pending !== null || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (inflightRef.current || e.metaKey || e.ctrlKey || e.altKey) return;
       if (!el.contains(e.target as Node)) return;
       if (isEditableShortcutTarget(e.target)) return;
       const label = feedbackLabelForShortcutKey(e.key);
@@ -178,7 +274,7 @@ export function FeedbackControls({
 
     el.addEventListener("keydown", onKeyDown);
     return () => el.removeEventListener("keydown", onKeyDown);
-  }, [pending, submit]);
+  }, [submit]);
 
   function onNoteKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter" || e.nativeEvent.isComposing || e.shiftKey) return;
@@ -209,17 +305,19 @@ export function FeedbackControls({
             "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
           )}
         >
-          <p className="text-pretty text-copy-14 text-sio-fg-subtle">
+          <InsightsReviewHelperNote>
             {canAdvance
-              ? "C → Follow-up Act · I / P → next pending · Enter → Correct."
+              ? "C → Follow-up Act · I / P → next · Enter → Correct."
               : isUnactedCorrect
-                ? "Copy Reply, then A / Enter → Mark as Acted (does not send)."
-                : "C / I / P shortcuts · Enter → Correct · saves to Neon."}
-          </p>
+                ? "Copy Reply, then A / Enter → Acted (does not send)."
+                : "C / I / P · Enter → Correct."}
+          </InsightsReviewHelperNote>
           <p className="sr-only" aria-live="polite">
-            {justSaved
-              ? `${options.find((o) => o.label === justSaved)?.title ?? justSaved} saved`
-              : null}
+            {busy
+              ? "Saving…"
+              : savedAnnounce
+                ? `${options.find((o) => o.label === savedAnnounce)?.title ?? savedAnnounce} saved`
+                : null}
           </p>
 
           <div className="flex flex-col gap-1.5">
@@ -247,12 +345,16 @@ export function FeedbackControls({
           >
             {options.map((option) => {
               const isCurrent = feedbackLabel === option.label;
+              const isPrimary = isFeedbackPrimaryChrome(
+                option.label,
+                feedbackLabel,
+              );
               const { Icon } = option;
               return (
                 <Button
                   key={option.label}
                   type="button"
-                  variant={option.primary ? "default" : "outline"}
+                  variant={isPrimary ? "default" : "outline"}
                   size="lg"
                   title={`${option.hint} (${option.shortcut})`}
                   disabled={busy}
@@ -261,10 +363,8 @@ export function FeedbackControls({
                   aria-keyshortcuts={option.shortcut}
                   onClick={() => void submit(option.label)}
                   className={cn(
-                    option.primary ? primaryBtn : outlineBtn,
-                    isCurrent &&
-                      !option.primary &&
-                      "border-sio-border-strong bg-sio-bg-interactive-hover",
+                    isPrimary ? primaryBtn : outlineBtn,
+                    busy && "cursor-wait",
                   )}
                 >
                   {pending === option.label ? (
@@ -298,28 +398,24 @@ export function FeedbackControls({
 
           {needsAdapt ? (
             <div role="status" aria-live="polite">
-              <Note
-                icon={null}
-                className="rounded-md border-sio-border-base bg-sio-bg-muted px-2.5 py-2"
-              >
-                <NoteContent className="text-label-12 text-sio-fg-base">
-                  {feedbackLabel === "incorrect"
-                    ? "False positive? Add a negative phrase so this pattern stops firing."
-                    : "Wrong rationale? Add the phrase that should drive this signal type."}
-                </NoteContent>
-                <NoteAction>
+              <InsightsReviewHelperNote
+                action={
                   <Button
                     asChild
                     variant="outline"
-                    size="lg"
-                    className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
+                    size="default"
+                    className="h-8 gap-2 shrink-0"
                   >
                     <Link href={viewHref("eval", { panel: "adapt" })}>
                       Adapt From Reviews
                     </Link>
                   </Button>
-                </NoteAction>
-              </Note>
+                }
+              >
+                {feedbackLabel === "incorrect"
+                  ? "False positive? Add a negative phrase."
+                  : "Wrong rationale? Add the right phrase."}
+              </InsightsReviewHelperNote>
             </div>
           ) : null}
 
