@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-04):** Week-5 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-6-or-later (not Batch-02) → mid-week `replaced=false` (count now **1**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-05):** Acted chrome — Recommended Actions drops muted helper paragraph; header keeps disabled **Marked as Acted** + Copy Reply; Done queue Action label is **Marked as Acted** (not Review). Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` queue kinds, `SignalReviewPanel`, InsightsView tests. Not Detect / not outbound / not a keep-set go.
+**This pass (ops, 2026-09-05):** Local Week-6 keep-set ops script — `web/scripts/week6-keep-set-ops.ts` (`npm run ops:week6-keep-set`) ensures `Zerodha_week_6_batch_01.json` keep-set → review pending (`gt` | `all-correct` | `human`) → Mark Acted Corrects → `set_baseline` → prints Eval n/correct/incorrect/score/verdict/baseline/lift. Pack stays in Synthetic-Data (not copied). `--review=all-correct` is smoke only (**not** a real go); `gt` is assist; **human** remains product SoT. Batch-02 held-out. No Auth0 / not Detect / not outbound / not a logged keep-set go by itself.
+
+**Prior pass (code, 2026-09-05):** Acted chrome — Recommended Actions drops muted helper paragraph; header keeps disabled **Marked as Acted** + Copy Reply; Done queue Action label is **Marked as Acted** (not Review). Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` queue kinds, `SignalReviewPanel`, InsightsView tests. Not Detect / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-05):** Copy Reply uses shadcn-style stacked icon/label swap (scale+opacity); fixed grid width so click never shrinks the control; `active:translate-y-0`. Touch: `SignalReviewSuggestedAction` + tests. Not Detect / not outbound / not a keep-set go.
 

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
-    "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts"
+    "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts",
+    "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
