@@ -227,13 +227,17 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Conversation that needs your attention");
+    expect(html).toContain("Run Partner Demo");
+    expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
     expect(html).toContain("Queue metrics");
     const titleAt = html.indexOf("Conversation that needs your attention");
+    const demoAt = html.indexOf("Run Partner Demo");
     const metricsAt = html.indexOf('aria-label="Queue metrics"');
     const filtersAt = html.indexOf("Add Filter");
     const tableAt = html.indexOf("Pending signal 1");
     expect(titleAt).toBeGreaterThan(-1);
-    expect(metricsAt).toBeGreaterThan(titleAt);
+    expect(demoAt).toBeGreaterThan(titleAt);
+    expect(metricsAt).toBeGreaterThan(demoAt);
     expect(filtersAt).toBeGreaterThan(metricsAt);
     expect(tableAt).toBeGreaterThan(filtersAt);
     expect(html).toContain("Pending signal 1");
@@ -279,8 +283,11 @@ describe("InsightsView pending landing empty Follow-up", () => {
       "flex min-w-0 flex-row items-center gap-1.5 font-medium leading-none whitespace-nowrap",
     );
     expect(html).toContain("bg-sio-border-base text-sio-fg-base");
-    expect(html).toContain(
-      "translate-y-px tabular text-label-12 font-medium leading-none",
+    expect(html).toMatch(
+      /data-filter-count=""[\s\S]*?<span class="tabular text-label-12 font-medium leading-none"/,
+    );
+    expect(html).not.toMatch(
+      /data-filter-count=""[\s\S]*?translate-y-px tabular/,
     );
     expect(html).toContain("size-6");
     expect(html).toContain("min-w-6 px-1.5");
@@ -873,6 +880,41 @@ describe("InsightsView Neon pending overlay", () => {
 
     expect(html).toContain("File Not Loaded");
     expect(html).toContain("Uploaded Chats");
+  });
+
+  it("keeps Run Partner Demo when keep-set is Groww (pack is not last upload)", () => {
+    const pending = makePendingSignals(2);
+    const store = storeFromSignals(pending);
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Run Partner Demo");
+    expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
+    expect(html).toContain("Pending signal 1");
   });
 });
 

@@ -105,53 +105,55 @@ describe("parseActionFilter", () => {
 });
 
 describe("resolveInsightsStatusFilter", () => {
-  it("lands on Pending when omitted and Follow-up is empty with pending work", () => {
+  it("defaults omitted status to All in Shadow Mode, including empty Follow-up", () => {
     expect(
       resolveInsightsStatusFilter({
         raw: undefined,
         mode: "shadow",
-        pendingCount: 10,
-        followUpCount: 0,
-      })
-    ).toBe("new");
-    expect(
-      resolveInsightsStatusFilter({
-        raw: null,
-        mode: "action",
-        pendingCount: 10,
-        followUpCount: 0,
-      })
-    ).toBe("new");
-  });
-
-  it("keeps Shadow all and Action followup when Follow-up has rows", () => {
-    expect(
-      resolveInsightsStatusFilter({
-        raw: undefined,
-        mode: "shadow",
-        pendingCount: 10,
-        followUpCount: 2,
       })
     ).toBe("all");
     expect(
       resolveInsightsStatusFilter({
+        raw: null,
+        mode: "shadow",
+      })
+    ).toBe("all");
+    expect(
+      resolveInsightsStatusFilter({
+        raw: "",
+        mode: "shadow",
+      })
+    ).toBe("all");
+  });
+
+  it("defaults omitted status to Follow-up in Action Mode", () => {
+    expect(
+      resolveInsightsStatusFilter({
         raw: undefined,
         mode: "action",
-        pendingCount: 10,
-        followUpCount: 2,
+      })
+    ).toBe("followup");
+    expect(
+      resolveInsightsStatusFilter({
+        raw: null,
+        mode: "action",
       })
     ).toBe("followup");
   });
 
-  it("does not remap explicit followup (compact empty path)", () => {
+  it("does not remap explicit followup or Pending", () => {
     expect(
       resolveInsightsStatusFilter({
         raw: "followup",
         mode: "action",
-        pendingCount: 10,
-        followUpCount: 0,
       })
     ).toBe("followup");
+    expect(
+      resolveInsightsStatusFilter({
+        raw: "new",
+        mode: "shadow",
+      })
+    ).toBe("new");
   });
 
   it("aliases reviewed and honors unknown via parseStatusFilter", () => {
@@ -159,16 +161,12 @@ describe("resolveInsightsStatusFilter", () => {
       resolveInsightsStatusFilter({
         raw: "reviewed",
         mode: "shadow",
-        pendingCount: 10,
-        followUpCount: 0,
       })
     ).toBe("followup");
     expect(
       resolveInsightsStatusFilter({
         raw: "nope",
         mode: "shadow",
-        pendingCount: 10,
-        followUpCount: 0,
       })
     ).toBe("all");
   });

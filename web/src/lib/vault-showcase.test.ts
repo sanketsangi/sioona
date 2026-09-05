@@ -7,6 +7,7 @@ import {
   isVaultShowcaseFile,
   resolveVaultShowcaseKind,
   vaultShowcaseAlreadyActive,
+  vaultShowcaseDisplayName,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
   vaultShowcaseStoreAction,
@@ -49,13 +50,23 @@ describe("vaultShowcaseAlreadyActive", () => {
     expect(
       vaultShowcaseAlreadyActive("partner", "Zerodha_week_5_batch_01.json"),
     ).toBe(false);
+    expect(
+      vaultShowcaseAlreadyActive("partner", "Zerodha_week_5_batch_02.json"),
+    ).toBe(false);
     expect(vaultShowcaseAlreadyActive("partner", null)).toBe(false);
   });
 });
+
 describe("vaultShowcaseStoreAction", () => {
   it("uses reset for Sample and partner_demo for Partner Demo", () => {
     expect(vaultShowcaseStoreAction("sample")).toBe("reset");
     expect(vaultShowcaseStoreAction("partner")).toBe("partner_demo");
+  });
+
+  it("Partner Demo display name is the Zerodha_batch_02 catalog id", () => {
+    expect(vaultShowcaseDisplayName("partner")).toBe(
+      ZERODHA_BATCH02_SAMPLE_NAME,
+    );
   });
 });
 

@@ -102,30 +102,14 @@ export function parseStatusFilter(
 /**
  * Insights list landing when `status` is omitted from the URL.
  * Explicit filters always win (Filters → Needs Follow-Up stays empty-compact).
- * Omitted + pending work with empty Follow-up → Pending (`new`) so Neon
- * needs-review rows are not hidden behind a full-height empty Follow-up panel.
+ * Omitted status is never remapped to Pending — Shadow defaults to All,
+ * Action defaults to Follow-up via `parseStatusFilter`.
  */
 export function resolveInsightsStatusFilter(opts: {
   raw?: string | null;
   mode: WorkspaceMode;
-  pendingCount: number;
-  followUpCount: number;
 }): StatusFilter {
-  const raw = opts.raw;
-  const hasExplicit =
-    raw === "reviewed" ||
-    (typeof raw === "string" &&
-      raw !== "" &&
-      (STATUS_FILTERS as string[]).includes(raw));
-  // Unknown non-empty raw still goes through parseStatusFilter (Shadow → all).
-  if (hasExplicit || (typeof raw === "string" && raw !== "")) {
-    return parseStatusFilter(raw, opts.mode);
-  }
-  if (opts.pendingCount > 0 && opts.followUpCount === 0) {
-    return "new";
-  }
-  if (opts.mode === "action") return "followup";
-  return "all";
+  return parseStatusFilter(opts.raw, opts.mode);
 }
 
 export function parseTypeFilter(raw?: string | null): TypeFilter {
@@ -170,9 +154,8 @@ export function viewHref(
 }
 
 /**
- * Insights Act Mode deep-link. Omits `status` so page landing can prefer
- * Pending when Follow-up is empty; otherwise Action defaults to Follow-up.
- * Only use when Action Mode is unlocked.
+ * Insights Act Mode deep-link. Omits `status` so Action defaults to Follow-up
+ * via `parseStatusFilter`. Only use when Action Mode is unlocked.
  */
 export function actionModeHref(
   extras?: Record<string, string | undefined | null>

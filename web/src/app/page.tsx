@@ -322,13 +322,11 @@ export default async function PlatformPage({
   const title = TITLES[view];
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
-  // Insights landing: omitted status → Pending when Follow-up empty + pending > 0;
-  // else Shadow all / Action followup. Explicit status (Filters) always wins.
+  // Insights landing: omitted status → Shadow All / Action Follow-up.
+  // Explicit status (Filters / deep links) always wins. Pending is never implicit.
   const statusFilter = resolveInsightsStatusFilter({
     raw: sp.status,
     mode: workspaceMode,
-    pendingCount,
-    followUpCount: followUp.length,
   });
   const statusOmitted =
     typeof sp.status !== "string" || sp.status === "";

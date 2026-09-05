@@ -15,9 +15,16 @@ import {
   hasSyncFailures,
   syncQueryExtras,
 } from "@/lib/prediction-sync";
-import { ZERODHA_BATCH02_SAMPLE_NAME } from "@/lib/partner-demo-replace-guard";
 import { cn } from "@/lib/utils";
-import { vaultShowcaseAlreadyActive } from "@/lib/vault-showcase";
+import {
+  vaultShowcaseAlreadyActive,
+  vaultShowcaseDisplayName,
+  vaultShowcaseStoreAction,
+} from "@/lib/vault-showcase";
+
+/** Canonical Partner Demo pack — same as Vault `Zerodha_batch_02` / Upload CTA. */
+const PARTNER_DEMO_FILE = vaultShowcaseDisplayName("partner");
+const PARTNER_DEMO_ACTION = vaultShowcaseStoreAction("partner");
 
 export function PartnerDemoButton({
   className = "btn-primary",
@@ -27,7 +34,10 @@ export function PartnerDemoButton({
 }: {
   className?: string;
   label?: string;
-  /** When already Zerodha Batch-02, skip wipe+seed and open Insights. */
+  /**
+   * Keep-set breadcrumb only — gates the already-active short-circuit.
+   * Never selects the pack: Partner Demo always loads Zerodha_batch_02.
+   */
   lastUploadedFileName?: string | null;
   /** Surface demo failure in-panel (parent owns the alert). */
   onErrorChange?: (error: string | null) => void;
@@ -65,7 +75,7 @@ export function PartnerDemoButton({
     const query = new URLSearchParams({
       view: "insights",
       demo: "1",
-      file: ZERODHA_BATCH02_SAMPLE_NAME,
+      file: PARTNER_DEMO_FILE,
     });
     if (extras?.replaced) query.set("replaced", "1");
     if (extras?.syncFailed) query.set("syncFailed", extras.syncFailed);
@@ -79,6 +89,7 @@ export function PartnerDemoButton({
 
   async function run() {
     // Already on Partner Demo keep-set — open Insights without wipe+seed.
+    // Groww / weekly Zerodha uploads are not this pack — always wipe+seed.
     if (vaultShowcaseAlreadyActive("partner", lastUploadedFileName)) {
       openPartnerInsights();
       return;
@@ -98,7 +109,7 @@ export function PartnerDemoButton({
           "Content-Type": "application/json",
           Accept: PARTNER_DEMO_NDJSON_CONTENT_TYPE,
         },
-        body: JSON.stringify({ action: "partner_demo" }),
+        body: JSON.stringify({ action: PARTNER_DEMO_ACTION }),
       });
       let lastStep: PartnerDemoStep | null = null;
       const data = await consumePartnerDemoNdjson(res, {

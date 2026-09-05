@@ -1033,7 +1033,7 @@ function FilterCountBadge({ count }: { count: number }) {
             ),
       )}
     >
-      <span className="translate-y-px tabular text-label-12 font-medium leading-none">
+      <span className="tabular text-label-12 font-medium leading-none">
         {count}
       </span>
     </span>

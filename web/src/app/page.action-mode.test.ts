@@ -250,7 +250,7 @@ describe("PlatformPage Insights pending landing", () => {
     vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
   });
 
-  it("renders Pending on first SSR when status omitted and Follow-up empty (no redirect)", async () => {
+  it("renders All on first SSR when status omitted (no redirect)", async () => {
     const result = (await PlatformPage({
       searchParams: Promise.resolve({ view: "insights" }),
     })) as ReactElement;
@@ -258,7 +258,7 @@ describe("PlatformPage Insights pending landing", () => {
     expect(redirect).not.toHaveBeenCalled();
     expect(result).toBeTruthy();
     const props = findInsightsViewProps(result);
-    expect(props?.statusFilter).toBe("new");
+    expect(props?.statusFilter).toBe("all");
     expect(props?.statusOmitted).toBe(true);
   });
 
