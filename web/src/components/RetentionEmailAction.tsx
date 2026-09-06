@@ -46,14 +46,20 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STATUS_CHIP: Record<SupervisedActionStatus, string> = {
+export const RETENTION_EMAIL_STATUS_CHIP: Record<
+  SupervisedActionStatus,
+  string
+> = {
   pending: "bg-sio-bg-muted text-sio-fg-muted",
   approved: "bg-sio-status-success-bg text-sio-status-success-fg",
   edited: "bg-sio-status-warning-bg text-sio-status-warning-fg",
   dismissed: "bg-sio-bg-muted text-sio-fg-subtle",
 };
 
-const STATUS_LABEL: Record<SupervisedActionStatus, string> = {
+export const RETENTION_EMAIL_STATUS_LABEL: Record<
+  SupervisedActionStatus,
+  string
+> = {
   pending: "Pending",
   approved: "Approved",
   edited: "Edited",
@@ -411,8 +417,10 @@ function RetentionEmailActionView({
         : "decided";
 
   const statusChip = (
-    <InsightsReviewStatusChip className={STATUS_CHIP[currentAction.status]}>
-      {STATUS_LABEL[currentAction.status]}
+    <InsightsReviewStatusChip
+      className={RETENTION_EMAIL_STATUS_CHIP[currentAction.status]}
+    >
+      {RETENTION_EMAIL_STATUS_LABEL[currentAction.status]}
     </InsightsReviewStatusChip>
   );
 
@@ -518,13 +526,173 @@ function RetentionEmailActionView({
           aria-labelledby={draftId}
           className={DRAFT_WELL_CLASS}
         >
-          <h4
-            id={draftId}
-            className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
-          >
-            <RetentionEmailDraftIcon className="size-4 shrink-0 text-sio-fg-subtle" />
-            <span>Draft</span>
-          </h4>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+            <h4
+              id={draftId}
+              className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
+            >
+              <RetentionEmailDraftIcon className="size-4 shrink-0 text-sio-fg-subtle" />
+              <span>Draft</span>
+            </h4>
+            {decisionOpen ? (
+              <div
+                className="flex flex-wrap items-center justify-end gap-1"
+                role="group"
+                aria-label="Retention email decisions"
+              >
+                <Dialog
+                  open={confirm === "approve"}
+                  onOpenChange={(open) => setConfirm(open ? "approve" : null)}
+                >
+                  <TooltipProvider delayDuration={400}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex shrink-0">
+                          <Button
+                            type="button"
+                            className="btn-primary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                            disabled={busy}
+                            aria-busy={pending === "approved"}
+                            aria-haspopup="dialog"
+                            title={APPROVE_TOOLTIP}
+                            onClick={() => requestChange("approve")}
+                          >
+                            {pending === "approved" ? (
+                              <ButtonSpinner />
+                            ) : (
+                              <Check
+                                className="size-3.5 shrink-0"
+                                weight="bold"
+                                aria-hidden
+                              />
+                            )}
+                            <span className="hidden sm:inline">
+                              Approve Draft
+                            </span>
+                            <span className="sm:hidden">Approve</span>
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" align="start">
+                        {APPROVE_TOOLTIP}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <DialogContent
+                    className="overscroll-contain motion-reduce:animate-none"
+                    showCloseButton
+                    onOpenAutoFocus={(event) => {
+                      event.preventDefault();
+                      approveRef.current?.focus();
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>Approve Draft</DialogTitle>
+                      <DialogDescription>
+                        This records your approval for later evaluation. You
+                        send from your tools — Sioona never sends or CRM-tags.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="btn-secondary"
+                        >
+                          Cancel
+                        </Button>
+                      </DialogClose>
+                      <Button
+                        ref={approveRef}
+                        type="button"
+                        className="btn-primary"
+                        disabled={busy}
+                        onClick={() => void submit("approved")}
+                      >
+                        {pending === "approved" ? <ButtonSpinner /> : null}
+                        Approve Draft
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Button
+                  ref={editButtonRef}
+                  type="button"
+                  variant="outline"
+                  className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                  disabled={busy}
+                  onClick={() => requestChange("edit")}
+                >
+                  <PencilSimple
+                    className="size-3.5 shrink-0"
+                    weight="bold"
+                    aria-hidden
+                  />
+                  Edit
+                </Button>
+
+                <Dialog
+                  open={confirm === "dismiss"}
+                  onOpenChange={(open) => setConfirm(open ? "dismiss" : null)}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                    disabled={busy}
+                    aria-haspopup="dialog"
+                    onClick={() => requestChange("dismiss")}
+                  >
+                    <X
+                      className="size-3.5 shrink-0"
+                      weight="bold"
+                      aria-hidden
+                    />
+                    Dismiss
+                  </Button>
+                  <DialogContent
+                    className="overscroll-contain motion-reduce:animate-none"
+                    showCloseButton
+                    onOpenAutoFocus={(event) => {
+                      event.preventDefault();
+                      dismissRef.current?.focus();
+                    }}
+                  >
+                    <DialogHeader>
+                      <DialogTitle>Dismiss Draft</DialogTitle>
+                      <DialogDescription>
+                        This records that the draft should not be used. Nothing
+                        is sent.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="btn-secondary"
+                        >
+                          Cancel
+                        </Button>
+                      </DialogClose>
+                      <Button
+                        ref={dismissRef}
+                        type="button"
+                        className="btn-primary"
+                        disabled={busy}
+                        onClick={() => void submit("dismissed")}
+                      >
+                        {pending === "dismissed" ? <ButtonSpinner /> : null}
+                        Dismiss Draft
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            ) : null}
+          </div>
 
           <div
             className="retention-email-draft-swap"
@@ -544,164 +712,6 @@ function RetentionEmailActionView({
               <pre className="m-0 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-5 text-sio-fg-base">
                 {currentAction.body}
               </pre>
-              {decisionOpen ? (
-                <div
-                  className="flex flex-nowrap items-center gap-1 pt-0.5"
-                  role="group"
-                  aria-label="Retention email decisions"
-                >
-                  <Dialog
-                    open={confirm === "approve"}
-                    onOpenChange={(open) => setConfirm(open ? "approve" : null)}
-                  >
-                    <TooltipProvider delayDuration={400}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex shrink-0">
-                            <Button
-                              type="button"
-                              className="btn-primary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
-                              disabled={busy}
-                              aria-busy={pending === "approved"}
-                              aria-haspopup="dialog"
-                              title={APPROVE_TOOLTIP}
-                              onClick={() => requestChange("approve")}
-                            >
-                              {pending === "approved" ? (
-                                <ButtonSpinner />
-                              ) : (
-                                <Check
-                                  className="size-3.5 shrink-0"
-                                  weight="bold"
-                                  aria-hidden
-                                />
-                              )}
-                              <span className="hidden sm:inline">
-                                Approve Draft
-                              </span>
-                              <span className="sm:hidden">Approve</span>
-                            </Button>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" align="start">
-                          {APPROVE_TOOLTIP}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <DialogContent
-                      className="overscroll-contain motion-reduce:animate-none"
-                      showCloseButton
-                      onOpenAutoFocus={(event) => {
-                        event.preventDefault();
-                        approveRef.current?.focus();
-                      }}
-                    >
-                      <DialogHeader>
-                        <DialogTitle>Approve Draft</DialogTitle>
-                        <DialogDescription>
-                          This records your approval for later evaluation. You
-                          send from your tools — Sioona never sends or CRM-tags.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="btn-secondary"
-                          >
-                            Cancel
-                          </Button>
-                        </DialogClose>
-                        <Button
-                          ref={approveRef}
-                          type="button"
-                          className="btn-primary"
-                          disabled={busy}
-                          onClick={() => void submit("approved")}
-                        >
-                          {pending === "approved" ? <ButtonSpinner /> : null}
-                          Approve Draft
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-
-                  <Button
-                    ref={editButtonRef}
-                    type="button"
-                    variant="outline"
-                    className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
-                    disabled={busy}
-                    onClick={() => requestChange("edit")}
-                  >
-                    <PencilSimple
-                      className="size-3.5 shrink-0"
-                      weight="bold"
-                      aria-hidden
-                    />
-                    Edit
-                  </Button>
-
-                  <Dialog
-                    open={confirm === "dismiss"}
-                    onOpenChange={(open) => setConfirm(open ? "dismiss" : null)}
-                  >
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
-                      disabled={busy}
-                      aria-haspopup="dialog"
-                      onClick={() => requestChange("dismiss")}
-                    >
-                      <X
-                        className="size-3.5 shrink-0"
-                        weight="bold"
-                        aria-hidden
-                      />
-                      Dismiss
-                    </Button>
-                    <DialogContent
-                      className="overscroll-contain motion-reduce:animate-none"
-                      showCloseButton
-                      onOpenAutoFocus={(event) => {
-                        event.preventDefault();
-                        dismissRef.current?.focus();
-                      }}
-                    >
-                      <DialogHeader>
-                        <DialogTitle>Dismiss Draft</DialogTitle>
-                        <DialogDescription>
-                          This records that the draft should not be used. Nothing
-                          is sent.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="btn-secondary"
-                          >
-                            Cancel
-                          </Button>
-                        </DialogClose>
-                        <Button
-                          ref={dismissRef}
-                          type="button"
-                          className="btn-primary"
-                          disabled={busy}
-                          onClick={() => void submit("dismissed")}
-                        >
-                          {pending === "dismissed" ? <ButtonSpinner /> : null}
-                          Dismiss Draft
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              ) : null}
             </div>
 
             {editMounted ? (
@@ -803,14 +813,11 @@ function RetentionEmailActionView({
         )}
         aria-labelledby={headingId}
       >
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <PlayCircleIcon className="size-4 shrink-0 text-sio-fg-base" />
-            <h3 id={headingId} className={REVIEW_PANE_TITLE_CLASS}>
-              Retention Email
-            </h3>
-          </div>
-          {statusChip}
+        <div className="flex min-w-0 items-center gap-2">
+          <PlayCircleIcon className="size-4 shrink-0 text-sio-fg-base" />
+          <h3 id={headingId} className={REVIEW_PANE_TITLE_CLASS}>
+            Retention Email
+          </h3>
         </div>
         <div className="flex min-w-0 flex-col gap-2">
           {bodyInner}
