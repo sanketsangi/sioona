@@ -224,17 +224,23 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Conversation that needs your attention");
+    expect(html).toContain("Shadow Mode — Confirm or correct detections");
+    expect(html).toContain("nothing is sent");
+    expect(html).toContain('aria-label="Dismiss Shadow Mode tip"');
     expect(html).toContain("Run Partner Demo");
     expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
     expect(html).toContain("Queue metrics");
     const titleAt = html.indexOf("Conversation that needs your attention");
+    const tipAt = html.indexOf("Shadow Mode — Confirm or correct detections");
     const demoAt = html.indexOf("Run Partner Demo");
     const metricsAt = html.indexOf('aria-label="Queue metrics"');
     const filtersAt = html.indexOf("Add Filter");
     const tableAt = html.indexOf("Pending signal 1");
     expect(titleAt).toBeGreaterThan(-1);
     expect(demoAt).toBeGreaterThan(titleAt);
+    expect(tipAt).toBeGreaterThan(titleAt);
     expect(metricsAt).toBeGreaterThan(demoAt);
+    expect(metricsAt).toBeGreaterThan(tipAt);
     expect(filtersAt).toBeGreaterThan(metricsAt);
     expect(tableAt).toBeGreaterThan(filtersAt);
     expect(html).toContain("Pending signal 1");
@@ -247,12 +253,13 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(
       reviewAnchors.every(
         (anchor) =>
-          anchor.includes("rounded-full") &&
-          anchor.includes("h-7") &&
-          anchor.includes("w-auto") &&
-          !anchor.includes("w-7"),
+          anchor.includes("rounded-full") && !anchor.includes("w-7"),
       ),
     ).toBe(true);
+    expect(html).toContain("data-queue-card");
+    expect(html).toContain("line-clamp-3");
+    expect(html).toContain("md:hidden");
+    expect(html).toContain("md:block");
     expect(html).toContain('data-queue-preview="true"');
     expect(html).toContain("data-queue-row-link");
     expect(html.match(/id="signal-summary-sig_1"/g)?.length).toBe(1);

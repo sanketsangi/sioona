@@ -17,7 +17,9 @@ vi.mock("next/link", () => ({
 }));
 
 import {
+  QUEUE_CARD_ACTION_CLASS,
   QUEUE_REVIEW_ACTION_CLASS,
+  SignalQueueCard,
   SignalQueueRow,
 } from "@/components/SignalQueueRow";
 import type { Signal } from "@/lib/types";
@@ -46,6 +48,9 @@ describe("SignalQueueRow", () => {
     expect(QUEUE_REVIEW_ACTION_CLASS).not.toContain("w-7");
     expect(QUEUE_REVIEW_ACTION_CLASS).not.toContain("w-full");
     expect(QUEUE_REVIEW_ACTION_CLASS).not.toContain("btn-secondary");
+    expect(QUEUE_CARD_ACTION_CLASS).toContain("w-full");
+    expect(QUEUE_CARD_ACTION_CLASS).toContain("min-h-11");
+    expect(QUEUE_CARD_ACTION_CLASS).toContain("rounded-full");
   });
 
   it("renders a queue list row with Review and truncated summary", () => {
@@ -111,5 +116,36 @@ describe("SignalQueueRow", () => {
     expect(html).not.toContain("Please pause my SIP this month");
     expect(html).toContain('id="signal-review-summary-sig_1"');
     expect(html).not.toContain('id="signal-summary-sig_1"');
+  });
+});
+
+describe("SignalQueueCard", () => {
+  it("wraps signal text and keeps Review full width", () => {
+    const previewHref = "/?view=insights&preview=sig_1";
+    const html = renderToStaticMarkup(
+      createElement(SignalQueueCard, {
+        signal: signal(),
+        customerName: "Priya",
+        previewHref,
+        previewAriaLabel: "Open review for Priya",
+        action: createElement(
+          "a",
+          { href: previewHref, className: QUEUE_CARD_ACTION_CLASS },
+          "Review",
+        ),
+      }),
+    );
+
+    expect(html).toContain("data-queue-card");
+    expect(html).toContain("Priya");
+    expect(html).toContain("line-clamp-3");
+    expect(html).toContain("Asked to pause SIP");
+    expect(html).toContain("Pending");
+    expect(html).toContain("Retention");
+    expect(html).toContain(">Review</a>");
+    expect(html).toContain("w-full");
+    expect(html).toContain("min-h-11");
+    expect(html).toContain("[&amp;_a]:w-full");
+    expect(html).toContain("data-queue-action");
   });
 });
