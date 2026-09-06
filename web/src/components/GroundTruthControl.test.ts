@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
 
 import {
   GroundTruthControl,
+  groundTruthOptionRowClass,
   isGroundTruthSuggestedOption,
 } from "@/components/GroundTruthControl";
 
@@ -22,6 +23,36 @@ describe("isGroundTruthSuggestedOption", () => {
     expect(isGroundTruthSuggestedOption("", "retention")).toBe(false);
     expect(isGroundTruthSuggestedOption("none", "retention")).toBe(false);
     expect(isGroundTruthSuggestedOption("retention", undefined)).toBe(false);
+  });
+});
+
+describe("groundTruthOptionRowClass", () => {
+  it("applies signal type mark tokens for Lead, Retention, and Upsell", () => {
+    expect(groundTruthOptionRowClass("lead", false)).toContain(
+      "bg-sio-signal-lead-bg text-sio-signal-lead-fg",
+    );
+    expect(groundTruthOptionRowClass("retention", false)).toContain(
+      "bg-sio-signal-retention-bg text-sio-signal-retention-fg",
+    );
+    expect(groundTruthOptionRowClass("upsell", false)).toContain(
+      "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg",
+    );
+  });
+
+  it("keeps Unset and None quiet without signal colors", () => {
+    const unset = groundTruthOptionRowClass("", false);
+    const none = groundTruthOptionRowClass("none", false);
+    expect(unset).toContain("text-sio-fg-muted");
+    expect(none).toContain("text-sio-fg-muted");
+    expect(unset).not.toContain("sio-signal-");
+    expect(none).not.toContain("sio-signal-");
+  });
+
+  it("marks the suggested detected type without dropping signal tint", () => {
+    const suggested = groundTruthOptionRowClass("retention", true);
+    expect(suggested).toContain("bg-sio-signal-retention-bg");
+    expect(suggested).toContain("font-medium");
+    expect(suggested).toContain("ring-1");
   });
 });
 
@@ -50,6 +81,10 @@ describe("GroundTruthControl", () => {
     expect(html).not.toContain("Optional Eval gold label");
     expect(html).not.toContain("Saving…");
     expect(html).not.toContain('role="alert"');
+    // Closed trigger stays FilterPill chrome — no signal tint on the pill itself
+    expect(html).not.toContain("bg-sio-signal-lead-bg");
+    expect(html).not.toContain("bg-sio-signal-retention-bg");
+    expect(html).not.toContain("bg-sio-signal-upsell-bg");
   });
 
   it("uses applied FilterPill chrome when ground truth is set", () => {

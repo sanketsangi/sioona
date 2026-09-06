@@ -26,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { signalTypeMarkClass } from "@/lib/format";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +34,12 @@ export type GroundTruthValue = SignalType | "none" | "";
 
 /** Radio values cannot be empty string — map Unset ↔ unset. */
 type RadioValue = "unset" | SignalType | "none";
+
+function isGroundTruthSignalType(
+  value: GroundTruthValue,
+): value is SignalType {
+  return value === "lead" || value === "retention" || value === "upsell";
+}
 
 export const GROUND_TRUTH_OPTIONS: Array<{
   value: GroundTruthValue;
@@ -95,6 +102,35 @@ export function isGroundTruthSuggestedOption(
   defaultType?: SignalType,
 ): boolean {
   return Boolean(defaultType && optionValue === defaultType);
+}
+
+/**
+ * Open-menu row chrome: Lead / Retention / Upsell use signal type mark tokens;
+ * Unset / None stay quiet. Focus keeps the same tint (no menu accent wash).
+ */
+export function groundTruthOptionRowClass(
+  value: GroundTruthValue,
+  suggested: boolean,
+): string {
+  if (isGroundTruthSignalType(value)) {
+    return cn(
+      "gap-2 rounded-md py-1.5 pr-8 pl-2 text-label-14",
+      signalTypeMarkClass(value),
+      value === "lead" &&
+        "focus:bg-sio-signal-lead-bg focus:text-sio-signal-lead-fg",
+      value === "retention" &&
+        "focus:bg-sio-signal-retention-bg focus:text-sio-signal-retention-fg",
+      value === "upsell" &&
+        "focus:bg-sio-signal-upsell-bg focus:text-sio-signal-upsell-fg",
+      suggested && "font-medium ring-1 ring-inset ring-sio-border-base/50",
+    );
+  }
+
+  return cn(
+    "gap-2 rounded-md py-1.5 pr-8 pl-2 text-label-14 text-sio-fg-muted",
+    "focus:bg-sio-bg-interactive focus:text-sio-fg-base",
+    suggested && "bg-sio-bg-muted font-medium text-sio-fg-base",
+  );
 }
 
 /**
@@ -221,6 +257,7 @@ export function GroundTruthControl({
                   defaultType,
                 );
                 const { Icon } = opt;
+                const signalTinted = isGroundTruthSignalType(opt.value);
                 return (
                   <DropdownMenuRadioItem
                     key={opt.label}
@@ -236,20 +273,31 @@ export function GroundTruthControl({
                         ? `${opt.hint} (detected type)`
                         : opt.hint
                     }
-                    className={cn(
-                      "gap-2 rounded-md py-1.5 pr-8 pl-2 text-label-14 text-sio-fg-base focus:bg-sio-bg-interactive focus:text-sio-fg-base",
-                      suggested &&
-                        "bg-sio-bg-muted font-medium text-sio-fg-base",
+                    className={groundTruthOptionRowClass(
+                      opt.value,
+                      suggested,
                     )}
                   >
                     {Icon ? (
-                      <Icon className="size-3.5 shrink-0 text-sio-fg-subtle" />
+                      <Icon
+                        className={cn(
+                          "size-3.5 shrink-0",
+                          !signalTinted && "text-sio-fg-subtle",
+                        )}
+                      />
                     ) : (
                       <span className="size-3.5 shrink-0" aria-hidden />
                     )}
                     <span className="min-w-0 flex-1 truncate">{opt.label}</span>
                     {suggested ? (
-                      <span className="ml-auto text-label-12 font-normal text-sio-fg-muted">
+                      <span
+                        className={cn(
+                          "ml-auto text-label-12 font-normal",
+                          signalTinted
+                            ? "opacity-80"
+                            : "text-sio-fg-muted",
+                        )}
+                      >
                         Detected
                       </span>
                     ) : null}
