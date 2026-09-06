@@ -128,6 +128,29 @@ describe("matchIntentPatterns", () => {
         "retention"
       ).map((h) => h.label)
     ).toContain("another-venue");
+    // Verb-asymmetry FNs vs other-app (use/using, prefer)
+    expect(
+      matchIntentPatterns("i'll use another app", "retention").map(
+        (h) => h.label
+      )
+    ).toContain("another-venue");
+    expect(
+      matchIntentPatterns("prefer another broker", "retention").map(
+        (h) => h.label
+      )
+    ).toContain("another-venue");
+    expect(
+      matchIntentPatterns(
+        "we're using another platform for a bit",
+        "retention"
+      ).map((h) => h.label)
+    ).toContain("another-venue");
+    expect(
+      matchIntentPatterns(
+        "i'd prefer the other app if kyc stays broken",
+        "retention"
+      ).map((h) => h.label)
+    ).toContain("other-app");
     // Northline-style FPs: micro-deposit / link ops naming another app
     expect(
       matchIntentPatterns(
@@ -183,6 +206,30 @@ describe("matchIntentPatterns", () => {
         "family-winning-switch",
       ])
     );
+    // Competitor after the family phrase still counts (concatenated later turn)
+    expect(
+      matchIntentPatterns(
+        "web also spins. that's why dad is winning. dad will keep forwarding angel.",
+        "retention"
+      ).map((h) => h.label)
+    ).toContain("family-winning-switch");
+    expect(
+      matchIntentPatterns(
+        "i might just listen to him about angel",
+        "retention"
+      ).map((h) => h.label)
+    ).toContain("might-listen-family");
+    // Bare family phrases without a nearby competitor stay none
+    expect(matchIntentPatterns("dad is winning", "retention")).toEqual([]);
+    expect(
+      matchIntentPatterns("i might just listen to him", "retention")
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "if support stays this slow i might just listen to him",
+        "retention"
+      )
+    ).toEqual([]);
     // Bare competitor research compare stays none (precision gate)
     expect(
       matchIntentPatterns(

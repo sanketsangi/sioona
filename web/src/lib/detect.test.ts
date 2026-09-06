@@ -462,6 +462,22 @@ describe("runDetection", () => {
     }
   });
 
+  it("does not fire retention on bare family-winning / listen phrases", () => {
+    const hardNegatives = [
+      "Dad is winning.",
+      "I might just listen to him.",
+    ];
+    for (const text of hardNegatives) {
+      const { conversation, messages } = conv("c_family_bare", "none", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals).toEqual([]);
+    }
+  });
+
   it("fires retention on refund frustration phrases", () => {
     const { conversation, messages } = conv(
       "c_refund_ret",
@@ -551,6 +567,8 @@ describe("runDetection", () => {
       "Need this resident account closed before I move abroad.",
       "Calculator keeps rejecting. One more miss and I try another broker for options.",
       "How do I stop everything here? I'm taking funds to another app.",
+      "I'll use another app if this keeps happening.",
+      "I'd prefer another broker if KYC stays this slow.",
       "If this repeats I'm parking my SIPs on another platform for a bit.",
       "Please start account closure after I flatten positions.",
       "Wife already on Upstox. Closing this so we use one place.",
