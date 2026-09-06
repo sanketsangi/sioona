@@ -4,15 +4,19 @@ import {
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
 import {
+  initialVaultShowcaseLoadUi,
   isVaultShowcaseFile,
+  reduceVaultShowcaseLoadUi,
   resolveVaultShowcaseKind,
   shouldLandShowcaseLoad,
   vaultShowcaseAlreadyActive,
+  vaultShowcaseCanStartNewAttempt,
   vaultShowcaseCancelHref,
   vaultShowcaseDisplayName,
   vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
+  vaultShowcaseShowRetry,
   vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
 } from "./vault-showcase";
@@ -80,6 +84,9 @@ describe("vaultShowcaseLoadingLabel", () => {
     expect(vaultShowcaseLoadingLabel("partner")).toBe("Finding signals…");
     expect(vaultShowcaseExpectation()).toMatch(/20 seconds/);
     expect(vaultShowcaseStallMessage("partner")).toMatch(/longer than expected/);
+    expect(vaultShowcaseStallMessage("sample")).toMatch(/Cancel opens Upload/);
+    expect(vaultShowcaseStallMessage("sample")).not.toMatch(/current batch/);
+    expect(vaultShowcaseStallMessage("sample")).not.toMatch(/Retry/);
     expect(vaultShowcaseFailedMessage("sample")).toContain("Sample");
   });
 });
@@ -116,7 +123,7 @@ describe("shouldLandShowcaseLoad", () => {
 });
 
 describe("vaultShowcaseCancelHref", () => {
-  it("returns the current keep-set Insights href", () => {
+  it("returns the current keep-set Insights href after wipe settles", () => {
     const href = vaultShowcaseCancelHref("Zerodha_week_5_batch_01.json");
     const params = new URL(href, "http://localhost").searchParams;
     expect(params.get("view")).toBe("insights");
@@ -127,5 +134,63 @@ describe("vaultShowcaseCancelHref", () => {
     expect(vaultShowcaseCancelHref(null)).toBe("/?view=upload");
     expect(vaultShowcaseCancelHref(undefined)).toBe("/?view=upload");
     expect(vaultShowcaseCancelHref("   ")).toBe("/?view=upload");
+  });
+
+  it("in-flight Cancel is Upload even when keepSetFileName is set", () => {
+    expect(
+      vaultShowcaseCancelHref("Zerodha_week_5_batch_01.json", {
+        wipeInFlight: true,
+      }),
+    ).toBe("/?view=upload");
+    expect(
+      vaultShowcaseCancelHref(GROWW_SHOWCASE_SAMPLE_NAME, {
+        wipeInFlight: true,
+      }),
+    ).toBe("/?view=upload");
+  });
+});
+
+describe("reduceVaultShowcaseLoadUi", () => {
+  it("soft-stall keeps wipe in flight and blocks Retry", () => {
+    const started = initialVaultShowcaseLoadUi("sample");
+    const stalled = reduceVaultShowcaseLoadUi(started, {
+      type: "stall",
+      kind: "sample",
+    });
+    expect(stalled.wipeInFlight).toBe(true);
+    expect(stalled.hardFailed).toBe(false);
+    expect(vaultShowcaseShowRetry(stalled)).toBe(false);
+    expect(vaultShowcaseCanStartNewAttempt(stalled)).toBe(false);
+    expect(
+      vaultShowcaseCancelHref("keep.json", {
+        wipeInFlight: stalled.wipeInFlight,
+      }),
+    ).toBe("/?view=upload");
+  });
+
+  it("hard-fail after stall unlocks Retry for one new attempt", () => {
+    const stalled = reduceVaultShowcaseLoadUi(
+      initialVaultShowcaseLoadUi("partner"),
+      { type: "stall", kind: "partner" },
+    );
+    const failed = reduceVaultShowcaseLoadUi(stalled, {
+      type: "hard_fail",
+      message: "boom",
+    });
+    expect(failed.wipeInFlight).toBe(false);
+    expect(failed.hardFailed).toBe(true);
+    expect(vaultShowcaseShowRetry(failed)).toBe(true);
+    expect(vaultShowcaseCanStartNewAttempt(failed)).toBe(true);
+  });
+
+  it("success after stall clears in-flight without enabling Retry", () => {
+    const stalled = reduceVaultShowcaseLoadUi(
+      initialVaultShowcaseLoadUi("sample"),
+      { type: "stall", kind: "sample" },
+    );
+    const landed = reduceVaultShowcaseLoadUi(stalled, { type: "success" });
+    expect(landed.wipeInFlight).toBe(false);
+    expect(vaultShowcaseShowRetry(landed)).toBe(false);
+    expect(shouldLandShowcaseLoad({ runId: 1, currentRunId: 1 })).toBe(true);
   });
 });

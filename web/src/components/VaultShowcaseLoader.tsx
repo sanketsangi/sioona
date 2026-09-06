@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,15 +18,18 @@ import { syncQueryExtras } from "@/lib/prediction-sync";
 import { humanizeInternalError } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import {
+  initialVaultShowcaseLoadUi,
+  reduceVaultShowcaseLoadUi,
   resolveVaultShowcaseKind,
   shouldLandShowcaseLoad,
   VAULT_SHOWCASE_STALL_MS,
+  vaultShowcaseCanStartNewAttempt,
   vaultShowcaseCancelHref,
   vaultShowcaseDisplayName,
   vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
   vaultShowcaseLoadingLabel,
-  vaultShowcaseStallMessage,
+  vaultShowcaseShowRetry,
   vaultShowcaseStoreAction,
   type VaultShowcaseKind,
 } from "@/lib/vault-showcase";
@@ -44,16 +47,17 @@ export function VaultShowcaseLoader({
   keepSetFileName = null,
 }: {
   fileName: string;
-  /** Current keep-set — Cancel returns here; empty keep-set goes to Upload. */
+  /** Current keep-set — Cancel returns here only after the wipe settles. */
   keepSetFileName?: string | null;
 }) {
   const router = useRouter();
   const kind = resolveVaultShowcaseKind(fileName);
   const [attempt, setAttempt] = useState(0);
-  const [status, setStatus] = useState<string | null>(
-    kind ? vaultShowcaseLoadingLabel(kind) : null,
+  const [ui, dispatch] = useReducer(
+    reduceVaultShowcaseLoadUi,
+    kind ?? "sample",
+    initialVaultShowcaseLoadUi,
   );
-  const [error, setError] = useState<string | null>(null);
   const runIdRef = useRef(0);
 
   useEffect(() => {
@@ -67,16 +71,14 @@ export function VaultShowcaseLoader({
     let stalled = false;
     const abort = new AbortController();
 
-    setError(null);
-    setStatus(vaultShowcaseLoadingLabel(showcaseKind));
+    dispatch({ type: "start", kind: showcaseKind });
     // Wake sleeping Render while wipe starts (fail-soft).
     void fetch("/api/backend-health").catch(() => undefined);
 
     const stallTimer = window.setTimeout(() => {
       if (cancelled || runId !== runIdRef.current) return;
       stalled = true;
-      setError(vaultShowcaseStallMessage(showcaseKind));
-      setStatus(null);
+      dispatch({ type: "stall", kind: showcaseKind });
       // Do not abort — a wipe that finishes after stall still lands.
     }, VAULT_SHOWCASE_STALL_MS);
 
@@ -99,11 +101,13 @@ export function VaultShowcaseLoader({
             if (cancelled || stalled || runId !== runIdRef.current) return;
             if (event.step === lastStep) return;
             lastStep = event.step;
-            setStatus(
-              showcaseKind === "sample"
-                ? resetDemoStatusLabel(event)
-                : partnerDemoStatusLabel(event),
-            );
+            dispatch({
+              type: "progress",
+              status:
+                showcaseKind === "sample"
+                  ? resetDemoStatusLabel(event)
+                  : partnerDemoStatusLabel(event),
+            });
           },
         });
         if (
@@ -114,6 +118,8 @@ export function VaultShowcaseLoader({
         ) {
           return;
         }
+
+        dispatch({ type: "success" });
 
         const query = new URLSearchParams({
           view: "insights",
@@ -133,10 +139,13 @@ export function VaultShowcaseLoader({
         router.refresh();
       } catch (err) {
         if (abort.signal.aborted) return;
-        if (cancelled || stalled || runId !== runIdRef.current) return;
+        if (cancelled || runId !== runIdRef.current) return;
+        // Soft-stall only hid progress — a settled hard failure unlocks Retry.
         const raw = err instanceof Error ? err.message : failedMessage;
-        setError(humanizeInternalError(raw, failedMessage));
-        setStatus(null);
+        dispatch({
+          type: "hard_fail",
+          message: humanizeInternalError(raw, failedMessage),
+        });
       }
     }
 
@@ -150,15 +159,22 @@ export function VaultShowcaseLoader({
 
   if (!kind) return null;
 
-  const cancelHref = vaultShowcaseCancelHref(keepSetFileName);
+  const showRetry = vaultShowcaseShowRetry(ui);
+  const cancelHref = vaultShowcaseCancelHref(keepSetFileName, {
+    wipeInFlight: ui.wipeInFlight,
+  });
 
   return (
     <VaultShowcaseLoadingPanel
       kind={kind}
-      status={status}
-      error={error}
+      status={ui.status}
+      error={ui.error}
+      showRetry={showRetry}
       cancelHref={cancelHref}
-      onRetry={() => setAttempt((n) => n + 1)}
+      onRetry={() => {
+        if (!vaultShowcaseCanStartNewAttempt(ui)) return;
+        setAttempt((n) => n + 1);
+      }}
     />
   );
 }
@@ -167,12 +183,14 @@ export function VaultShowcaseLoadingPanel({
   kind,
   status,
   error,
+  showRetry,
   cancelHref,
   onRetry,
 }: {
   kind: VaultShowcaseKind;
   status: string | null;
   error: string | null;
+  showRetry: boolean;
   cancelHref: string;
   onRetry: () => void;
 }) {
@@ -215,7 +233,7 @@ export function VaultShowcaseLoadingPanel({
           )}
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          {error ? (
+          {showRetry ? (
             <button type="button" className="btn-primary" onClick={onRetry}>
               Retry
             </button>
