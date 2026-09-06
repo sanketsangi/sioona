@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -51,8 +52,16 @@ type SignalReviewSuggestedActionProps = {
   actedWalk?: MarkActedWalk | null;
   /** Stored supervised retention email draft, when one exists. */
   supervisedAction?: SupervisedAction | null;
+  /**
+   * When true, reply draft is not ready — skeleton + Copy / Mark as Acted
+   * disabled (no stale draft). Parents omit this once the join is settled.
+   */
+  draftLoading?: boolean;
   className?: string;
 };
+
+/** Honest empty — never show a previous review’s draft. */
+export const NO_RECOMMENDED_REPLY = "No recommended reply";
 
 /** ≤2 quote lines in Why This Fired (UI_DESIGN). */
 const MAX_WHY_QUOTES = 2;
@@ -209,14 +218,14 @@ function SupportHeading({ id, children }: { id: string; children: string }) {
 }
 
 /**
- * Suggested Next Action + Why This Fired + Matched + Retention Email —
- * single Card well. Header matches Feedback / Ground Truth
- * (`InsightsReviewPaneHeader`). Copy Reply (clipboard-only; you paste in
- * your tools — Sioona never sends) sits left of Mark as Acted. Mark as
- * Acted stays in the header; without Correct feedback a dialog sends the
- * operator to Feedback. Quotes and match chips that join a stored message
- * jump the transcript. Retention Email nests below Matched when present
- * (flattened section). Neon stubs / missing join stay honest.
+ * Recommended Actions + Why This Fired + Matched + Retention Email.
+ * Distinct Actions well under Feedback / GT (`data-review-slot="actions"`).
+ * Header: Copy Reply (secondary) + Mark as Acted (primary only on Correct
+ * ¬acted). Soft nudge when Feedback is missing or not Correct — gate dialog
+ * still sends operators to Feedback; Incorrect / Partial are not hard-blocked
+ * beyond that. Empty = “No recommended reply”; loading = skeleton + both CTAs
+ * disabled. Copy / Acted errors stay inline and recoverable. Retention Email
+ * nests inside Actions; Why is a sibling well.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -226,11 +235,13 @@ export function SignalReviewSuggestedAction({
   onFocusMessage,
   actedWalk = null,
   supervisedAction = null,
+  draftLoading = false,
   className,
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
   const whyId = useId();
   const matchedId = useId();
+  const replyLabelId = useId();
   const copyStatusId = useId();
   const sectionRef = useRef<HTMLDivElement>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -240,25 +251,41 @@ export function SignalReviewSuggestedAction({
   const walk = actedWalk ?? {};
   const { actedPending, canMarkActed, error, hasFeedback, isActed, setActed } =
     useMarkActed(signal, walk);
-  const actionText = resolveSuggestedAction({
-    type: signal.type,
-    customerName,
-    evidence: signal.evidence,
-    fallback: signal.suggestedAction,
-  });
-  const missingAction = !actionText;
+  // While loading, never paint a prior draft — skeleton only.
+  const actionText = draftLoading
+    ? ""
+    : resolveSuggestedAction({
+        type: signal.type,
+        customerName,
+        evidence: signal.evidence,
+        fallback: signal.suggestedAction,
+      });
+  const missingAction = !draftLoading && !actionText;
+  const draftReady = !draftLoading && Boolean(actionText);
+  const actionsBusy = draftLoading || actedPending;
+  /** Primary only on Correct ¬acted — makes the Correct-path Acted CTA obvious. */
+  const actedIsPrimary = canMarkActed || isActed;
   const isNeonStub = isNeonStubSignalId(signal.id);
   const giveFeedbackRef = useRef<HTMLButtonElement>(null);
   const [feedbackGateOpen, setFeedbackGateOpen] = useState(false);
 
   const requestMarkActed = useCallback(() => {
-    if (isActed || actedPending) return;
+    if (isActed || actedPending || draftLoading) return;
     if (canMarkActed) {
       void setActed(true);
       return;
     }
     setFeedbackGateOpen(true);
-  }, [actedPending, canMarkActed, isActed, setActed]);
+  }, [actedPending, canMarkActed, draftLoading, isActed, setActed]);
+
+  // Drop Copied… / copy error when the review panel changes.
+  useEffect(() => {
+    setCopyState("idle");
+    if (copyTimerRef.current != null) {
+      window.clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = null;
+    }
+  }, [signal.id]);
 
   function goToFeedback() {
     setFeedbackGateOpen(false);
@@ -276,7 +303,7 @@ export function SignalReviewSuggestedAction({
   }
 
   useEffect(() => {
-    if (isActed) return;
+    if (isActed || draftLoading) return;
     const keyboardRoot =
       sectionRef.current?.closest("[data-review-keyboard-root]") ??
       sectionRef.current;
@@ -297,7 +324,7 @@ export function SignalReviewSuggestedAction({
 
     el.addEventListener("keydown", onKeyDown);
     return () => el.removeEventListener("keydown", onKeyDown);
-  }, [actedPending, isActed, requestMarkActed]);
+  }, [actedPending, draftLoading, isActed, requestMarkActed]);
 
   useEffect(() => {
     return () => {
@@ -308,7 +335,7 @@ export function SignalReviewSuggestedAction({
   }, []);
 
   async function copyReply() {
-    if (missingAction) return;
+    if (!draftReady) return;
     const text = actionText;
     const markCopied = () => {
       setCopyState("copied");
@@ -384,14 +411,19 @@ export function SignalReviewSuggestedAction({
         aria-labelledby={headingId}
       >
         <InsightsReviewPaneHeader id={headingId} title="Recommended Actions">
-          <div className="flex shrink-0 items-center gap-2">
+          <div
+            className="flex shrink-0 items-center gap-2"
+            data-review-actions-toolbar="true"
+            role="group"
+            aria-label="Reply actions"
+          >
             <Button
               type="button"
               variant="outline"
               data-copied={copyState === "copied" ? "true" : undefined}
               className={cn("btn-secondary shrink-0 active:translate-y-0")}
-              disabled={missingAction}
-              aria-label="Copy Reply to clipboard"
+              disabled={!draftReady}
+              aria-label="Copy reply to clipboard"
               aria-describedby={copyStatusId}
               onClick={() => void copyReply()}
             >
@@ -459,11 +491,16 @@ export function SignalReviewSuggestedAction({
                       <span className="inline-flex shrink-0">
                         <Button
                           type="button"
-                          className="btn-primary shrink-0"
-                          disabled={actedPending}
+                          variant={actedIsPrimary ? "default" : "outline"}
+                          className={cn(
+                            actedIsPrimary ? "btn-primary" : "btn-secondary",
+                            "shrink-0",
+                          )}
+                          disabled={actionsBusy}
                           aria-busy={actedPending}
                           aria-haspopup={canMarkActed ? undefined : "dialog"}
                           aria-keyshortcuts="A Enter"
+                          aria-label="Mark as Acted"
                           onClick={requestMarkActed}
                         >
                           {actedPending ? (
@@ -536,22 +573,40 @@ export function SignalReviewSuggestedAction({
               "flex min-w-0 flex-col justify-center gap-1.5 py-3",
             )}
           >
-            {isActed ? null : !hasFeedback ? (
+            {draftLoading || isActed ? null : !hasFeedback ? (
               <p className="text-label-12 leading-5 text-sio-fg-muted">
                 Label in Feedback first — needed for this week’s ≥80% score.
                 Mark as Acted stays a draft; nothing is sent.
               </p>
+            ) : !canMarkActed ? (
+              <p className="text-label-12 leading-5 text-sio-fg-muted">
+                Update Feedback to Correct to unlock Mark as Acted — nothing is
+                sent.
+              </p>
             ) : null}
-            <p
-              className={
-                "break-words text-pretty text-copy-16 " +
-                (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
-              }
-            >
-              {missingAction
-                ? "Unavailable — local detection join missing."
-                : actionText}
-            </p>
+            <SupportHeading id={replyLabelId}>Recommended reply</SupportHeading>
+            {draftLoading ? (
+              <div
+                className="flex min-w-0 flex-col gap-2"
+                data-review-reply-skeleton="true"
+                aria-busy="true"
+                aria-label="Loading recommended reply"
+              >
+                <Skeleton className="h-4 w-full max-w-[28rem]" />
+                <Skeleton className="h-4 w-[88%] max-w-[24rem]" />
+                <Skeleton className="h-4 w-[72%] max-w-[20rem]" />
+              </div>
+            ) : (
+              <p
+                aria-labelledby={replyLabelId}
+                className={
+                  "break-words text-pretty text-copy-16 " +
+                  (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
+                }
+              >
+                {missingAction ? NO_RECOMMENDED_REPLY : actionText}
+              </p>
+            )}
             <p id={copyStatusId} className="sr-only" aria-live="polite">
               {copyState === "copied"
                 ? "Reply copied to clipboard. Paste it in your tools — Sioona never sends."
