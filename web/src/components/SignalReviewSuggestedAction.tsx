@@ -12,6 +12,7 @@ import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip"
 import {
   RetentionEmailAction,
   resolveRetentionEmailAction,
+  retentionHeaderChipStatus,
   RETENTION_EMAIL_STATUS_CHIP,
   RETENTION_EMAIL_STATUS_LABEL,
 } from "@/components/RetentionEmailAction";
@@ -44,7 +45,12 @@ import {
   isMarkActedShortcutKey,
 } from "@/lib/review-triage";
 import { resolveSuggestedAction } from "@/lib/suggested-action-display";
-import type { Message, Signal, SupervisedAction } from "@/lib/types";
+import type {
+  Message,
+  Signal,
+  SupervisedAction,
+  SupervisedActionStatus,
+} from "@/lib/types";
 import { useMarkActed, type MarkActedWalk } from "@/lib/use-mark-acted";
 import { cn } from "@/lib/utils";
 
@@ -226,8 +232,8 @@ function SupportHeading({ id, children }: { id: string; children: string }) {
 /**
  * Recommended Actions + Why This Fired + Matched + Retention Email.
  * Distinct Actions well under Feedback (`data-review-slot="actions"`).
- * Footer: Copy Reply (secondary) + Mark as Acted (primary only on Correct
- * ¬acted) — below Retention Email when present, else below the reply draft.
+ * Footer: Mark as Acted (primary only on Correct ¬acted) — below Retention
+ * Email when present. Copy Reply sits beside the reply draft row.
  * Soft nudge when Feedback is missing or not Correct — gate dialog
  * still sends operators to Feedback; Incorrect / Partial are not hard-blocked
  * beyond that. Empty = “No recommended reply”; loading = skeleton + both CTAs
@@ -412,76 +418,95 @@ export function SignalReviewSuggestedAction({
     customerName,
     supervisedAction,
   );
-  const retentionStatusChip = retentionEmail ? (
+  const propRetentionStatus = retentionEmail?.status ?? null;
+  const retentionSyncKey = `${signal.id}\0${supervisedAction?.id ?? ""}\0${propRetentionStatus ?? ""}`;
+  /** Live retention decision for the Actions header chip (refresh lag). */
+  const [liveRetentionStatus, setLiveRetentionStatus] =
+    useState<SupervisedActionStatus | null>(null);
+  const [prevRetentionSyncKey, setPrevRetentionSyncKey] =
+    useState(retentionSyncKey);
+  // Drop live override when the review row or server status changes.
+  if (retentionSyncKey !== prevRetentionSyncKey) {
+    setPrevRetentionSyncKey(retentionSyncKey);
+    setLiveRetentionStatus(null);
+  }
+  const chipRetentionStatus = retentionHeaderChipStatus(
+    propRetentionStatus,
+    liveRetentionStatus,
+  );
+  const retentionStatusChip = chipRetentionStatus ? (
     <InsightsReviewStatusChip
-      className={RETENTION_EMAIL_STATUS_CHIP[retentionEmail.status]}
+      className={RETENTION_EMAIL_STATUS_CHIP[chipRetentionStatus]}
     >
-      {RETENTION_EMAIL_STATUS_LABEL[retentionEmail.status]}
+      {RETENTION_EMAIL_STATUS_LABEL[chipRetentionStatus]}
     </InsightsReviewStatusChip>
   ) : null;
 
-  const replyActionsToolbar = (
+  const copyReplyButton = (
+    <Button
+      type="button"
+      variant="outline"
+      data-copied={copyState === "copied" ? "true" : undefined}
+      className={cn("btn-secondary shrink-0 active:translate-y-0")}
+      disabled={!draftReady}
+      aria-label="Copy reply to clipboard"
+      aria-describedby={copyStatusId}
+      onClick={() => void copyReply()}
+    >
+      {/* shadcn-style icon swap — same grid cell so width/height stay fixed */}
+      <span
+        className="relative inline-grid size-3.5 shrink-0 place-items-center"
+        aria-hidden
+      >
+        <CopyIcon
+          className={cn(
+            "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
+            copyState === "copied"
+              ? "scale-0 opacity-0"
+              : "scale-100 opacity-100",
+          )}
+        />
+        <Check
+          className={cn(
+            "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
+            copyState === "copied"
+              ? "scale-100 opacity-100"
+              : "scale-0 opacity-0",
+          )}
+          weight="bold"
+        />
+      </span>
+      {/* Stack labels so “Copied…” never shrinks past “Copy Reply”; center the shorter label. */}
+      <span className="relative inline-grid justify-items-center text-center">
+        <span
+          className={cn(
+            "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
+            copyState === "copied" ? "opacity-100" : "opacity-0",
+          )}
+          aria-hidden={copyState !== "copied"}
+        >
+          Copied…
+        </span>
+        <span
+          className={cn(
+            "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
+            copyState === "copied" ? "opacity-0" : "opacity-100",
+          )}
+          aria-hidden={copyState === "copied"}
+        >
+          Copy Reply
+        </span>
+      </span>
+    </Button>
+  );
+
+  const markActedToolbar = (
     <div
       className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2"
       data-review-actions-toolbar="true"
       role="group"
-      aria-label="Reply actions"
+      aria-label="Acted"
     >
-      <Button
-        type="button"
-        variant="outline"
-        data-copied={copyState === "copied" ? "true" : undefined}
-        className={cn("btn-secondary shrink-0 active:translate-y-0")}
-        disabled={!draftReady}
-        aria-label="Copy reply to clipboard"
-        aria-describedby={copyStatusId}
-        onClick={() => void copyReply()}
-      >
-        {/* shadcn-style icon swap — same grid cell so width/height stay fixed */}
-        <span
-          className="relative inline-grid size-3.5 shrink-0 place-items-center"
-          aria-hidden
-        >
-          <CopyIcon
-            className={cn(
-              "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
-              copyState === "copied"
-                ? "scale-0 opacity-0"
-                : "scale-100 opacity-100",
-            )}
-          />
-          <Check
-            className={cn(
-              "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
-              copyState === "copied"
-                ? "scale-100 opacity-100"
-                : "scale-0 opacity-0",
-            )}
-            weight="bold"
-          />
-        </span>
-        {/* Stack labels so “Copied…” never shrinks past “Copy Reply”; center the shorter label. */}
-        <span className="relative inline-grid justify-items-center text-center">
-          <span
-            className={cn(
-              "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
-              copyState === "copied" ? "opacity-100" : "opacity-0",
-            )}
-            aria-hidden={copyState !== "copied"}
-          >
-            Copied…
-          </span>
-          <span
-            className={cn(
-              "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
-              copyState === "copied" ? "opacity-0" : "opacity-100",
-            )}
-            aria-hidden={copyState === "copied"}
-          >
-            Copy Reply
-          </span>
-        </span>
-      </Button>
       {isActed ? (
         <Button
           type="button"
@@ -596,37 +621,44 @@ export function SignalReviewSuggestedAction({
               "flex min-w-0 flex-col justify-center gap-1.5 py-3",
             )}
           >
-            {draftLoading || isActed ? null : !hasFeedback ? (
-              <p className="text-label-12 leading-5 text-sio-fg-muted">
-                Label in Feedback first — needed for this week’s ≥80% score.
-                Mark as Acted stays a draft; nothing is sent.
-              </p>
-            ) : !canMarkActed ? (
+            {draftLoading || isActed || !hasFeedback || canMarkActed ? null : (
               <p className="text-label-12 leading-5 text-sio-fg-muted">
                 Update Feedback to Correct to unlock Mark as Acted — nothing is
                 sent.
               </p>
-            ) : null}
+            )}
             {draftLoading ? (
               <div
-                className="flex min-w-0 flex-col gap-2"
-                data-review-reply-skeleton="true"
-                aria-busy="true"
-                aria-label="Loading recommended reply"
+                className="flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2"
+                data-review-reply-row="true"
               >
-                <Skeleton className="h-4 w-full max-w-[28rem]" />
-                <Skeleton className="h-4 w-[88%] max-w-[24rem]" />
-                <Skeleton className="h-4 w-[72%] max-w-[20rem]" />
+                <div
+                  className="flex min-w-0 flex-1 flex-col gap-2"
+                  data-review-reply-skeleton="true"
+                  aria-busy="true"
+                  aria-label="Loading recommended reply"
+                >
+                  <Skeleton className="h-4 w-full max-w-[28rem]" />
+                  <Skeleton className="h-4 w-[88%] max-w-[24rem]" />
+                  <Skeleton className="h-4 w-[72%] max-w-[20rem]" />
+                </div>
+                {copyReplyButton}
               </div>
             ) : (
-              <p
-                className={
-                  "break-words text-pretty text-copy-16 " +
-                  (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
-                }
+              <div
+                className="flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2"
+                data-review-reply-row="true"
               >
-                {missingAction ? NO_RECOMMENDED_REPLY : actionText}
-              </p>
+                <p
+                  className={
+                    "min-w-0 flex-1 break-words text-pretty text-copy-16 " +
+                    (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
+                  }
+                >
+                  {missingAction ? NO_RECOMMENDED_REPLY : actionText}
+                </p>
+                {copyReplyButton}
+              </div>
             )}
             <p id={copyStatusId} className="sr-only" aria-live="polite">
               {copyState === "copied"
@@ -660,6 +692,7 @@ export function SignalReviewSuggestedAction({
             signal={signal}
             customerName={customerName}
             action={supervisedAction}
+            onStatusChange={setLiveRetentionStatus}
           />
 
           <div
@@ -669,7 +702,7 @@ export function SignalReviewSuggestedAction({
             )}
             data-review-actions-footer="true"
           >
-            {replyActionsToolbar}
+            {markActedToolbar}
           </div>
         </CardContent>
       </Card>

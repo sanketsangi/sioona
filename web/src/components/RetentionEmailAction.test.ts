@@ -11,9 +11,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  draftDecisionControlsLocked,
+  draftDecisionsDataAttr,
   queueActionKindForSignal,
   queueActionLabelForSignal,
   RetentionEmailAction,
+  RetentionEmailDecisionControlsFrame,
+  retentionHeaderChipStatus,
 } from "@/components/RetentionEmailAction";
 import { createRetentionEmailAction } from "@/lib/supervised-actions";
 import type { Signal } from "@/lib/types";
@@ -126,6 +130,50 @@ describe("queueActionKindForSignal", () => {
   });
 });
 
+describe("draftDecisionControlsLocked", () => {
+  it("locks header CTAs while editing or while the edit pane is mounted", () => {
+    expect(draftDecisionControlsLocked(false, false)).toBe(false);
+    expect(draftDecisionControlsLocked(true, false)).toBe(true);
+    expect(draftDecisionControlsLocked(false, true)).toBe(true);
+    expect(draftDecisionControlsLocked(true, true)).toBe(true);
+  });
+});
+
+describe("retentionHeaderChipStatus", () => {
+  it("prefers live Approve / Dismiss over the stale supervised prop", () => {
+    expect(retentionHeaderChipStatus("pending", "approved")).toBe("approved");
+    expect(retentionHeaderChipStatus("pending", "dismissed")).toBe("dismissed");
+    expect(retentionHeaderChipStatus("approved", null)).toBe("approved");
+    expect(retentionHeaderChipStatus(null, null)).toBe(null);
+  });
+});
+
+describe("RetentionEmailDecisionControlsFrame", () => {
+  it("marks the Draft decision group inert when locked", () => {
+    const locked = renderToStaticMarkup(
+      createElement(
+        RetentionEmailDecisionControlsFrame,
+        { locked: true },
+        createElement("button", { type: "button" }, "Approve Draft"),
+      ),
+    );
+    const open = renderToStaticMarkup(
+      createElement(
+        RetentionEmailDecisionControlsFrame,
+        { locked: false },
+        createElement("button", { type: "button" }, "Approve Draft"),
+      ),
+    );
+
+    expect(draftDecisionsDataAttr(true)).toBe("locked");
+    expect(draftDecisionsDataAttr(false)).toBe("open");
+    expect(locked).toContain('data-draft-decisions="locked"');
+    expect(locked).toContain("inert");
+    expect(open).toContain('data-draft-decisions="open"');
+    expect(open).not.toContain("inert");
+  });
+});
+
 describe("RetentionEmailAction", () => {
   it("shows evidence and draft side by side with decision buttons", () => {
     const action = createRetentionEmailAction({
@@ -158,14 +206,18 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("retention-email-columns");
     expect(html).toContain("retention-email-draft-swap");
     expect(html).toContain('data-draft-mode="view"');
+    expect(html).toContain('data-draft-decisions="open"');
     expect(html).not.toContain("Save Edit");
     // Vertical stack lives in .retention-email-columns (globals.css).
     expect(html).not.toContain(
       "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
     );
     expect(html).toContain("flex flex-wrap items-center justify-end gap-1");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5",
+    );
+    expect(html.indexOf("Following up on your account")).toBeLessThan(
+      html.indexOf("Approve Draft"),
     );
     expect(html).not.toContain("flex-nowrap");
     expect(html).toContain("Sioona never sends or CRM-tags");
@@ -208,7 +260,7 @@ describe("RetentionEmailAction", () => {
     // align-items:stretch lives on .retention-email-columns in globals.css
     expect(html).toContain("retention-email-columns");
     expect(html).toContain("flex flex-wrap items-center justify-end gap-1");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5",
     );
     expect(html).not.toContain("flex-nowrap");
@@ -222,8 +274,11 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("High-confidence retention draft");
     expect(html).toContain("Evidence");
     expect(html).toContain("Draft");
-    // Draft title precedes decision buttons on the same header row.
+    // Draft body precedes footer decision buttons.
     expect(html.indexOf(">Draft<")).toBeLessThan(html.indexOf("Approve Draft"));
+    expect(html.indexOf("Following up on your account")).toBeLessThan(
+      html.indexOf("Approve Draft"),
+    );
     expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html).toContain("rounded-[var(--radius-control)]");
     // Quiet subsection labels (Why This Fired / Matched), not pill chips.

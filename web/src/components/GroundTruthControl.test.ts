@@ -12,7 +12,9 @@ vi.mock("next/navigation", () => ({
 
 import {
   GroundTruthControl,
+  GroundTruthSaveError,
   groundTruthOptionRowClass,
+  groundTruthSaveErrorMessage,
   isGroundTruthSuggestedOption,
 } from "@/components/GroundTruthControl";
 
@@ -102,5 +104,25 @@ describe("GroundTruthControl", () => {
     expect(html).toContain('data-pill-background="true"');
     expect(html).toContain("bg-sio-bg-base [outline-style:solid] outline-sio-border-base");
     expect(html).not.toContain("outline-dashed");
+  });
+});
+
+describe("GroundTruthSaveError", () => {
+  it("shows a visible danger alert for sighted and touch users", () => {
+    const message = groundTruthSaveErrorMessage("Failed to save ground truth");
+    expect(message).toBe(
+      "Failed to save ground truth. Try again or refresh the page.",
+    );
+
+    const html = renderToStaticMarkup(
+      createElement(GroundTruthSaveError, {
+        error: "Failed to save ground truth",
+      }),
+    );
+
+    expect(html).toContain('role="alert"');
+    expect(html).toContain(message);
+    expect(html).toContain("text-sio-status-danger-fg");
+    expect(html).not.toContain("sr-only");
   });
 });

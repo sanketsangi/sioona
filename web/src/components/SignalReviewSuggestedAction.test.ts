@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
+import { createRetentionEmailAction } from "@/lib/supervised-actions";
 import type { Message, Signal } from "@/lib/types";
 
 function signal(overrides: Partial<Signal> = {}): Signal {
@@ -64,11 +65,15 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copied…");
     expect(html).toContain("Copy reply to clipboard");
     expect(html).toContain('aria-label="Mark as Acted"');
-    expect(html).toContain('aria-label="Reply actions"');
+    expect(html).toContain('data-review-reply-row="true"');
     expect(html).toContain('data-review-actions-toolbar="true"');
     expect(html).toContain('data-review-actions-footer="true"');
     expect(html).toContain("justify-end");
-    expect(html).toContain("w-full shrink-0 flex-wrap items-center justify-end gap-2");
+    expect(html).toContain(
+      "flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2",
+    );
+    expect(html).toContain("min-w-0 flex-1 break-words text-pretty text-copy-16");
+    expect(html).not.toContain('aria-label="Reply actions"');
     expect(html).toContain('class="sr-only"');
     expect(html).not.toContain("Recommended reply");
     expect(html).toContain("btn-secondary shrink-0");
@@ -85,8 +90,11 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
-    expect(html).not.toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Hi Priya/,
+    expect(html).toMatch(
+      /data-review-reply-row="true"[\s\S]*Hi Priya — I saw your note about[\s\S]*Copy Reply/,
+    );
+    expect(html.indexOf("Hi Priya — I saw your note about")).toBeLessThan(
+      html.indexOf('aria-label="Copy reply to clipboard"'),
     );
     expect(html).toContain("M2.75 0.5C1.7835 0.5");
     expect(html).toContain('fill="currentColor"');
@@ -98,13 +106,13 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("text-copy-16");
     expect(html).toContain(
-      "break-words text-pretty text-copy-16 text-sio-fg-base",
+      "min-w-0 flex-1 break-words text-pretty text-copy-16 text-sio-fg-base",
     );
     expect(html).toContain("Mark as Acted");
     // Pending Feedback: Acted is secondary until Correct unlocks primary.
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain("Label in Feedback first");
+    expect(html).not.toContain("Label in Feedback first");
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
@@ -114,6 +122,9 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("flex shrink-0 items-center");
     expect(html).toContain(
       "w-full shrink-0 flex-wrap items-center justify-end gap-2",
+    );
+    expect(html).not.toMatch(
+      /data-review-actions-toolbar="true"[\s\S]*Copy reply to clipboard/,
     );
     expect(html).not.toContain('data-slot="card-header"');
     expect(html).not.toContain('data-slot="card-title"');
@@ -221,6 +232,57 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain('data-retention-email-panel="evidence"');
     expect(html).toContain('data-retention-email-panel="draft"');
     expect(html).toContain("Approve Draft");
+  });
+
+  it("shows Approved on the Actions header chip after an Approve decision", () => {
+    const stored = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "Please pause my SIP this month"'],
+    });
+    stored.status = "approved";
+    stored.decidedAt = "2026-09-06T12:00:00.000Z";
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal(),
+        customerName: "Priya",
+        supervisedAction: stored,
+      }),
+    );
+
+    expect(html).toMatch(
+      /Recommended Actions[\s\S]*Approved[\s\S]*data-review-slot="retention-email"/,
+    );
+    expect(html).toContain(
+      "Approved — not sent. Run it in your tools; Sioona never CRM-tags.",
+    );
+    expect(html).not.toMatch(
+      /Recommended Actions[\s\S]*Pending[\s\S]*data-review-slot="retention-email"/,
+    );
+  });
+
+  it("shows Dismissed on the Actions header chip after a Dismiss decision", () => {
+    const stored = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "Please pause my SIP this month"'],
+    });
+    stored.status = "dismissed";
+    stored.decidedAt = "2026-09-06T12:00:00.000Z";
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal(),
+        customerName: "Priya",
+        supervisedAction: stored,
+      }),
+    );
+
+    expect(html).toMatch(
+      /Recommended Actions[\s\S]*Dismissed[\s\S]*data-review-slot="retention-email"/,
+    );
+    expect(html).toContain(
+      "Dismissed. Sioona never sends — nothing to run outside.",
+    );
   });
 
   it("keeps Retention Email Evidence when Why is hidden (matches only)", () => {
@@ -417,7 +479,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copy reply to clipboard");
     expect(html).toContain('disabled=""');
     expect(html).toContain(
-      "break-words text-pretty text-copy-16 text-sio-fg-muted",
+      "min-w-0 flex-1 break-words text-pretty text-copy-16 text-sio-fg-muted",
     );
     expect(html).toMatch(
       /Recommended Actions[\s\S]*No recommended reply[\s\S]*Copy Reply/,
@@ -453,7 +515,7 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
     expect(pending).toContain('aria-haspopup="dialog"');
-    expect(pending).toContain("Label in Feedback first");
+    expect(pending).not.toContain("Label in Feedback first");
     // Pending: secondary Acted (Copy is also secondary).
     expect(pending).toContain("btn-secondary");
     // Mark as Acted button itself is secondary (btn-primary may appear on Retention Approve).

@@ -137,6 +137,22 @@ export function groundTruthOptionRowClass(
  * Compact Ground Truth picker for the Feedback pane header.
  * Saves via the same `/api/conversations/:id/ground-truth` path as before.
  */
+export function groundTruthSaveErrorMessage(error: string): string {
+  return `${error}. Try again or refresh the page.`;
+}
+
+/** Visible save failure under the FilterPill (not sr-only — touch has no title). */
+export function GroundTruthSaveError({ error }: { error: string }) {
+  return (
+    <p
+      className="max-w-[16rem] text-pretty text-right text-label-12 leading-5 text-sio-status-danger-fg"
+      role="alert"
+    >
+      {groundTruthSaveErrorMessage(error)}
+    </p>
+  );
+}
+
 export function GroundTruthControl({
   conversationId,
   groundTruth,
@@ -195,7 +211,12 @@ export function GroundTruthControl({
   }
 
   return (
-    <div className={cn("relative flex shrink-0 items-center", className)}>
+    <div
+      className={cn(
+        "relative flex shrink-0 flex-col items-end gap-1",
+        className,
+      )}
+    >
       <FilterPillFrame>
         <DropdownMenu open={open} onOpenChange={setOpen}>
           <DropdownMenuTrigger asChild>
@@ -208,7 +229,7 @@ export function GroundTruthControl({
               aria-label={`Ground Truth, ${currentLabel}`}
               title={
                 error
-                  ? `${error}. Try again or refresh the page.`
+                  ? groundTruthSaveErrorMessage(error)
                   : "Ground Truth — optional Eval gold label"
               }
               className={cn(pending && "cursor-wait opacity-80")}
@@ -312,11 +333,7 @@ export function GroundTruthControl({
       <p className="sr-only" aria-live="polite">
         {pending ? "Saving…" : null}
       </p>
-      {error ? (
-        <p className="sr-only" role="alert">
-          {error}. Try again or refresh the page.
-        </p>
-      ) : null}
+      {error ? <GroundTruthSaveError error={error} /> : null}
     </div>
   );
 }
