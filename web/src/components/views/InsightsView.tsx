@@ -502,7 +502,10 @@ export function InsightsView({
               />
             </div>
             {vaultShowcaseLoading && vaultFile ? (
-              <VaultShowcaseLoader fileName={vaultFile} />
+              <VaultShowcaseLoader
+                fileName={vaultFile}
+                keepSetFileName={store.pilot?.lastUploadedFileName}
+              />
             ) : (
               <>
                 <InsightsQueueMetrics

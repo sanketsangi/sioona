@@ -8,6 +8,8 @@ import {
   matchesVaultSampleName,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
+import { vaultInsightsHref } from "@/lib/vault-file";
+import { viewHref } from "@/lib/views";
 
 export type VaultShowcaseKind = "sample" | "partner";
 
@@ -58,14 +60,55 @@ export function vaultShowcaseDisplayName(kind: VaultShowcaseKind): string {
 }
 
 /** Idle / first-paint label before NDJSON progress arrives. */
-export function vaultShowcaseLoadingLabel(kind: VaultShowcaseKind): string {
-  return kind === "sample"
-    ? "Loading Sample…"
-    : "Loading Partner Demo…";
+export function vaultShowcaseLoadingLabel(_kind: VaultShowcaseKind): string {
+  return "Finding signals…";
+}
+
+/** Realistic wait copy under the status line. */
+export function vaultShowcaseExpectation(): string {
+  return "Usually ready in about 20 seconds.";
 }
 
 export function vaultShowcaseFailedMessage(kind: VaultShowcaseKind): string {
   return kind === "sample"
     ? "Sample failed to load"
     : "Partner Demo failed to load";
+}
+
+export function vaultShowcaseStallMessage(kind: VaultShowcaseKind): string {
+  const pack = kind === "sample" ? "Sample" : "Partner Demo";
+  return `${pack} is taking longer than expected. Retry, or cancel to stay on the current batch.`;
+}
+
+/** How long the loader may spin before a soft-fail. */
+export const VAULT_SHOWCASE_STALL_MS = 30_000;
+
+/**
+ * Land on Insights after a finished wipe+seed even if the 30s soft-fail
+ * already painted, or Cancel unmounted the loader. Discarding success
+ * leaves the store on the new pack while chrome still shows Retry
+ * (another wipe) or Cancel to a stale keep-set that auto-loads again.
+ * Stall only hides in-flight progress. Retry (new runId) stays discarded.
+ * In-flight Cancel aborts the POST so consume does not finish.
+ */
+export function shouldLandShowcaseLoad(opts: {
+  /** Unmount / Cancel — ignored when this run's consume already finished. */
+  cancelled?: boolean;
+  runId: number;
+  currentRunId: number;
+}): boolean {
+  return opts.runId === opts.currentRunId;
+}
+
+/**
+ * Cancel must leave the in-flight load. With no keep-set name, Sample
+ * Insights is the same URL that started the loader (bare Insights
+ * defaults to Sample and auto-loads). Upload does not re-trigger it.
+ */
+export function vaultShowcaseCancelHref(
+  keepSetFileName?: string | null,
+): string {
+  const name = keepSetFileName?.trim();
+  if (name) return vaultInsightsHref(name);
+  return viewHref("upload");
 }

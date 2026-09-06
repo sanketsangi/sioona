@@ -5,7 +5,9 @@ import {
 } from "@/lib/partner-demo-replace-guard";
 import {
   defaultInsightsHref,
+  isVaultBatchRenderable,
   parseVaultFile,
+  resolveHeaderBatchName,
   resolveInsightsVaultFile,
   resolveVaultActiveFile,
   vaultFileEmptyNext,
@@ -93,6 +95,52 @@ describe("vaultFileMatchesKeepSet", () => {
         "Zerodha_week_5_batch_01.json",
       ),
     ).toBe(false);
+  });
+});
+
+describe("resolveHeaderBatchName", () => {
+  it("prefers selected vault file while a showcase pack is loading", () => {
+    expect(
+      resolveHeaderBatchName({
+        vaultFile: ZERODHA_BATCH02_SAMPLE_NAME,
+        lastUploadedFileName: GROWW_SHOWCASE_SAMPLE_NAME,
+      }),
+    ).toBe(ZERODHA_BATCH02_SAMPLE_NAME);
+  });
+
+  it("falls back to keep-set when URL omits file", () => {
+    expect(
+      resolveHeaderBatchName({
+        vaultFile: null,
+        lastUploadedFileName: "Zerodha_week_5_batch_01.json",
+      }),
+    ).toBe("Zerodha_week_5_batch_01.json");
+  });
+});
+
+describe("isVaultBatchRenderable", () => {
+  it("is false while the selected vault is not the keep-set", () => {
+    expect(
+      isVaultBatchRenderable(
+        ZERODHA_BATCH02_SAMPLE_NAME,
+        GROWW_SHOWCASE_SAMPLE_NAME,
+      ),
+    ).toBe(false);
+  });
+
+  it("is true when selected vault matches keep-set", () => {
+    expect(
+      isVaultBatchRenderable(
+        ZERODHA_BATCH02_SAMPLE_NAME,
+        ZERODHA_BATCH02_SAMPLE_NAME,
+      ),
+    ).toBe(true);
+  });
+
+  it("is true when no vault file is selected", () => {
+    expect(isVaultBatchRenderable(null, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(
+      true,
+    );
   });
 });
 

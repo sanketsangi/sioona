@@ -840,9 +840,38 @@ describe("InsightsView Neon pending overlay", () => {
     );
 
     expect(html).toContain("Groww_batch_02");
-    expect(html).toContain("Loading Sample…");
+    expect(html).toContain("Finding signals…");
+    expect(html).toContain("Usually ready in about 20 seconds.");
+    expect(html).toContain("Cancel");
+    expect(html).toContain(
+      'href="/?view=insights&amp;file=Zerodha_week_5_batch_01.json"',
+    );
     expect(html).not.toContain("Sample Not Loaded");
     expect(html).not.toContain("Pending signal 1");
+  });
+
+  it("Cancel leaves a first-paint load when the keep-set is empty", () => {
+    const store = storeFromSignals([]);
+    store.pilot = { baselineOpportunities: 0 };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Groww_batch_02",
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Finding signals…");
+    expect(html).toContain("Cancel");
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain(
+      'href="/?view=insights&amp;file=Groww_batch_02"',
+    );
   });
 
   it("keeps Upload CTA when a non-showcase Vault file is not loaded", () => {
