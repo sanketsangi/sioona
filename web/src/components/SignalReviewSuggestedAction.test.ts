@@ -66,6 +66,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('aria-label="Mark as Acted"');
     expect(html).toContain('aria-label="Reply actions"');
     expect(html).toContain('data-review-actions-toolbar="true"');
+    expect(html).toContain('data-review-actions-footer="true"');
+    expect(html).toContain("justify-end");
+    expect(html).toContain("w-full shrink-0 flex-wrap items-center justify-end gap-2");
+    expect(html).toContain('class="sr-only"');
     expect(html).not.toContain("Recommended reply");
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain("active:translate-y-0");
@@ -76,10 +80,13 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('data-variant="outline"');
     expect(html).not.toContain('data-copied="true"');
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
+      /Recommended Actions[\s\S]*Hi Priya[\s\S]*Copy Reply[\s\S]*Mark as Acted/,
+    );
+    expect(html).toMatch(
+      /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
     expect(html).not.toMatch(
-      /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Hi Priya/,
     );
     expect(html).toContain("M2.75 0.5C1.7835 0.5");
     expect(html).toContain('fill="currentColor"');
@@ -105,7 +112,9 @@ describe("SignalReviewSuggestedAction", () => {
       'truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base',
     );
     expect(html).toContain("flex shrink-0 items-center");
-    expect(html).toContain("flex shrink-0 items-center gap-2");
+    expect(html).toContain(
+      "w-full shrink-0 flex-wrap items-center justify-end gap-2",
+    );
     expect(html).not.toContain('data-slot="card-header"');
     expect(html).not.toContain('data-slot="card-title"');
     expect(html).not.toContain('data-slot="card-action"');
@@ -189,9 +198,15 @@ describe("SignalReviewSuggestedAction", () => {
     // Actions + Why pane headers.
     expect(html.match(/border-b border-sio-border-base/g)?.length).toBe(2);
     expect(html).toContain("surface-quiet");
-    // Embedded Retention Email uses h3 + Pending chip (not a Label heading).
+    // Pending chip lives on Recommended Actions header (not Retention Email).
     expect(html).toMatch(
-      /data-review-slot="retention-email"[\s\S]*<h3[\s\S]*Retention Email[\s\S]*Pending/,
+      /Recommended Actions[\s\S]*Pending[\s\S]*data-review-slot="retention-email"/,
+    );
+    expect(html).toMatch(
+      /data-review-slot="retention-email"[\s\S]*<h3[\s\S]*Retention Email/,
+    );
+    expect(html).not.toMatch(
+      /data-review-slot="retention-email"[\s\S]*Pending[\s\S]*Approve Draft/,
     );
     expect(html).toContain(
       "min-w-0 flex-1 truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
@@ -405,7 +420,7 @@ describe("SignalReviewSuggestedAction", () => {
       "break-words text-pretty text-copy-16 text-sio-fg-muted",
     );
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*No recommended reply/,
+      /Recommended Actions[\s\S]*No recommended reply[\s\S]*Copy Reply/,
     );
   });
 
@@ -542,7 +557,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copy Reply");
   });
 
-  it("puts Mark as Acted in the header and omits the Correct chip", () => {
+  it("puts Mark as Acted in the footer and omits the Correct chip", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -561,9 +576,9 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya — I saw your note about/,
+      /Recommended Actions[\s\S]*Hi Priya — I saw your note about[\s\S]*Copy Reply[\s\S]*Mark as Acted/,
     );
-    expect(html).not.toMatch(
+    expect(html).toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
     expect(html).toContain("Copy Reply");

@@ -307,4 +307,24 @@ describe("FeedbackControls", () => {
     expect(html).toContain('data-variant="default"');
     expect(html).toContain('data-variant="outline"');
   });
+
+  it("mounts Ground Truth FilterPill in the Feedback header when conversationId is set", () => {
+    const html = renderToStaticMarkup(
+      createElement(FeedbackControls, {
+        signal: signal(),
+        conversationId: "conv_1",
+      }),
+    );
+
+    expect(html).toContain('aria-label="Ground Truth, Unset"');
+    expect(html).toContain("Ground Truth");
+    expect(html).toContain("Unset");
+    expect(html).toContain('data-pill-background="true"');
+    expect(html).toContain("rounded-[10ex]");
+    // Right-aligned cluster: Feedback status then GT (GT pinned to the corner).
+    expect(html.indexOf("Pending")).toBeLessThan(
+      html.indexOf('aria-label="Ground Truth, Unset"'),
+    );
+    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
+  });
 });

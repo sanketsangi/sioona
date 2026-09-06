@@ -163,7 +163,11 @@ describe("RetentionEmailAction", () => {
     expect(html).not.toContain(
       "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
     );
-    expect(html).toContain("flex-nowrap");
+    expect(html).toContain("flex flex-wrap items-center justify-end gap-1");
+    expect(html).toContain(
+      "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5",
+    );
+    expect(html).not.toContain("flex-nowrap");
     expect(html).toContain("Sioona never sends or CRM-tags");
     expect(html).toContain(
       "You send from your tools — Sioona never sends or CRM-tags.",
@@ -203,16 +207,23 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("gap-1.5");
     // align-items:stretch lives on .retention-email-columns in globals.css
     expect(html).toContain("retention-email-columns");
-    expect(html).toContain("flex-nowrap");
+    expect(html).toContain("flex flex-wrap items-center justify-end gap-1");
+    expect(html).toContain(
+      "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5",
+    );
+    expect(html).not.toContain("flex-nowrap");
     expect(html).not.toContain(
       "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
     );
     expect(html).toContain("Retention Email");
-    expect(html).toContain("Pending");
+    // Status chip is owned by Recommended Actions when embedded — not here.
+    expect(html).not.toContain("bg-sio-bg-muted text-sio-fg-muted");
     expect(html).toContain("Approve Draft");
     expect(html).toContain("High-confidence retention draft");
     expect(html).toContain("Evidence");
     expect(html).toContain("Draft");
+    // Draft title precedes decision buttons on the same header row.
+    expect(html.indexOf(">Draft<")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html).toContain("rounded-[var(--radius-control)]");
     // Quiet subsection labels (Why This Fired / Matched), not pill chips.

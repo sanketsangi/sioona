@@ -1476,6 +1476,7 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Feedback");
     expect(html).toContain("Ground Truth");
+    expect(html).toContain('aria-label="Ground Truth, Unset"');
     expect(html).toContain("insights-review-feedback");
     expect(html).toContain("insights-review-split");
     expect(html).toContain('data-review-slot="transcript"');
@@ -1489,9 +1490,14 @@ describe("InsightsView evidence-grounded review", () => {
     expect(feedbackSlot).toBeGreaterThan(-1);
     expect(actionsSlot).toBeGreaterThan(feedbackSlot);
     expect(whySlot).toBeGreaterThan(actionsSlot);
+    // GT lives in Feedback header (not a sibling card under Feedback).
     expect(html.indexOf(">Feedback<", feedbackSlot)).toBeLessThan(
-      html.indexOf(">Ground Truth<", feedbackSlot),
+      html.indexOf('aria-label="Ground Truth, Unset"', feedbackSlot),
     );
+    expect(html.indexOf('aria-label="Ground Truth, Unset"', feedbackSlot)).toBeLessThan(
+      actionsSlot,
+    );
+    expect(html).not.toContain(">Ground Truth</h3>");
     // Conversation trigger sits in the rail before Feedback — not a header
     // overlay that covers labeling chrome.
     const openConversation = html.indexOf("Open Conversation");

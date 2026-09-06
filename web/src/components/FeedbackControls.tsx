@@ -12,6 +12,7 @@ import {
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
+import { GroundTruthControl } from "@/components/GroundTruthControl";
 import { InsightsReviewHelperNote } from "@/components/InsightsReviewHelperNote";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
@@ -28,7 +29,7 @@ import {
   isEditableShortcutTarget,
 } from "@/lib/review-triage";
 import { postSignalFeedback } from "@/lib/signal-feedback-client";
-import type { FeedbackLabel, Signal } from "@/lib/types";
+import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
 import { afterFeedbackHref, viewHref, type SignalReviewTriage } from "@/lib/views";
 import { cn } from "@/lib/utils";
 
@@ -62,7 +63,7 @@ const options: {
   },
 ];
 
-/** Header chip chrome — same shell as GroundTruthControl STATUS_CHIP. */
+/** Header chip chrome — quiet status fill for Feedback Pending / C / I / P. */
 const FEEDBACK_CHIP: Record<FeedbackLabel | "pending", string> = {
   pending: "bg-sio-bg-muted text-sio-fg-muted",
   correct: "bg-sio-status-success-bg text-sio-status-success-fg",
@@ -124,10 +125,15 @@ export function reduceFeedbackChromeLabel(
 export function FeedbackControls({
   signal,
   triage,
+  conversationId,
+  groundTruth,
   className,
 }: {
   signal: Signal;
   triage?: SignalReviewTriage;
+  /** When set, mounts Ground Truth picker in the Feedback header. */
+  conversationId?: string;
+  groundTruth?: SignalType | "none";
   className?: string;
 }) {
   const router = useRouter();
@@ -291,11 +297,20 @@ export function FeedbackControls({
       aria-labelledby={headingId}
     >
       <InsightsReviewPaneHeader id={headingId} title="Feedback">
-        <InsightsReviewStatusChip
-          className={FEEDBACK_CHIP[feedbackLabel ?? "pending"]}
-        >
-          {currentTitle ?? "Pending"}
-        </InsightsReviewStatusChip>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <InsightsReviewStatusChip
+            className={FEEDBACK_CHIP[feedbackLabel ?? "pending"]}
+          >
+            {currentTitle ?? "Pending"}
+          </InsightsReviewStatusChip>
+          {conversationId ? (
+            <GroundTruthControl
+              conversationId={conversationId}
+              groundTruth={groundTruth}
+              defaultType={signal.type}
+            />
+          ) : null}
+        </div>
       </InsightsReviewPaneHeader>
 
       <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col px-0">

@@ -8,7 +8,13 @@ import { CopyIcon } from "@/components/icons/CopyIcon";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
-import { RetentionEmailAction } from "@/components/RetentionEmailAction";
+import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
+import {
+  RetentionEmailAction,
+  resolveRetentionEmailAction,
+  RETENTION_EMAIL_STATUS_CHIP,
+  RETENTION_EMAIL_STATUS_LABEL,
+} from "@/components/RetentionEmailAction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -219,9 +225,10 @@ function SupportHeading({ id, children }: { id: string; children: string }) {
 
 /**
  * Recommended Actions + Why This Fired + Matched + Retention Email.
- * Distinct Actions well under Feedback / GT (`data-review-slot="actions"`).
- * Header: Copy Reply (secondary) + Mark as Acted (primary only on Correct
- * ¬acted). Soft nudge when Feedback is missing or not Correct — gate dialog
+ * Distinct Actions well under Feedback (`data-review-slot="actions"`).
+ * Footer: Copy Reply (secondary) + Mark as Acted (primary only on Correct
+ * ¬acted) — below Retention Email when present, else below the reply draft.
+ * Soft nudge when Feedback is missing or not Correct — gate dialog
  * still sends operators to Feedback; Incorrect / Partial are not hard-blocked
  * beyond that. Empty = “No recommended reply”; loading = skeleton + both CTAs
  * disabled. Copy / Acted errors stay inline and recoverable. Retention Email
@@ -400,6 +407,175 @@ export function SignalReviewSuggestedAction({
 
   const wellClass = cn("insights-review-pane", evalCardClassName, className);
 
+  const retentionEmail = resolveRetentionEmailAction(
+    signal,
+    customerName,
+    supervisedAction,
+  );
+  const retentionStatusChip = retentionEmail ? (
+    <InsightsReviewStatusChip
+      className={RETENTION_EMAIL_STATUS_CHIP[retentionEmail.status]}
+    >
+      {RETENTION_EMAIL_STATUS_LABEL[retentionEmail.status]}
+    </InsightsReviewStatusChip>
+  ) : null;
+
+  const replyActionsToolbar = (
+    <div
+      className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2"
+      data-review-actions-toolbar="true"
+      role="group"
+      aria-label="Reply actions"
+    >
+      <Button
+        type="button"
+        variant="outline"
+        data-copied={copyState === "copied" ? "true" : undefined}
+        className={cn("btn-secondary shrink-0 active:translate-y-0")}
+        disabled={!draftReady}
+        aria-label="Copy reply to clipboard"
+        aria-describedby={copyStatusId}
+        onClick={() => void copyReply()}
+      >
+        {/* shadcn-style icon swap — same grid cell so width/height stay fixed */}
+        <span
+          className="relative inline-grid size-3.5 shrink-0 place-items-center"
+          aria-hidden
+        >
+          <CopyIcon
+            className={cn(
+              "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
+              copyState === "copied"
+                ? "scale-0 opacity-0"
+                : "scale-100 opacity-100",
+            )}
+          />
+          <Check
+            className={cn(
+              "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
+              copyState === "copied"
+                ? "scale-100 opacity-100"
+                : "scale-0 opacity-0",
+            )}
+            weight="bold"
+          />
+        </span>
+        {/* Stack labels so “Copied…” never shrinks past “Copy Reply”; center the shorter label. */}
+        <span className="relative inline-grid justify-items-center text-center">
+          <span
+            className={cn(
+              "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
+              copyState === "copied" ? "opacity-100" : "opacity-0",
+            )}
+            aria-hidden={copyState !== "copied"}
+          >
+            Copied…
+          </span>
+          <span
+            className={cn(
+              "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
+              copyState === "copied" ? "opacity-0" : "opacity-100",
+            )}
+            aria-hidden={copyState === "copied"}
+          >
+            Copy Reply
+          </span>
+        </span>
+      </Button>
+      {isActed ? (
+        <Button
+          type="button"
+          className="btn-primary shrink-0 disabled:opacity-100"
+          disabled
+          aria-pressed="true"
+          aria-label="Marked as Acted"
+        >
+          <Check className="size-3.5 shrink-0" weight="bold" aria-hidden />
+          Marked as Acted
+        </Button>
+      ) : (
+        <Dialog open={feedbackGateOpen} onOpenChange={setFeedbackGateOpen}>
+          <TooltipProvider delayDuration={400}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex shrink-0">
+                  <Button
+                    type="button"
+                    variant={actedIsPrimary ? "default" : "outline"}
+                    className={cn(
+                      actedIsPrimary ? "btn-primary" : "btn-secondary",
+                      "shrink-0",
+                    )}
+                    disabled={actionsBusy}
+                    aria-busy={actedPending}
+                    aria-haspopup={canMarkActed ? undefined : "dialog"}
+                    aria-keyshortcuts="A Enter"
+                    aria-label="Mark as Acted"
+                    onClick={requestMarkActed}
+                  >
+                    {actedPending ? (
+                      <ButtonSpinner />
+                    ) : (
+                      <Check
+                        className="size-3.5 shrink-0"
+                        weight="bold"
+                        aria-hidden
+                      />
+                    )}
+                    Mark as Acted
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                {ACTED_TOOLTIP}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <DialogContent
+            className="overscroll-contain motion-reduce:animate-none"
+            showCloseButton
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              giveFeedbackRef.current?.focus();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {hasFeedback
+                  ? "Correct Feedback Required"
+                  : "Give Feedback First"}
+              </DialogTitle>
+              <DialogDescription>
+                {hasFeedback
+                  ? "Mark as Acted is only for Correct reviews. Update Feedback to Correct, then try again. You run the step in your tools — Sioona never sends or CRM-tags."
+                  : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Mark as Acted records that you handled a Correct review. You execute outside — Sioona never sends or CRM-tags."}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="btn-secondary"
+                >
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button
+                ref={giveFeedbackRef}
+                type="button"
+                className="btn-primary"
+                onClick={goToFeedback}
+              >
+                Give Feedback
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
+
   return (
     <>
       <Card
@@ -410,159 +586,7 @@ export function SignalReviewSuggestedAction({
         aria-labelledby={headingId}
       >
         <InsightsReviewPaneHeader id={headingId} title="Recommended Actions">
-          <div
-            className="flex shrink-0 items-center gap-2"
-            data-review-actions-toolbar="true"
-            role="group"
-            aria-label="Reply actions"
-          >
-            <Button
-              type="button"
-              variant="outline"
-              data-copied={copyState === "copied" ? "true" : undefined}
-              className={cn("btn-secondary shrink-0 active:translate-y-0")}
-              disabled={!draftReady}
-              aria-label="Copy reply to clipboard"
-              aria-describedby={copyStatusId}
-              onClick={() => void copyReply()}
-            >
-              {/* shadcn-style icon swap — same grid cell so width/height stay fixed */}
-              <span
-                className="relative inline-grid size-3.5 shrink-0 place-items-center"
-                aria-hidden
-              >
-                <CopyIcon
-                  className={cn(
-                    "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
-                    copyState === "copied"
-                      ? "scale-0 opacity-0"
-                      : "scale-100 opacity-100",
-                  )}
-                />
-                <Check
-                  className={cn(
-                    "col-start-1 row-start-1 size-3.5 transition-[transform,opacity] duration-150 motion-reduce:transition-none",
-                    copyState === "copied"
-                      ? "scale-100 opacity-100"
-                      : "scale-0 opacity-0",
-                  )}
-                  weight="bold"
-                />
-              </span>
-              {/* Stack labels so “Copied…” never shrinks past “Copy Reply”; center the shorter label. */}
-              <span className="relative inline-grid justify-items-center text-center">
-                <span
-                  className={cn(
-                    "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
-                    copyState === "copied" ? "opacity-100" : "opacity-0",
-                  )}
-                  aria-hidden={copyState !== "copied"}
-                >
-                  Copied…
-                </span>
-                <span
-                  className={cn(
-                    "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
-                    copyState === "copied" ? "opacity-0" : "opacity-100",
-                  )}
-                  aria-hidden={copyState === "copied"}
-                >
-                  Copy Reply
-                </span>
-              </span>
-            </Button>
-            {isActed ? (
-              <Button
-                type="button"
-                className="btn-primary shrink-0 disabled:opacity-100"
-                disabled
-                aria-pressed="true"
-                aria-label="Marked as Acted"
-              >
-                <Check className="size-3.5 shrink-0" weight="bold" aria-hidden />
-                Marked as Acted
-              </Button>
-            ) : (
-              <Dialog open={feedbackGateOpen} onOpenChange={setFeedbackGateOpen}>
-                <TooltipProvider delayDuration={400}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex shrink-0">
-                        <Button
-                          type="button"
-                          variant={actedIsPrimary ? "default" : "outline"}
-                          className={cn(
-                            actedIsPrimary ? "btn-primary" : "btn-secondary",
-                            "shrink-0",
-                          )}
-                          disabled={actionsBusy}
-                          aria-busy={actedPending}
-                          aria-haspopup={canMarkActed ? undefined : "dialog"}
-                          aria-keyshortcuts="A Enter"
-                          aria-label="Mark as Acted"
-                          onClick={requestMarkActed}
-                        >
-                          {actedPending ? (
-                            <ButtonSpinner />
-                          ) : (
-                            <Check
-                              className="size-3.5 shrink-0"
-                              weight="bold"
-                              aria-hidden
-                            />
-                          )}
-                          Mark as Acted
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="end">
-                      {ACTED_TOOLTIP}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <DialogContent
-                  className="overscroll-contain motion-reduce:animate-none"
-                  showCloseButton
-                  onOpenAutoFocus={(event) => {
-                    event.preventDefault();
-                    giveFeedbackRef.current?.focus();
-                  }}
-                >
-                  <DialogHeader>
-                    <DialogTitle>
-                      {hasFeedback
-                        ? "Correct Feedback Required"
-                        : "Give Feedback First"}
-                    </DialogTitle>
-                    <DialogDescription>
-                      {hasFeedback
-                        ? "Mark as Acted is only for Correct reviews. Update Feedback to Correct, then try again. You run the step in your tools — Sioona never sends or CRM-tags."
-                        : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Mark as Acted records that you handled a Correct review. You execute outside — Sioona never sends or CRM-tags."}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="btn-secondary"
-                      >
-                        Cancel
-                      </Button>
-                    </DialogClose>
-                    <Button
-                      ref={giveFeedbackRef}
-                      type="button"
-                      className="btn-primary"
-                      onClick={goToFeedback}
-                    >
-                      Give Feedback
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
+          {retentionStatusChip}
         </InsightsReviewPaneHeader>
 
         <CardContent className="flex min-w-0 flex-col px-0">
@@ -637,6 +661,16 @@ export function SignalReviewSuggestedAction({
             customerName={customerName}
             action={supervisedAction}
           />
+
+          <div
+            className={cn(
+              evalCardPadClassName,
+              "flex min-w-0 flex-col gap-1.5 pb-3 pt-0",
+            )}
+            data-review-actions-footer="true"
+          >
+            {replyActionsToolbar}
+          </div>
         </CardContent>
       </Card>
       {showSupport ? (
