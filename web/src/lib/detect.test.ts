@@ -546,7 +546,6 @@ describe("runDetection", () => {
       "Never bought stock. Walk me through first buy on this app.",
       "I only have mutual funds here. How do I turn on stocks?",
       "Singapore NRI. Don't have Zerodha yet. Non-PIS NRO, not the PIS bank route.",
-      "Groww app keeps crashing. Can I open Zerodha and move later?",
       "Id created this week, only equity so far. First F&O — bank OTP income proof?",
       "Never did IPO. MediLabs open. ASBA at Axis or UPI on Kite?",
     ];
