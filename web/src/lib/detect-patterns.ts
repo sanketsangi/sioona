@@ -5,7 +5,7 @@
  * same-id adjacent upsell, fraud/complaint → none) without copying
  * conversation ids, customer names, or held-out planted phrases.
  * Precision-first: ticket/chat/login/document ops must not fire; competitor
- * names only with I'm/sitting/already/now (not "research on Angel").
+ * names only with I'm/sitting/already/now/considering (not "research on Angel").
  */
 
 import type { SignalType } from "./types";
@@ -15,14 +15,18 @@ export type PatternHit = {
   span: string;
 };
 
+/** India broking competitors — used in retention soft-switch patterns. */
+const COMPETITOR =
+  "(?:angel(?:\\s+one)?|upstox|dhan|kuvera|fyers|groww)";
+
 const LEAD_PATTERNS: Array<{ label: string; re: RegExp }> = [
   {
     label: "first-product",
-    re: /\b(?:my )?first\s+(?:time\s+buying\s+|time\s+)?(?:digital\s+)?(?:\w+\s+){0,1}(?:fd|elss|sip|etf|gold|stock|demat|credit card|delivery buy)\b/i,
+    re: /\b(?:my )?first\s+(?:time\s+buying\s+|time\s+)?(?:digital\s+)?(?:\w+\s+){0,1}(?:fd|elss|sip|etf|gold|stock|demat|credit card|delivery buy|f&o|fno|ipo|cnc)\b/i,
   },
   {
     label: "never-traded",
-    re: /\bnever\s+(?:bought|traded|used|invested|placed)\b/i,
+    re: /\bnever\s+(?:bought|traded|used|invested|placed|did)\b/i,
   },
   {
     label: "starting-fresh",
@@ -48,6 +52,19 @@ const LEAD_PATTERNS: Array<{ label: string; re: RegExp }> = [
     label: "want-etf",
     // "want … ETF" as a buy, not "want to know why my ETF NAV …"
     re: /\bwant(?!\s+to (?:know|check|see|understand)\b)\s+.{0,36}\b(?:one )?(?:index )?etf\b/i,
+  },
+  {
+    label: "dont-have-broker-yet",
+    re: /\bdon'?t have\s+(?:a\s+)?(?:zerodha|groww|demat|account)\s+yet\b/i,
+  },
+  {
+    label: "open-broker",
+    re: /\b(?:can i |want to |how do i )?open\s+(?:a\s+)?zerodha\b|\bopening zerodha\b|\bnew zerodha\b|\benough to open\b/i,
+  },
+  {
+    label: "joint-demat-open",
+    // Multi-person on one demat / opening together
+    re: /\b(?:three|two|both).{0,24}on one demat\b|\bjoint demat\b/i,
   },
 ];
 
@@ -79,27 +96,38 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "other-app",
-    re: /\b(?:the )?other (?:app|broker|platform)\b/i,
+    // Switch/leave/use TO the other app — not "PLAID from another app" / "any other app linked"
+    re: /\b(?:switch(?:ing)?(?:\s+to)?|mov(?:e|ing)(?:\s+to)?|shift(?:ing)?(?:\s+to)?|try|leave|leaving|install(?:ing)?|go(?:ing)?(?:\s+to)?|tak(?:e|ing)\s+.{0,28}\s+to|park(?:ing)?\s+.{0,40}\s+on|apply(?:ing)?\s+(?:from|on|via|with)|us(?:e|ing))\s+(?:the )?other (?:app|broker|platform)\b/i,
   },
   {
     label: "another-venue",
-    re: /\banother (?:broker|app|platform|dp)\b/i,
+    // Same precision gate — bare "another app/broker" is ops/micro-deposit noise
+    re: /\b(?:switch(?:ing)?(?:\s+to)?|mov(?:e|ing)(?:\s+to)?|shift(?:ing)?(?:\s+to)?|try|leave|leaving|install(?:ing)?|go(?:ing)?(?:\s+to)?|tak(?:e|ing)\s+.{0,28}\s+to|park(?:ing)?\s+.{0,40}\s+on|apply(?:ing)?\s+(?:from|on|via|with)|funds?\s+to|finish(?:ing)?\s+.{0,40}\sat|complete\s+.{0,40}\sat)\s+another (?:broker|app|platform|dp)\b/i,
   },
   {
     label: "try-competitor",
-    re: /\btry\s+(?:another|the other|upstox|dhan|angel|kuvera|fyers)\b/i,
+    re: new RegExp(
+      `\\btry\\s+(?:another|the other|${COMPETITOR})\\b`,
+      "i"
+    ),
   },
   {
     label: "already-on-competitor",
-    re: /\balready on\s+(?:upstox|dhan|angel|kuvera|fyers)\b/i,
+    re: new RegExp(`\\balready on\\s+${COMPETITOR}\\b`, "i"),
   },
   {
     label: "move-assets-to-competitor",
-    re: /\b(?:mfs?|sips?|funds|holdings|equity|options|portfolio|folio|stocks)\s+to\s+(?:upstox|dhan|angel|kuvera|fyers|another|elsewhere)\b/i,
+    re: new RegExp(
+      `\\b(?:mfs?|sips?|funds|holdings|equity|options|portfolio|folio|stocks)\\s+to\\s+(?:${COMPETITOR}|another|elsewhere)\\b`,
+      "i"
+    ),
   },
   {
     label: "parking-elsewhere",
-    re: /\bparking\s+.{0,36}\s+on\s+(?:kuvera|upstox|dhan|angel|another)\b/i,
+    re: new RegExp(
+      `\\bparking\\s+.{0,36}\\s+on\\s+(?:${COMPETITOR}|another)\\b`,
+      "i"
+    ),
   },
   {
     label: "folio-elsewhere",
@@ -107,7 +135,8 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "pause-trading",
-    re: /\bpause (?:trading|this account|gold|sips?)\b/i,
+    // Pause segment / SIPs / account — not "pause the video"
+    re: /\bpause\s+(?:trading|this account|gold|sips?|f&o|fno|coin sips?|here)\b/i,
   },
   {
     label: "leave-the-app",
@@ -119,12 +148,42 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "filling-competitor",
-    re: /\bfilling\s+(?:angel|upstox|dhan|kuvera|fyers)\b/i,
+    re: new RegExp(`\\bfilling\\s+${COMPETITOR}\\b`, "i"),
+  },
+  {
+    label: "considering-competitor",
+    // Soft switch: "Considering Dhan for morning CNC" — not bare research compare
+    re: new RegExp(`\\bconsidering\\s+${COMPETITOR}\\b`, "i"),
   },
   {
     label: "on-competitor",
     // "I'm / sitting / already on Dhan" — not "research on Angel" / "blog on Upstox"
-    re: /\b(?:i'?m|sitting|already|still|now) on\s+(?:dhan|upstox|angel|kuvera|fyers)\b/i,
+    re: new RegExp(
+      `\\b(?:i'?m|sitting|already|still|now) on\\s+${COMPETITOR}\\b`,
+      "i"
+    ),
+  },
+  {
+    label: "closing-broker",
+    // Close the broker product — not "close this ticket/chat"
+    re: /\bclos(?:e|ing)\s+(?:zerodha|kite|groww|everything|this fortnight)\b/i,
+  },
+  {
+    label: "im-closing",
+    // Bare "I'm closing." after friction — not "I'm closing this ticket"
+    re: /\bi'?m closing(?!\s+(?:this\s+)?(?:ticket|chat|request|issue|thread|incident))\b/i,
+  },
+  {
+    label: "exit-broker",
+    re: /\b(?:i'?ll\s+)?exit\s+(?:zerodha|kite|groww|upstox|dhan)\b/i,
+  },
+  {
+    label: "closure-cum-transfer",
+    re: /\bclosure[- ]cum[- ]transfer\b/i,
+  },
+  {
+    label: "done-with-products",
+    re: /\bdone with\s+(?:kite|coin|zerodha|groww)\b/i,
   },
   {
     label: "wont-keep-here",
@@ -139,8 +198,28 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
     re: /\bsit out\b/i,
   },
   {
+    label: "family-forwarding-competitor",
+    // Family pushing competitor research/advice — not bare "research on Angel"
+    re: new RegExp(
+      `\\b(?:dad|mom|father|mother|husband|wife|parents?)\\b.{0,100}\\b(?:forward(?:ing)?|push(?:ing)?|recommend(?:ing)?)\\b.{0,48}\\b${COMPETITOR}\\b`,
+      "i"
+    ),
+  },
+  {
+    label: "might-listen-family",
+    // Soft switch under ops friction: "I might just listen to him [about Angel]"
+    re: /\bmight just listen to (?:him|her|them|dad|mom|father|mother)\b/i,
+  },
+  {
+    label: "family-winning-switch",
+    re: /\b(?:dad|mom|father|mother|husband|wife)\s+is winning\b/i,
+  },
+  {
     label: "conditional-churn",
-    re: /\bif this\s+.{0,80}\b(?:leave|shift|try|pause|parking|other app|another (?:app|broker)|sit out|close|angel|upstox|dhan|kuvera|fyers)\b/i,
+    re: new RegExp(
+      `\\bif this\\s+.{0,80}\\b(?:leave|shift|try|pause|parking|other app|another (?:app|broker)|sit out|close|${COMPETITOR})\\b`,
+      "i"
+    ),
   },
 ];
 
@@ -167,7 +246,8 @@ const UPSELL_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "pledge-margin",
-    re: /\bpledge\s+.{0,32}\b(?:margin|mtf)\b/i,
+    // Pledge holdings for margin — allow a longer span for MF+stocks wording
+    re: /\bpledge\s+.{0,56}\b(?:margin|mtf|f&o)\b/i,
   },
   {
     label: "increase-margin",
@@ -190,6 +270,45 @@ const UPSELL_PATTERNS: Array<{ label: string; re: RegExp }> = [
   {
     label: "commodity-available",
     re: /\b(?:commodity|crude)\b.{0,28}\b(?:available|enable|activate|add)\b/i,
+  },
+  {
+    label: "add-currency-pair",
+    re: /\badd\s+(?:eurinr|usdinr|currency)\b/i,
+  },
+  {
+    label: "enable-ddpi",
+    re: /\benable ddpi\b/i,
+  },
+  {
+    label: "want-smallcase",
+    re: /\bwant\s+a?\s*smallcase\b|\brun a smallcase\b|\btry (?:a |one )?smallcase\b/i,
+  },
+  {
+    label: "lumpsum-ask",
+    // Existing SIP/fund + lumpsum — not bare "what is lumpsum"
+    re: /\b(?:want|add|do)\s+.{0,48}\blumpsum\b|\blumpsum\s+.{0,40}\b(?:same|fund|sip|coin)\b/i,
+  },
+  {
+    label: "second-fund",
+    re: /\bsecond fund\b/i,
+  },
+  {
+    label: "bump-sip-amount",
+    // Amount / investment bump — not "increase my SIP date"
+    re: /\bwant\s+₹?\d[\d,]*(?:\.\d+)?\s+from next month\b|\bbump (?:it |sip )?(?:to|up)\b|\bincrease (?:my |the )?(?:monthly )?investment\b|\bincrease .{0,20}sip (?:to|by|amount|from)\b/i,
+  },
+  {
+    label: "want-connect-api",
+    re: /\b(?:want|need)\s+(?:kite\s+)?connect\b|\bkite connect api\b/i,
+  },
+  {
+    label: "family-own-id",
+    // Existing customer helping a family member open their own login
+    re: /\b(?:father|mother|dad|mom|wife|husband|son|daughter)\s+wants?\s+(?:his|her|their)\s+own\s+(?:id|account|login|demat)\b/i,
+  },
+  {
+    label: "price-alerts",
+    re: /\b(?:want|need|set)\s+.{0,24}(?:price |% |percent )?move alerts?\b|\balerts? on nifty\b/i,
   },
 ];
 
@@ -217,18 +336,19 @@ const FRAUD_COMPLAINT_PATTERNS: RegExp[] = [
 ];
 
 export function isFraudComplaintText(text: string): boolean {
-  return FRAUD_COMPLAINT_PATTERNS.some((re) => {
-    re.lastIndex = 0;
-    return re.test(text);
-  });
+  return FRAUD_COMPLAINT_PATTERNS.some((re) => re.test(text));
 }
 
-/** True when `term` at `index` is under a local negation (never/not/didn't …). */
-export function isNegatedMatch(text: string, index: number): boolean {
-  if (index <= 0) return false;
-  const window = text.slice(Math.max(0, index - 24), index);
-  return /(?:^|[^a-z0-9])(?:not|never|no longer|without|didn'?t|doesn'?t|don'?t|wasn'?t|isn'?t|can'?t)\s+(?:really\s+|been\s+|even\s+)?$/i.test(
-    window
+/**
+ * True when a matched span is locally negated (never / not / no longer /
+ * without / don't … immediately before the match, with optional really /
+ * been / even). Used so "never interested in insurance" and "no longer
+ * interested in insurance" do not fire upsell.
+ */
+export function isNegatedMatch(text: string, matchIndex: number): boolean {
+  const before = text.slice(Math.max(0, matchIndex - 32), matchIndex);
+  return /(?:\bno longer|\bwithout)(?:\s+\w+){0,2}\s+$|\b(?:never|not|no|don'?t|doesn'?t|didn'?t|won'?t|wasn'?t|isn'?t|cannot|can'?t)(?:\s+(?:really|been|even))?\s+$/i.test(
+    before
   );
 }
 
@@ -238,14 +358,12 @@ export function matchIntentPatterns(
 ): PatternHit[] {
   const hits: PatternHit[] = [];
   for (const { label, re } of PATTERNS_BY_TYPE[type]) {
-    re.lastIndex = 0;
     const match = re.exec(text);
-    if (!match?.[0]) continue;
+    if (!match || match.index === undefined) continue;
     if (isNegatedMatch(text, match.index)) continue;
-    hits.push({
-      label,
-      span: match[0].replace(/\s+/g, " ").trim(),
-    });
+    const span = match[0].replace(/\s+/g, " ").trim();
+    if (!span) continue;
+    hits.push({ label, span: span.slice(0, 80) });
   }
   return hits;
 }

@@ -348,6 +348,7 @@ describe("runDetection", () => {
       "I want to know why my Nifty ETF NAV looks wrong today.",
       "Family view of the ticket — my wife also emailed support.",
       "Turn on MTF is stuck on loading. App issue.",
+      "Groww app keeps crashing. Please fix the login OTP.",
     ];
     for (const text of hardNegatives) {
       const { conversation, messages } = conv("c_soft_ops", "none", text);
@@ -443,6 +444,24 @@ describe("runDetection", () => {
     expect(signals).toEqual([]);
   });
 
+  it("does not fire retention on bare another/other app ops mentions", () => {
+    const hardNegatives = [
+      "Navy Federal shows $0.32 and $0.17 from you, plus a $0.01 PLAID from another app. I typed 0.32 and 0.17. Your form says wrong.",
+      "Have you linked Northline in any other app today?",
+      "Did you also have a $0.01 test from another app the same day?",
+      "Venmo uses Plaid as the connector. Failures can be Venmo's Link config, Plaid, or our OAuth. Have you linked Northline in any other app today?",
+    ];
+    for (const text of hardNegatives) {
+      const { conversation, messages } = conv("c_other_app_ops", "none", text);
+      const signals = detectSignalsForConversation(
+        conversation,
+        messages,
+        "tenant_demo"
+      );
+      expect(signals).toEqual([]);
+    }
+  });
+
   it("fires retention on refund frustration phrases", () => {
     const { conversation, messages } = conv(
       "c_refund_ret",
@@ -494,6 +513,12 @@ describe("runDetection", () => {
         "upsell"
       ).score
     ).toBe(0);
+    expect(
+      scoreType("I am no longer interested in insurance.", "upsell").score
+    ).toBe(0);
+    expect(scoreType("I no longer want a second fund.", "upsell").score).toBe(
+      0
+    );
   });
 
   it("recovers informal first-product leads without canned open-account phrasing", () => {
@@ -504,6 +529,10 @@ describe("runDetection", () => {
       "Starting fresh here — opening my own account, never traded equity.",
       "Never bought stock. Walk me through first buy on this app.",
       "I only have mutual funds here. How do I turn on stocks?",
+      "Singapore NRI. Don't have Zerodha yet. Non-PIS NRO, not the PIS bank route.",
+      "Groww app keeps crashing. Can I open Zerodha and move later?",
+      "Id created this week, only equity so far. First F&O — bank OTP income proof?",
+      "Never did IPO. MediLabs open. ASBA at Axis or UPI on Kite?",
     ];
     for (const text of cases) {
       const { conversation, messages } = conv("c_soft_lead", "lead", text);
@@ -530,6 +559,13 @@ describe("runDetection", () => {
       "If I can't get in by tomorrow I'll just sit out the week.",
       "Human comment today or I stop using this app for exits.",
       "If this isn't live by Thursday I'm filling Angel.",
+      // Partner Demo / testing.json true-gap: family pushes competitor without close verb
+      "Dad keeps forwarding Angel research. If support stays this slow I might just listen to him.",
+      "Can't pre-authorise TPIN at 6:30am. Considering Dhan for morning CNC sells.",
+      "Nifty fut MIS squared at 3:26. I'll pause F&O till I get the timings.",
+      "Upstox id is live. Closing Zerodha this fortnight.",
+      "Closure-cum-transfer to my Groww demat, same PAN.",
+      "Done with Kite and Coin. Close everything.",
     ];
     for (const text of cases) {
       const { conversation, messages } = conv("c_soft_ret", "retention", text);
@@ -551,6 +587,12 @@ describe("runDetection", () => {
       "Delivery is fine but can I turn on MTF? Same login.",
       "F&O already on. Can I pledge more stocks to increase overnight margin?",
       "Equity I do. Is commodity / crude even available here or only index options?",
+      "Equity F&O live. Add EURINR too?",
+      "SIP running. Want ₹50,000 lumpsum in the same Direct index fund today.",
+      "Coin SIP ₹8,000 running. Want ₹12,000 from next month, same fund.",
+      "Already on Kite CNC. Want a smallcase momentum basket, not DIY.",
+      "GTT sells keep dying. Enable DDPI so I skip daily TPIN?",
+      "Need kite connect API key for a weekend project. Where in Console?",
     ];
     for (const text of cases) {
       const { conversation, messages } = conv("c_soft_upsell", "upsell", text);
