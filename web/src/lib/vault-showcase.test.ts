@@ -183,14 +183,21 @@ describe("reduceVaultShowcaseLoadUi", () => {
     expect(vaultShowcaseCanStartNewAttempt(failed)).toBe(true);
   });
 
-  it("success after stall clears in-flight without enabling Retry", () => {
+  it("success after stall keeps Cancel on Upload until Insights land", () => {
     const stalled = reduceVaultShowcaseLoadUi(
       initialVaultShowcaseLoadUi("sample"),
       { type: "stall", kind: "sample" },
     );
     const landed = reduceVaultShowcaseLoadUi(stalled, { type: "success" });
-    expect(landed.wipeInFlight).toBe(false);
+    // Hold wipeInFlight through router.replace — stall error still painted.
+    expect(landed.wipeInFlight).toBe(true);
+    expect(landed.error).toMatch(/longer than expected/);
     expect(vaultShowcaseShowRetry(landed)).toBe(false);
+    expect(
+      vaultShowcaseCancelHref("Zerodha_week_5_batch_01.json", {
+        wipeInFlight: landed.wipeInFlight,
+      }),
+    ).toBe("/?view=upload");
     expect(shouldLandShowcaseLoad({ runId: 1, currentRunId: 1 })).toBe(true);
   });
 });

@@ -111,7 +111,12 @@ export function shouldLandShowcaseLoad(opts: {
 export type VaultShowcaseLoadUi = {
   status: string | null;
   error: string | null;
-  /** True until this attempt's /api/store settles (success, hard fail, or abort). */
+  /**
+   * True while Cancel must open Upload: through the in-flight wipe and after
+   * success until Insights land unmounts this loader (router.replace window).
+   * Cleared only on hard_fail so Retry can unlock; empty keep-set Cancel is
+   * Upload either way.
+   */
   wipeInFlight: boolean;
   /** Settled failure — Retry may bump attempt and start one new wipe. */
   hardFailed: boolean;
@@ -160,9 +165,12 @@ export function reduceVaultShowcaseLoadUi(
         hardFailed: true,
       };
     case "success":
+      // Keep wipeInFlight true through router.replace so Cancel stays Upload
+      // while a stall error (or spinner) is still painted — clearing it would
+      // briefly target the prior keep-set and auto-load the stale pack.
       return {
         ...state,
-        wipeInFlight: false,
+        wipeInFlight: true,
         hardFailed: false,
       };
     default: {
@@ -188,10 +196,12 @@ export function vaultShowcaseCanStartNewAttempt(
 }
 
 /**
- * Cancel must leave the in-flight load. While wipe is in flight, always
- * Upload — never prior keep-set Insights (store may already be the new pack,
- * which would auto-load Sample / Partner Demo again). With no keep-set name,
- * Upload likewise avoids bare Insights defaulting to Sample.
+ * Cancel must leave the load. While wipeInFlight (in-flight wipe or success
+ * awaiting Insights land), always Upload — never prior keep-set Insights
+ * (store may already be the new pack, which would auto-load Sample / Partner
+ * Demo again). With no keep-set name, Upload likewise avoids bare Insights
+ * defaulting to Sample. After hard_fail settles, Cancel may return to the
+ * prior keep-set when one exists.
  */
 export function vaultShowcaseCancelHref(
   keepSetFileName?: string | null,
