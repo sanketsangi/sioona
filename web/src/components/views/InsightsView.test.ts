@@ -5,20 +5,17 @@ import type { StoreData, Signal } from "@/lib/types";
 import type { BackendSignalScore } from "@/lib/backend-client";
 
 vi.mock("next/link", () => ({
-  default: ({
-    href,
-    children,
-    className,
-    scroll: _scroll,
-    ...rest
-  }: {
+  default: (props: {
     href: string;
     children?: unknown;
     className?: string;
     scroll?: boolean;
     [key: string]: unknown;
-  }) =>
-    createElement("a", { href, className, ...rest }, children as never),
+  }) => {
+    const { href, children, className, scroll, ...rest } = props;
+    void scroll;
+    return createElement("a", { href, className, ...rest }, children as never);
+  },
 }));
 
 vi.mock("next/navigation", () => ({

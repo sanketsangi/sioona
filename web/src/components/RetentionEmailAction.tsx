@@ -188,7 +188,22 @@ type RetentionEmailActionProps = {
  * Approve / Edit / Dismiss record a decision only. Nothing is sent.
  * When `embedded`, quiet bordered AI-draft well (surface-quiet; no pane header Card).
  */
-export function RetentionEmailAction({
+export function RetentionEmailAction(props: RetentionEmailActionProps) {
+  const { signal, customerName = "", action: storedAction = null } = props;
+  const resetKey = [
+    signal.id,
+    customerName,
+    storedAction?.id ?? "",
+    storedAction?.status ?? "",
+    storedAction?.subject ?? "",
+    storedAction?.evidenceQuote ?? "",
+    signal.evidence.join("\0"),
+  ].join("\0");
+
+  return <RetentionEmailActionView key={resetKey} {...props} />;
+}
+
+function RetentionEmailActionView({
   signal,
   customerName = "",
   action: storedAction = null,
@@ -228,22 +243,6 @@ export function RetentionEmailAction({
   const reviseConfirmRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const resetFieldsOnUnmountRef = useRef(false);
-
-  useEffect(() => {
-    const next = resolveRetentionEmailAction(
-      signal,
-      customerName,
-      storedAction,
-    );
-    setAction(next);
-    setSubject(next?.subject ?? "");
-    setBody(next?.body ?? "");
-    setEditing(false);
-    setEditMounted(false);
-    setError(null);
-    setConfirm(null);
-    setReviseIntent(null);
-  }, [signal, customerName, storedAction]);
 
   const dirty =
     editing &&

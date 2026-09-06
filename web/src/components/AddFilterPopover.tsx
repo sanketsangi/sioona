@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  useEffect,
   useId,
   useMemo,
   useRef,
@@ -113,9 +112,8 @@ function ChevronRightIcon({ className }: { className?: string }) {
 }
 
 /** Add Filter only adds Type — Status is the queue pills. */
-export function initialAddFilterDimension(
-  _typeApplied: boolean,
-): AddFilterDimension {
+export function initialAddFilterDimension(typeApplied: boolean): AddFilterDimension {
+  void typeApplied;
   return "type";
 }
 
@@ -339,9 +337,10 @@ export function AddFilterPopover({
     [dimension, query, typeFilter, queueHref],
   );
 
-  useEffect(() => {
+  function handleQueryChange(value: string) {
+    setQuery(value);
     setHighlightIndex(0);
-  }, [query, dimension]);
+  }
 
   const safeHighlight =
     items.length === 0 ? 0 : Math.min(highlightIndex, items.length - 1);
@@ -445,7 +444,7 @@ export function AddFilterPopover({
       >
         <AddFilterMenuPanel
           query={query}
-          onQueryChange={setQuery}
+          onQueryChange={handleQueryChange}
           dimension={dimension}
           highlightIndex={safeHighlight}
           onHighlightIndexChange={setHighlightIndex}
