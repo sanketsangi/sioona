@@ -718,8 +718,14 @@ describe("testing.json hybrid vs heuristic", () => {
     });
 
     expect(llm.enabled).toBe(true);
-    expect(llm.added).toBeGreaterThan(0);
-    expect(hybrid.labeledRecall ?? 0).toBeGreaterThan(heuristicRecall);
     expect(hybrid.falsePositives).toBeLessThanOrEqual(heuristicFp);
+    // Heuristics now recover testing.json (FN=0). Oracle has no misses to lift.
+    if (heuristic.metrics.falseNegatives > 0) {
+      expect(llm.added).toBeGreaterThan(0);
+      expect(hybrid.labeledRecall ?? 0).toBeGreaterThan(heuristicRecall);
+    } else {
+      expect(llm.added).toBe(0);
+      expect(hybrid.labeledRecall ?? 0).toBe(heuristicRecall);
+    }
   });
 });

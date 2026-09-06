@@ -19,6 +19,24 @@ export type PatternHit = {
 const COMPETITOR =
   "(?:angel(?:\\s+one)?|upstox|dhan|kuvera|fyers|groww)";
 
+/**
+ * Leave/switch/use/prefer intent before other/another venue.
+ * Shared so another-venue cannot drift behind other-app (use/using, prefer).
+ * Bare "another/other app" ops mentions must still miss.
+ */
+const SWITCH_VENUE_INTENT =
+  "(?:switch(?:ing)?(?:\\s+to)?|mov(?:e|ing)(?:\\s+to)?|shift(?:ing)?(?:\\s+to)?|try|leave|leaving|install(?:ing)?|go(?:ing)?(?:\\s+to)?|tak(?:e|ing)\\s+.{0,28}\\s+to|park(?:ing)?\\s+.{0,40}\\s+on|apply(?:ing)?\\s+(?:from|on|via|with)|us(?:e|ing)|prefer(?:ring)?)";
+
+/** Competitor must sit within this many chars of a soft family-switch phrase. */
+const FAMILY_COMPETITOR_NEAR = 100;
+
+function nearCompetitor(phrase: string): RegExp {
+  return new RegExp(
+    `(?:\\b${COMPETITOR}\\b.{0,${FAMILY_COMPETITOR_NEAR}}${phrase}|${phrase}.{0,${FAMILY_COMPETITOR_NEAR}}\\b${COMPETITOR}\\b)`,
+    "i"
+  );
+}
+
 const LEAD_PATTERNS: Array<{ label: string; re: RegExp }> = [
   {
     label: "first-product",
@@ -97,12 +115,19 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   {
     label: "other-app",
     // Switch/leave/use TO the other app — not "PLAID from another app" / "any other app linked"
-    re: /\b(?:switch(?:ing)?(?:\s+to)?|mov(?:e|ing)(?:\s+to)?|shift(?:ing)?(?:\s+to)?|try|leave|leaving|install(?:ing)?|go(?:ing)?(?:\s+to)?|tak(?:e|ing)\s+.{0,28}\s+to|park(?:ing)?\s+.{0,40}\s+on|apply(?:ing)?\s+(?:from|on|via|with)|us(?:e|ing))\s+(?:the )?other (?:app|broker|platform)\b/i,
+    re: new RegExp(
+      `\\b${SWITCH_VENUE_INTENT}\\s+(?:the )?other (?:app|broker|platform)\\b`,
+      "i"
+    ),
   },
   {
     label: "another-venue",
-    // Same precision gate — bare "another app/broker" is ops/micro-deposit noise
-    re: /\b(?:switch(?:ing)?(?:\s+to)?|mov(?:e|ing)(?:\s+to)?|shift(?:ing)?(?:\s+to)?|try|leave|leaving|install(?:ing)?|go(?:ing)?(?:\s+to)?|tak(?:e|ing)\s+.{0,28}\s+to|park(?:ing)?\s+.{0,40}\s+on|apply(?:ing)?\s+(?:from|on|via|with)|funds?\s+to|finish(?:ing)?\s+.{0,40}\sat|complete\s+.{0,40}\sat)\s+another (?:broker|app|platform|dp)\b/i,
+    // Same verb gate as other-app, plus finish/complete-at / funds-to extras.
+    // Bare "another app/broker" is ops/micro-deposit noise.
+    re: new RegExp(
+      `\\b(?:${SWITCH_VENUE_INTENT}|funds?\\s+to|finish(?:ing)?\\s+.{0,40}\\sat|complete\\s+.{0,40}\\sat)\\s+another (?:broker|app|platform|dp)\\b`,
+      "i"
+    ),
   },
   {
     label: "try-competitor",
@@ -207,12 +232,18 @@ const RETENTION_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "might-listen-family",
-    // Soft switch under ops friction: "I might just listen to him [about Angel]"
-    re: /\bmight just listen to (?:him|her|them|dad|mom|father|mother)\b/i,
+    // Soft switch under ops friction — competitor must be nearby, not bare
+    // "might just listen to him".
+    re: nearCompetitor(
+      "\\bmight just listen to (?:him|her|them|dad|mom|father|mother)\\b"
+    ),
   },
   {
     label: "family-winning-switch",
-    re: /\b(?:dad|mom|father|mother|husband|wife)\s+is winning\b/i,
+    // "dad is winning" only with a competitor in the nearby window.
+    re: nearCompetitor(
+      "\\b(?:dad|mom|father|mother|husband|wife)\\s+is winning\\b"
+    ),
   },
   {
     label: "conditional-churn",
