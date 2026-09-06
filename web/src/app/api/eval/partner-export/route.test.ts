@@ -102,13 +102,26 @@ describe("GET /api/eval/partner-export", () => {
       new Request("http://localhost/api/eval/partner-export?week2=1")
     );
     expect(res.status).toBe(404);
-    await expect(res.json()).resolves.toMatchObject({
+    const body = (await res.json()) as {
+      ok: boolean;
+      code: string;
+      message: string;
+      debugMessage?: string;
+    };
+    expect(body).toMatchObject({
       ok: false,
       code: "missing_file",
+      message: "Week-2 export isn’t ready yet.",
     });
+    expect(body.message).not.toMatch(/\/tmp|week2\.local\.csv/);
+    if (process.env.NODE_ENV === "development") {
+      expect(body.debugMessage).toMatch(/week2\.local\.csv/);
+    } else {
+      expect(body.debugMessage).toBeUndefined();
+    }
   });
 
-  it("maps other loader failures to 500 error", async () => {
+  it("maps other loader failures to 500 error with product-safe copy", async () => {
     vi.spyOn(partnerExportEval, "loadPartnerExportEval").mockRejectedValue(
       new Error("CSV parse failed")
     );
@@ -117,10 +130,17 @@ describe("GET /api/eval/partner-export", () => {
       new Request("http://localhost/api/eval/partner-export")
     );
     expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({
+    const body = (await res.json()) as {
+      ok: boolean;
+      code: string;
+      message: string;
+      debugMessage?: string;
+    };
+    expect(body).toMatchObject({
       ok: false,
       code: "error",
-      message: "CSV parse failed",
+      message: "Export eval is unavailable right now.",
     });
+    expect(body.message).not.toContain("CSV parse failed");
   });
 });

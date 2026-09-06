@@ -1236,7 +1236,6 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
-    expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
@@ -1321,22 +1320,20 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain(">Edit</button>");
     expect(html).toContain("Following up on your account — can we help?");
     expect(html).toContain("data-review-slot=\"retention-email\"");
+    const feedbackSlot = html.indexOf('data-review-slot="feedback"');
+    const actionsSlot = html.indexOf('data-review-slot="actions"');
     const whySlot = html.indexOf('data-review-slot="why"');
     const retentionSlot = html.indexOf('data-review-slot="retention-email"');
-    const feedbackSlot = html.indexOf('data-review-slot="feedback"');
-    expect(whySlot).toBeGreaterThan(-1);
-    expect(retentionSlot).toBeGreaterThan(whySlot);
-    expect(feedbackSlot).toBeGreaterThan(retentionSlot);
-    // Retention nests inside Recommended Actions; Feedback stays a sibling.
+    expect(feedbackSlot).toBeGreaterThan(-1);
+    expect(actionsSlot).toBeGreaterThan(feedbackSlot);
+    expect(retentionSlot).toBeGreaterThan(actionsSlot);
+    expect(whySlot).toBeGreaterThan(retentionSlot);
+    // Retention nests inside Recommended Actions; Why / Feedback are siblings.
     expect(html.match(/data-review-slot="why"/g)?.length).toBe(1);
-    const whyChunk = html.slice(whySlot, feedbackSlot);
-    expect(whyChunk).toContain('data-review-slot="retention-email"');
-    expect(whyChunk).toContain("Retention Email");
-    if (whyChunk.includes("Matched")) {
-      expect(whyChunk.indexOf("Matched")).toBeLessThan(
-        whyChunk.indexOf("Retention Email"),
-      );
-    }
+    const actionsChunk = html.slice(actionsSlot, whySlot);
+    expect(actionsChunk).toContain('data-review-slot="retention-email"');
+    expect(actionsChunk).toContain("Retention Email");
+    expect(actionsChunk).toContain("Recommended Actions");
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary");
     expect(html).toContain("Copy Reply");
@@ -1350,7 +1347,6 @@ describe("InsightsView review conversation + action", () => {
     );
     expect(html).not.toContain("Mark as Pending");
     expect(html).toContain("Open Conversation");
-    expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
     expect(html).not.toContain(
@@ -1476,14 +1472,24 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("insights-review-feedback");
     expect(html).toContain("insights-review-split");
     expect(html).toContain('data-review-slot="transcript"');
-    // Mid-width: Open Conversation drawer trigger; wide CSS shows the 385px well.
+    // Narrow SSR: rail Open Conversation trigger; wide CSS docks the 385px well.
+    // No always-on ConversationDrawer overlay covering Feedback labeling.
     expect(html).toContain("Open Conversation");
     expect(html).toContain('aria-haspopup="dialog"');
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
+    const actionsSlot = html.indexOf('data-review-slot="actions"');
+    const whySlot = html.indexOf('data-review-slot="why"');
     expect(feedbackSlot).toBeGreaterThan(-1);
+    expect(actionsSlot).toBeGreaterThan(feedbackSlot);
+    expect(whySlot).toBeGreaterThan(actionsSlot);
     expect(html.indexOf(">Feedback<", feedbackSlot)).toBeLessThan(
       html.indexOf(">Ground Truth<", feedbackSlot),
     );
+    // Conversation trigger sits in the rail before Feedback — not a header
+    // overlay that covers labeling chrome.
+    const openConversation = html.indexOf("Open Conversation");
+    expect(openConversation).toBeGreaterThan(-1);
+    expect(openConversation).toBeLessThan(feedbackSlot);
     expect(html).toContain("conversation-message-msg_2");
     expect(html).toContain("Show in conversation:");
     expect(html).toContain('data-evidence-match="true"');
