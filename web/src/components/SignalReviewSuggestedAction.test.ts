@@ -62,7 +62,11 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Copied…");
-    expect(html).toContain("Copy Reply to clipboard");
+    expect(html).toContain("Copy reply to clipboard");
+    expect(html).toContain('aria-label="Mark as Acted"');
+    expect(html).toContain('aria-label="Reply actions"');
+    expect(html).toContain('data-review-actions-toolbar="true"');
+    expect(html).toContain("Recommended reply");
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain("active:translate-y-0");
     expect(html).toContain(
@@ -72,7 +76,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('data-variant="outline"');
     expect(html).not.toContain('data-copied="true"');
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Recommended reply[\s\S]*Hi Priya/,
     );
     expect(html).not.toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
@@ -90,7 +94,8 @@ describe("SignalReviewSuggestedAction", () => {
       "break-words text-pretty text-copy-16 text-sio-fg-base",
     );
     expect(html).toContain("Mark as Acted");
-    expect(html).toContain("btn-primary shrink-0");
+    // Pending Feedback: Acted is secondary until Correct unlocks primary.
+    expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).toContain("Label in Feedback first");
     expect(html).not.toContain("status-dot");
@@ -390,17 +395,106 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).toContain("Unavailable — local detection join missing.");
+    expect(html).toContain("No recommended reply");
+    expect(html).not.toContain("Unavailable — local detection join missing.");
     expect(html).toContain("No local evidence.");
     expect(html).toContain("Copy Reply");
-    expect(html).toContain("Copy Reply to clipboard");
+    expect(html).toContain("Copy reply to clipboard");
     expect(html).toContain('disabled=""');
     expect(html).toContain(
       "break-words text-pretty text-copy-16 text-sio-fg-muted",
     );
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Unavailable/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*No recommended reply/,
     );
+  });
+
+  it("shows skeleton and disables Copy + Acted while the draft is loading", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal(),
+        customerName: "Priya",
+        draftLoading: true,
+      }),
+    );
+
+    expect(html).toContain('data-review-reply-skeleton="true"');
+    expect(html).toContain("Loading recommended reply");
+    expect(html).toContain('data-slot="skeleton"');
+    expect(html).not.toContain("Hi Priya — I saw your note about");
+    expect(html).not.toContain("No recommended reply");
+    expect(html).toContain("Copy Reply");
+    expect(html).toContain("Mark as Acted");
+    // Both CTAs disabled until draft ready.
+    expect(html.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain('aria-busy="true"');
+  });
+
+  it("keeps Correct-before-Acted gate and promotes Acted only on Correct", () => {
+    const pending = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal(),
+        customerName: "Priya",
+      }),
+    );
+    expect(pending).toContain('aria-haspopup="dialog"');
+    expect(pending).toContain("Label in Feedback first");
+    // Pending: secondary Acted (Copy is also secondary).
+    expect(pending).toContain("btn-secondary");
+    // Mark as Acted button itself is secondary (btn-primary may appear on Retention Approve).
+    expect(pending).toMatch(
+      /class="[^"]*btn-secondary[^"]*"[^>]*aria-label="Mark as Acted"/,
+    );
+
+    const incorrect = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          status: "reviewed",
+          feedback: {
+            label: "incorrect",
+            reviewedAt: "2026-08-02T00:00:00.000Z",
+          },
+        }),
+        customerName: "Priya",
+      }),
+    );
+    expect(incorrect).toContain('aria-haspopup="dialog"');
+    expect(incorrect).toContain(
+      "Update Feedback to Correct to unlock Mark as Acted",
+    );
+    expect(incorrect).toMatch(
+      /class="[^"]*btn-secondary[^"]*"[^>]*aria-label="Mark as Acted"/,
+    );
+
+    const correct = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          status: "reviewed",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-08-02T00:00:00.000Z",
+          },
+        }),
+        customerName: "Priya",
+        actedWalk: {
+          nextPreviewId: "sig_next",
+          statusFilter: "followup",
+        },
+      }),
+    );
+    expect(correct).toContain("btn-primary shrink-0");
+    expect(correct).toMatch(
+      /class="[^"]*btn-primary shrink-0[^"]*"[^>]*aria-label="Mark as Acted"/,
+    );
+    // Correct path: Mark as Acted has no gate dialog (Retention Approve may still).
+    expect(correct).toMatch(
+      /aria-keyshortcuts="A Enter" aria-label="Mark as Acted"/,
+    );
+    expect(correct).not.toMatch(
+      /aria-haspopup="dialog"[^>]*aria-label="Mark as Acted"|aria-label="Mark as Acted"[^>]*aria-haspopup="dialog"/,
+    );
+    expect(correct).not.toContain("Label in Feedback first");
+    expect(correct).not.toContain("Update Feedback to Correct to unlock");
   });
 
   it("uses Neon stub honesty when the join is missing", () => {
@@ -415,6 +509,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toContain("No local evidence — detection join missing.");
+    expect(html).toContain("No recommended reply");
   });
 
   it("keeps Copy Reply after Acted with disabled Marked as Acted", () => {
@@ -466,7 +561,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya — I saw your note about/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Recommended reply[\s\S]*Hi Priya — I saw your note about/,
     );
     expect(html).not.toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
@@ -495,5 +590,6 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toContain("Mark as Acted");
+    expect(html).toContain("btn-primary shrink-0");
   });
 });
