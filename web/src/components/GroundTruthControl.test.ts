@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 import {
   GroundTruthControl,
   groundTruthOptionRowClass,
+  groundTruthTriggerClass,
   isGroundTruthSuggestedOption,
 } from "@/components/GroundTruthControl";
 
@@ -56,8 +57,30 @@ describe("groundTruthOptionRowClass", () => {
   });
 });
 
+describe("groundTruthTriggerClass", () => {
+  it("uses Feedback header chip density — not FilterPill chrome", () => {
+    const unset = groundTruthTriggerClass("");
+    expect(unset).toContain("h-8");
+    expect(unset).toContain("rounded-sm");
+    expect(unset).toContain("border-sio-border-subtle");
+    expect(unset).toContain("text-label-12");
+    expect(unset).not.toContain("rounded-[10ex]");
+    expect(unset).not.toContain("outline-dashed");
+  });
+
+  it("tints the closed trigger when a signal type is set", () => {
+    expect(groundTruthTriggerClass("lead")).toContain("bg-sio-signal-lead-bg");
+    expect(groundTruthTriggerClass("retention")).toContain(
+      "bg-sio-signal-retention-bg",
+    );
+    expect(groundTruthTriggerClass("upsell")).toContain(
+      "bg-sio-signal-upsell-bg",
+    );
+  });
+});
+
 describe("GroundTruthControl", () => {
-  it("renders a FilterPill trigger with visible Ground Truth label", () => {
+    it("renders a Ground Truth outline trigger with visible label", () => {
     const html = renderToStaticMarkup(
       createElement(GroundTruthControl, {
         conversationId: "conv_1",
@@ -68,26 +91,26 @@ describe("GroundTruthControl", () => {
     expect(html).toContain('aria-label="Ground Truth, Unset"');
     expect(html).toContain("Ground Truth");
     expect(html).toContain("Unset");
-    expect(html).toContain('data-pill-background="true"');
-    expect(html).toContain("rounded-[10ex]");
-    expect(html).toContain("outline-dashed");
-    expect(html).toContain(
-      "relative flex h-8 flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
-    );
+    expect(html).toContain("rounded-sm");
+    expect(html).toContain("border-sio-border-subtle");
+    expect(html).toContain("text-label-12");
     expect(html).toContain('data-slot="dropdown-menu-trigger"');
     expect(html).toContain('aria-haspopup="menu"');
+    expect(html).not.toContain('data-pill-background="true"');
+    expect(html).not.toContain("rounded-[10ex]");
+    expect(html).not.toContain("outline-dashed");
     expect(html).not.toContain('data-slot="card"');
     expect(html).not.toContain('data-slot="toggle-group"');
     expect(html).not.toContain("Optional Eval gold label");
     expect(html).not.toContain("Saving…");
     expect(html).not.toContain('role="alert"');
-    // Closed trigger stays FilterPill chrome — no signal tint on the pill itself
+    // Unset stays quiet — no signal tint on the closed trigger
     expect(html).not.toContain("bg-sio-signal-lead-bg");
     expect(html).not.toContain("bg-sio-signal-retention-bg");
     expect(html).not.toContain("bg-sio-signal-upsell-bg");
   });
 
-  it("uses applied FilterPill chrome when ground truth is set", () => {
+  it("tints the closed trigger when ground truth is set", () => {
     const html = renderToStaticMarkup(
       createElement(GroundTruthControl, {
         conversationId: "conv_1",
@@ -99,8 +122,9 @@ describe("GroundTruthControl", () => {
     expect(html).toContain('aria-label="Ground Truth, Lead"');
     expect(html).toContain("Ground Truth");
     expect(html).toContain("Lead");
-    expect(html).toContain('data-pill-background="true"');
-    expect(html).toContain("bg-sio-bg-base [outline-style:solid] outline-sio-border-base");
-    expect(html).not.toContain("outline-dashed");
+    expect(html).toContain("bg-sio-signal-lead-bg");
+    expect(html).toContain("rounded-sm");
+    expect(html).not.toContain("rounded-[10ex]");
+    expect(html).not.toContain('data-pill-background="true"');
   });
 });

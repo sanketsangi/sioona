@@ -144,14 +144,9 @@ describe("FeedbackControls", () => {
     expect(html).toContain("Incorrect");
     expect(html).toContain("Partially Correct");
     expect(html).toContain("Optional note");
-    expect(html).toContain("C / I / P · Enter → Correct.");
-    expect(html).toContain('role="note"');
-    expect(html).toContain(
-      "min-h-10 flex-row flex-wrap items-center gap-2 rounded-md border-sio-border-subtle bg-sio-bg-muted px-3 py-1.5",
-    );
-    expect(html).toContain("pr-10");
-    expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
-    expect(html).not.toContain("text-label-12");
+    expect(html).not.toContain("C / I / P · Enter → Correct.");
+    expect(html).not.toContain("Copy Reply, then A / Enter → Acted");
+    expect(html).not.toContain('role="note"');
     expect(html).not.toContain("saves to Neon");
     expect(html).not.toContain("Saving…");
     expect(html).toContain("aria-label=\"Feedback actions\"");
@@ -208,12 +203,10 @@ describe("FeedbackControls", () => {
     expect(html).not.toContain(
       "border-sio-border-strong bg-sio-bg-interactive-hover",
     );
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
-    expect(html).toContain('role="note"');
-    expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
-    expect(html).not.toContain("text-label-12");
+    expect(html).not.toContain('role="note"');
     expect(html).not.toContain(
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );
@@ -308,23 +301,17 @@ describe("FeedbackControls", () => {
     expect(html).toContain('data-variant="outline"');
   });
 
-  it("mounts Ground Truth FilterPill in the Feedback header when conversationId is set", () => {
+  it("does not mount Ground Truth in the Feedback header", () => {
     const html = renderToStaticMarkup(
       createElement(FeedbackControls, {
         signal: signal(),
-        conversationId: "conv_1",
       }),
     );
 
-    expect(html).toContain('aria-label="Ground Truth, Unset"');
-    expect(html).toContain("Ground Truth");
-    expect(html).toContain("Unset");
-    expect(html).toContain('data-pill-background="true"');
-    expect(html).toContain("rounded-[10ex]");
-    // Right-aligned cluster: Feedback status then GT (GT pinned to the corner).
-    expect(html.indexOf("Pending")).toBeLessThan(
-      html.indexOf('aria-label="Ground Truth, Unset"'),
-    );
+    expect(html).toContain("Pending");
+    expect(html).toContain("Feedback");
+    expect(html).not.toContain("Ground Truth");
+    expect(html).not.toContain('aria-label="Ground Truth, Unset"');
     expect(html.match(/data-slot="card"/g)?.length).toBe(1);
   });
 });

@@ -46,6 +46,24 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/** First N `\n`-split lines for Draft view; expand when longer. */
+export const RETENTION_EMAIL_BODY_PREVIEW_LINES = 3;
+
+export function retentionEmailBodyPreview(
+  body: string,
+  lineCount: number = RETENTION_EMAIL_BODY_PREVIEW_LINES,
+): { preview: string; remainder: string; expandable: boolean } {
+  const lines = body.split("\n");
+  if (lines.length <= lineCount) {
+    return { preview: body, remainder: "", expandable: false };
+  }
+  return {
+    preview: lines.slice(0, lineCount).join("\n"),
+    remainder: lines.slice(lineCount).join("\n"),
+    expandable: true,
+  };
+}
+
 export const RETENTION_EMAIL_STATUS_CHIP: Record<
   SupervisedActionStatus,
   string
@@ -73,12 +91,27 @@ const APPROVE_TOOLTIP =
 const SECTION_LABEL_CLASS =
   "text-label-12 leading-5 font-semibold tracking-normal text-sio-fg-subtle";
 
-/** Retention Email Evidence / Draft wells. */
+/** Evidence — quiet tonal well (secondary to the email preview). */
 const EVIDENCE_WELL_CLASS =
-  "flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-muted/40";
+  "flex min-w-0 flex-col gap-2 rounded-[var(--radius-control)] border border-sio-border-subtle px-3 py-2.5 bg-sio-bg-muted/40";
 
-const DRAFT_WELL_CLASS =
-  "flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-base";
+/**
+ * Draft — flush email preview (no nested card-in-card). Hierarchy via type;
+ * decisions sit under the body with parent `gap-2` (no hairline).
+ */
+const DRAFT_WELL_CLASS = "flex min-w-0 flex-col gap-2.5";
+
+/** Subject line — stronger than body so the preview reads as an email. */
+const DRAFT_SUBJECT_CLASS =
+  "m-0 break-words text-label-14 font-semibold leading-5 tracking-[-0.01em] text-sio-fg-base";
+
+/** Body — readable preview; slightly looser leading than dense UI chrome. */
+const DRAFT_BODY_CLASS =
+  "m-0 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-6 text-sio-fg-subtle";
+
+/** Decision row — Approve / Edit / Dismiss; spacing from parent `gap-2`. */
+const DRAFT_ACTIONS_CLASS =
+  "flex flex-wrap items-center justify-end gap-2";
 
 function statusMessage(status: SupervisedActionStatus): string | null {
   switch (status) {
@@ -192,7 +225,8 @@ type RetentionEmailActionProps = {
 /**
  * Supervised retention email draft — evidence quote beside the draft.
  * Approve / Edit / Dismiss record a decision only. Nothing is sent.
- * When `embedded`, quiet bordered AI-draft well (surface-quiet; no pane header Card).
+ * When `embedded`, quiet surface-quiet section with a flush email preview
+ * (no nested draft card).
  */
 export function RetentionEmailAction(props: RetentionEmailActionProps) {
   const { signal, customerName = "", action: storedAction = null } = props;
@@ -224,8 +258,6 @@ function RetentionEmailActionView({
   const bodyId = useId();
   const statusId = useId();
   const router = useRouter();
-  const approveRef = useRef<HTMLButtonElement>(null);
-  const dismissRef = useRef<HTMLButtonElement>(null);
   const subjectRef = useRef<HTMLInputElement>(null);
 
   const initial = resolveRetentionEmailAction(
@@ -239,9 +271,10 @@ function RetentionEmailActionView({
   const [editMounted, setEditMounted] = useState(false);
   const [subject, setSubject] = useState(initial?.subject ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
+  /** Draft view pane: collapse long bodies to first N lines. */
+  const [bodyExpanded, setBodyExpanded] = useState(false);
   const [pending, setPending] = useState<SupervisedActionDecision | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<"approve" | "dismiss" | null>(null);
   /** Change after Approved / Dismissed — shadcn Dialog, not inline danger text. */
   const [reviseIntent, setReviseIntent] = useState<
     "approve" | "edit" | "dismiss" | null
@@ -275,6 +308,12 @@ function RetentionEmailActionView({
   // (Approve again, Edit draft, or Dismiss). Still decision-only — never sends.
   const decisionOpen = true;
   const decidedCopy = statusMessage(currentAction.status);
+  const bodyPreview = retentionEmailBodyPreview(currentAction.body);
+  const viewBodyText =
+    !bodyPreview.expandable || bodyExpanded
+      ? currentAction.body
+      : bodyPreview.preview;
+  const bodyExpandId = `${draftId}-body-expand`;
 
   async function submit(decision: SupervisedActionDecision) {
     if (busy) return;
@@ -304,7 +343,6 @@ function RetentionEmailActionView({
       ) {
         setEditMounted(false);
       }
-      setConfirm(null);
       router.refresh();
     } catch (err) {
       const message =
@@ -391,7 +429,11 @@ function RetentionEmailActionView({
       startEdit();
       return;
     }
-    setConfirm(intent);
+    if (intent === "approve") {
+      void submit("approved");
+      return;
+    }
+    void submit("dismissed");
   }
 
   function confirmRevise() {
@@ -524,25 +566,53 @@ function RetentionEmailActionView({
         <section
           data-retention-email-panel="draft"
           aria-labelledby={draftId}
-          className={DRAFT_WELL_CLASS}
+          className={cn(
+            DRAFT_WELL_CLASS,
+            // Hairline only when Evidence sits above — avoid boxing the draft.
+            !omitEvidence && "border-t border-sio-border-subtle pt-2.5",
+          )}
         >
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
-            <h4
-              id={draftId}
-              className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
+          <h4
+            id={draftId}
+            className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}
+          >
+            <RetentionEmailDraftIcon className="size-4 shrink-0 text-sio-fg-subtle" />
+            <span>Draft</span>
+          </h4>
+
+          <div
+            className="retention-email-draft-swap"
+            data-draft-mode={editing ? "edit" : "view"}
+          >
+            <div
+              className="retention-email-draft-pane retention-email-draft-pane-view flex min-w-0 flex-col gap-2"
+              aria-hidden={editing}
+              {...(editing ? { inert: true } : {})}
             >
-              <RetentionEmailDraftIcon className="size-4 shrink-0 text-sio-fg-subtle" />
-              <span>Draft</span>
-            </h4>
-            {decisionOpen ? (
-              <div
-                className="flex flex-wrap items-center justify-end gap-1"
-                role="group"
-                aria-label="Retention email decisions"
-              >
-                <Dialog
-                  open={confirm === "approve"}
-                  onOpenChange={(open) => setConfirm(open ? "approve" : null)}
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <p className={DRAFT_SUBJECT_CLASS} translate="no">
+                  {currentAction.subject}
+                </p>
+                <pre id={bodyExpandId} className={DRAFT_BODY_CLASS}>
+                  {viewBodyText}
+                </pre>
+                {bodyPreview.expandable ? (
+                  <button
+                    type="button"
+                    className="btn-tertiary inline-flex min-h-11 touch-manipulation items-center self-start rounded-full border border-sio-border-subtle px-2.5 py-0.5 text-label-12 font-medium text-sio-fg-subtle hover:border-sio-border-strong hover:text-sio-fg-base md:min-h-6"
+                    aria-expanded={bodyExpanded}
+                    aria-controls={bodyExpandId}
+                    onClick={() => setBodyExpanded((open) => !open)}
+                  >
+                    {bodyExpanded ? "Show less" : "Show more"}
+                  </button>
+                ) : null}
+              </div>
+              {decisionOpen ? (
+                <div
+                  className={DRAFT_ACTIONS_CLASS}
+                  role="group"
+                  aria-label="Retention email decisions"
                 >
                   <TooltipProvider delayDuration={400}>
                     <Tooltip>
@@ -550,10 +620,12 @@ function RetentionEmailActionView({
                         <span className="inline-flex shrink-0">
                           <Button
                             type="button"
-                            className="btn-primary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                            className="btn-primary min-h-11 shrink-0 touch-manipulation gap-1.5 px-2.5 whitespace-nowrap md:min-h-9 md:px-3"
                             disabled={busy}
                             aria-busy={pending === "approved"}
-                            aria-haspopup="dialog"
+                            aria-haspopup={
+                              needsReviseWarn ? "dialog" : undefined
+                            }
                             title={APPROVE_TOOLTIP}
                             onClick={() => requestChange("approve")}
                           >
@@ -578,145 +650,51 @@ function RetentionEmailActionView({
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  <DialogContent
-                    className="overscroll-contain motion-reduce:animate-none"
-                    showCloseButton
-                    onOpenAutoFocus={(event) => {
-                      event.preventDefault();
-                      approveRef.current?.focus();
-                    }}
-                  >
-                    <DialogHeader>
-                      <DialogTitle>Approve Draft</DialogTitle>
-                      <DialogDescription>
-                        This records your approval for later evaluation. You
-                        send from your tools — Sioona never sends or CRM-tags.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="btn-secondary"
-                        >
-                          Cancel
-                        </Button>
-                      </DialogClose>
-                      <Button
-                        ref={approveRef}
-                        type="button"
-                        className="btn-primary"
-                        disabled={busy}
-                        onClick={() => void submit("approved")}
-                      >
-                        {pending === "approved" ? <ButtonSpinner /> : null}
-                        Approve Draft
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
 
-                <Button
-                  ref={editButtonRef}
-                  type="button"
-                  variant="outline"
-                  className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
-                  disabled={busy}
-                  onClick={() => requestChange("edit")}
-                >
-                  <PencilSimple
-                    className="size-3.5 shrink-0"
-                    weight="bold"
-                    aria-hidden
-                  />
-                  Edit
-                </Button>
-
-                <Dialog
-                  open={confirm === "dismiss"}
-                  onOpenChange={(open) => setConfirm(open ? "dismiss" : null)}
-                >
                   <Button
+                    ref={editButtonRef}
                     type="button"
                     variant="outline"
-                    className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1 px-2 whitespace-nowrap md:min-h-9 md:px-2.5"
+                    className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1.5 px-2.5 whitespace-nowrap md:min-h-9 md:px-3"
                     disabled={busy}
-                    aria-haspopup="dialog"
-                    onClick={() => requestChange("dismiss")}
+                    aria-haspopup={needsReviseWarn ? "dialog" : undefined}
+                    onClick={() => requestChange("edit")}
                   >
-                    <X
+                    <PencilSimple
                       className="size-3.5 shrink-0"
                       weight="bold"
                       aria-hidden
                     />
+                    Edit
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="btn-secondary min-h-11 shrink-0 touch-manipulation gap-1.5 px-2.5 whitespace-nowrap md:min-h-9 md:px-3"
+                    disabled={busy}
+                    aria-busy={pending === "dismissed"}
+                    aria-haspopup={needsReviseWarn ? "dialog" : undefined}
+                    onClick={() => requestChange("dismiss")}
+                  >
+                    {pending === "dismissed" ? (
+                      <ButtonSpinner />
+                    ) : (
+                      <X
+                        className="size-3.5 shrink-0"
+                        weight="bold"
+                        aria-hidden
+                      />
+                    )}
                     Dismiss
                   </Button>
-                  <DialogContent
-                    className="overscroll-contain motion-reduce:animate-none"
-                    showCloseButton
-                    onOpenAutoFocus={(event) => {
-                      event.preventDefault();
-                      dismissRef.current?.focus();
-                    }}
-                  >
-                    <DialogHeader>
-                      <DialogTitle>Dismiss Draft</DialogTitle>
-                      <DialogDescription>
-                        This records that the draft should not be used. Nothing
-                        is sent.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="btn-secondary"
-                        >
-                          Cancel
-                        </Button>
-                      </DialogClose>
-                      <Button
-                        ref={dismissRef}
-                        type="button"
-                        className="btn-primary"
-                        disabled={busy}
-                        onClick={() => void submit("dismissed")}
-                      >
-                        {pending === "dismissed" ? <ButtonSpinner /> : null}
-                        Dismiss Draft
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            ) : null}
-          </div>
-
-          <div
-            className="retention-email-draft-swap"
-            data-draft-mode={editing ? "edit" : "view"}
-          >
-            <div
-              className="retention-email-draft-pane retention-email-draft-pane-view flex min-w-0 flex-col gap-1.5"
-              aria-hidden={editing}
-              {...(editing ? { inert: true } : {})}
-            >
-              <p
-                className="m-0 break-words text-label-14 font-medium leading-5 text-sio-fg-base"
-                translate="no"
-              >
-                {currentAction.subject}
-              </p>
-              <pre className="m-0 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-5 text-sio-fg-base">
-                {currentAction.body}
-              </pre>
+                </div>
+              ) : null}
             </div>
 
             {editMounted ? (
             <form
-              className="retention-email-draft-pane retention-email-draft-pane-edit flex min-w-0 flex-col gap-1.5"
+              className="retention-email-draft-pane retention-email-draft-pane-edit flex min-w-0 flex-col gap-2.5"
               aria-hidden={!editing}
               {...(!editing ? { inert: true } : {})}
               onTransitionEnd={onEditPaneTransitionEnd}
@@ -769,7 +747,7 @@ function RetentionEmailActionView({
                   tabIndex={editing ? undefined : -1}
                 />
               </div>
-              <div className="flex flex-wrap gap-2 pt-0.5">
+              <div className="flex flex-wrap gap-2 border-t border-sio-border-subtle pt-2.5">
                 <Button
                   type="submit"
                   className="btn-primary min-h-11 touch-manipulation md:min-h-9"

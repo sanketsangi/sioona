@@ -1346,7 +1346,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Hi Priya — I saw your note about");
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
     expect(html).not.toContain(
@@ -1415,7 +1415,7 @@ describe("InsightsView review conversation + action", () => {
       "Mark as Acted on Suggested Next Action (does not send).",
     );
     expect(html).toContain("Mark as Acted");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
     expect(html).not.toContain(
@@ -1475,12 +1475,12 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("I want to close my account");
     expect(html).toContain("Why This Fired");
     expect(html).toContain("Feedback");
-    expect(html).toContain("Ground Truth");
-    expect(html).toContain('aria-label="Ground Truth, Unset"');
+    expect(html).not.toContain("Ground Truth");
+    expect(html).not.toContain('aria-label="Ground Truth, Unset"');
     expect(html).toContain("insights-review-feedback");
     expect(html).toContain("insights-review-split");
     expect(html).toContain('data-review-slot="transcript"');
-    // Narrow SSR: rail Open Conversation trigger; wide CSS docks the 385px well.
+    // Narrow SSR: header Open Conversation trigger; wide CSS docks the 385px well.
     // No always-on ConversationDrawer overlay covering Feedback labeling.
     expect(html).toContain("Open Conversation");
     expect(html).toContain('aria-haspopup="dialog"');
@@ -1490,18 +1490,14 @@ describe("InsightsView evidence-grounded review", () => {
     expect(feedbackSlot).toBeGreaterThan(-1);
     expect(actionsSlot).toBeGreaterThan(feedbackSlot);
     expect(whySlot).toBeGreaterThan(actionsSlot);
-    // GT lives in Feedback header (not a sibling card under Feedback).
-    expect(html.indexOf(">Feedback<", feedbackSlot)).toBeLessThan(
-      html.indexOf('aria-label="Ground Truth, Unset"', feedbackSlot),
-    );
-    expect(html.indexOf('aria-label="Ground Truth, Unset"', feedbackSlot)).toBeLessThan(
-      actionsSlot,
-    );
     expect(html).not.toContain(">Ground Truth</h3>");
-    // Conversation trigger sits in the rail before Feedback — not a header
-    // overlay that covers labeling chrome.
+    // Conversation trigger sits in the sticky review header nav (Prev/Next/Skip
+    // cluster) — not a rail row above Feedback.
     const openConversation = html.indexOf("Open Conversation");
+    const pendingNav = html.indexOf('aria-label="Pending review"');
     expect(openConversation).toBeGreaterThan(-1);
+    expect(pendingNav).toBeGreaterThan(-1);
+    expect(openConversation).toBeGreaterThan(pendingNav);
     expect(openConversation).toBeLessThan(feedbackSlot);
     expect(html).toContain("conversation-message-msg_2");
     expect(html).toContain("Show in conversation:");

@@ -14,6 +14,7 @@ import {
   queueActionKindForSignal,
   queueActionLabelForSignal,
   RetentionEmailAction,
+  retentionEmailBodyPreview,
 } from "@/components/RetentionEmailAction";
 import { createRetentionEmailAction } from "@/lib/supervised-actions";
 import type { Signal } from "@/lib/types";
@@ -126,7 +127,95 @@ describe("queueActionKindForSignal", () => {
   });
 });
 
+describe("retentionEmailBodyPreview", () => {
+  it("returns full body without expand when ≤3 lines", () => {
+    const short = "Hi Priya,\n\nRevised retention note.";
+    expect(retentionEmailBodyPreview(short)).toEqual({
+      preview: short,
+      remainder: "",
+      expandable: false,
+    });
+  });
+
+  it("splits after the first 3 lines when longer", () => {
+    const body = [
+      "Hi Priya,",
+      "",
+      "You mentioned closing.",
+      "",
+      "I can review fees.",
+      "",
+      "Best regards",
+    ].join("\n");
+    expect(retentionEmailBodyPreview(body)).toEqual({
+      preview: "Hi Priya,\n\nYou mentioned closing.",
+      remainder: "\nI can review fees.\n\nBest regards",
+      expandable: true,
+    });
+  });
+});
+
 describe("RetentionEmailAction", () => {
+  it("collapses long draft bodies to 3 lines with Show more", () => {
+    const action = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "I want to close my account"'],
+    });
+    const preview = retentionEmailBodyPreview(action.body);
+    expect(preview.expandable).toBe(true);
+
+    const html = renderToStaticMarkup(
+      createElement(RetentionEmailAction, {
+        signal: signal(),
+        customerName: "Priya",
+        action,
+      }),
+    );
+
+    expect(html).toContain("Show more");
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain("aria-controls=");
+    // Quiet pill expand control (not bare link text) — stroke so rounded-full reads.
+    expect(html).toContain(
+      "rounded-full border border-sio-border-subtle px-2.5",
+    );
+    expect(html).toContain("hover:border-sio-border-strong");
+    expect(html).toContain("min-h-11");
+    expect(html).toContain("md:min-h-6");
+    expect(html).toContain(preview.preview);
+    expect(html).not.toContain("Show less");
+    // Remainder stays behind expand — not in the collapsed view pane.
+    expect(html).not.toContain("I can review fees, settlement, or account options");
+    expect(html).not.toContain("Would a brief call today or tomorrow work?");
+    expect(html).not.toContain("Best regards");
+    // Subject stays fully visible; decision buttons stay below the body.
+    expect(html).toContain("Following up on your account — can we help?");
+    expect(html.indexOf("Show more")).toBeLessThan(html.indexOf("Approve Draft"));
+    expect(html.indexOf("Hi Priya,")).toBeLessThan(html.indexOf("Show more"));
+  });
+
+  it("hides expand control when draft body has ≤3 lines", () => {
+    const action = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+      evidence: ['quote: "I want to close my account"'],
+    });
+    action.body = "Hi Priya,\n\nShort note only.";
+    const html = renderToStaticMarkup(
+      createElement(RetentionEmailAction, {
+        signal: signal(),
+        customerName: "Priya",
+        action,
+      }),
+    );
+
+    expect(html).toContain("Short note only.");
+    expect(html).not.toContain("Show more");
+    expect(html).not.toContain("Show less");
+    expect(html).not.toContain('aria-expanded="');
+  });
+
   it("shows evidence and draft side by side with decision buttons", () => {
     const action = createRetentionEmailAction({
       signal: signal(),
@@ -150,9 +239,10 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Evidence");
     expect(html).toContain("Draft");
     expect(html).toContain("I want to close my account");
-    // Review Evidence|Draft before decision buttons.
+    // Review Evidence|Draft|body before decision buttons.
     expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html.indexOf("Draft")).toBeLessThan(html.indexOf("Approve Draft"));
+    expect(html.indexOf("Hi Priya,")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html).toContain("Following up on your account — can we help?");
     expect(html).toContain("Hi Priya,");
     expect(html).toContain("retention-email-columns");
@@ -163,15 +253,35 @@ describe("RetentionEmailAction", () => {
     expect(html).not.toContain(
       "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]",
     );
-    expect(html).toContain("flex flex-wrap items-center justify-end gap-1");
+    // Decision row: end-aligned Approve / Edit / Dismiss (no hairline).
     expect(html).toContain(
+      "flex flex-wrap items-center justify-end gap-2",
+    );
+    expect(html).not.toContain(
+      "flex flex-wrap items-center justify-end gap-1 pt-0.5",
+    );
+    expect(html).not.toContain(
       "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5",
     );
     expect(html).not.toContain("flex-nowrap");
+    // Flush draft preview — subject stronger than body; no nested draft card.
+    expect(html).toContain(
+      "m-0 break-words text-label-14 font-semibold leading-5 tracking-[-0.01em] text-sio-fg-base",
+    );
+    expect(html).toContain(
+      "m-0 whitespace-pre-wrap break-words font-sans text-pretty text-copy-14 leading-6 text-sio-fg-subtle",
+    );
+    expect(html).not.toContain(
+      "rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-base",
+    );
     expect(html).toContain("Sioona never sends or CRM-tags");
     expect(html).toContain(
       "You send from your tools — Sioona never sends or CRM-tags.",
     );
+    // First-click Approve/Dismiss submit directly — no confirm Dialog chrome.
+    expect(html).not.toContain("This records your approval for later evaluation");
+    expect(html).not.toContain("Dismiss Draft");
+    expect(html).not.toContain('aria-haspopup="dialog"');
     expect(html).toContain("data-review-slot=\"retention-email\"");
     // Standalone keeps pane-header chrome.
     expect(html).toContain("border-b border-sio-border-base");
@@ -207,8 +317,13 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("gap-1.5");
     // align-items:stretch lives on .retention-email-columns in globals.css
     expect(html).toContain("retention-email-columns");
-    expect(html).toContain("flex flex-wrap items-center justify-end gap-1");
     expect(html).toContain(
+      "flex flex-wrap items-center justify-end gap-2",
+    );
+    expect(html).not.toContain(
+      "flex flex-wrap items-center justify-end gap-1 pt-0.5",
+    );
+    expect(html).not.toContain(
       "flex min-w-0 flex-wrap items-center justify-between gap-x-2 gap-y-1.5",
     );
     expect(html).not.toContain("flex-nowrap");
@@ -222,12 +337,21 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("High-confidence retention draft");
     expect(html).toContain("Evidence");
     expect(html).toContain("Draft");
-    // Draft title precedes decision buttons on the same header row.
+    // Draft title + body precede decision buttons under the draft pane.
     expect(html.indexOf(">Draft<")).toBeLessThan(html.indexOf("Approve Draft"));
+    expect(html.indexOf("Hi Priya,")).toBeLessThan(html.indexOf("Approve Draft"));
     expect(html.indexOf("Evidence")).toBeLessThan(html.indexOf("Approve Draft"));
+    // Evidence keeps a quiet tonal well; draft is flush (no nested card).
     expect(html).toContain("rounded-[var(--radius-control)]");
-    // Quiet subsection labels (Why This Fired / Matched), not pill chips.
-    expect(html).not.toContain("rounded-full");
+    expect(html).toContain("bg-sio-bg-muted/40");
+    expect(html).not.toContain(
+      "rounded-[var(--radius-control)] border border-sio-border-subtle px-2.5 py-2 bg-sio-bg-base",
+    );
+    // Quiet subsection labels (Why This Fired / Matched), not status chips;
+    // Show more/less is the only rounded-full pill in this embed.
+    expect(html).toContain(
+      "rounded-full border border-sio-border-subtle px-2.5",
+    );
     expect(html).toContain(
       "text-label-12 leading-5 font-semibold tracking-normal text-sio-fg-subtle",
     );
@@ -272,6 +396,11 @@ describe("RetentionEmailAction", () => {
     expect(html).not.toContain(
       '<span>Evidence</span>',
     );
+    // Flush draft when Why owns the quote — no evidence→draft hairline on the panel.
+    expect(html).toContain('data-retention-email-panel="draft"');
+    expect(html).not.toContain(
+      'data-retention-email-panel="draft" class="flex min-w-0 flex-col gap-2.5 border-t',
+    );
     // Draft body may still mention the quote; only the Evidence well is gone.
     expect(html).toContain("I want to close my account");
   });
@@ -311,6 +440,8 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain(">Edit<");
     expect(html).toContain(">Dismiss<");
     expect(html).not.toContain("This draft already has a decision.");
+    // Revising an approved draft still opens Change Decision? dialog.
+    expect(html).toContain('aria-haspopup="dialog"');
   });
 
   it("keeps Approve / Edit / Dismiss after an edited draft save", () => {
@@ -338,6 +469,8 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain(">Edit<");
     expect(html).toContain(">Dismiss<");
     expect(html).toContain("Revised retention note.");
+    // Edited is not revise-warn; first click has no confirm Dialog.
+    expect(html).not.toContain('aria-haspopup="dialog"');
   });
 
   it("keeps Approve / Edit / Dismiss after Dismissed so partners can revise", () => {
@@ -361,5 +494,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Approve Draft");
     expect(html).toContain(">Edit<");
     expect(html).toContain(">Dismiss<");
+    // Revising a dismissed draft still opens Change Decision? dialog.
+    expect(html).toContain('aria-haspopup="dialog"');
   });
 });

@@ -12,7 +12,6 @@ import {
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
-import { GroundTruthControl } from "@/components/GroundTruthControl";
 import { InsightsReviewHelperNote } from "@/components/InsightsReviewHelperNote";
 import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
@@ -29,7 +28,7 @@ import {
   isEditableShortcutTarget,
 } from "@/lib/review-triage";
 import { postSignalFeedback } from "@/lib/signal-feedback-client";
-import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
+import type { FeedbackLabel, Signal } from "@/lib/types";
 import { afterFeedbackHref, viewHref, type SignalReviewTriage } from "@/lib/views";
 import { cn } from "@/lib/utils";
 
@@ -125,15 +124,10 @@ export function reduceFeedbackChromeLabel(
 export function FeedbackControls({
   signal,
   triage,
-  conversationId,
-  groundTruth,
   className,
 }: {
   signal: Signal;
   triage?: SignalReviewTriage;
-  /** When set, mounts Ground Truth picker in the Feedback header. */
-  conversationId?: string;
-  groundTruth?: SignalType | "none";
   className?: string;
 }) {
   const router = useRouter();
@@ -179,9 +173,6 @@ export function FeedbackControls({
   const currentTitle =
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
-  const canAdvance = Boolean(triage?.isPendingReview && !signal.feedback);
-  const isUnactedCorrect =
-    feedbackLabel === "correct" && signal.status !== "acted";
 
   useEffect(() => {
     if (!dirty) return;
@@ -303,13 +294,6 @@ export function FeedbackControls({
           >
             {currentTitle ?? "Pending"}
           </InsightsReviewStatusChip>
-          {conversationId ? (
-            <GroundTruthControl
-              conversationId={conversationId}
-              groundTruth={groundTruth}
-              defaultType={signal.type}
-            />
-          ) : null}
         </div>
       </InsightsReviewPaneHeader>
 
@@ -320,13 +304,6 @@ export function FeedbackControls({
             "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
           )}
         >
-          <InsightsReviewHelperNote>
-            {canAdvance
-              ? "C → Follow-up Act · I / P → next · Enter → Correct."
-              : isUnactedCorrect
-                ? "Copy Reply, then A / Enter → Acted (does not send)."
-                : "C / I / P · Enter → Correct."}
-          </InsightsReviewHelperNote>
           <p className="sr-only" aria-live="polite">
             {busy
               ? "Saving…"

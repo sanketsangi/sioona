@@ -75,6 +75,12 @@ const MAX_WHY_QUOTES = 2;
 const ACTED_TOOLTIP =
   "You run this in your tools — Sioona never sends or CRM-tags.";
 
+/** Match FeedbackControls chrome (not globals `.btn-*` / default `h-8`). */
+const replyOutlineBtn =
+  "min-h-11 shrink-0 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9";
+const replyPrimaryBtn =
+  "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
+
 function EvidenceChip({
   text,
   active,
@@ -431,8 +437,9 @@ export function SignalReviewSuggestedAction({
       <Button
         type="button"
         variant="outline"
+        size="lg"
         data-copied={copyState === "copied" ? "true" : undefined}
-        className={cn("btn-secondary shrink-0 active:translate-y-0")}
+        className={cn(replyOutlineBtn, "active:translate-y-0")}
         disabled={!draftReady}
         aria-label="Copy reply to clipboard"
         aria-describedby={copyStatusId}
@@ -441,6 +448,7 @@ export function SignalReviewSuggestedAction({
         {/* shadcn-style icon swap — same grid cell so width/height stay fixed */}
         <span
           className="relative inline-grid size-3.5 shrink-0 place-items-center"
+          data-icon="inline-start"
           aria-hidden
         >
           <CopyIcon
@@ -462,7 +470,7 @@ export function SignalReviewSuggestedAction({
           />
         </span>
         {/* Stack labels so “Copied…” never shrinks past “Copy Reply”; center the shorter label. */}
-        <span className="relative inline-grid justify-items-center text-center">
+        <span className="relative inline-grid justify-items-center text-center leading-none">
           <span
             className={cn(
               "col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none",
@@ -486,13 +494,19 @@ export function SignalReviewSuggestedAction({
       {isActed ? (
         <Button
           type="button"
-          className="btn-primary shrink-0 disabled:opacity-100"
+          size="lg"
+          className={cn(replyPrimaryBtn, "disabled:opacity-100")}
           disabled
           aria-pressed="true"
           aria-label="Marked as Acted"
         >
-          <Check className="size-3.5 shrink-0" weight="bold" aria-hidden />
-          Marked as Acted
+          <Check
+            className="size-3.5 shrink-0"
+            weight="bold"
+            data-icon="inline-start"
+            aria-hidden
+          />
+          <span className="leading-none">Marked as Acted</span>
         </Button>
       ) : (
         <Dialog open={feedbackGateOpen} onOpenChange={setFeedbackGateOpen}>
@@ -503,10 +517,10 @@ export function SignalReviewSuggestedAction({
                   <Button
                     type="button"
                     variant={actedIsPrimary ? "default" : "outline"}
-                    className={cn(
-                      actedIsPrimary ? "btn-primary" : "btn-secondary",
-                      "shrink-0",
-                    )}
+                    size="lg"
+                    className={
+                      actedIsPrimary ? replyPrimaryBtn : replyOutlineBtn
+                    }
                     disabled={actionsBusy}
                     aria-busy={actedPending}
                     aria-haspopup={canMarkActed ? undefined : "dialog"}
@@ -515,15 +529,16 @@ export function SignalReviewSuggestedAction({
                     onClick={requestMarkActed}
                   >
                     {actedPending ? (
-                      <ButtonSpinner />
+                      <ButtonSpinner data-icon="inline-start" />
                     ) : (
                       <Check
                         className="size-3.5 shrink-0"
                         weight="bold"
+                        data-icon="inline-start"
                         aria-hidden
                       />
                     )}
-                    Mark as Acted
+                    <span className="leading-none">Mark as Acted</span>
                   </Button>
                 </span>
               </TooltipTrigger>
@@ -597,12 +612,7 @@ export function SignalReviewSuggestedAction({
               "flex min-w-0 flex-col justify-center gap-1.5 py-3",
             )}
           >
-            {draftLoading || isActed ? null : !hasFeedback ? (
-              <p className="text-label-12 leading-5 text-sio-fg-muted">
-                Label in Feedback first — needed for this week’s ≥80% score.
-                Mark as Acted stays a draft; nothing is sent.
-              </p>
-            ) : !canMarkActed ? (
+            {!draftLoading && !isActed && hasFeedback && !canMarkActed ? (
               <p className="text-label-12 leading-5 text-sio-fg-muted">
                 Update Feedback to Correct to unlock Mark as Acted — nothing is
                 sent.

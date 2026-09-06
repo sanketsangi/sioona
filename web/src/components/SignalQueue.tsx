@@ -87,7 +87,6 @@ import {
 } from "@/lib/backend-wake";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
 import type {
-  Conversation,
   Message,
   Signal,
   SupervisedAction,
@@ -236,8 +235,6 @@ type SignalQueueProps = {
   reviewedSignals: Signal[];
   /** conversationId → customerName for User column avatars. */
   customerNames?: Record<string, string>;
-  /** conversationId → conversation for Ground Truth in review panel. */
-  conversationsById?: Record<string, Conversation>;
   /** conversationId → messages for in-queue transcript + evidence jump. */
   messagesByConversationId?: Record<string, Message[]>;
   /** Set when FastAPI needs-review could not be loaded. */
@@ -710,7 +707,6 @@ export function SignalQueue({
   pendingSignals,
   reviewedSignals,
   customerNames = {},
-  conversationsById = {},
   messagesByConversationId = {},
   queueError = null,
   tenantSignalsError = null,
@@ -781,9 +777,6 @@ export function SignalQueue({
   ) : null;
 
   if (previewId) {
-    const previewConversation = previewSignal
-      ? (conversationsById[previewSignal.conversationId] ?? null)
-      : null;
     const previewCustomerName = previewSignal
       ? resolveCustomerName(
           previewSignal.conversationId,
@@ -827,7 +820,6 @@ export function SignalQueue({
               signal={previewSignal}
               messages={previewMessages}
               customerName={previewCustomerName ?? "Customer"}
-              conversation={previewConversation}
               triage={reviewTriage}
               actedWalk={actedWalk}
               supervisedAction={findSupervisedAction(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 import { PagerIconLink } from "@/components/PagerIconLink";
 import {
@@ -13,6 +13,8 @@ type ReviewWalkHeaderProps = {
   prevHref: string | null;
   nextHref: string | null;
   skipHref: string;
+  /** Trailing chrome in the same gap-2 cluster (e.g. Open Conversation). */
+  children?: ReactNode;
 };
 
 /**
@@ -24,6 +26,7 @@ export function ReviewWalkHeader({
   prevHref,
   nextHref,
   skipHref,
+  children,
 }: ReviewWalkHeaderProps) {
   const router = useRouter();
 
@@ -69,6 +72,7 @@ export function ReviewWalkHeader({
       <PagerIconLink href={skipHref} label="Skip pending review" labeled>
         Skip
       </PagerIconLink>
+      {children}
     </nav>
   );
 }

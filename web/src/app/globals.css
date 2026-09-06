@@ -529,7 +529,7 @@
   }
 
   /*
-   * Stacked / narrow: hide the inline transcript — rail Open Conversation
+   * Stacked / narrow: hide the inline transcript — header Open Conversation
    * opens ConversationDrawer (not an always-on overlay over Feedback).
    */
   .insights-review-split [data-review-slot="transcript"] {

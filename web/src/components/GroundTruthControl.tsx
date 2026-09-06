@@ -9,10 +9,6 @@ import {
   type ComponentType,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import {
-  FilterPillFrame,
-  FilterPillTrigger,
-} from "@/components/FilterPill";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { StopIcon } from "@/components/icons/StopIcon";
@@ -29,6 +25,7 @@ import {
 import { signalTypeMarkClass } from "@/lib/format";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { clsx } from "clsx";
 
 export type GroundTruthValue = SignalType | "none" | "";
 
@@ -39,6 +36,29 @@ function isGroundTruthSignalType(
   value: GroundTruthValue,
 ): value is SignalType {
   return value === "lead" || value === "retention" || value === "upsell";
+}
+
+/**
+ * Closed-trigger chrome for the Feedback header — quiet outline / status fill,
+ * same density as InsightsReviewStatusChip (not FilterPill `rounded-[10ex]`).
+ * Uses `clsx` (not `cn`/`twMerge`) so `text-label-12` is not dropped by color tokens.
+ */
+export function groundTruthTriggerClass(value: GroundTruthValue): string {
+  const signalTinted = isGroundTruthSignalType(value);
+  const fill = signalTinted
+    ? clsx("border-transparent", signalTypeMarkClass(value))
+    : value === "none"
+      ? "border-sio-border-subtle bg-sio-bg-interactive-hover text-sio-fg-base"
+      : "border-sio-border-subtle bg-sio-bg-base text-sio-fg-muted";
+
+  return clsx(
+    "inline-flex h-8 max-w-full shrink-0 touch-manipulation items-center gap-1.5 rounded-sm border px-2 text-label-12 font-medium outline-none select-none",
+    "focus-visible:shadow-[var(--focus-ring)]",
+    "data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive",
+    !signalTinted &&
+      "hover:border-sio-border-strong hover:bg-sio-bg-interactive",
+    fill,
+  );
 }
 
 export const GROUND_TRUTH_OPTIONS: Array<{
@@ -134,7 +154,8 @@ export function groundTruthOptionRowClass(
 }
 
 /**
- * Compact Ground Truth picker for the Feedback pane header.
+ * Compact Ground Truth picker (Eval gold label). Unmounted from Insights
+ * Feedback header; kept for Eval / direct reuse.
  * Saves via the same `/api/conversations/:id/ground-truth` path as before.
  */
 export function GroundTruthControl({
@@ -194,120 +215,128 @@ export function GroundTruthControl({
     }
   }
 
+  const valueUnset = !value;
+
   return (
     <div className={cn("relative flex shrink-0 items-center", className)}>
-      <FilterPillFrame>
-        <DropdownMenu open={open} onOpenChange={setOpen}>
-          <DropdownMenuTrigger asChild>
-            <FilterPillTrigger
-              id={labelId}
-              variant={value ? "applied" : "suggestion"}
-              disabled={pending}
-              aria-busy={pending}
-              aria-invalid={error ? true : undefined}
-              aria-label={`Ground Truth, ${currentLabel}`}
-              title={
-                error
-                  ? `${error}. Try again or refresh the page.`
-                  : "Ground Truth — optional Eval gold label"
-              }
-              className={cn(pending && "cursor-wait opacity-80")}
-            >
-              {pending ? (
-                <ButtonSpinner className="size-3.5 shrink-0" />
-              ) : null}
-              <span className="flex min-w-0 max-w-[12rem] flex-row items-center gap-1 font-medium whitespace-nowrap">
-                <span className="shrink-0 font-normal text-sio-fg-subtle opacity-80 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100">
-                  Ground Truth
-                </span>
-                <span
-                  className="min-w-0 truncate text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base"
-                  translate="no"
-                >
-                  {currentLabel}
-                </span>
-                <CaretDown
-                  weight="bold"
-                  className="size-3.5 shrink-0 text-sio-fg-subtle opacity-70"
-                  aria-hidden
-                />
-              </span>
-            </FilterPillTrigger>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            sideOffset={6}
-            aria-labelledby={labelId}
-            className="min-w-44 border border-sio-border-base bg-sio-bg-base p-1 text-sio-fg-base shadow-md ring-0"
+      <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            id={labelId}
+            disabled={pending}
+            aria-busy={pending}
+            aria-invalid={error ? true : undefined}
+            aria-label={`Ground Truth, ${currentLabel}`}
+            title={
+              error
+                ? `${error}. Try again or refresh the page.`
+                : "Ground Truth — optional Eval gold label"
+            }
+            className={clsx(
+              groundTruthTriggerClass(value),
+              pending && "cursor-wait opacity-80",
+            )}
           >
-            <DropdownMenuLabel className="px-2 py-1.5 text-label-12 font-medium text-sio-fg-muted">
-              Ground Truth
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-sio-border-subtle" />
-            <DropdownMenuRadioGroup
-              value={toGroundTruthRadioValue(value)}
-              onValueChange={(next) => {
-                if (!next || pending) return;
-                void onSelect(fromGroundTruthRadioValue(next as RadioValue));
-              }}
-            >
-              {GROUND_TRUTH_OPTIONS.map((opt) => {
-                const suggested = isGroundTruthSuggestedOption(
-                  opt.value,
-                  defaultType,
-                );
-                const { Icon } = opt;
-                const signalTinted = isGroundTruthSignalType(opt.value);
-                return (
-                  <DropdownMenuRadioItem
-                    key={opt.label}
-                    value={opt.radioValue}
-                    disabled={pending}
-                    title={
-                      suggested
-                        ? `${opt.hint} (detected type)`
-                        : opt.hint
-                    }
-                    aria-label={
-                      suggested
-                        ? `${opt.hint} (detected type)`
-                        : opt.hint
-                    }
-                    className={groundTruthOptionRowClass(
-                      opt.value,
-                      suggested,
-                    )}
-                  >
-                    {Icon ? (
-                      <Icon
-                        className={cn(
-                          "size-3.5 shrink-0",
-                          !signalTinted && "text-sio-fg-subtle",
-                        )}
-                      />
-                    ) : (
-                      <span className="size-3.5 shrink-0" aria-hidden />
-                    )}
-                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
-                    {suggested ? (
-                      <span
-                        className={cn(
-                          "ml-auto text-label-12 font-normal",
-                          signalTinted
-                            ? "opacity-80"
-                            : "text-sio-fg-muted",
-                        )}
-                      >
-                        Detected
-                      </span>
-                    ) : null}
-                  </DropdownMenuRadioItem>
-                );
-              })}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </FilterPillFrame>
+            {pending ? (
+              <ButtonSpinner className="size-3.5 shrink-0" />
+            ) : null}
+            <span className="flex min-w-0 max-w-[12rem] flex-row items-center gap-1 whitespace-nowrap">
+              <span
+                className={cn(
+                  "shrink-0 font-normal",
+                  valueUnset ? "text-sio-fg-subtle" : "opacity-80",
+                )}
+              >
+                Ground Truth
+              </span>
+              <span className="min-w-0 truncate" translate="no">
+                {currentLabel}
+              </span>
+              <CaretDown
+                weight="bold"
+                className={cn(
+                  "size-3 shrink-0 opacity-70",
+                  valueUnset ? "text-sio-fg-subtle" : undefined,
+                )}
+                aria-hidden
+              />
+            </span>
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          sideOffset={6}
+          aria-labelledby={labelId}
+          className="min-w-44 border border-sio-border-base bg-sio-bg-base p-1 text-sio-fg-base shadow-md ring-0"
+        >
+          <DropdownMenuLabel className="px-2 py-1.5 text-label-12 font-medium text-sio-fg-muted">
+            Ground Truth
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-sio-border-subtle" />
+          <DropdownMenuRadioGroup
+            value={toGroundTruthRadioValue(value)}
+            onValueChange={(next) => {
+              if (!next || pending) return;
+              void onSelect(fromGroundTruthRadioValue(next as RadioValue));
+            }}
+          >
+            {GROUND_TRUTH_OPTIONS.map((opt) => {
+              const suggested = isGroundTruthSuggestedOption(
+                opt.value,
+                defaultType,
+              );
+              const { Icon } = opt;
+              const signalTinted = isGroundTruthSignalType(opt.value);
+              return (
+                <DropdownMenuRadioItem
+                  key={opt.label}
+                  value={opt.radioValue}
+                  disabled={pending}
+                  title={
+                    suggested
+                      ? `${opt.hint} (detected type)`
+                      : opt.hint
+                  }
+                  aria-label={
+                    suggested
+                      ? `${opt.hint} (detected type)`
+                      : opt.hint
+                  }
+                  className={groundTruthOptionRowClass(
+                    opt.value,
+                    suggested,
+                  )}
+                >
+                  {Icon ? (
+                    <Icon
+                      className={cn(
+                        "size-3.5 shrink-0",
+                        !signalTinted && "text-sio-fg-subtle",
+                      )}
+                    />
+                  ) : (
+                    <span className="size-3.5 shrink-0" aria-hidden />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                  {suggested ? (
+                    <span
+                      className={cn(
+                        "ml-auto text-label-12 font-normal",
+                        signalTinted
+                          ? "opacity-80"
+                          : "text-sio-fg-muted",
+                      )}
+                    >
+                      Detected
+                    </span>
+                  ) : null}
+                </DropdownMenuRadioItem>
+              );
+            })}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <p className="sr-only" aria-live="polite">
         {pending ? "Saving…" : null}

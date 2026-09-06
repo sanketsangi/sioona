@@ -1,6 +1,7 @@
 "use client";
 
 import { ConversationDrawer } from "@/components/ConversationDrawer";
+import { useReviewConversation } from "@/components/ReviewConversationContext";
 import { buttonVariants } from "@/components/ui/button";
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -8,13 +9,13 @@ import { cn } from "@/lib/utils";
 type OpenConversationHeaderActionProps = {
   messages: Message[];
   customerName: string;
-  typeLabel: string;
-  summary: string;
+  typeLabel?: string;
+  summary?: string;
 };
 
 /**
- * Insights header slot — Open Conversation beside Mark Acted when the review
- * panel is open and local messages exist.
+ * Insights review header — Open Conversation beside Prev / Next / Skip.
+ * Owns the shared ConversationDrawer; Why This Fired opens via context.
  */
 export function OpenConversationHeaderAction({
   messages,
@@ -22,6 +23,8 @@ export function OpenConversationHeaderAction({
   typeLabel,
   summary,
 }: OpenConversationHeaderActionProps) {
+  const { open, setOpen, highlightedMessageId } = useReviewConversation();
+
   if (messages.length === 0) return null;
 
   const who = customerName.trim() || "Customer";
@@ -32,6 +35,9 @@ export function OpenConversationHeaderAction({
       customerName={who}
       typeLabel={typeLabel}
       summary={summary}
+      open={open}
+      onOpenChange={setOpen}
+      highlightedMessageId={highlightedMessageId}
       triggerLabel="Open Conversation"
       triggerClassName={cn(
         buttonVariants({ variant: "outline", size: "default" }),

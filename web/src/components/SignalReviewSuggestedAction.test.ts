@@ -71,7 +71,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("w-full shrink-0 flex-wrap items-center justify-end gap-2");
     expect(html).toContain('class="sr-only"');
     expect(html).toContain("Recommended reply");
-    expect(html).toContain("btn-secondary shrink-0");
+    // Copy Reply matches FeedbackControls outline chrome (not globals `.btn-*`).
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation border-sio-border-subtle bg-sio-bg-base",
+    );
     expect(html).toContain("active:translate-y-0");
     expect(html).toContain(
       "relative inline-grid size-3.5 shrink-0 place-items-center",
@@ -101,10 +104,12 @@ describe("SignalReviewSuggestedAction", () => {
       "break-words text-pretty text-copy-16 text-sio-fg-base",
     );
     expect(html).toContain("Mark as Acted");
-    // Pending Feedback: Acted is secondary until Correct unlocks primary.
-    expect(html).toContain("btn-secondary shrink-0");
+    // Pending Feedback: Acted is outline until Correct unlocks primary.
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation border-sio-border-subtle bg-sio-bg-base",
+    );
     expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain("Label in Feedback first");
+    expect(html).not.toContain("Label in Feedback first");
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
@@ -453,12 +458,14 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
     expect(pending).toContain('aria-haspopup="dialog"');
-    expect(pending).toContain("Label in Feedback first");
-    // Pending: secondary Acted (Copy is also secondary).
-    expect(pending).toContain("btn-secondary");
-    // Mark as Acted button itself is secondary (btn-primary may appear on Retention Approve).
+    expect(pending).not.toContain("Label in Feedback first");
+    // Pending: outline Acted (Copy is also outline).
+    expect(pending).toContain(
+      "min-h-11 shrink-0 touch-manipulation border-sio-border-subtle bg-sio-bg-base",
+    );
+    // Mark as Acted button itself is outline (Retention Approve may still use btn-primary).
     expect(pending).toMatch(
-      /class="[^"]*btn-secondary[^"]*"[^>]*aria-label="Mark as Acted"/,
+      /class="[^"]*border-sio-border-subtle bg-sio-bg-base[^"]*"[^>]*aria-label="Mark as Acted"/,
     );
 
     const incorrect = renderToStaticMarkup(
@@ -478,7 +485,7 @@ describe("SignalReviewSuggestedAction", () => {
       "Update Feedback to Correct to unlock Mark as Acted",
     );
     expect(incorrect).toMatch(
-      /class="[^"]*btn-secondary[^"]*"[^>]*aria-label="Mark as Acted"/,
+      /class="[^"]*border-sio-border-subtle bg-sio-bg-base[^"]*"[^>]*aria-label="Mark as Acted"/,
     );
 
     const correct = renderToStaticMarkup(
@@ -497,11 +504,13 @@ describe("SignalReviewSuggestedAction", () => {
         },
       }),
     );
-    expect(correct).toContain("btn-primary shrink-0");
-    expect(correct).toMatch(
-      /class="[^"]*btn-primary shrink-0[^"]*"[^>]*aria-label="Mark as Acted"/,
+    expect(correct).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color",
     );
-    // Correct path: Mark as Acted has no gate dialog (Retention Approve may still).
+    expect(correct).toMatch(
+      /class="[^"]*bg-sio-bg-inverse text-sio-fg-on-color[^"]*"[^>]*aria-label="Mark as Acted"/,
+    );
+    // Correct path: Mark as Acted has no gate dialog.
     expect(correct).toMatch(
       /aria-keyshortcuts="A Enter" aria-label="Mark as Acted"/,
     );
@@ -583,8 +592,12 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).toContain("Copy Reply");
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain("btn-secondary shrink-0");
-    expect(html).toContain("btn-primary shrink-0");
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation border-sio-border-subtle bg-sio-bg-base",
+    );
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color",
+    );
     expect(html).toContain("aria-keyshortcuts");
     expect(html).not.toContain("bg-sio-status-success-bg");
     expect(html).not.toContain("status-dot");
@@ -605,6 +618,8 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toContain("Mark as Acted");
-    expect(html).toContain("btn-primary shrink-0");
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color",
+    );
   });
 });
