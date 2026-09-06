@@ -3,10 +3,9 @@
 import Link from "next/link";
 import {
   forwardRef,
-  useEffect,
   useMemo,
   useRef,
-  useState,
+  useSyncExternalStore,
   type ComponentProps,
   type ReactNode,
 } from "react";
@@ -137,11 +136,11 @@ export function InsightsModeSwap({
   const heldReviewRef = useRef<ReactNode>(null);
   // Review deep-links must not SSR the list table. List must not SSR the
   // review table. Both panes used the same `signal-summary-*` ids.
-  const [listMounted, setListMounted] = useState(listActive);
-
-  useEffect(() => {
-    setListMounted(true);
-  }, []);
+  const listMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => listActive,
+  );
 
   /* eslint-disable react-hooks/refs -- snapshot last review pane for exit fade */
   if (reviewActive && reviewKey) {

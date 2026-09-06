@@ -3,19 +3,17 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/link", () => ({
-  default: ({
-    href,
-    children,
-    className,
-    scroll: _scroll,
-    ...rest
-  }: {
+  default: (props: {
     href: string;
     children?: unknown;
     className?: string;
     scroll?: boolean;
     [key: string]: unknown;
-  }) => createElement("a", { href, className, ...rest }, children as never),
+  }) => {
+    const { href, children, className, scroll, ...rest } = props;
+    void scroll;
+    return createElement("a", { href, className, ...rest }, children as never);
+  },
 }));
 
 import {

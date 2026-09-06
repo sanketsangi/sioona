@@ -28,6 +28,8 @@ export default function GlobalError({
           <p className="mt-2 text-balance text-sm text-muted-foreground">
             This page hit an unexpected error. Return home and try again.
           </p>
+          {/* App Router context may be unavailable after a root error. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/"
             className="btn-primary mt-6 inline-flex min-h-9 items-center justify-center px-3"

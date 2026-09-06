@@ -52,8 +52,6 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
     const runId = ++runIdRef.current;
     let cancelled = false;
 
-    setError(null);
-    setStatus(vaultShowcaseLoadingLabel(showcaseKind));
     // Wake sleeping Render while wipe starts (fail-soft).
     void fetch("/api/backend-health").catch(() => undefined);
 
@@ -120,7 +118,11 @@ export function VaultShowcaseLoader({ fileName }: { fileName: string }) {
       kind={kind}
       status={status}
       error={error}
-      onRetry={() => setAttempt((n) => n + 1)}
+      onRetry={() => {
+        setError(null);
+        setStatus(vaultShowcaseLoadingLabel(kind));
+        setAttempt((n) => n + 1);
+      }}
     />
   );
 }
