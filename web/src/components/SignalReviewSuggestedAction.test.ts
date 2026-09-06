@@ -70,7 +70,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("justify-end");
     expect(html).toContain("w-full shrink-0 flex-wrap items-center justify-end gap-2");
     expect(html).toContain('class="sr-only"');
-    expect(html).toContain("Recommended reply");
+    expect(html).not.toContain("Recommended reply");
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain("active:translate-y-0");
     expect(html).toContain(

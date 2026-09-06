@@ -248,7 +248,6 @@ export function SignalReviewSuggestedAction({
   const headingId = useId();
   const whyId = useId();
   const matchedId = useId();
-  const replyLabelId = useId();
   const copyStatusId = useId();
   const sectionRef = useRef<HTMLDivElement>(null);
   const copyTimerRef = useRef<number | null>(null);
@@ -608,9 +607,6 @@ export function SignalReviewSuggestedAction({
                 sent.
               </p>
             ) : null}
-            <span id={replyLabelId} className="sr-only">
-              Recommended reply
-            </span>
             {draftLoading ? (
               <div
                 className="flex min-w-0 flex-col gap-2"
@@ -624,7 +620,6 @@ export function SignalReviewSuggestedAction({
               </div>
             ) : (
               <p
-                aria-labelledby={replyLabelId}
                 className={
                   "break-words text-pretty text-copy-16 " +
                   (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
