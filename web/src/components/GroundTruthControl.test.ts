@@ -10,93 +10,62 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-import { GroundTruthControl } from "@/components/GroundTruthControl";
+import {
+  GroundTruthControl,
+  isGroundTruthSuggestedOption,
+} from "@/components/GroundTruthControl";
+
+describe("isGroundTruthSuggestedOption", () => {
+  it("highlights only the detected signal type", () => {
+    expect(isGroundTruthSuggestedOption("retention", "retention")).toBe(true);
+    expect(isGroundTruthSuggestedOption("lead", "retention")).toBe(false);
+    expect(isGroundTruthSuggestedOption("", "retention")).toBe(false);
+    expect(isGroundTruthSuggestedOption("none", "retention")).toBe(false);
+    expect(isGroundTruthSuggestedOption("retention", undefined)).toBe(false);
+  });
+});
 
 describe("GroundTruthControl", () => {
-  it("uses a single Card well with Unset chip and type toggles", () => {
+  it("renders a FilterPill trigger with visible Ground Truth label", () => {
     const html = renderToStaticMarkup(
       createElement(GroundTruthControl, {
         conversationId: "conv_1",
-        className: "insights-review-pane insights-review-well overflow-hidden",
+        defaultType: "retention",
       }),
     );
 
+    expect(html).toContain('aria-label="Ground Truth, Unset"');
     expect(html).toContain("Ground Truth");
     expect(html).toContain("Unset");
-    expect(html).toContain("Lead");
-    expect(html).toContain("Retention");
-    expect(html).toContain("Upsell");
-    expect(html).toContain("None");
+    expect(html).toContain('data-pill-background="true"');
+    expect(html).toContain("rounded-[10ex]");
+    expect(html).toContain("outline-dashed");
     expect(html).toContain(
-      "Optional Eval gold label — Lead, Retention, Upsell, or None.",
+      "relative flex h-8 flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
     );
-    expect(html).toContain('role="note"');
-    expect(html).toContain(
-      "min-h-10 flex-row flex-wrap items-center gap-2 rounded-md border-sio-border-subtle bg-sio-bg-muted px-3 py-1.5",
-    );
-    expect(html).toContain("pr-10");
-    expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
-    expect(html).not.toContain("text-label-12");
-    expect(html).not.toContain("labeled precision and recall");
-    expect(html).toContain("bg-sio-bg-muted text-sio-fg-muted");
-    expect(html).toContain("border-b border-sio-border-base");
-    expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
-    expect(html).toContain(
-      "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
-    );
-    expect(html).not.toContain('data-slot="card-header"');
-    expect(html).not.toContain('data-slot="card-title"');
-    expect(html).not.toContain('data-slot="card-action"');
-    expect(html).toContain('data-slot="card"');
-    expect(html).toContain('data-slot="card-content"');
-    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
-    expect(html).toContain("insights-review-well");
-    expect(html.match(/insights-review-well/g)?.length).toBe(1);
+    expect(html).toContain('data-slot="dropdown-menu-trigger"');
+    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).not.toContain('data-slot="card"');
+    expect(html).not.toContain('data-slot="toggle-group"');
+    expect(html).not.toContain("Optional Eval gold label");
     expect(html).not.toContain("Saving…");
     expect(html).not.toContain('role="alert"');
-    expect(html).toContain('data-slot="toggle-group"');
-    expect(html).toContain('role="radiogroup"');
-    expect(html).toContain(
-      "grid w-full min-w-0 grid-cols-5 gap-2 max-[420px]:grid-cols-3",
-    );
-    expect(html).not.toContain("flex w-full flex-wrap justify-start");
-    expect(html).not.toContain("gap-[calc(var(--gap)*0.25rem)]");
-    expect(html).toContain(
-      "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1 rounded-lg px-2 text-center text-sm font-medium touch-manipulation md:min-h-9",
-    );
-    expect(html).not.toContain("w-full min-w-0 flex-1");
-    expect(html).toContain(
-      "border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive",
-    );
-    expect(html).toContain(
-      "data-[state=on]:border-transparent data-[state=on]:bg-sio-bg-inverse data-[state=on]:text-sio-fg-on-color data-[state=on]:hover:border-transparent data-[state=on]:hover:bg-sio-bg-inverse/90",
-    );
-    expect(html).toContain("min-w-0 truncate text-center leading-none");
-    expect(html).not.toContain("whitespace-nowrap leading-none");
-    expect(html).not.toContain('data-icon="inline-start"');
-    expect(html).toContain("size-3.5 shrink-0");
-    expect(html).toContain("data:image/svg+xml");
-    expect(html).toContain("M7.75%200C5.95507");
-    expect(html).toContain("M3.5%204.057");
-    expect(html).toContain("M10.8242%203H10.0742");
-    expect(html).toContain("M5.10051%200C4.83529");
-    expect(html).not.toContain("url(/icons/");
-    expect(html).not.toContain("/icons/good.svg");
   });
 
-  it("shows the Lead chip when ground truth is set", () => {
+  it("uses applied FilterPill chrome when ground truth is set", () => {
     const html = renderToStaticMarkup(
       createElement(GroundTruthControl, {
         conversationId: "conv_1",
         groundTruth: "lead",
+        defaultType: "retention",
       }),
     );
 
+    expect(html).toContain('aria-label="Ground Truth, Lead"');
+    expect(html).toContain("Ground Truth");
     expect(html).toContain("Lead");
-    expect(html).toContain("bg-sio-signal-lead-bg text-sio-signal-lead-fg");
-    expect(html).toContain("Labeled as Lead");
-    expect(html).toContain("data-[state=on]:bg-sio-bg-inverse");
-    expect(html).toContain("data-[state=on]:text-sio-fg-on-color");
-    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
+    expect(html).toContain('data-pill-background="true"');
+    expect(html).toContain("bg-sio-bg-base [outline-style:solid] outline-sio-border-base");
+    expect(html).not.toContain("outline-dashed");
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { CaretDown } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import {
   useId,
@@ -8,114 +9,113 @@ import {
   type ComponentType,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
-import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
-import { InsightsReviewHelperNote } from "@/components/InsightsReviewHelperNote";
-import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader";
-import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
+import {
+  FilterPillFrame,
+  FilterPillTrigger,
+} from "@/components/FilterPill";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { StopIcon } from "@/components/icons/StopIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
-import { Card, CardContent } from "@/components/ui/card";
 import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type GroundTruthValue = SignalType | "none" | "";
+export type GroundTruthValue = SignalType | "none" | "";
 
-/** ToggleGroup values cannot be empty string — map Unset ↔ unset. */
-type ToggleValue = "unset" | SignalType | "none";
+/** Radio values cannot be empty string — map Unset ↔ unset. */
+type RadioValue = "unset" | SignalType | "none";
 
-const OPTIONS: Array<{
+export const GROUND_TRUTH_OPTIONS: Array<{
   value: GroundTruthValue;
-  toggleValue: ToggleValue;
+  radioValue: RadioValue;
   label: string;
   hint: string;
   Icon?: ComponentType<{ className?: string; "data-icon"?: string }>;
 }> = [
   {
     value: "",
-    toggleValue: "unset",
+    radioValue: "unset",
     label: "Unset",
     hint: "No ground truth label",
   },
   {
     value: "lead",
-    toggleValue: "lead",
+    radioValue: "lead",
     label: "Lead",
     hint: "Labeled as Lead",
     Icon: LeadIcon,
   },
   {
     value: "retention",
-    toggleValue: "retention",
+    radioValue: "retention",
     label: "Retention",
     hint: "Labeled as Retention",
     Icon: RetentionIcon,
   },
   {
     value: "upsell",
-    toggleValue: "upsell",
+    radioValue: "upsell",
     label: "Upsell",
     hint: "Labeled as Upsell",
     Icon: UpsellIcon,
   },
   {
     value: "none",
-    toggleValue: "none",
+    radioValue: "none",
     label: "None",
     hint: "Explicitly no signal",
     Icon: StopIcon,
   },
 ];
 
-/** Class literals live here so Tailwind content scan picks them up (not only via lib/). */
-const STATUS_CHIP: Record<GroundTruthValue, string> = {
-  "": "bg-sio-bg-muted text-sio-fg-muted",
-  none: "bg-sio-bg-interactive-hover text-sio-fg-base",
-  lead: "bg-sio-signal-lead-bg text-sio-signal-lead-fg",
-  retention: "bg-sio-signal-retention-bg text-sio-signal-retention-fg",
-  upsell: "bg-sio-signal-upsell-bg text-sio-signal-upsell-fg",
-};
-
-/**
- * Match FeedbackControls size="lg" Button chrome (C/I/P). 5 equal columns
- * span the card like the 3-col feedback row; wrap to 3+2 on a narrow rail.
- * Equal horizontal padding + centered icon/label cluster (no Unset spacer).
- */
-const itemLayout =
-  "inline-flex h-9 min-h-11 min-w-0 w-full items-center justify-center gap-1 rounded-lg px-2 text-center text-sm font-medium touch-manipulation md:min-h-9";
-const outlineItem =
-  "border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive";
-const selectedItem =
-  "data-[state=on]:border-transparent data-[state=on]:bg-sio-bg-inverse data-[state=on]:text-sio-fg-on-color data-[state=on]:hover:border-transparent data-[state=on]:hover:bg-sio-bg-inverse/90";
-
-function statusLabel(value: GroundTruthValue): string {
-  return OPTIONS.find((o) => o.value === value)?.label ?? "Unset";
+export function groundTruthStatusLabel(value: GroundTruthValue): string {
+  return GROUND_TRUTH_OPTIONS.find((o) => o.value === value)?.label ?? "Unset";
 }
 
-function toToggleValue(value: GroundTruthValue): ToggleValue {
+export function toGroundTruthRadioValue(value: GroundTruthValue): RadioValue {
   return value === "" ? "unset" : value;
 }
 
-function fromToggleValue(value: ToggleValue): GroundTruthValue {
+export function fromGroundTruthRadioValue(value: RadioValue): GroundTruthValue {
   return value === "unset" ? "" : value;
 }
 
+/** Detected signal type is the suggested default in the picker (not Unset / None). */
+export function isGroundTruthSuggestedOption(
+  optionValue: GroundTruthValue,
+  defaultType?: SignalType,
+): boolean {
+  return Boolean(defaultType && optionValue === defaultType);
+}
+
+/**
+ * Compact Ground Truth picker for the Feedback pane header.
+ * Saves via the same `/api/conversations/:id/ground-truth` path as before.
+ */
 export function GroundTruthControl({
   conversationId,
   groundTruth,
+  defaultType,
   className,
 }: {
   conversationId: string;
   groundTruth?: SignalType | "none";
+  /** Signal’s detected type — highlighted as the suggested default in the menu. */
+  defaultType?: SignalType;
   className?: string;
 }) {
   const router = useRouter();
-  const headingId = useId();
+  const labelId = useId();
+  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState<GroundTruthValue>(groundTruth ?? "");
   const [prevGroundTruth, setPrevGroundTruth] = useState(groundTruth);
@@ -126,11 +126,14 @@ export function GroundTruthControl({
     setValue(groundTruth ?? "");
   }
 
+  const currentLabel = groundTruthStatusLabel(value);
+
   async function onSelect(next: GroundTruthValue) {
     if (next === value || pending) return;
     const previous = value;
     setValue(next);
     setError(null);
+    setOpen(false);
     try {
       const res = await fetch(
         `/api/conversations/${conversationId}/ground-truth`,
@@ -156,82 +159,116 @@ export function GroundTruthControl({
   }
 
   return (
-    <Card
-      size="sm"
-      className={cn("insights-review-pane", evalCardClassName, className)}
-      aria-labelledby={headingId}
-    >
-      <InsightsReviewPaneHeader id={headingId} title="Ground Truth">
-        <InsightsReviewStatusChip className={STATUS_CHIP[value]}>
-          {statusLabel(value)}
-        </InsightsReviewStatusChip>
-      </InsightsReviewPaneHeader>
-
-      <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col px-0">
-        <div
-          className={cn(
-            evalCardPadClassName,
-            "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
-          )}
-        >
-          <InsightsReviewHelperNote>
-            Optional Eval gold label — Lead, Retention, Upsell, or None.
-          </InsightsReviewHelperNote>
-          <p className="sr-only" aria-live="polite">
-            {pending ? "Saving…" : null}
-          </p>
-
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="lg"
-            spacing={2}
-            value={toToggleValue(value)}
-            onValueChange={(next) => {
-              if (!next || pending) return;
-              void onSelect(fromToggleValue(next as ToggleValue));
-            }}
-            disabled={pending}
-            aria-labelledby={headingId}
-            className="grid w-full min-w-0 grid-cols-5 gap-2 max-[420px]:grid-cols-3"
-          >
-            {OPTIONS.map((opt) => {
-              const selected = value === opt.value;
-              const { Icon } = opt;
-              return (
-                <ToggleGroupItem
-                  key={opt.label}
-                  value={opt.toggleValue}
-                  title={opt.hint}
-                  aria-label={opt.hint}
-                  aria-busy={pending && selected}
-                  className={cn(
-                    itemLayout,
-                    outlineItem,
-                    selectedItem,
-                    pending && "cursor-wait",
-                  )}
+    <div className={cn("relative flex shrink-0 items-center", className)}>
+      <FilterPillFrame>
+        <DropdownMenu open={open} onOpenChange={setOpen}>
+          <DropdownMenuTrigger asChild>
+            <FilterPillTrigger
+              id={labelId}
+              variant={value ? "applied" : "suggestion"}
+              disabled={pending}
+              aria-busy={pending}
+              aria-invalid={error ? true : undefined}
+              aria-label={`Ground Truth, ${currentLabel}`}
+              title={
+                error
+                  ? `${error}. Try again or refresh the page.`
+                  : "Ground Truth — optional Eval gold label"
+              }
+              className={cn(pending && "cursor-wait opacity-80")}
+            >
+              {pending ? (
+                <ButtonSpinner className="size-3.5 shrink-0" />
+              ) : null}
+              <span className="flex min-w-0 max-w-[12rem] flex-row items-center gap-1 font-medium whitespace-nowrap">
+                <span className="shrink-0 font-normal text-sio-fg-subtle opacity-80 transition-opacity duration-150 motion-reduce:transition-none group-hover:opacity-100">
+                  Ground Truth
+                </span>
+                <span
+                  className="min-w-0 truncate text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base"
+                  translate="no"
                 >
-                  {pending && selected ? (
-                    <ButtonSpinner className="size-3.5 shrink-0" />
-                  ) : Icon ? (
-                    <Icon className="size-3.5 shrink-0" />
-                  ) : null}
-                  <span className="min-w-0 truncate text-center leading-none">
-                    {opt.label}
-                  </span>
-                </ToggleGroupItem>
-              );
-            })}
-          </ToggleGroup>
+                  {currentLabel}
+                </span>
+                <CaretDown
+                  weight="bold"
+                  className="size-3.5 shrink-0 text-sio-fg-subtle opacity-70"
+                  aria-hidden
+                />
+              </span>
+            </FilterPillTrigger>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={6}
+            aria-labelledby={labelId}
+            className="min-w-44 border border-sio-border-base bg-sio-bg-base p-1 text-sio-fg-base shadow-md ring-0"
+          >
+            <DropdownMenuLabel className="px-2 py-1.5 text-label-12 font-medium text-sio-fg-muted">
+              Ground Truth
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-sio-border-subtle" />
+            <DropdownMenuRadioGroup
+              value={toGroundTruthRadioValue(value)}
+              onValueChange={(next) => {
+                if (!next || pending) return;
+                void onSelect(fromGroundTruthRadioValue(next as RadioValue));
+              }}
+            >
+              {GROUND_TRUTH_OPTIONS.map((opt) => {
+                const suggested = isGroundTruthSuggestedOption(
+                  opt.value,
+                  defaultType,
+                );
+                const { Icon } = opt;
+                return (
+                  <DropdownMenuRadioItem
+                    key={opt.label}
+                    value={opt.radioValue}
+                    disabled={pending}
+                    title={
+                      suggested
+                        ? `${opt.hint} (detected type)`
+                        : opt.hint
+                    }
+                    aria-label={
+                      suggested
+                        ? `${opt.hint} (detected type)`
+                        : opt.hint
+                    }
+                    className={cn(
+                      "gap-2 rounded-md py-1.5 pr-8 pl-2 text-label-14 text-sio-fg-base focus:bg-sio-bg-interactive focus:text-sio-fg-base",
+                      suggested &&
+                        "bg-sio-bg-muted font-medium text-sio-fg-base",
+                    )}
+                  >
+                    {Icon ? (
+                      <Icon className="size-3.5 shrink-0 text-sio-fg-subtle" />
+                    ) : (
+                      <span className="size-3.5 shrink-0" aria-hidden />
+                    )}
+                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                    {suggested ? (
+                      <span className="ml-auto text-label-12 font-normal text-sio-fg-muted">
+                        Detected
+                      </span>
+                    ) : null}
+                  </DropdownMenuRadioItem>
+                );
+              })}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </FilterPillFrame>
 
-          {error ? (
-            <p className="text-label-12 text-sio-status-danger-fg" role="alert">
-              {error}. Try again or refresh the page.
-            </p>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+      <p className="sr-only" aria-live="polite">
+        {pending ? "Saving…" : null}
+      </p>
+      {error ? (
+        <p className="sr-only" role="alert">
+          {error}. Try again or refresh the page.
+        </p>
+      ) : null}
+    </div>
   );
 }

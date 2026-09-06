@@ -3,7 +3,6 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
 import { FeedbackControls } from "@/components/FeedbackControls";
-import { GroundTruthControl } from "@/components/GroundTruthControl";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import type { MarkActedWalk } from "@/lib/use-mark-acted";
@@ -107,14 +106,9 @@ export function SignalReviewBody({
             signal={signal}
             className="insights-review-pane insights-review-well overflow-hidden"
             triage={triage}
+            conversationId={conversation?.id}
+            groundTruth={conversation?.groundTruth}
           />
-          {conversation ? (
-            <GroundTruthControl
-              conversationId={conversation.id}
-              groundTruth={conversation.groundTruth}
-              className="insights-review-pane insights-review-well overflow-hidden"
-            />
-          ) : null}
         </div>
         <SignalReviewSuggestedAction
           signal={signal}
