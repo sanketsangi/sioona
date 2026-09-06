@@ -66,7 +66,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('aria-label="Mark as Acted"');
     expect(html).toContain('aria-label="Reply actions"');
     expect(html).toContain('data-review-actions-toolbar="true"');
-    expect(html).toContain("Recommended reply");
+    expect(html).not.toContain("Recommended reply");
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain("active:translate-y-0");
     expect(html).toContain(
@@ -76,7 +76,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('data-variant="outline"');
     expect(html).not.toContain('data-copied="true"');
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Recommended reply[\s\S]*Hi Priya/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya/,
     );
     expect(html).not.toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
@@ -561,7 +561,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Recommended reply[\s\S]*Hi Priya — I saw your note about/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Mark as Acted[\s\S]*Hi Priya — I saw your note about/,
     );
     expect(html).not.toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
