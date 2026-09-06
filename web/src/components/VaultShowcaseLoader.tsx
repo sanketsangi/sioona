@@ -47,7 +47,7 @@ export function VaultShowcaseLoader({
   keepSetFileName = null,
 }: {
   fileName: string;
-  /** Current keep-set — Cancel returns here only after the wipe settles. */
+  /** Current keep-set — Cancel returns here only after hard_fail settles. */
   keepSetFileName?: string | null;
 }) {
   const router = useRouter();

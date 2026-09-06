@@ -96,6 +96,72 @@ describe("VaultShowcaseLoadingPanel stall / Retry chrome", () => {
 });
 
 describe("showcase load attempt gating (no second wipe while in flight)", () => {
+  it("stall-then-success: Cancel stays Upload while stall error still shown", () => {
+    const ui = play([
+      { type: "stall", kind: "sample" },
+      { type: "success" },
+    ]);
+    expect(shouldLandShowcaseLoad({ runId: 1, currentRunId: 1 })).toBe(true);
+    expect(ui.wipeInFlight).toBe(true);
+    expect(ui.error).toMatch(/longer than expected/);
+    expect(vaultShowcaseShowRetry(ui)).toBe(false);
+    expect(vaultShowcaseCanStartNewAttempt(ui)).toBe(false);
+
+    const cancelHref = vaultShowcaseCancelHref("Zerodha_week_5_batch_01.json", {
+      wipeInFlight: ui.wipeInFlight,
+    });
+    expect(cancelHref).toBe("/?view=upload");
+    expect(cancelHref).not.toContain("Zerodha_week_5_batch_01");
+
+    const html = renderToStaticMarkup(
+      createElement(VaultShowcaseLoadingPanel, {
+        kind: "sample",
+        status: ui.status,
+        error: ui.error,
+        showRetry: vaultShowcaseShowRetry(ui),
+        cancelHref,
+        onRetry: () => undefined,
+      }),
+    );
+    expect(html).toContain("Still waiting on the current load");
+    expect(html).not.toContain(">Retry<");
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain("Zerodha_week_5_batch_01");
+  });
+
+  it("in-flight Cancel is Upload even when keepSetFileName is set", () => {
+    const ui = play([{ type: "progress", status: "Wiping…" }]);
+    expect(ui.wipeInFlight).toBe(true);
+    expect(ui.error).toBeNull();
+    const cancelHref = vaultShowcaseCancelHref("keep.json", {
+      wipeInFlight: ui.wipeInFlight,
+    });
+    expect(cancelHref).toBe("/?view=upload");
+
+    const html = renderToStaticMarkup(
+      createElement(VaultShowcaseLoadingPanel, {
+        kind: "sample",
+        status: ui.status,
+        error: ui.error,
+        showRetry: vaultShowcaseShowRetry(ui),
+        cancelHref,
+        onRetry: () => undefined,
+      }),
+    );
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain("keep.json");
+  });
+
+  it("empty keep-set Cancel is Upload", () => {
+    const ui = play([{ type: "stall", kind: "partner" }]);
+    expect(
+      vaultShowcaseCancelHref(null, { wipeInFlight: ui.wipeInFlight }),
+    ).toBe("/?view=upload");
+    expect(
+      vaultShowcaseCancelHref(undefined, { wipeInFlight: false }),
+    ).toBe("/?view=upload");
+  });
+
   it("stall-then-success lands once without unlocking Retry / new attempt", () => {
     const ui = play([
       { type: "stall", kind: "sample" },
@@ -104,7 +170,8 @@ describe("showcase load attempt gating (no second wipe while in flight)", () => 
     expect(shouldLandShowcaseLoad({ runId: 1, currentRunId: 1 })).toBe(true);
     expect(vaultShowcaseShowRetry(ui)).toBe(false);
     expect(vaultShowcaseCanStartNewAttempt(ui)).toBe(false);
-    expect(ui.wipeInFlight).toBe(false);
+    // wipeInFlight stays true through land so Cancel cannot hit prior keep-set.
+    expect(ui.wipeInFlight).toBe(true);
   });
 
   it("while stalled + in-flight: Retry gated off so no second fetch/attempt", () => {
