@@ -843,7 +843,9 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).toContain("Finding signals…");
     expect(html).toContain("Usually ready in about 20 seconds.");
     expect(html).toContain("Cancel");
-    expect(html).toContain(
+    // In-flight wipe Cancel always Upload — never prior keep-set Insights.
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain(
       'href="/?view=insights&amp;file=Zerodha_week_5_batch_01.json"',
     );
     expect(html).not.toContain("Sample Not Loaded");
