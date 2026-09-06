@@ -9,7 +9,7 @@ import {
   type FeedbackSavedDetail,
 } from "@/lib/feedback-saved";
 import { postSignalActed } from "@/lib/signal-acted-client";
-import type { Signal } from "@/lib/types";
+import type { FeedbackLabel, Signal } from "@/lib/types";
 import {
   afterMarkActedHref,
   type ActionFilter,
@@ -37,6 +37,19 @@ export type MarkActedWalk = {
   /** Preserve Vault `?file=` scope on Mark Acted advances. */
   file?: string | null;
 };
+
+/** Correct-before-Acted — Incorrect / Partial never unlock Mark as Acted. */
+export function resolveCanMarkActed(opts: {
+  hasFeedback: boolean;
+  feedbackLabel: FeedbackLabel | null | undefined;
+  isActed: boolean;
+}): boolean {
+  return (
+    opts.hasFeedback &&
+    opts.feedbackLabel === "correct" &&
+    !opts.isActed
+  );
+}
 
 /**
  * Shared Mark Acted / undo for Insights header + Suggested Next Action rail.
@@ -71,8 +84,11 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
   const hasFeedback = Boolean(signal.feedback) || feedbackLocal;
   const isActed = actedLocal ?? signal.status === "acted";
   const resolvedLabel = feedbackLabel ?? (feedbackLocal ? "correct" : null);
-  const canMarkActed =
-    hasFeedback && resolvedLabel === "correct" && !isActed;
+  const canMarkActed = resolveCanMarkActed({
+    hasFeedback,
+    feedbackLabel: resolvedLabel,
+    isActed,
+  });
 
   const setActed = useCallback(
     async (acted: boolean) => {

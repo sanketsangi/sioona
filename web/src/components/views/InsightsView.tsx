@@ -2,7 +2,6 @@ import Link from "next/link";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { ReDetectButton } from "@/components/ReDetectButton";
-import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
 import { ReviewWalkHeader } from "@/components/ReviewWalkHeader";
 import {
@@ -26,7 +25,6 @@ import type { BackendSignalScore } from "@/lib/backend-client";
 import {
   customerNameFromExternalId,
   queueSignalSummary,
-  signalTypeLabel,
 } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
@@ -281,9 +279,6 @@ export function InsightsView({
         previewSignal.summary || "",
       )
     : null;
-  const previewMessages = previewSignal
-    ? (messagesByConversationId[previewSignal.conversationId] ?? [])
-    : [];
   const reviewOpen = Boolean(previewSignal && previewCustomerName != null);
   const breadcrumbPageLabel = (() => {
     if (!previewSignal || previewCustomerName == null) return null;
@@ -597,12 +592,6 @@ export function InsightsView({
                         skipHref={pendingWalk.skipHref}
                       />
                     ) : null}
-                    <OpenConversationHeaderAction
-                      messages={previewMessages}
-                      customerName={previewCustomerName}
-                      typeLabel={signalTypeLabel(previewSignal.type)}
-                      summary={previewSignal.summary || ""}
-                    />
                     <MarkActedHeaderAction
                       key={previewSignal.id}
                       signal={previewSignal}

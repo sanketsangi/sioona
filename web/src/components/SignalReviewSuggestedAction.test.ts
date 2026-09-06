@@ -45,7 +45,7 @@ function message(overrides: Partial<Message> = {}): Message {
 }
 
 describe("SignalReviewSuggestedAction", () => {
-  it("uses a single Feedback-style Card well with Mark as Acted and match tags", () => {
+  it("splits Recommended Actions and Why This Fired into sibling wells", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -92,6 +92,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Mark as Acted");
     expect(html).toContain("btn-primary shrink-0");
     expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain("Label in Feedback first");
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
@@ -111,13 +112,14 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("overflow-y-auto");
     expect(html).not.toContain("overscroll-contain");
     expect(html).not.toContain("flex min-h-0 min-w-0 flex-1 flex-col");
-    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
+    expect(html.match(/data-slot="card"/g)?.length).toBe(2);
+    expect(html).toContain('data-review-slot="actions"');
+    expect(html).toContain('data-review-slot="why"');
     expect(html).toContain("data-slot=\"separator\"");
     expect(html).toContain("insights-review-well");
     expect(html).not.toContain("xl:grid-cols-2");
     expect(html).not.toContain("bg-sio-bg-muted/50");
-    // One outer well — no nested Card; action band uses balanced py.
-    expect(html.match(/insights-review-well/g)?.length).toBe(1);
+    expect(html.match(/insights-review-well/g)?.length).toBe(2);
     expect(html).toContain("justify-center gap-1.5 py-3");
     expect(html).toContain('data-slot="label"');
     expect(html).not.toContain("border-l-2");
@@ -145,20 +147,20 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("lg:min-h-9");
     expect(html).not.toContain("h-auto w-full rounded-[var(--radius-control)]");
     expect(html).not.toContain("line-clamp-2");
-    // Matched is a sibling Label section, not a muted sublabel under Why.
-    // Retention Email nests below Matched inside the same Recommended Actions card.
+    // Retention Email stays on Recommended Actions; Why This Fired is a sibling well.
     expect(html).toMatch(
-      /Why This Fired[\s\S]*Matched[\s\S]*pause my SIP[\s\S]*Retention Email/,
+      /Recommended Actions[\s\S]*Retention Email[\s\S]*Why This Fired[\s\S]*Matched[\s\S]*pause my SIP/,
     );
     expect(html).toContain('data-review-slot="retention-email"');
     expect(html).toContain("Approve Draft");
-    const matchedIdx = html.indexOf("Matched");
     const retentionIdx = html.indexOf("Retention Email");
+    const matchedIdx = html.indexOf("Matched");
+    expect(retentionIdx).toBeGreaterThan(-1);
     expect(matchedIdx).toBeGreaterThan(-1);
-    expect(retentionIdx).toBeGreaterThan(matchedIdx);
+    expect(retentionIdx).toBeLessThan(matchedIdx);
   });
 
-  it("nests Retention Email below Matched in one Recommended Actions card", () => {
+  it("nests Retention Email inside Recommended Actions, before Why This Fired", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -166,19 +168,21 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html.match(/data-slot="card"/g)?.length).toBe(1);
+    expect(html.match(/data-slot="card"/g)?.length).toBe(2);
     expect(html).toContain("Recommended Actions");
     expect(html).toMatch(
-      /Matched[\s\S]*Retention Email[\s\S]*Approve Draft/,
+      /Recommended Actions[\s\S]*Retention Email[\s\S]*Approve Draft[\s\S]*Why This Fired/,
     );
-    expect(html.indexOf("Matched")).toBeLessThan(html.indexOf("Retention Email"));
     expect(html.indexOf("Retention Email")).toBeLessThan(
       html.indexOf("Approve Draft"),
     );
+    expect(html.indexOf("Approve Draft")).toBeLessThan(
+      html.indexOf("Why This Fired"),
+    );
     expect(html).toContain('data-review-slot="retention-email"');
     expect(html).not.toContain("insights-review-pane insights-review-well");
-    // Quiet inner section — only the outer Recommended Actions pane header.
-    expect(html.match(/border-b border-sio-border-base/g)?.length).toBe(1);
+    // Actions + Why pane headers.
+    expect(html.match(/border-b border-sio-border-base/g)?.length).toBe(2);
     expect(html).toContain("surface-quiet");
     // Embedded Retention Email uses h3 + Pending chip (not a Label heading).
     expect(html).toMatch(
@@ -262,9 +266,8 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Matched");
     expect(html).toContain("pause my SIP");
     expect(html).not.toContain("Why This Fired");
-    expect(html).toContain("data-slot=\"separator\"");
-    // Support block separator only — Retention Email is surface-quiet, not a Separator.
-    expect(html.match(/data-slot="separator"/g)?.length).toBe(1);
+    // Matched-only well — no Why|Matched separator.
+    expect(html).not.toContain('data-slot="separator"');
   });
 
   it("renders keyword match chips under Matched", () => {
@@ -285,8 +288,8 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("ledger");
     expect(html).toContain("Phrase");
     expect(html).toContain("prior tickets");
-    // Why|Matched separators only — Retention Email nests as surface-quiet.
-    expect(html.match(/data-slot="separator"/g)?.length).toBe(2);
+    // Why|Matched separator only — Retention Email nests as surface-quiet.
+    expect(html.match(/data-slot="separator"/g)?.length).toBe(1);
   });
 
   it("turns joined quotes into conversation jump controls", () => {
