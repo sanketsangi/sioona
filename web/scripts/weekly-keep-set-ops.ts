@@ -286,11 +286,12 @@ function parseArgs(argv: string[]): CliOptions {
   }
 
   if (opts.help) {
+    const helpWeek = week ?? 7;
     return {
-      week: week ?? 7,
-      basename: weekBasename(week ?? 7),
-      packPath: opts.packPath ?? defaultPackPath(week ?? 7),
       ...opts,
+      week: helpWeek,
+      basename: weekBasename(helpWeek),
+      packPath: opts.packPath ?? defaultPackPath(helpWeek),
     };
   }
 
