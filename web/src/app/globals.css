@@ -461,8 +461,8 @@
   /*
    * Insights review: one panel. Phone/tablet stack Recommended Actions
    * (Retention Email nested) → Feedback; Conversation opens in a right
-   * Drawer (Open Conversation / Why This Fired). Laptop+ splits
-   * rail | fixed 385px Conversation; the rail is the only left-column
+   * Drawer (sticky header Open Conversation / Why This Fired). Laptop+
+   * splits rail | fixed 385px Conversation; the rail is the only left-column
    * scroller. Recommended Actions hugs content (no inner card scrollbar).
    * Conversation well is 385px when the split is active; MessageScroller
    * scrolls inside. Rail / stacked-split keep overflow scroll but hide
@@ -529,8 +529,9 @@
   }
 
   /*
-   * Stacked / narrow: hide the inline transcript — rail Open Conversation
-   * opens ConversationDrawer (not an always-on overlay over Feedback).
+   * Stacked / narrow: hide the inline transcript — sticky header Open
+   * Conversation (or Why This Fired) opens ConversationDrawer (not an
+   * always-on overlay over Feedback).
    */
   .insights-review-split [data-review-slot="transcript"] {
     display: none;

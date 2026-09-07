@@ -179,9 +179,6 @@ export function FeedbackControls({
   const currentTitle =
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
-  const canAdvance = Boolean(triage?.isPendingReview && !signal.feedback);
-  const isUnactedCorrect =
-    feedbackLabel === "correct" && signal.status !== "acted";
 
   useEffect(() => {
     if (!dirty) return;
@@ -320,13 +317,6 @@ export function FeedbackControls({
             "flex min-h-0 flex-1 flex-col gap-2.5 py-3",
           )}
         >
-          <InsightsReviewHelperNote>
-            {canAdvance
-              ? "C → Follow-up Act · I / P → next · Enter → Correct."
-              : isUnactedCorrect
-                ? "Copy Reply, then A / Enter → Acted (does not send)."
-                : "C / I / P · Enter → Correct."}
-          </InsightsReviewHelperNote>
           <p className="sr-only" aria-live="polite">
             {busy
               ? "Saving…"

@@ -2,6 +2,7 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
+import { useConversationDrawerOpen } from "@/components/conversation-drawer-control";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
@@ -35,8 +36,8 @@ type SignalReviewBodyProps = {
 /**
  * Insights review body: Conversation well and review rail as sibling
  * cards (gap-4). Narrow: Feedback → Recommended Actions → Why This Fired;
- * Conversation opens from a rail trigger (not an overlay over Feedback).
- * Wide: flexible rail | fixed 385px Conversation (always docked).
+ * Conversation opens from the sticky header (Open Conversation) or Why This
+ * Fired evidence (shared headless drawer). Wide: rail | fixed 385px Conversation.
  * Highlight resets when `signal.id` changes (parent should key this).
  */
 export function SignalReviewBody({
@@ -51,7 +52,11 @@ export function SignalReviewBody({
 }: SignalReviewBodyProps) {
   const splitRef = useRef<HTMLDivElement>(null);
   const [splitWide, setSplitWide] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [localDrawerOpen, setLocalDrawerOpen] = useState(false);
+  const { open: drawerOpen, setOpen: setDrawerOpen } = useConversationDrawerOpen(
+    localDrawerOpen,
+    setLocalDrawerOpen,
+  );
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(() =>
     firstEvidenceMessageId(signal.evidence, messages),
   );
@@ -75,7 +80,7 @@ export function SignalReviewBody({
       // Narrow: inline transcript is hidden — open the drawer and land there.
       if (!splitWide) setDrawerOpen(true);
     },
-    [splitWide],
+    [setDrawerOpen, splitWide],
   );
 
   return (
@@ -86,17 +91,16 @@ export function SignalReviewBody({
       aria-labelledby={`signal-review-heading-${signal.id}`}
     >
       <div className="insights-review-rail">
-        {!splitWide && messages.length > 0 ? (
-          <div className="flex shrink-0 justify-end">
-            <ConversationDrawer
-              messages={messages}
-              customerName={customerName}
-              open={drawerOpen}
-              onOpenChange={setDrawerOpen}
-              highlightedMessageId={focusedMessageId}
-              triggerLabel="Open Conversation"
-            />
-          </div>
+        {/* Headless: sticky header Open Conversation + Why This Fired share this. */}
+        {messages.length > 0 ? (
+          <ConversationDrawer
+            messages={messages}
+            customerName={customerName}
+            open={drawerOpen}
+            onOpenChange={setDrawerOpen}
+            highlightedMessageId={focusedMessageId}
+            showTrigger={false}
+          />
         ) : null}
         <div
           data-review-slot="feedback"
@@ -123,9 +127,10 @@ export function SignalReviewBody({
       </div>
       {/*
         Wide: inline 385px well. Narrow: CSS hides the slot; unmount while the
-        drawer is open so message DOM ids stay unique.
+        drawer is open so message DOM ids stay unique (header + evidence share
+        one drawer).
       */}
-      {splitWide || !drawerOpen ? (
+      {!drawerOpen ? (
         <SignalReviewConversation
           messages={messages}
           customerName={customerName}

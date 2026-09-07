@@ -3,6 +3,8 @@ import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsSta
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { ReDetectButton } from "@/components/ReDetectButton";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
+import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
+import { ConversationDrawerControlProvider } from "@/components/conversation-drawer-control";
 import { ReviewWalkHeader } from "@/components/ReviewWalkHeader";
 import {
   InsightsModeSwap,
@@ -26,6 +28,7 @@ import type { BackendSignalScore } from "@/lib/backend-client";
 import {
   customerNameFromExternalId,
   queueSignalSummary,
+  signalTypeLabel,
 } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
@@ -413,6 +416,19 @@ export function InsightsView({
         file: vaultFile,
       }
     : null;
+  const previewMessages = previewSignal
+    ? (messagesByConversationId[previewSignal.conversationId] ?? [])
+    : [];
+  const openConversationAction =
+    previewSignal && previewCustomerName != null && previewMessages.length > 0 ? (
+      <OpenConversationHeaderAction
+        key={`open-conv-${previewSignal.id}`}
+        messages={previewMessages}
+        customerName={previewCustomerName}
+        typeLabel={signalTypeLabel(previewSignal.type)}
+        summary={previewSignal.summary}
+      />
+    ) : null;
   const queueProps = {
     pendingSignals,
     reviewedSignals,
@@ -548,67 +564,74 @@ export function InsightsView({
           </div>
         }
         review={
-          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="sticky top-0 z-10 flex min-w-0 shrink-0 flex-col gap-3 bg-sio-bg-muted min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
-              <div className="min-w-0">
-                {breadcrumbPageLabel ? (
-                  <Breadcrumb
-                    aria-label="Insights review"
-                    className="min-w-0 scroll-mt-4"
-                  >
-                    <BreadcrumbList className="min-w-0">
-                      <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                          <Link
-                            href={backToQueueHref}
-                            scroll={false}
-                            className="inline-flex min-h-11 items-center touch-manipulation md:min-h-6"
+          <ConversationDrawerControlProvider
+            key={previewSignal?.id ?? "no-preview"}
+          >
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+              <div className="sticky top-0 z-10 flex min-w-0 shrink-0 flex-col gap-3 bg-sio-bg-muted min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
+                <div className="min-w-0">
+                  {breadcrumbPageLabel ? (
+                    <Breadcrumb
+                      aria-label="Insights review"
+                      className="min-w-0 scroll-mt-4"
+                    >
+                      <BreadcrumbList className="min-w-0">
+                        <BreadcrumbItem>
+                          <BreadcrumbLink asChild>
+                            <Link
+                              href={backToQueueHref}
+                              scroll={false}
+                              className="inline-flex min-h-11 items-center touch-manipulation md:min-h-6"
+                            >
+                              Insights Queue
+                            </Link>
+                          </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem className="min-w-0">
+                          <BreadcrumbPage
+                            className="text-heading-16 font-medium !text-sio-fg-base ml-2 max-w-[min(16rem,calc(100vw-8rem))] truncate sm:max-w-xs"
+                            title={breadcrumbPageLabel}
+                            translate="no"
                           >
-                            Insights Queue
-                          </Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator />
-                      <BreadcrumbItem className="min-w-0">
-                        <BreadcrumbPage
-                          className="font-medium max-w-[min(16rem,calc(100vw-8rem))] truncate sm:max-w-xs"
-                          title={breadcrumbPageLabel}
-                          translate="no"
-                        >
-                          {breadcrumbPageLabel}
-                        </BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                ) : (
-                  <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                    Insights Queue
-                  </h2>
-                )}
-              </div>
-              <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
-                {previewSignal && previewCustomerName != null ? (
-                  <>
-                    {pendingWalk ? (
-                      <ReviewWalkHeader
-                        prevHref={pendingWalk.prevHref}
-                        nextHref={pendingWalk.nextHref}
-                        skipHref={pendingWalk.skipHref}
+                            {breadcrumbPageLabel}
+                          </BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </BreadcrumbList>
+                    </Breadcrumb>
+                  ) : (
+                    <h2 className="scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                      Insights Queue
+                    </h2>
+                  )}
+                </div>
+                <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center justify-end gap-2 min-[540px]:w-auto">
+                  {previewSignal && previewCustomerName != null ? (
+                    <>
+                      {pendingWalk ? (
+                        <ReviewWalkHeader
+                          prevHref={pendingWalk.prevHref}
+                          nextHref={pendingWalk.nextHref}
+                          skipHref={pendingWalk.skipHref}
+                          openConversation={openConversationAction}
+                        />
+                      ) : (
+                        openConversationAction
+                      )}
+                      <MarkActedHeaderAction
+                        key={previewSignal.id}
+                        signal={previewSignal}
+                        {...(actedWalk ?? {})}
                       />
-                    ) : null}
-                    <MarkActedHeaderAction
-                      key={previewSignal.id}
-                      signal={previewSignal}
-                      {...(actedWalk ?? {})}
-                    />
-                  </>
-                ) : null}
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <SignalQueue {...queueProps} previewId={previewId} />
               </div>
             </div>
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              <SignalQueue {...queueProps} previewId={previewId} />
-            </div>
-          </div>
+          </ConversationDrawerControlProvider>
         }
       />
     </ViewFrame>

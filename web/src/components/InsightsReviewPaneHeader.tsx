@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { evalCardHeaderClassName } from "@/components/EvalCard";
 import { cn } from "@/lib/utils";
 
-/** Pane titles — breadcrumb current-page size/color (`text-sm` / foreground), keep semibold. */
+/** Pane titles — heading-14 medium, foreground for contrast. */
 export const REVIEW_PANE_TITLE_CLASS =
-  "min-w-0 flex-1 truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base";
+  "min-w-0 flex-1 truncate text-heading-14 font-medium text-sio-fg-base";
 
 /**
  * Shared header chrome for Insights review panes (Suggested Next Action,

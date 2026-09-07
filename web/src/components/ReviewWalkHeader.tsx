@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 import { PagerIconLink } from "@/components/PagerIconLink";
 import {
@@ -13,10 +13,12 @@ type ReviewWalkHeaderProps = {
   prevHref: string | null;
   nextHref: string | null;
   skipHref: string;
+  /** Open Conversation — after Skip; same outline h-8 chrome as pager. */
+  openConversation?: ReactNode;
 };
 
 /**
- * Insights review chrome: Prev / Next / Skip outline Buttons + J/K.
+ * Insights review chrome: Prev / Next / Skip / Open Conversation + J/K.
  * Shown for any open ?preview= while pending remains (incl. after Correct /
  * Acted). Skip never writes feedback; last Skip drops preview → list.
  */
@@ -24,6 +26,7 @@ export function ReviewWalkHeader({
   prevHref,
   nextHref,
   skipHref,
+  openConversation = null,
 }: ReviewWalkHeaderProps) {
   const router = useRouter();
 
@@ -69,6 +72,7 @@ export function ReviewWalkHeader({
       <PagerIconLink href={skipHref} label="Skip pending review" labeled>
         Skip
       </PagerIconLink>
+      {openConversation}
     </nav>
   );
 }

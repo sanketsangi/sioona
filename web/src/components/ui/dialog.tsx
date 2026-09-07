@@ -5,7 +5,13 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  Skiper45,
+  skiper45DialogContentClassName,
+} from "@/components/v1/skiper45"
 import { X } from "@phosphor-icons/react/ssr"
+
+type DialogContentVariant = "default" | "skiper45"
 
 function Dialog({
   ...props
@@ -39,11 +45,15 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-sio-bg-overlay duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        // Scrim color + blur live on Skiper45 (Family Receive backdrop); keep
+        // positioning, stacking, and open/close fades on the Radix overlay.
+        "fixed inset-0 isolate z-50 duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
-    />
+    >
+      <Skiper45 />
+    </DialogPrimitive.Overlay>
   )
 }
 
@@ -51,27 +61,40 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  variant = "default",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
+  /** Opt-in Family Receive panel (skiper45). Default keeps quiet panel chrome. */
+  variant?: DialogContentVariant
 }) {
+  const isSkiper45 = variant === "skiper45"
+
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
+        {...props}
         data-slot="dialog-content"
+        data-variant={variant}
+        {...(isSkiper45 ? { "data-skiper45": "" } : {})}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-6 text-sm text-sio-fg-base shadow-none duration-100 outline-none sm:max-w-md data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 text-sm text-sio-fg-base outline-none sm:max-w-md",
+          isSkiper45
+            ? skiper45DialogContentClassName
+            : "gap-6 rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-6 shadow-none duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
-        {...props}
       >
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button
               variant="ghost"
-              className="absolute top-4 right-4 text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base"
+              className={cn(
+                "absolute text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base",
+                isSkiper45 ? "top-5 right-5 rounded-full" : "top-4 right-4",
+              )}
               size="icon-sm"
             >
               <X />

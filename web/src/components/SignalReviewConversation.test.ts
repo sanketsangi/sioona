@@ -56,7 +56,7 @@ describe("SignalReviewConversation", () => {
     expect(html).toContain("insights-review-chat");
     expect(html).toContain("insights-review-chat-header");
     expect(html).toContain(
-      "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+      "truncate text-heading-14 font-medium text-sio-fg-base",
     );
     expect(html).toContain("insights-review-chat-body");
     expect(html).toContain('data-slot="message-scroller"');

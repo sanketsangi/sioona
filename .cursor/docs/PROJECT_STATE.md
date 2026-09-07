@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-07):** Insights Review chrome — Copy Reply beside reply draft row; Retention Email Approve/Edit/Dismiss footer on Draft panel; pending-Feedback helper removed. Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` + Vitest. Not Detect / not outbound / not a keep-set go.
+**This pass (code, 2026-09-07):** Insights Retention Email pending well — quiet `AppleBorderGradient` (skiper86, sio stops + reduced-motion). Touch: `components.json` `@skiper-ui` registry, `v1/skiper86`, embedded `RetentionEmailAction` + Vitest. Pro CLI still needs `SKIPER_LICENSE_KEY` in `.env.local`. Not Detect / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-07):** Insights Review chrome — Copy Reply beside reply draft row; Retention Email Approve/Edit/Dismiss footer on Draft panel; pending-Feedback helper removed. Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` + Vitest. Not Detect / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-07):** Recommended Actions drops pending-Feedback muted helper (“Label in Feedback first…”) — Correct-before-Acted gate dialog + incorrect/partial helper unchanged. Touch: `SignalReviewSuggestedAction` + Vitest. Not Detect / not outbound / not a keep-set go.
 

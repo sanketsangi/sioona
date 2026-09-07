@@ -144,21 +144,18 @@ describe("FeedbackControls", () => {
     expect(html).toContain("Incorrect");
     expect(html).toContain("Partially Correct");
     expect(html).toContain("Optional note");
-    expect(html).toContain("C / I / P · Enter → Correct.");
-    expect(html).toContain('role="note"');
-    expect(html).toContain(
-      "min-h-10 flex-row flex-wrap items-center gap-2 rounded-md border-sio-border-subtle bg-sio-bg-muted px-3 py-1.5",
+    expect(html).not.toContain("C / I / P · Enter → Correct.");
+    expect(html).not.toContain(
+      "Copy Reply, then A / Enter → Acted (does not send).",
     );
-    expect(html).toContain("pr-10");
-    expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
-    expect(html).not.toContain("text-label-12");
+    expect(html).not.toContain('role="note"');
     expect(html).not.toContain("saves to Neon");
     expect(html).not.toContain("Saving…");
     expect(html).toContain("aria-label=\"Feedback actions\"");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
     expect(html).toContain(
-      "truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+      "truncate text-heading-14 font-medium text-sio-fg-base",
     );
     expect(html).not.toContain('data-slot="card-header"');
     expect(html).not.toContain('data-slot="card-title"');
@@ -208,12 +205,10 @@ describe("FeedbackControls", () => {
     expect(html).not.toContain(
       "border-sio-border-strong bg-sio-bg-interactive-hover",
     );
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
-    expect(html).toContain('role="note"');
-    expect(html).toContain("text-pretty text-copy-14 text-sio-fg-subtle");
-    expect(html).not.toContain("text-label-12");
+    expect(html).not.toContain('role="note"');
     expect(html).not.toContain(
       "Copy Reply from Suggested Next Action, then Mark Acted",
     );

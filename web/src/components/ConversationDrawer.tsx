@@ -16,8 +16,11 @@ import {
 import type { Message as ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const defaultTriggerClass =
-  "inline-flex min-h-11 touch-manipulation items-center justify-center gap-1.5 rounded-[var(--radius-control)] border border-sio-border-subtle bg-sio-bg-base px-3.5 text-sm font-medium text-sio-fg-base transition-[color,background-color,border-color] duration-150 hover:border-sio-border-strong hover:bg-sio-bg-interactive md:h-9 md:min-h-9";
+/** Match Insights pager Skip / Prev / Next outline chrome. */
+const defaultTriggerClass = cn(
+  buttonVariants({ variant: "outline", size: "default" }),
+  "h-8 gap-2 shrink-0",
+);
 
 /**
  * Conversation transcript in a right-side Drawer.

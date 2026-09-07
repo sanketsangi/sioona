@@ -64,11 +64,12 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Copied…");
     expect(html).toContain("Copy reply to clipboard");
-    expect(html).toContain('aria-label="Mark as Acted"');
+    expect(html).toContain('aria-label="Run Actions"');
     expect(html).toContain('data-review-reply-row="true"');
     expect(html).toContain('data-review-actions-toolbar="true"');
-    expect(html).toContain('data-review-actions-footer="true"');
-    expect(html).toContain("justify-end");
+    // Retention Email present → Run Actions nests under helper copy; no footer chrome.
+    expect(html).not.toContain('data-review-actions-footer="true"');
+    expect(html).toContain("w-full justify-end");
     expect(html).toContain(
       "flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2",
     );
@@ -85,8 +86,18 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('data-variant="outline"');
     expect(html).not.toContain('data-copied="true"');
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Hi Priya[\s\S]*Copy Reply[\s\S]*Mark as Acted/,
+      /Recommended Actions[\s\S]*Hi Priya[\s\S]*Copy Reply[\s\S]*Retention Email[\s\S]*Run Actions/,
     );
+    expect(html).toMatch(
+      /High-confidence retention draft[\s\S]*Edit Draft[\s\S]*aria-label="Run Actions"/,
+    );
+    expect(html).toMatch(
+      /data-review-slot="retention-email"[\s\S]*High-confidence retention draft[\s\S]*data-review-actions-toolbar="true"/,
+    );
+    expect(html.indexOf("Edit Draft")).toBeLessThan(
+      html.indexOf('aria-label="Run Actions"'),
+    );
+    expect(html).toContain('aria-label="Retention email actions"');
     expect(html).toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
@@ -108,20 +119,31 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain(
       "min-w-0 flex-1 break-words text-pretty text-copy-16 text-sio-fg-base",
     );
-    expect(html).toContain("Mark as Acted");
-    // Pending Feedback: Acted is secondary until Correct unlocks primary.
-    expect(html).toContain("btn-secondary shrink-0");
+    expect(html).toContain("Run Actions");
+    // Run Actions matches Correct inverse chrome; Copy Reply stays secondary.
+    expect(html).toMatch(
+      /class="[^"]*bg-sio-bg-inverse text-sio-fg-on-color[^"]*"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*class="[^"]*bg-sio-bg-inverse text-sio-fg-on-color/,
+    );
+    expect(html).toMatch(
+      /aria-label="Run Actions"[^>]*data-size="lg"|data-size="lg"[^>]*aria-label="Run Actions"/,
+    );
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+    );
+    expect(html).not.toMatch(
+      /class="[^"]*btn-primary[^"]*"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*class="[^"]*btn-primary/,
+    );
     expect(html).toContain('aria-haspopup="dialog"');
     expect(html).not.toContain("Label in Feedback first");
     expect(html).not.toContain("status-dot");
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
     expect(html).toContain(
-      'truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base',
+      'truncate text-heading-14 font-medium text-sio-fg-base',
     );
     expect(html).toContain("flex shrink-0 items-center");
     expect(html).toContain(
-      "w-full shrink-0 flex-wrap items-center justify-end gap-2",
+      "relative z-[1] flex shrink-0 flex-wrap items-center gap-2 w-full justify-end",
     );
     expect(html).not.toMatch(
       /data-review-actions-toolbar="true"[\s\S]*Copy reply to clipboard/,
@@ -177,7 +199,14 @@ describe("SignalReviewSuggestedAction", () => {
       /Recommended Actions[\s\S]*Retention Email[\s\S]*Why This Fired[\s\S]*Matched[\s\S]*pause my SIP/,
     );
     expect(html).toContain('data-review-slot="retention-email"');
-    expect(html).toContain("Approve Draft");
+    expect(html).toContain("Edit Draft");
+    expect(html).not.toContain("Approve Draft");
+    expect(html).not.toContain(">Dismiss<");
+    // Edit Draft is in the Retention Email toolbar, left of Run Actions — not the title row.
+    expect(html.indexOf("Retention Email")).toBeLessThan(html.indexOf("Edit Draft"));
+    expect(html.indexOf("Edit Draft")).toBeLessThan(
+      html.indexOf('aria-label="Run Actions"'),
+    );
     const retentionIdx = html.indexOf("Retention Email");
     const matchedIdx = html.indexOf("Matched");
     expect(retentionIdx).toBeGreaterThan(-1);
@@ -196,12 +225,15 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html.match(/data-slot="card"/g)?.length).toBe(2);
     expect(html).toContain("Recommended Actions");
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Retention Email[\s\S]*Approve Draft[\s\S]*Why This Fired/,
+      /Recommended Actions[\s\S]*Retention Email[\s\S]*Edit Draft[\s\S]*Run Actions[\s\S]*Why This Fired/,
     );
     expect(html.indexOf("Retention Email")).toBeLessThan(
-      html.indexOf("Approve Draft"),
+      html.indexOf("Edit Draft"),
     );
-    expect(html.indexOf("Approve Draft")).toBeLessThan(
+    expect(html.indexOf("Edit Draft")).toBeLessThan(
+      html.indexOf('aria-label="Run Actions"'),
+    );
+    expect(html.indexOf("Edit Draft")).toBeLessThan(
       html.indexOf("Why This Fired"),
     );
     expect(html).toContain('data-review-slot="retention-email"');
@@ -216,11 +248,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toMatch(
       /data-review-slot="retention-email"[\s\S]*<h3[\s\S]*Retention Email/,
     );
-    expect(html).not.toMatch(
-      /data-review-slot="retention-email"[\s\S]*Pending[\s\S]*Approve Draft/,
-    );
+    expect(html).not.toContain("Approve Draft");
+    expect(html).not.toContain(">Dismiss<");
     expect(html).toContain(
-      "min-w-0 flex-1 truncate text-label-14 font-semibold leading-5 tracking-normal text-sio-fg-base",
+      "min-w-0 flex-1 truncate text-heading-14 font-medium text-sio-fg-base",
     );
     // Why / Matched stay Label density.
     expect(html).toContain(
@@ -230,8 +261,8 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Why This Fired");
     expect(html).toContain("“Please pause my SIP this month”");
     expect(html).not.toContain('data-retention-email-panel="evidence"');
-    expect(html).toContain('data-retention-email-panel="draft"');
-    expect(html).toContain("Approve Draft");
+    expect(html).not.toContain('data-retention-email-panel="draft"');
+    expect(html).toContain("Edit Draft");
   });
 
   it("shows Approved on the Actions header chip after an Approve decision", () => {
@@ -300,8 +331,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Retention Email");
     expect(html).toContain('data-retention-email-panel="evidence"');
     expect(html).toContain("No local evidence quote.");
-    expect(html).toContain('data-retention-email-panel="draft"');
-    expect(html).toContain("Approve Draft");
+    expect(html).not.toContain('data-retention-email-panel="draft"');
+    expect(html).not.toContain("Approve Draft");
+    expect(html).toContain("Edit Draft");
+    expect(html).not.toContain(">Dismiss<");
   });
 
   it("omits Retention Email for non-retention signals", () => {
@@ -315,6 +348,12 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Recommended Actions");
     expect(html).not.toContain("Retention Email");
     expect(html).not.toContain('data-review-slot="retention-email"');
+    // Without Retention Email, Run Actions stays in the Actions footer.
+    expect(html).toContain('data-review-actions-footer="true"');
+    expect(html).toContain(
+      "relative z-[1] flex shrink-0 flex-wrap items-center gap-2 w-full justify-end",
+    );
+    expect(html).toContain('aria-label="Run Actions"');
   });
 
   it("omits Matched section when only quotes exist", () => {
@@ -332,8 +371,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("Matched");
     // Screenshot case: one quote under Why — not again under Retention Evidence.
     expect(html).not.toContain('data-retention-email-panel="evidence"');
-    expect(html).toContain('data-retention-email-panel="draft"');
-    expect(html).toContain("Approve Draft");
+    expect(html).not.toContain('data-retention-email-panel="draft"');
+    expect(html).not.toContain("Approve Draft");
+    expect(html).toContain("Edit Draft");
+    expect(html).not.toContain(">Dismiss<");
   });
 
   it("shows Matched alone when there are matches but no quotes", () => {
@@ -501,13 +542,15 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("Hi Priya — I saw your note about");
     expect(html).not.toContain("No recommended reply");
     expect(html).toContain("Copy Reply");
-    expect(html).toContain("Mark as Acted");
+    expect(html).toContain("Run Actions");
     // Both CTAs disabled until draft ready.
     expect(html.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
     expect(html).toContain('aria-busy="true"');
   });
 
-  it("keeps Correct-before-Acted gate and promotes Acted only on Correct", () => {
+  it("keeps Correct-before-Acted gate with inverse Run Actions", () => {
+    const runActionsInverse =
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
     const pending = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal(),
@@ -516,11 +559,14 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(pending).toContain('aria-haspopup="dialog"');
     expect(pending).not.toContain("Label in Feedback first");
-    // Pending: secondary Acted (Copy is also secondary).
+    // Copy Reply stays secondary; Run Actions uses Correct inverse chrome.
     expect(pending).toContain("btn-secondary");
-    // Mark as Acted button itself is secondary (btn-primary may appear on Retention Approve).
+    expect(pending).toContain(runActionsInverse);
     expect(pending).toMatch(
-      /class="[^"]*btn-secondary[^"]*"[^>]*aria-label="Mark as Acted"/,
+      /aria-label="Run Actions"[^>]*data-size="lg"|data-size="lg"[^>]*aria-label="Run Actions"/,
+    );
+    expect(pending).not.toMatch(
+      /class="[^"]*btn-primary[^"]*"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*class="[^"]*btn-primary/,
     );
 
     const incorrect = renderToStaticMarkup(
@@ -537,11 +583,9 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(incorrect).toContain('aria-haspopup="dialog"');
     expect(incorrect).toContain(
-      "Update Feedback to Correct to unlock Mark as Acted",
+      "Update Feedback to Correct to unlock Run Actions",
     );
-    expect(incorrect).toMatch(
-      /class="[^"]*btn-secondary[^"]*"[^>]*aria-label="Mark as Acted"/,
-    );
+    expect(incorrect).toContain(runActionsInverse);
 
     const correct = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
@@ -559,16 +603,16 @@ describe("SignalReviewSuggestedAction", () => {
         },
       }),
     );
-    expect(correct).toContain("btn-primary shrink-0");
+    expect(correct).toContain(runActionsInverse);
     expect(correct).toMatch(
-      /class="[^"]*btn-primary shrink-0[^"]*"[^>]*aria-label="Mark as Acted"/,
+      /aria-label="Run Actions"[^>]*data-size="lg"|data-size="lg"[^>]*aria-label="Run Actions"/,
     );
-    // Correct path: Mark as Acted has no gate dialog (Retention Approve may still).
+    // Correct path: Run Actions has no gate dialog (Retention Approve may still).
     expect(correct).toMatch(
-      /aria-keyshortcuts="A Enter" aria-label="Mark as Acted"/,
+      /aria-keyshortcuts="A Enter" aria-label="Run Actions"/,
     );
     expect(correct).not.toMatch(
-      /aria-haspopup="dialog"[^>]*aria-label="Mark as Acted"|aria-label="Mark as Acted"[^>]*aria-haspopup="dialog"/,
+      /aria-haspopup="dialog"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*aria-haspopup="dialog"/,
     );
     expect(correct).not.toContain("Label in Feedback first");
     expect(correct).not.toContain("Update Feedback to Correct to unlock");
@@ -610,7 +654,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain(
       "Marked as Acted — run it in your tools; Sioona never sends or CRM-tags.",
     );
-    expect(html).not.toContain("Mark as Acted");
+    expect(html).not.toContain("Run Actions");
     expect(html).not.toContain('aria-keyshortcuts="A Enter"');
     expect(html).not.toContain("status-dot");
     expect(html).toContain(
@@ -619,7 +663,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copy Reply");
   });
 
-  it("puts Mark as Acted in the footer and omits the Correct chip", () => {
+  it("nests Run Actions under Retention Email helper copy", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -638,22 +682,31 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Hi Priya — I saw your note about[\s\S]*Copy Reply[\s\S]*Mark as Acted/,
+      /Recommended Actions[\s\S]*Hi Priya — I saw your note about[\s\S]*Copy Reply[\s\S]*Retention Email[\s\S]*Run Actions/,
     );
+    expect(html).toMatch(
+      /High-confidence retention draft[\s\S]*Edit Draft[\s\S]*aria-label="Run Actions"/,
+    );
+    expect(html.indexOf("Edit Draft")).toBeLessThan(
+      html.indexOf('aria-label="Run Actions"'),
+    );
+    expect(html).not.toContain('data-review-actions-footer="true"');
     expect(html).toMatch(
       /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
     );
     expect(html).toContain("Copy Reply");
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("btn-secondary shrink-0");
-    expect(html).toContain("btn-primary shrink-0");
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+    );
     expect(html).toContain("aria-keyshortcuts");
     expect(html).not.toContain("bg-sio-status-success-bg");
     expect(html).not.toContain("status-dot");
-    expect(html).not.toContain("A / Enter → Mark as Acted.");
+    expect(html).not.toContain("A / Enter → Run Actions.");
   });
 
-  it("shows Mark as Acted without walk context until the review is Acted", () => {
+  it("shows Run Actions without walk context until the review is Acted", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -666,7 +719,9 @@ describe("SignalReviewSuggestedAction", () => {
       }),
     );
 
-    expect(html).toContain("Mark as Acted");
-    expect(html).toContain("btn-primary shrink-0");
+    expect(html).toContain("Run Actions");
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+    );
   });
 });

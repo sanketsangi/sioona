@@ -1244,7 +1244,21 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
     expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
+    // Sticky Pending review nav: Prev → Next → Skip → Open Conversation.
+    const pendingNav = html.match(
+      /aria-label="Pending review"[^>]*>([\s\S]*?)<\/nav>/,
+    )?.[1];
+    expect(pendingNav).toBeTruthy();
+    expect(pendingNav!).toContain("Skip pending review");
+    expect(pendingNav!).toContain("Open Conversation");
+    expect(pendingNav!.indexOf("Skip pending review")).toBeLessThan(
+      pendingNav!.indexOf("Open Conversation"),
+    );
+    expect(html).toContain("border-border bg-background");
+    expect(html).toContain("h-8 gap-2 shrink-0");
+    expect(html).toContain(
+      "text-heading-16 font-medium !text-sio-fg-base ml-2 max-w-[min(16rem,calc(100vw-8rem))]",
+    );
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
     );
@@ -1253,7 +1267,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain("A / Enter → Mark as Acted");
   });
 
-  it("shows rail Mark as Acted on Follow-up Correct preview", () => {
+  it("shows rail Run Actions on Follow-up Correct preview", () => {
     const follow: Signal = {
       id: "sig_follow",
       tenantId: "tenant_demo",
@@ -1323,9 +1337,9 @@ describe("InsightsView review conversation + action", () => {
 
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Retention Email");
-    expect(html).toContain("Approve Draft");
-    expect(html).toContain(">Edit</button>");
-    expect(html).toContain("Following up on your account — can we help?");
+    expect(html).not.toContain("Approve Draft");
+    expect(html).toContain("Edit Draft");
+    expect(html).not.toContain('data-retention-email-panel="draft"');
     expect(html).toContain("data-review-slot=\"retention-email\"");
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
     const actionsSlot = html.indexOf('data-review-slot="actions"');
@@ -1341,12 +1355,18 @@ describe("InsightsView review conversation + action", () => {
     expect(actionsChunk).toContain('data-review-slot="retention-email"');
     expect(actionsChunk).toContain("Retention Email");
     expect(actionsChunk).toContain("Recommended Actions");
-    expect(html).toContain("Mark as Acted");
-    expect(html).toContain("btn-primary");
+    expect(html).toContain("Run Actions");
+    expect(html).toMatch(
+      /data-review-slot="retention-email"[\s\S]*High-confidence retention draft[\s\S]*aria-label="Run Actions"/,
+    );
+    expect(html).not.toContain('data-review-actions-footer="true"');
+    expect(html).toContain(
+      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+    );
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Hi Priya — I saw your note about");
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
     expect(html).not.toContain(
@@ -1355,7 +1375,13 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain("Mark as Pending");
     expect(html).toContain("Open Conversation");
     expect(html).toContain('aria-haspopup="dialog"');
-    expect(html).toContain("font-medium max-w-[min(16rem,calc(100vw-8rem))]");
+    // Follow-up Correct: no pending walk — Open Conversation still in sticky header.
+    expect(html).not.toContain('aria-label="Pending review"');
+    expect(html).toContain("border-border bg-background");
+    expect(html).toContain("h-8 gap-2 shrink-0");
+    expect(html).toContain(
+      "text-heading-16 font-medium !text-sio-fg-base ml-2 max-w-[min(16rem,calc(100vw-8rem))]",
+    );
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
     );
@@ -1363,7 +1389,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain("Skip pending review");
   });
 
-  it("keeps Mark as Acted on Suggested Next Action, not under Feedback", () => {
+  it("keeps Run Actions on Suggested Next Action, not under Feedback", () => {
     const pending = makePendingSignals(1);
     const correctSignal = {
       ...pending[0],
@@ -1414,8 +1440,8 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain(
       "Mark as Acted on Suggested Next Action (does not send).",
     );
-    expect(html).toContain("Mark as Acted");
-    expect(html).toContain(
+    expect(html).toContain("Run Actions");
+    expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
     expect(html).not.toContain(
@@ -1480,7 +1506,7 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("insights-review-feedback");
     expect(html).toContain("insights-review-split");
     expect(html).toContain('data-review-slot="transcript"');
-    // Narrow SSR: rail Open Conversation trigger; wide CSS docks the 385px well.
+    // Sticky header Open Conversation (outline h-8); wide CSS docks the 385px well.
     // No always-on ConversationDrawer overlay covering Feedback labeling.
     expect(html).toContain("Open Conversation");
     expect(html).toContain('aria-haspopup="dialog"');
@@ -1498,11 +1524,18 @@ describe("InsightsView evidence-grounded review", () => {
       actionsSlot,
     );
     expect(html).not.toContain(">Ground Truth</h3>");
-    // Conversation trigger sits in the rail before Feedback — not a header
-    // overlay that covers labeling chrome.
+    // Open Conversation lives in Pending review nav after Skip — not the rail.
+    const pendingNav = html.match(
+      /aria-label="Pending review"[^>]*>([\s\S]*?)<\/nav>/,
+    )?.[1];
+    expect(pendingNav).toBeTruthy();
+    expect(pendingNav!.indexOf("Skip pending review")).toBeLessThan(
+      pendingNav!.indexOf("Open Conversation"),
+    );
     const openConversation = html.indexOf("Open Conversation");
     expect(openConversation).toBeGreaterThan(-1);
     expect(openConversation).toBeLessThan(feedbackSlot);
+    expect(html).toContain("border-border bg-background");
     expect(html).toContain("conversation-message-msg_2");
     expect(html).toContain("Show in conversation:");
     expect(html).toContain('data-evidence-match="true"');
