@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   clearRecentFeedbackSaved,
   FEEDBACK_SAVED_EVENT,
-  hasRecentFeedbackSaved,
+  recentFeedbackLabel,
   type FeedbackSavedDetail,
 } from "@/lib/feedback-saved";
 import { postSignalActed } from "@/lib/signal-acted-client";
@@ -53,37 +53,46 @@ export function resolveCanMarkActed(opts: {
 
 /**
  * Shared Mark Acted / undo for Insights header + Suggested Next Action rail.
- * Optimistic feedback gate matches header (FEEDBACK_SAVED_EVENT).
+ * Optimistic feedback gate matches header (FEEDBACK_SAVED_EVENT + label).
  */
 export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
   const router = useRouter();
   const [actedPending, setActedPending] = useState(false);
   const [actedLocal, setActedLocal] = useState<boolean | null>(null);
-  const [feedbackLocal, setFeedbackLocal] = useState(() =>
-    hasRecentFeedbackSaved(signal.id),
-  );
+  const [feedbackLocalLabel, setFeedbackLocalLabel] =
+    useState<FeedbackLabel | null>(() => recentFeedbackLabel(signal.id));
   const [error, setError] = useState<string | null>(null);
 
   const feedbackLabel = signal.feedback?.label;
+
+  // Panel walk: drop optimistic Acted / feedback from the previous review.
+  useEffect(() => {
+    setActedLocal(null);
+    setError(null);
+    setFeedbackLocalLabel(recentFeedbackLabel(signal.id));
+  }, [signal.id]);
+
   useEffect(() => {
     if (feedbackLabel) {
       clearRecentFeedbackSaved(signal.id);
+      setFeedbackLocalLabel(null);
     }
   }, [feedbackLabel, signal.id]);
 
   useEffect(() => {
     function onFeedbackSaved(event: Event) {
       const detail = (event as CustomEvent<FeedbackSavedDetail>).detail;
-      if (detail?.signalId === signal.id) setFeedbackLocal(true);
+      if (detail?.signalId !== signal.id || !detail.label) return;
+      setFeedbackLocalLabel(detail.label);
     }
     window.addEventListener(FEEDBACK_SAVED_EVENT, onFeedbackSaved);
     return () =>
       window.removeEventListener(FEEDBACK_SAVED_EVENT, onFeedbackSaved);
   }, [signal.id]);
 
-  const hasFeedback = Boolean(signal.feedback) || feedbackLocal;
+  const hasFeedback = Boolean(signal.feedback) || feedbackLocalLabel != null;
   const isActed = actedLocal ?? signal.status === "acted";
-  const resolvedLabel = feedbackLabel ?? (feedbackLocal ? "correct" : null);
+  const resolvedLabel = feedbackLabel ?? feedbackLocalLabel;
   const canMarkActed = resolveCanMarkActed({
     hasFeedback,
     feedbackLabel: resolvedLabel,

@@ -215,7 +215,7 @@ export function FeedbackControls({
       try {
         await postSignalFeedback(signal, label, note);
         setSavedAnnounce(label);
-        emitFeedbackSaved(signal.id);
+        emitFeedbackSaved(signal.id, label);
 
         const advanceHref =
           triage?.isPendingReview && wasPending

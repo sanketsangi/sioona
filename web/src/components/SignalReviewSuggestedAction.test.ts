@@ -70,10 +70,10 @@ describe("SignalReviewSuggestedAction", () => {
     // Retention Email present → Run Actions nests under helper copy; no footer chrome.
     expect(html).not.toContain('data-review-actions-footer="true"');
     expect(html).toContain("w-full justify-end");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2",
     );
-    expect(html).toContain("min-w-0 flex-1 break-words text-pretty text-copy-16");
+    expect(html).toContain("min-w-0 break-words text-pretty text-copy-16");
     expect(html).not.toContain('aria-label="Reply actions"');
     expect(html).toContain('class="sr-only"');
     expect(html).not.toContain("Recommended reply");
@@ -86,7 +86,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('data-variant="outline"');
     expect(html).not.toContain('data-copied="true"');
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Hi Priya[\s\S]*Copy Reply[\s\S]*Retention Email[\s\S]*Run Actions/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Hi Priya[\s\S]*Retention Email[\s\S]*Run Actions/,
     );
     expect(html).toMatch(
       /High-confidence retention draft[\s\S]*Edit Draft[\s\S]*aria-label="Run Actions"/,
@@ -99,13 +99,13 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).toContain('aria-label="Retention email actions"');
     expect(html).toMatch(
-      /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
+      /Copy Reply[\s\S]*Hi Priya — I saw your note about/,
     );
-    expect(html).toMatch(
-      /data-review-reply-row="true"[\s\S]*Hi Priya — I saw your note about[\s\S]*Copy Reply/,
+    expect(html.indexOf('aria-label="Copy reply to clipboard"')).toBeLessThan(
+      html.indexOf("Hi Priya — I saw your note about"),
     );
-    expect(html.indexOf("Hi Priya — I saw your note about")).toBeLessThan(
-      html.indexOf('aria-label="Copy reply to clipboard"'),
+    expect(html.indexOf('aria-label="Copy reply to clipboard"')).toBeLessThan(
+      html.indexOf('data-review-reply-row="true"'),
     );
     expect(html).toContain("M2.75 0.5C1.7835 0.5");
     expect(html).toContain('fill="currentColor"');
@@ -117,7 +117,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("text-copy-16");
     expect(html).toContain(
-      "min-w-0 flex-1 break-words text-pretty text-copy-16 text-sio-fg-base",
+      "min-w-0 break-words text-pretty text-copy-16 text-sio-fg-base",
     );
     expect(html).toContain("Run Actions");
     // Run Actions matches Correct inverse chrome; Copy Reply stays secondary.
@@ -520,10 +520,10 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copy reply to clipboard");
     expect(html).toContain('disabled=""');
     expect(html).toContain(
-      "min-w-0 flex-1 break-words text-pretty text-copy-16 text-sio-fg-muted",
+      "min-w-0 break-words text-pretty text-copy-16 text-sio-fg-muted",
     );
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*No recommended reply[\s\S]*Copy Reply/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*No recommended reply/,
     );
   });
 
@@ -682,7 +682,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
 
     expect(html).toMatch(
-      /Recommended Actions[\s\S]*Hi Priya — I saw your note about[\s\S]*Copy Reply[\s\S]*Retention Email[\s\S]*Run Actions/,
+      /Recommended Actions[\s\S]*Copy Reply[\s\S]*Hi Priya — I saw your note about[\s\S]*Retention Email[\s\S]*Run Actions/,
     );
     expect(html).toMatch(
       /High-confidence retention draft[\s\S]*Edit Draft[\s\S]*aria-label="Run Actions"/,
@@ -692,7 +692,7 @@ describe("SignalReviewSuggestedAction", () => {
     );
     expect(html).not.toContain('data-review-actions-footer="true"');
     expect(html).toMatch(
-      /Hi Priya — I saw your note about[\s\S]*Copy Reply/,
+      /Copy Reply[\s\S]*Hi Priya — I saw your note about/,
     );
     expect(html).toContain("Copy Reply");
     expect(html).not.toContain("Display only — not sent.");

@@ -25,6 +25,9 @@ import {
   Popover,
   PopoverAnchor,
   PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
@@ -85,21 +88,20 @@ export const skiper45DialogContentClassName = cn(
 
 /**
  * Quiet Sioona panel for the Give Feedback gate Popover (anchored — no overlay).
- * Intentionally separate from Family Receive dialog chrome.
+ * Matches default DialogContent chrome — not Family Receive (skiper45 dialog).
  */
 export const skiper45PopoverContentClassName = cn(
-  // Surface: modest panel radius, soft border, no layered shadow / pill chrome.
-  "gap-4 rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-4 text-sio-fg-base shadow-none ring-0",
-  "w-[min(calc(100vw-2rem),26rem)]",
-  // Short compositor-friendly fade (no morph zoom).
-  "duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-  "ease-[cubic-bezier(0.2,0,0,1)]",
+  // Surface: panel ladder — border + fill, near-zero elevation (Geist quiet panel).
+  "w-[min(calc(100vw-2rem),24rem)] gap-4 rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-4 text-sio-fg-base shadow-none ring-0",
+  // Fade only — kill default PopoverContent zoom; honor reduced motion.
+  "duration-100 ease-[cubic-bezier(0.2,0,0,1)]",
+  "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-100",
+  "data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-100",
   "motion-reduce:animate-none motion-reduce:duration-0",
   "[&_[data-slot=popover-header]]:gap-2",
-  "[&_[data-slot=popover-title]]:text-base [&_[data-slot=popover-title]]:font-semibold [&_[data-slot=popover-title]]:tracking-tight [&_[data-slot=popover-title]]:text-sio-fg-base",
-  "[&_[data-slot=popover-description]]:text-sm [&_[data-slot=popover-description]]:leading-relaxed [&_[data-slot=popover-description]]:text-sio-fg-subtle",
+  "[&_[data-slot=popover-title]]:text-base [&_[data-slot=popover-title]]:font-semibold [&_[data-slot=popover-title]]:tracking-tight",
+  "[&_[data-slot=popover-description]]:text-sm [&_[data-slot=popover-description]]:leading-relaxed",
   "[&_[data-slot=popover-footer]]:mt-1 [&_[data-slot=popover-footer]]:flex [&_[data-slot=popover-footer]]:flex-col-reverse [&_[data-slot=popover-footer]]:gap-2 sm:[&_[data-slot=popover-footer]]:flex-row sm:[&_[data-slot=popover-footer]]:justify-end",
-  "[&_[data-slot=popover-footer]_button]:min-h-11 [&_[data-slot=popover-footer]_button]:rounded-[var(--radius-control)]",
 );
 
 export type Skiper45MorphConfirmationProps = {
@@ -145,7 +147,7 @@ export function Skiper45MorphConfirmation({
   const descriptionId = descriptionIdProp ?? autoDescId;
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover open={open} onOpenChange={onOpenChange} modal>
       {/*
         Anchor only — the Run Actions button already opens via controlled
         `open` (click / A / Enter). Avoid PopoverTrigger nesting under Tooltip.
@@ -165,6 +167,7 @@ export function Skiper45MorphConfirmation({
         side="top"
         sideOffset={8}
         collisionPadding={16}
+        role="dialog"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         data-skiper45=""
@@ -177,23 +180,40 @@ export function Skiper45MorphConfirmation({
           event.preventDefault();
           confirmRef?.current?.focus();
         }}
+        onPointerDownOutside={(event) => {
+          // Anchor is not PopoverTrigger — ignore dismiss from the Run Actions control.
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            target.closest('[data-review-feedback-gate="popover"]')
+          ) {
+            event.preventDefault();
+          }
+        }}
+        onInteractOutside={(event) => {
+          const target = event.target;
+          if (
+            target instanceof Element &&
+            target.closest('[data-review-feedback-gate="popover"]')
+          ) {
+            event.preventDefault();
+          }
+        }}
       >
-        <div data-slot="popover-header" className="flex flex-col gap-2">
-          <h2
+        <PopoverHeader className="gap-2">
+          <PopoverTitle
             id={titleId}
-            data-slot="popover-title"
-            className="text-base font-semibold tracking-tight text-balance text-sio-fg-base"
+            className="text-balance text-base font-semibold tracking-tight text-sio-fg-base"
           >
             {title}
-          </h2>
-          <p
+          </PopoverTitle>
+          <PopoverDescription
             id={descriptionId}
-            data-slot="popover-description"
             className="text-sm leading-relaxed text-sio-fg-subtle"
           >
             {description}
-          </p>
-        </div>
+          </PopoverDescription>
+        </PopoverHeader>
         <div
           data-slot="popover-footer"
           className="mt-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
@@ -201,7 +221,8 @@ export function Skiper45MorphConfirmation({
           <Button
             type="button"
             variant="outline"
-            className="btn-secondary min-h-11 rounded-[var(--radius-control)]"
+            size="lg"
+            className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
             onClick={() => onOpenChange(false)}
           >
             {cancelLabel}
@@ -209,7 +230,9 @@ export function Skiper45MorphConfirmation({
           <Button
             ref={confirmRef}
             type="button"
-            className="btn-primary min-h-11 rounded-[var(--radius-control)]"
+            variant="default"
+            size="lg"
+            className="min-h-11 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9"
             onClick={onConfirm}
           >
             {confirmLabel}

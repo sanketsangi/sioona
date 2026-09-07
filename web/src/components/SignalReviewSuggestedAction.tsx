@@ -226,12 +226,13 @@ function SupportHeading({ id, children }: { id: string; children: string }) {
  * Recommended Actions + Why This Fired + Matched + Retention Email.
  * Distinct Actions well under Feedback (`data-review-slot="actions"`).
  * Run Actions: inside Retention Email bottom toolbar (with Edit Draft) when
- * that section is present; otherwise Actions footer. Copy Reply sits beside
- * the reply draft row. Soft nudge when Feedback is missing or not Correct —
- * gate morph still sends operators to Feedback; Incorrect / Partial are not
- * hard-blocked beyond that. Empty = “No recommended reply”; loading =
- * skeleton + both CTAs disabled. Copy / Acted errors stay inline and
- * recoverable. Retention Email nests inside Actions; Why is a sibling well.
+ * that section is present; otherwise Actions footer. Copy Reply sits in the
+ * Recommended Actions header beside the status chip. Soft nudge when Feedback
+ * is missing or not Correct — gate morph still sends operators to Feedback;
+ * Incorrect / Partial are not hard-blocked beyond that. Empty = “No
+ * recommended reply”; loading = skeleton + both CTAs disabled. Copy / Acted
+ * errors stay inline and recoverable. Retention Email nests inside Actions;
+ * Why is a sibling well.
  */
 export function SignalReviewSuggestedAction({
   signal,
@@ -292,6 +293,11 @@ export function SignalReviewSuggestedAction({
       copyTimerRef.current = null;
     }
   }, [signal.id]);
+
+  // Correct unlocks Run Actions — close the gate so Popover does not unmount open.
+  useEffect(() => {
+    if (canMarkActed) setFeedbackGateOpen(false);
+  }, [canMarkActed]);
 
   function goToFeedback() {
     setFeedbackGateOpen(false);
@@ -583,7 +589,10 @@ export function SignalReviewSuggestedAction({
         aria-labelledby={headingId}
       >
         <InsightsReviewPaneHeader id={headingId} title="Recommended Actions">
-          {retentionStatusChip}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {retentionStatusChip}
+            {copyReplyButton}
+          </div>
         </InsightsReviewPaneHeader>
 
         <CardContent className="flex min-w-0 flex-col px-0">
@@ -601,35 +610,26 @@ export function SignalReviewSuggestedAction({
             )}
             {draftLoading ? (
               <div
-                className="flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2"
+                className="flex min-w-0 flex-col gap-2"
                 data-review-reply-row="true"
+                data-review-reply-skeleton="true"
+                aria-busy="true"
+                aria-label="Loading recommended reply"
               >
-                <div
-                  className="flex min-w-0 flex-1 flex-col gap-2"
-                  data-review-reply-skeleton="true"
-                  aria-busy="true"
-                  aria-label="Loading recommended reply"
-                >
-                  <Skeleton className="h-4 w-full max-w-[28rem]" />
-                  <Skeleton className="h-4 w-[88%] max-w-[24rem]" />
-                  <Skeleton className="h-4 w-[72%] max-w-[20rem]" />
-                </div>
-                {copyReplyButton}
+                <Skeleton className="h-4 w-full max-w-[28rem]" />
+                <Skeleton className="h-4 w-[88%] max-w-[24rem]" />
+                <Skeleton className="h-4 w-[72%] max-w-[20rem]" />
               </div>
             ) : (
-              <div
-                className="flex min-w-0 flex-wrap items-start justify-between gap-x-2 gap-y-2"
-                data-review-reply-row="true"
-              >
+              <div data-review-reply-row="true">
                 <p
                   className={
-                    "min-w-0 flex-1 break-words text-pretty text-copy-16 " +
+                    "min-w-0 break-words text-pretty text-copy-16 " +
                     (missingAction ? "text-sio-fg-muted" : "text-sio-fg-base")
                   }
                 >
                   {missingAction ? NO_RECOMMENDED_REPLY : actionText}
                 </p>
-                {copyReplyButton}
               </div>
             )}
             <p id={copyStatusId} className="sr-only" aria-live="polite">

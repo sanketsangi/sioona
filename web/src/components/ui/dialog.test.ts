@@ -57,14 +57,14 @@ describe("Skiper45", () => {
     expect(skiper45PopoverContentClassName).toContain("border-sio-border-base");
     expect(skiper45PopoverContentClassName).toContain("shadow-none");
     expect(skiper45PopoverContentClassName).toContain("data-open:fade-in-0");
+    expect(skiper45PopoverContentClassName).toContain("data-open:zoom-in-100");
     expect(skiper45PopoverContentClassName).toContain(
       "motion-reduce:animate-none",
     );
-    expect(skiper45PopoverContentClassName).toContain(
-      "rounded-[var(--radius-control)]",
-    );
+    expect(skiper45PopoverContentClassName).toContain("24rem");
     expect(skiper45PopoverContentClassName).not.toContain("rounded-[1.75rem]");
     expect(skiper45PopoverContentClassName).not.toContain("zoom-in-90");
+    expect(skiper45PopoverContentClassName).not.toContain("zoom-in-95");
     expect(skiper45PopoverContentClassName).not.toContain("rounded-full");
     expect(skiper45PopoverContentClassName).toContain("popover-footer");
     expect(skiper45PopoverContentClassName).not.toContain("dialog-overlay");
@@ -99,9 +99,19 @@ describe("Skiper45", () => {
     );
     expect(open).toContain('data-test-portal="popover"');
     expect(open).toContain('data-slot="popover-content"');
+    expect(open).toContain('data-slot="popover-header"');
+    expect(open).toContain('data-slot="popover-title"');
+    expect(open).toContain('data-slot="popover-description"');
+    expect(open).toContain('data-slot="popover-footer"');
     expect(open).toContain("data-review-feedback-gate-panel");
     expect(open).toContain("Give Feedback First");
     expect(open).toContain("Give Feedback");
+    expect(open).toContain("bg-sio-bg-inverse");
+    expect(open).toContain("text-sio-fg-on-color");
+    expect(open).toContain("border-sio-border-subtle");
+    expect(open).toContain('data-size="lg"');
+    expect(open).not.toContain("btn-primary");
+    expect(open).not.toContain("btn-secondary");
     expect(open).not.toContain('data-slot="dialog-overlay"');
     expect(open).not.toContain('data-slot="dialog-content"');
   });
