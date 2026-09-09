@@ -658,7 +658,7 @@ const TAXONOMY_BY_TYPE = Object.fromEntries(
 
 function typeOverrideHasTerms(
   override?: TaxonomyTypeOverride | null
-): boolean {
+): override is TaxonomyTypeOverride {
   if (!override) return false;
   return Boolean(
     override.phrases?.length ||
