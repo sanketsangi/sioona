@@ -69,4 +69,25 @@ describe("postSignalFeedback", () => {
       } satisfies Partial<SignalFeedbackError>,
     );
   });
+
+  it("omits backendSignalId and uses the generic fallback on non-JSON errors", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => {
+        throw new Error("not json");
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { backendSignalId: _omit, ...local } = signal;
+    await expect(postSignalFeedback(local, "correct")).rejects.toMatchObject({
+      name: "SignalFeedbackError",
+      message: "Failed to save feedback",
+      status: 400,
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).not.toHaveProperty(
+      "backendSignalId",
+    );
+  });
 });

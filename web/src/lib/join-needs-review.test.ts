@@ -773,6 +773,15 @@ describe("queueSignalsForFilter", () => {
         action: "review",
       }).filtered.map((s) => s.id)
     ).toEqual(["sig_review_ret", "sig_p"]);
+    const approveFilter = queueSignalsForFilter({
+      pending: [highRetention, lowRetention, pending[0]],
+      reviewed: [],
+      status: "new",
+      type: "all",
+      action: "approve",
+    });
+    expect(approveFilter.approveCount).toBe(1);
+    expect(approveFilter.reviewCount).toBe(2);
   });
 });
 

@@ -31,6 +31,7 @@ import {
   signalTypeLabel,
 } from "@/lib/format";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
+import { groupMessagesByConversation } from "@/lib/group-messages";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import type { TenantSignalsResult } from "@/lib/fetch-tenant-signals";
 import {
@@ -230,15 +231,9 @@ export function InsightsView({
     }
   }
   const messagesByConversationId: Record<string, Message[]> = {};
-  for (const message of chats.messages) {
-    const list = messagesByConversationId[message.conversationId] ?? [];
-    list.push(message);
-    messagesByConversationId[message.conversationId] = list;
-  }
-  for (const id of Object.keys(messagesByConversationId)) {
-    messagesByConversationId[id].sort((a, b) =>
-      a.timestamp.localeCompare(b.timestamp),
-    );
+  for (const [id, list] of groupMessagesByConversation(chats.messages)) {
+    list.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    messagesByConversationId[id] = list;
   }
 
   const showImportBanner =

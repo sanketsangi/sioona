@@ -1,4 +1,8 @@
-import type { SignalType, TaxonomyOverrides } from "./types";
+import type {
+  SignalType,
+  TaxonomyOverrides,
+  TaxonomyTypeOverride,
+} from "./types";
 
 export type { TaxonomyOverrides, TaxonomyTypeOverride } from "./types";
 
@@ -648,30 +652,61 @@ function uniqTerms(values: string[]): string[] {
   return out;
 }
 
+const TAXONOMY_BY_TYPE = Object.fromEntries(
+  SIGNAL_TAXONOMY.map((entry) => [entry.type, entry])
+) as Record<SignalType, SignalTaxonomyEntry>;
+
+function typeOverrideHasTerms(
+  override?: TaxonomyTypeOverride | null
+): boolean {
+  if (!override) return false;
+  return Boolean(
+    override.phrases?.length ||
+      override.keywords?.length ||
+      override.negativePhrases?.length
+  );
+}
+
+function mergeTypeOverride(
+  entry: SignalTaxonomyEntry,
+  override?: TaxonomyTypeOverride | null
+): SignalTaxonomyEntry {
+  if (!typeOverrideHasTerms(override)) return entry;
+  return {
+    ...entry,
+    phrases: uniqTerms([...entry.phrases, ...(override.phrases ?? [])]),
+    keywords: uniqTerms([...entry.keywords, ...(override.keywords ?? [])]),
+    negativePhrases: uniqTerms([
+      ...entry.negativePhrases,
+      ...(override.negativePhrases ?? []),
+    ]),
+  };
+}
+
+function hasAnyTypeOverride(overrides?: TaxonomyOverrides | null): boolean {
+  if (!overrides) return false;
+  return (
+    typeOverrideHasTerms(overrides.lead) ||
+    typeOverrideHasTerms(overrides.retention) ||
+    typeOverrideHasTerms(overrides.upsell)
+  );
+}
+
 /** Base taxonomy ⊕ store overrides (pragmatic Phase 1 domain adaptation). */
 export function getEffectiveTaxonomy(
   overrides?: TaxonomyOverrides | null
 ): SignalTaxonomyEntry[] {
-  return SIGNAL_TAXONOMY.map((entry) => {
-    const o = overrides?.[entry.type];
-    if (!o) return entry;
-    return {
-      ...entry,
-      phrases: uniqTerms([...entry.phrases, ...(o.phrases ?? [])]),
-      keywords: uniqTerms([...entry.keywords, ...(o.keywords ?? [])]),
-      negativePhrases: uniqTerms([
-        ...entry.negativePhrases,
-        ...(o.negativePhrases ?? []),
-      ]),
-    };
-  });
+  if (!hasAnyTypeOverride(overrides)) return SIGNAL_TAXONOMY;
+  return SIGNAL_TAXONOMY.map((entry) =>
+    mergeTypeOverride(entry, overrides?.[entry.type])
+  );
 }
 
 export function getTaxonomy(
   type: SignalType,
   overrides?: TaxonomyOverrides | null
 ): SignalTaxonomyEntry {
-  const entry = getEffectiveTaxonomy(overrides).find((t) => t.type === type);
+  const entry = TAXONOMY_BY_TYPE[type];
   if (!entry) throw new Error(`Unknown signal type: ${type}`);
-  return entry;
+  return mergeTypeOverride(entry, overrides?.[type]);
 }

@@ -5,9 +5,11 @@ describe("getEffectiveTaxonomy", () => {
   it("returns the base taxonomy when overrides are missing", () => {
     const baseLead = SIGNAL_TAXONOMY.find((entry) => entry.type === "lead");
     expect(baseLead).toBeTruthy();
-    expect(getEffectiveTaxonomy()).toEqual(SIGNAL_TAXONOMY);
-    expect(getEffectiveTaxonomy(null)).toEqual(SIGNAL_TAXONOMY);
+    expect(getEffectiveTaxonomy()).toBe(SIGNAL_TAXONOMY);
+    expect(getEffectiveTaxonomy(null)).toBe(SIGNAL_TAXONOMY);
+    expect(getEffectiveTaxonomy({})).toBe(SIGNAL_TAXONOMY);
     expect(getTaxonomy("lead").phrases).toEqual(baseLead?.phrases);
+    expect(getTaxonomy("lead")).toBe(baseLead);
   });
 
   it("unions override terms onto base without dropping canonical phrases", () => {
@@ -28,5 +30,25 @@ describe("getEffectiveTaxonomy", () => {
       expect.arrayContaining(["already sip a"])
     );
     expect(lead?.negativePhrases).not.toContain("");
+    const retention = effective.find((entry) => entry.type === "retention");
+    const baseRetention = SIGNAL_TAXONOMY.find((entry) => entry.type === "retention");
+    expect(retention).toBe(baseRetention);
+  });
+
+  it("merges a single type without rebuilding unused types", () => {
+    const adapted = getTaxonomy("lead", {
+      lead: { phrases: ["open zerodha"] },
+      retention: { phrases: ["closing forever"] },
+    });
+    expect(adapted.phrases).toEqual(
+      expect.arrayContaining(["open a demat", "open zerodha"])
+    );
+    expect(getTaxonomy("upsell", {
+      lead: { phrases: ["open zerodha"] },
+    })).toBe(SIGNAL_TAXONOMY.find((entry) => entry.type === "upsell"));
+  });
+
+  it("throws on an unknown signal type", () => {
+    expect(() => getTaxonomy("other" as "lead")).toThrow(/Unknown signal type/);
   });
 });

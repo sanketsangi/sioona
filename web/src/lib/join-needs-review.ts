@@ -10,7 +10,9 @@ import type {
   BackendPrediction,
   BackendPredictionWithFeedback,
 } from "./backend-client";
+import { clipQuote } from "./clip-quote";
 import { pickAction } from "./detect";
+import { groupMessagesByConversation } from "./group-messages";
 import { isNeonStubSignalId } from "./prediction-sync";
 import { resolveSuggestedAction } from "./suggested-action-display";
 import type { StatusFilter, TypeFilter, ActionFilter } from "./views";
@@ -284,11 +286,14 @@ export function reviewedQueueSignals(
   jsonSignals: Signal[]
 ): Signal[] {
   const fromNeon = joinTenantSignals(rows, jsonSignals);
-  const seenIds = new Set(fromNeon.map((s) => s.id));
-  const seenKeys = new Set(fromNeon.map(reviewedMatchKey));
-  const seenBackend = new Set(
-    fromNeon.map((s) => s.backendSignalId).filter((id): id is string => Boolean(id))
-  );
+  const seenIds = new Set<string>();
+  const seenKeys = new Set<string>();
+  const seenBackend = new Set<string>();
+  for (const signal of fromNeon) {
+    seenIds.add(signal.id);
+    seenKeys.add(reviewedMatchKey(signal));
+    if (signal.backendSignalId) seenBackend.add(signal.backendSignalId);
+  }
   const localOnly: Signal[] = [];
   for (const signal of reviewedSignalsFromStore(jsonSignals)) {
     if (seenIds.has(signal.id)) continue;
@@ -373,20 +378,22 @@ export function queueSignalsForFilter(opts: {
   }
 
   const actions = opts.supervisedActions;
-  const approveCount = list.filter((signal) =>
-    isQueueApproveSignal(signal, actions),
-  ).length;
+  const action = opts.action ?? "all";
+  const filtered: Signal[] = [];
+  let approveCount = 0;
+  for (const signal of list) {
+    const approve = isQueueApproveSignal(signal, actions);
+    if (approve) approveCount += 1;
+    if (action === "all") {
+      filtered.push(signal);
+    } else if (action === "approve" ? approve : !approve) {
+      filtered.push(signal);
+    }
+  }
   const reviewCount = list.length - approveCount;
 
-  const action = opts.action ?? "all";
-  if (action === "approve") {
-    list = list.filter((signal) => isQueueApproveSignal(signal, actions));
-  } else if (action === "review") {
-    list = list.filter((signal) => !isQueueApproveSignal(signal, actions));
-  }
-
   return {
-    filtered: list,
+    filtered,
     pendingCount: opts.pending.length,
     followUpCount: followUp.length,
     doneCount: done.length,
@@ -462,14 +469,6 @@ export function missingConversationIds(
   return missing;
 }
 
-const QUOTE_MAX = 140;
-
-function clipQuote(text: string, max = QUOTE_MAX): string {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  if (cleaned.length <= max) return cleaned;
-  return `${cleaned.slice(0, max - 1).trimEnd()}…`;
-}
-
 /** Last 1–2 customer utterances as Why This Fired quotes. */
 export function quotesFromCustomerMessages(messages: Message[]): string[] {
   const customer = messages
@@ -488,12 +487,7 @@ export function applyChatEvidenceToSignals(
   chats: { conversations: Conversation[]; messages: Message[] },
   overrides?: TaxonomyOverrides | null
 ): Signal[] {
-  const messagesByConv = new Map<string, Message[]>();
-  for (const message of chats.messages) {
-    const list = messagesByConv.get(message.conversationId) ?? [];
-    list.push(message);
-    messagesByConv.set(message.conversationId, list);
-  }
+  const messagesByConv = groupMessagesByConversation(chats.messages);
   const conversationsById = new Map(
     chats.conversations.map((conversation) => [conversation.id, conversation]),
   );

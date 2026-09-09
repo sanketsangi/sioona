@@ -1,10 +1,16 @@
+import { clipQuote } from "./clip-quote";
 import {
   isFraudComplaintText,
   isNegatedMatch,
   matchIntentPatterns,
 } from "./detect-patterns";
+import { groupMessagesByConversation } from "./group-messages";
 import { resolveSuggestedAction } from "./suggested-action-display";
-import { getEffectiveTaxonomy, getTaxonomy } from "./taxonomy";
+import {
+  getEffectiveTaxonomy,
+  getTaxonomy,
+  type SignalTaxonomyEntry,
+} from "./taxonomy";
 import type {
   Conversation,
   Message,
@@ -48,7 +54,8 @@ const WEAK_KEYWORD_WEIGHT = 0.5;
 const HIT_NORMALIZE = 6;
 /** Keyword-only scores need ≥2 distinct keyword hits (phrases may still fire alone). */
 const MIN_KEYWORD_ONLY_HITS = 2;
-const QUOTE_MAX = 140;
+/** Compiled word-boundary regexes for single-token taxonomy terms. */
+const TOKEN_BOUNDARY_RE = new Map<string, RegExp>();
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
@@ -56,6 +63,17 @@ function normalize(text: string): string {
 
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function tokenBoundaryRegex(needle: string): RegExp {
+  const cached = TOKEN_BOUNDARY_RE.get(needle);
+  if (cached) return cached;
+  const compiled = new RegExp(
+    `(?:^|[^a-z0-9])(${escapeRegex(needle)})(?:[^a-z0-9]|$)`,
+    "i"
+  );
+  TOKEN_BOUNDARY_RE.set(needle, compiled);
+  return compiled;
 }
 
 /**
@@ -68,11 +86,7 @@ export function findTermIndex(text: string, term: string): number {
   if (needle.includes(" ")) {
     return text.indexOf(needle);
   }
-  const re = new RegExp(
-    `(?:^|[^a-z0-9])(${escapeRegex(needle)})(?:[^a-z0-9]|$)`,
-    "i"
-  );
-  const match = re.exec(text);
+  const match = tokenBoundaryRegex(needle).exec(text);
   if (!match || match.index === undefined) return -1;
   const captured = match[1];
   if (!captured) return -1;
@@ -84,12 +98,6 @@ export function findTermIndex(text: string, term: string): number {
 /** Multi-word phrases are substrings; single tokens use word boundaries. */
 export function textIncludesTerm(text: string, term: string): boolean {
   return findTermIndex(text, term) >= 0;
-}
-
-function clipQuote(text: string, max = QUOTE_MAX): string {
-  const cleaned = text.replace(/\s+/g, " ").trim();
-  if (cleaned.length <= max) return cleaned;
-  return `${cleaned.slice(0, max - 1).trimEnd()}…`;
 }
 
 /** Customer utterance that contains the matched term — for display evidence. */
@@ -106,13 +114,11 @@ export function findCustomerQuote(
   return null;
 }
 
-export function scoreType(
-  text: string,
-  type: SignalType,
-  overrides?: TaxonomyOverrides | null
+function scoreTaxonomyEntry(
+  normalized: string,
+  entry: SignalTaxonomyEntry
 ): { score: number; evidence: string[]; suppressed: boolean } {
-  const entry = getTaxonomy(type, overrides);
-  const normalized = normalize(text);
+  const type = entry.type;
 
   for (const negative of entry.negativePhrases) {
     if (textIncludesTerm(normalized, negative)) {
@@ -183,6 +189,14 @@ export function scoreType(
   return { score, evidence: [...evidence].slice(0, 6), suppressed: false };
 }
 
+export function scoreType(
+  text: string,
+  type: SignalType,
+  overrides?: TaxonomyOverrides | null
+): { score: number; evidence: string[]; suppressed: boolean } {
+  return scoreTaxonomyEntry(normalize(text), getTaxonomy(type, overrides));
+}
+
 /**
  * Prefer customer quotes, then match labels — max 5 items for Shadow Mode UI.
  */
@@ -191,6 +205,7 @@ export function enrichEvidence(
   customerMessages: Message[]
 ): string[] {
   const quotes: string[] = [];
+  const seenQuotes = new Set<string>();
   const matches: string[] = [];
 
   for (const item of matchEvidence) {
@@ -203,7 +218,10 @@ export function enrichEvidence(
       const quote = findCustomerQuote(customerMessages, termMatch[1]);
       if (quote) {
         const entry = `quote: "${quote}"`;
-        if (!quotes.includes(entry)) quotes.push(entry);
+        if (!seenQuotes.has(entry)) {
+          seenQuotes.add(entry);
+          quotes.push(entry);
+        }
       }
     }
     matches.push(item);
@@ -278,10 +296,9 @@ export function detectSignalsForConversation(
   const taxonomy = getEffectiveTaxonomy(overrides);
   const ranked = taxonomy
     .map((entry) => {
-      const { score, evidence: matchEvidence } = scoreType(
+      const { score, evidence: matchEvidence } = scoreTaxonomyEntry(
         customerText,
-        entry.type,
-        overrides
+        entry
       );
       return {
         type: entry.type,
@@ -325,25 +342,13 @@ export function detectSignalsForConversation(
   }));
 }
 
-function messagesByConversation(
-  messages: Message[]
-): Map<string, Message[]> {
-  const byConversation = new Map<string, Message[]>();
-  for (const message of messages) {
-    const list = byConversation.get(message.conversationId) ?? [];
-    list.push(message);
-    byConversation.set(message.conversationId, list);
-  }
-  return byConversation;
-}
-
 export function runDetection(
   conversations: Conversation[],
   messages: Message[],
   tenantId: string,
   overrides?: TaxonomyOverrides | null
 ): Signal[] {
-  const byConversation = messagesByConversation(messages);
+  const byConversation = groupMessagesByConversation(messages);
   return conversations.flatMap((conversation) =>
     detectSignalsForConversation(
       conversation,
@@ -362,7 +367,7 @@ export async function runDetectionWithProgress(
   overrides: TaxonomyOverrides | null | undefined,
   onProgress: (done: number, total: number) => void | Promise<void>
 ): Promise<Signal[]> {
-  const byConversation = messagesByConversation(messages);
+  const byConversation = groupMessagesByConversation(messages);
   const total = conversations.length;
   await onProgress(0, total);
   const signals: Signal[] = [];

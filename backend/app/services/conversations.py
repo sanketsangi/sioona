@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -544,17 +544,35 @@ def prune_conversations_not_in(
     Children (feedback → predictions → messages → conversations) are removed
     in bulk rather than one delete_conversation round-trip per id.
     """
-    existing = list(
-        db.scalars(
-            select(Conversation.conversation_id).where(
-                Conversation.tenant_id == tenant_id
-            )
-        ).all()
+    stale_stmt = select(Conversation.conversation_id).where(
+        Conversation.tenant_id == tenant_id
     )
-    to_delete = [cid for cid in existing if cid not in keep_ids]
-    kept = len(existing) - len(to_delete)
+    if keep_ids:
+        stale_stmt = stale_stmt.where(Conversation.conversation_id.notin_(keep_ids))
+    to_delete = list(db.scalars(stale_stmt).all())
     if not to_delete:
-        return 0, kept
+        remaining = db.scalar(
+            select(func.count())
+            .select_from(Conversation)
+            .where(Conversation.tenant_id == tenant_id)
+        ) or 0
+        return 0, remaining
+
+    kept = (
+        0
+        if not keep_ids
+        else (
+            db.scalar(
+                select(func.count())
+                .select_from(Conversation)
+                .where(
+                    Conversation.tenant_id == tenant_id,
+                    Conversation.conversation_id.in_(keep_ids),
+                )
+            )
+            or 0
+        )
+    )
 
     pred_ids = list(
         db.scalars(

@@ -33,15 +33,21 @@ export async function postSignalFeedback(
   });
 
   if (!res.ok) {
-    const data = (await res.json()) as { error?: string };
+    let error: string | undefined;
+    try {
+      const data = (await res.json()) as { error?: string };
+      error = data.error;
+    } catch {
+      // Non-JSON error bodies still surface a product-safe fallback.
+    }
     if (res.status === 503) {
       throw new SignalFeedbackError(
-        data.error || "Signal Score backend unavailable — feedback not saved",
+        error || "Signal Score backend unavailable — feedback not saved",
         res.status,
       );
     }
     throw new SignalFeedbackError(
-      data.error || "Failed to save feedback",
+      error || "Failed to save feedback",
       res.status,
     );
   }

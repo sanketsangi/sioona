@@ -495,6 +495,56 @@ def test_prune_conversations_not_in_is_tenant_safe(db: Session) -> None:
     assert other_pred.conversation_id == "conv_drop"
 
 
+def test_prune_empty_keep_set_deletes_all_tenant_rows(db: Session) -> None:
+    upsert_conversation(
+        db, tenant_id="tenant_a", payload=_payload(conversation_id="conv_a")
+    )
+    upsert_conversation(
+        db, tenant_id="tenant_a", payload=_payload(conversation_id="conv_b")
+    )
+    upsert_conversation(
+        db, tenant_id="tenant_b", payload=_payload(conversation_id="conv_a")
+    )
+    record_prediction(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_a",
+        signal_type="lead",
+        confidence=0.7,
+        summary="Drop me",
+    )
+
+    deleted, kept = prune_conversations_not_in(
+        db, tenant_id="tenant_a", keep_ids=set()
+    )
+    assert deleted == 2
+    assert kept == 0
+    assert list_conversations(db, "tenant_a") == []
+    assert (
+        db.scalar(
+            select(SignalPrediction).where(SignalPrediction.tenant_id == "tenant_a")
+        )
+        is None
+    )
+    listed_b = list_conversations(db, "tenant_b")
+    assert len(listed_b) == 1
+    assert listed_b[0][0].conversation_id == "conv_a"
+
+
+def test_prune_keep_set_noop_when_everything_is_kept(db: Session) -> None:
+    upsert_conversation(
+        db, tenant_id="tenant_a", payload=_payload(conversation_id="conv_keep")
+    )
+    deleted, kept = prune_conversations_not_in(
+        db, tenant_id="tenant_a", keep_ids={"conv_keep", "conv_ghost"}
+    )
+    assert deleted == 0
+    assert kept == 1
+    assert [row[0].conversation_id for row in list_conversations(db, "tenant_a")] == [
+        "conv_keep"
+    ]
+
+
 def test_upsert_and_list_round_trip_ground_truth(db: Session) -> None:
     labeled = _payload().model_copy(update={"ground_truth": "retention"})
     created = upsert_conversation(db, tenant_id="tenant_a", payload=labeled)
