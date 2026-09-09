@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { detectEvalStore as sampleStore } from "@/data/fixtures/detect-eval-fixtures";
 import {
   detectSignalsForConversation,
+  findTermIndex,
   runDetection,
   runDetectionWithProgress,
   scoreType,
@@ -45,6 +46,21 @@ describe("textIncludesTerm", () => {
   it("uses word boundaries for short tokens", () => {
     expect(textIncludesTerm("please leave feedback", "leave")).toBe(true);
     expect(textIncludesTerm("cleaved the trade", "leave")).toBe(false);
+  });
+});
+
+describe("findTermIndex", () => {
+  it("returns -1 for empty or whitespace terms", () => {
+    expect(findTermIndex("please leave feedback", "")).toBe(-1);
+    expect(findTermIndex("please leave feedback", "   ")).toBe(-1);
+  });
+
+  it("matches tokens at punctuation boundaries and reuses the compiled regex", () => {
+    const first = findTermIndex("kyc.", "kyc");
+    const second = findTermIndex("finish kyc today", "KYC");
+    expect(first).toBe(0);
+    expect(second).toBeGreaterThan(0);
+    expect(findTermIndex("kyc.", "kyc")).toBe(first);
   });
 });
 

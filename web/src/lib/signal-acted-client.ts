@@ -31,9 +31,15 @@ export async function postSignalActed(
   });
 
   if (!res.ok) {
-    const data = (await res.json()) as { error?: string };
+    let error: string | undefined;
+    try {
+      const data = (await res.json()) as { error?: string };
+      error = data.error;
+    } catch {
+      // Non-JSON error bodies still surface a product-safe fallback.
+    }
     throw new SignalActedError(
-      data.error || "Failed to update acted status",
+      error || "Failed to update acted status",
       res.status,
     );
   }

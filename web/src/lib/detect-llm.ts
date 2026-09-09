@@ -3,6 +3,7 @@
  * heuristics left as none. Env-gated; fail-soft; never overrides a heuristic hit.
  */
 
+import { clipQuote } from "./clip-quote";
 import {
   pickAction,
   runDetection,
@@ -26,7 +27,6 @@ export const DETECT_LLM_MAX_CALLS = 8;
 export const DETECT_LLM_CONCURRENCY = 2;
 export const DETECT_LLM_TIMEOUT_MS = 6_000;
 const CUSTOMER_TEXT_MAX = 2_400;
-const QUOTE_MAX = 140;
 
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -163,12 +163,6 @@ function positiveEnvNumber(raw: string | undefined, fallback: number): number {
 
 function collapseWs(text: string): string {
   return text.replace(/\s+/g, " ").trim();
-}
-
-function clipQuote(text: string, max = QUOTE_MAX): string {
-  const cleaned = collapseWs(text);
-  if (cleaned.length <= max) return cleaned;
-  return `${cleaned.slice(0, max - 1).trimEnd()}…`;
 }
 
 function customerText(messages: Message[]): string {
