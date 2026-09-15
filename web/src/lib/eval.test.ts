@@ -129,6 +129,39 @@ describe("computeEvalMetrics", () => {
     expect(metrics.correctCount).toBe(1);
     expect(metrics.reviewPrecision).toBe(1);
   });
+
+  it("excludes partially_correct from review precision denominator", () => {
+    const [base] = runDetection(
+      sampleStore.conversations,
+      sampleStore.messages,
+      sampleStore.tenant.id
+    );
+    const metrics = computeEvalMetrics(
+      withSignals([
+        {
+          ...base,
+          status: "reviewed",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-08-01T00:00:00.000Z",
+          },
+        },
+        {
+          ...base,
+          id: `${base.id}_partial`,
+          status: "reviewed",
+          feedback: {
+            label: "partially_correct",
+            reviewedAt: "2026-08-01T00:00:00.000Z",
+          },
+        },
+      ])
+    );
+    expect(metrics.reviewedCount).toBe(2);
+    expect(metrics.correctCount).toBe(1);
+    expect(metrics.partiallyCorrectCount).toBe(1);
+    expect(metrics.reviewPrecision).toBe(1);
+  });
 });
 
 describe("decidePilotGoNoGo", () => {
