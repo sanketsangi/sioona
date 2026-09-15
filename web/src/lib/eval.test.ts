@@ -7,6 +7,8 @@ import {
   computeEvalMetrics,
   computePilotMetrics,
   decidePilotGoNoGo,
+  meetsKeepSetPrecisionTarget,
+  normalizeSignalScoreCounts,
   REVIEW_PRECISION_TARGET,
   sortSignals,
 } from "./eval";
@@ -131,7 +133,56 @@ describe("computeEvalMetrics", () => {
   });
 });
 
+describe("normalizeSignalScoreCounts", () => {
+  it("derives precision from counts, not the float", () => {
+    expect(
+      normalizeSignalScoreCounts({
+        reviewed_count: 6,
+        correct_count: 3,
+        incorrect_count: 3,
+        partially_correct_count: 0,
+        signal_score: 1,
+      })
+    ).toEqual({
+      reviewedCount: 6,
+      correctCount: 3,
+      reviewPrecision: 0.5,
+    });
+  });
+
+  it("uses the larger of reviewed_count and label sum", () => {
+    const normalized = normalizeSignalScoreCounts({
+      reviewed_count: 10,
+      correct_count: 8,
+      incorrect_count: 0,
+      partially_correct_count: 0,
+      signal_score: 1,
+    });
+    expect(normalized.reviewedCount).toBe(10);
+    expect(normalized.reviewPrecision).toBe(0.8);
+  });
+});
+
+describe("meetsKeepSetPrecisionTarget", () => {
+  it("uses integer 4/5 so 8/10 is go and 7/9 is hold", () => {
+    expect(meetsKeepSetPrecisionTarget(10, 8)).toBe(true);
+    expect(meetsKeepSetPrecisionTarget(9, 7)).toBe(false);
+    expect(meetsKeepSetPrecisionTarget(5, 4)).toBe(true);
+    expect(meetsKeepSetPrecisionTarget(0, 0)).toBeNull();
+  });
+});
+
 describe("decidePilotGoNoGo", () => {
+  it("prefers count-SoT when a 1.0 float is 3/6", () => {
+    expect(
+      decidePilotGoNoGo({
+        reviewedCount: 6,
+        reviewPrecision: 1,
+        correctCount: 3,
+      })
+    ).toBe("hold");
+  });
+
   it("requires n ≥ PILOT_MIN_REVIEWS for go from keep-set precision", () => {
     expect(
       decidePilotGoNoGo({
@@ -289,7 +340,36 @@ describe("applyBackendSignalScoreToPilot", () => {
     });
     expect(pilot.goNoGo).toBe("go");
     expect(pilot.reviewedCount).toBe(6);
-    expect(pilot.reviewPrecision).toBe(0.83);
+    expect(pilot.reviewPrecision).toBeCloseTo(5 / 6);
+  });
+
+  it("go/hold trusts counts when the score float lies", () => {
+    const store = withSignals([]);
+    const inflated = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: 1,
+      reviewed_count: 6,
+      correct_count: 3,
+      incorrect_count: 3,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(inflated.goNoGo).toBe("hold");
+    expect(inflated.reviewPrecision).toBe(0.5);
+    expect(inflated.meetsReviewPrecisionTarget).toBe(false);
+
+    const honest = applyBackendSignalScoreToPilot(store, {
+      tenant_id: "tenant_demo",
+      signal_score: 0.79,
+      reviewed_count: 10,
+      correct_count: 8,
+      incorrect_count: 2,
+      partially_correct_count: 0,
+      by_signal_type: [],
+    });
+    expect(honest.goNoGo).toBe("go");
+    expect(honest.reviewPrecision).toBe(0.8);
+    expect(honest.meetsReviewPrecisionTarget).toBe(true);
   });
 
   it("windowed reviews drive hold when n≥5 and precision below target", () => {

@@ -25,6 +25,7 @@ import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
+import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
   customerNameFromExternalId,
   queueSignalSummary,
@@ -531,7 +532,11 @@ export function InsightsView({
                   ]}
                   pendingSignals={pendingSignals}
                   reviewedCount={
-                    vaultMismatch ? 0 : (backendScore?.reviewed_count ?? null)
+                    vaultMismatch
+                      ? 0
+                      : backendScore
+                        ? normalizeSignalScoreCounts(backendScore).reviewedCount
+                        : null
                   }
                 />
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">

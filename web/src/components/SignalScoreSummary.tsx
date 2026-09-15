@@ -8,7 +8,7 @@ import {
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { Separator } from "@/components/ui/separator";
 import type { BackendSignalScore } from "@/lib/backend-client";
-import type { PilotGoNoGo } from "@/lib/eval";
+import { normalizeSignalScoreCounts, type PilotGoNoGo } from "@/lib/eval";
 import { formatPercent, signalTypeLabel } from "@/lib/format";
 import { PILOT_MIN_REVIEWS } from "@/lib/pilot-cadence";
 import type { SignalType } from "@/lib/types";
@@ -21,6 +21,16 @@ function typeLabel(signalType: string): string {
     return signalTypeLabel(signalType as SignalType);
   }
   return signalType.replaceAll("_", " ");
+}
+
+function typeScorePercent(row: {
+  reviewed_count: number;
+  correct_count: number;
+  incorrect_count: number;
+  partially_correct_count: number;
+  signal_score: number | null;
+}): string {
+  return formatPercent(normalizeSignalScoreCounts(row).reviewPrecision);
 }
 
 export function goNoGoLabel(value: PilotGoNoGo): string {
@@ -79,17 +89,20 @@ export function SignalScoreSummary({
   cadence?: ReactNode;
 }) {
   const online = score !== null;
-  const emptyWindow = online && score.reviewed_count === 0;
+  const normalized = online ? normalizeSignalScoreCounts(score) : null;
+  const emptyWindow = online && (normalized?.reviewedCount ?? 0) === 0;
   const primary =
-    !online || emptyWindow || score?.signal_score == null
+    !online || emptyWindow || normalized?.reviewPrecision == null
       ? "—"
-      : formatPercent(score.signal_score);
+      : formatPercent(normalized.reviewPrecision);
   const byType = online ? score.by_signal_type : [];
   const sourceLine = online ? `${windowLabel} · Neon` : "Backend offline";
   const nLabel = `n / ≥${PILOT_MIN_REVIEWS}`;
+  const allTimeNormalized =
+    allTimeScore != null ? normalizeSignalScoreCounts(allTimeScore) : null;
 
   const allTimeLine =
-    allTimeScore != null ? (
+    allTimeNormalized != null ? (
       <p
         className={cn(
           "tabular text-label-12 text-sio-fg-muted",
@@ -98,10 +111,10 @@ export function SignalScoreSummary({
       >
         All-time pack{" "}
         <span className="font-mono text-sio-fg-subtle">
-          {formatPercent(allTimeScore.signal_score)}
+          {formatPercent(allTimeNormalized.reviewPrecision)}
         </span>
         <span aria-hidden> · </span>
-        Reviewed {allTimeScore.reviewed_count}
+        Reviewed {allTimeNormalized.reviewedCount}
       </p>
     ) : null;
 
@@ -111,7 +124,7 @@ export function SignalScoreSummary({
           { label: "Overall", value: primary, mono: true },
           {
             label: nLabel,
-            value: `${score.reviewed_count} / ${PILOT_MIN_REVIEWS}`,
+            value: `${normalized?.reviewedCount ?? score.reviewed_count} / ${PILOT_MIN_REVIEWS}`,
           },
           { label: "Correct", value: score.correct_count },
           { label: "Incorrect", value: score.incorrect_count, muted: true },
@@ -214,7 +227,7 @@ export function SignalScoreSummary({
                         </span>
                       )}
                       <span className="font-mono tabular text-label-12 text-sio-fg-subtle">
-                        {formatPercent(row.signal_score)}
+                        {typeScorePercent(row)}
                         <span className="ml-1.5 text-sio-fg-muted">
                           ({row.correct_count}/{row.reviewed_count})
                         </span>
@@ -263,7 +276,9 @@ export function SignalScoreSummary({
             <>
               <p className="tabular mt-1.5 text-copy-14 text-sio-fg-base">
                 Reviewed{" "}
-                <span className="font-medium">{score.reviewed_count}</span>
+                <span className="font-medium">
+                  {normalized?.reviewedCount ?? score.reviewed_count}
+                </span>
                 <span className="text-sio-fg-subtle"> · </span>
                 Correct{" "}
                 <span className="font-medium">{score.correct_count}</span>
@@ -309,7 +324,7 @@ export function SignalScoreSummary({
                   </span>
                   <span className="shrink-0 font-mono tabular text-sio-fg-subtle">
                     <span className="font-medium text-sio-fg-base">
-                      {formatPercent(row.signal_score)}
+                      {typeScorePercent(row)}
                     </span>
                     <span className="ml-2 text-label-12">
                       {row.correct_count}/{row.reviewed_count}

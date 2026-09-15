@@ -14,7 +14,7 @@ from app.models.signal_feedback import (
     FEEDBACK_LABELS,
     SignalFeedback,
 )
-from app.models.signal_prediction import SignalPrediction
+from app.models.signal_prediction import CANONICAL_SIGNAL_TYPES, SignalPrediction
 
 
 @dataclass
@@ -127,17 +127,19 @@ def _reviewed_tally_query(
 
     ``date_from`` / ``date_to`` bound ``SignalFeedback.reviewed_at`` (not
     prediction ``created_at``) so week windows reflect when reviews happened.
-    Non-canonical feedback labels are excluded so they cannot dilute the score.
+    Non-canonical feedback labels and junk ``signal_type`` values are
+    excluded so they cannot dilute the score. Each prediction counts once.
     """
     stmt = (
         select(
             SignalPrediction.signal_type,
             SignalFeedback.feedback,
-            func.count().label("n"),
+            func.count(func.distinct(SignalPrediction.id)).label("n"),
         )
         .join(SignalFeedback, SignalFeedback.signal_id == SignalPrediction.id)
         .where(SignalPrediction.tenant_id == tenant_id)
         .where(SignalFeedback.tenant_id == tenant_id)
+        .where(SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES))
         .where(SignalFeedback.feedback.in_(FEEDBACK_LABELS))
         .group_by(SignalPrediction.signal_type, SignalFeedback.feedback)
     )
@@ -163,6 +165,9 @@ def calculate_signal_score(
 
     SignalScore = count(correct) / count(reviewed).
     partially_correct and incorrect count in the denominator only.
+
+    Only canonical types (``lead`` / ``retention`` / ``upsell``) tally.
+    Duplicate feedback rows cannot inflate ``n`` (distinct prediction id).
 
     Overall is always the keep-set ∩ window total. ``by_signal_type`` is the
     same tally split by type (optionally one type when ``signal_type`` is set).

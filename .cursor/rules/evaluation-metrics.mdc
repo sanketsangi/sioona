@@ -28,7 +28,7 @@ Signal types (only): `lead` | `retention` | `upsell`.
 
 Feedback labels (only): `correct` | `incorrect` | `partially_correct`.
 
-Keep-set SignalScore = correct / (correct + incorrect) among human-reviewed signals in the keep set for the selected week window (orphan Partner Demo rows excluded from the keep set, not deleted). Labeled precision/recall on fixtures is **not** the customer claim.
+Keep-set SignalScore = correct / reviewed among human-reviewed **canonical** signals (`lead` / `retention` / `upsell`) in the keep set for the selected week window (orphan Partner Demo rows excluded from the keep set, not deleted). `incorrect` and `partially_correct` sit in the denominator only. Eval Go/Hold uses those counts (integer ≥4/5), not a stale `signal_score` float. Labeled precision/recall on fixtures is **not** the customer claim.
 
 We also track:
 

@@ -181,8 +181,60 @@ export function sortSignals(signals: Signal[]): Signal[] {
 
 /** Pilot go/no-go threshold for human review precision (keep-set SignalScore). */
 export const REVIEW_PRECISION_TARGET = 0.8;
+/** 4/5 — integer form of {@link REVIEW_PRECISION_TARGET} (avoids float drift). */
+const KEEP_SET_PRECISION_NUM = 4;
+const KEEP_SET_PRECISION_DEN = 5;
 
 export type PilotGoNoGo = "go" | "hold" | "insufficient_data";
+
+/** Counts Eval / Insights trust when a Neon score float disagrees. */
+export function normalizeSignalScoreCounts(score: {
+  reviewed_count: number;
+  correct_count: number;
+  incorrect_count: number;
+  partially_correct_count: number;
+  signal_score?: number | null;
+}): {
+  reviewedCount: number;
+  correctCount: number;
+  reviewPrecision: number | null;
+} {
+  const labeled = Math.max(
+    0,
+    score.correct_count +
+      score.incorrect_count +
+      score.partially_correct_count
+  );
+  const reviewedCount = Math.max(0, score.reviewed_count, labeled);
+  const correctCount = Math.max(0, score.correct_count);
+  return {
+    reviewedCount,
+    correctCount,
+    reviewPrecision:
+      reviewedCount <= 0 ? null : correctCount / reviewedCount,
+  };
+}
+
+/** Integer-safe keep-set ≥80%: `correct / reviewed >= 4/5`. */
+export function meetsKeepSetPrecisionTarget(
+  reviewedCount: number,
+  correctCount: number,
+  reviewPrecision?: number | null,
+  target = REVIEW_PRECISION_TARGET
+): boolean | null {
+  if (reviewedCount <= 0) return null;
+  if (target === REVIEW_PRECISION_TARGET && correctCount >= 0) {
+    return (
+      correctCount * KEEP_SET_PRECISION_DEN >=
+      reviewedCount * KEEP_SET_PRECISION_NUM
+    );
+  }
+  const precision =
+    reviewPrecision ??
+    (reviewedCount > 0 ? correctCount / reviewedCount : null);
+  if (precision == null) return null;
+  return precision >= target;
+}
 
 export interface PilotMetrics {
   /** Conversations where Sioona emitted ≥1 signal */
@@ -216,10 +268,15 @@ export interface PilotMetrics {
  * - optional labeled-fixture shortcut (offline JSON only)
  * - 0 < n < min with precision below target → hold
  * - otherwise → insufficient_data
+ *
+ * When ``correctCount`` is present, ≥80% is integer ``correct*5 >= reviewed*4``
+ * so a stale ``signal_score`` float cannot flip Go/Hold.
  */
 export function decidePilotGoNoGo(input: {
   reviewedCount: number;
   reviewPrecision: number | null;
+  /** When set, go/hold uses counts (integer ≥4/5), not a stale float. */
+  correctCount?: number;
   /** Offline JSON only: labeled P/R ≥ target with ≥10 labeled chats. */
   allowLabeledFixtureGo?: boolean;
   labeledConversations?: number;
@@ -230,9 +287,16 @@ export function decidePilotGoNoGo(input: {
   const minReviews = input.minReviews ?? PILOT_MIN_REVIEWS;
   const precisionTarget = input.precisionTarget ?? REVIEW_PRECISION_TARGET;
   const meetsTarget =
-    input.reviewPrecision === null
-      ? null
-      : input.reviewPrecision >= precisionTarget;
+    input.correctCount != null
+      ? meetsKeepSetPrecisionTarget(
+          input.reviewedCount,
+          input.correctCount,
+          input.reviewPrecision,
+          precisionTarget
+        )
+      : input.reviewPrecision === null
+        ? null
+        : input.reviewPrecision >= precisionTarget;
 
   if (input.reviewedCount >= minReviews) {
     return meetsTarget === true ? "go" : "hold";
@@ -267,14 +331,16 @@ export function computePilotMetrics(store: StoreData): PilotMetrics {
     (s) => s.status === "new" || !s.feedback
   ).length;
 
-  const meetsReviewPrecisionTarget =
-    evalMetrics.reviewPrecision === null
-      ? null
-      : evalMetrics.reviewPrecision >= REVIEW_PRECISION_TARGET;
+  const meetsReviewPrecisionTarget = meetsKeepSetPrecisionTarget(
+    evalMetrics.reviewedCount,
+    evalMetrics.correctCount,
+    evalMetrics.reviewPrecision
+  );
 
   const goNoGo = decidePilotGoNoGo({
     reviewedCount: evalMetrics.reviewedCount,
     reviewPrecision: evalMetrics.reviewPrecision,
+    correctCount: evalMetrics.correctCount,
     allowLabeledFixtureGo: true,
     labeledConversations: evalMetrics.labeledConversations,
     labeledPrecision: evalMetrics.labeledPrecision,
@@ -308,13 +374,14 @@ export function applyBackendSignalScore(
   score: BackendSignalScore | null
 ): EvalMetrics {
   if (!score) return metrics;
+  const normalized = normalizeSignalScoreCounts(score);
   return {
     ...metrics,
-    reviewedCount: score.reviewed_count,
-    correctCount: score.correct_count,
+    reviewedCount: normalized.reviewedCount,
+    correctCount: normalized.correctCount,
     incorrectCount: score.incorrect_count,
     partiallyCorrectCount: score.partially_correct_count,
-    reviewPrecision: score.signal_score,
+    reviewPrecision: normalized.reviewPrecision,
     signalScoreFromBackend: true,
   };
 }
@@ -340,12 +407,14 @@ export function applyBackendSignalScoreToPilot(
     };
   }
   const base = computePilotMetrics(store);
-  const reviewPrecision = score.signal_score;
-  const reviewedCount = score.reviewed_count;
-  const meetsReviewPrecisionTarget =
-    reviewPrecision === null
-      ? null
-      : reviewPrecision >= REVIEW_PRECISION_TARGET;
+  const normalized = normalizeSignalScoreCounts(score);
+  const reviewPrecision = normalized.reviewPrecision;
+  const reviewedCount = normalized.reviewedCount;
+  const meetsReviewPrecisionTarget = meetsKeepSetPrecisionTarget(
+    reviewedCount,
+    normalized.correctCount,
+    reviewPrecision
+  );
 
   return {
     ...base,
@@ -353,6 +422,10 @@ export function applyBackendSignalScoreToPilot(
     meetsReviewPrecisionTarget,
     reviewedCount,
     // Neon window ∩ keep-set only — never the labeled-fixture shortcut.
-    goNoGo: decidePilotGoNoGo({ reviewedCount, reviewPrecision }),
+    goNoGo: decidePilotGoNoGo({
+      reviewedCount,
+      reviewPrecision,
+      correctCount: normalized.correctCount,
+    }),
   };
 }

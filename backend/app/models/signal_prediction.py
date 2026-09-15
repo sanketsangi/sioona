@@ -25,6 +25,9 @@ from app.models.base import Base
 if TYPE_CHECKING:
     from app.models.signal_feedback import SignalFeedback
 
+# Pilot SignalScore types only — junk / legacy names must not enter the tally.
+CANONICAL_SIGNAL_TYPES = frozenset({"lead", "retention", "upsell"})
+
 
 class SignalPrediction(Base):
     """A model prediction for a conversation signal."""

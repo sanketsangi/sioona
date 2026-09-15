@@ -120,7 +120,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 ## 7. Pilot math (product contract)
 
 - **Win:** human keep-set SignalScore ≥80% on Eval **week window** — not labeled Detect P/R.
-- Formula: `correct / reviewed` (incorrect + partially_correct in denominator only).
+- Formula: `correct / reviewed` (incorrect + partially_correct in denominator only). Only `lead` / `retention` / `upsell` tally. Eval Go/Hold uses those counts (integer ≥4/5), not a stale `signal_score` float.
 - Empty window → Reviewed 0 / **Insufficient Data** — never a labeled Go.
 - Cadence helpers: `web/src/lib/pilot-cadence.ts` (≥5 reviews, mid-week upload, baseline, go/no-go). Insights empty queue + Upload/Eval — not the header bell (exceptions only). After share-out: **Mark Acted** on Correct in Needs Follow-Up (`status=followup`; display-only, no outbound; advances to the next Correct panel) then **next week’s mid-week upsert** (`nextweek`) — not a dead end.
 - Adapt = taxonomy **overrides** for heuristics — stop phrase chasing unless Eval proves a gap.

@@ -51,6 +51,7 @@ import {
   hasPilotBaseline,
   nextPilotCadenceAction,
 } from "@/lib/pilot-cadence";
+import { normalizeSignalScoreCounts } from "@/lib/eval";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { loadStore, writeStore } from "@/lib/store";
 import { ensureSupervisedActions } from "@/lib/supervised-actions";
@@ -298,9 +299,9 @@ export default async function PlatformPage({
     computePilotCadenceSteps({
       hasDay1: store.conversations.length > 0,
       hasMidWeekUpload: hasMidWeekExport(store.pilot?.weeklyExportCount),
-      reviewedCount:
-        backendScore?.reviewed_count ??
-        store.signals.filter((s) => s.feedback).length,
+      reviewedCount: backendScore
+        ? normalizeSignalScoreCounts(backendScore).reviewedCount
+        : store.signals.filter((s) => s.feedback).length,
       hasBaseline: hasPilotBaseline(
         store.pilot?.baselineOpportunities ?? 0,
         store.pilot?.baselineNote

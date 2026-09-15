@@ -249,6 +249,22 @@ def test_signal_score_post_keep_set_body_matches_get(client: TestClient) -> None
     assert empty.json()["signal_score"] is None
 
 
+def test_create_prediction_rejects_non_canonical_signal_type(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/v1/predictions",
+        headers={"X-Tenant-Id": "tenant_demo"},
+        json={
+            "conversation_id": "conv_junk",
+            "signal_type": "retention_risk",
+            "confidence": 0.9,
+            "summary": "Legacy name",
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_missing_tenant_header(client: TestClient) -> None:
     response = client.get("/v1/tenants/tenant_demo/signal-score")
     assert response.status_code == 400

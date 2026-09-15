@@ -13,6 +13,7 @@ from app.services.feedback import (
 )
 from app.services.predictions import record_prediction
 from app.services.review_queue import list_signals_needing_review
+from app.models.signal_prediction import SignalPrediction
 from app.services.signal_score import calculate_signal_score
 
 
@@ -378,6 +379,62 @@ def test_needs_review_excludes_reviewed(db: Session) -> None:
     ids = [s.id for s in queue]
     assert open_sig.id in ids
     assert reviewed.id not in ids
+
+
+def test_signal_score_excludes_non_canonical_signal_types(db: Session) -> None:
+    """Legacy / junk types must not dilute keep-set SignalScore."""
+    good = _pred(db, conversation_id="c_canon", signal_type="retention")
+    junk = SignalPrediction(
+        tenant_id="tenant_a",
+        conversation_id="c_junk",
+        signal_type="retention_risk",
+        confidence=0.9,
+        summary="Legacy name",
+    )
+    db.add(junk)
+    db.commit()
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=good.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=junk.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert result.reviewed_count == 1
+    assert result.correct_count == 1
+    assert result.incorrect_count == 0
+    assert result.signal_score == pytest.approx(1.0)
+    assert [bucket.signal_type for bucket in result.by_signal_type] == [
+        "retention"
+    ]
+
+
+def test_needs_review_excludes_non_canonical_signal_types(db: Session) -> None:
+    """Junk types stay out of the pending queue that feeds SignalScore."""
+    good = _pred(db, conversation_id="c_canon", signal_type="lead")
+    junk = SignalPrediction(
+        tenant_id="tenant_a",
+        conversation_id="c_junk",
+        signal_type="churn_risk",
+        confidence=0.9,
+        summary="Not a product type",
+    )
+    db.add(junk)
+    db.commit()
+
+    queue = list_signals_needing_review(db, "tenant_a", limit=20)
+    ids = {row.id for row in queue}
+    assert good.id in ids
+    assert junk.id not in ids
 
 
 def test_needs_review_still_queues_non_canonical_feedback(db: Session) -> None:
