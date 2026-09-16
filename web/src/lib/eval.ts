@@ -147,8 +147,10 @@ export function computeEvalMetrics(store: StoreData): EvalMetrics {
     correctCount: correct.length,
     incorrectCount: incorrect.length,
     partiallyCorrectCount: partiallyCorrect.length,
-    reviewPrecision:
-      reviewed.length === 0 ? null : correct.length / reviewed.length,
+    reviewPrecision: (() => {
+      const scoredDenom = correct.length + incorrect.length;
+      return scoredDenom === 0 ? null : correct.length / scoredDenom;
+    })(),
     labeledPrecision:
       labeledDenom === 0 ? null : truePositives / labeledDenom,
     labeledRecall: recallDenom === 0 ? null : truePositives / recallDenom,

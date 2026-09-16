@@ -94,7 +94,7 @@ def test_signal_score_correct_over_reviewed(db: Session) -> None:
     assert result.correct_count == 3
     assert result.incorrect_count == 1
     assert result.partially_correct_count == 1
-    assert result.signal_score == pytest.approx(0.6)
+    assert result.signal_score == pytest.approx(0.75)
 
 
 def test_signal_score_per_type_breakdown(db: Session) -> None:
@@ -668,6 +668,48 @@ def test_signal_score_excludes_non_canonical_feedback(db: Session) -> None:
     )
 
 
+def test_signal_score_excludes_partial_from_score_denominator(db: Session) -> None:
+    """Partial reviews count toward n but must not penalize keep-set SignalScore."""
+    correct_only = _pred(db, conversation_id="c1")
+    with_partial = _pred(db, conversation_id="c2")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=correct_only.id,
+        feedback="correct",
+        reviewed_by="r1",
+    )
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=with_partial.id,
+        feedback="partially_correct",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert result.reviewed_count == 2
+    assert result.correct_count == 1
+    assert result.partially_correct_count == 1
+    assert result.signal_score == pytest.approx(1.0)
+
+
+def test_signal_score_null_when_only_partial_reviews(db: Session) -> None:
+    partial = _pred(db, conversation_id="c_partial")
+    record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=partial.id,
+        feedback="partially_correct",
+        reviewed_by="r1",
+    )
+
+    result = calculate_signal_score(db, "tenant_a")
+    assert result.reviewed_count == 1
+    assert result.partially_correct_count == 1
+    assert result.signal_score is None
+
+
 def test_signal_score_counts_invariant(db: Session) -> None:
     lead = _pred(db, conversation_id="c1", signal_type="lead")
     ret = _pred(db, conversation_id="c2", signal_type="retention")
@@ -704,9 +746,14 @@ def test_signal_score_counts_invariant(db: Session) -> None:
             + bucket.partially_correct_count
             == bucket.reviewed_count
         )
-        assert bucket.signal_score == pytest.approx(
-            bucket.correct_count / bucket.reviewed_count
-        )
+        scored_denom = bucket.correct_count + bucket.incorrect_count
+        if scored_denom == 0:
+            assert bucket.signal_score is None
+        else:
+            assert bucket.signal_score == pytest.approx(
+                bucket.correct_count / scored_denom
+            )
+    assert result.signal_score == pytest.approx(0.5)
     for index in range(105):
         _pred(db, conversation_id=f"c_clamp_{index}")
 

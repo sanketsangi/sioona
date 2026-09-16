@@ -40,10 +40,11 @@ class ScoreCounts:
 
     @property
     def signal_score(self) -> float | None:
-        """correct / reviewed; null when nothing has been reviewed."""
-        if self.reviewed_count == 0:
+        """correct / (correct + incorrect); partial reviews tracked separately."""
+        denom = self.correct_count + self.incorrect_count
+        if denom == 0:
             return None
-        return self.correct_count / self.reviewed_count
+        return self.correct_count / denom
 
 
 @dataclass
@@ -66,10 +67,11 @@ class SignalScoreResult:
 
     @property
     def signal_score(self) -> float | None:
-        """correct / reviewed; null when nothing has been reviewed."""
-        if self.reviewed_count == 0:
+        """correct / (correct + incorrect); partial reviews tracked separately."""
+        denom = self.correct_count + self.incorrect_count
+        if denom == 0:
             return None
-        return self.correct_count / self.reviewed_count
+        return self.correct_count / denom
 
 
 def _empty_score(tenant_id: str) -> SignalScoreResult:
@@ -163,8 +165,8 @@ def calculate_signal_score(
 ) -> SignalScoreResult:
     """Compute SignalScore from human-reviewed signals only.
 
-    SignalScore = count(correct) / count(reviewed).
-    partially_correct and incorrect count in the denominator only.
+    SignalScore = count(correct) / (count(correct) + count(incorrect)).
+    partially_correct is tracked in reviewed_count but excluded from the score.
 
     Only canonical types (``lead`` / ``retention`` / ``upsell``) tally.
     Duplicate feedback rows cannot inflate ``n`` (distinct prediction id).
