@@ -95,7 +95,7 @@ Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPL
 | `PUT` | `/v1/tenants/{tenant_id}/pilot` | Upsert pilot settings (one row per tenant) |
 | `DELETE` | `/v1/tenants/{tenant_id}/data` | Wipe tenant Neon chats, messages, predictions, feedback, pilot_settings (`X-Tenant-Id` must match) |
 
-Query params for score: `date_from`, `date_to`, `signal_type`, repeated `conversation_id` (keep-set). Client ids win; else Neon `conversations` for the tenant if any; else tenant-wide. Empty `conversation_id=` → 0 reviewed.
+Query params for score: `date_from`, `date_to`, `signal_type`, repeated `conversation_id` (keep-set). Client ids win; else Neon `conversations` for the tenant if any; else tenant-wide. Empty `conversation_id=` → 0 reviewed. Only `lead` / `retention` / `upsell` tally; prediction writes 422 other types.
 
 ## Tests
 

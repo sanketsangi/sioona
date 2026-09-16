@@ -1,9 +1,9 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-07  
+**Last updated:** 2026-09-15  
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` tip `100dcac` (list Mark Acted + filter walk + Retention Email revise); **live sioona-demo Production success** `100dcac`
+**Branch:** `main` tip `5c6bc00` (detect/Insights coverage); this pass SignalScore quality (canonical types + count-SoT Go)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-07):** Insights Retention Email pending well — quiet `AppleBorderGradient` (skiper86, sio stops + reduced-motion). Touch: `components.json` `@skiper-ui` registry, `v1/skiper86`, embedded `RetentionEmailAction` + Vitest. Pro CLI still needs `SKIPER_LICENSE_KEY` in `.env.local`. Not Detect / not outbound / not a keep-set go.
+**This pass (code, 2026-09-15):** SignalScore quality — only `lead` / `retention` / `upsell` tally or queue; prediction write 422s junk types; Eval Go/Hold + compact Overall use count-SoT (`correct*5 >= reviewed*4`) so a stale `signal_score` float cannot flip the verdict. Formula unchanged (`correct / reviewed`). Touch: `signal_score.py`, `review_queue.py`, `prediction` schema, `eval.ts`, `SignalScoreSummary` + tests. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-07):** Insights Retention Email pending well — quiet `AppleBorderGradient` (skiper86, sio stops + reduced-motion). Touch: `components.json` `@skiper-ui` registry, `v1/skiper86`, embedded `RetentionEmailAction` + Vitest. Pro CLI still needs `SKIPER_LICENSE_KEY` in `.env.local`. Not Detect / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-07):** Insights Review chrome — Copy Reply beside reply draft row; Retention Email Approve/Edit/Dismiss footer on Draft panel; pending-Feedback helper removed. Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` + Vitest. Not Detect / not outbound / not a keep-set go.
 

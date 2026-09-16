@@ -1,18 +1,21 @@
 """Schemas for signal predictions."""
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.feedback import FeedbackResponse
 
+CanonicalSignalType = Literal["lead", "retention", "upsell"]
+
 
 class PredictionCreate(BaseModel):
     """Payload to record a model prediction."""
 
     conversation_id: str = Field(..., min_length=1)
-    signal_type: str = Field(..., min_length=1)
+    signal_type: CanonicalSignalType
     confidence: float = Field(..., ge=0.0, le=1.0)
     summary: str = Field(..., min_length=1)
 

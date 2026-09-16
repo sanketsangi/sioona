@@ -100,6 +100,28 @@ describe("SignalScoreSummary compact", () => {
     expect(html).toContain("Open Insights");
   });
 
+  it("overall percent follows counts when the score float lies", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalScoreSummary, {
+        score: {
+          tenant_id: "tenant_demo",
+          reviewed_count: 6,
+          correct_count: 3,
+          incorrect_count: 3,
+          partially_correct_count: 0,
+          signal_score: 1,
+          by_signal_type: [],
+        },
+        compact: true,
+        goNoGo: "hold",
+      }),
+    );
+
+    expect(html).toContain("50%");
+    expect(html).not.toContain("100%");
+    expect(html).toContain("Hold");
+  });
+
   it("hold verdict shows Hold and cadence, never Adapt", () => {
     const html = renderToStaticMarkup(
       createElement(SignalScoreSummary, {
