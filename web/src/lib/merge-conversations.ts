@@ -128,6 +128,7 @@ export function mergeConversationsByExternalId(
         startedAt: incomingConversation.startedAt,
         groundTruth:
           incomingConversation.groundTruth ?? prior.groundTruth,
+        sourceFile: incomingConversation.sourceFile ?? prior.sourceFile,
         messageIds: incomingMessages.map((message) => message.id),
       };
       messagesByConversation.set(keepId, incomingMessages);
@@ -153,4 +154,52 @@ export function mergeConversationsByExternalId(
   );
 
   return { conversations, messages, replacedIds, addedIds };
+}
+
+/**
+ * Add every incoming conversation as its own row.
+ * A second upload that shares a filename must not restamp the first file's chats
+ * even when `externalId` values overlap. Colliding conversation ids get a new id.
+ */
+export function appendConversationsAsDistinctFile(
+  existing: ConversationRecords,
+  incoming: ConversationRecords,
+): MergeConversationsResult {
+  const conversations = existing.conversations.map((conversation) => ({
+    ...conversation,
+    messageIds: [...conversation.messageIds],
+  }));
+  const messages = existing.messages.map((message) => ({ ...message }));
+  const used = new Set(conversations.map((conversation) => conversation.id));
+  const addedIds: string[] = [];
+
+  const incomingMessagesByConversation = new Map<string, Message[]>();
+  for (const message of incoming.messages) {
+    const list =
+      incomingMessagesByConversation.get(message.conversationId) ?? [];
+    list.push(message);
+    incomingMessagesByConversation.set(message.conversationId, list);
+  }
+
+  for (const incomingConversation of incoming.conversations) {
+    let id = incomingConversation.id;
+    if (used.has(id)) {
+      id = stableConversationId(incomingConversation.externalId, used);
+    } else {
+      used.add(id);
+    }
+    const incomingMessages = remappedMessages(
+      incomingMessagesByConversation.get(incomingConversation.id) ?? [],
+      id,
+    );
+    addedIds.push(id);
+    conversations.push({
+      ...incomingConversation,
+      id,
+      messageIds: incomingMessages.map((message) => message.id),
+    });
+    messages.push(...incomingMessages);
+  }
+
+  return { conversations, messages, replacedIds: [], addedIds };
 }

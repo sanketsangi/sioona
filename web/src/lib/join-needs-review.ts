@@ -131,9 +131,10 @@ export function joinNeedsReviewPredictions(
 }
 
 /**
- * Hide Neon pending stubs that have no conversation in the JSON store or
+ * Hide Neon stubs that have no conversation in the JSON store or
  * request-scoped overlay. JSON-backed rows stay (local evidence). Stale
- * Partner Demo pack ids without a chat stay off the Shadow Mode queue.
+ * Sample / Partner Demo pack ids without a keep-set chat stay off the
+ * Shadow Mode queue (pending, Follow-up, and Done).
  */
 export function filterPendingWithChat(
   pending: Signal[],
@@ -144,6 +145,23 @@ export function filterPendingWithChat(
     if (!isNeonStubSignalId(signal.id)) return true;
     return Boolean(signal.conversationId) && have.has(signal.conversationId);
   });
+}
+
+/**
+ * Whether Insights/Eval may fetch request-scoped Neon chats for missing
+ * queue conversation ids.
+ *
+ * Overlay is wipe-recovery only: empty JSON + Neon still has chats.
+ * When the JSON store already holds a keep-set (Sample, Partner Demo, or
+ * replace-upload), never overlay leftover pack ids — that mixes corpora.
+ * `replaced=1` also forces off until Neon prune finishes.
+ */
+export function shouldOverlayKeepSetChats(opts: {
+  jsonKeepSet?: boolean;
+  jsonConversationCount: number;
+}): boolean {
+  if (opts.jsonKeepSet) return false;
+  return opts.jsonConversationCount === 0;
 }
 
 /** JSON signals that already have human feedback (JSON fallback). */

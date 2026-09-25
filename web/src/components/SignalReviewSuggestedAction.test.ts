@@ -28,8 +28,12 @@ function signal(overrides: Partial<Signal> = {}): Signal {
       'quote: "Please pause my SIP this month"',
       'phrase: "pause my SIP"',
     ],
-    status: "new",
+    status: "reviewed",
     createdAt: "2026-08-01T00:00:00.000Z",
+    feedback: {
+      label: "correct",
+      reviewedAt: "2026-08-02T00:00:00.000Z",
+    },
     ...overrides,
   };
 }
@@ -553,21 +557,21 @@ describe("SignalReviewSuggestedAction", () => {
       "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
     const pending = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
-        signal: signal(),
+        signal: signal({
+          status: "new",
+          feedback: undefined,
+        }),
         customerName: "Priya",
       }),
     );
-    expect(pending).toContain('aria-haspopup="dialog"');
-    expect(pending).not.toContain("Label in Feedback first");
-    // Copy Reply stays secondary; Run Actions uses Correct inverse chrome.
-    expect(pending).toContain("btn-secondary");
-    expect(pending).toContain(runActionsInverse);
+    expect(pending).toContain("Why This Fired");
+    expect(pending).toContain("Recommended Actions");
+    expect(pending).toContain("Copy Reply");
+    expect(pending).toContain("Run Actions");
     expect(pending).toMatch(
-      /aria-label="Run Actions"[^>]*data-size="lg"|data-size="lg"[^>]*aria-label="Run Actions"/,
+      /aria-haspopup="dialog"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*aria-haspopup="dialog"/,
     );
-    expect(pending).not.toMatch(
-      /class="[^"]*btn-primary[^"]*"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*class="[^"]*btn-primary/,
-    );
+    expect(pending).not.toContain("Label in Feedback first");
 
     const incorrect = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
@@ -581,11 +585,15 @@ describe("SignalReviewSuggestedAction", () => {
         customerName: "Priya",
       }),
     );
-    expect(incorrect).toContain('aria-haspopup="dialog"');
+    expect(incorrect).toContain("Why This Fired");
+    expect(incorrect).toContain("Recommended Actions");
+    expect(incorrect).toContain("Run Actions");
     expect(incorrect).toContain(
       "Update Feedback to Correct to unlock Run Actions",
     );
-    expect(incorrect).toContain(runActionsInverse);
+    expect(incorrect).toMatch(
+      /aria-haspopup="dialog"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*aria-haspopup="dialog"/,
+    );
 
     const correct = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {

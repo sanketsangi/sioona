@@ -234,9 +234,10 @@ export function filterHydratedChats(
 }
 
 /**
- * Request-scoped chat overlay for Insights when JSON misses the row
- * (pending stubs + Follow-Up / Done). Does not write the store (avoids
- * mixing leftover Neon packs into JSON).
+ * Request-scoped chat overlay for Insights when JSON is empty (wipe
+ * recovery). Callers must gate with `shouldOverlayKeepSetChats` so an
+ * active Sample / Partner Demo / upload keep-set never pulls leftover
+ * pack chats. Does not write the store.
  */
 export async function fetchOverlayConversations(
   tenantId: string,

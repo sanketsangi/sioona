@@ -32,6 +32,7 @@ import {
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
 import { defaultInsightsHref, vaultInsightsHref } from "@/lib/vault-file";
+import { vaultShowcaseInsightsHref } from "@/lib/vault-showcase";
 
 function renderSidebar(
   lastUploadedFileName?: string,
@@ -52,9 +53,23 @@ function renderSidebar(
 
 function vaultFileHrefCount(html: string, fileName: string) {
   // renderToStaticMarkup escapes `&` in attribute values as `&amp;`.
-  const href = vaultInsightsHref(fileName).replace(/&/g, "&amp;");
-  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return html.match(new RegExp(`href="${escaped}"`, "g"))?.length ?? 0;
+  // Partner Demo vault row uses showcase href (`demo=1`); Sample shares the
+  // plain Insights file href with brand / Workspace.
+  const candidates = new Set<string>([
+    fileName === ZERODHA_BATCH02_SAMPLE_NAME
+      ? vaultShowcaseInsightsHref("partner")
+      : fileName === GROWW_SHOWCASE_SAMPLE_NAME
+        ? vaultShowcaseInsightsHref("sample")
+        : vaultInsightsHref(fileName),
+  ]);
+  let total = 0;
+  for (const href of candidates) {
+    const escaped = href
+      .replace(/&/g, "&amp;")
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    total += html.match(new RegExp(`href="${escaped}"`, "g"))?.length ?? 0;
+  }
+  return total;
 }
 
 function vaultSection(html: string) {
@@ -165,14 +180,39 @@ describe("AppSidebar Vault", () => {
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
   });
 
+  it("lists every uploaded file without putting the prop on the sidebar element", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(AppSidebar, {
+          activeView: "insights",
+          lastUploadedFileName: "week-a.csv",
+          vaultFile: "week-b.csv",
+          uploadedFileNames: ["week-a.csv", "week-b.csv"],
+        }),
+      ),
+    );
+    const vault = vaultSection(html);
+    expect(html).not.toContain("uploadedFileNames");
+    expect(html).not.toContain("uploadedfilenames");
+    expect(vault).toContain('title="week-a.csv"');
+    expect(vault).toContain('title="week-b.csv"');
+    expect(vaultSubButtonActive(html, "week-b.csv")).toBe(true);
+    expect(vaultSubButtonActive(html, "week-a.csv")).toBe(false);
+    expect(vault).not.toContain("No uploads yet");
+  });
+
   it("lists an unmatched user upload under Uploaded Chats", () => {
     const html = renderSidebar("user-upload.csv");
     const vault = vaultSection(html);
     expect(vault).toContain("user-upload.csv");
     expect(vault).toContain('title="user-upload.csv"');
-    expect(maskPathCount(vault, FILE_MASK)).toBe(3);
+    expect(vault).not.toContain("Sample");
+    expect(vault).not.toContain("Partner Demo");
+    expect(html).not.toContain("sanket@sioona.ai");
+    expect(maskPathCount(vault, FILE_MASK)).toBe(1);
     expect(vaultSubButtonActive(html, "user-upload.csv")).toBe(true);
-    expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
     expect(vault.indexOf("user-upload.csv")).toBeGreaterThan(
       vault.indexOf("Uploaded Chats"),
     );

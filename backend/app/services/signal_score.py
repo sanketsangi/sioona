@@ -27,16 +27,24 @@ class ScoreCounts:
     partially_correct_count: int = 0
 
     def add(self, label: str, n: int = 1) -> None:
-        """Accumulate only canonical labels; ignore corrupt / legacy rows."""
-        if n <= 0 or label not in FEEDBACK_LABELS:
+        """Accumulate only canonical labels; ignore corrupt / legacy rows.
+
+        SQL ``count()`` may arrive as a Decimal. Coerce to ``int`` so the
+        response stays ``reviewed = correct + incorrect + partially_correct``.
+        """
+        try:
+            count = int(n)
+        except (TypeError, ValueError):
             return
-        self.reviewed_count += n
+        if count <= 0 or label not in FEEDBACK_LABELS:
+            return
+        self.reviewed_count += count
         if label == FEEDBACK_CORRECT:
-            self.correct_count += n
+            self.correct_count += count
         elif label == FEEDBACK_INCORRECT:
-            self.incorrect_count += n
+            self.incorrect_count += count
         else:
-            self.partially_correct_count += n
+            self.partially_correct_count += count
 
     @property
     def signal_score(self) -> float | None:

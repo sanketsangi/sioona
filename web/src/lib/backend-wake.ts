@@ -9,11 +9,11 @@ export const BACKEND_WAKE_COOLDOWN_MS = 60_000;
 
 export const QUEUE_UNAVAILABLE_PANEL_TITLE = "Review Queue Unavailable";
 export const QUEUE_UNAVAILABLE_PANEL_BODY =
-  "The live review queue could not load. Retry in a moment — the service may be waking up.";
+  "The review queue is still loading. Retry in a moment.";
 
 export const FOLLOWUP_UNAVAILABLE_PANEL_TITLE = "Follow-Up Queue Unavailable";
 export const FOLLOWUP_UNAVAILABLE_PANEL_BODY =
-  "Follow-Up and Done could not load. Retry in a moment — the service may be waking up.";
+  "Follow-up is still loading. Retry in a moment.";
 
 type WakeStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 

@@ -155,38 +155,36 @@ export function pilotCadenceHelperCopy(
   if (action.id === "acted") {
     switch (surface) {
       case "insights":
-        return "Correct reviews still need Mark Acted (does not send the suggested action).";
+        return "Mark the correct ones as Acted. You run the follow-up in your own tools. Nothing is sent.";
       case "upload":
-        return "Mark Acted on Correct reviews in Insights first (does not send), then re-upload next week.";
+        return "Mark the correct reviews as Acted in Insights first. Nothing is sent. Then upload next week’s export.";
       case "eval":
-        return "Then Mark Acted on Correct reviews in Insights (does not send).";
+        return "Then mark the correct reviews as Acted in Insights. Nothing is sent.";
     }
   }
 
   if (action.id === "nextweek") {
     switch (surface) {
       case "insights":
-        return "Queue is clear for this window. Share ≥80% Go on Eval, or re-upload next week’s export (upsert, not replace).";
+        return "This week’s reviews are done. Open Eval for the weekly score, or upload next week’s export.";
       case "upload":
-        return "This week’s keep-set is closed. Re-upload the weekly export — matching chats upsert, not a Day-1 replace.";
+        return "Upload next week’s export. Matching chats update. This does not start over.";
       case "eval":
-        return "Then re-upload next week’s export (upsert, not replace).";
+        return "Then upload next week’s export.";
     }
   }
 
   switch (action.id) {
     case "day1":
-      return surface === "upload"
-        ? "Day 1 — upload a partner export or run Partner Demo."
-        : "Start with Upload or Partner Demo.";
+      return "Upload this week’s export to start. Nothing is sent.";
     case "midweek":
-      return "Mid-week — re-upload the weekly export (upsert by external id).";
+      return "Upload this week’s export. Matching chats update.";
     case "reviews":
-      return `Mark ≥${PILOT_MIN_REVIEWS} Corrects this window in Insights — Go needs keep-set ≥80%.`;
+      return `Review ${PILOT_MIN_REVIEWS} chats this week. Mark the ones we got right. The weekly score is on Eval, and nothing is sent.`;
     case "baseline":
-      return "Set the partner baseline on Eval so lift is credible.";
+      return "On Eval, set how many opportunities you find today so the lift is clear.";
     case "gonogo":
-      return "Open Eval to share Go when keep-set SignalScore is ≥80%.";
+      return "Open Eval for this week’s score. Go is at least 80%. Nothing is sent.";
   }
 }
 

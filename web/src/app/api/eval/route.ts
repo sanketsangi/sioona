@@ -14,32 +14,49 @@ import {
   pendingQueueSignals,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
+  shouldOverlayKeepSetChats,
   signalScoreConversationIds,
 } from "@/lib/join-needs-review";
 import { resolveSignalScoreDateFrom } from "@/lib/signal-score-window";
 import { readStore } from "@/lib/store";
+import { parseReplacedParam } from "@/lib/views";
 
 export async function GET(request: Request) {
   const store = await readStore();
   const url = new URL(request.url);
-  const [needsReview, tenantSignals] = await Promise.all([
-    fetchNeedsReview(store.tenant.id),
-    fetchTenantSignals(store.tenant.id),
-  ]);
-  const pendingRaw = needsReview.ok
-    ? pendingQueueSignals(
-        needsReview.predictions,
-        store.signals,
-        tenantSignals.ok ? tenantSignals.rows : undefined
-      )
-    : store.signals.filter((s) => !s.feedback);
-  const reviewed = tenantSignals.ok
-    ? reviewedQueueSignals(tenantSignals.rows, store.signals)
-    : reviewedSignalsFromStore(store.signals);
-  const overlayChats = await fetchOverlayConversations(
-    store.tenant.id,
-    missingConversationIds([...pendingRaw, ...reviewed], store.conversations)
-  );
+  const jsonKeepSet = parseReplacedParam(url.searchParams.get("replaced"));
+  const overlay = shouldOverlayKeepSetChats({
+    jsonKeepSet,
+    jsonConversationCount: store.conversations.length,
+  });
+  // Needs-review and tenant signals only fill overlay holes. When JSON
+  // already holds the keep-set, SignalScore omits conversation ids and
+  // those two unbounded list calls do not change the score.
+  const overlayChats = overlay
+    ? await (async () => {
+        const [needsReview, tenantSignals] = await Promise.all([
+          fetchNeedsReview(store.tenant.id),
+          fetchTenantSignals(store.tenant.id),
+        ]);
+        const pendingRaw = needsReview.ok
+          ? pendingQueueSignals(
+              needsReview.predictions,
+              store.signals,
+              tenantSignals.ok ? tenantSignals.rows : undefined
+            )
+          : store.signals.filter((s) => !s.feedback);
+        const reviewed = tenantSignals.ok
+          ? reviewedQueueSignals(tenantSignals.rows, store.signals)
+          : reviewedSignalsFromStore(store.signals);
+        return fetchOverlayConversations(
+          store.tenant.id,
+          missingConversationIds(
+            [...pendingRaw, ...reviewed],
+            store.conversations
+          )
+        );
+      })()
+    : null;
   const keepSetIds = keepSetConversationIds(
     store.conversations,
     overlayChats?.conversations,
@@ -53,6 +70,7 @@ export async function GET(request: Request) {
     store.tenant.id,
     signalScoreConversationIds({
       keepSetIds,
+      jsonKeepSet,
       jsonConversationCount: store.conversations.length,
     }),
     { dateFrom: scoreDateFrom }

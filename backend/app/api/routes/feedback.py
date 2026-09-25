@@ -42,6 +42,8 @@ def submit_feedback(
             feedback=body.feedback,
             reviewed_by=body.reviewed_by,
             note=body.note,
+            reviewed_at=body.reviewed_at,
+            if_absent=body.if_absent,
         )
     except SignalNotFoundError as exc:
         raise HTTPException(

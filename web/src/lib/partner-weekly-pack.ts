@@ -26,7 +26,8 @@ function normalizedBasename(name?: string | null): string | undefined {
 
 /**
  * Weekly partner drop-ins: Day-1 replace, mid-week upsert when Neon count > 0.
- * Unknown names always replace.
+ * Other filenames merge into an existing real upload so Uploaded Chats keeps
+ * every file. They still replace Sample, Partner Demo, and an empty keep-set.
  */
 export function isPartnerWeeklyPackBasename(
   name?: string | null

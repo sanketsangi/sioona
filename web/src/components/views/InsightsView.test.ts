@@ -169,7 +169,7 @@ describe("InsightsView window n / ≥5 footer", () => {
   it("empty Neon window shows 0 / ≥5 toward ≥80% Go without labeled P/R", () => {
     const html = renderPendingList(emptyWindowScore);
 
-    expect(html).toContain("This window 0 / ≥5 toward ≥80% Go");
+    expect(html).toContain("Review 5 chats this week");
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toContain("Labeled Eval");
     expect(html).not.toContain("Precision By Signal Type");
@@ -180,8 +180,8 @@ describe("InsightsView window n / ≥5 footer", () => {
   it("n≥5 window shows n / ≥5 toward ≥80% Go without labeled P/R", () => {
     const html = renderPendingList(goWindowScore);
 
-    expect(html).toContain("This window 6 / ≥5 toward ≥80% Go");
-    expect(html).not.toContain("This window 0 / ≥5 toward ≥80% Go");
+    expect(html).toContain("This week 6 of 5 reviews");
+    expect(html).not.toContain("Review 5 chats this week");
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toContain("Labeled Eval");
     expect(html).not.toContain("Precision By Signal Type");
@@ -491,6 +491,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
 
     // List button posts Acted without opening preview (stay on Follow-up).
     expect(html).toContain('aria-label="Mark as Acted for Pause SIP follow-up"');
+    expect(html).toMatch(/>\s*Mark as Acted\s*</);
     expect(html).not.toContain(">Review</a>");
     expect(html).not.toContain(">Mark as Acted</a>");
   });
@@ -613,7 +614,8 @@ describe("InsightsView pending landing empty Follow-up", () => {
 
     expect(html).toContain("No Signals Need Review");
     expect(html).toContain("Upload Weekly Export");
-    expect(html).toMatch(/upsert/i);
+    expect(html).toMatch(/Upload this week’s export/);
+    expect(html).not.toMatch(/upsert|keep-set|Day-1|external id|SignalScore/i);
     expect(html).toContain('data-slot="card"');
     expect(html).toContain(
       "flex flex-1 flex-col items-center justify-center",
@@ -639,7 +641,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Review Queue Unavailable");
-    expect(html).toContain("the service may be waking up");
+    expect(html).toContain("Retry in a moment");
     expect(html).toContain("Retry Queue");
     expect(html).toContain('data-slot="card"');
     expect(html).toContain('role="alert"');
@@ -664,7 +666,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Follow-Up Queue Unavailable");
-    expect(html).toContain("the service may be waking up");
+    expect(html).toContain("Retry in a moment");
     expect(html).toContain("Retry Queue");
     expect(html).toContain('data-slot="card"');
     expect(html).toContain('role="alert"');
@@ -846,10 +848,14 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
+    // Insights paints immediately — no animated loading panel.
+    expect(html).toContain("Conversation that needs your attention");
     expect(html).toContain("Groww_batch_02");
     expect(html).toContain("Finding signals…");
     expect(html).toContain("Usually ready in about 20 seconds.");
     expect(html).toContain("Cancel");
+    expect(html).not.toContain("animate-spin");
+    expect(html).not.toContain('aria-label="Loading"');
     // In-flight wipe Cancel always Upload — never prior keep-set Insights.
     expect(html).toContain('href="/?view=upload"');
     expect(html).not.toContain(
@@ -875,12 +881,13 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
+    expect(html).toContain("Conversation that needs your attention");
     expect(html).toContain("Finding signals…");
     expect(html).toContain("Cancel");
+    // Empty CTA Cancel → Upload (not a self Insights deep-link).
     expect(html).toContain('href="/?view=upload"');
-    expect(html).not.toContain(
-      'href="/?view=insights&amp;file=Groww_batch_02"',
-    );
+    expect(html).toMatch(/href="\/\?view=upload"[^>]*>Cancel/);
+    expect(html).not.toContain("animate-spin");
   });
 
   it("keeps Upload CTA when a non-showcase Vault file is not loaded", () => {
@@ -914,8 +921,61 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
-    expect(html).toContain("File Not Loaded");
-    expect(html).toContain("Uploaded Chats");
+    expect(html).toContain("Upload this week’s export");
+    expect(html).not.toContain("keep-set");
+    expect(html).not.toContain("Run Partner Demo");
+  });
+
+  it("shows an earlier file from the same upload instead of the empty vault", () => {
+    const week7 = makePendingSignals(1)[0];
+    week7.summary = "Week 7 pause";
+    week7.conversationId = "conv_week7";
+    const week8 = {
+      ...makePendingSignals(1)[0],
+      id: "sig_week8",
+      conversationId: "conv_week8",
+      summary: "Week 8 pause",
+      backendSignalId: "pred-week8",
+    };
+    const store = storeFromSignals([week7, week8]);
+    store.conversations[0].sourceFile = "Zerodha_week_7_batch_01.json";
+    store.conversations[1].sourceFile = "Zerodha_week_8_batch_01.json";
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Zerodha_week_8_batch_01.json",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_week_7_batch_01.json",
+        uploadedFileNames: [
+          "Zerodha_week_7_batch_01.json",
+          "Zerodha_week_8_batch_01.json",
+        ],
+        needsReview: {
+          ok: true,
+          predictions: [week7, week8].map((signal) => ({
+            id: signal.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: signal.conversationId,
+            signal_type: signal.type,
+            confidence: signal.score,
+            summary: signal.summary,
+            created_at: signal.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Week 7 pause");
+    expect(html).not.toContain("Week 8 pause");
+    expect(html).not.toContain("This file is not loaded yet");
+    expect(html).not.toContain("Upload this week’s export");
   });
 
   it("keeps Run Partner Demo when keep-set is Groww (pack is not last upload)", () => {
@@ -1238,8 +1298,9 @@ describe("InsightsView review conversation + action", () => {
 
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Why This Fired");
+    expect(html).toContain("Correct");
     expect(html).toContain("Copy Reply");
-    expect(html).toContain("Hi Priya, thanks for asking about");
+    expect(html).not.toContain('data-review-slot="decision"');
     expect(html).toContain("Please pause my SIP this month");
     expect(html).not.toContain("See Conversation");
     expect(html).toContain("Open Conversation");
@@ -1336,29 +1397,22 @@ describe("InsightsView review conversation + action", () => {
     );
 
     expect(html).toContain("Recommended Actions");
-    expect(html).toContain("Retention Email");
-    expect(html).not.toContain("Approve Draft");
-    expect(html).toContain("Edit Draft");
-    expect(html).not.toContain('data-retention-email-panel="draft"');
+    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Retention email");
+    expect(html).toContain("Run Actions");
+    // Open review row is the short label. The list command stays Mark as Acted.
+    expect(html).toMatch(/>\s*Acted\s*<\/button>/);
+    expect(html).not.toContain("Mark as Acted");
+    expect(html).not.toContain("You run this in your tools — Sioona never sends.");
     expect(html).toContain("data-review-slot=\"retention-email\"");
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
     const actionsSlot = html.indexOf('data-review-slot="actions"');
-    const whySlot = html.indexOf('data-review-slot="why"');
     const retentionSlot = html.indexOf('data-review-slot="retention-email"');
+    const whySlot = html.indexOf('data-review-slot="why"');
     expect(feedbackSlot).toBeGreaterThan(-1);
     expect(actionsSlot).toBeGreaterThan(feedbackSlot);
     expect(retentionSlot).toBeGreaterThan(actionsSlot);
-    expect(whySlot).toBeGreaterThan(retentionSlot);
-    // Retention nests inside Recommended Actions; Why / Feedback are siblings.
-    expect(html.match(/data-review-slot="why"/g)?.length).toBe(1);
-    const actionsChunk = html.slice(actionsSlot, whySlot);
-    expect(actionsChunk).toContain('data-review-slot="retention-email"');
-    expect(actionsChunk).toContain("Retention Email");
-    expect(actionsChunk).toContain("Recommended Actions");
-    expect(html).toContain("Run Actions");
-    expect(html).toMatch(
-      /data-review-slot="retention-email"[\s\S]*High-confidence retention draft[\s\S]*aria-label="Run Actions"/,
-    );
+    expect(whySlot).toBeGreaterThan(actionsSlot);
     expect(html).not.toContain('data-review-actions-footer="true"');
     expect(html).toContain(
       "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
@@ -1440,7 +1494,9 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain(
       "Mark as Acted on Suggested Next Action (does not send).",
     );
+    expect(html).toContain("Recommended Actions");
     expect(html).toContain("Run Actions");
+    expect(html).not.toContain("You run this in your tools — Sioona never sends.");
     expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
@@ -1500,30 +1556,25 @@ describe("InsightsView evidence-grounded review", () => {
 
     expect(html).toContain("I want to close my account");
     expect(html).toContain("Why This Fired");
-    expect(html).toContain("Feedback");
+    expect(html).toContain("Recommended Actions");
+    expect(html).toContain("Correct");
+    expect(html).toContain("Incorrect");
     expect(html).toContain("Ground Truth");
     expect(html).toContain('aria-label="Ground Truth, Unset"');
-    expect(html).toContain("insights-review-feedback");
+    expect(html).toContain('data-review-slot="feedback"');
+    expect(html).toContain('data-review-slot="why"');
     expect(html).toContain("insights-review-split");
     expect(html).toContain('data-review-slot="transcript"');
-    // Sticky header Open Conversation (outline h-8); wide CSS docks the 385px well.
-    // No always-on ConversationDrawer overlay covering Feedback labeling.
     expect(html).toContain("Open Conversation");
     expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).not.toContain('data-review-slot="decision"');
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
-    const actionsSlot = html.indexOf('data-review-slot="actions"');
     const whySlot = html.indexOf('data-review-slot="why"');
     expect(feedbackSlot).toBeGreaterThan(-1);
-    expect(actionsSlot).toBeGreaterThan(feedbackSlot);
-    expect(whySlot).toBeGreaterThan(actionsSlot);
-    // GT lives in Feedback header (not a sibling card under Feedback).
-    expect(html.indexOf(">Feedback<", feedbackSlot)).toBeLessThan(
-      html.indexOf('aria-label="Ground Truth, Unset"', feedbackSlot),
-    );
-    expect(html.indexOf('aria-label="Ground Truth, Unset"', feedbackSlot)).toBeLessThan(
-      actionsSlot,
-    );
-    expect(html).not.toContain(">Ground Truth</h3>");
+    expect(whySlot).toBeGreaterThan(feedbackSlot);
+    expect(html.indexOf("Show in conversation:", whySlot)).toBeGreaterThan(whySlot);
+    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeGreaterThan(-1);
+    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeLessThan(whySlot);
     // Open Conversation lives in Pending review nav after Skip — not the rail.
     const pendingNav = html.match(
       /aria-label="Pending review"[^>]*>([\s\S]*?)<\/nav>/,
@@ -1571,14 +1622,14 @@ describe("InsightsView evidence-grounded review", () => {
 
     expect(html).toContain("No messages stored");
     expect(html).toContain("No invented");
-    expect(html).toContain("Recommended Actions");
-    expect(html).toContain("Matched");
-    expect(html).not.toContain("Why This Fired");
     expect(html).toContain("Feedback");
+    expect(html).toContain("Correct");
+    expect(html).toContain("Recommended Actions");
+    expect(html).not.toContain('data-review-slot="decision"');
     expect(html).toContain("insights-review-split");
   });
 
-  it("hides leftover Neon overlay cards after replace ingest", () => {
+  it("hides leftover Neon overlay cards when JSON already has a keep-set", () => {
     const pending = makePendingSignals(1);
     const store = storeFromSignals(pending);
     const overlayChats = {
@@ -1618,6 +1669,7 @@ describe("InsightsView evidence-grounded review", () => {
       ],
     };
 
+    // Even without replaced=1, an active JSON keep-set must ignore leftover overlay.
     const withOverlay = renderToStaticMarkup(
       createElement(InsightsView, {
         store,
@@ -1630,8 +1682,9 @@ describe("InsightsView evidence-grounded review", () => {
         cadenceAction: cadenceReviews,
       }),
     );
-    expect(withOverlay).toContain("sig_neon_old-pack");
-    expect(withOverlay).toContain("Before prune");
+    expect(withOverlay).not.toContain("sig_neon_old-pack");
+    expect(withOverlay).not.toContain("Leftover before prune");
+    expect(withOverlay).toContain("Pending signal 1");
 
     const jsonKeepSet = renderToStaticMarkup(
       createElement(InsightsView, {
@@ -1651,5 +1704,59 @@ describe("InsightsView evidence-grounded review", () => {
     expect(jsonKeepSet).not.toContain("sig_neon_old-pack");
     expect(jsonKeepSet).toContain("Pending signal 1");
     expect(jsonKeepSet).toContain("replaced=1");
+  });
+
+  it("hides leftover Follow-up Neon Corrects from another pack", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "followup",
+        typeFilter: "all",
+        page: 1,
+        overlayChats: {
+          conversations: [
+            {
+              id: "conv_old_pack",
+              tenantId: "tenant_demo",
+              channel: "whatsapp",
+              startedAt: "2026-08-01T00:00:00.000Z",
+              messageIds: [],
+              customerName: "Leftover Groww",
+            },
+          ],
+          messages: [],
+        },
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: true,
+          rows: [
+            {
+              id: "old-correct",
+              tenant_id: "tenant_demo",
+              conversation_id: "conv_old_pack",
+              signal_type: "lead",
+              confidence: 0.9,
+              summary: "Leftover Groww Correct",
+              created_at: "2026-08-01T00:00:00.000Z",
+              acted: false,
+              feedback: {
+                id: "fb-old",
+                tenant_id: "tenant_demo",
+                signal_id: "old-correct",
+                feedback: "correct",
+                note: null,
+                reviewed_by: "demo",
+                reviewed_at: "2026-08-02T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(html).not.toContain("Leftover Groww Correct");
+    expect(html).not.toContain("sig_neon_old-correct");
   });
 });

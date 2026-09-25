@@ -23,6 +23,22 @@ class InvalidFeedbackLabelError(FeedbackError):
     """Raised when feedback is not a canonical label."""
 
 
+def _note_key(note: str | None) -> str | None:
+    if note is None:
+        return None
+    trimmed = note.strip()
+    return trimmed or None
+
+
+def _stamp(value: datetime | None, now: datetime) -> datetime:
+    """Aware UTC. Naive datetimes are UTC, matching score window bounds."""
+    if value is None:
+        return now
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
 def record_feedback(
     db: Session,
     *,
@@ -31,10 +47,18 @@ def record_feedback(
     feedback: str,
     reviewed_by: str,
     note: str | None = None,
+    reviewed_at: datetime | None = None,
+    if_absent: bool = False,
 ) -> SignalFeedback:
     """Create or update human feedback for a prediction.
 
     Re-reviews update the existing row in place. Feedback rows are never deleted.
+    The same label and note is a no-op so a timed-out retry does not move
+    ``reviewed_at`` into a later week window.
+
+    ``if_absent`` inserts only when Neon has no row. An existing label is left
+    alone so a JSON replay cannot overwrite a newer Neon review. The insert
+    keeps ``reviewed_at`` when the caller sends the original review time.
     """
     if feedback not in FEEDBACK_LABELS:
         raise InvalidFeedbackLabelError(
@@ -58,37 +82,45 @@ def record_feedback(
     )
     now = datetime.now(timezone.utc)
 
-    if existing is None:
-        row = SignalFeedback(
-            tenant_id=tenant_id,
-            signal_id=signal_id,
-            feedback=feedback,
-            note=note,
-            reviewed_by=reviewed_by,
-            reviewed_at=now,
-        )
-        db.add(row)
-        try:
-            db.commit()
-        except IntegrityError:
-            # Client retried after a timeout; the first insert landed.
-            db.rollback()
-            existing = db.scalar(
-                select(SignalFeedback).where(
-                    SignalFeedback.signal_id == signal_id,
-                    SignalFeedback.tenant_id == tenant_id,
-                )
-            )
-            if existing is None:
-                raise
-        else:
-            db.refresh(row)
+    def finish_existing(row: SignalFeedback) -> SignalFeedback:
+        if if_absent:
             return row
+        if row.feedback == feedback and _note_key(row.note) == _note_key(note):
+            return row
+        row.feedback = feedback
+        row.note = note
+        row.reviewed_by = reviewed_by
+        row.reviewed_at = now
+        db.commit()
+        db.refresh(row)
+        return row
 
-    existing.feedback = feedback
-    existing.note = note
-    existing.reviewed_by = reviewed_by
-    existing.reviewed_at = now
-    db.commit()
-    db.refresh(existing)
-    return existing
+    if existing is not None:
+        return finish_existing(existing)
+
+    row = SignalFeedback(
+        tenant_id=tenant_id,
+        signal_id=signal_id,
+        feedback=feedback,
+        note=note,
+        reviewed_by=reviewed_by,
+        reviewed_at=_stamp(reviewed_at, now) if if_absent else now,
+    )
+    db.add(row)
+    try:
+        db.commit()
+    except IntegrityError:
+        # Client retried after a timeout; the first insert landed.
+        db.rollback()
+        existing = db.scalar(
+            select(SignalFeedback).where(
+                SignalFeedback.signal_id == signal_id,
+                SignalFeedback.tenant_id == tenant_id,
+            )
+        )
+        if existing is None:
+            raise
+        return finish_existing(existing)
+
+    db.refresh(row)
+    return row

@@ -12,6 +12,9 @@ import {
 type ConversationDrawerControlValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
+  /** True when the review pane shows the inline transcript (laptop+). */
+  inlineTranscript: boolean;
+  setInlineTranscript: (inline: boolean) => void;
 };
 
 const ConversationDrawerControlContext =
@@ -20,6 +23,7 @@ const ConversationDrawerControlContext =
 /**
  * Shares ConversationDrawer open state between the sticky review header
  * (Open Conversation) and SignalReviewBody (Why This Fired / evidence).
+ * Open Conversation hides once the inline transcript is on screen.
  */
 export function ConversationDrawerControlProvider({
   children,
@@ -27,7 +31,11 @@ export function ConversationDrawerControlProvider({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const value = useMemo(() => ({ open, setOpen }), [open]);
+  const [inlineTranscript, setInlineTranscript] = useState(false);
+  const value = useMemo(
+    () => ({ open, setOpen, inlineTranscript, setInlineTranscript }),
+    [open, inlineTranscript],
+  );
   return (
     <ConversationDrawerControlContext.Provider value={value}>
       {children}

@@ -67,7 +67,21 @@ describe("queueActionLabelForSignal", () => {
     ).toBe("Approve");
   });
 
-  it("returns Mark as Acted for Correct ¬acted follow-up", () => {
+  it("returns Mark as Acted on the Follow-up list", () => {
+    const correct = signal({
+      status: "reviewed",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-09-03T00:00:00.000Z",
+      },
+    });
+    expect(queueActionLabelForSignal(correct, "Priya")).toBe("Mark as Acted");
+    expect(queueActionLabelForSignal(correct, "Priya", null, "list")).toBe(
+      "Mark as Acted",
+    );
+  });
+
+  it("returns Acted on the open review row", () => {
     expect(
       queueActionLabelForSignal(
         signal({
@@ -78,23 +92,24 @@ describe("queueActionLabelForSignal", () => {
           },
         }),
         "Priya",
+        null,
+        "review",
       ),
-    ).toBe("Mark as Acted");
+    ).toBe("Acted");
   });
 
   it("returns Marked as Acted for acted Done rows", () => {
-    expect(
-      queueActionLabelForSignal(
-        signal({
-          status: "acted",
-          feedback: {
-            label: "correct",
-            reviewedAt: "2026-09-03T00:00:00.000Z",
-          },
-        }),
-        "Priya",
-      ),
-    ).toBe("Marked as Acted");
+    const acted = signal({
+      status: "acted",
+      feedback: {
+        label: "correct",
+        reviewedAt: "2026-09-03T00:00:00.000Z",
+      },
+    });
+    expect(queueActionLabelForSignal(acted, "Priya")).toBe("Marked as Acted");
+    expect(queueActionLabelForSignal(acted, "Priya", null, "review")).toBe(
+      "Marked as Acted",
+    );
   });
 });
 

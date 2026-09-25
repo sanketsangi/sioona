@@ -22,6 +22,16 @@ From `globals.css`: `.panel`, `.btn-primary`, `.btn-secondary`, `.btn-tertiary`,
 - `"use client"` only for interactive controls (forms, feedback, buttons that mutate)
 - Icons: `@phosphor-icons/react/ssr` — Bold for primary nav / key actions; Regular for dense chrome (queues, pagers, spinners)
 
+## Serving Insights
+
+Partner review is Feedback, Recommended Actions, and Why This Fired, then the weekly score on Eval. Do not restyle chips, radii, or the sidebar system. Do not add Auth0, live webhooks, or outbound send.
+
+- **Transcript:** visible beside those cards when the review pane is at least `42rem` (a normal laptop with the sidebar open). Evidence quote is highlighted. Open Conversation is hidden at that width. Below that, Open Conversation and the quote open the drawer.
+- **Review cards:** Feedback (Correct / Incorrect / Partially correct, note, Ground Truth in the header), then Recommended Actions (draft, Copy Reply, Run Actions, retention email), then Why This Fired. Nothing is sent.
+- **Live export:** when the loaded file is not Sample and not Partner Demo, hide Reset, Run Partner Demo, the Sample and Partner Demo vault rows, and the sidebar identity.
+- **Copy:** Insights empty states and upload helpers say review five chats, mark the ones we got right, the weekly score is on Eval, and nothing is sent. Do not use keep-set, upsert, Day-1 replace, external id, or SignalScore in those helpers.
+- **Empty / asleep:** a vault mismatch offers one next click (upload this week’s export). An asleep queue offers one next click (Retry in a moment). The Insights metrics strip does not show a coverage arrow.
+
 ## Next.js 15
 
 - `params` and `searchParams` are Promises — `await` them

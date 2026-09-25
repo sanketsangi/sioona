@@ -27,6 +27,8 @@ export interface Conversation {
   customerName?: string;
   startedAt: string;
   messageIds: string[];
+  /** Basename of the partner file this chat was ingested from. */
+  sourceFile?: string;
   /** Optional label for eval fixtures */
   groundTruth?: SignalType | "none";
 }

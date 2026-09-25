@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import {
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
   type ComponentProps,
   type ReactNode,
@@ -117,11 +119,13 @@ const queueColumns = columnHelper.columns([
 
 /**
  * Overlay Insights queue list and preview review.
- * Both panes stay mounted after the first client paint; `data-insights-mode`
- * transitions opacity/transform. Review deep-links omit the list table from SSR
- * so hydration is a single tree. List SSR omits the review pane for the same
- * reason (duplicate `signal-summary-*` ids). Holds the last review tree after
- * `?preview=` clears so the exit fade still has content.
+ * Both panes stay mounted after the first client paint. List ↔ review
+ * opacity/transform runs only when `data-insights-motion="1"` (mode actually
+ * toggled). Vault file switches stay on list with no enter animation.
+ * Review deep-links omit the list table from SSR so hydration is a single
+ * tree. List SSR omits the review pane for the same reason (duplicate
+ * `signal-summary-*` ids). Holds the last review tree after `?preview=`
+ * clears so an exit fade still has content when motion is on.
  * First paint uses resting styles — no enter animation on deep links.
  */
 export function InsightsModeSwap({
@@ -139,6 +143,8 @@ export function InsightsModeSwap({
   const reviewActive = mode === "review";
   const listActive = mode === "list";
   const heldReviewRef = useRef<ReactNode>(null);
+  const prevModeRef = useRef(mode);
+  const [motion, setMotion] = useState(false);
   // Review deep-links must not SSR the list table. List must not SSR the
   // review table. Both panes used the same `signal-summary-*` ids.
   const listMounted = useSyncExternalStore(
@@ -146,6 +152,13 @@ export function InsightsModeSwap({
     () => true,
     () => listActive,
   );
+
+  useLayoutEffect(() => {
+    if (prevModeRef.current !== mode) {
+      setMotion(true);
+      prevModeRef.current = mode;
+    }
+  }, [mode]);
 
   /* eslint-disable react-hooks/refs -- snapshot last review pane for exit fade */
   if (reviewActive && reviewKey) {
@@ -155,7 +168,11 @@ export function InsightsModeSwap({
   /* eslint-enable react-hooks/refs */
 
   return (
-    <div className="insights-mode-swap" data-insights-mode={mode}>
+    <div
+      className="insights-mode-swap"
+      data-insights-mode={mode}
+      data-insights-motion={motion ? "1" : "0"}
+    >
       <div
         className="insights-mode-pane insights-mode-pane-list"
         aria-hidden={!listActive}
@@ -808,6 +825,7 @@ export function SignalQueue({
                 previewSignal,
                 previewCustomerName,
                 findSupervisedAction(supervisedActions, previewSignal),
+                "review",
               )}
             />
           ) : (
@@ -857,16 +875,7 @@ export function SignalQueue({
         <QueueEmptyState
           alert
           title={QUEUE_UNAVAILABLE_PANEL_TITLE}
-          description={
-            <>
-              <p>{QUEUE_UNAVAILABLE_PANEL_BODY}</p>
-              {queueError ? (
-                <p className="mt-2 break-words text-label-12 text-sio-fg-muted">
-                  {queueError}
-                </p>
-              ) : null}
-            </>
-          }
+          description={<p>{QUEUE_UNAVAILABLE_PANEL_BODY}</p>}
         >
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Link
@@ -874,9 +883,6 @@ export function SignalQueue({
               className="btn-primary"
             >
               Retry Queue
-            </Link>
-            <Link href={viewHref("upload")} className="btn-secondary">
-              Uploaded Chats
             </Link>
           </div>
         </QueueEmptyState>
@@ -891,16 +897,7 @@ export function SignalQueue({
         <QueueEmptyState
           alert
           title={FOLLOWUP_UNAVAILABLE_PANEL_TITLE}
-          description={
-            <>
-              <p>{FOLLOWUP_UNAVAILABLE_PANEL_BODY}</p>
-              {tenantSignalsError ? (
-                <p className="mt-2 break-words text-label-12 text-sio-fg-muted">
-                  {tenantSignalsError}
-                </p>
-              ) : null}
-            </>
-          }
+          description={<p>{FOLLOWUP_UNAVAILABLE_PANEL_BODY}</p>}
         >
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             <Link
@@ -908,9 +905,6 @@ export function SignalQueue({
               className="btn-primary"
             >
               Retry Queue
-            </Link>
-            <Link href={viewHref("upload")} className="btn-secondary">
-              Uploaded Chats
             </Link>
           </div>
         </QueueEmptyState>

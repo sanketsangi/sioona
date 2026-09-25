@@ -3,12 +3,11 @@
 export const UPLOAD_TIP_INTERVAL_MS = 4500;
 
 export const UPLOAD_TIPS = [
-  "Heuristics run first — a typical export finishes in about a minute.",
-  "New signals land in Insights pending for Correct / Incorrect review.",
-  "Partner Demo wipes Neon, then seeds Zerodha chats — Insights opens after detect; Neon sync finishes in the background.",
-  "Shadow Mode scores only — nothing sends to customers.",
-  "After detect, clear Needs Review so Eval’s week window has reviews to score.",
-  "Reset Demo Data restores Groww Day-1 samples in a few seconds.",
+  "A typical export finishes in about a minute.",
+  "New chats land in Insights. Mark the ones we got right.",
+  "Review five chats this week. The weekly score is on Eval.",
+  "Nothing is sent. You follow up in your own tools.",
+  "Upload next week’s export when you have it. Matching chats update.",
 ] as const;
 
 export type UploadTip = (typeof UPLOAD_TIPS)[number];

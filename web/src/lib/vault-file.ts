@@ -8,6 +8,7 @@ import {
   matchesVaultSampleName,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
+import type { Conversation, Message } from "@/lib/types";
 import { viewHref } from "@/lib/views";
 
 export { GROWW_SHOWCASE_SAMPLE_NAME, ZERODHA_BATCH02_SAMPLE_NAME };
@@ -23,9 +24,7 @@ export function parseVaultFile(raw?: string | null): string | null {
  * Insights vault scope: explicit `?file=` wins; bare Insights defaults to Sample
  * so app start / Workspace Insights land on Groww_batch_02 (auto-load on mismatch).
  */
-export function resolveInsightsVaultFile(
-  raw?: string | null,
-): string {
+export function resolveInsightsVaultFile(raw?: string | null): string {
   return parseVaultFile(raw) ?? GROWW_SHOWCASE_SAMPLE_NAME;
 }
 
@@ -45,6 +44,20 @@ export function defaultInsightsHref(
   extras?: Record<string, string | undefined | null>,
 ): string {
   return vaultInsightsHref(GROWW_SHOWCASE_SAMPLE_NAME, extras);
+}
+
+/**
+ * True when the loaded file is a partner export, not Sample or Partner Demo.
+ * Serving Insights hides demo chrome on this path.
+ */
+export function isLivePartnerKeepSet(
+  lastUploadedFileName?: string | null,
+): boolean {
+  const file = lastUploadedFileName?.trim();
+  if (!file) return false;
+  if (matchesVaultSampleName(file, GROWW_SHOWCASE_SAMPLE_NAME)) return false;
+  if (matchesVaultSampleName(file, ZERODHA_BATCH02_SAMPLE_NAME)) return false;
+  return true;
 }
 
 /**
@@ -81,6 +94,61 @@ export function resolveHeaderBatchName(opts: {
   return last || undefined;
 }
 
+function isCatalogUploadName(name: string): boolean {
+  if (matchesVaultSampleName(name, GROWW_SHOWCASE_SAMPLE_NAME)) return false;
+  if (matchesVaultSampleName(name, ZERODHA_BATCH02_SAMPLE_NAME)) return false;
+  return true;
+}
+
+/**
+ * Uploaded Chats catalog. Stamped `sourceFile` values win, in first-seen
+ * order. A legacy keep-set with no stamps still lists `lastUploadedFileName`.
+ */
+export function listUploadedChatFiles(
+  conversations: readonly { sourceFile?: string }[],
+  lastUploadedFileName?: string | null,
+): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const conversation of conversations) {
+    const name = conversation.sourceFile?.trim();
+    if (!name || seen.has(name) || !isCatalogUploadName(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+  if (names.length > 0) return names;
+  const last = lastUploadedFileName?.trim();
+  if (last && isCatalogUploadName(last)) return [last];
+  return [];
+}
+
+/** Index of `current` in the uploaded catalog, or -1. */
+export function uploadedFileIndex(
+  files: readonly string[],
+  current: string | null | undefined,
+): number {
+  const file = current?.trim();
+  if (!file) return -1;
+  return files.findIndex(
+    (name) => name === file || vaultFileMatchesKeepSet(file, name),
+  );
+}
+
+/**
+ * True when Insights can render this vault file: the keep-set itself, or
+ * another file from the same multi-file export.
+ */
+export function vaultFileIsLoaded(
+  vaultFile: string | null | undefined,
+  lastUploadedFileName: string | null | undefined,
+  uploadedFileNames: readonly string[] = [],
+): boolean {
+  const file = parseVaultFile(vaultFile);
+  if (!file) return true;
+  if (vaultFileMatchesKeepSet(file, lastUploadedFileName)) return true;
+  return uploadedFileIndex(uploadedFileNames, file) >= 0;
+}
+
 /**
  * True when Insights/Eval can render the selected vault's keep-set
  * (not a showcase loader / mismatch empty). Ready notifications use this.
@@ -88,10 +156,44 @@ export function resolveHeaderBatchName(opts: {
 export function isVaultBatchRenderable(
   vaultFile: string | null | undefined,
   lastUploadedFileName: string | null | undefined,
+  uploadedFileNames: readonly string[] = [],
 ): boolean {
+  return vaultFileIsLoaded(vaultFile, lastUploadedFileName, uploadedFileNames);
+}
+
+/**
+ * When one export loaded several files, Insights shows the selected file's
+ * chats. A single catalog entry leaves the store unfiltered.
+ */
+export function scopeChatsToUploadedFile<
+  T extends { conversations: Conversation[]; messages: Message[] },
+>(
+  chats: T,
+  vaultFile: string | null | undefined,
+  uploadedFileNames: readonly string[],
+): T {
+  if (uploadedFileNames.length < 2) return chats;
   const file = parseVaultFile(vaultFile);
-  if (!file) return true;
-  return vaultFileMatchesKeepSet(file, lastUploadedFileName);
+  if (!file) return chats;
+  const index = uploadedFileIndex(uploadedFileNames, file);
+  if (index < 0) return chats;
+  const matched = uploadedFileNames[index];
+  const fallback = uploadedFileNames[uploadedFileNames.length - 1];
+  const conversations = chats.conversations.filter((conversation) => {
+    const source = conversation.sourceFile?.trim();
+    if (source) {
+      return source === matched || vaultFileMatchesKeepSet(source, matched);
+    }
+    return matched === fallback;
+  });
+  const ids = new Set(conversations.map((conversation) => conversation.id));
+  return {
+    ...chats,
+    conversations,
+    messages: chats.messages.filter((message) =>
+      ids.has(message.conversationId),
+    ),
+  };
 }
 
 /** Which vault row should show the active pill. */
@@ -118,31 +220,28 @@ export type VaultFileEmptyNext = {
  * Empty / mismatch next step when Insights is scoped to a vault file that
  * is not the loaded keep-set. Does not wipe or hydrate — points at Upload.
  */
-export function vaultFileEmptyNext(
-  vaultFile: string,
-): VaultFileEmptyNext {
+export function vaultFileEmptyNext(vaultFile: string): VaultFileEmptyNext {
   if (matchesVaultSampleName(vaultFile, GROWW_SHOWCASE_SAMPLE_NAME)) {
     return {
-      title: "Sample Not Loaded",
-      description:
-        "Groww_batch_02 is not the active keep-set. Reset Demo on Upload to load this sample, then review on Insights.",
+      title: "Sample is not loaded",
+      description: "Open Upload to load the sample, then review the chats.",
       href: viewHref("upload"),
       label: "Open Upload",
     };
   }
   if (matchesVaultSampleName(vaultFile, ZERODHA_BATCH02_SAMPLE_NAME)) {
     return {
-      title: "Partner Demo Not Loaded",
-      description:
-        "Zerodha_batch_02 is not the active keep-set. Run Partner Demo on Upload to load it, then review on Insights.",
+      title: "Partner Demo is not loaded",
+      description: "Open Upload to load Partner Demo, then review the chats.",
       href: viewHref("upload"),
       label: "Open Upload",
     };
   }
   return {
-    title: "File Not Loaded",
-    description: `${vaultFile} is not the active keep-set. Upload that export on Uploaded Chats, or open the active file from Vault.`,
+    title: "Upload this week’s export",
+    description:
+      "This file is not loaded yet. Upload it, then review the chats.",
     href: viewHref("upload"),
-    label: "Uploaded Chats",
+    label: "Upload this week’s export",
   };
 }

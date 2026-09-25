@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-15  
+**Last updated:** 2026-09-26
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` tip `5c6bc00` (detect/Insights coverage); this pass SignalScore quality (canonical types + count-SoT Go)
@@ -21,11 +21,21 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-15):** SignalScore quality — only `lead` / `retention` / `upsell` tally or queue; prediction write 422s junk types; Eval Go/Hold + compact Overall use count-SoT (`correct*5 >= reviewed*4`) so a stale `signal_score` float cannot flip the verdict. Formula unchanged (`correct / reviewed`). Touch: `signal_score.py`, `review_queue.py`, `prediction` schema, `eval.ts`, `SignalScoreSummary` + tests. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+**This pass (code, 2026-09-26):** Request path cost — Insights sends only the open transcript; store cache skips a second normalize; Eval skips needs-review when JSON already holds the keep-set; bulk Neon chat sync flushes new messages once per chunk. Detect regex reuse and count-SoT Go/Hold stay as landed on main. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-15):** SignalScore quality — only `lead` / `retention` / `upsell` tally or queue; prediction write 422s junk types; Eval Go/Hold + compact Overall use count-SoT (`correct*5 >= reviewed*4`) so a stale `signal_score` float cannot flip the verdict. Formula unchanged (`correct / reviewed`). Touch: `signal_score.py`, `review_queue.py`, `prediction` schema, `eval.ts`, `SignalScoreSummary` + tests. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-26):** Signal Score reliability — week percent is `correct / reviewed` from canonical counts (disagreeing counts and a null precision at n≥5 stay Insufficient Data, never Go/Hold); same label+note does not move `reviewed_at`; deferred prediction sync fills missing Neon feedback without overwriting an existing label; `GET /api/eval?replaced=1` uses the JSON keep-set; empty all-time is an em dash. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-26):** Insights serving polish — transcript visible from review-pane `42rem` (drawer below that); review cards stay Feedback, Recommended Actions (Run Actions, retention email), and Why This Fired (the one-decision card was reverted); live partner export hides Sample, Partner Demo, Reset, and the sidebar identity; Insights/upload helpers use partner language; empty, mismatch, and asleep queue each name one next click; coverage arrow dropped from the Insights metrics strip. Locked in `.cursor/rules/sioona-ui-app.mdc`. Not Auth0 / not outbound / not Batch-02 / not a keep-set go.
+
+**Prior pass (code, 2026-09-08):** Vault file switches skip load chrome — Sample/Partner Demo seed-before-navigate from AppSidebar (already-active = Link only); InsightsModeSwap motion only on list↔review (`data-insights-motion`); Uploaded Chats stays a plain Link. Deep-link mismatch still uses quiet VaultShowcaseLoader. Touch: `vault-showcase-open.ts`, `AppSidebar`, `SignalQueue` InsightsModeSwap, `globals.css`, Vitest. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-08):** Vault Sample / Partner Demo opens Insights without the animated loading panel — mismatch still wipe+seeds; quiet empty wait (Cancel → Upload) while seeding; stall/hard-fail uses a non-spinner fail panel (`motion-reduce`). Touch: `VaultShowcaseLoader`, `InsightsView`, `vault-showcase.ts` + Vitest. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-08):** Keep-set signal isolation — Insights pending/Follow-up/Done never mix Sample ↔ Partner Demo ↔ replace-upload corpora. Overlay only when JSON chats are empty (wipe recovery) or skipped on `replaced=1`; always `filterPendingWithChat` reviewed stubs against the active keep-set. Touch: `join-needs-review` (`shouldOverlayKeepSetChats`), `page.tsx`, `InsightsView`, `api/eval`, skill + Vitest. Mid-week upsert unchanged. Not Detect / not Adapt / not Auth0 / not a keep-set go.
 
 **Prior pass (code, 2026-09-07):** Insights Retention Email pending well — quiet `AppleBorderGradient` (skiper86, sio stops + reduced-motion). Touch: `components.json` `@skiper-ui` registry, `v1/skiper86`, embedded `RetentionEmailAction` + Vitest. Pro CLI still needs `SKIPER_LICENSE_KEY` in `.env.local`. Not Detect / not outbound / not a keep-set go.
-
-**Prior pass (code, 2026-09-07):** Insights Review chrome — Copy Reply beside reply draft row; Retention Email Approve/Edit/Dismiss footer on Draft panel; pending-Feedback helper removed. Touch: `SignalReviewSuggestedAction`, `RetentionEmailAction` + Vitest. Not Detect / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-07):** Recommended Actions drops pending-Feedback muted helper (“Label in Feedback first…”) — Correct-before-Acted gate dialog + incorrect/partial helper unchanged. Touch: `SignalReviewSuggestedAction` + Vitest. Not Detect / not outbound / not a keep-set go.
 

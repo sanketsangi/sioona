@@ -170,8 +170,39 @@ export type QueueActionKind =
   | "approve"
   | "review";
 
-const QUEUE_ACTION_LABEL: Record<QueueActionKind, string> = {
+/** List is the queue table. Review is the open-preview row. */
+export type QueueActionSurface = "list" | "review";
+
+/** Follow-up list command — this control records Acted. */
+export type QueueListActionLabel =
+  | "Approve"
+  | "Review"
+  | "Mark as Acted"
+  | "Marked as Acted";
+
+/**
+ * Open-review row label. Correct ¬acted is "Acted" (scrolls to the body;
+ * Run Actions records it). Done stays "Marked as Acted".
+ */
+export type QueueReviewActionLabel =
+  | "Approve"
+  | "Review"
+  | "Acted"
+  | "Marked as Acted";
+
+const QUEUE_LIST_ACTION_LABEL: Record<QueueActionKind, QueueListActionLabel> = {
   mark_acted: "Mark as Acted",
+  acted: "Marked as Acted",
+  view: "Review",
+  approve: "Approve",
+  review: "Review",
+};
+
+const QUEUE_REVIEW_ACTION_LABEL: Record<
+  QueueActionKind,
+  QueueReviewActionLabel
+> = {
+  mark_acted: "Acted",
   acted: "Marked as Acted",
   view: "Review",
   approve: "Approve",
@@ -180,7 +211,7 @@ const QUEUE_ACTION_LABEL: Record<QueueActionKind, string> = {
 
 /**
  * Queue Action kind by signal state.
- * Follow-up Correct ¬acted → Mark as Acted; Done → Marked as Acted;
+ * Follow-up Correct ¬acted → mark_acted; Done → acted;
  * pending with Retention Email → Approve; else Review.
  */
 export function queueActionKindForSignal(
@@ -195,22 +226,38 @@ export function queueActionKindForSignal(
     : "review";
 }
 
-export function queueActionLabelForKind(kind: QueueActionKind): string {
-  return QUEUE_ACTION_LABEL[kind];
+export function queueActionLabelForKind(
+  kind: QueueActionKind,
+  surface: QueueActionSurface = "list",
+): QueueListActionLabel | QueueReviewActionLabel {
+  return surface === "review"
+    ? QUEUE_REVIEW_ACTION_LABEL[kind]
+    : QUEUE_LIST_ACTION_LABEL[kind];
 }
 
 /** Queue / review chrome label (Approve when Retention Email is on the rail). */
 export function queueActionLabelForSignal(
   signal: Signal,
   customerName: string,
+  stored: SupervisedAction | null | undefined,
+  surface: "review",
+): QueueReviewActionLabel;
+export function queueActionLabelForSignal(
+  signal: Signal,
+  customerName: string,
   stored?: SupervisedAction | null,
-): "Approve" | "Review" | "Mark as Acted" | "Marked as Acted" {
+  surface?: "list",
+): QueueListActionLabel;
+export function queueActionLabelForSignal(
+  signal: Signal,
+  customerName: string,
+  stored?: SupervisedAction | null,
+  surface: QueueActionSurface = "list",
+): QueueListActionLabel | QueueReviewActionLabel {
   const kind = queueActionKindForSignal(signal, customerName, stored);
-  return queueActionLabelForKind(kind) as
-    | "Approve"
-    | "Review"
-    | "Mark as Acted"
-    | "Marked as Acted";
+  return surface === "review"
+    ? QUEUE_REVIEW_ACTION_LABEL[kind]
+    : QUEUE_LIST_ACTION_LABEL[kind];
 }
 
 type RetentionEmailActionProps = {

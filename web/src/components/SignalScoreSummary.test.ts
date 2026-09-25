@@ -186,4 +186,43 @@ describe("SignalScoreSummary compact", () => {
     expect(html).toContain("(3/3)");
     expect(html).toContain("(5/5)");
   });
+
+  it("empty all-time pack is an em dash, never 0%", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalScoreSummary, {
+        score: goScore,
+        compact: true,
+        goNoGo: "go",
+        allTimeScore: {
+          ...emptyScore,
+          signal_score: 0,
+        },
+      }),
+    );
+
+    expect(html).toMatch(/All-time pack[\s\S]{0,80}—/);
+    expect(html).not.toMatch(/All-time pack[\s\S]{0,80}0%/);
+  });
+
+  it("hides Go when label counts do not sum to reviewed", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalScoreSummary, {
+        score: {
+          tenant_id: "tenant_demo",
+          reviewed_count: 6,
+          correct_count: 6,
+          incorrect_count: 1,
+          partially_correct_count: 0,
+          signal_score: 1,
+          by_signal_type: [],
+        },
+        compact: true,
+        goNoGo: "go",
+      }),
+    );
+
+    expect(html).not.toContain(">Go<");
+    expect(html).not.toContain("100%");
+    expect(html).toMatch(/Overall[\s\S]*?—/);
+  });
 });

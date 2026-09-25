@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
+import type { QueueReviewActionLabel } from "@/components/RetentionEmailAction";
 import {
   QUEUE_REVIEW_ACTION_CLASS,
   SignalQueueRow,
@@ -16,8 +17,8 @@ type SignalReviewPanelProps = {
   customerName: string;
   /** Sticky column header row (same chrome as the list DataTable). */
   header: ReactNode;
-  /** Queue CTA — Approve / Review / Mark as Acted / Marked as Acted by signal state. */
-  actionLabel?: "Approve" | "Review" | "Mark as Acted" | "Marked as Acted";
+  /** Review-row label. Correct ¬acted is Acted; the list command is Mark as Acted. */
+  actionLabel?: QueueReviewActionLabel;
 };
 
 /**

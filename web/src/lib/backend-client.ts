@@ -360,6 +360,10 @@ export async function submitFeedback(
     feedback: BackendFeedbackLabel;
     reviewed_by: string;
     note?: string;
+    /** Original review time. Honored only when `if_absent` inserts a new row. */
+    reviewed_at?: string;
+    /** Insert when Neon has no feedback. Never overwrite an existing label. */
+    if_absent?: boolean;
   }
 ): Promise<BackendFeedback> {
   let lastError: unknown;

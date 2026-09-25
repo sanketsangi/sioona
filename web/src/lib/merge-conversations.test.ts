@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mergeConversationsByExternalId } from "./merge-conversations";
+import {
+  appendConversationsAsDistinctFile,
+  mergeConversationsByExternalId,
+} from "./merge-conversations";
 import type { Conversation, Message } from "./types";
 
 function conversation(
@@ -289,5 +292,77 @@ describe("mergeConversationsByExternalId", () => {
       }
     );
     expect(applied.conversations[0].groundTruth).toBe("lead");
+  });
+
+  it("keeps the incoming sourceFile on a matched conversation", () => {
+    const existing = conversation({
+      id: "conv_a",
+      externalId: "ext-a",
+      sourceFile: "old.csv",
+    });
+    const incoming = conversation({
+      id: "conv_other",
+      externalId: "ext-a",
+      sourceFile: "new.csv",
+    });
+    const result = mergeConversationsByExternalId(
+      { conversations: [existing], messages: [] },
+      { conversations: [incoming], messages: [] },
+    );
+    expect(result.conversations).toHaveLength(1);
+    expect(result.conversations[0].id).toBe("conv_a");
+    expect(result.conversations[0].sourceFile).toBe("new.csv");
+  });
+});
+
+describe("appendConversationsAsDistinctFile", () => {
+  it("keeps the earlier file when externalId and conversation id collide", () => {
+    const existing = conversation({
+      id: "conv_wa_reupload_1",
+      externalId: "wa-reupload-1",
+      sourceFile: "batch_095.json",
+      customerName: "Asha",
+      messageIds: ["msg_conv_wa_reupload_1_0"],
+    });
+    const incoming = conversation({
+      id: "conv_wa_reupload_1",
+      externalId: "wa-reupload-1",
+      sourceFile: "batch_095 (2).json",
+      customerName: "Neha",
+    });
+    const result = appendConversationsAsDistinctFile(
+      {
+        conversations: [existing],
+        messages: [
+          message({
+            id: "msg_conv_wa_reupload_1_0",
+            conversationId: existing.id,
+            content: "first file",
+          }),
+        ],
+      },
+      {
+        conversations: [incoming],
+        messages: [
+          message({
+            id: "msg_conv_wa_reupload_1_0",
+            conversationId: incoming.id,
+            content: "second file",
+          }),
+        ],
+      },
+    );
+
+    expect(result.conversations).toHaveLength(2);
+    expect(result.conversations[0].sourceFile).toBe("batch_095.json");
+    expect(result.conversations[0].customerName).toBe("Asha");
+    expect(result.conversations[1].sourceFile).toBe("batch_095 (2).json");
+    expect(result.conversations[1].id).not.toBe(existing.id);
+    expect(result.messages.map((row) => row.content).sort()).toEqual([
+      "first file",
+      "second file",
+    ]);
+    expect(new Set(result.conversations.map((row) => row.id)).size).toBe(2);
+    expect(new Set(result.messages.map((row) => row.id)).size).toBe(2);
   });
 });

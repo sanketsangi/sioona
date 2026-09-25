@@ -59,6 +59,43 @@ export function vaultShowcaseDisplayName(kind: VaultShowcaseKind): string {
     : ZERODHA_BATCH02_SAMPLE_NAME;
 }
 
+/**
+ * Insights href after opening a showcase pack. Partner sets `demo=1`.
+ * Pass `replaced: true` after a fresh wipe+seed so Neon overlay stays quiet.
+ */
+export function vaultShowcaseInsightsHref(
+  kind: VaultShowcaseKind,
+  extras?: {
+    replaced?: boolean;
+    syncFailed?: string | null;
+    syncCreated?: string | null;
+    llmAdded?: string | null;
+    llmFailed?: string | null;
+    wipeFailed?: boolean;
+  },
+): string {
+  return vaultInsightsHref(vaultShowcaseDisplayName(kind), {
+    demo: kind === "partner" ? "1" : undefined,
+    replaced: extras?.replaced ? "1" : undefined,
+    syncFailed: extras?.syncFailed ?? undefined,
+    syncCreated: extras?.syncCreated ?? undefined,
+    llmAdded: extras?.llmAdded ?? undefined,
+    llmFailed: extras?.llmFailed ?? undefined,
+    wipeFailed: extras?.wipeFailed ? "1" : undefined,
+  });
+}
+
+/**
+ * Vault sidebar / Workspace Insights: when the keep-set already matches,
+ * a normal Link navigation is enough (no wipe, no VaultShowcaseLoader).
+ */
+export function vaultShowcaseNavigateOnly(
+  kind: VaultShowcaseKind,
+  lastUploadedFileName: string | null | undefined,
+): boolean {
+  return vaultShowcaseAlreadyActive(kind, lastUploadedFileName);
+}
+
 /** Idle / first-paint label before NDJSON progress arrives. */
 export function vaultShowcaseLoadingLabel(_kind: VaultShowcaseKind): string {
   return "Finding signals…";
@@ -67,6 +104,24 @@ export function vaultShowcaseLoadingLabel(_kind: VaultShowcaseKind): string {
 /** Realistic wait copy under the status line. */
 export function vaultShowcaseExpectation(): string {
   return "Usually ready in about 20 seconds.";
+}
+
+/**
+ * Quiet Insights empty CTA while Sample / Partner Demo wipe+seed runs.
+ * Cancel → Upload (same as in-flight loader Cancel — never prior keep-set).
+ */
+export function vaultShowcaseWaitEmptyNext(kind: VaultShowcaseKind): {
+  title: string;
+  description: string;
+  href: string;
+  label: string;
+} {
+  return {
+    title: vaultShowcaseDisplayName(kind),
+    description: `${vaultShowcaseLoadingLabel(kind)} ${vaultShowcaseExpectation()}`,
+    href: viewHref("upload"),
+    label: "Cancel",
+  };
 }
 
 export function vaultShowcaseFailedMessage(kind: VaultShowcaseKind): string {

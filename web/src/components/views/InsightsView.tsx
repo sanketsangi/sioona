@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
-import { ReDetectButton } from "@/components/ReDetectButton";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
 import { OpenConversationHeaderAction } from "@/components/OpenConversationHeaderAction";
 import { ConversationDrawerControlProvider } from "@/components/conversation-drawer-control";
@@ -31,8 +30,6 @@ import {
   queueSignalSummary,
   signalTypeLabel,
 } from "@/lib/format";
-import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
-import { groupMessagesByConversation } from "@/lib/group-messages";
 import type { NeedsReviewResult } from "@/lib/fetch-needs-review";
 import type { TenantSignalsResult } from "@/lib/fetch-tenant-signals";
 import {
@@ -43,6 +40,7 @@ import {
   applyChatEvidenceToSignals,
   filterPendingWithChat,
   pendingQueueSignals,
+  shouldOverlayKeepSetChats,
   queueSignalsForFilter,
   resolvePreviewSignal,
   reviewedQueueSignals,
@@ -61,7 +59,7 @@ import {
   type TypeFilter,
   type WorkspaceMode,
 } from "@/lib/views";
-import type { Conversation, Message, Signal, StoreData } from "@/lib/types";
+import type { Signal, StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
   nextUnactedCorrectId,
@@ -69,10 +67,16 @@ import {
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import {
+  isLivePartnerKeepSet,
+  resolveVaultActiveFile,
+  scopeChatsToUploadedFile,
   vaultFileEmptyNext,
-  vaultFileMatchesKeepSet,
+  vaultFileIsLoaded,
 } from "@/lib/vault-file";
-import { isVaultShowcaseFile } from "@/lib/vault-showcase";
+import {
+  resolveVaultShowcaseKind,
+  vaultShowcaseWaitEmptyNext,
+} from "@/lib/vault-showcase";
 import { VaultShowcaseLoader } from "@/components/VaultShowcaseLoader";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
@@ -113,6 +117,7 @@ export function InsightsView({
   workspaceMode = "shadow",
   backendScore = null,
   vaultFile = null,
+  uploadedFileNames = [],
   precomputedPending = null,
   precomputedReviewed = null,
 }: {
@@ -120,7 +125,7 @@ export function InsightsView({
   demo?: boolean;
   importedCount?: number | null;
   newSignalCount?: number | null;
-  /** Replace-ingest landing: hide leftover Neon stubs until prune finishes. */
+  /** Replace-ingest / showcase landing: preserve `replaced=1` in walk URLs. */
   jsonKeepSet?: boolean;
   statusFilter: StatusFilter;
   /** Request URL omitted `status` — client may canonicalize via replaceState. */
@@ -148,20 +153,27 @@ export function InsightsView({
   workspaceMode?: WorkspaceMode;
   /** Vault `?file=` — scope queue to that keep-set name when it matches. */
   vaultFile?: string | null;
+  /**
+   * Files already in this store (`sourceFile` stamps). A sibling of the
+   * latest upload is loaded — it is not an empty “upload this file” state.
+   */
+  uploadedFileNames?: string[];
   /** From page.tsx — avoid recomputing the same joins for cadence + view. */
   precomputedPending?: Signal[] | null;
   precomputedReviewed?: Signal[] | null;
 }) {
-  const keepSetMatches =
-    !vaultFile ||
-    vaultFileMatchesKeepSet(vaultFile, store.pilot?.lastUploadedFileName);
-  const vaultMismatch = Boolean(vaultFile && !keepSetMatches);
-  /** Sample / Partner Demo — auto wipe+seed instead of empty Upload CTA. */
-  const vaultShowcaseLoading = Boolean(
-    vaultMismatch && vaultFile && isVaultShowcaseFile(vaultFile),
+  const vaultLoaded = vaultFileIsLoaded(
+    vaultFile,
+    store.pilot?.lastUploadedFileName,
+    uploadedFileNames,
   );
+  const vaultMismatch = Boolean(vaultFile && !vaultLoaded);
+  /** Sample / Partner Demo — auto wipe+seed; Insights paints while seeding. */
+  const vaultShowcaseKind =
+    vaultMismatch && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
+  const vaultShowcaseLoading = Boolean(vaultShowcaseKind);
   const vaultEmpty =
-    vaultMismatch && vaultFile && !isVaultShowcaseFile(vaultFile)
+    vaultMismatch && vaultFile && !vaultShowcaseKind
       ? vaultFileEmptyNext(vaultFile)
       : null;
   const queueError = needsReview.ok ? null : needsReview.error;
@@ -183,22 +195,44 @@ export function InsightsView({
   const chats = mergeOverlayChats(
     store.conversations,
     store.messages,
-    jsonKeepSet ? null : overlayChats,
+    shouldOverlayKeepSetChats({
+      jsonKeepSet,
+      jsonConversationCount: store.conversations.length,
+    })
+      ? overlayChats
+      : null,
   );
+  const queueChats = scopeChatsToUploadedFile(
+    chats,
+    vaultFile,
+    uploadedFileNames,
+  );
+  const fileScoped = queueChats !== chats;
+  const conversationIds = fileScoped
+    ? new Set(queueChats.conversations.map((conversation) => conversation.id))
+    : null;
+  function signalsForFile(signals: Signal[]) {
+    if (!conversationIds) return signals;
+    return signals.filter((signal) =>
+      conversationIds.has(signal.conversationId),
+    );
+  }
   const pendingSignals = vaultMismatch
     ? []
     : applyChatEvidenceToSignals(
-        filterPendingWithChat(pendingJoined, chats.conversations),
-        chats,
+        signalsForFile(
+          filterPendingWithChat(pendingJoined, queueChats.conversations),
+        ),
+        queueChats,
         store.taxonomyOverrides,
       );
   const reviewedSignals = vaultMismatch
     ? []
     : applyChatEvidenceToSignals(
-        jsonKeepSet
-          ? filterPendingWithChat(reviewedJoined, chats.conversations)
-          : reviewedJoined,
-        chats,
+        signalsForFile(
+          filterPendingWithChat(reviewedJoined, queueChats.conversations),
+        ),
+        queueChats,
         store.taxonomyOverrides,
       );
   // Prev / Next / Skip + Mark Acted advances walk the filtered subset
@@ -221,9 +255,7 @@ export function InsightsView({
     supervisedActions,
   }).filtered;
   const customerNames: Record<string, string> = {};
-  const conversationsById: Record<string, Conversation> = {};
-  for (const conversation of chats.conversations) {
-    conversationsById[conversation.id] = conversation;
+  for (const conversation of queueChats.conversations) {
     const name =
       conversation.customerName?.trim() ||
       customerNameFromExternalId(conversation.externalId);
@@ -231,18 +263,7 @@ export function InsightsView({
       customerNames[conversation.id] = name;
     }
   }
-  const messagesByConversationId: Record<string, Message[]> = {};
-  for (const [id, list] of groupMessagesByConversation(chats.messages)) {
-    list.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-    messagesByConversationId[id] = list;
-  }
 
-  const showImportBanner =
-    importedCount != null &&
-    !Number.isNaN(importedCount) &&
-    newSignalCount != null &&
-    !Number.isNaN(newSignalCount);
-  const zeroSignalsImport = showImportBanner && newSignalCount === 0;
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
   const staleSyncFailedParam = syncFailed > 0 && !hasSyncFailure;
 
@@ -272,6 +293,18 @@ export function InsightsView({
     pendingSignals,
     reviewedSignals,
   );
+  const previewConversation = previewSignal
+    ? (queueChats.conversations.find(
+        (conversation) => conversation.id === previewSignal.conversationId,
+      ) ?? null)
+    : null;
+  const previewMessages = previewSignal
+    ? queueChats.messages
+        .filter(
+          (message) => message.conversationId === previewSignal.conversationId,
+        )
+        .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    : [];
   const previewCustomerName = previewSignal
     ? resolveCustomerName(
         previewSignal.conversationId,
@@ -319,30 +352,34 @@ export function InsightsView({
   };
   // Pending empty next step (mid-week Upload, etc.) — also used when Correct is
   // empty and there is nothing pending to review (same panel copy).
-  const pendingClear = vaultEmpty
-    ? {
-        title: vaultEmpty.title,
-        description: vaultEmpty.description,
-        href: vaultEmpty.href,
-        label: vaultEmpty.label,
-      }
-    : cadenceAction.id === "reviews"
-      ? null
-      : cadenceEmpty;
-  const followUpEmpty = vaultEmpty
-    ? {
-        title: vaultEmpty.title,
-        description: vaultEmpty.description,
-        href: vaultEmpty.href,
-        label: vaultEmpty.label,
-      }
-    : pendingSignals.length > 0
+  const pendingClear = vaultShowcaseKind
+    ? vaultShowcaseWaitEmptyNext(vaultShowcaseKind)
+    : vaultEmpty
       ? {
-          description: "Review pending detections first.",
-          href: pendingHref,
-          label: "Review Pending",
+          title: vaultEmpty.title,
+          description: vaultEmpty.description,
+          href: vaultEmpty.href,
+          label: vaultEmpty.label,
         }
-      : pendingClear;
+      : cadenceAction.id === "reviews"
+        ? null
+        : cadenceEmpty;
+  const followUpEmpty = vaultShowcaseKind
+    ? vaultShowcaseWaitEmptyNext(vaultShowcaseKind)
+    : vaultEmpty
+      ? {
+          title: vaultEmpty.title,
+          description: vaultEmpty.description,
+          href: vaultEmpty.href,
+          label: vaultEmpty.label,
+        }
+      : pendingSignals.length > 0
+        ? {
+            description: "Review pending detections first.",
+            href: pendingHref,
+            label: "Review Pending",
+          }
+        : pendingClear;
   const previewTriage = previewSignal
     ? buildSignalReviewTriage({
         pendingSignals,
@@ -412,9 +449,6 @@ export function InsightsView({
         file: vaultFile,
       }
     : null;
-  const previewMessages = previewSignal
-    ? (messagesByConversationId[previewSignal.conversationId] ?? [])
-    : [];
   const openConversationAction =
     previewSignal && previewCustomerName != null && previewMessages.length > 0 ? (
       <OpenConversationHeaderAction
@@ -429,8 +463,12 @@ export function InsightsView({
     pendingSignals,
     reviewedSignals,
     customerNames,
-    conversationsById,
-    messagesByConversationId,
+    conversationsById: previewConversation
+      ? { [previewConversation.id]: previewConversation }
+      : {},
+    messagesByConversationId: previewSignal
+      ? { [previewSignal.conversationId]: previewMessages }
+      : {},
     queueError,
     tenantSignalsError,
     statusFilter,
@@ -443,7 +481,7 @@ export function InsightsView({
     followUpEmpty,
     doneEmpty: {
       description:
-        "Mark Acted on Correct reviews to complete the suggested step (does not send).",
+        "Mark the correct ones as Acted. You run the follow-up in your own tools. Nothing is sent.",
       href: followUpHref,
       label: "Needs Follow-Up",
     },
@@ -460,41 +498,6 @@ export function InsightsView({
         statusOmitted={statusOmitted}
       />
       <ClearStaleSyncFailedParams shouldClear={staleSyncFailedParam} />
-      {showImportBanner ? (
-        <div className="scroll-region flex max-h-[30%] shrink-0 flex-col gap-2.5 lg:max-h-[40%]">
-          <div
-            className={`status-banner shrink-0 ${
-              zeroSignalsImport || hasSyncFailure
-                ? "status-banner-warning"
-                : "status-banner-success"
-            }`}
-            role="status"
-            aria-live="polite"
-          >
-            <p className="tabular text-copy-14 text-sio-fg-base">
-              Imported {importedCount} conversations · {newSignalCount} local
-              signals
-            </p>
-            <p className="mt-0.5 text-pretty text-label-13 text-sio-fg-subtle">
-              {zeroSignalsImport
-                ? ZERO_SIGNAL_HINT
-                : hasSyncFailure
-                  ? "Neon sync failed for some predictions — needs-review queue may be incomplete."
-                  : pendingSignals.length === 0
-                    ? "Import finished — use the status tabs or re-run detection if the queue stays empty."
-                    : "Neon needs-review queue is ready below."}
-            </p>
-            {zeroSignalsImport ? (
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                <ReDetectButton />
-                <Link href={viewHref("upload")} className="btn-secondary">
-                  Upload Another File
-                </Link>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
 
       <InsightsModeSwap
         mode={reviewOpen ? "review" : "list"}
@@ -506,9 +509,16 @@ export function InsightsView({
                 <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                   Conversation that needs your attention
                 </h2>
-                <InsightsPartnerDemoAction
-                  lastUploadedFileName={store.pilot?.lastUploadedFileName}
-                />
+                {isLivePartnerKeepSet(
+                  resolveVaultActiveFile({
+                    vaultFile,
+                    lastUploadedFileName: store.pilot?.lastUploadedFileName,
+                  }),
+                ) ? null : (
+                  <InsightsPartnerDemoAction
+                    lastUploadedFileName={store.pilot?.lastUploadedFileName}
+                  />
+                )}
               </div>
               <InsightsShadowTip />
             </div>
@@ -516,12 +526,41 @@ export function InsightsView({
               <VaultShowcaseLoader
                 fileName={vaultFile}
                 keepSetFileName={store.pilot?.lastUploadedFileName}
-              />
+              >
+                <InsightsQueueMetrics
+                  conversationCount={0}
+                  signals={[]}
+                  pendingSignals={[]}
+                  reviewedCount={0}
+                />
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+                  <div className="flex w-full min-w-0 shrink-0">
+                    <SignalQueueFilters
+                      pendingSignals={[]}
+                      reviewedSignals={[]}
+                      queueError={queueError}
+                      statusFilter={statusFilter}
+                      typeFilter={typeFilter}
+                      actionFilter={actionFilter}
+                      page={page}
+                      previewId={reviewOpen ? null : previewId}
+                      queryExtras={queryExtras}
+                      supervisedActions={store.supervisedActions ?? []}
+                    />
+                  </div>
+                  <SignalQueue
+                    {...queueProps}
+                    pendingSignals={[]}
+                    reviewedSignals={[]}
+                    previewId={reviewOpen ? null : previewId}
+                  />
+                </div>
+              </VaultShowcaseLoader>
             ) : (
               <>
                 <InsightsQueueMetrics
                   conversationCount={
-                    vaultMismatch ? 0 : chats.conversations.length
+                    vaultMismatch ? 0 : queueChats.conversations.length
                   }
                   signals={[
                     ...pendingSignals,

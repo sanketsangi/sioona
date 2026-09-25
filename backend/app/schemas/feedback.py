@@ -15,6 +15,8 @@ class FeedbackCreate(BaseModel):
     feedback: FeedbackLabel
     reviewed_by: str = Field(..., min_length=1)
     note: str | None = None
+    reviewed_at: datetime | None = None
+    if_absent: bool = False
 
 
 class FeedbackResponse(BaseModel):

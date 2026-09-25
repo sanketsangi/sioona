@@ -72,7 +72,7 @@ function jsonFile(name: string, conversations: object[]) {
 }
 
 function ingestRequest(
-  file: File,
+  file: File | File[],
   options?: {
     replace?: boolean;
     confirmPartnerDemoReplace?: boolean;
@@ -80,7 +80,9 @@ function ingestRequest(
   }
 ) {
   const body = new FormData();
-  body.append("file", file);
+  for (const item of Array.isArray(file) ? file : [file]) {
+    body.append("file", item);
+  }
   if (options?.replace) body.append("replace", "true");
   if (options?.confirmPartnerDemoReplace) {
     body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
@@ -523,7 +525,7 @@ describe("POST /api/ingest", () => {
     );
   });
 
-  it("unknown-name upload still replaces when Neon weeklyExportCount is overlayed", async () => {
+  it("unknown-name upload keeps chats when Neon says a real file is loaded", async () => {
     const before = await readStore();
     const priorIds = new Set(before.conversations.map((row) => row.id));
     before.pilot = {
@@ -548,12 +550,20 @@ describe("POST /api/ingest", () => {
     );
     expect(response.status).toBe(200);
     const body = (await response.json()) as { replaced?: boolean };
-    expect(body.replaced).toBe(true);
+    expect(body.replaced).toBe(false);
 
     const after = await readStore();
-    expect(after.conversations).toHaveLength(1);
-    expect(after.conversations[0].externalId).toBe("wa-reupload-2");
-    expect(priorIds.has(after.conversations[0].id)).toBe(false);
+    expect(after.conversations).toHaveLength(priorIds.size + 1);
+    expect(
+      after.conversations.some(
+        (row) =>
+          row.externalId === "wa-reupload-2" &&
+          row.sourceFile === "user-upload.csv",
+      ),
+    ).toBe(true);
+    expect(
+      [...priorIds].every((id) => after.conversations.some((row) => row.id === id)),
+    ).toBe(true);
     expect(after.pilot?.weeklyExportCount).toBe(6);
     expect(after.pilot?.lastUploadedFileName).toBe("user-upload.csv");
   });
@@ -727,8 +737,7 @@ describe("POST /api/ingest", () => {
     expect(after.pilot?.weeklyExportCount).toBe(2);
   });
 
-  it("non-partner uploads replace always (no showcase overlap)", async () => {
-    // Establish a prior partner ingest so weeklyExportCount=1.
+  it("non-partner uploads keep earlier uploaded files", async () => {
     const partnerFirst = await POST(
       ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
@@ -737,11 +746,7 @@ describe("POST /api/ingest", () => {
     const afterPartner = await readStore();
     expect(afterPartner.conversations).toHaveLength(1);
     expect(afterPartner.pilot?.weeklyExportCount).toBe(1);
-    const priorConversationId = afterPartner.conversations[0].id;
 
-    // Now upload a "non-partner" file (filename not in the Partner Sample Pack).
-    // Even without replace=true, we should do a full replace: only the uploaded
-    // file's conversations/signals remain.
     const nonPartnerFirst = await POST(
       ingestRequest(csvFile("user-upload.csv", [NEW_CONV_LINE]))
     );
@@ -750,26 +755,18 @@ describe("POST /api/ingest", () => {
     const nonPartnerFirstBody = (await nonPartnerFirst.json()) as {
       replaced?: boolean;
     };
-    expect(nonPartnerFirstBody.replaced).toBe(true);
+    expect(nonPartnerFirstBody.replaced).toBe(false);
 
     const afterNonPartnerFirst = await readStore();
-    expect(afterNonPartnerFirst.conversations).toHaveLength(1);
-    expect(afterNonPartnerFirst.conversations[0].externalId).toBe("wa-reupload-2");
+    expect(afterNonPartnerFirst.conversations).toHaveLength(2);
     expect(
-      afterNonPartnerFirst.signals.every(
-        (signal) =>
-          signal.conversationId === afterNonPartnerFirst.conversations[0].id
-      )
-    ).toBe(true);
-    expect(
-      afterNonPartnerFirst.signals.every(
-        (signal) => signal.conversationId !== priorConversationId
-      )
-    ).toBe(true);
+      afterNonPartnerFirst.conversations.map((row) => row.sourceFile).sort(),
+    ).toEqual(["real-partner-export.local.csv", "user-upload.csv"]);
     expect(afterNonPartnerFirst.pilot?.weeklyExportCount).toBe(1);
-    expect(afterNonPartnerFirst.pilot?.lastUploadedFileName).toBe("user-upload.csv");
+    expect(afterNonPartnerFirst.pilot?.lastUploadedFileName).toBe(
+      "user-upload.csv",
+    );
 
-    // Subsequent non-partner uploads also replace (never merge overlap).
     const nonPartnerSecond = await POST(
       ingestRequest(csvFile("user-upload-2.csv", [LEAD_LINE_UPDATED]))
     );
@@ -778,16 +775,20 @@ describe("POST /api/ingest", () => {
     const nonPartnerSecondBody = (await nonPartnerSecond.json()) as {
       replaced?: boolean;
     };
-    expect(nonPartnerSecondBody.replaced).toBe(true);
+    expect(nonPartnerSecondBody.replaced).toBe(false);
 
     const afterNonPartnerSecond = await readStore();
-    expect(afterNonPartnerSecond.conversations).toHaveLength(1);
-    expect(afterNonPartnerSecond.conversations[0].externalId).toBe("wa-reupload-1");
+    // LEAD_LINE_UPDATED matches wa-reupload-1 and moves that chat onto the new file.
+    expect(
+      afterNonPartnerSecond.conversations.map((row) => row.sourceFile).sort(),
+    ).toEqual(["user-upload-2.csv", "user-upload.csv"]);
     expect(afterNonPartnerSecond.pilot?.weeklyExportCount).toBe(1);
-    expect(afterNonPartnerSecond.pilot?.lastUploadedFileName).toBe("user-upload-2.csv");
+    expect(afterNonPartnerSecond.pilot?.lastUploadedFileName).toBe(
+      "user-upload-2.csv",
+    );
   });
 
-  it("former eval pack CSVs replace instead of merging with the showcase", async () => {
+  it("former eval pack CSVs stay beside earlier uploaded chats", async () => {
     const partnerFirst = await POST(
       ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
     );
@@ -799,13 +800,118 @@ describe("POST /api/ingest", () => {
     );
     expect(dropped.status).toBe(200);
     const droppedBody = (await dropped.json()) as { replaced?: boolean };
-    expect(droppedBody.replaced).toBe(true);
+    expect(droppedBody.replaced).toBe(false);
 
     const after = await readStore();
-    expect(after.conversations).toHaveLength(1);
-    expect(after.conversations[0].externalId).toBe("wa-reupload-2");
+    expect(after.conversations).toHaveLength(2);
+    expect(after.conversations.map((row) => row.sourceFile).sort()).toEqual([
+      "partner-shaped-labeled.csv",
+      "real-partner-export.local.csv",
+    ]);
     expect(after.pilot?.weeklyExportCount).toBe(1);
-    expect(after.pilot?.lastUploadedFileName).toBe("partner-shaped-labeled.csv");
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "partner-shaped-labeled.csv",
+    );
+  });
+
+  it("lists a second upload separately when the file name is already used", async () => {
+    const first = await POST(
+      ingestRequest(jsonFile("batch_095.json", [WEEKLY_JSON_CONV])),
+    );
+    expect(first.status).toBe(200);
+
+    const second = await POST(
+      ingestRequest(
+        jsonFile("batch_095.json", [
+          { ...WEEKLY_JSON_CONV, externalId: "wa-reupload-2", customerName: "Neha" },
+        ]),
+      ),
+    );
+    expect(second.status).toBe(200);
+    const body = (await second.json()) as {
+      replaced?: boolean;
+      catalogFiles?: string[];
+    };
+    expect(body.replaced).toBe(false);
+    expect(body.catalogFiles).toEqual(["batch_095 (2).json"]);
+
+    const after = await readStore();
+    expect(after.conversations.map((row) => row.sourceFile).sort()).toEqual([
+      "batch_095 (2).json",
+      "batch_095.json",
+    ]);
+    expect(after.pilot?.lastUploadedFileName).toBe("batch_095 (2).json");
+  });
+
+  it("keeps the first file's chats when a same-name upload repeats an externalId", async () => {
+    const first = await POST(
+      ingestRequest(jsonFile("batch_095.json", [WEEKLY_JSON_CONV])),
+    );
+    expect(first.status).toBe(200);
+
+    const second = await POST(
+      ingestRequest(
+        jsonFile("batch_095.json", [
+          {
+            ...WEEKLY_JSON_CONV,
+            messages: [
+              {
+                ...WEEKLY_JSON_CONV.messages[0],
+                content: "Hi, I want to open a demat account this week",
+              },
+            ],
+          },
+        ]),
+      ),
+    );
+    expect(second.status).toBe(200);
+
+    const after = await readStore();
+    expect(after.conversations).toHaveLength(2);
+    const original = after.conversations.find(
+      (row) => row.sourceFile === "batch_095.json",
+    );
+    const copy = after.conversations.find(
+      (row) => row.sourceFile === "batch_095 (2).json",
+    );
+    expect(original?.externalId).toBe("wa-reupload-1");
+    expect(copy?.externalId).toBe("wa-reupload-1");
+    expect(original?.id).not.toBe(copy?.id);
+    const originalMessage = after.messages.find(
+      (row) => row.conversationId === original?.id,
+    );
+    expect(originalMessage?.content).toContain("today please");
+  });
+
+  it("suffixes duplicate names inside one upload", async () => {
+    const seeded = await POST(ingestRequest(csvFile("already.csv", [LEAD_LINE])));
+    expect(seeded.status).toBe(200);
+
+    const response = await POST(
+      ingestRequest([
+        jsonFile("batch_095.json", [
+          { ...WEEKLY_JSON_CONV, externalId: "wa-reupload-2", customerName: "Neha" },
+        ]),
+        jsonFile("batch_095.json", [WEEKLY_JSON_CONV]),
+      ]),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { catalogFiles?: string[] };
+    expect(body.catalogFiles).toEqual([
+      "batch_095.json",
+      "batch_095 (2).json",
+    ]);
+
+    const after = await readStore();
+    expect(after.conversations.map((row) => row.sourceFile).sort()).toEqual([
+      "already.csv",
+      "batch_095 (2).json",
+      "batch_095.json",
+    ]);
+    expect(
+      after.conversations.find((row) => row.sourceFile === "already.csv")
+        ?.externalId,
+    ).toBe("wa-reupload-1");
   });
 
   it("returns 409 when Partner Demo Zerodha would be replaced without confirm", async () => {
@@ -1039,5 +1145,50 @@ describe("POST /api/ingest validation", () => {
     const body = (await second.json()) as { replaced?: boolean };
     expect(body.replaced).toBe(true);
     expect((await readStore()).conversations).toHaveLength(1);
+  });
+
+  it("keeps every file from one real export and stamps sourceFile", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("backend unavailable in tests"))
+    );
+    await resetStore();
+    const before = await readStore();
+    before.pilot = {
+      baselineOpportunities: 12,
+      weeklyExportCount: 0,
+    };
+    await writeStore(before);
+
+    const form = new FormData();
+    form.append("file", csvFile("real-partner-export.local.csv", [LEAD_LINE]));
+    form.append(
+      "file",
+      csvFile("real-partner-export.week2.local.csv", [NEW_CONV_LINE]),
+    );
+    const response = await POST(
+      new Request("http://localhost/api/ingest", { method: "POST", body: form }),
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      replaced?: boolean;
+      fileCount?: number;
+      importedConversations?: number;
+    };
+    expect(body.replaced).toBe(true);
+    expect(body.fileCount).toBe(2);
+    expect(body.importedConversations).toBe(2);
+
+    const after = await readStore();
+    expect(after.conversations).toHaveLength(2);
+    expect(after.conversations.map((row) => row.sourceFile).sort()).toEqual([
+      "real-partner-export.local.csv",
+      "real-partner-export.week2.local.csv",
+    ]);
+    expect(after.pilot?.weeklyExportCount).toBe(2);
+    expect(after.pilot?.lastUploadedFileName).toBe(
+      "real-partner-export.week2.local.csv",
+    );
+    expect(after.pilot?.baselineOpportunities).toBe(12);
   });
 });

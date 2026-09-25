@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  NOTIFICATION_AUTO_OPEN_HOLD_MS,
   POPUP_NOTIFICATION_IDS,
   QUEUE_UNAVAILABLE_DESCRIPTION,
   QUEUE_UNAVAILABLE_TITLE,
   SCORE_UNAVAILABLE_DESCRIPTION,
   SCORE_UNAVAILABLE_TITLE,
   buildHeaderNotifications,
+  freshPopupNotifications,
+  notificationAutoOpenKey,
 } from "./notifications";
 
 describe("buildHeaderNotifications", () => {
@@ -161,6 +164,41 @@ describe("buildHeaderNotifications", () => {
     expect(items.some((i) => i.id === "queue-clear")).toBe(false);
   });
 
+  it("surfaces import-complete from Upload redirect params", () => {
+    const ready = buildHeaderNotifications({
+      pendingCount: 3,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      importedCount: 46,
+      newSignalCount: 3,
+    });
+    expect(ready.map((i) => i.id)).toEqual([
+      "import-complete",
+      "pending-review",
+    ]);
+    expect(ready[0]?.title).toBe(
+      "Imported 46 conversations · 3 local signals",
+    );
+    expect(ready[0]?.description).toContain("needs-review queue");
+    expect(ready[0]?.tone).toBe("info");
+    expect(POPUP_NOTIFICATION_IDS).toContain("import-complete");
+
+    const zero = buildHeaderNotifications({
+      pendingCount: 0,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      importedCount: 10,
+      newSignalCount: 0,
+    });
+    expect(zero[0]?.id).toBe("import-complete");
+    expect(zero[0]?.tone).toBe("warning");
+    expect(zero[0]?.href).toContain("upload");
+  });
+
   it("after API up returns pending-review or empty", () => {
     const pending = buildHeaderNotifications({
       pendingCount: 2,
@@ -179,5 +217,58 @@ describe("buildHeaderNotifications", () => {
       scoreUnavailable: false,
     });
     expect(empty).toEqual([]);
+  });
+});
+
+describe("freshPopupNotifications", () => {
+  it("auto-opens any unread notification, then again when the title changes", () => {
+    const first = buildHeaderNotifications({
+      pendingCount: 3,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      importedCount: 46,
+      newSignalCount: 3,
+    });
+    const importItem = first.find((i) => i.id === "import-complete");
+    expect(importItem).toBeTruthy();
+
+    const fresh = freshPopupNotifications(first, {
+      seenIds: new Set(),
+      alreadyOpened: new Set(),
+    });
+    expect(fresh.map((i) => i.id)).toEqual([
+      "import-complete",
+      "pending-review",
+    ]);
+
+    const afterOpen = freshPopupNotifications(first, {
+      seenIds: new Set(),
+      alreadyOpened: new Set(fresh.map((i) => notificationAutoOpenKey(i))),
+    });
+    expect(afterOpen).toEqual([]);
+
+    const secondImport = buildHeaderNotifications({
+      pendingCount: 1,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      importedCount: 10,
+      newSignalCount: 1,
+    });
+    const freshAgain = freshPopupNotifications(secondImport, {
+      seenIds: new Set(),
+      alreadyOpened: new Set([notificationAutoOpenKey(importItem!)]),
+    });
+    expect(freshAgain.map((i) => i.id)).toContain("import-complete");
+    expect(notificationAutoOpenKey(secondImport[0]!)).not.toBe(
+      notificationAutoOpenKey(importItem!),
+    );
+  });
+
+  it("exports a multi-second auto-open hold", () => {
+    expect(NOTIFICATION_AUTO_OPEN_HOLD_MS).toBeGreaterThanOrEqual(3000);
   });
 });

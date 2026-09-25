@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BellIcon } from "@/components/icons/BellIcon";
 import { BoltIcon } from "@/components/icons/BoltIcon";
+import { CheckCircleIcon } from "@/components/icons/CheckCircleIcon";
 import { ExternalIcon } from "@/components/icons/ExternalIcon";
 import { RefreshClockwiseIcon } from "@/components/icons/RefreshClockwiseIcon";
 import { SparklesIcon } from "@/components/icons/SparklesIcon";
@@ -17,22 +18,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  POPUP_NOTIFICATION_IDS,
+  NOTIFICATION_AUTO_OPEN_HOLD_MS,
+  freshPopupNotifications,
+  notificationAutoOpenKey,
   type HeaderNotification,
 } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
 
 const SEEN_STORAGE_KEY = "sioona.headerNotifications.seen";
+/** Session-scoped — each tab visit can surface a fresh popup once. */
 const AUTO_OPENED_STORAGE_KEY = "sioona.headerNotifications.autoOpened";
 
 type NotificationsMenuProps = {
   notifications: HeaderNotification[];
 };
 
-function readIdSet(key: string): Set<string> {
-  if (typeof window === "undefined") return new Set();
+function readIdSet(key: string, storage: Storage | null): Set<string> {
+  if (!storage) return new Set();
   try {
-    const raw = window.localStorage.getItem(key);
+    const raw = storage.getItem(key);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return new Set();
@@ -42,15 +46,37 @@ function readIdSet(key: string): Set<string> {
   }
 }
 
-function writeIdSet(key: string, ids: Set<string>) {
+function writeIdSet(key: string, ids: Set<string>, storage: Storage | null) {
+  if (!storage) return;
   try {
-    window.localStorage.setItem(key, JSON.stringify([...ids]));
+    storage.setItem(key, JSON.stringify([...ids]));
   } catch {
     /* ignore quota / private mode */
   }
 }
 
+function sessionStore(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function localStore(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 function notificationIcon(id: string): ReactNode {
+  if (id === "import-complete") {
+    return <CheckCircleIcon className="size-3.5 shrink-0" />;
+  }
   if (id === "partner-demo-ready") {
     return <SparklesIcon className="size-3.5 shrink-0" />;
   }
@@ -72,8 +98,8 @@ function toneClasses(tone: HeaderNotification["tone"]) {
       };
     case "info":
       return {
-        tile: "bg-sio-bg-muted text-sio-fg-muted",
-        label: "Info",
+        tile: "bg-sio-status-success-bg text-sio-status-success-fg",
+        label: "Import",
       };
     case "warning":
     default:
@@ -86,6 +112,7 @@ function toneClasses(tone: HeaderNotification["tone"]) {
 
 function toneLabelFor(item: HeaderNotification): string {
   if (item.id === "partner-demo-ready") return "Demo";
+  if (item.id === "import-complete") return "Import";
   return toneClasses(item.tone).label;
 }
 
@@ -93,66 +120,114 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
   const [open, setOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
   const [hydrated, setHydrated] = useState(false);
-  const autoOpenAttempted = useRef(false);
+  const autoCloseTimerRef = useRef<number | null>(null);
+  const userPinnedRef = useRef(false);
+
+  const clearAutoClose = useCallback(() => {
+    if (autoCloseTimerRef.current != null) {
+      window.clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const markSeen = useCallback(() => {
+    if (notifications.length === 0) return;
+    setSeenIds((prev) => {
+      const nextSeen = new Set(prev);
+      for (const n of notifications) {
+        if (!n.sticky) nextSeen.add(n.id);
+      }
+      writeIdSet(SEEN_STORAGE_KEY, nextSeen, localStore());
+      return nextSeen;
+    });
+  }, [notifications]);
+
+  const closeMenu = useCallback(
+    (opts?: { markSeen?: boolean; userPinned?: boolean }) => {
+      clearAutoClose();
+      if (opts?.markSeen) markSeen();
+      if (opts?.userPinned) userPinnedRef.current = true;
+      setOpen(false);
+    },
+    [clearAutoClose, markSeen],
+  );
 
   useEffect(() => {
     queueMicrotask(() => {
-      setSeenIds(readIdSet(SEEN_STORAGE_KEY));
+      setSeenIds(readIdSet(SEEN_STORAGE_KEY, localStore()));
       setHydrated(true);
     });
   }, []);
 
-  // Drop autoOpened ids that are no longer present so a later cold-open can popup again.
+  // Drop autoOpened keys whose notification is no longer present.
   useEffect(() => {
     if (!hydrated) return;
-    const present = new Set(notifications.map((n) => n.id));
-    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY);
+    const store = sessionStore();
+    const present = new Set(
+      notifications.map((n) => notificationAutoOpenKey(n)),
+    );
+    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY, store);
     let changed = false;
     const nextOpened = new Set<string>();
-    for (const id of alreadyOpened) {
-      if (present.has(id)) {
-        nextOpened.add(id);
+    for (const key of alreadyOpened) {
+      if (present.has(key)) {
+        nextOpened.add(key);
       } else {
         changed = true;
       }
     }
     if (changed) {
-      writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened);
-      autoOpenAttempted.current = false;
+      writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened, store);
     }
   }, [hydrated, notifications]);
 
+  // Auto-open briefly whenever any fresh notification appears.
   useEffect(() => {
-    if (!hydrated || autoOpenAttempted.current || open) return;
+    if (!hydrated || open) return;
 
-    const popupIds = new Set<string>(POPUP_NOTIFICATION_IDS);
-    const unreadPopup = notifications.filter(
-      (n) => popupIds.has(n.id) && (n.sticky || !seenIds.has(n.id)),
-    );
-    if (unreadPopup.length === 0) return;
-
-    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY);
-    const fresh = unreadPopup.filter((n) => !alreadyOpened.has(n.id));
+    const store = sessionStore();
+    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY, store);
+    const fresh = freshPopupNotifications(notifications, {
+      seenIds,
+      alreadyOpened,
+    });
     if (fresh.length === 0) return;
 
-    autoOpenAttempted.current = true;
     const nextOpened = new Set(alreadyOpened);
-    for (const n of fresh) nextOpened.add(n.id);
-    writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened);
+    for (const n of fresh) nextOpened.add(notificationAutoOpenKey(n));
+    writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened, store);
+    userPinnedRef.current = false;
 
     const reducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // Open once to surface the alert; skip delayed open when reduced motion.
+    const openAndScheduleClose = () => {
+      setOpen(true);
+      clearAutoClose();
+      const holdMs = reducedMotion
+        ? Math.min(NOTIFICATION_AUTO_OPEN_HOLD_MS, 2000)
+        : NOTIFICATION_AUTO_OPEN_HOLD_MS;
+      autoCloseTimerRef.current = window.setTimeout(() => {
+        autoCloseTimerRef.current = null;
+        if (userPinnedRef.current) return;
+        closeMenu({ markSeen: true });
+      }, holdMs);
+    };
+
     if (reducedMotion) {
-      queueMicrotask(() => setOpen(true));
-      return;
+      queueMicrotask(openAndScheduleClose);
+      return () => clearAutoClose();
     }
 
-    const timer = window.setTimeout(() => setOpen(true), 180);
-    return () => window.clearTimeout(timer);
-  }, [hydrated, notifications, seenIds, open]);
+    const openTimer = window.setTimeout(openAndScheduleClose, 180);
+    return () => {
+      window.clearTimeout(openTimer);
+      clearAutoClose();
+    };
+  }, [hydrated, notifications, seenIds, open, clearAutoClose, closeMenu]);
+
+  useEffect(() => () => clearAutoClose(), [clearAutoClose]);
 
   const unreadCount = useMemo(() => {
     if (!hydrated) return notifications.length;
@@ -169,15 +244,13 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     <DropdownMenu
       open={open}
       onOpenChange={(next) => {
-        if (!next && open && notifications.length > 0) {
-          const nextSeen = new Set(seenIds);
-          for (const n of notifications) {
-            if (!n.sticky) nextSeen.add(n.id);
-          }
-          setSeenIds(nextSeen);
-          writeIdSet(SEEN_STORAGE_KEY, nextSeen);
+        if (next) {
+          clearAutoClose();
+          userPinnedRef.current = true;
+          setOpen(true);
+          return;
         }
-        setOpen(next);
+        closeMenu({ markSeen: true, userPinned: true });
       }}
     >
       <DropdownMenuTrigger asChild>
@@ -203,6 +276,14 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
         align="end"
         sideOffset={8}
         className="w-[min(100vw-2rem,22.5rem)] overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base p-0 text-sio-fg-base shadow-md outline-none ring-0 focus:outline-none focus-visible:shadow-none"
+        onPointerEnter={() => {
+          userPinnedRef.current = true;
+          clearAutoClose();
+        }}
+        onFocusCapture={() => {
+          userPinnedRef.current = true;
+          clearAutoClose();
+        }}
       >
         <DropdownMenuLabel className="flex items-center justify-between gap-3 px-3.5 py-3 font-normal">
           <span className="text-label-14 font-semibold tracking-tight text-sio-fg-base">
@@ -230,8 +311,8 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
               You&rsquo;re all caught up
             </p>
             <p className="mt-1 max-w-[16rem] text-pretty text-label-12 text-sio-fg-muted">
-              Pending reviews, Neon sync issues, and Signal Score outages will
-              appear here.
+              Pending reviews, imports, Neon sync issues, and Signal Score
+              outages will appear here.
             </p>
           </div>
         ) : (
@@ -241,7 +322,8 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
           >
             {notifications.map((item, index) => {
               const tone = toneClasses(item.tone);
-              const unread = item.sticky || (hydrated ? !seenIds.has(item.id) : true);
+              const unread =
+                item.sticky || (hydrated ? !seenIds.has(item.id) : true);
               const rowClass = cn(
                 "flex w-full items-start gap-3 px-3.5 py-3 text-left",
                 index > 0 && "border-t border-sio-border-base",

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CaretLeft, CaretRight, X } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { FolderIcon } from "@/components/icons/FolderIcon";
 import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
 import { PartnerDemoButton } from "@/components/PartnerDemoButton";
 import { ResetDemoButton } from "@/components/ResetDemoButton";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { llmQueryExtras, parseLlmPassStats } from "@/lib/detect-llm-query";
@@ -19,6 +21,7 @@ import {
   PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
 } from "@/lib/partner-demo-replace-guard";
 import { lastUploadedFileName as uploadBasename } from "@/lib/upload-filename";
+import { isLivePartnerKeepSet } from "@/lib/vault-file";
 import {
   CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
   HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
@@ -43,6 +46,10 @@ const FILE_ACCEPT = ".csv,.json,.txt,text/csv,application/json,text/plain";
 /** Quiet upload/validation pills dismiss so the drop zone stays clean. */
 const ERROR_DISMISS_MS = 4000;
 
+function fileKey(file: File) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
 export function UploadForm({
   hasPartnerExport = false,
   lastUploadedFileName,
@@ -52,7 +59,8 @@ export function UploadForm({
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [status, setStatus] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
@@ -67,7 +75,10 @@ export function UploadForm({
   const partnerDemoActive = isPartnerDemoKeepSetActive(lastUploadedFileName);
   /** Full-replace path (Day-1 / non–mid-week) can wipe Partner Demo keep-set. */
   const wouldReplace = !hasPartnerExport;
-  const heldOutSelected = isHeldOutWeeklyPackBasename(file?.name);
+  const activeFile = files[activeIndex] ?? files[0] ?? null;
+  const heldOutSelected = files.some((item) =>
+    isHeldOutWeeklyPackBasename(item.name),
+  );
   const pendingHeldOutConfirm =
     pendingHeldOutWeeklyIngest && !pendingPartnerDemoReplace;
 
@@ -86,11 +97,38 @@ export function UploadForm({
     setPendingHeldOutWeeklyIngest(false);
   }
 
+  function addFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    const incoming = Array.from(list);
+    const next = [...files];
+    let firstNew = -1;
+    for (const item of incoming) {
+      if (next.some((existing) => fileKey(existing) === fileKey(item))) continue;
+      if (firstNew < 0) firstNew = next.length;
+      next.push(item);
+    }
+    setFiles(next);
+    if (firstNew >= 0) setActiveIndex(firstNew);
+    setError(null);
+    clearPendingConfirm();
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, itemIndex) => itemIndex !== index));
+    setActiveIndex((current) => {
+      if (current > index) return current - 1;
+      if (current === index) return Math.max(0, index - 1);
+      return current;
+    });
+    clearPendingConfirm();
+  }
+
   async function runIngest(opts?: {
     confirmPartnerDemoReplace?: boolean;
     confirmHeldOutWeeklyIngest?: boolean;
   }) {
-    if (!file) {
+    if (files.length === 0) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
       fileRef.current?.focus();
       return;
@@ -103,7 +141,7 @@ export function UploadForm({
     setSyncWarning(null);
     try {
       const body = new FormData();
-      body.append("file", file);
+      for (const item of files) body.append("file", item);
       if (!hasPartnerExport) body.append("replace", "true");
       if (opts?.confirmPartnerDemoReplace) {
         body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
@@ -117,6 +155,7 @@ export function UploadForm({
         code?: string;
         format?: string;
         importedConversations?: number;
+        catalogFiles?: string[];
         newSignals?: number;
         hint?: string;
         predictionSync?: unknown;
@@ -144,13 +183,14 @@ export function UploadForm({
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
+      const fileCount = files.length;
       const signals = data.newSignals ?? 0;
       const sync = parsePredictionSync(data.predictionSync);
       const syncFailed = hasSyncFailures(sync);
 
       if (syncFailed && sync) {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — Neon sync incomplete`,
+          `Imported ${imported} conversations${fileCount > 1 ? ` from ${fileCount} files` : ""} via ${formatLabel} · ${signals} local signals — Neon sync incomplete`,
         );
         setSyncWarning(
           `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights.`,
@@ -175,7 +215,11 @@ export function UploadForm({
       if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
       // JSON is the keep-set until deferred prune finishes — skip leftover Neon overlay.
       if (data.replaced) query.set("replaced", "1");
-      const uploadedName = uploadBasename(file?.name);
+      const catalogFiles = data.catalogFiles?.filter(Boolean) ?? [];
+      const uploadedName =
+        catalogFiles[activeIndex] ??
+        catalogFiles[catalogFiles.length - 1] ??
+        uploadBasename((files[activeIndex] ?? files[files.length - 1])?.name);
       if (uploadedName) query.set("file", uploadedName);
       // JSON already has newSignals; do not wait for Neon dual-write.
       router.push(`/?${query.toString()}`);
@@ -188,7 +232,7 @@ export function UploadForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) {
+    if (files.length === 0) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
       fileRef.current?.focus();
       return;
@@ -246,25 +290,74 @@ export function UploadForm({
           htmlFor="chat-export"
           className="cursor-pointer text-copy-14 font-normal text-sio-fg-base"
         >
-          {file ? "File selected" : "Choose a file or drop it here"}
+          {files.length > 1
+            ? `${files.length} files selected`
+            : activeFile
+              ? "File selected"
+              : "Choose a file or drop it here"}
         </Label>
         <p
           className="max-w-full truncate text-label-13 text-sio-fg-subtle"
-          translate={file ? "no" : undefined}
+          translate={activeFile ? "no" : undefined}
         >
-          {file ? file.name : "CSV, JSON, or WhatsApp .txt…"}
+          {activeFile ? activeFile.name : "CSV, JSON, or WhatsApp .txt…"}
         </p>
+        {files.length > 0 ? (
+          <div className="relative z-20 flex items-center justify-center gap-1">
+            {files.length > 1 ? (
+              <>
+                <button
+                  type="button"
+                  className="inline-flex size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
+                  aria-label="Previous file"
+                  disabled={activeIndex <= 0}
+                  onClick={() =>
+                    setActiveIndex((current) => Math.max(0, current - 1))
+                  }
+                >
+                  <CaretLeft className="size-4" weight="regular" aria-hidden />
+                </button>
+                <p className="tabular min-w-[4.5rem] text-center text-label-12 text-sio-fg-subtle">
+                  <span className="sr-only">File </span>
+                  {Math.min(activeIndex, files.length - 1) + 1} of {files.length}
+                </p>
+                <button
+                  type="button"
+                  className="inline-flex size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
+                  aria-label="Next file"
+                  disabled={activeIndex >= files.length - 1}
+                  onClick={() =>
+                    setActiveIndex((current) =>
+                      Math.min(files.length - 1, current + 1),
+                    )
+                  }
+                >
+                  <CaretRight className="size-4" weight="regular" aria-hidden />
+                </button>
+              </>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8 touch-manipulation"
+              aria-label={`Remove ${activeFile?.name ?? "file"}`}
+              onClick={() => removeFile(activeIndex)}
+            >
+              <X className="size-4" weight="regular" aria-hidden />
+            </Button>
+          </div>
+        ) : null}
         <Input
           ref={fileRef}
           id="chat-export"
           name="file"
           type="file"
+          multiple
           accept={FILE_ACCEPT}
           aria-invalid={error ? true : undefined}
           onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setError(null);
-            clearPendingConfirm();
+            addFiles(e.target.files);
           }}
           className="absolute inset-0 z-10 h-full min-h-full w-full cursor-pointer rounded-[var(--radius-control)] border-0 bg-transparent p-0 opacity-0 file:hidden focus-visible:border-0 focus-visible:ring-0"
         />
@@ -307,16 +400,20 @@ export function UploadForm({
                 )}
                 Upload & Detect
               </button>
-              <PartnerDemoButton
-                label="Run Partner Demo"
-                lastUploadedFileName={lastUploadedFileName}
-                className="btn-secondary rounded-[var(--radius-panel)]"
-                onErrorChange={onDemoErrorChange}
-              />
-              <ResetDemoButton
-                lastUploadedFileName={lastUploadedFileName}
-                onErrorChange={onDemoErrorChange}
-              />
+              {isLivePartnerKeepSet(lastUploadedFileName) ? null : (
+                <>
+                  <PartnerDemoButton
+                    label="Run Partner Demo"
+                    lastUploadedFileName={lastUploadedFileName}
+                    className="btn-secondary rounded-[var(--radius-panel)]"
+                    onErrorChange={onDemoErrorChange}
+                  />
+                  <ResetDemoButton
+                    lastUploadedFileName={lastUploadedFileName}
+                    onErrorChange={onDemoErrorChange}
+                  />
+                </>
+              )}
             </>
           )}
           <div

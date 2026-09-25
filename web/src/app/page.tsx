@@ -33,6 +33,7 @@ import {
   pendingQueueSignals,
   reviewedQueueSignals,
   reviewedSignalsFromStore,
+  shouldOverlayKeepSetChats,
 } from "@/lib/join-needs-review";
 import { buildHeaderNotifications } from "@/lib/notifications";
 import {
@@ -74,6 +75,7 @@ import {
 } from "@/lib/views";
 import {
   isVaultBatchRenderable,
+  listUploadedChatFiles,
   parseVaultFile,
   resolveHeaderBatchName,
   resolveInsightsVaultFile,
@@ -226,7 +228,7 @@ export default async function PlatformPage({
       ? pendingQueueSignals(
           needsReview.predictions,
           store.signals,
-          tenantSignals.ok ? tenantSignals.rows : undefined
+          tenantSignals.ok ? tenantSignals.rows : undefined,
         )
       : store.signals.filter((s) => !s.feedback);
   const queueError =
@@ -235,29 +237,37 @@ export default async function PlatformPage({
     fetches.insightsQueue && tenantSignals.ok
       ? reviewedQueueSignals(tenantSignals.rows, store.signals)
       : reviewedSignalsFromStore(store.signals);
-  // Replace ingest: leftover Neon rows still have chats until prune. Do not
-  // overlay those ids — JSON store is the keep-set for this landing.
-  const reviewedForCadence = jsonKeepSet
-    ? filterPendingWithChat(reviewedRaw, store.conversations)
-    : reviewedRaw;
+  // Active JSON keep-set → no cross-pack overlay. Overlay only when JSON is
+  // empty (wipe recovery) and not on `replaced=1` (prune race).
+  const useKeepSetOverlay =
+    fetches.insightsQueue &&
+    shouldOverlayKeepSetChats({
+      jsonKeepSet,
+      jsonConversationCount: store.conversations.length,
+    });
+  const overlayChats = useKeepSetOverlay
+    ? await fetchOverlayConversations(
+        store.tenant.id,
+        missingConversationIds(
+          [...pendingRaw, ...reviewedRaw],
+          store.conversations,
+        ),
+      )
+    : null;
+  const keepSetChats = [
+    ...store.conversations,
+    ...(overlayChats?.conversations ?? []),
+  ];
+  // Drop Neon stubs from other corpora (pending + Follow-up / Done).
+  const reviewedForCadence = filterPendingWithChat(reviewedRaw, keepSetChats);
   const followUp = followUpSignals(reviewedForCadence);
-  const overlayChats =
-    fetches.insightsQueue && !jsonKeepSet
-      ? await fetchOverlayConversations(
-          store.tenant.id,
-          missingConversationIds(
-            [...pendingRaw, ...reviewedForCadence],
-            store.conversations
-          )
-        )
-      : null;
   if (fetches.insightsQueue) {
     // Fill Neon-stub evidence from overlay chats BEFORE drafting so
     // retention emails lock in quotes (not empty "No local evidence").
     const chats = mergeOverlayChats(
       store.conversations,
       store.messages,
-      jsonKeepSet ? null : overlayChats,
+      overlayChats,
     );
     const ensureCandidates = applyChatEvidenceToSignals(
       [...pendingRaw, ...reviewedForCadence],
@@ -276,7 +286,7 @@ export default async function PlatformPage({
   const keepSetIds = keepSetConversationIds(
     store.conversations,
     overlayChats?.conversations,
-    store.signals.map((signal) => signal.conversationId)
+    store.signals.map((signal) => signal.conversationId),
   );
   const scoreKeepSet = signalScoreConversationIds({
     keepSetIds,
@@ -304,10 +314,10 @@ export default async function PlatformPage({
         : store.signals.filter((s) => s.feedback).length,
       hasBaseline: hasPilotBaseline(
         store.pilot?.baselineOpportunities ?? 0,
-        store.pilot?.baselineNote
+        store.pilot?.baselineNote,
       ),
     }),
-    { unactedCorrectCount: followUp.length }
+    { unactedCorrectCount: followUp.length },
   );
   const pendingCount = filterPendingWithChat(pendingRaw, [
     ...store.conversations,
@@ -321,11 +331,21 @@ export default async function PlatformPage({
       ? resolveInsightsVaultFile(sp.file)
       : parseVaultFile(sp.file);
   const keepSetFileName = store.pilot?.lastUploadedFileName;
+  const uploadedFileNames = listUploadedChatFiles(
+    store.conversations,
+    keepSetFileName,
+  );
   const headerBatchName = resolveHeaderBatchName({
     vaultFile,
     lastUploadedFileName: keepSetFileName,
   });
-  const batchRenderable = isVaultBatchRenderable(vaultFile, keepSetFileName);
+  const batchRenderable = isVaultBatchRenderable(
+    vaultFile,
+    keepSetFileName,
+    uploadedFileNames,
+  );
+  const importedCount = sp.imported ? Number(sp.imported) : null;
+  const newSignalCount = sp.signals ? Number(sp.signals) : null;
   const notifications = buildHeaderNotifications({
     pendingCount,
     queueError,
@@ -334,19 +354,18 @@ export default async function PlatformPage({
     scoreUnavailable: fetches.windowedScore && backendScore == null,
     demoReady: sp.demo === "1" && batchRenderable,
     wipeFailed,
+    importedCount,
+    newSignalCount,
   });
 
   const title = TITLES[view];
-  const importedCount = sp.imported ? Number(sp.imported) : null;
-  const newSignalCount = sp.signals ? Number(sp.signals) : null;
   // Insights landing: omitted status → Shadow All / Action Follow-up.
   // Explicit status (Filters / deep links) always wins. Pending is never implicit.
   const statusFilter = resolveInsightsStatusFilter({
     raw: sp.status,
     mode: workspaceMode,
   });
-  const statusOmitted =
-    typeof sp.status !== "string" || sp.status === "";
+  const statusOmitted = typeof sp.status !== "string" || sp.status === "";
   const typeFilter = parseTypeFilter(sp.type);
   const actionFilter = parseActionFilter(sp.action);
   const page = parsePage(sp.page);
@@ -381,6 +400,7 @@ export default async function PlatformPage({
         cadencePreviewId={cadencePreviewId}
         workspaceMode={workspaceMode}
         vaultFile={vaultFile}
+        uploadedFileNames={uploadedFileNames}
         precomputedPending={pendingRaw}
         precomputedReviewed={reviewedRaw}
       />
@@ -423,6 +443,7 @@ export default async function PlatformPage({
       title={title}
       lastUploadedFileName={keepSetFileName}
       headerBatchName={headerBatchName}
+      uploadedFileNames={uploadedFileNames}
       vaultFile={vaultFile}
       notifications={notifications}
     >

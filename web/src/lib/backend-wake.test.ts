@@ -132,6 +132,6 @@ describe("partner-safe queue copy", () => {
     expect(QUEUE_UNAVAILABLE_PANEL_TITLE).toBe("Review Queue Unavailable");
     expect(QUEUE_UNAVAILABLE_PANEL_BODY).not.toMatch(leak);
     expect(FOLLOWUP_UNAVAILABLE_PANEL_BODY).not.toMatch(leak);
-    expect(QUEUE_UNAVAILABLE_PANEL_BODY).toMatch(/waking/i);
+    expect(QUEUE_UNAVAILABLE_PANEL_BODY).toMatch(/Retry in a moment/);
   });
 });

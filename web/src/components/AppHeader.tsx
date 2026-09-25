@@ -19,6 +19,7 @@ import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { EyeOffIcon } from "@/components/icons/EyeOffIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
 import { NotificationsMenu } from "@/components/NotificationsMenu";
+import { UploadedFilePager } from "@/components/UploadedFilePager";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -51,6 +52,7 @@ const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
 type AppHeaderProps = {
   title?: string;
   lastUploadedFileName?: string;
+  uploadedFileNames?: string[];
   activeView: PlatformView;
   workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
@@ -66,6 +68,7 @@ type AppHeaderProps = {
 export function AppHeader({
   title,
   lastUploadedFileName,
+  uploadedFileNames = [],
   activeView,
   workspaceMode = "shadow",
   detailOpen = false,
@@ -136,6 +139,10 @@ export function AppHeader({
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
+              <UploadedFilePager
+                files={uploadedFileNames}
+                current={lastUploadedFileName}
+              />
             </>
           ) : null}
         </div>

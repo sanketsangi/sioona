@@ -6,7 +6,10 @@ import {
   toStoreRecords,
   ZERO_SIGNAL_HINT,
 } from "@/lib/ingest";
-import { mergeConversationsByExternalId } from "@/lib/merge-conversations";
+import {
+  appendConversationsAsDistinctFile,
+  mergeConversationsByExternalId,
+} from "@/lib/merge-conversations";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import {
   mergeSignalsPreservingFeedback,
@@ -35,7 +38,12 @@ import {
   parseConfirmHeldOutWeeklyIngest,
   requiresHeldOutWeeklyIngestConfirm,
 } from "@/lib/partner-weekly-pack";
-import { lastUploadedFileName } from "@/lib/upload-filename";
+import {
+  catalogFileKey,
+  claimCatalogBasename,
+  lastUploadedFileName,
+} from "@/lib/upload-filename";
+import { isLivePartnerKeepSet, listUploadedChatFiles } from "@/lib/vault-file";
 
 function parseReplaceFlag(form: FormData): boolean {
   const value = form.get("replace");
@@ -45,29 +53,51 @@ function parseReplaceFlag(form: FormData): boolean {
 export async function POST(request: Request) {
   try {
     const form = await request.formData();
-    const file = form.get("file");
-    if (!(file instanceof File)) {
+    const files = form
+      .getAll("file")
+      .filter((entry): entry is File => entry instanceof File);
+    if (files.length === 0) {
       return NextResponse.json({ error: "file is required" }, { status: 400 });
     }
 
-    const content = await file.text();
-    const { format, conversations: parsed } = parseIngestDocument(
-      file.name,
-      content
-    );
-    if (parsed.length === 0) {
-      return NextResponse.json(
-        { error: "No conversations found in file" },
-        { status: 400 }
+    const parsedFiles: {
+      format: string;
+      basename?: string;
+      parsed: ReturnType<typeof parseIngestDocument>["conversations"];
+    }[] = [];
+    for (const file of files) {
+      const content = await file.text();
+      const { format, conversations: parsed } = parseIngestDocument(
+        file.name,
+        content
       );
+      if (parsed.length === 0) {
+        return NextResponse.json(
+          { error: "No conversations found in file" },
+          { status: 400 }
+        );
+      }
+      parsedFiles.push({
+        format,
+        basename: lastUploadedFileName(file.name),
+        parsed,
+      });
     }
 
     const store = await refreshStorePilotFromNeon(await readStore());
-    const incoming = toStoreRecords(parsed, store.tenant.id, {
-      stableIds: true,
+    const drafts = parsedFiles.map((entry) => {
+      const incoming = toStoreRecords(entry.parsed, store.tenant.id, {
+        stableIds: true,
+      });
+      return {
+        format: entry.format,
+        originalBasename: entry.basename,
+        isWeekly: isPartnerWeeklyPackBasename(entry.basename),
+        incoming,
+      };
     });
 
-    if (incoming.conversations.length === 0) {
+    if (drafts.some((entry) => entry.incoming.conversations.length === 0)) {
       return NextResponse.json(
         {
           error:
@@ -77,28 +107,63 @@ export async function POST(request: Request) {
       );
     }
 
-    const uploadedBasename = lastUploadedFileName(file.name);
-    const isPartnerSamplePackUpload =
-      isPartnerWeeklyPackBasename(uploadedBasename);
+    const first = drafts[0];
+    const isPartnerSamplePackUpload = first.isWeekly;
 
     const priorWeeklyExportCount = store.pilot?.weeklyExportCount;
     const priorExports = priorWeeklyExportCount ?? 0;
 
-    // Weekly partner drop-ins keep showcase-overlap behavior:
-    // - day-1 (first partner ingest after reset): replace
-    // - mid-week re-uploads: merge/upsert (keep unmatched chats)
-    //
-    // Any other upload (including former eval CSVs) is a full replace:
-    // conversations, messages, and signals match only the uploaded file.
+    // Weekly packs: day-1 replace, later weeks upsert.
+    // Another real upload keeps earlier Uploaded Chats and adds this file.
+    // Replace when asked, or when the loaded keep-set is Sample / Partner Demo
+    // / empty so demo chats are not mixed into the upload.
+    const keepSetIsLiveUpload = isLivePartnerKeepSet(
+      store.pilot?.lastUploadedFileName,
+    );
     const replaceShowcase = isPartnerSamplePackUpload
       ? parseReplaceFlag(form) || priorExports === 0
-      : true;
+      : parseReplaceFlag(form) || !keepSetIsLiveUpload;
 
+    // A replace drops the previous catalog, so names are only unique inside
+    // this request. A merge reserves names already listed under Uploaded Chats.
+    const takenCatalogNames = new Set<string>();
+    if (!replaceShowcase) {
+      for (const name of listUploadedChatFiles(
+        store.conversations,
+        store.pilot?.lastUploadedFileName,
+      )) {
+        takenCatalogNames.add(catalogFileKey(name));
+      }
+    }
+    const prepared = drafts.map((entry) => {
+      const basename = claimCatalogBasename(
+        entry.originalBasename,
+        takenCatalogNames,
+      );
+      if (basename) {
+        for (const conversation of entry.incoming.conversations) {
+          conversation.sourceFile = basename;
+        }
+      }
+      return {
+        ...entry,
+        basename,
+        distinctCopy: Boolean(
+          entry.originalBasename &&
+            basename &&
+            basename !== entry.originalBasename,
+        ),
+      };
+    });
+
+    const heldOutConfirmed = parseConfirmHeldOutWeeklyIngest(form);
     if (
-      requiresHeldOutWeeklyIngestConfirm({
-        uploadedBasename,
-        confirmed: parseConfirmHeldOutWeeklyIngest(form),
-      })
+      prepared.some((entry) =>
+        requiresHeldOutWeeklyIngestConfirm({
+          uploadedBasename: entry.originalBasename,
+          confirmed: heldOutConfirmed,
+        })
+      )
     ) {
       return NextResponse.json(
         {
@@ -127,48 +192,76 @@ export async function POST(request: Request) {
 
     const priorSignals = store.signals;
 
-    let ingestedConversations = incoming.conversations;
-    let ingestedMessages = incoming.messages;
+    let workingConversations = store.conversations;
+    let workingMessages = store.messages;
+    const ingestedConversationIds = new Set<string>();
 
-    if (replaceShowcase) {
-      store.conversations = incoming.conversations;
-      store.messages = incoming.messages;
-      if (isPartnerSamplePackUpload) {
-        store.taxonomyOverrides = mergeTaxonomyOverrides(
-          store.taxonomyOverrides,
-          PARTNER_EXPORT_ADAPT_OVERRIDES
-        );
+    prepared.forEach((entry, index) => {
+      const replaceThis = index === 0 && replaceShowcase;
+      if (replaceThis) {
+        workingConversations = entry.incoming.conversations;
+        workingMessages = entry.incoming.messages;
+        for (const conversation of entry.incoming.conversations) {
+          ingestedConversationIds.add(conversation.id);
+        }
+        return;
       }
-    } else {
-      const merged = mergeConversationsByExternalId(store, incoming);
-      store.conversations = merged.conversations;
-      store.messages = merged.messages;
-      const ingestedIds = new Set([...merged.replacedIds, ...merged.addedIds]);
-      ingestedConversations = store.conversations.filter((conversation) =>
-        ingestedIds.has(conversation.id)
-      );
-      ingestedMessages = store.messages.filter((message) =>
-        ingestedIds.has(message.conversationId)
+      const merged = entry.distinctCopy
+        ? appendConversationsAsDistinctFile(
+            {
+              conversations: workingConversations,
+              messages: workingMessages,
+            },
+            entry.incoming,
+          )
+        : mergeConversationsByExternalId(
+            {
+              conversations: workingConversations,
+              messages: workingMessages,
+            },
+            entry.incoming,
+          );
+      workingConversations = merged.conversations;
+      workingMessages = merged.messages;
+      for (const id of [...merged.replacedIds, ...merged.addedIds]) {
+        ingestedConversationIds.add(id);
+      }
+    });
+
+    store.conversations = workingConversations;
+    store.messages = workingMessages;
+    if (replaceShowcase && isPartnerSamplePackUpload) {
+      store.taxonomyOverrides = mergeTaxonomyOverrides(
+        store.taxonomyOverrides,
+        PARTNER_EXPORT_ADAPT_OVERRIDES
       );
     }
 
-    const ingestedConversationIds = new Set(
-      ingestedConversations.map((conversation) => conversation.id)
+    const ingestedConversations = store.conversations.filter((conversation) =>
+      ingestedConversationIds.has(conversation.id)
+    );
+    const ingestedMessages = store.messages.filter((message) =>
+      ingestedConversationIds.has(message.conversationId)
     );
 
     // Weekly partner drop-in ingest advances week-1 mid-week cadence (cold demo does not).
     // Pilot fields do not depend on detect — overlap Neon PUT with hybrid detect
     // so Upload TTFB pays max(detect, pilot) instead of sum.
+    const weeklyFileCount = prepared.filter((entry) => entry.isWeekly).length;
+    const lastBasename = [...prepared]
+      .reverse()
+      .find((entry) => entry.basename)?.basename;
     store.pilot = {
       baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
       updatedAt: new Date().toISOString(),
-      weeklyExportCount: isPartnerSamplePackUpload
-        ? priorExports + 1
-        : priorWeeklyExportCount,
+      weeklyExportCount:
+        weeklyFileCount > 0
+          ? priorExports + weeklyFileCount
+          : priorWeeklyExportCount,
       ...(store.pilot?.baselineNote
         ? { baselineNote: store.pilot.baselineNote }
         : {}),
-      ...(uploadedBasename ? { lastUploadedFileName: uploadedBasename } : {}),
+      ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
     };
 
     const [{ signals: newSignals, llm }] = await Promise.all([
@@ -217,7 +310,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
-      format,
+      format: first.format,
+      fileCount: prepared.length,
+      catalogFiles: prepared.flatMap((entry) =>
+        entry.basename ? [entry.basename] : [],
+      ),
       importedConversations: ingestedConversations.length,
       importedMessages: ingestedMessages.length,
       newSignals: newSignals.length,

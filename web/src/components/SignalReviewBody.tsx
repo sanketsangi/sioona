@@ -2,7 +2,10 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { ConversationDrawer } from "@/components/ConversationDrawer";
-import { useConversationDrawerOpen } from "@/components/conversation-drawer-control";
+import {
+  useConversationDrawerControl,
+  useConversationDrawerOpen,
+} from "@/components/conversation-drawer-control";
 import { FeedbackControls } from "@/components/FeedbackControls";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
@@ -17,8 +20,8 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Matches `@container review (min-width: 56rem)` — inline chat vs drawer. */
-const REVIEW_SPLIT_MIN_PX = 56 * 16;
+/** Matches `@container review (min-width: 42rem)` — inline chat vs drawer. */
+const REVIEW_SPLIT_MIN_PX = 42 * 16;
 
 type SignalReviewBodyProps = {
   signal: Signal;
@@ -34,11 +37,8 @@ type SignalReviewBodyProps = {
 };
 
 /**
- * Insights review body: Conversation well and review rail as sibling
- * cards (gap-4). Narrow: Feedback → Recommended Actions → Why This Fired;
- * Conversation opens from the sticky header (Open Conversation) or Why This
- * Fired evidence (shared headless drawer). Wide: rail | fixed 385px Conversation.
- * Highlight resets when `signal.id` changes (parent should key this).
+ * Insights review: transcript beside Feedback, Recommended Actions, and Why
+ * This Fired on a normal laptop. Narrow panes keep the conversation drawer.
  */
 export function SignalReviewBody({
   signal,
@@ -51,6 +51,7 @@ export function SignalReviewBody({
   className,
 }: SignalReviewBodyProps) {
   const splitRef = useRef<HTMLDivElement>(null);
+  const drawerControl = useConversationDrawerControl();
   const [splitWide, setSplitWide] = useState(false);
   const [localDrawerOpen, setLocalDrawerOpen] = useState(false);
   const { open: drawerOpen, setOpen: setDrawerOpen } = useConversationDrawerOpen(
@@ -66,13 +67,16 @@ export function SignalReviewBody({
       splitRef.current?.closest(".insights-review") ?? splitRef.current;
     if (!root) return;
     const update = () => {
-      setSplitWide(root.getBoundingClientRect().width >= REVIEW_SPLIT_MIN_PX);
+      const wide = root.getBoundingClientRect().width >= REVIEW_SPLIT_MIN_PX;
+      setSplitWide(wide);
+      drawerControl?.setInlineTranscript(wide);
+      if (wide) drawerControl?.setOpen(false);
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(root);
     return () => observer.disconnect();
-  }, []);
+  }, [drawerControl]);
 
   const focusMessage = useCallback(
     (messageId: string) => {
@@ -102,18 +106,12 @@ export function SignalReviewBody({
             showTrigger={false}
           />
         ) : null}
-        <div
-          data-review-slot="feedback"
-          className="insights-review-feedback"
-        >
-          <FeedbackControls
-            signal={signal}
-            className="insights-review-pane insights-review-well overflow-hidden"
-            triage={triage}
-            conversationId={conversation?.id}
-            groundTruth={conversation?.groundTruth}
-          />
-        </div>
+        <FeedbackControls
+          signal={signal}
+          triage={triage}
+          conversationId={conversation?.id}
+          groundTruth={conversation?.groundTruth}
+        />
         <SignalReviewSuggestedAction
           signal={signal}
           messages={messages}
@@ -122,7 +120,6 @@ export function SignalReviewBody({
           onFocusMessage={focusMessage}
           actedWalk={actedWalk}
           supervisedAction={supervisedAction}
-          className="insights-review-pane insights-review-well overflow-hidden"
         />
       </div>
       {/*

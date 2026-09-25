@@ -579,6 +579,7 @@ export function SignalReviewSuggestedAction({
     </div>
   );
 
+
   return (
     <>
       <Card

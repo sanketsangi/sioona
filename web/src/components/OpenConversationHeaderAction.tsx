@@ -32,6 +32,8 @@ export function OpenConversationHeaderAction({
 }: OpenConversationHeaderActionProps) {
   const control = useConversationDrawerControl();
   if (messages.length === 0) return null;
+  // Drawer is the overflow path. The transcript is already on screen.
+  if (control?.inlineTranscript) return null;
 
   const who = customerName.trim() || "Customer";
 

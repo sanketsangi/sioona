@@ -15,6 +15,7 @@ export function AppShell({
   title,
   lastUploadedFileName,
   headerBatchName,
+  uploadedFileNames,
   vaultFile = null,
   activeView,
   workspaceMode = "shadow",
@@ -26,6 +27,8 @@ export function AppShell({
   lastUploadedFileName?: string;
   /** Selected vault / keep-set name shown in the header breadcrumb. */
   headerBatchName?: string;
+  /** Real-export files the sidebar and header can switch between. */
+  uploadedFileNames?: string[];
   /** `?file=` vault scope — active pill on AppSidebar. */
   vaultFile?: string | null;
   activeView: PlatformView;
@@ -59,6 +62,7 @@ export function AppShell({
         detailOpen={detailOpen}
         lastUploadedFileName={lastUploadedFileName}
         vaultFile={vaultFile}
+        uploadedFileNames={uploadedFileNames}
       />
 
       <SidebarInset
@@ -69,6 +73,7 @@ export function AppShell({
         <AppHeader
           title={title}
           lastUploadedFileName={headerBatchName ?? lastUploadedFileName}
+          uploadedFileNames={uploadedFileNames}
           activeView={activeView}
           workspaceMode={workspaceMode}
           detailOpen={detailOpen}

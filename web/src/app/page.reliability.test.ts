@@ -453,18 +453,6 @@ describe("PlatformPage deploy reliability", () => {
       ],
     });
     vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
-    vi.mocked(fetchOverlayConversations).mockResolvedValue({
-      conversations: [
-        {
-          id: "conv_hydrated",
-          tenantId: "tenant_demo",
-          channel: "whatsapp",
-          startedAt: "2026-08-01T00:00:00.000Z",
-          messageIds: [],
-        },
-      ],
-      messages: [],
-    });
     vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
     stubStore(mockStore([]));
 
@@ -472,11 +460,9 @@ describe("PlatformPage deploy reliability", () => {
       searchParams: Promise.resolve({ view: "eval" }),
     });
 
-    // Overlay still hydrates the missing chat for UI; FastAPI score omits
+    // Active JSON keep-set → no leftover-pack overlay; FastAPI score omits
     // conversation_id so Neon can count in-window reviews not yet in JSON.
-    expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
-      "conv_hydrated",
-    ]);
+    expect(fetchOverlayConversations).not.toHaveBeenCalled();
     expect(
       vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
     ).toEqual([undefined, undefined]);
@@ -521,6 +507,9 @@ describe("PlatformPage deploy reliability", () => {
     });
 
     const keepSet = ["conv_hydrated"];
+    expect(fetchOverlayConversations).toHaveBeenCalledWith("tenant_demo", [
+      "conv_hydrated",
+    ]);
     expect(
       vi.mocked(fetchSignalScoreSafe).mock.calls.map((call) => call[1])
     ).toEqual([keepSet, keepSet]);
@@ -565,7 +554,34 @@ describe("PlatformPage deploy reliability", () => {
     ]);
   });
 
-  it("requests overlay chats for unmatched pending conversation ids", async () => {
+  it("skips leftover Neon overlay when JSON keep-set already has chats", async () => {
+    vi.mocked(fetchNeedsReview).mockResolvedValue({
+      ok: true,
+      predictions: [
+        {
+          id: "old-pack",
+          tenant_id: "tenant_demo",
+          conversation_id: "conv_old_pack",
+          signal_type: "lead",
+          confidence: 0.9,
+          summary: "Leftover Sample vs Partner Demo",
+          created_at: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    });
+    vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+    vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
+    stubStore(mockStore());
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights", status: "new" }),
+    })) as ReactElement;
+
+    expect(fetchOverlayConversations).not.toHaveBeenCalled();
+    expect(insightsViewProps(result).overlayChats).toBeNull();
+  });
+
+  it("requests overlay chats for unmatched pending ids only when JSON is empty", async () => {
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
       predictions: [
@@ -582,7 +598,9 @@ describe("PlatformPage deploy reliability", () => {
     });
     vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
     vi.mocked(fetchSignalScoreSafe).mockResolvedValue(null);
-    stubStore(mockStore([]));
+    const empty = mockStore([]);
+    empty.conversations = [];
+    stubStore(empty);
 
     await PlatformPage({
       searchParams: Promise.resolve({ view: "insights", status: "new" }),
@@ -593,7 +611,7 @@ describe("PlatformPage deploy reliability", () => {
     ]);
   });
 
-  it("fetches overlay chats on Eval so keep-set can include stub ids", async () => {
+  it("fetches overlay chats on Eval wipe recovery so keep-set can include stub ids", async () => {
     vi.mocked(fetchNeedsReview).mockResolvedValue({
       ok: true,
       predictions: [
@@ -609,7 +627,9 @@ describe("PlatformPage deploy reliability", () => {
       ],
     });
     vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
-    stubStore(mockStore([]));
+    const empty = mockStore([]);
+    empty.conversations = [];
+    stubStore(empty);
 
     await PlatformPage({
       searchParams: Promise.resolve({ view: "eval" }),

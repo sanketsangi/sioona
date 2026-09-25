@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useReducer, useRef, useState } from "react";
-import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { type ReactNode, useEffect, useReducer, useRef, useState } from "react";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { llmQueryExtras } from "@/lib/detect-llm-query";
@@ -25,9 +24,8 @@ import {
   VAULT_SHOWCASE_STALL_MS,
   vaultShowcaseCanStartNewAttempt,
   vaultShowcaseCancelHref,
-  vaultShowcaseDisplayName,
-  vaultShowcaseExpectation,
   vaultShowcaseFailedMessage,
+  vaultShowcaseInsightsHref,
   vaultShowcaseLoadingLabel,
   vaultShowcaseShowRetry,
   vaultShowcaseStoreAction,
@@ -40,15 +38,20 @@ const QUEUE_CARD_CLASS =
 
 /**
  * When Insights is scoped to Sample / Partner Demo but that pack is not the
- * keep-set, wipe+seed via the existing store actions and land on Insights.
+ * keep-set, wipe+seed via the existing store actions. Insights paints while
+ * the seed runs; a quiet fail panel replaces children only after stall /
+ * hard failure (no animated loading chrome).
  */
 export function VaultShowcaseLoader({
   fileName,
   keepSetFileName = null,
+  children,
 }: {
   fileName: string;
   /** Current keep-set — Cancel returns here only after hard_fail settles. */
   keepSetFileName?: string | null;
+  /** Insights chrome while wipe+seed is in flight (no error yet). */
+  children: ReactNode;
 }) {
   const router = useRouter();
   const kind = resolveVaultShowcaseKind(fileName);
@@ -63,7 +66,6 @@ export function VaultShowcaseLoader({
   useEffect(() => {
     if (!kind) return;
     const showcaseKind = kind;
-    const displayName = vaultShowcaseDisplayName(showcaseKind);
     const action = vaultShowcaseStoreAction(showcaseKind);
     const failedMessage = vaultShowcaseFailedMessage(showcaseKind);
     const runId = ++runIdRef.current;
@@ -121,21 +123,18 @@ export function VaultShowcaseLoader({
 
         dispatch({ type: "success" });
 
-        const query = new URLSearchParams({
-          view: "insights",
-          file: displayName,
-          replaced: "1",
-        });
-        if (showcaseKind === "partner") query.set("demo", "1");
-        const extras = syncQueryExtras(data.predictionSync);
-        if (extras.syncFailed) query.set("syncFailed", extras.syncFailed);
-        if (extras.syncCreated) query.set("syncCreated", extras.syncCreated);
+        const queryExtras = syncQueryExtras(data.predictionSync);
         const llmExtras = llmQueryExtras(data.detectLlm);
-        if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
-        if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
-        if (data.wipeFailed) query.set("wipeFailed", "1");
-
-        router.replace(`/?${query.toString()}`);
+        router.replace(
+          vaultShowcaseInsightsHref(showcaseKind, {
+            replaced: true,
+            syncFailed: queryExtras.syncFailed,
+            syncCreated: queryExtras.syncCreated,
+            llmAdded: llmExtras.llmAdded,
+            llmFailed: llmExtras.llmFailed,
+            wipeFailed: data.wipeFailed,
+          }),
+        );
         router.refresh();
       } catch (err) {
         if (abort.signal.aborted) return;
@@ -164,73 +163,68 @@ export function VaultShowcaseLoader({
     wipeInFlight: ui.wipeInFlight,
   });
 
+  // Stall / hard fail — quiet non-animated panel (Insights chrome yields).
+  if (ui.error) {
+    return (
+      <VaultShowcaseFailPanel
+        kind={kind}
+        error={ui.error}
+        showRetry={showRetry}
+        cancelHref={cancelHref}
+        onRetry={() => {
+          if (!vaultShowcaseCanStartNewAttempt(ui)) return;
+          setAttempt((n) => n + 1);
+        }}
+      />
+    );
+  }
+
+  // In-flight seed — paint Insights; polite status for assistive tech only.
   return (
-    <VaultShowcaseLoadingPanel
-      kind={kind}
-      status={ui.status}
-      error={ui.error}
-      showRetry={showRetry}
-      cancelHref={cancelHref}
-      onRetry={() => {
-        if (!vaultShowcaseCanStartNewAttempt(ui)) return;
-        setAttempt((n) => n + 1);
-      }}
-    />
+    <>
+      <span className="sr-only" aria-live="polite" aria-atomic="true">
+        {ui.status ?? vaultShowcaseLoadingLabel(kind)}
+      </span>
+      {children}
+    </>
   );
 }
 
-export function VaultShowcaseLoadingPanel({
+/** Quiet fail / stall chrome — no spinner; honors prefers-reduced-motion. */
+export function VaultShowcaseFailPanel({
   kind,
-  status,
   error,
   showRetry,
   cancelHref,
   onRetry,
 }: {
   kind: VaultShowcaseKind;
-  status: string | null;
-  error: string | null;
+  error: string;
   showRetry: boolean;
   cancelHref: string;
   onRetry: () => void;
 }) {
-  const displayName = vaultShowcaseDisplayName(kind);
-  const loading = !error;
-
   return (
     <Card
       size="sm"
-      className={cn(QUEUE_CARD_CLASS)}
-      role={error ? "alert" : undefined}
+      className={cn(QUEUE_CARD_CLASS, "motion-reduce:transition-none")}
+      role="alert"
     >
       <CardContent className="flex flex-1 flex-col items-center justify-center px-4 py-8 text-center sm:px-6 sm:py-12">
         <span
           className="mb-4 inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-sio-bg-muted text-sio-fg-subtle"
           aria-hidden
         >
-          {loading ? (
-            <ButtonSpinner className="size-4" />
-          ) : (
-            <LayersIcon className="size-4" />
-          )}
+          <LayersIcon className="size-4" />
         </span>
         <p
           className="text-balance text-heading-16 text-sio-fg-base"
           translate="no"
         >
-          {error ? vaultShowcaseFailedMessage(kind) : displayName}
+          {vaultShowcaseFailedMessage(kind)}
         </p>
         <div className="mt-2 max-w-sm text-pretty text-label-13 text-sio-fg-muted">
-          {error ? (
-            <p>{error}</p>
-          ) : (
-            <>
-              <p aria-live="polite" aria-atomic="true">
-                {status ?? vaultShowcaseLoadingLabel(kind)}
-              </p>
-              <p className="mt-1">{vaultShowcaseExpectation()}</p>
-            </>
-          )}
+          <p>{error}</p>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {showRetry ? (
@@ -241,11 +235,9 @@ export function VaultShowcaseLoadingPanel({
           <Link href={cancelHref} className="btn-secondary">
             Cancel
           </Link>
-          {error ? (
-            <Link href={viewHref("upload")} className="btn-tertiary">
-              Open Upload
-            </Link>
-          ) : null}
+          <Link href={viewHref("upload")} className="btn-tertiary">
+            Open Upload
+          </Link>
         </div>
       </CardContent>
     </Card>

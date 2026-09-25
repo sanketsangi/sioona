@@ -116,10 +116,13 @@ describe("pilot cadence win copy", () => {
       label: "Share ≥80% Go on Eval",
     };
     expect(pilotCadenceHelperCopy("insights", reviewsAction)).toMatch(
-      /Corrects this window/
+      /Review 5 chats this week/
     );
-    expect(pilotCadenceHelperCopy("insights", reviewsAction)).toMatch(/≥80%/);
-    expect(pilotCadenceHelperCopy("eval", goAction)).toMatch(/≥80%/);
+    expect(pilotCadenceHelperCopy("insights", reviewsAction)).toMatch(/Eval/);
+    expect(pilotCadenceHelperCopy("insights", reviewsAction)).toMatch(
+      /nothing is sent/i
+    );
+    expect(pilotCadenceHelperCopy("eval", goAction)).toMatch(/80%/);
     expect(pilotCadenceHelperCopy("eval", goAction)).toMatch(/Go/);
   });
 });
@@ -148,8 +151,8 @@ describe("nextPilotCadenceAction", () => {
     expect(acted.id).toBe("acted");
     expect(cadenceActionView(acted)).toBe("insights");
     expect(cadenceActionCta(acted)).toBe("Mark as Acted");
-    expect(pilotCadenceHelperCopy("insights", acted)).toMatch(/does not send/i);
-    expect(pilotCadenceHelperCopy("eval", acted)).toMatch(/Mark Acted/);
+    expect(pilotCadenceHelperCopy("insights", acted)).toMatch(/nothing is sent/i);
+    expect(pilotCadenceHelperCopy("eval", acted)).toMatch(/mark the correct reviews as Acted/i);
   });
 
   it("after go/no-go, next action is next week’s upsert not a dead end", () => {
@@ -164,8 +167,9 @@ describe("nextPilotCadenceAction", () => {
     expect(cadenceActionView(action)).toBe("upload");
     expect(cadenceActionCta(action)).toBe("Upload Weekly Export");
     expect(pilotCadenceHelperCopy("insights", action)).toMatch(/Eval/);
-    expect(pilotCadenceHelperCopy("insights", action)).toMatch(/upsert/i);
-    expect(pilotCadenceHelperCopy("upload", action)).toMatch(/replaced=false|upsert/i);
+    expect(pilotCadenceHelperCopy("insights", action)).not.toMatch(/upsert|keep-set|SignalScore|Day-1|external id/i);
+    expect(pilotCadenceHelperCopy("upload", action)).toMatch(/next week/i);
+    expect(pilotCadenceHelperCopy("upload", action)).not.toMatch(/upsert|keep-set|replaced=false|Day-1/i);
     expect(pilotCadenceHelperCopy("eval", action)).toMatch(/next week/i);
   });
 });

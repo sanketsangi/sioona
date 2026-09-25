@@ -4,6 +4,7 @@
  * rows so backendSignalId and Neon stay in sync without blocking GET /.
  */
 
+import { replayAbsentFeedback } from "./replay-absent-feedback";
 import { readStore, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import type { Signal } from "./types";
@@ -43,6 +44,8 @@ export async function persistDeferredPredictionSync(
   );
   const latest = await readStore();
   const merged = mergeSyncedBackendIds(latest.signals, synced);
-  if (merged === latest.signals) return;
-  await writeStore({ ...latest, signals: merged });
+  if (merged !== latest.signals) {
+    await writeStore({ ...latest, signals: merged });
+  }
+  await replayAbsentFeedback(tenantId, merged);
 }

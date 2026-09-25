@@ -3,7 +3,12 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, type ComponentProps } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentProps,
+  type MouseEvent,
+} from "react";
 import { CaretRight, Tag } from "@phosphor-icons/react/ssr";
 import type { Icon } from "@phosphor-icons/react";
 import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
@@ -45,9 +50,16 @@ import {
 } from "@/lib/partner-demo-replace-guard";
 import {
   defaultInsightsHref,
+  isLivePartnerKeepSet,
   resolveVaultActiveFile,
   vaultInsightsHref,
 } from "@/lib/vault-file";
+import { seedVaultShowcaseForNavigation } from "@/lib/vault-showcase-open";
+import {
+  vaultShowcaseInsightsHref,
+  vaultShowcaseNavigateOnly,
+  type VaultShowcaseKind,
+} from "@/lib/vault-showcase";
 import { viewHref, type PlatformView } from "@/lib/views";
 
 const HelpDialog = dynamic(
@@ -75,11 +87,35 @@ const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
 function WorkspaceNav({
   activeView,
   detailOpen,
+  lastUploadedFileName,
 }: {
   activeView: PlatformView;
   detailOpen: boolean;
+  lastUploadedFileName?: string;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const router = useRouter();
+  const [seedingInsights, setSeedingInsights] = useState(false);
+
+  async function onInsightsClick(event: MouseEvent<HTMLAnchorElement>) {
+    // Bare Insights → Sample. Seed first when Sample is not the keep-set.
+    if (vaultShowcaseNavigateOnly("sample", lastUploadedFileName)) {
+      if (isMobile) setOpenMobile(false);
+      return;
+    }
+    event.preventDefault();
+    if (seedingInsights) return;
+    setSeedingInsights(true);
+    if (isMobile) setOpenMobile(false);
+    const result = await seedVaultShowcaseForNavigation(
+      "sample",
+      lastUploadedFileName,
+    );
+    setSeedingInsights(false);
+    if (!result.ok) return;
+    router.replace(result.href);
+    router.refresh();
+  }
 
   return (
     <SidebarGroup>
@@ -98,7 +134,16 @@ function WorkspaceNav({
                       : viewHref(item.view)
                   }
                   aria-current={active ? "page" : undefined}
-                  onClick={() => {
+                  aria-busy={
+                    item.view === "insights" && seedingInsights
+                      ? true
+                      : undefined
+                  }
+                  onClick={(event) => {
+                    if (item.view === "insights") {
+                      void onInsightsClick(event);
+                      return;
+                    }
                     if (isMobile) setOpenMobile(false);
                   }}
                 >
@@ -129,12 +174,19 @@ function WorkspaceNav({
 function VaultNav({
   lastUploadedFileName,
   vaultFile,
+  uploadedFileNames = [],
 }: {
   lastUploadedFileName?: string;
   /** `?file=` — drives Vault active pill when Insights is file-scoped. */
   vaultFile?: string | null;
+  /** Real-export files. Kept off the sidebar DOM node. */
+  uploadedFileNames?: string[];
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const router = useRouter();
+  const [seedingKind, setSeedingKind] = useState<VaultShowcaseKind | null>(
+    null,
+  );
   const filename = lastUploadedFileName?.trim() || undefined;
   const activeFile = resolveVaultActiveFile({
     vaultFile,
@@ -155,38 +207,64 @@ function VaultNav({
     !matchesVaultSampleName(filename, ZERODHA_BATCH02_SAMPLE_NAME)
       ? filename
       : undefined;
-  const uploadedActive = Boolean(
-    uploadedCatalog &&
-      activeFile &&
-      (activeFile === uploadedCatalog ||
-        matchesVaultSampleName(activeFile, uploadedCatalog.replace(/\.[^.]+$/, ""))),
+  const catalogNames = (
+    uploadedFileNames.length > 0
+      ? uploadedFileNames
+      : uploadedCatalog
+        ? [uploadedCatalog]
+        : []
+  ).filter(
+    (name) =>
+      !matchesVaultSampleName(name, GROWW_SHOWCASE_SAMPLE_NAME) &&
+      !matchesVaultSampleName(name, ZERODHA_BATCH02_SAMPLE_NAME),
   );
+  function uploadRowActive(name: string) {
+    if (!activeFile) return false;
+    return (
+      activeFile === name ||
+      matchesVaultSampleName(activeFile, name.replace(/\.[^.]+$/, ""))
+    );
+  }
 
+  const livePartner = isLivePartnerKeepSet(activeFile);
   const groups: {
     title: string;
     icon: "sample" | "partner" | "upload";
-    files: { name: string; isActive: boolean }[];
+    files: { name: string; isActive: boolean; showcase?: VaultShowcaseKind }[];
   }[] = [
     {
       title: "Sample",
       icon: "sample",
-      files: [{ name: GROWW_SHOWCASE_SAMPLE_NAME, isActive: growwActive }],
+      files: [
+        {
+          name: GROWW_SHOWCASE_SAMPLE_NAME,
+          isActive: growwActive,
+          showcase: "sample",
+        },
+      ],
     },
     {
       title: "Partner Demo",
       icon: "partner",
       files: [
-        { name: ZERODHA_BATCH02_SAMPLE_NAME, isActive: zerodhaActive },
+        {
+          name: ZERODHA_BATCH02_SAMPLE_NAME,
+          isActive: zerodhaActive,
+          showcase: "partner",
+        },
       ],
     },
     {
       title: "Uploaded Chats",
       icon: "upload",
-      files: uploadedCatalog
-        ? [{ name: uploadedCatalog, isActive: uploadedActive }]
-        : [],
+      files: catalogNames.map((name) => ({
+        name,
+        isActive: uploadRowActive(name),
+      })),
     },
-  ];
+  ].filter((group) =>
+    livePartner ? group.icon === "upload" : true,
+  );
 
   function VaultGroupIcon({ kind }: { kind: "sample" | "partner" | "upload" }) {
     const className = "size-4 shrink-0 text-sio-fg-base";
@@ -203,7 +281,27 @@ function VaultNav({
     if (isMobile) setOpenMobile(false);
   }
 
-  const router = useRouter();
+  async function onShowcaseClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    kind: VaultShowcaseKind,
+  ) {
+    // Already on this pack — normal Link navigation (no wipe, no loader).
+    if (vaultShowcaseNavigateOnly(kind, filename)) {
+      closeMobile();
+      return;
+    }
+    // Seed first, then land Insights — avoids VaultShowcaseLoader mismatch chrome.
+    event.preventDefault();
+    if (seedingKind) return;
+    setSeedingKind(kind);
+    closeMobile();
+    const result = await seedVaultShowcaseForNavigation(kind, filename);
+    setSeedingKind(null);
+    if (!result.ok) return;
+    router.replace(result.href);
+    router.refresh();
+  }
+
   // Warm Insights RSC + pre-detect Sample / Partner Demo packs on the server
   // so vault clicks writeStore instantly and the signal queue feels immediate.
   useEffect(() => {
@@ -235,7 +333,7 @@ function VaultNav({
                   <CaretRight
                     weight="regular"
                     aria-hidden
-                    className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                    className="ml-auto transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/collapsible:rotate-90"
                   />
                 </SidebarMenuButton>
               </CollapsibleTrigger>
@@ -246,10 +344,26 @@ function VaultNav({
                       <SidebarMenuSubItem key={file.name}>
                         <SidebarMenuSubButton asChild isActive={file.isActive}>
                           <Link
-                            href={vaultInsightsHref(file.name)}
+                            href={
+                              file.showcase
+                                ? vaultShowcaseInsightsHref(file.showcase)
+                                : vaultInsightsHref(file.name)
+                            }
                             title={file.name}
                             translate="no"
-                            onClick={closeMobile}
+                            aria-busy={
+                              file.showcase != null &&
+                              seedingKind === file.showcase
+                                ? true
+                                : undefined
+                            }
+                            onClick={(event) => {
+                              if (file.showcase) {
+                                void onShowcaseClick(event, file.showcase);
+                                return;
+                              }
+                              closeMobile();
+                            }}
                           >
                             <FileIcon className="size-4 shrink-0 text-sio-fg-base" />
                             <span className="min-w-0 truncate">{file.name}</span>
@@ -276,8 +390,33 @@ function VaultNav({
   );
 }
 
-function SidebarBrand() {
+function SidebarBrand({
+  lastUploadedFileName,
+}: {
+  lastUploadedFileName?: string;
+}) {
   const { isMobile, setOpenMobile } = useSidebar();
+  const router = useRouter();
+  const [seeding, setSeeding] = useState(false);
+
+  async function onBrandClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (vaultShowcaseNavigateOnly("sample", lastUploadedFileName)) {
+      if (isMobile) setOpenMobile(false);
+      return;
+    }
+    event.preventDefault();
+    if (seeding) return;
+    setSeeding(true);
+    if (isMobile) setOpenMobile(false);
+    const result = await seedVaultShowcaseForNavigation(
+      "sample",
+      lastUploadedFileName,
+    );
+    setSeeding(false);
+    if (!result.ok) return;
+    router.replace(result.href);
+    router.refresh();
+  }
 
   return (
     <div className="flex items-center gap-1">
@@ -288,8 +427,9 @@ function SidebarBrand() {
               href={defaultInsightsHref()}
               aria-label="Sioona"
               translate="no"
-              onClick={() => {
-                if (isMobile) setOpenMobile(false);
+              aria-busy={seeding || undefined}
+              onClick={(event) => {
+                void onBrandClick(event);
               }}
             >
               <span
@@ -314,18 +454,25 @@ function SidebarBrand() {
   );
 }
 
-function AppSidebarFooter() {
+function AppSidebarFooter({
+  hideIdentity = false,
+}: {
+  /** Live partner export — no fictional sidebar identity. */
+  hideIdentity?: boolean;
+}) {
   return (
     <>
       <HelpDialog />
       <GuidanceDialog />
       <FeedbackDialog />
-      <NavUser
-        user={{
-          name: "Sanket Sangi",
-          email: "sanket@sioona.ai",
-        }}
-      />
+      {hideIdentity ? null : (
+        <NavUser
+          user={{
+            name: "Sanket Sangi",
+            email: "sanket@sioona.ai",
+          }}
+        />
+      )}
     </>
   );
 }
@@ -335,28 +482,43 @@ export function AppSidebar({
   detailOpen = false,
   lastUploadedFileName,
   vaultFile = null,
+  uploadedFileNames,
   ...props
 }: ComponentProps<typeof Sidebar> & {
   activeView: PlatformView;
   detailOpen?: boolean;
   lastUploadedFileName?: string;
   vaultFile?: string | null;
+  /** Real-export files. Must not be forwarded onto the sidebar element. */
+  uploadedFileNames?: string[];
 }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarBrand />
+        <SidebarBrand lastUploadedFileName={lastUploadedFileName} />
       </SidebarHeader>
       <SidebarContent>
-        <WorkspaceNav activeView={activeView} detailOpen={detailOpen} />
+        <WorkspaceNav
+          activeView={activeView}
+          detailOpen={detailOpen}
+          lastUploadedFileName={lastUploadedFileName}
+        />
         <SidebarSeparator />
         <VaultNav
           lastUploadedFileName={lastUploadedFileName}
           vaultFile={vaultFile}
+          uploadedFileNames={uploadedFileNames}
         />
       </SidebarContent>
       <SidebarFooter>
-        <AppSidebarFooter />
+        <AppSidebarFooter
+          hideIdentity={isLivePartnerKeepSet(
+            resolveVaultActiveFile({
+              vaultFile,
+              lastUploadedFileName,
+            }),
+          )}
+        />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

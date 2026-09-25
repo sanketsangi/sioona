@@ -19,6 +19,9 @@ import {
   vaultShowcaseShowRetry,
   vaultShowcaseStallMessage,
   vaultShowcaseStoreAction,
+  vaultShowcaseWaitEmptyNext,
+  vaultShowcaseInsightsHref,
+  vaultShowcaseNavigateOnly,
 } from "./vault-showcase";
 
 describe("resolveVaultShowcaseKind", () => {
@@ -78,6 +81,26 @@ describe("vaultShowcaseStoreAction", () => {
   });
 });
 
+describe("vaultShowcaseInsightsHref / navigateOnly", () => {
+  it("builds Insights hrefs and skips wipe when already active", () => {
+    const sample = vaultShowcaseInsightsHref("sample", { replaced: true });
+    expect(sample).toContain("file=Groww_batch_02");
+    expect(sample).toContain("replaced=1");
+    expect(sample).not.toContain("demo=");
+
+    const partner = vaultShowcaseInsightsHref("partner");
+    expect(partner).toContain("demo=1");
+    expect(partner).toContain(encodeURIComponent(ZERODHA_BATCH02_SAMPLE_NAME));
+
+    expect(vaultShowcaseNavigateOnly("sample", GROWW_SHOWCASE_SAMPLE_NAME)).toBe(
+      true,
+    );
+    expect(vaultShowcaseNavigateOnly("partner", GROWW_SHOWCASE_SAMPLE_NAME)).toBe(
+      false,
+    );
+  });
+});
+
 describe("vaultShowcaseLoadingLabel", () => {
   it("uses Finding signals for both showcase packs", () => {
     expect(vaultShowcaseLoadingLabel("sample")).toBe("Finding signals…");
@@ -88,6 +111,17 @@ describe("vaultShowcaseLoadingLabel", () => {
     expect(vaultShowcaseStallMessage("sample")).not.toMatch(/current batch/);
     expect(vaultShowcaseStallMessage("sample")).not.toMatch(/Retry/);
     expect(vaultShowcaseFailedMessage("sample")).toContain("Sample");
+  });
+});
+
+describe("vaultShowcaseWaitEmptyNext", () => {
+  it("quiet Insights empty Cancel goes to Upload while seeding", () => {
+    const next = vaultShowcaseWaitEmptyNext("sample");
+    expect(next.title).toBe(GROWW_SHOWCASE_SAMPLE_NAME);
+    expect(next.description).toContain("Finding signals…");
+    expect(next.description).toContain("20 seconds");
+    expect(next.label).toBe("Cancel");
+    expect(next.href).toBe("/?view=upload");
   });
 });
 

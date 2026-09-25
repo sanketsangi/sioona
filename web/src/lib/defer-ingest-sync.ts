@@ -5,6 +5,7 @@
  */
 
 import { mergeSyncedBackendIds } from "./defer-prediction-sync";
+import { replayAbsentFeedback } from "./replay-absent-feedback";
 import { readStore, writeStore } from "./store";
 import {
   pruneConversationsNotInBackend,
@@ -86,6 +87,7 @@ export async function persistDeferredIngestDualWrite(
   if (merged !== latest.signals) {
     await writeStore({ ...latest, signals: merged });
   }
+  await replayAbsentFeedback(tenantId, merged);
 
   if (!replaceShowcase) return;
 

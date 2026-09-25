@@ -2,6 +2,7 @@
 
 import { Check } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
+import { queueActionLabelForKind } from "@/components/RetentionEmailAction";
 import { QUEUE_REVIEW_ACTION_CLASS } from "@/components/SignalQueueRow";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +29,7 @@ export function QueueMarkActedAction({
   summaryForLabel: string;
 }) {
   const { actedPending, canMarkActed, error, setActed } = useMarkActed(signal);
+  const label = queueActionLabelForKind("mark_acted", "list");
 
   if (!canMarkActed) return null;
 
@@ -44,7 +46,7 @@ export function QueueMarkActedAction({
                 className={QUEUE_REVIEW_ACTION_CLASS}
                 disabled={actedPending}
                 aria-busy={actedPending}
-                aria-label={`Mark as Acted for ${summaryForLabel}`}
+                aria-label={`${label} for ${summaryForLabel}`}
                 onClick={() => void setActed(true)}
               >
                 {actedPending ? (
@@ -56,7 +58,7 @@ export function QueueMarkActedAction({
                     aria-hidden
                   />
                 )}
-                Mark as Acted
+                {label}
               </Button>
             </span>
           </TooltipTrigger>

@@ -133,8 +133,8 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 - Vercel `/tmp` ephemeral — rely on hydrate, not local files.
 - Render free cold starts (~15m) → queue/score timeouts. Insights/Eval auto-wake `/api/backend-health` once, then refresh (cooldown; partner-safe copy).
 - Soft tenancy (spoofable header).
-- Neon **pending** rows without a JSON **signal** stay as stubs and use the same request-scoped overlay as Follow-up / Done (`GET …/conversations?conversation_id=`, not written to JSON). Stubs with **no** store or overlay chat are dropped (stale Partner Demo pack ids).
-- Eval keep-set SignalScore: when JSON has chats, omit `conversation_id` so Neon `conversations` fill hydrate-lag holes (hosted n matches in-window Corrects). `?replaced=1` and empty JSON still pass an explicit keep-set (JSON-only / overlay stubs / `[]` → 0). Large keep-sets POST in the body. Orphan leftover predictions stay out (not in `conversations`). Overlay stays request-scoped (not written to JSON).
+- Neon **pending / Follow-up / Done** stubs without a JSON signal may join, but queue cards require a keep-set chat (`filterPendingWithChat`). Request-scoped overlay (`GET …/conversations?conversation_id=`) is **wipe-recovery only** (`shouldOverlayKeepSetChats`: empty JSON, not `replaced=1`) — never pull leftover Sample/Partner Demo chats into an active keep-set. Stubs with **no** store or allowed overlay chat are dropped.
+- Eval keep-set SignalScore: when JSON has chats, omit `conversation_id` so Neon `conversations` fill hydrate-lag holes (hosted n matches in-window Corrects). `?replaced=1` and empty JSON still pass an explicit keep-set (JSON-only / overlay stubs / `[]` → 0). Large keep-sets POST in the body. Orphan leftover predictions stay out (not in keep-set chats). Overlay stays request-scoped (not written to JSON).
 - Message upsert does not delete omitted messages until prune/wipe.
 
 ---

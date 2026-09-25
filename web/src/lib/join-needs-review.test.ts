@@ -19,6 +19,7 @@ import {
   resolvePreviewSignal,
   reviewedQueueSignals,
   signalScoreConversationIds,
+  shouldOverlayKeepSetChats,
   reviewedSignalsFromStore,
 } from "./join-needs-review";
 import {
@@ -628,7 +629,7 @@ describe("Groww Neon vs Zerodha JSON keep-set mismatch", () => {
     );
   });
 
-  it("Follow-up keeps Groww Neon Correct as a stub (not filtered by JSON keep-set)", () => {
+  it("Follow-up drops Groww Neon Correct when Zerodha is the JSON keep-set", () => {
     const rows = [
       tenantRow({
         id: "groww-correct",
@@ -641,9 +642,6 @@ describe("Groww Neon vs Zerodha JSON keep-set mismatch", () => {
     const followUp = followUpSignals(reviewed);
     expect(followUp).toHaveLength(1);
     expect(followUp[0].id).toBe("sig_neon_groww-correct");
-    expect(followUp[0].conversationId).toBe(GROWW_CONV_ID);
-    expect(followUp[0].feedback?.label).toBe("correct");
-    expect(followUp[0].status).toBe("reviewed");
     const zerodhaOnlyChats: Conversation[] = [
       {
         id: ZERODHA_CONV_ID,
@@ -653,9 +651,39 @@ describe("Groww Neon vs Zerodha JSON keep-set mismatch", () => {
         messageIds: [],
       },
     ];
+    expect(
+      filterPendingWithChat(followUp, zerodhaOnlyChats).map((s) => s.id)
+    ).toEqual([]);
     expect(missingConversationIds(followUp, zerodhaOnlyChats)).toEqual([
       GROWW_CONV_ID,
     ]);
+    // Active keep-set must not overlay the leftover Groww chat id.
+    expect(
+      shouldOverlayKeepSetChats({ jsonConversationCount: zerodhaOnlyChats.length })
+    ).toBe(false);
+  });
+});
+
+describe("shouldOverlayKeepSetChats", () => {
+  it("allows overlay only when JSON chats are empty and not replaced=1", () => {
+    expect(
+      shouldOverlayKeepSetChats({ jsonConversationCount: 0 })
+    ).toBe(true);
+    expect(
+      shouldOverlayKeepSetChats({
+        jsonKeepSet: true,
+        jsonConversationCount: 0,
+      })
+    ).toBe(false);
+    expect(
+      shouldOverlayKeepSetChats({ jsonConversationCount: 2 })
+    ).toBe(false);
+    expect(
+      shouldOverlayKeepSetChats({
+        jsonKeepSet: true,
+        jsonConversationCount: 2,
+      })
+    ).toBe(false);
   });
 });
 

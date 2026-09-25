@@ -26,6 +26,7 @@ import type {
   TaxonomyOverrides,
   TaxonomyTypeOverride,
 } from "./types";
+import { uniqTerms } from "./taxonomy";
 import {
   wipeTenantDataFailSoft,
   type TenantWipeStats,
@@ -56,8 +57,9 @@ type StoreFileCache = {
 
 let storeFileCache: StoreFileCache | null = null;
 
+/** Cache holds an already-normalized snapshot — clone only. */
 function cloneStore(store: StoreData): StoreData {
-  return normalizeStore(structuredClone(store));
+  return structuredClone(store);
 }
 
 function cacheStoreSnapshot(
@@ -231,7 +233,7 @@ export async function loadStore(
     }
   } else if (memoryStore) {
     return {
-      store: normalizeStore(structuredClone(memoryStore)),
+      store: cloneStore(memoryStore),
       coldStart: false,
     };
   }
@@ -460,18 +462,6 @@ const OVERRIDE_FIELDS: TaxonomyOverrideField[] = [
   "negativePhrases",
 ];
 
-function uniqOverrideTerms(values: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const value of values) {
-    const key = value.trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(value.trim());
-  }
-  return out;
-}
-
 /** Union two override maps (case-insensitive per type × field). */
 export function mergeTaxonomyOverrides(
   existing: TaxonomyOverrides | undefined | null,
@@ -483,7 +473,7 @@ export function mergeTaxonomyOverrides(
     if (!extra) continue;
     const merged: TaxonomyTypeOverride = { ...(out[type] ?? {}) };
     for (const field of OVERRIDE_FIELDS) {
-      const unique = uniqOverrideTerms([
+      const unique = uniqTerms([
         ...(merged[field] ?? []),
         ...(extra[field] ?? []),
       ]);

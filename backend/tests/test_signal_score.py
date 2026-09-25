@@ -14,7 +14,7 @@ from app.services.feedback import (
 from app.services.predictions import record_prediction
 from app.services.review_queue import list_signals_needing_review
 from app.models.signal_prediction import SignalPrediction
-from app.services.signal_score import calculate_signal_score
+from app.services.signal_score import ScoreCounts, calculate_signal_score
 
 
 def _conversation(
@@ -334,6 +334,113 @@ def test_record_feedback_not_found_for_wrong_tenant(db: Session) -> None:
             feedback="correct",
             reviewed_by="r1",
         )
+
+
+def _as_utc(value: datetime) -> datetime:
+    """SQLite returns naive datetimes; treat them as UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def test_score_counts_coerce_sql_count_to_int() -> None:
+    from decimal import Decimal
+
+    counts = ScoreCounts()
+    counts.add("correct", Decimal("2"))
+    counts.add("incorrect", "1")  # type: ignore[arg-type]
+    counts.add("partially_correct", 0)
+    counts.add("accept", 4)
+    assert counts.reviewed_count == 3
+    assert counts.correct_count == 2
+    assert counts.incorrect_count == 1
+    assert counts.partially_correct_count == 0
+    assert isinstance(counts.reviewed_count, int)
+    assert counts.signal_score == pytest.approx(2 / 3)
+
+
+def test_record_feedback_same_label_does_not_bump_reviewed_at(db: Session) -> None:
+    p = _pred(db)
+    first = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=p.id,
+        feedback="correct",
+        reviewed_by="r1",
+        note="kept",
+    )
+    stamped = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    first.reviewed_at = stamped
+    db.commit()
+
+    second = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=p.id,
+        feedback="correct",
+        reviewed_by="r2",
+        note="  kept  ",
+    )
+    assert second.id == first.id
+    assert _as_utc(second.reviewed_at) == stamped
+    assert second.reviewed_by == "r1"
+    assert second.note == "kept"
+
+
+def test_record_feedback_if_absent_does_not_clobber(db: Session) -> None:
+    p = _pred(db)
+    first = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=p.id,
+        feedback="incorrect",
+        reviewed_by="r1",
+        note="kept",
+    )
+    stamped = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    first.reviewed_at = stamped
+    db.commit()
+
+    second = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=p.id,
+        feedback="correct",
+        reviewed_by="replay",
+        note="stale json",
+        reviewed_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        if_absent=True,
+    )
+    assert second.feedback == "incorrect"
+    assert second.note == "kept"
+    assert second.reviewed_by == "r1"
+    assert _as_utc(second.reviewed_at) == stamped
+
+
+def test_record_feedback_if_absent_inserts_original_reviewed_at(db: Session) -> None:
+    p = _pred(db, conversation_id="c_replay")
+    stamp = datetime(2026, 8, 2, tzinfo=timezone.utc)
+    row = record_feedback(
+        db,
+        tenant_id="tenant_a",
+        signal_id=p.id,
+        feedback="correct",
+        reviewed_by="replay",
+        reviewed_at=stamp,
+        if_absent=True,
+    )
+    assert _as_utc(row.reviewed_at) == stamp
+
+    window = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        date_to=datetime(2026, 8, 3, tzinfo=timezone.utc),
+        conversation_ids=["c_replay"],
+    )
+    assert window.reviewed_count == 1
+    assert window.correct_count == 1
+    assert window.signal_score == pytest.approx(1.0)
 
 
 def test_record_feedback_upsert_updates_in_place(db: Session) -> None:

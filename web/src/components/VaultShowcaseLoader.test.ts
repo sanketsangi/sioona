@@ -22,7 +22,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-import { VaultShowcaseLoadingPanel } from "@/components/VaultShowcaseLoader";
+import { VaultShowcaseFailPanel } from "@/components/VaultShowcaseLoader";
 import {
   reduceVaultShowcaseLoadUi,
   shouldLandShowcaseLoad,
@@ -47,17 +47,17 @@ function play(
   return events.reduce(reduceVaultShowcaseLoadUi, start);
 }
 
-describe("VaultShowcaseLoadingPanel stall / Retry chrome", () => {
+describe("VaultShowcaseFailPanel stall / Retry chrome", () => {
   it("hides Retry while soft-stalled with wipe still in flight", () => {
     const ui = play([{ type: "stall", kind: "sample" }]);
     expect(vaultShowcaseShowRetry(ui)).toBe(false);
     expect(vaultShowcaseCanStartNewAttempt(ui)).toBe(false);
+    expect(ui.error).toBeTruthy();
 
     const html = renderToStaticMarkup(
-      createElement(VaultShowcaseLoadingPanel, {
+      createElement(VaultShowcaseFailPanel, {
         kind: "sample",
-        status: ui.status,
-        error: ui.error,
+        error: ui.error!,
         showRetry: vaultShowcaseShowRetry(ui),
         cancelHref: vaultShowcaseCancelHref("keep.json", {
           wipeInFlight: ui.wipeInFlight,
@@ -68,6 +68,10 @@ describe("VaultShowcaseLoadingPanel stall / Retry chrome", () => {
     expect(html).toContain("Still waiting on the current load");
     expect(html).not.toContain(">Retry<");
     expect(html).toContain('href="/?view=upload"');
+    // Quiet fail — no animated spinner chrome.
+    expect(html).not.toContain("animate-spin");
+    expect(html).not.toContain('aria-label="Loading"');
+    expect(html).toContain("motion-reduce:transition-none");
   });
 
   it("shows Retry only after stall then hard failure settles", () => {
@@ -80,10 +84,9 @@ describe("VaultShowcaseLoadingPanel stall / Retry chrome", () => {
     expect(vaultShowcaseCanStartNewAttempt(ui)).toBe(true);
 
     const html = renderToStaticMarkup(
-      createElement(VaultShowcaseLoadingPanel, {
+      createElement(VaultShowcaseFailPanel, {
         kind: "partner",
-        status: ui.status,
-        error: ui.error,
+        error: ui.error!,
         showRetry: true,
         cancelHref: vaultShowcaseCancelHref("keep.json", {
           wipeInFlight: ui.wipeInFlight,
@@ -92,6 +95,7 @@ describe("VaultShowcaseLoadingPanel stall / Retry chrome", () => {
       }),
     );
     expect(html).toContain(">Retry<");
+    expect(html).not.toContain("animate-spin");
   });
 });
 
@@ -114,10 +118,9 @@ describe("showcase load attempt gating (no second wipe while in flight)", () => 
     expect(cancelHref).not.toContain("Zerodha_week_5_batch_01");
 
     const html = renderToStaticMarkup(
-      createElement(VaultShowcaseLoadingPanel, {
+      createElement(VaultShowcaseFailPanel, {
         kind: "sample",
-        status: ui.status,
-        error: ui.error,
+        error: ui.error!,
         showRetry: vaultShowcaseShowRetry(ui),
         cancelHref,
         onRetry: () => undefined,
@@ -137,19 +140,7 @@ describe("showcase load attempt gating (no second wipe while in flight)", () => 
       wipeInFlight: ui.wipeInFlight,
     });
     expect(cancelHref).toBe("/?view=upload");
-
-    const html = renderToStaticMarkup(
-      createElement(VaultShowcaseLoadingPanel, {
-        kind: "sample",
-        status: ui.status,
-        error: ui.error,
-        showRetry: vaultShowcaseShowRetry(ui),
-        cancelHref,
-        onRetry: () => undefined,
-      }),
-    );
-    expect(html).toContain('href="/?view=upload"');
-    expect(html).not.toContain("keep.json");
+    // In-flight paints Insights (no fail panel) — Cancel lives on empty CTA.
   });
 
   it("empty keep-set Cancel is Upload", () => {

@@ -286,10 +286,71 @@ export function FeedbackControls({
     void submit("correct");
   }
 
+  const actionButtons = (
+    <div
+      className="grid grid-cols-3 gap-2"
+      role="group"
+      aria-label="Feedback actions"
+    >
+      {options.map((option) => {
+        const isCurrent = feedbackLabel === option.label;
+        const isPrimary = isFeedbackPrimaryChrome(
+          option.label,
+          feedbackLabel,
+        );
+        const { Icon } = option;
+        return (
+          <Button
+            key={option.label}
+            type="button"
+            variant={isPrimary ? "default" : "outline"}
+            size="lg"
+            title={`${option.hint} (${option.shortcut})`}
+            disabled={busy}
+            aria-busy={pending === option.label}
+            aria-pressed={isCurrent}
+            aria-keyshortcuts={option.shortcut}
+            onClick={() => void submit(option.label)}
+            className={cn(
+              isPrimary ? primaryBtn : outlineBtn,
+              busy && "cursor-wait",
+            )}
+          >
+            {pending === option.label ? (
+              <ButtonSpinner data-icon="inline-start" />
+            ) : (
+              <Icon
+                data-icon="inline-start"
+                className={
+                  option.label === "partially_correct"
+                    ? "-translate-y-[2px]"
+                    : undefined
+                }
+              />
+            )}
+            <span className="leading-none">
+              {option.label === "partially_correct" ? (
+                <>
+                  <span className="min-[420px]:hidden">Partial</span>
+                  <span className="hidden min-[420px]:inline">
+                    {option.title}
+                  </span>
+                </>
+              ) : (
+                option.title
+              )}
+            </span>
+          </Button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <Card
       ref={panelRef}
       size="sm"
+      data-review-slot="feedback"
       className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
@@ -343,63 +404,7 @@ export function FeedbackControls({
             />
           </div>
 
-          <div
-            className="grid grid-cols-3 gap-2"
-            role="group"
-            aria-label="Feedback actions"
-          >
-            {options.map((option) => {
-              const isCurrent = feedbackLabel === option.label;
-              const isPrimary = isFeedbackPrimaryChrome(
-                option.label,
-                feedbackLabel,
-              );
-              const { Icon } = option;
-              return (
-                <Button
-                  key={option.label}
-                  type="button"
-                  variant={isPrimary ? "default" : "outline"}
-                  size="lg"
-                  title={`${option.hint} (${option.shortcut})`}
-                  disabled={busy}
-                  aria-busy={pending === option.label}
-                  aria-pressed={isCurrent}
-                  aria-keyshortcuts={option.shortcut}
-                  onClick={() => void submit(option.label)}
-                  className={cn(
-                    isPrimary ? primaryBtn : outlineBtn,
-                    busy && "cursor-wait",
-                  )}
-                >
-                  {pending === option.label ? (
-                    <ButtonSpinner data-icon="inline-start" />
-                  ) : (
-                    <Icon
-                      data-icon="inline-start"
-                      className={
-                        option.label === "partially_correct"
-                          ? "-translate-y-[2px]"
-                          : undefined
-                      }
-                    />
-                  )}
-                  <span className="leading-none">
-                    {option.label === "partially_correct" ? (
-                      <>
-                        <span className="min-[420px]:hidden">Partial</span>
-                        <span className="hidden min-[420px]:inline">
-                          {option.title}
-                        </span>
-                      </>
-                    ) : (
-                      option.title
-                    )}
-                  </span>
-                </Button>
-              );
-            })}
-          </div>
+          {actionButtons}
 
           {needsAdapt ? (
             <div role="status" aria-live="polite">

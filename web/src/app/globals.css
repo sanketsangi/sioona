@@ -401,7 +401,7 @@
     overscroll-behavior: contain;
   }
 
-  /* Insights list ↔ preview — opacity / translateX only */
+  /* Insights list ↔ preview — opacity / translateX only when motion is on */
   .insights-mode-swap {
     position: relative;
     display: flex;
@@ -418,6 +418,11 @@
     min-width: 0;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  /* Vault file switches stay on list — no enter/exit chrome. Motion only for
+     explicit list ↔ review toggles (`data-insights-motion="1"`). */
+  .insights-mode-swap[data-insights-motion="1"] .insights-mode-pane {
     transition-property: opacity, transform;
     transition-duration: 180ms;
     transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
@@ -452,7 +457,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .insights-mode-pane {
+    .insights-mode-swap[data-insights-motion="1"] .insights-mode-pane {
       transition-duration: 0.01ms;
       transition-property: none;
     }
@@ -529,9 +534,10 @@
   }
 
   /*
-   * Stacked / narrow: hide the inline transcript — sticky header Open
-   * Conversation (or Why This Fired) opens ConversationDrawer (not an
-   * always-on overlay over Feedback).
+   * Below 42rem of the review pane (phone / narrow overflow): hide the
+   * inline transcript. Open Conversation and the evidence quote open
+   * ConversationDrawer. A normal laptop content column is wider than
+   * 42rem, so the transcript stays on screen with the quote highlighted.
    */
   .insights-review-split [data-review-slot="transcript"] {
     display: none;
@@ -742,6 +748,15 @@
     background: var(--sio-bg-base);
   }
 
+  /*
+   * Author `display` (Tailwind `.flex`) overrides the UA rule that hides
+   * closed <details> children, so Ground Truth and Retention email would
+   * paint in the first fold. This author rule wins on specificity.
+   */
+  details:not([open]) > :not(summary) {
+    display: none;
+  }
+
   /* Always stacked: Feedback above Ground Truth at every review width. */
   .insights-review-feedback {
     display: grid;
@@ -750,7 +765,7 @@
     gap: 1rem;
   }
 
-  @container review (min-width: 56rem) {
+  @container review (min-width: 42rem) {
     .insights-review-split {
       display: grid;
       flex: 1 1 0%;

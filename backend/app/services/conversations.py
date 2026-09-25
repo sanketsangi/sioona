@@ -114,6 +114,7 @@ def _upsert_one_message(
     conversation_id: str,
     payload: MessageUpsert,
     existing_by_id: dict[str, Message] | None = None,
+    flush_each: bool = True,
 ) -> tuple[Message, bool]:
     """Insert or update one message. Returns (row, created)."""
     _validate_role(payload.role)
@@ -144,6 +145,12 @@ def _upsert_one_message(
         timestamp=payload.timestamp,
     )
     db.add(row)
+    if not flush_each:
+        # Bulk ingest flushes the chunk once. Per-row savepoints are for the
+        # single-conversation path, where a raced message id must not abort it.
+        if existing_by_id is not None:
+            existing_by_id[payload.message_id] = row
+        return row, True
     try:
         with db.begin_nested():
             db.flush()
@@ -175,6 +182,7 @@ def upsert_conversation(
     commit: bool = True,
     existing_conversation: Conversation | None = None,
     existing_messages_by_id: dict[str, Message] | None = None,
+    flush_each_message: bool = True,
 ) -> ConversationUpsertResult:
     """Insert or update the conversation for tenant + conversation_id.
 
@@ -234,6 +242,7 @@ def upsert_conversation(
             conversation_id=payload.conversation_id,
             payload=msg,
             existing_by_id=existing_messages_by_id,
+            flush_each=flush_each_message,
         )
         messages.append(row)
         if msg_created:
@@ -330,6 +339,7 @@ def upsert_conversations(
                 payload.conversation_id
             ),
             existing_messages_by_id=existing_messages_by_id,
+            flush_each_message=False,
         )
         items.append(item)
         if item.created:

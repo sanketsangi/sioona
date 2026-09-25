@@ -640,7 +640,7 @@ export const SIGNAL_TAXONOMY: SignalTaxonomyEntry[] = [
   },
 ];
 
-function uniqTerms(values: string[]): string[] {
+export function uniqTerms(values: string[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const value of values) {

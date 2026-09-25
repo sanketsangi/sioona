@@ -5,6 +5,7 @@ import {
 } from "@/lib/partner-demo-replace-guard";
 import {
   defaultInsightsHref,
+  isLivePartnerKeepSet,
   isVaultBatchRenderable,
   parseVaultFile,
   resolveHeaderBatchName,
@@ -137,6 +138,15 @@ describe("isVaultBatchRenderable", () => {
     ).toBe(true);
   });
 
+  it("is true when the selected file is another file from the same upload", () => {
+    expect(
+      isVaultBatchRenderable(
+        "Zerodha_week_7_batch_01.json",
+        "Zerodha_week_8_batch_01.json",
+        ["Zerodha_week_7_batch_01.json", "Zerodha_week_8_batch_01.json"],
+      ),
+    ).toBe(true);
+  });
   it("is true when no vault file is selected", () => {
     expect(isVaultBatchRenderable(null, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(
       true,
@@ -179,6 +189,15 @@ describe("resolveVaultActiveFile", () => {
   });
 });
 
+describe("isLivePartnerKeepSet", () => {
+  it("is true only for a real upload", () => {
+    expect(isLivePartnerKeepSet("Zerodha_week_7_batch_01.json")).toBe(true);
+    expect(isLivePartnerKeepSet(GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
+    expect(isLivePartnerKeepSet(ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
+    expect(isLivePartnerKeepSet(undefined)).toBe(false);
+  });
+});
+
 describe("vaultFileEmptyNext", () => {
   it("points Sample and Partner Demo at Upload", () => {
     expect(vaultFileEmptyNext(GROWW_SHOWCASE_SAMPLE_NAME).label).toBe(
@@ -191,7 +210,7 @@ describe("vaultFileEmptyNext", () => {
 
   it("points unknown uploads at Uploaded Chats", () => {
     const next = vaultFileEmptyNext("partner-export.json");
-    expect(next.label).toBe("Uploaded Chats");
-    expect(next.title).toBe("File Not Loaded");
+    expect(next.label).toBe("Upload this week’s export");
+    expect(next.title).toBe("Upload this week’s export");
   });
 });
