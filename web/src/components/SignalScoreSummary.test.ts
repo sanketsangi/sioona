@@ -204,7 +204,7 @@ describe("SignalScoreSummary compact", () => {
     expect(html).not.toMatch(/All-time pack[\s\S]{0,80}0%/);
   });
 
-  it("hides Go when label counts do not sum to reviewed", () => {
+  it("widens n to the label sum and ignores a stale 100% float", () => {
     const html = renderToStaticMarkup(
       createElement(SignalScoreSummary, {
         score: {
@@ -221,8 +221,9 @@ describe("SignalScoreSummary compact", () => {
       }),
     );
 
-    expect(html).not.toContain(">Go<");
+    expect(html).toContain(">Go<");
     expect(html).not.toContain("100%");
-    expect(html).toMatch(/Overall[\s\S]*?—/);
+    expect(html).toContain("86%");
+    expect(html).toContain("7 / 5");
   });
 });
