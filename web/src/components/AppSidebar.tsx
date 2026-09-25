@@ -227,7 +227,7 @@ function VaultNav({
   }
 
   const livePartner = isLivePartnerKeepSet(activeFile);
-  const groups: {
+  const allGroups: {
     title: string;
     icon: "sample" | "partner" | "upload";
     files: { name: string; isActive: boolean; showcase?: VaultShowcaseKind }[];
@@ -262,9 +262,10 @@ function VaultNav({
         isActive: uploadRowActive(name),
       })),
     },
-  ].filter((group) =>
-    livePartner ? group.icon === "upload" : true,
-  );
+  ];
+  const groups = livePartner
+    ? allGroups.filter((group) => group.icon === "upload")
+    : allGroups;
 
   function VaultGroupIcon({ kind }: { kind: "sample" | "partner" | "upload" }) {
     const className = "size-4 shrink-0 text-sio-fg-base";

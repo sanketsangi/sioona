@@ -63,5 +63,9 @@ export function useConversationDrawerOpen(
   return {
     open: control?.open ?? fallbackOpen,
     setOpen,
+    inlineTranscript: control?.inlineTranscript ?? false,
+    setInlineTranscript: (inline: boolean) => {
+      control?.setInlineTranscript(inline);
+    },
   };
 }
