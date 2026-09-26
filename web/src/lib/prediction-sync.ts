@@ -84,6 +84,43 @@ export function shouldShowSyncFailureBanner(
   return syncFailedParam > 0 && countUnsyncedPredictions(signals) > 0;
 }
 
+/**
+ * Partner-facing warning when prediction sync failed.
+ * Those reviews stay off Eval until a later sync succeeds.
+ */
+export function uploadPredictionSyncWarning(syncFailed: number): string | null {
+  if (!Number.isFinite(syncFailed) || syncFailed < 1) return null;
+  const n = Math.floor(syncFailed);
+  const noun = n === 1 ? "prediction" : "predictions";
+  return `${n} ${noun} not synced. Those reviews will not count on Eval until sync succeeds. Re-run Detection on Insights.`;
+}
+
+/**
+ * Eval metrics warning when uploaded chats and saved reviews disagree.
+ * An empty Neon review count is not agreement while JSON still has the
+ * keep-set and unsynced saved reviews.
+ */
+export function evalSyncWarningWhenReviewsDisagree(input: {
+  syncFailed?: number;
+  signals: { id: string; backendSignalId?: string; feedback?: unknown }[];
+  conversationCount: number;
+  /** Neon `reviewed_count`. `null` means the score service did not answer. */
+  neonReviewedCount: number | null;
+}): string | null {
+  const unsynced = countUnsyncedPredictions(input.signals);
+  const syncFailed = input.syncFailed ?? 0;
+  const urlFailure = shouldShowSyncFailureBanner(syncFailed, input.signals);
+  const savedReviews = input.signals.filter((signal) => signal.feedback).length;
+  const emptyNeonMissesSavedReviews =
+    input.conversationCount > 0 &&
+    savedReviews > 0 &&
+    input.neonReviewedCount === 0 &&
+    unsynced > 0;
+  if (!urlFailure && !emptyNeonMissesSavedReviews) return null;
+  const n = urlFailure ? Math.max(syncFailed, unsynced) : unsynced;
+  return uploadPredictionSyncWarning(n);
+}
+
 const NEON_STUB_PREFIX = "sig_neon_";
 
 /** Extract Neon prediction UUID from a stub signal id (`sig_neon_{uuid}`). */

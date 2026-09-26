@@ -373,7 +373,7 @@ describe("pendingReviewWalkHref", () => {
 });
 
 describe("afterFeedbackHref", () => {
-  it("opens Follow-up for the same signal after Correct on needs-review", () => {
+  it("opens the next Pending card after Correct while pending remains", () => {
     expect(
       afterFeedbackHref({
         wasPending: true,
@@ -383,19 +383,20 @@ describe("afterFeedbackHref", () => {
         scoreFrom: "2026-08-17",
       }),
     ).toBe(
-      "/?view=insights&scoreFrom=2026-08-17&status=followup&preview=sig_keep",
+      "/?view=insights&scoreFrom=2026-08-17&status=new&preview=sig_next",
     );
   });
 
-  it("keeps replaced=1 after Correct and Incorrect", () => {
-    expect(
-      afterFeedbackHref({
-        wasPending: true,
-        label: "correct",
-        currentSignalId: "sig_keep",
-        replaced: true,
-      }),
-    ).toBe("/?view=insights&status=followup&preview=sig_keep&replaced=1");
+  it("last Correct opens Follow-up list with no preview and keeps replaced=1", () => {
+    const href = afterFeedbackHref({
+      wasPending: true,
+      label: "correct",
+      currentSignalId: "sig_keep",
+      nextPendingPreviewId: null,
+      replaced: true,
+    });
+    expect(href).toBe("/?view=insights&status=followup&replaced=1");
+    expect(href).not.toContain("preview=");
     expect(
       afterFeedbackHref({
         wasPending: true,
@@ -406,7 +407,7 @@ describe("afterFeedbackHref", () => {
     ).toBe("/?view=insights&status=new&preview=sig_next&replaced=1");
   });
 
-  it("preserves mode=action on Correct → Follow-up", () => {
+  it("preserves mode=action when Correct opens the next Pending card", () => {
     expect(
       afterFeedbackHref({
         wasPending: true,
@@ -416,7 +417,7 @@ describe("afterFeedbackHref", () => {
         mode: "action",
       }),
     ).toBe(
-      "/?view=insights&mode=action&status=followup&preview=sig_keep",
+      "/?view=insights&mode=action&status=new&preview=sig_next",
     );
   });
 
@@ -474,12 +475,13 @@ describe("afterFeedbackHref", () => {
         wasPending: true,
         label: "correct",
         currentSignalId: "sig_keep",
+        nextPendingPreviewId: null,
         typeFilter: "retention",
         actionFilter: "approve",
         scoreFrom: "2026-08-17",
       }),
     ).toBe(
-      "/?view=insights&scoreFrom=2026-08-17&status=followup&type=retention&action=approve&preview=sig_keep",
+      "/?view=insights&scoreFrom=2026-08-17&status=followup&type=retention&action=approve",
     );
     expect(
       afterFeedbackHref({

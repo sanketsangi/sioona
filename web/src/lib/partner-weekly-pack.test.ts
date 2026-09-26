@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
+  INGEST_REPLACES_CURRENT_CHATS,
+  INGEST_UPDATES_MATCHING_CHATS,
+  ingestCatalogOutcomeMessage,
   isHeldOutWeeklyPackBasename,
   isPartnerWeeklyPackBasename,
   parseConfirmHeldOutWeeklyIngest,
@@ -95,6 +98,28 @@ describe("requiresHeldOutWeeklyIngestConfirm", () => {
         confirmed: false,
       })
     ).toBe(false);
+  });
+});
+
+describe("ingestCatalogOutcomeMessage", () => {
+  it("states update for a weekly basename and replace for an unknown name", () => {
+    const shared = {
+      explicitReplace: false,
+      priorWeeklyExportCount: 2,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    expect(
+      ingestCatalogOutcomeMessage({
+        ...shared,
+        uploadedBasename: "Zerodha_week_5_batch_01.json",
+      })
+    ).toBe(INGEST_UPDATES_MATCHING_CHATS);
+    expect(
+      ingestCatalogOutcomeMessage({
+        ...shared,
+        uploadedBasename: "user-upload.csv",
+      })
+    ).toBe(INGEST_REPLACES_CURRENT_CHATS);
   });
 });
 

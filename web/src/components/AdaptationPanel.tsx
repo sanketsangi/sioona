@@ -8,30 +8,142 @@ import { EvalCard } from "@/components/EvalCard";
 import { Pager } from "@/components/Pager";
 import { signalTypeLabel } from "@/lib/format";
 import { parsePage, viewHref } from "@/lib/views";
-import type { Signal, SignalType, TaxonomyOverrides } from "@/lib/types";
+import type {
+  FeedbackLabel,
+  Signal,
+  SignalType,
+  TaxonomyOverrides,
+} from "@/lib/types";
 
-type OverrideField = "phrases" | "negativePhrases";
+export type OverrideField = "phrases" | "negativePhrases";
+
+const ADAPT_APPLY_ACTIONS: {
+  field: OverrideField;
+  label: "Add Phrase" | "Add Negative";
+}[] = [
+  { field: "phrases", label: "Add Phrase" },
+  { field: "negativePhrases", label: "Add Negative" },
+];
+
+/** Incorrect → negative (false positive). Partial → phrase. Same draft either way. */
+export function primaryOverrideField(
+  label: Extract<FeedbackLabel, "incorrect" | "partially_correct">,
+): OverrideField {
+  return label === "incorrect" ? "negativePhrases" : "phrases";
+}
+
+export function adaptApplyActions(
+  label: Extract<FeedbackLabel, "incorrect" | "partially_correct">,
+): {
+  field: OverrideField;
+  label: "Add Phrase" | "Add Negative";
+  primary: boolean;
+}[] {
+  const primary = primaryOverrideField(label);
+  return ADAPT_APPLY_ACTIONS.map((action) => ({
+    ...action,
+    primary: action.field === primary,
+  }));
+}
+
+export function taxonomyOverrideBody(input: {
+  type: SignalType;
+  field: OverrideField;
+  value: string;
+}) {
+  return {
+    action: "add_taxonomy_override" as const,
+    type: input.type,
+    field: input.field,
+    value: input.value,
+    redetect: true as const,
+  };
+}
 
 const PAGE_SIZE = 2;
 
-function suggestTerm(signal: Signal): string {
-  if (signal.feedback?.note?.trim()) {
-    return signal.feedback.note.trim().slice(0, 80);
-  }
-  // Prefer short match terms over long customer quotes for override drafts.
+/** Whole short notes may fill the draft. Longer notes are never sliced in. */
+const SHORT_NOTE_MAX = 80;
+
+function capturedTerm(item: string): string | null {
+  const captured = item.match(/"([^"]+)"/);
+  const term = captured?.[1]?.trim() ?? "";
+  return term || null;
+}
+
+/** A term, not a sentence. Full sentences stay beside the field. */
+function isShortAdaptNote(note: string): boolean {
+  return note.length > 0 && note.length <= SHORT_NOTE_MAX && !/[.!?]/.test(note);
+}
+
+/**
+ * Override draft: matched phrase or keyword, else a short note, else a
+ * clipped quote. A sentence or long feedback note is never sliced in.
+ */
+export function suggestTerm(signal: Signal): string {
   const match = signal.evidence.find(
     (e) => e.startsWith("phrase: ") || e.startsWith("keyword: ")
   );
   if (match) {
-    const captured = match.match(/"([^"]+)"/);
-    if (captured?.[1]) return captured[1];
+    const term = capturedTerm(match);
+    if (term) return term;
   }
+  const note = signal.feedback?.note?.trim() ?? "";
+  if (isShortAdaptNote(note)) return note;
   const quote = signal.evidence.find((e) => e.startsWith("quote: "));
   if (quote) {
-    const captured = quote.match(/"([^"]+)"/);
-    if (captured?.[1]) return captured[1].slice(0, 80);
+    const term = capturedTerm(quote);
+    if (term) return term.slice(0, SHORT_NOTE_MAX);
   }
   return "";
+}
+
+function OverrideTermControl({
+  signal,
+  value,
+  disabled,
+  noteDomId,
+  inputClassName,
+  onValueChange,
+}: {
+  signal: Signal;
+  value: string;
+  disabled: boolean;
+  noteDomId: string;
+  inputClassName: string;
+  onValueChange: (value: string) => void;
+}) {
+  const note = signal.feedback?.note?.trim() ?? "";
+  return (
+    <div className="min-w-0">
+      <label className="block min-w-0">
+        <span className="sr-only">
+          Override term for {signalTypeLabel(signal.type)}
+        </span>
+        <input
+          type="text"
+          name={`override-${signal.id}`}
+          autoComplete="off"
+          spellCheck={false}
+          value={value}
+          aria-describedby={note ? noteDomId : undefined}
+          onChange={(e) => onValueChange(e.target.value)}
+          className={inputClassName}
+          disabled={disabled}
+          placeholder="e.g. cancel my account…"
+        />
+      </label>
+      {note ? (
+        <p
+          id={noteDomId}
+          className="mt-1 line-clamp-3 break-words text-pretty text-label-13 text-sio-fg-muted"
+        >
+          <span className="sr-only">Saved note: </span>
+          {note}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function AdaptationPanel({
@@ -181,13 +293,9 @@ export function AdaptationPanel({
       const res = await fetch("/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "add_taxonomy_override",
-          type,
-          field,
-          value,
-          redetect: true,
-        }),
+        body: JSON.stringify(
+          taxonomyOverrideBody({ type, field, value }),
+        ),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -328,57 +436,28 @@ export function AdaptationPanel({
                   <div className="mt-1 line-clamp-1 text-label-13 text-sio-fg-muted">
                     {signal.evidence.slice(0, 1).join(" · ") || "No evidence"}
                   </div>
-                  <label className="mt-2.5 block min-w-0">
-                    <span className="sr-only">
-                      Override term for {signalTypeLabel(signal.type)}
-                    </span>
-                    <input
-                      type="text"
-                      name={`override-${signal.id}`}
-                      autoComplete="off"
-                      spellCheck={false}
+                  <div className="mt-2.5">
+                    <OverrideTermControl
+                      signal={signal}
                       value={drafts[signal.id] ?? ""}
-                      onChange={(e) =>
+                      disabled={pending || busyId !== null}
+                      noteDomId={`override-note-${signal.id}-card`}
+                      inputClassName="input-field w-full"
+                      onValueChange={(next) =>
                         setDrafts((prev) => ({
                           ...prev,
-                          [signal.id]: e.target.value,
+                          [signal.id]: next,
                         }))
                       }
-                      className="input-field w-full"
-                      disabled={pending || busyId !== null}
-                      placeholder="e.g. cancel my account…"
                     />
-                  </label>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      disabled={pending || busyId !== null}
-                      aria-busy={busyId === `${signal.id}:phrases`}
-                      onClick={() =>
-                        applyOverride(signal, "phrases", signal.type)
-                      }
-                    >
-                      {busyId === `${signal.id}:phrases` ? (
-                        <ButtonSpinner />
-                      ) : null}
-                      Add Phrase
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      disabled={pending || busyId !== null}
-                      aria-busy={busyId === `${signal.id}:negativePhrases`}
-                      onClick={() =>
-                        applyOverride(signal, "negativePhrases", signal.type)
-                      }
-                    >
-                      {busyId === `${signal.id}:negativePhrases` ? (
-                        <ButtonSpinner />
-                      ) : null}
-                      Add Negative
-                    </button>
                   </div>
+                  <AdaptApplyButtons
+                    signal={signal}
+                    className="mt-2"
+                    disabled={pending || busyId !== null}
+                    busyId={busyId}
+                    onApply={applyOverride}
+                  />
                 </li>
               ))}
             </ul>
@@ -420,65 +499,27 @@ export function AdaptationPanel({
                       {signal.feedback?.label.replace("_", " ")}
                     </td>
                     <td className="min-w-0 px-4 py-2.5 align-top">
-                      <label className="block min-w-0">
-                        <span className="sr-only">
-                          Override term for {signalTypeLabel(signal.type)}
-                        </span>
-                        <input
-                          type="text"
-                          name={`override-${signal.id}`}
-                          autoComplete="off"
-                          spellCheck={false}
-                          value={drafts[signal.id] ?? ""}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [signal.id]: e.target.value,
-                            }))
-                          }
-                          className="input-field w-full min-w-[8rem]"
-                          disabled={pending || busyId !== null}
-                          placeholder="e.g. cancel my account…"
-                        />
-                      </label>
+                      <OverrideTermControl
+                        signal={signal}
+                        value={drafts[signal.id] ?? ""}
+                        disabled={pending || busyId !== null}
+                        noteDomId={`override-note-${signal.id}-table`}
+                        inputClassName="input-field w-full min-w-[8rem]"
+                        onValueChange={(next) =>
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [signal.id]: next,
+                          }))
+                        }
+                      />
                     </td>
                     <td className="px-4 py-2.5 align-top">
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={pending || busyId !== null}
-                          aria-busy={busyId === `${signal.id}:phrases`}
-                          onClick={() =>
-                            applyOverride(signal, "phrases", signal.type)
-                          }
-                        >
-                          {busyId === `${signal.id}:phrases` ? (
-                            <ButtonSpinner />
-                          ) : null}
-                          Add Phrase
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          disabled={pending || busyId !== null}
-                          aria-busy={
-                            busyId === `${signal.id}:negativePhrases`
-                          }
-                          onClick={() =>
-                            applyOverride(
-                              signal,
-                              "negativePhrases",
-                              signal.type
-                            )
-                          }
-                        >
-                          {busyId === `${signal.id}:negativePhrases` ? (
-                            <ButtonSpinner />
-                          ) : null}
-                          Add Negative
-                        </button>
-                      </div>
+                      <AdaptApplyButtons
+                        signal={signal}
+                        disabled={pending || busyId !== null}
+                        busyId={busyId}
+                        onApply={applyOverride}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -510,5 +551,45 @@ export function AdaptationPanel({
         </>
       )}
     </EvalCard>
+  );
+}
+
+function AdaptApplyButtons({
+  signal,
+  className = "",
+  disabled,
+  busyId,
+  onApply,
+}: {
+  signal: Signal;
+  className?: string;
+  disabled: boolean;
+  busyId: string | null;
+  onApply: (signal: Signal, field: OverrideField, type: SignalType) => void;
+}) {
+  const label = signal.feedback?.label;
+  const actions = adaptApplyActions(
+    label === "incorrect" ? "incorrect" : "partially_correct",
+  );
+
+  return (
+    <div className={`flex flex-wrap gap-1.5 ${className}`.trim()}>
+      {actions.map((action) => {
+        const busy = busyId === `${signal.id}:${action.field}`;
+        return (
+          <button
+            key={action.field}
+            type="button"
+            className={action.primary ? "btn-primary" : "btn-secondary"}
+            disabled={disabled}
+            aria-busy={busy}
+            onClick={() => onApply(signal, action.field, signal.type)}
+          >
+            {busy ? <ButtonSpinner /> : null}
+            {action.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }

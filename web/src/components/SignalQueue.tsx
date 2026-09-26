@@ -51,8 +51,10 @@ import {
 import { SignalReviewBody } from "@/components/SignalReviewBody";
 import { QueueMarkActedAction } from "@/components/QueueMarkActedAction";
 import {
+  isRetentionDecisionKind,
   queueActionKindForSignal,
   queueActionLabelForSignal,
+  RetentionEmailDecisionChip,
 } from "@/components/RetentionEmailAction";
 import { findSupervisedAction } from "@/lib/supervised-actions";
 import { PagerIconLink } from "@/components/PagerIconLink";
@@ -65,8 +67,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { scoreChipAccessibleName } from "@/lib/fired-rule";
 import {
-  formatScore,
   queueSignalSummary,
   signalReviewStatusLabel,
   signalTypeLabel,
@@ -86,6 +88,8 @@ import {
   FOLLOWUP_UNAVAILABLE_PANEL_TITLE,
   QUEUE_UNAVAILABLE_PANEL_BODY,
   QUEUE_UNAVAILABLE_PANEL_TITLE,
+  SCORE_WAITING_BODY,
+  SCORE_WAITING_TITLE,
 } from "@/lib/backend-wake";
 import { queueSignalsForFilter } from "@/lib/join-needs-review";
 import type {
@@ -283,6 +287,12 @@ type SignalQueueProps = {
   actedWalk?: MarkActedWalk | null;
   /** Stored supervised action drafts (retention email first). */
   supervisedActions?: SupervisedAction[];
+  /**
+   * Score service is asleep and the Neon queue is empty or unreachable
+   * while JSON still has the keep-set. Empty panels say the score is
+   * waiting and offer one Retry — not “reviews are done”.
+   */
+  scoreAsleep?: boolean;
 };
 
 function buildQueueHref(
@@ -314,6 +324,16 @@ function buildQueueHref(
 /** Same Card chrome as InsightsQueueMetrics — sio radius, no elevation. */
 const QUEUE_CARD_CLASS =
   "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base py-0 shadow-none ring-0 outline-none [--tw-ring-color:transparent]";
+
+function ScoreWaitingPanel() {
+  return (
+    <QueueEmptyState
+      alert
+      title={SCORE_WAITING_TITLE}
+      description={<p>{SCORE_WAITING_BODY}</p>}
+    />
+  );
+}
 
 function QueueCard({
   className,
@@ -649,7 +669,6 @@ function queueRowItem(
   safePage: number,
   supervisedActions: SupervisedAction[],
 ) {
-  const score = formatScore(signal.score);
   const typeLabel = signalTypeLabel(signal.type);
   const statusText = signalReviewStatusLabel(signal);
   const customerName = resolveCustomerName(
@@ -676,7 +695,10 @@ function queueRowItem(
   );
   const openVerb =
     actionLabel === "Approve" ? "Open approval for" : "Open review for";
-  const tableAction =
+  const decisionAction = isRetentionDecisionKind(actionKind) ? (
+    <RetentionEmailDecisionChip status={actionKind} />
+  ) : null;
+  const tableAction = decisionAction ?? (
     actionKind === "mark_acted" ? (
       <QueueMarkActedAction
         signal={signal}
@@ -693,8 +715,9 @@ function queueRowItem(
           {actionLabel}
         </Link>
       </Button>
-    );
-  const cardAction =
+    )
+  );
+  const cardAction = decisionAction ?? (
     actionKind === "mark_acted" ? (
       <QueueMarkActedAction
         signal={signal}
@@ -711,13 +734,14 @@ function queueRowItem(
           {actionLabel}
         </Link>
       </Button>
-    );
+    )
+  );
 
   return {
     signal,
     customerName,
     previewHref,
-    previewAriaLabel: `${customerName}. ${typeLabel} signal, score ${score}, ${statusText}. ${openVerb} ${summaryForLabel}`,
+    previewAriaLabel: `${customerName}. ${typeLabel} signal, ${scoreChipAccessibleName(signal.score, signal.evidence, signal.type)}, ${statusText}. ${openVerb} ${summaryForLabel}`,
     tableAction,
     cardAction,
   };
@@ -744,6 +768,7 @@ export function SignalQueue({
   reviewTriage,
   actedWalk = null,
   supervisedActions = [],
+  scoreAsleep = false,
 }: SignalQueueProps) {
   const {
     pendingCount,
@@ -867,6 +892,25 @@ export function SignalQueue({
     Boolean(tenantSignalsError) &&
     (statusFilter === "followup" || statusFilter === "acted") &&
     filtered.length === 0;
+
+  const asleepEmpty =
+    scoreAsleep &&
+    !previewSignal &&
+    (showPendingError ||
+      showFollowUpError ||
+      (pendingSignals.length === 0 &&
+        (reviewedSignals.length === 0 ||
+          (statusFilter === "new" && filtered.length === 0) ||
+          (statusFilter === "followup" && filtered.length === 0))));
+
+  if (asleepEmpty) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        {filterChrome}
+        <ScoreWaitingPanel />
+      </div>
+    );
+  }
 
   if (showPendingError) {
     return (

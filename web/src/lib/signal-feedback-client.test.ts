@@ -80,7 +80,8 @@ describe("postSignalFeedback", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { backendSignalId: _omit, ...local } = signal;
+    const local = { ...signal };
+    delete local.backendSignalId;
     await expect(postSignalFeedback(local, "correct")).rejects.toMatchObject({
       name: "SignalFeedbackError",
       message: "Failed to save feedback",

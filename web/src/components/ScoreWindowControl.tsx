@@ -20,6 +20,27 @@ const DATE_LABEL = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
 });
 
+/** Fixed locale + UTC so the slice bounds match on the server and the client. */
+const REVIEW_TIME = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "UTC",
+});
+
+/** Format one in-slice `reviewed_at`. Invalid or missing values stay blank. */
+export function formatIncludedReviewTime(
+  iso: string | null | undefined,
+): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  return REVIEW_TIME.format(ms);
+}
+
 /** Parse `YYYY-MM-DD` as a local calendar day (picker selection). */
 function parseDateInput(raw: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
@@ -46,10 +67,16 @@ export function ScoreWindowControl({
   window,
   panel,
   className,
+  firstReviewedAt = null,
+  lastReviewedAt = null,
 }: {
   window: SignalScoreWindow;
   panel?: string | null;
   className?: string;
+  /** Earliest review in the current slice. Omit when the window is empty. */
+  firstReviewedAt?: string | null;
+  /** Latest review in the current slice. Omit when the window is empty. */
+  lastReviewedAt?: string | null;
 }) {
   const router = useRouter();
   const labelId = useId();
@@ -62,6 +89,12 @@ export function ScoreWindowControl({
     scoreFrom: null,
   });
   const thisWeek = window.status === "default";
+  const firstLabel = formatIncludedReviewTime(firstReviewedAt);
+  const lastLabel = formatIncludedReviewTime(lastReviewedAt);
+  const reviewSpan =
+    firstLabel && lastLabel && firstReviewedAt && lastReviewedAt
+      ? { firstLabel, lastLabel, firstReviewedAt, lastReviewedAt }
+      : null;
 
   function applyScoreFrom(date: Date | undefined) {
     if (!date) return;
@@ -134,6 +167,25 @@ export function ScoreWindowControl({
           </PopoverContent>
         </Popover>
       </div>
+      {reviewSpan ? (
+        <p className="basis-full text-label-12 text-sio-fg-muted">
+          First review{" "}
+          <time
+            dateTime={reviewSpan.firstReviewedAt}
+            className="tabular text-sio-fg-subtle"
+          >
+            {reviewSpan.firstLabel}
+          </time>
+          <span aria-hidden> · </span>
+          Last review{" "}
+          <time
+            dateTime={reviewSpan.lastReviewedAt}
+            className="tabular text-sio-fg-subtle"
+          >
+            {reviewSpan.lastLabel}
+          </time>
+        </p>
+      ) : null}
     </div>
   );
 }

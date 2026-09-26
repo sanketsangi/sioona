@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { emitFeedbackSaved } from "@/lib/feedback-saved";
 import {
+  correctAdvanceHref,
   feedbackLabelForShortcutKey,
   isEditableShortcutTarget,
 } from "@/lib/review-triage";
@@ -70,6 +71,17 @@ const FEEDBACK_CHIP: Record<FeedbackLabel | "pending", string> = {
   incorrect: "bg-sio-status-danger-bg text-sio-status-danger-fg",
   partially_correct: "bg-sio-status-warning-bg text-sio-status-warning-fg",
 };
+
+/**
+ * After Incorrect or Partially correct. The note saves with the label and
+ * is shown beside the Adapt term; it is not the phrase that gets added.
+ */
+export const ADAPT_NOTE_HELPER =
+  "This note is shown beside the Adapt term. A full sentence is not the phrase that gets added.";
+
+/** Weekly score is correct / reviewed; Partial is in that denominator like Incorrect. */
+const PARTIAL_SCORE_HINT =
+  "Partial counts against the weekly score the same as Incorrect.";
 
 const outlineBtn =
   "min-h-11 w-full touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9";
@@ -142,6 +154,7 @@ export function FeedbackControls({
   const inflightRef = useRef(false);
   const headingId = useId();
   const noteId = useId();
+  const scoreHintId = useId();
   const initialNote = signal.feedback?.note ?? "";
   const serverLabel = signal.feedback?.label ?? null;
   const [note, setNote] = useState(initialNote);
@@ -219,18 +232,28 @@ export function FeedbackControls({
 
         const advanceHref =
           triage?.isPendingReview && wasPending
-            ? afterFeedbackHref({
-                wasPending: true,
-                label,
-                currentSignalId: signal.id,
-                nextPendingPreviewId: triage.nextPendingPreviewId,
-                scoreFrom: triage.scoreFrom,
-                mode: triage.mode,
-                replaced: triage.replaced,
-                typeFilter: triage.typeFilter,
-                actionFilter: triage.actionFilter,
-                file: triage.file,
-              })
+            ? label === "correct"
+              ? correctAdvanceHref({
+                  nextPendingPreviewId: triage.nextPendingPreviewId,
+                  scoreFrom: triage.scoreFrom,
+                  mode: triage.mode,
+                  replaced: triage.replaced,
+                  typeFilter: triage.typeFilter,
+                  actionFilter: triage.actionFilter,
+                  file: triage.file,
+                })
+              : afterFeedbackHref({
+                  wasPending: true,
+                  label,
+                  currentSignalId: signal.id,
+                  nextPendingPreviewId: triage.nextPendingPreviewId,
+                  scoreFrom: triage.scoreFrom,
+                  mode: triage.mode,
+                  replaced: triage.replaced,
+                  typeFilter: triage.typeFilter,
+                  actionFilter: triage.actionFilter,
+                  file: triage.file,
+                })
             : null;
 
         // Drop stale navigation if this panel already unmounted (signal walk).
@@ -291,6 +314,7 @@ export function FeedbackControls({
       className="grid grid-cols-3 gap-2"
       role="group"
       aria-label="Feedback actions"
+      aria-describedby={scoreHintId}
     >
       {options.map((option) => {
         const isCurrent = feedbackLabel === option.label;
@@ -406,6 +430,13 @@ export function FeedbackControls({
 
           {actionButtons}
 
+          <p
+            id={scoreHintId}
+            className="text-pretty text-copy-14 text-sio-fg-subtle"
+          >
+            {PARTIAL_SCORE_HINT}
+          </p>
+
           {needsAdapt ? (
             <div role="status" aria-live="polite">
               <InsightsReviewHelperNote
@@ -422,9 +453,7 @@ export function FeedbackControls({
                   </Button>
                 }
               >
-                {feedbackLabel === "incorrect"
-                  ? "False positive? Add a negative phrase."
-                  : "Wrong rationale? Add the right phrase."}
+                {ADAPT_NOTE_HELPER}
               </InsightsReviewHelperNote>
             </div>
           ) : null}

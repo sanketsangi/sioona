@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
-import type { QueueReviewActionLabel } from "@/components/RetentionEmailAction";
+import {
+  RetentionEmailDecisionChip,
+  type QueueReviewActionLabel,
+} from "@/components/RetentionEmailAction";
+import type { SupervisedActionDecision } from "@/lib/types";
 import {
   QUEUE_REVIEW_ACTION_CLASS,
   SignalQueueRow,
@@ -41,6 +45,7 @@ export function SignalReviewPanel({
         "Signal";
   const headingId = `signal-review-heading-${signal.id}`;
   const bodyId = `signal-review-body-${signal.id}`;
+  const decisionStatus = retentionDecisionFromReviewLabel(actionLabel);
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -57,27 +62,31 @@ export function SignalReviewPanel({
               customerName={who}
               expandText
               action={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className={QUEUE_REVIEW_ACTION_CLASS}
-                  onClick={() => {
-                    const el = document.getElementById(bodyId);
-                    if (!el) return;
-                    const reduced =
-                      typeof window !== "undefined" &&
-                      window.matchMedia("(prefers-reduced-motion: reduce)")
-                        .matches;
-                    el.scrollIntoView({
-                      block: "start",
-                      behavior: reduced ? "auto" : "smooth",
-                    });
-                    headingRef.current?.focus({ preventScroll: true });
-                  }}
-                >
-                  {actionLabel}
-                </Button>
+                decisionStatus ? (
+                  <RetentionEmailDecisionChip status={decisionStatus} />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={QUEUE_REVIEW_ACTION_CLASS}
+                    onClick={() => {
+                      const el = document.getElementById(bodyId);
+                      if (!el) return;
+                      const reduced =
+                        typeof window !== "undefined" &&
+                        window.matchMedia("(prefers-reduced-motion: reduce)")
+                          .matches;
+                      el.scrollIntoView({
+                        block: "start",
+                        behavior: reduced ? "auto" : "smooth",
+                      });
+                      headingRef.current?.focus({ preventScroll: true });
+                    }}
+                  >
+                    {actionLabel}
+                  </Button>
+                )
               }
             />
           </TableBody>
@@ -94,6 +103,15 @@ export function SignalReviewPanel({
       </h2>
     </div>
   );
+}
+
+function retentionDecisionFromReviewLabel(
+  label: QueueReviewActionLabel,
+): SupervisedActionDecision | null {
+  if (label === "Approved") return "approved";
+  if (label === "Edited") return "edited";
+  if (label === "Dismissed") return "dismissed";
+  return null;
 }
 
 /** Empty / missing preview recovery inside the queue list shell. */

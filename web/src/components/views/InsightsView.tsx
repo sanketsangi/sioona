@@ -120,6 +120,7 @@ export function InsightsView({
   uploadedFileNames = [],
   precomputedPending = null,
   precomputedReviewed = null,
+  scoreUnavailable = false,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -134,7 +135,7 @@ export function InsightsView({
   actionFilter?: ActionFilter;
   page: number;
   previewId?: string | null;
-  /** Windowed keep-set score — list n / ≥5 footer only, not SignalScoreSummary. */
+  /** Windowed keep-set score — list footer (n / ≥5 and correct/reviewed), not SignalScoreSummary. */
   backendScore?: BackendSignalScore | null;
   needsReview: NeedsReviewResult;
   tenantSignals: TenantSignalsResult;
@@ -161,6 +162,8 @@ export function InsightsView({
   /** From page.tsx — avoid recomputing the same joins for cadence + view. */
   precomputedPending?: Signal[] | null;
   precomputedReviewed?: Signal[] | null;
+  /** Score service did not answer. Keeps last queue counts and one Retry. */
+  scoreUnavailable?: boolean;
 }) {
   const vaultLoaded = vaultFileIsLoaded(
     vaultFile,
@@ -459,6 +462,23 @@ export function InsightsView({
         summary={previewSignal.summary}
       />
     ) : null;
+  const weekCounts =
+    vaultMismatch || !backendScore
+      ? null
+      : normalizeSignalScoreCounts(backendScore);
+  const scoreAsleep =
+    scoreUnavailable &&
+    !vaultMismatch &&
+    !vaultShowcaseLoading &&
+    store.conversations.length > 0;
+  const scoreRetryHref = viewHref("insights", {
+    ...queryExtras,
+    status: statusQueryValue(statusFilter, workspaceMode),
+    type: typeFilter === "all" ? null : typeFilter,
+    action: actionFilter === "all" ? null : actionFilter,
+    page: page > 1 ? String(page) : null,
+  });
+
   const queueProps = {
     pendingSignals,
     reviewedSignals,
@@ -488,6 +508,7 @@ export function InsightsView({
     reviewTriage: previewTriage ?? undefined,
     actedWalk,
     supervisedActions,
+    scoreAsleep,
   };
 
   return (
@@ -571,12 +592,15 @@ export function InsightsView({
                   ]}
                   pendingSignals={pendingSignals}
                   reviewedCount={
-                    vaultMismatch
-                      ? 0
-                      : backendScore
-                        ? normalizeSignalScoreCounts(backendScore).reviewedCount
+                    weekCounts
+                      ? weekCounts.reviewedCount
+                      : vaultMismatch
+                        ? 0
                         : null
                   }
+                  correctCount={weekCounts?.correctCount ?? null}
+                  scoreWaiting={scoreAsleep}
+                  retryHref={scoreAsleep ? scoreRetryHref : null}
                 />
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
                   <div className="flex w-full min-w-0 shrink-0">

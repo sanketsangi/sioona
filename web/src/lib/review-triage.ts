@@ -1,5 +1,6 @@
 import type { FeedbackLabel } from "./types";
 import {
+  afterFeedbackHref,
   nextPendingPreviewId,
   prevPendingPreviewId,
   type ActionFilter,
@@ -42,6 +43,35 @@ export function buildSignalReviewTriage(opts: {
     actionFilter: opts.actionFilter,
     file: opts.file,
   };
+}
+
+/**
+ * Correct saved on a pending review.
+ * More pending remain → next Pending card.
+ * Last pending → Follow-up list (`status=followup`, no preview id).
+ * Mark as Acted stays a second pass on that list.
+ */
+export function correctAdvanceHref(opts: {
+  nextPendingPreviewId?: string | null;
+  scoreFrom?: string | null;
+  mode?: WorkspaceMode | null;
+  replaced?: boolean;
+  typeFilter?: TypeFilter | null;
+  actionFilter?: ActionFilter | null;
+  file?: string | null;
+}): string {
+  const href = afterFeedbackHref({
+    wasPending: true,
+    label: "correct",
+    nextPendingPreviewId: opts.nextPendingPreviewId,
+    scoreFrom: opts.scoreFrom,
+    mode: opts.mode,
+    replaced: opts.replaced,
+    typeFilter: opts.typeFilter,
+    actionFilter: opts.actionFilter,
+    file: opts.file,
+  });
+  return href ?? "/?view=insights&status=followup";
 }
 
 export const FEEDBACK_SHORTCUT_BY_KEY: Record<string, FeedbackLabel> = {

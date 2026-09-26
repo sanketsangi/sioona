@@ -90,6 +90,25 @@ export function retentionHeaderChipStatus(
   return liveStatus ?? resolvedStatus ?? null;
 }
 
+/** Live retention draft — generated text plus whatever the reviewer has in the body. */
+export type RetentionEmailDraftBody = {
+  body: string;
+  generatedBody: string;
+};
+
+/**
+ * Body Copy Reply should paste when the reviewer changed the draft.
+ * Unedited (or empty) drafts return null so the caller keeps the suggested action.
+ */
+export function editedRetentionDraftBody(
+  draft: RetentionEmailDraftBody | null | undefined,
+): string | null {
+  if (!draft) return null;
+  const body = draft.body.trim();
+  if (!body || body === draft.generatedBody.trim()) return null;
+  return body;
+}
+
 /** Edit Draft control group — `inert` + data attr while the dialog is open. */
 export function RetentionEmailDecisionControlsFrame({
   locked,
@@ -168,7 +187,8 @@ export type QueueActionKind =
   | "acted"
   | "view"
   | "approve"
-  | "review";
+  | "review"
+  | SupervisedActionDecision;
 
 /** List is the queue table. Review is the open-preview row. */
 export type QueueActionSurface = "list" | "review";
@@ -178,7 +198,10 @@ export type QueueListActionLabel =
   | "Approve"
   | "Review"
   | "Mark as Acted"
-  | "Marked as Acted";
+  | "Marked as Acted"
+  | "Approved"
+  | "Edited"
+  | "Dismissed";
 
 /**
  * Open-review row label. Correct ¬acted is "Acted" (scrolls to the body;
@@ -188,7 +211,10 @@ export type QueueReviewActionLabel =
   | "Approve"
   | "Review"
   | "Acted"
-  | "Marked as Acted";
+  | "Marked as Acted"
+  | "Approved"
+  | "Edited"
+  | "Dismissed";
 
 const QUEUE_LIST_ACTION_LABEL: Record<QueueActionKind, QueueListActionLabel> = {
   mark_acted: "Mark as Acted",
@@ -196,6 +222,9 @@ const QUEUE_LIST_ACTION_LABEL: Record<QueueActionKind, QueueListActionLabel> = {
   view: "Review",
   approve: "Approve",
   review: "Review",
+  approved: "Approved",
+  edited: "Edited",
+  dismissed: "Dismissed",
 };
 
 const QUEUE_REVIEW_ACTION_LABEL: Record<
@@ -207,12 +236,38 @@ const QUEUE_REVIEW_ACTION_LABEL: Record<
   view: "Review",
   approve: "Approve",
   review: "Review",
+  approved: "Approved",
+  edited: "Edited",
+  dismissed: "Dismissed",
 };
+
+/** Stored retention draft already has a human decision (nothing is sent). */
+export function isRetentionDecisionKind(
+  kind: QueueActionKind,
+): kind is SupervisedActionDecision {
+  return kind === "approved" || kind === "edited" || kind === "dismissed";
+}
+
+/**
+ * Existing retention status chip — same shell as the Recommended Actions header.
+ */
+export function RetentionEmailDecisionChip({
+  status,
+}: {
+  status: SupervisedActionDecision;
+}) {
+  return (
+    <InsightsReviewStatusChip className={RETENTION_EMAIL_STATUS_CHIP[status]}>
+      {RETENTION_EMAIL_STATUS_LABEL[status]}
+    </InsightsReviewStatusChip>
+  );
+}
 
 /**
  * Queue Action kind by signal state.
  * Follow-up Correct ¬acted → mark_acted; Done → acted;
- * pending with Retention Email → Approve; else Review.
+ * stored retention decision → that decision; pending Retention Email → Approve;
+ * else Review.
  */
 export function queueActionKindForSignal(
   signal: Signal,
@@ -221,6 +276,14 @@ export function queueActionKindForSignal(
 ): QueueActionKind {
   if (signal.status === "acted") return "acted";
   if (signal.feedback?.label === "correct") return "mark_acted";
+  const decision = stored?.status;
+  if (
+    decision === "approved" ||
+    decision === "edited" ||
+    decision === "dismissed"
+  ) {
+    return decision;
+  }
   return resolveRetentionEmailAction(signal, customerName, stored)
     ? "approve"
     : "review";
@@ -279,6 +342,8 @@ type RetentionEmailActionProps = {
   embeddedActions?: ReactNode;
   /** Notify parent after a saved decision so the Actions header chip stays live. */
   onStatusChange?: (status: SupervisedActionStatus) => void;
+  /** Live draft body so Copy Reply can paste an edit. Clipboard only. */
+  onDraftBodyChange?: (draft: RetentionEmailDraftBody | null) => void;
   className?: string;
 };
 
@@ -312,6 +377,7 @@ function RetentionEmailActionView({
   omitEvidence = false,
   embeddedActions = null,
   onStatusChange,
+  onDraftBodyChange,
   className,
 }: RetentionEmailActionProps) {
   const headingId = useId();
@@ -322,7 +388,12 @@ function RetentionEmailActionView({
   const router = useRouter();
   const subjectRef = useRef<HTMLInputElement>(null);
   const onStatusChangeRef = useRef(onStatusChange);
-  onStatusChangeRef.current = onStatusChange;
+  const onDraftBodyChangeRef = useRef(onDraftBodyChange);
+
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+    onDraftBodyChangeRef.current = onDraftBodyChange;
+  }, [onStatusChange, onDraftBodyChange]);
 
   const initial = resolveRetentionEmailAction(
     signal,
@@ -339,8 +410,14 @@ function RetentionEmailActionView({
   const [reviseIntent, setReviseIntent] = useState<"edit" | null>(null);
   const reviseConfirmRef = useRef<HTMLButtonElement>(null);
   const editButtonRef = useRef<HTMLButtonElement>(null);
-  const actionRef = useRef(action);
-  actionRef.current = action;
+
+  useEffect(() => {
+    onDraftBodyChangeRef.current?.(
+      action
+        ? { body, generatedBody: action.generatedBody }
+        : null,
+    );
+  }, [action, body]);
 
   const dirty =
     editing &&
@@ -407,20 +484,15 @@ function RetentionEmailActionView({
   }
 
   function startEdit() {
-    const latest = actionRef.current;
-    if (!latest) return;
     setError(null);
-    setSubject(latest.subject);
-    setBody(latest.body);
+    setSubject(currentAction.subject);
+    setBody(currentAction.body);
     setEditing(true);
   }
 
   function cancelEdit() {
-    const latest = actionRef.current;
-    if (latest) {
-      setSubject(latest.subject);
-      setBody(latest.body);
-    }
+    setSubject(currentAction.subject);
+    setBody(currentAction.body);
     setError(null);
     setEditing(false);
     requestAnimationFrame(() => editButtonRef.current?.focus());

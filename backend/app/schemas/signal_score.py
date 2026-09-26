@@ -38,3 +38,7 @@ class SignalScoreResponse(BaseModel):
     incorrect_count: int
     partially_correct_count: int
     by_signal_type: list[SignalScoreByType]
+    """Earliest feedback ``reviewed_at`` in this slice. Absent when empty."""
+    first_reviewed_at: datetime | None = None
+    """Latest feedback ``reviewed_at`` in this slice. Absent when empty."""
+    last_reviewed_at: datetime | None = None

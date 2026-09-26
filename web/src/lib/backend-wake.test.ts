@@ -5,6 +5,10 @@ import {
   FOLLOWUP_UNAVAILABLE_PANEL_BODY,
   QUEUE_UNAVAILABLE_PANEL_BODY,
   QUEUE_UNAVAILABLE_PANEL_TITLE,
+  SCORE_WAITING_BODY,
+  SCORE_WAITING_LINE,
+  SCORE_WAITING_RETRY,
+  SCORE_WAITING_TITLE,
   clearBackendWakeAttempt,
   markBackendWakeAttempted,
   shouldAttemptBackendWake,
@@ -133,5 +137,11 @@ describe("partner-safe queue copy", () => {
     expect(QUEUE_UNAVAILABLE_PANEL_BODY).not.toMatch(leak);
     expect(FOLLOWUP_UNAVAILABLE_PANEL_BODY).not.toMatch(leak);
     expect(QUEUE_UNAVAILABLE_PANEL_BODY).toMatch(/Retry in a moment/);
+    expect(SCORE_WAITING_TITLE).toBe("Weekly Score Waiting");
+    expect(SCORE_WAITING_LINE).toBe("The weekly score is waiting.");
+    expect(SCORE_WAITING_BODY).toMatch(/Retry in a moment/);
+    expect(SCORE_WAITING_RETRY).toBe("Retry");
+    expect(SCORE_WAITING_BODY).not.toMatch(leak);
+    expect(`${SCORE_WAITING_TITLE} ${SCORE_WAITING_RETRY}`).not.toMatch(leak);
   });
 });

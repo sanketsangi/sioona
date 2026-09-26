@@ -109,7 +109,11 @@ export function SignalQueueRow({
       </TableCell>
 
       <TableCell className="min-w-[4.5rem]">
-        <SignalScoreChip score={signal.score} />
+        <SignalScoreChip
+          score={signal.score}
+          evidence={signal.evidence}
+          type={signal.type}
+        />
       </TableCell>
 
       <TableCell className="min-w-[7.25rem]">
@@ -178,7 +182,11 @@ export function SignalQueueCard({
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         <SignalStatus signal={signal} />
         <SignalTypeChip type={signal.type} />
-        <SignalScoreChip score={signal.score} />
+        <SignalScoreChip
+          score={signal.score}
+          evidence={signal.evidence}
+          type={signal.type}
+        />
       </div>
       {action ? (
         <div

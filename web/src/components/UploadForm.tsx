@@ -26,14 +26,18 @@ import {
   CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
   HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
   HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
+  ingestCatalogOutcomeMessage,
   isHeldOutWeeklyPackBasename,
 } from "@/lib/partner-weekly-pack";
 import {
   hasSyncFailures,
   parsePredictionSync,
   syncQueryExtras,
+  uploadPredictionSyncWarning,
 } from "@/lib/prediction-sync";
 import { viewHref } from "@/lib/views";
+
+export { uploadPredictionSyncWarning };
 
 const FORMAT_LABELS: Record<string, string> = {
   sioona_csv: "Sioona CSV",
@@ -48,6 +52,48 @@ const ERROR_DISMISS_MS = 4000;
 
 function fileKey(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
+const EMPTY_UPLOAD_DETAIL = "CSV, JSON, or WhatsApp .txt…";
+
+/** The carousel file that Upload & Detect will send. Other selections stay local. */
+export function activeIngestTarget<T extends { name: string }>(
+  files: readonly T[],
+  activeIndex: number,
+): T | null {
+  if (files.length === 0) return null;
+  const index =
+    Number.isFinite(activeIndex) && activeIndex > 0
+      ? Math.min(Math.floor(activeIndex), files.length - 1)
+      : 0;
+  return files[index] ?? null;
+}
+
+/** One file for POST /api/ingest — the active carousel item, never the whole selection. */
+export function filesForIngest<T extends { name: string }>(
+  files: readonly T[],
+  activeIndex: number,
+): T[] {
+  const active = activeIngestTarget(files, activeIndex);
+  return active ? [active] : [];
+}
+
+/** Drop-zone copy. Several files name the active one as the ingest target. */
+export function uploadActiveFilePrompt(
+  fileCount: number,
+  activeName: string | null | undefined,
+): { heading: string; detail: string } {
+  const name = activeName?.trim();
+  if (!name || fileCount < 1) {
+    return {
+      heading: "Choose a file or drop it here",
+      detail: EMPTY_UPLOAD_DETAIL,
+    };
+  }
+  if (fileCount > 1) {
+    return { heading: "Will ingest", detail: name };
+  }
+  return { heading: "File selected", detail: name };
 }
 
 export function UploadForm({
@@ -75,9 +121,18 @@ export function UploadForm({
   const partnerDemoActive = isPartnerDemoKeepSetActive(lastUploadedFileName);
   /** Full-replace path (Day-1 / non–mid-week) can wipe Partner Demo keep-set. */
   const wouldReplace = !hasPartnerExport;
-  const activeFile = files[activeIndex] ?? files[0] ?? null;
-  const heldOutSelected = files.some((item) =>
-    isHeldOutWeeklyPackBasename(item.name),
+  const activeFile = filesForIngest(files, activeIndex)[0] ?? null;
+  const uploadPrompt = uploadActiveFilePrompt(files.length, activeFile?.name);
+  const catalogOutcome = activeFile
+    ? ingestCatalogOutcomeMessage({
+        uploadedBasename: activeFile.name,
+        explicitReplace: wouldReplace,
+        priorWeeklyExportCount: hasPartnerExport ? 1 : 0,
+        lastUploadedFileName,
+      })
+    : null;
+  const heldOutSelected = Boolean(
+    activeFile && isHeldOutWeeklyPackBasename(activeFile.name),
   );
   const pendingHeldOutConfirm =
     pendingHeldOutWeeklyIngest && !pendingPartnerDemoReplace;
@@ -124,11 +179,24 @@ export function UploadForm({
     clearPendingConfirm();
   }
 
+  function showFile(index: number) {
+    const next = activeIngestTarget(files, index);
+    setActiveIndex(
+      files.length === 0
+        ? 0
+        : Math.min(Math.max(index, 0), files.length - 1),
+    );
+    if (!next || !isHeldOutWeeklyPackBasename(next.name)) {
+      setPendingHeldOutWeeklyIngest(false);
+    }
+  }
+
   async function runIngest(opts?: {
     confirmPartnerDemoReplace?: boolean;
     confirmHeldOutWeeklyIngest?: boolean;
   }) {
-    if (files.length === 0) {
+    const target = filesForIngest(files, activeIndex)[0] ?? null;
+    if (!target) {
       setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
       fileRef.current?.focus();
       return;
@@ -141,7 +209,7 @@ export function UploadForm({
     setSyncWarning(null);
     try {
       const body = new FormData();
-      for (const item of files) body.append("file", item);
+      body.append("file", target);
       if (!hasPartnerExport) body.append("replace", "true");
       if (opts?.confirmPartnerDemoReplace) {
         body.append(CONFIRM_PARTNER_DEMO_REPLACE_FIELD, "true");
@@ -183,18 +251,15 @@ export function UploadForm({
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
-      const fileCount = files.length;
       const signals = data.newSignals ?? 0;
       const sync = parsePredictionSync(data.predictionSync);
       const syncFailed = hasSyncFailures(sync);
 
       if (syncFailed && sync) {
         setStatus(
-          `Imported ${imported} conversations${fileCount > 1 ? ` from ${fileCount} files` : ""} via ${formatLabel} · ${signals} local signals — Neon sync incomplete`,
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — sync incomplete`,
         );
-        setSyncWarning(
-          `${sync.failed} prediction${sync.failed === 1 ? "" : "s"} not written to Neon. Check BACKEND_URL / FastAPI, then Re-run Detection on Insights.`,
-        );
+        setSyncWarning(uploadPredictionSyncWarning(sync.failed));
       } else {
         setStatus(
           `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights…`,
@@ -216,10 +281,7 @@ export function UploadForm({
       // JSON is the keep-set until deferred prune finishes — skip leftover Neon overlay.
       if (data.replaced) query.set("replaced", "1");
       const catalogFiles = data.catalogFiles?.filter(Boolean) ?? [];
-      const uploadedName =
-        catalogFiles[activeIndex] ??
-        catalogFiles[catalogFiles.length - 1] ??
-        uploadBasename((files[activeIndex] ?? files[files.length - 1])?.name);
+      const uploadedName = catalogFiles[0] ?? uploadBasename(target.name);
       if (uploadedName) query.set("file", uploadedName);
       // JSON already has newSignals; do not wait for Neon dual-write.
       router.push(`/?${query.toString()}`);
@@ -290,17 +352,13 @@ export function UploadForm({
           htmlFor="chat-export"
           className="cursor-pointer text-copy-14 font-normal text-sio-fg-base"
         >
-          {files.length > 1
-            ? `${files.length} files selected`
-            : activeFile
-              ? "File selected"
-              : "Choose a file or drop it here"}
+          {uploadPrompt.heading}
         </Label>
         <p
           className="max-w-full truncate text-label-13 text-sio-fg-subtle"
           translate={activeFile ? "no" : undefined}
         >
-          {activeFile ? activeFile.name : "CSV, JSON, or WhatsApp .txt…"}
+          {uploadPrompt.detail}
         </p>
         {files.length > 0 ? (
           <div className="relative z-20 flex items-center justify-center gap-1">
@@ -311,14 +369,14 @@ export function UploadForm({
                   className="inline-flex size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
                   aria-label="Previous file"
                   disabled={activeIndex <= 0}
-                  onClick={() =>
-                    setActiveIndex((current) => Math.max(0, current - 1))
-                  }
+                  onClick={() => showFile(activeIndex - 1)}
                 >
                   <CaretLeft className="size-4" weight="regular" aria-hidden />
                 </button>
                 <p className="tabular min-w-[4.5rem] text-center text-label-12 text-sio-fg-subtle">
-                  <span className="sr-only">File </span>
+                  <span className="sr-only">
+                    Will ingest {activeFile?.name ?? "file"}. File{" "}
+                  </span>
                   {Math.min(activeIndex, files.length - 1) + 1} of {files.length}
                 </p>
                 <button
@@ -326,11 +384,7 @@ export function UploadForm({
                   className="inline-flex size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
                   aria-label="Next file"
                   disabled={activeIndex >= files.length - 1}
-                  onClick={() =>
-                    setActiveIndex((current) =>
-                      Math.min(files.length - 1, current + 1),
-                    )
-                  }
+                  onClick={() => showFile(activeIndex + 1)}
                 >
                   <CaretRight className="size-4" weight="regular" aria-hidden />
                 </button>
@@ -364,6 +418,14 @@ export function UploadForm({
       </div>
 
       <div className="flex shrink-0 flex-col gap-3">
+        {catalogOutcome ? (
+          <p
+            className="text-center text-pretty text-copy-14 text-sio-fg-base"
+            role="status"
+          >
+            {catalogOutcome}
+          </p>
+        ) : null}
         <div className="relative flex flex-wrap items-center justify-center gap-2">
           {pendingPartnerDemoReplace || pendingHeldOutWeeklyIngest ? (
             <>

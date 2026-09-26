@@ -15,6 +15,13 @@ export const FOLLOWUP_UNAVAILABLE_PANEL_TITLE = "Follow-Up Queue Unavailable";
 export const FOLLOWUP_UNAVAILABLE_PANEL_BODY =
   "Follow-up is still loading. Retry in a moment.";
 
+/** Score service asleep — keep last queue counts; one Retry. */
+export const SCORE_WAITING_TITLE = "Weekly Score Waiting";
+export const SCORE_WAITING_LINE = "The weekly score is waiting.";
+export const SCORE_WAITING_BODY =
+  "The weekly score is waiting. Retry in a moment.";
+export const SCORE_WAITING_RETRY = "Retry";
+
 type WakeStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export function shouldWakeBackendFromNotifications(

@@ -27,6 +27,8 @@ def _to_response(result: SignalScoreResult) -> SignalScoreResponse:
         correct_count=result.correct_count,
         incorrect_count=result.incorrect_count,
         partially_correct_count=result.partially_correct_count,
+        first_reviewed_at=result.first_reviewed_at,
+        last_reviewed_at=result.last_reviewed_at,
         by_signal_type=[
             SignalScoreByType(
                 signal_type=bucket.signal_type,

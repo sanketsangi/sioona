@@ -59,10 +59,10 @@ export function goNoGoClass(value: PilotGoNoGo): string {
  * Neon-backed Signal Score panel. When score is null, shows offline/empty —
  * never presents JSON review precision as Signal Score.
  *
- * `compact` = dense Eval Metrics Card: header + window toolbar + Go/Hold/
- * Insufficient Data, five KPI cells (Overall · n / ≥5 · Correct · Incorrect ·
- * Partial), cadence CTA, type chips + all-time. Full layout keeps the
- * two-column metric panel. Insights omits this strip.
+ * `compact` = dense Eval Metrics Card: header leads with Go / Hold /
+ * Insufficient Data, then week counts (n / ≥5 · Correct · Incorrect ·
+ * Partial) and Overall last. Cadence, type chips, and all-time stay in the
+ * foot. Full layout keeps the two-column metric panel. Insights omits this strip.
  *
  * Primary `score` is the review-window keep-set score (go/no-go). Optional
  * `allTimeScore` is a quiet secondary (Eval only).
@@ -119,9 +119,8 @@ export function SignalScoreSummary({
     ) : null;
 
   if (compact) {
-    const kpis: CompactKpi[] = online
+    const weekCounts: CompactKpi[] = online
       ? [
-          { label: "Overall", value: primary, mono: true },
           {
             label: nLabel,
             value: `${normalized?.reviewedCount ?? score.reviewed_count} / ${PILOT_MIN_REVIEWS}`,
@@ -131,12 +130,15 @@ export function SignalScoreSummary({
           { label: "Partial", value: score.partially_correct_count, muted: true },
         ]
       : [
-          { label: "Overall", value: "—", mono: true },
           { label: nLabel, value: "—" },
           { label: "Correct", value: "—" },
           { label: "Incorrect", value: "—", muted: true },
           { label: "Partial", value: "—", muted: true },
         ];
+    const kpis: CompactKpi[] = [
+      ...weekCounts,
+      { label: "Overall", value: online ? primary : "—", mono: true },
+    ];
 
     const showFoot =
       !online ||
@@ -153,16 +155,14 @@ export function SignalScoreSummary({
       >
         <div className={evalCardHeaderClassName}>
           <div className="min-w-0">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <p className="eyebrow">Signal Score</p>
-              {goNoGo ? (
-                <p
-                  className={`tabular text-label-13 font-medium ${goNoGoClass(goNoGo)}`}
-                >
-                  {goNoGoLabel(goNoGo)}
-                </p>
-              ) : null}
-            </div>
+            <p className="eyebrow">Signal Score</p>
+            {goNoGo ? (
+              <p
+                className={`text-heading-16 font-medium text-pretty ${goNoGoClass(goNoGo)}`}
+              >
+                {goNoGoLabel(goNoGo)}
+              </p>
+            ) : null}
             <p className="text-label-12 text-sio-fg-muted">{sourceLine}</p>
           </div>
           {windowControl || windowInvalid ? (

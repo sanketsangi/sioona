@@ -10,8 +10,12 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
+import {
+  SignalReviewSuggestedAction,
+  copyReplyClipboardText,
+} from "@/components/SignalReviewSuggestedAction";
 import { createRetentionEmailAction } from "@/lib/supervised-actions";
+import { resolveSuggestedAction } from "@/lib/suggested-action-display";
 import type { Message, Signal } from "@/lib/types";
 
 function signal(overrides: Partial<Signal> = {}): Signal {
@@ -48,6 +52,41 @@ function message(overrides: Partial<Message> = {}): Message {
     ...overrides,
   };
 }
+
+describe("copyReplyClipboardText", () => {
+  it("copies an edited retention body and otherwise the suggested action", () => {
+    const row = signal();
+    const suggested = resolveSuggestedAction({
+      type: row.type,
+      customerName: "Priya",
+      evidence: row.evidence,
+      fallback: row.suggestedAction,
+    });
+    const draft = createRetentionEmailAction({
+      signal: row,
+      customerName: "Priya",
+      evidence: row.evidence,
+    });
+
+    expect(draft.body).not.toBe(suggested);
+    expect(
+      copyReplyClipboardText(suggested, {
+        body: draft.body,
+        generatedBody: draft.generatedBody,
+      }),
+    ).toBe(suggested);
+    expect(copyReplyClipboardText(suggested, null)).toBe(suggested);
+
+    const edited =
+      "Hi Priya — please call after 4. I can hold the SIP until Friday.";
+    expect(
+      copyReplyClipboardText(suggested, {
+        body: `  ${edited}  `,
+        generatedBody: draft.generatedBody,
+      }),
+    ).toBe(edited);
+  });
+});
 
 describe("SignalReviewSuggestedAction", () => {
   it("splits Recommended Actions and Why This Fired into sibling wells", () => {
@@ -397,6 +436,45 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain('data-slot="separator"');
   });
 
+  it("renders the matched term before the customer quote", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          evidence: [
+            'quote: "Need this on record"',
+            'keyword: "ledger"',
+            'phrase: "prior tickets"',
+            'quote: "I already asked support"',
+            'quote: "Third quote that should be dropped"',
+          ],
+        }),
+        messages: [
+          message({ id: "msg_1", content: "Need this on record" }),
+          message({ id: "msg_2", content: "I already asked support" }),
+        ],
+        focusedMessageId: "msg_1",
+        onFocusMessage: () => undefined,
+      }),
+    );
+
+    const why = html.slice(html.indexOf('data-review-slot="why"'));
+    const keyword = why.indexOf("ledger");
+    const phrase = why.indexOf("prior tickets");
+    const quote = why.indexOf("Need this on record");
+    expect(keyword).toBeGreaterThan(-1);
+    expect(phrase).toBeGreaterThan(-1);
+    expect(keyword).toBeLessThan(quote);
+    expect(phrase).toBeLessThan(quote);
+    expect(why.indexOf("I already asked support")).toBeGreaterThan(phrase);
+    expect(why).not.toContain("Third quote that should be dropped");
+    expect(why).toContain("Show in conversation: Need this on record");
+    expect(why).toContain('aria-pressed="true"');
+    expect(why).toContain("before:-inset-y-1 before:inset-x-0");
+    expect(why).toContain(
+      "h-9 w-full rounded-[var(--radius-control)] border px-3 text-left font-normal evidence-highlight border-transparent",
+    );
+  });
+
   it("renders keyword match chips under Matched", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
@@ -712,6 +790,55 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("bg-sio-status-success-bg");
     expect(html).not.toContain("status-dot");
     expect(html).not.toContain("A / Enter → Run Actions.");
+  });
+
+  it("names each stored rule kind under Why This Fired", () => {
+    const phrase = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          evidence: [
+            'quote: "Please pause my SIP this month"',
+            'phrase: "pause my SIP"',
+          ],
+        }),
+      }),
+    );
+    expect(phrase).toContain("Why This Fired");
+    expect(phrase).toContain('data-fired-rule="phrase"');
+    expect(phrase).toContain("Hit was a phrase.");
+
+    const keywords = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          type: "lead",
+          evidence: [
+            'quote: "Need a demat and a trading account"',
+            'keyword: "demat"',
+            'keyword: "trading"',
+          ],
+        }),
+      }),
+    );
+    expect(keywords).toContain("Why This Fired");
+    expect(keywords).toContain('data-fired-rule="keywords"');
+    expect(keywords).toContain("Hit was two keywords.");
+
+    const pattern = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          type: "lead",
+          evidence: [
+            'quote: "Starting fresh here"',
+            'phrase: "starting fresh"',
+          ],
+        }),
+      }),
+    );
+    expect(pattern).toContain("Why This Fired");
+    expect(pattern).toContain('data-fired-rule="pattern"');
+    expect(pattern).toContain("Hit was a structural pattern.");
+    expect(pattern).toContain(">Structural pattern</span>");
+    expect(pattern).toContain("starting fresh");
   });
 
   it("shows Run Actions without walk context until the review is Acted", () => {

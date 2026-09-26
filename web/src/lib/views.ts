@@ -314,15 +314,17 @@ function pendingReviewQueueHref(opts: {
 
 /**
  * After SignalScore feedback on a pending review.
- * Correct → Follow-up Act panel for the same signal (`status=followup&preview=`).
+ * Correct while pending remains → next Pending card.
+ * Correct on the last pending → Follow-up list (`status=followup`, no preview).
+ * Mark as Acted stays a second pass on that list.
  * Incorrect / Partially Correct → next needs-review panel, or Pending list.
  * Null when the reviewer should stay (re-edit, Follow-up / Done origin).
  */
 export function afterFeedbackHref(opts: {
   wasPending: boolean;
-  /** Feedback label just saved — Correct stays on this signal’s Follow-up. */
+  /** Feedback label just saved. */
   label?: FeedbackLabel | null;
-  /** Current pending signal id (Correct Follow-up preview). */
+  /** Current pending signal id — unused for routing. */
   currentSignalId?: string | null;
   nextPendingPreviewId?: string | null;
   scoreFrom?: string | null;
@@ -337,14 +339,24 @@ export function afterFeedbackHref(opts: {
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
   const type = opts.typeFilter ?? "all";
   const action = opts.actionFilter ?? "all";
-  if (opts.label === "correct" && opts.currentSignalId) {
+  if (opts.label === "correct") {
+    if (opts.nextPendingPreviewId) {
+      return pendingReviewQueueHref({
+        nextPreviewId: opts.nextPendingPreviewId,
+        scoreFrom: opts.scoreFrom,
+        mode: opts.mode,
+        replaced: opts.replaced,
+        typeFilter: opts.typeFilter,
+        actionFilter: opts.actionFilter,
+        file: opts.file,
+      });
+    }
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
       status: "followup",
       type: type === "all" ? null : type,
       action: action === "all" ? null : action,
-      preview: opts.currentSignalId,
       replaced: replacedQueryValue(opts.replaced),
       file: opts.file,
     });

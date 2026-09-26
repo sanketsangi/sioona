@@ -98,7 +98,10 @@ const goWindowScore: BackendSignalScore = {
   by_signal_type: [],
 };
 
-function renderPendingList(backendScore: BackendSignalScore | null) {
+function renderPendingList(
+  backendScore: BackendSignalScore | null,
+  scoreUnavailable = false,
+) {
   const pending = makePendingSignals(3);
   const store = storeFromSignals(pending);
   return renderToStaticMarkup(
@@ -122,6 +125,7 @@ function renderPendingList(backendScore: BackendSignalScore | null) {
       },
       tenantSignals: { ok: true, rows: [] },
       cadenceAction: cadenceReviews,
+      scoreUnavailable,
     }),
   );
 }
@@ -170,6 +174,7 @@ describe("InsightsView window n / ≥5 footer", () => {
     const html = renderPendingList(emptyWindowScore);
 
     expect(html).toContain("Review 5 chats this week");
+    expect(html).not.toMatch(/\d+\/\d+ correct/);
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toContain("Labeled Eval");
     expect(html).not.toContain("Precision By Signal Type");
@@ -177,10 +182,10 @@ describe("InsightsView window n / ≥5 footer", () => {
     expect(html).not.toMatch(/>Hold</);
   });
 
-  it("n≥5 window shows n / ≥5 toward ≥80% Go without labeled P/R", () => {
+  it("n≥5 window shows n / ≥5 and correct/reviewed without labeled P/R", () => {
     const html = renderPendingList(goWindowScore);
 
-    expect(html).toContain("This week 6 of 5 reviews");
+    expect(html).toContain("This week 6 of 5 reviews · 5/6 correct");
     expect(html).not.toContain("Review 5 chats this week");
     expect(html).not.toContain("Insufficient Data");
     expect(html).not.toContain("Labeled Eval");
@@ -189,6 +194,36 @@ describe("InsightsView window n / ≥5 footer", () => {
     expect(html).not.toMatch(/>Hold</);
     // Visible Signal Score (not a coincidence in inlined SVG path data).
     expect(html).not.toMatch(/>83%</);
+  });
+
+  it("uses count-SoT correct/reviewed when the week float disagrees", () => {
+    const html = renderPendingList({
+      ...goWindowScore,
+      reviewed_count: 6,
+      correct_count: 3,
+      incorrect_count: 3,
+      signal_score: 1,
+    });
+
+    expect(html).toContain("This week 6 of 5 reviews · 3/6 correct");
+    expect(html).not.toContain("6/6 correct");
+    expect(html).not.toMatch(/>Go</);
+    expect(html).not.toMatch(/>100%</);
+  });
+
+  it("offline week score keeps the queue and does not invent a ratio or Go", () => {
+    const html = renderPendingList(null, true);
+
+    expect(html).toContain('aria-label="Queue metrics"');
+    expect(html).toContain("Pending signal 1");
+    expect(html).toContain("The weekly score is waiting.");
+    expect(html.match(/>Retry</g)).toHaveLength(1);
+    expect(html).not.toContain("Retry Queue");
+    expect(html).not.toContain("Review 5 chats this week");
+    expect(html).not.toContain("of 5 reviews");
+    expect(html).not.toMatch(/\d+\/\d+ correct/);
+    expect(html).not.toMatch(/>Go</);
+    expect(html).not.toMatch(/>Hold</);
   });
 });
 
@@ -433,6 +468,147 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).not.toContain("Upload Weekly Export");
   });
 
+  it("Pending Action shows the stored retention decision chip", () => {
+    const decided = makePendingSignals(3).map((row, index) =>
+      index === 0
+        ? {
+            ...row,
+            type: "retention" as const,
+            summary: "Close account draft",
+          }
+        : row,
+    );
+    const store = storeFromSignals(decided);
+    store.supervisedActions = [
+      {
+        id: "act_sig_1",
+        type: "retention_email_draft",
+        signalId: "sig_1",
+        conversationId: "conv_1",
+        tenantId: "tenant_demo",
+        subject: "Your account",
+        body: "Hi,",
+        generatedSubject: "Your account",
+        generatedBody: "Hi,",
+        evidenceQuote: "close",
+        status: "approved",
+        createdAt: "2026-09-03T00:00:00.000Z",
+        decidedAt: "2026-09-03T00:00:00.000Z",
+      },
+      {
+        id: "act_sig_2",
+        type: "retention_email_draft",
+        signalId: "sig_2",
+        conversationId: "conv_2",
+        tenantId: "tenant_demo",
+        subject: "Edited subject",
+        body: "Edited body",
+        generatedSubject: "Your account",
+        generatedBody: "Hi,",
+        evidenceQuote: "close",
+        status: "edited",
+        createdAt: "2026-09-03T00:00:00.000Z",
+        decidedAt: "2026-09-03T00:00:00.000Z",
+      },
+      {
+        id: "act_sig_3",
+        type: "retention_email_draft",
+        signalId: "sig_3",
+        conversationId: "conv_3",
+        tenantId: "tenant_demo",
+        subject: "Your account",
+        body: "Hi,",
+        generatedSubject: "Your account",
+        generatedBody: "Hi,",
+        evidenceQuote: "close",
+        status: "dismissed",
+        createdAt: "2026-09-03T00:00:00.000Z",
+        decidedAt: "2026-09-03T00:00:00.000Z",
+      },
+    ];
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: decided.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Approved");
+    expect(html).toContain("Edited");
+    expect(html).toContain("Dismissed");
+    expect(html).not.toContain(">Approve</a>");
+  });
+
+  it("Pending Action stays Approve when the retention draft has no decision", () => {
+    const pending: Signal = {
+      ...makePendingSignals(1)[0],
+      type: "retention",
+      summary: "Undecided retention",
+    };
+    const store = storeFromSignals([pending]);
+    store.supervisedActions = [
+      {
+        id: "act_sig_1",
+        type: "retention_email_draft",
+        signalId: "sig_1",
+        conversationId: "conv_1",
+        tenantId: "tenant_demo",
+        subject: "Your account",
+        body: "Hi,",
+        generatedSubject: "Your account",
+        generatedBody: "Hi,",
+        evidenceQuote: "close",
+        status: "pending",
+        createdAt: "2026-09-03T00:00:00.000Z",
+      },
+    ];
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: [
+            {
+              id: pending.backendSignalId!,
+              tenant_id: "tenant_demo",
+              conversation_id: pending.conversationId,
+              signal_type: pending.type,
+              confidence: pending.score,
+              summary: pending.summary,
+              created_at: pending.createdAt,
+            },
+          ],
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain(">Approve</a>");
+    expect(html).not.toContain("Approved");
+    expect(html).not.toContain("Edited");
+    expect(html).not.toContain("Dismissed");
+  });
+
   it("Follow-up list Action is Mark as Acted (not Review link)", () => {
     const follow: Signal = {
       id: "sig_follow_list",
@@ -646,6 +822,46 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain('data-slot="card"');
     expect(html).toContain('role="alert"');
     expect(html).not.toMatch(/Start FastAPI|from Neon|BACKEND_URL/);
+  });
+
+  it("asleep empty Neon queue keeps last counts and one Retry", () => {
+    const reviewed = makePendingSignals(4).map((signal) => ({
+      ...signal,
+      status: "reviewed" as const,
+      feedback: {
+        label: "correct" as const,
+        reviewedAt: "2026-08-02T00:00:00.000Z",
+      },
+    }));
+    const store = storeFromSignals(reviewed);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        scoreUnavailable: true,
+        backendScore: null,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: {
+          ok: false,
+          error: "Signal Score backend unreachable: timed out after 10000ms",
+        },
+        cadenceAction: { id: "nextweek", label: "Next week — re-upload weekly export" },
+      }),
+    );
+
+    const counts = [
+      ...html.matchAll(/text-heading-16 text-sio-fg-base">(\d+)</g),
+    ].map((match) => match[1]);
+    expect(counts.slice(0, 3)).toEqual(["4", "4", "0"]);
+    expect(html).toContain("The weekly score is waiting.");
+    expect(html).toContain("Weekly Score Waiting");
+    expect(html.match(/>Retry</g)).toHaveLength(1);
+    expect(html).not.toContain("Retry Queue");
+    expect(html).not.toContain("This week’s reviews are done");
+    expect(html).not.toContain("No Signals Need Review");
+    expect(html).not.toMatch(/FastAPI|Neon|BACKEND_URL|keep-set|SignalScore/i);
   });
 
   it("Follow-up queue miss uses partner-safe wake copy", () => {

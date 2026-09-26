@@ -64,19 +64,21 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
   const [error, setError] = useState<string | null>(null);
 
   const feedbackLabel = signal.feedback?.label;
-
+  const [trackedSignalId, setTrackedSignalId] = useState(signal.id);
   // Panel walk: drop optimistic Acted / feedback from the previous review.
-  useEffect(() => {
+  if (signal.id !== trackedSignalId) {
+    setTrackedSignalId(signal.id);
     setActedLocal(null);
     setError(null);
-    setFeedbackLocalLabel(recentFeedbackLabel(signal.id));
-  }, [signal.id]);
+    setFeedbackLocalLabel(
+      feedbackLabel ? null : recentFeedbackLabel(signal.id),
+    );
+  } else if (feedbackLabel != null && feedbackLocalLabel !== null) {
+    setFeedbackLocalLabel(null);
+  }
 
   useEffect(() => {
-    if (feedbackLabel) {
-      clearRecentFeedbackSaved(signal.id);
-      setFeedbackLocalLabel(null);
-    }
+    if (feedbackLabel) clearRecentFeedbackSaved(signal.id);
   }, [feedbackLabel, signal.id]);
 
   useEffect(() => {

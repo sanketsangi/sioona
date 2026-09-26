@@ -60,6 +60,8 @@ def test_signal_score_null_when_no_reviews(db: Session) -> None:
     assert result.reviewed_count == 0
     assert result.signal_score is None
     assert result.by_signal_type == []
+    assert result.first_reviewed_at is None
+    assert result.last_reviewed_at is None
 
 
 def test_signal_score_correct_over_reviewed(db: Session) -> None:
@@ -191,6 +193,43 @@ def test_signal_score_filters_by_date_range(db: Session) -> None:
     )
     assert result.reviewed_count == 1
     assert result.signal_score == pytest.approx(1.0)
+    assert result.first_reviewed_at == datetime(2026, 8, 1, tzinfo=timezone.utc)
+    assert result.last_reviewed_at == datetime(2026, 8, 1, tzinfo=timezone.utc)
+
+
+def test_signal_score_review_span_is_in_slice_min_max(db: Session) -> None:
+    """First and last times are reviews inside the window, not the filter bounds."""
+    early = _pred(db, conversation_id="c_early")
+    late = _pred(db, conversation_id="c_late")
+    outside = _pred(db, conversation_id="c_out")
+
+    early_at = datetime(2026, 8, 2, 9, 15, tzinfo=timezone.utc)
+    late_at = datetime(2026, 8, 20, 16, 40, tzinfo=timezone.utc)
+    outside_at = datetime(2026, 1, 1, 1, tzinfo=timezone.utc)
+    for pred, reviewed_at in (
+        (early, early_at),
+        (late, late_at),
+        (outside, outside_at),
+    ):
+        fb = record_feedback(
+            db,
+            tenant_id="tenant_a",
+            signal_id=pred.id,
+            feedback="correct",
+            reviewed_by="r1",
+        )
+        fb.reviewed_at = reviewed_at
+    db.commit()
+
+    result = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        date_to=datetime(2026, 8, 31, tzinfo=timezone.utc),
+    )
+    assert result.reviewed_count == 2
+    assert result.first_reviewed_at == early_at
+    assert result.last_reviewed_at == late_at
 
 
 def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
@@ -236,6 +275,8 @@ def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
     assert result.reviewed_count == 1
     assert result.correct_count == 1
     assert result.signal_score == pytest.approx(1.0)
+    assert result.first_reviewed_at == datetime(2026, 8, 10, tzinfo=timezone.utc)
+    assert result.last_reviewed_at == datetime(2026, 8, 10, tzinfo=timezone.utc)
 
     empty_window = calculate_signal_score(
         db,
@@ -245,6 +286,8 @@ def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
     )
     assert empty_window.reviewed_count == 0
     assert empty_window.signal_score is None
+    assert empty_window.first_reviewed_at is None
+    assert empty_window.last_reviewed_at is None
 
     empty_keep = calculate_signal_score(
         db,
@@ -254,6 +297,8 @@ def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
     )
     assert empty_keep.reviewed_count == 0
     assert empty_keep.signal_score is None
+    assert empty_keep.first_reviewed_at is None
+    assert empty_keep.last_reviewed_at is None
 
 
 def test_week_window_counts_every_in_window_correct(db: Session) -> None:
@@ -294,6 +339,8 @@ def test_week_window_counts_every_in_window_correct(db: Session) -> None:
     assert result.incorrect_count == 0
     assert result.partially_correct_count == 0
     assert result.signal_score == pytest.approx(1.0)
+    assert result.first_reviewed_at == in_window
+    assert result.last_reviewed_at == in_window
     by_type = {b.signal_type: b for b in result.by_signal_type}
     assert by_type["lead"].correct_count == 1
     assert by_type["retention"].correct_count == 1

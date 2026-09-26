@@ -6,8 +6,10 @@ import {
   parsePredictionSync,
   parseSyncCreatedParam,
   parseSyncFailedParam,
+  evalSyncWarningWhenReviewsDisagree,
   shouldShowSyncFailureBanner,
   syncQueryExtras,
+  uploadPredictionSyncWarning,
 } from "./prediction-sync";
 
 describe("parsePredictionSync", () => {
@@ -95,6 +97,43 @@ describe("shouldShowSyncFailureBanner", () => {
         { id: "sig_2" },
       ])
     ).toBe(true);
+  });
+});
+
+describe("evalSyncWarningWhenReviewsDisagree", () => {
+  const saved = {
+    id: "sig_1",
+    feedback: { label: "correct" },
+  };
+
+  it("warns when uploaded chats still have unsynced saved reviews and Neon is empty", () => {
+    expect(
+      evalSyncWarningWhenReviewsDisagree({
+        signals: [saved],
+        conversationCount: 1,
+        neonReviewedCount: 0,
+      }),
+    ).toBe(uploadPredictionSyncWarning(1));
+  });
+
+  it("stays quiet when those reviews are already synced", () => {
+    expect(
+      evalSyncWarningWhenReviewsDisagree({
+        signals: [{ ...saved, backendSignalId: "pred-1" }],
+        conversationCount: 1,
+        neonReviewedCount: 0,
+      }),
+    ).toBeNull();
+  });
+
+  it("does not treat a missing score response as an empty Neon queue", () => {
+    expect(
+      evalSyncWarningWhenReviewsDisagree({
+        signals: [saved],
+        conversationCount: 1,
+        neonReviewedCount: null,
+      }),
+    ).toBeNull();
   });
 });
 

@@ -36,6 +36,7 @@ import {
   HELD_OUT_WEEKLY_INGEST_CONFIRM_MESSAGE,
   isPartnerWeeklyPackBasename,
   parseConfirmHeldOutWeeklyIngest,
+  replaceShowcaseOnIngest,
   requiresHeldOutWeeklyIngestConfirm,
 } from "@/lib/partner-weekly-pack";
 import {
@@ -43,7 +44,7 @@ import {
   claimCatalogBasename,
   lastUploadedFileName,
 } from "@/lib/upload-filename";
-import { isLivePartnerKeepSet, listUploadedChatFiles } from "@/lib/vault-file";
+import { listUploadedChatFiles } from "@/lib/vault-file";
 
 function parseReplaceFlag(form: FormData): boolean {
   const value = form.get("replace");
@@ -117,12 +118,12 @@ export async function POST(request: Request) {
     // Another real upload keeps earlier Uploaded Chats and adds this file.
     // Replace when asked, or when the loaded keep-set is Sample / Partner Demo
     // / empty so demo chats are not mixed into the upload.
-    const keepSetIsLiveUpload = isLivePartnerKeepSet(
-      store.pilot?.lastUploadedFileName,
-    );
-    const replaceShowcase = isPartnerSamplePackUpload
-      ? parseReplaceFlag(form) || priorExports === 0
-      : parseReplaceFlag(form) || !keepSetIsLiveUpload;
+    const replaceShowcase = replaceShowcaseOnIngest({
+      uploadedBasename: first.originalBasename,
+      explicitReplace: parseReplaceFlag(form),
+      priorWeeklyExportCount,
+      lastUploadedFileName: store.pilot?.lastUploadedFileName,
+    });
 
     // A replace drops the previous catalog, so names are only unique inside
     // this request. A merge reserves names already listed under Uploaded Chats.

@@ -23,6 +23,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  ADAPT_NOTE_HELPER,
   FeedbackControls,
   isFeedbackPrimaryChrome,
   reduceFeedbackChromeLabel,
@@ -167,6 +168,9 @@ describe("FeedbackControls", () => {
     expect(html.match(/insights-review-well/g)?.length).toBe(1);
     expect(html).not.toContain("Adapt From Reviews");
     expect(html).not.toContain('role="alert"');
+    expect(html).toContain(
+      "Partial counts against the weekly score the same as Incorrect.",
+    );
   });
 
   const INVERSE =
@@ -239,7 +243,9 @@ describe("FeedbackControls", () => {
       "border-sio-border-strong bg-sio-bg-interactive-hover",
     );
     expect(html).toContain("Adapt From Reviews");
-    expect(html).toContain("False positive? Add a negative phrase.");
+    expect(html).toContain(ADAPT_NOTE_HELPER);
+    expect(html).not.toContain("False positive? Add a negative phrase.");
+    expect(html).not.toContain("Add a negative phrase");
     expect(html).not.toContain("so this pattern stops firing");
     // Helper-note chrome; Adapt CTA matches Open Conversation outline h-8.
     expect(html).toContain("min-h-10");
@@ -283,8 +289,16 @@ describe("FeedbackControls", () => {
     expect(html).not.toContain(
       "border-sio-border-strong bg-sio-bg-interactive-hover",
     );
-    expect(html).toContain("Wrong rationale? Add the right phrase.");
+    expect(html).toContain(ADAPT_NOTE_HELPER);
+    expect(html).not.toContain("Wrong rationale? Add the right phrase.");
+    expect(html).not.toContain("Add the right phrase");
     expect(html).toContain("Adapt From Reviews");
+    expect(html).toContain(
+      "Partial counts against the weekly score the same as Incorrect.",
+    );
+    expect(html).toContain("Optional note");
+    expect(html).toContain("Correct");
+    expect(html).toContain("Incorrect");
   });
 
   it("defaults Correct to inverse while pending; I/P stay outline", () => {

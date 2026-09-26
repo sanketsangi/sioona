@@ -73,7 +73,12 @@ export function LabeledTables({
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
       <EvalCard className="shrink-0">
         <div className={evalCardHeaderClassName}>
-          <p className="eyebrow">Labeled Eval</p>
+          <div className="min-w-0">
+            <p className="eyebrow">Labeled pack</p>
+            <p className="mt-1 text-pretty text-copy-14 text-sio-fg-subtle">
+              Measures the labeled pack.
+            </p>
+          </div>
         </div>
         <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
           <EvalMetric

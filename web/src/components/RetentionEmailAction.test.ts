@@ -98,6 +98,74 @@ describe("queueActionLabelForSignal", () => {
     ).toBe("Acted");
   });
 
+  it("returns the stored retention decision instead of Approve", () => {
+    for (const status of ["approved", "edited", "dismissed"] as const) {
+      const stored = {
+        ...createRetentionEmailAction({
+          signal: signal(),
+          customerName: "Priya",
+        }),
+        status,
+      };
+      const label =
+        status === "approved"
+          ? "Approved"
+          : status === "edited"
+            ? "Edited"
+            : "Dismissed";
+      expect(queueActionLabelForSignal(signal(), "Priya", stored)).toBe(label);
+      expect(queueActionKindForSignal(signal(), "Priya", stored)).toBe(status);
+    }
+  });
+
+  it("keeps Approve when the stored draft has no decision", () => {
+    const stored = createRetentionEmailAction({
+      signal: signal(),
+      customerName: "Priya",
+    });
+    expect(stored.status).toBe("pending");
+    expect(queueActionLabelForSignal(signal(), "Priya", stored)).toBe(
+      "Approve",
+    );
+  });
+
+  it("keeps Follow-up Mark as Acted and Done Marked as Acted over a decision", () => {
+    const stored = {
+      ...createRetentionEmailAction({
+        signal: signal(),
+        customerName: "Priya",
+      }),
+      status: "approved" as const,
+    };
+    expect(
+      queueActionLabelForSignal(
+        signal({
+          status: "reviewed",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-09-03T00:00:00.000Z",
+          },
+        }),
+        "Priya",
+        stored,
+      ),
+    ).toBe("Mark as Acted");
+    expect(
+      queueActionLabelForSignal(
+        signal({
+          status: "acted",
+          feedback: {
+            label: "correct",
+            reviewedAt: "2026-09-03T00:00:00.000Z",
+          },
+        }),
+        "Priya",
+        stored,
+        "review",
+      ),
+    ).toBe("Marked as Acted");
+  });
+
   it("returns Marked as Acted for acted Done rows", () => {
     const acted = signal({
       status: "acted",

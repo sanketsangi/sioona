@@ -11,7 +11,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  GROUND_TRUTH_ROLE_LABEL,
+  GROUND_TRUTH_ROLE_POPOVER_CLASS,
   GroundTruthControl,
+  GroundTruthRoleLabel,
   GroundTruthSaveError,
   groundTruthOptionRowClass,
   groundTruthSaveErrorMessage,
@@ -68,6 +71,8 @@ describe("GroundTruthControl", () => {
     expect(html).toContain('aria-haspopup="menu"');
     expect(html).not.toContain('data-slot="card"');
     expect(html).not.toContain('data-slot="toggle-group"');
+    expect(html).toContain('data-slot="popover-anchor"');
+    expect(html).not.toContain(GROUND_TRUTH_ROLE_LABEL);
     expect(html).not.toContain("Optional Eval gold label");
     expect(html).not.toContain("Saving…");
     expect(html).not.toContain('role="alert"');
@@ -95,6 +100,39 @@ describe("GroundTruthControl", () => {
     expect(html).toContain('aria-hidden="true"');
     expect(html).not.toContain("bg-sio-bg-base [outline-style:solid] outline-sio-border-base");
     expect(html).not.toContain("bg-sio-signal-lead-bg");
+  });
+});
+
+describe("GroundTruthRoleLabel", () => {
+  it("states the gold label for the Labeled panel and that the week score is unchanged", () => {
+    expect(GROUND_TRUTH_ROLE_LABEL).toBe(
+      "Gold label for the Labeled panel. Does not change this week’s score.",
+    );
+
+    const html = renderToStaticMarkup(
+      createElement(GroundTruthRoleLabel, { id: "gt-role" }),
+    );
+
+    expect(html).toContain(`id="gt-role"`);
+    expect(html).toContain(GROUND_TRUTH_ROLE_LABEL);
+    expect(html).toContain("text-copy-14");
+    expect(html).toContain("text-sio-fg-subtle");
+    expect(html).not.toContain("text-label-12");
+    expect(html).not.toContain("text-right");
+    expect(html).not.toContain("border");
+    expect(html).not.toContain("bg-sio-");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).toContain("material-menu");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).toContain("rounded-[var(--radius-panel)]");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).toContain("bg-sio-bg-base");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).toContain("border-sio-border-base");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).toContain("ring-0");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).toContain("motion-reduce:animate-none");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).not.toContain("bg-popover");
+    expect(GROUND_TRUTH_ROLE_POPOVER_CLASS).not.toContain("shadow-md");
+    expect(html).not.toContain("sr-only");
+    expect(html).not.toContain('role="alert"');
+    expect(html).not.toContain("bg-sio-bg-inverse");
+    expect(html).not.toContain("text-sio-fg-on-color");
   });
 });
 

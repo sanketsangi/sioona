@@ -52,7 +52,8 @@ describe("postSignalActed", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { backendSignalId: _omit, ...local } = signal;
+    const local = { ...signal };
+    delete local.backendSignalId;
     await postSignalActed(local, false);
 
     expect(JSON.parse(fetchMock.mock.calls[0][1].body as string)).toEqual({

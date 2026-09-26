@@ -1,11 +1,13 @@
 import { GoodIcon } from "@/components/icons/GoodIcon";
 import { StopIcon } from "@/components/icons/StopIcon";
 import { WarningIcon } from "@/components/icons/WarningIcon";
+import { scoreChipAccessibleName } from "@/lib/fired-rule";
 import {
   formatScore,
   scoreIconColor,
   scoreIconKind,
 } from "@/lib/format";
+import type { SignalType } from "@/lib/types";
 
 /** Quiet Type/Score pill: rounded-full, base fill, hairline only (no elevation). */
 export const signalChipClass =
@@ -13,20 +15,32 @@ export const signalChipClass =
 
 type SignalScoreChipProps = {
   score: number;
+  /** Stored evidence — names the chip as that rule’s strength. */
+  evidence?: string[];
+  type?: SignalType;
   className?: string;
 };
 
 /**
  * Detection score chrome for Insights — band icon + tabular digits.
  * Bands/hex via `scoreIconKind` / `scoreIconColor` in `format.ts` only.
+ * Accessible name is rule strength from stored evidence, not a model probability.
  */
-export function SignalScoreChip({ score, className }: SignalScoreChipProps) {
+export function SignalScoreChip({
+  score,
+  evidence,
+  type,
+  className,
+}: SignalScoreChipProps) {
   const kind = scoreIconKind(score);
   const Icon =
     kind === "good" ? GoodIcon : kind === "warning" ? WarningIcon : StopIcon;
 
   return (
-    <span className={className ? `${signalChipClass} ${className}` : signalChipClass}>
+    <span
+      className={className ? `${signalChipClass} ${className}` : signalChipClass}
+      aria-label={scoreChipAccessibleName(score, evidence, type)}
+    >
       <Icon
         className="size-3.5 shrink-0"
         color={scoreIconColor(score)}

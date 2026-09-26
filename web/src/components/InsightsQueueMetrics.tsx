@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
@@ -10,6 +11,7 @@ import {
 import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { CardContent } from "@/components/ui/card";
 import { StatusDot, type StatusDotState } from "@/components/ui/StatusDot";
+import { SCORE_WAITING_LINE, SCORE_WAITING_RETRY } from "@/lib/backend-wake";
 import { signalStatusDot } from "@/lib/format";
 import { PILOT_MIN_REVIEWS } from "@/lib/pilot-cadence";
 import type { Signal, SignalType } from "@/lib/types";
@@ -46,6 +48,17 @@ type InsightsQueueMetricsProps = {
    * `null` / omit = backend offline — do not invent a count.
    */
   reviewedCount?: number | null;
+  /**
+   * Count-SoT correct from the same week score (`normalizeSignalScoreCounts`).
+   * Shown only beside a positive reviewed count. Omit when offline or empty.
+   */
+  correctCount?: number | null;
+  /**
+   * Score service asleep. Keep the count cells; say the score is waiting.
+   * `retryHref` is the one Retry — omit when an empty panel already has it.
+   */
+  scoreWaiting?: boolean;
+  retryHref?: string | null;
   className?: string;
 };
 
@@ -130,16 +143,35 @@ function MetricCell({
   );
 }
 
+/** Week footer: n / ≥5, plus correct/reviewed when that week score has reviews. */
+function weekReviewFooter(
+  reviewedCount: number,
+  correctCount: number | null,
+): string {
+  if (reviewedCount <= 0) {
+    return `Review ${PILOT_MIN_REVIEWS} chats this week`;
+  }
+  const reviews = `This week ${reviewedCount} of ${PILOT_MIN_REVIEWS} reviews`;
+  if (correctCount == null || !Number.isFinite(correctCount) || correctCount < 0) {
+    return reviews;
+  }
+  return `${reviews} · ${correctCount}/${reviewedCount} correct`;
+}
+
 /**
  * Keep-set snapshot under the Insights queue heading — coverage, signals,
  * and pending needs-review depth. Quiet n / ≥5 footer is windowed Neon
- * reviewed_count toward ≥80% Go — not the win by itself.
+ * reviewed_count toward ≥80% Go — not the win by itself. A positive week
+ * adds the count-SoT correct/reviewed ratio beside that line.
  */
 export function InsightsQueueMetrics({
   conversationCount,
   signals,
   pendingSignals,
   reviewedCount = null,
+  correctCount = null,
+  scoreWaiting = false,
+  retryHref = null,
   className,
 }: InsightsQueueMetricsProps) {
   const signalCount = signals.length;
@@ -189,16 +221,30 @@ export function InsightsQueueMetrics({
             compare={<SignalStatusCounts counts={statusCounts} />}
           />
         </CardContent>
-        {reviewedCount != null ? (
+        {scoreWaiting ? (
+          <div
+            className={cn(
+              evalCardPadClassName,
+              "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-sio-border-base py-2",
+            )}
+          >
+            <p className="text-label-12 text-sio-fg-muted" role="status">
+              {SCORE_WAITING_LINE}
+            </p>
+            {retryHref ? (
+              <Link href={retryHref} className="btn-primary">
+                {SCORE_WAITING_RETRY}
+              </Link>
+            ) : null}
+          </div>
+        ) : reviewedCount != null ? (
           <p
             className={cn(
               evalCardPadClassName,
               "border-t border-sio-border-base py-2 tabular text-label-12 text-sio-fg-muted",
             )}
           >
-            {reviewedCount > 0
-              ? `This week ${reviewedCount} of ${PILOT_MIN_REVIEWS} reviews`
-              : `Review ${PILOT_MIN_REVIEWS} chats this week`}
+            {weekReviewFooter(reviewedCount, correctCount)}
           </p>
         ) : null}
       </EvalCard>

@@ -3,7 +3,9 @@
 import { CaretDown, CircleDashed } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
 import {
+  useEffect,
   useId,
+  useRef,
   useState,
   useTransition,
   type ComponentType,
@@ -26,6 +28,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -126,6 +129,32 @@ export function groundTruthSaveErrorMessage(error: string): string {
   return `${error}. Try again or refresh the page.`;
 }
 
+/**
+ * Role of the picker, shown in a popover. Quieter than Correct / Incorrect /
+ * Partially correct: helper copy, not a review action.
+ */
+export const GROUND_TRUTH_ROLE_LABEL =
+  "Gold label for the Labeled panel. Does not change this week’s score.";
+
+/**
+ * Quiet menu surface (`.material-menu`): panel radius, base fill and border,
+ * layered shadow. Helper copy is copy-14. Fade only — no zoom.
+ */
+export const GROUND_TRUTH_ROLE_POPOVER_CLASS = cn(
+  "material-menu w-auto max-w-[16rem] gap-0 rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base p-3 text-sio-fg-subtle ring-0",
+  "shadow-[0_1px_1px_rgba(0,0,0,0.02),0_4px_8px_rgba(0,0,0,0.04),0_12px_24px_-4px_rgba(0,0,0,0.06)]",
+  "data-open:zoom-in-100 data-closed:zoom-out-100",
+  "motion-reduce:animate-none motion-reduce:duration-0",
+);
+
+export function GroundTruthRoleLabel({ id }: { id: string }) {
+  return (
+    <p id={id} className="text-pretty text-copy-14 text-sio-fg-subtle">
+      {GROUND_TRUTH_ROLE_LABEL}
+    </p>
+  );
+}
+
 /** Visible save failure under the FilterPill (not sr-only — touch has no title). */
 export function GroundTruthSaveError({ error }: { error: string }) {
   return (
@@ -152,7 +181,11 @@ export function GroundTruthControl({
 }) {
   const router = useRouter();
   const labelId = useId();
+  const roleLabelId = useId();
   const [open, setOpen] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
+  const roleShowTimer = useRef<number | null>(null);
+  const roleHideTimer = useRef<number | null>(null);
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState<GroundTruthValue>(groundTruth ?? "");
   const [prevGroundTruth, setPrevGroundTruth] = useState(groundTruth);
@@ -161,6 +194,38 @@ export function GroundTruthControl({
   if (groundTruth !== prevGroundTruth) {
     setPrevGroundTruth(groundTruth);
     setValue(groundTruth ?? "");
+  }
+
+  useEffect(() => {
+    return () => {
+      if (roleShowTimer.current != null) window.clearTimeout(roleShowTimer.current);
+      if (roleHideTimer.current != null) window.clearTimeout(roleHideTimer.current);
+    };
+  }, []);
+
+  function clearRoleShowTimer() {
+    if (roleShowTimer.current == null) return;
+    window.clearTimeout(roleShowTimer.current);
+    roleShowTimer.current = null;
+  }
+
+  function clearRoleHideTimer() {
+    if (roleHideTimer.current == null) return;
+    window.clearTimeout(roleHideTimer.current);
+    roleHideTimer.current = null;
+  }
+
+  function showRolePopover() {
+    if (open) return;
+    clearRoleHideTimer();
+    clearRoleShowTimer();
+    roleShowTimer.current = window.setTimeout(() => setRoleOpen(true), 400);
+  }
+
+  function hideRolePopover() {
+    clearRoleShowTimer();
+    clearRoleHideTimer();
+    roleHideTimer.current = window.setTimeout(() => setRoleOpen(false), 80);
   }
 
   const currentLabel = groundTruthStatusLabel(value);
@@ -206,8 +271,27 @@ export function GroundTruthControl({
         className,
       )}
     >
-      <FilterPillFrame>
-        <DropdownMenu open={open} onOpenChange={setOpen}>
+      <Popover open={roleOpen && !open} onOpenChange={setRoleOpen}>
+        <PopoverAnchor asChild>
+          <div
+            className="flex"
+            onPointerEnter={showRolePopover}
+            onPointerLeave={hideRolePopover}
+            onFocus={showRolePopover}
+            onBlur={hideRolePopover}
+          >
+            <FilterPillFrame>
+        <DropdownMenu
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (next) {
+              clearRoleShowTimer();
+              clearRoleHideTimer();
+              setRoleOpen(false);
+            }
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <FilterPillTrigger
               id={labelId}
@@ -216,11 +300,8 @@ export function GroundTruthControl({
               aria-busy={pending}
               aria-invalid={error ? true : undefined}
               aria-label={`Ground Truth, ${currentLabel}`}
-              title={
-                error
-                  ? groundTruthSaveErrorMessage(error)
-                  : "Ground Truth — optional Eval gold label"
-              }
+              aria-describedby={roleOpen ? roleLabelId : undefined}
+              title={error ? groundTruthSaveErrorMessage(error) : undefined}
               className={cn(pending && "cursor-wait opacity-80")}
             >
               {pending ? (
@@ -301,8 +382,26 @@ export function GroundTruthControl({
               })}
             </DropdownMenuRadioGroup>
           </DropdownMenuContent>
-        </DropdownMenu>
-      </FilterPillFrame>
+            </DropdownMenu>
+            </FilterPillFrame>
+          </div>
+        </PopoverAnchor>
+        <PopoverContent
+          align="end"
+          side="bottom"
+          sideOffset={6}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onPointerEnter={() => {
+            clearRoleHideTimer();
+            setRoleOpen(true);
+          }}
+          onPointerLeave={hideRolePopover}
+          className={GROUND_TRUTH_ROLE_POPOVER_CLASS}
+        >
+          <GroundTruthRoleLabel id={roleLabelId} />
+        </PopoverContent>
+      </Popover>
 
       <p className="sr-only" aria-live="polite">
         {pending ? "Saving…" : null}

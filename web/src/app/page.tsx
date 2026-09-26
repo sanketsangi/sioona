@@ -403,6 +403,7 @@ export default async function PlatformPage({
         uploadedFileNames={uploadedFileNames}
         precomputedPending={pendingRaw}
         precomputedReviewed={reviewedRaw}
+        scoreUnavailable={fetches.windowedScore && backendScore == null}
       />
     );
   } else if (view === "upload") {
@@ -429,11 +430,17 @@ export default async function PlatformPage({
         scoreWindow={scoreWindow}
         cadenceAction={cadenceAction}
         cadencePreviewId={cadencePreviewId}
+        syncFailed={hasSyncFailure ? syncFailed : 0}
       />
     );
   } else if (view === "taxonomy") {
     const { TaxonomyView } = await import("@/components/views/TaxonomyView");
-    viewNode = <TaxonomyView typePageRaw={sp.taxPage} />;
+    viewNode = (
+      <TaxonomyView
+        typePageRaw={sp.taxPage}
+        taxonomyOverrides={store.taxonomyOverrides ?? {}}
+      />
+    );
   }
 
   return (

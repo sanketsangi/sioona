@@ -30,7 +30,7 @@ Partner review is Feedback, Recommended Actions, and Why This Fired, then the we
 - **Review cards:** Feedback (Correct / Incorrect / Partially correct, note, Ground Truth in the header), then Recommended Actions (draft, Copy Reply, Run Actions, retention email), then Why This Fired. Nothing is sent.
 - **Live export:** when the loaded file is not Sample and not Partner Demo, hide Reset, Run Partner Demo, the Sample and Partner Demo vault rows, and the sidebar identity.
 - **Copy:** Insights empty states and upload helpers say review five chats, mark the ones we got right, the weekly score is on Eval, and nothing is sent. Do not use keep-set, upsert, Day-1 replace, external id, or SignalScore in those helpers.
-- **Empty / asleep:** a vault mismatch offers one next click (upload this week’s export). An asleep queue offers one next click (Retry in a moment). The Insights metrics strip does not show a coverage arrow.
+- **Empty / asleep:** a vault mismatch offers one next click (upload this week’s export). When the score service is asleep and uploaded chats are still loaded, Insights keeps the last queue counts, says the weekly score is waiting, and offers one Retry. An empty score queue is not finished work in that case. The Insights metrics strip does not show a coverage arrow.
 
 ## Next.js 15
 

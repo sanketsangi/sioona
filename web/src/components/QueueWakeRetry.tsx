@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   BACKEND_HEALTH_PATH,
+  SCORE_WAITING_LINE,
   clearBackendWakeAttempt,
   wakeBackendAndRefresh,
 } from "@/lib/backend-wake";
@@ -33,7 +34,7 @@ export function QueueWakeRetry({ active }: { active: boolean }) {
 
   return (
     <p className="sr-only" aria-live="polite">
-      Waking the review queue…
+      {SCORE_WAITING_LINE}
     </p>
   );
 }

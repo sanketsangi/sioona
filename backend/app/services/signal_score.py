@@ -72,6 +72,10 @@ class SignalScoreResult:
     incorrect_count: int
     partially_correct_count: int
     by_signal_type: list[TypeScoreBucket] = field(default_factory=list)
+    """Earliest ``reviewed_at`` in this slice. None when nothing counted."""
+    first_reviewed_at: datetime | None = None
+    """Latest ``reviewed_at`` in this slice. None when nothing counted."""
+    last_reviewed_at: datetime | None = None
 
     @property
     def signal_score(self) -> float | None:
@@ -145,6 +149,8 @@ def _reviewed_tally_query(
             SignalPrediction.signal_type,
             SignalFeedback.feedback,
             func.count(func.distinct(SignalPrediction.id)).label("n"),
+            func.min(SignalFeedback.reviewed_at).label("first_reviewed_at"),
+            func.max(SignalFeedback.reviewed_at).label("last_reviewed_at"),
         )
         .join(SignalFeedback, SignalFeedback.signal_id == SignalPrediction.id)
         .where(SignalPrediction.tenant_id == tenant_id)
@@ -203,14 +209,24 @@ def calculate_signal_score(
 
     overall = ScoreCounts()
     buckets: dict[str, TypeScoreBucket] = {}
+    first_reviewed_at: datetime | None = None
+    last_reviewed_at: datetime | None = None
 
-    for type_key, label, n in rows:
+    for type_key, label, n, row_first, row_last in rows:
         overall.add(label, n)
         bucket = buckets.get(type_key)
         if bucket is None:
             bucket = TypeScoreBucket(signal_type=type_key)
             buckets[type_key] = bucket
         bucket.add(label, n)
+        if row_first is not None and (
+            first_reviewed_at is None or row_first < first_reviewed_at
+        ):
+            first_reviewed_at = row_first
+        if row_last is not None and (
+            last_reviewed_at is None or row_last > last_reviewed_at
+        ):
+            last_reviewed_at = row_last
 
     by_type = sorted(buckets.values(), key=lambda b: b.signal_type)
     if signal_type is not None:
@@ -223,4 +239,10 @@ def calculate_signal_score(
         incorrect_count=overall.incorrect_count,
         partially_correct_count=overall.partially_correct_count,
         by_signal_type=by_type,
+        first_reviewed_at=(
+            _aware_utc(first_reviewed_at) if overall.reviewed_count else None
+        ),
+        last_reviewed_at=(
+            _aware_utc(last_reviewed_at) if overall.reviewed_count else None
+        ),
     )

@@ -12,10 +12,12 @@ import { InsightsReviewPaneHeader } from "@/components/InsightsReviewPaneHeader"
 import { InsightsReviewStatusChip } from "@/components/InsightsReviewStatusChip";
 import {
   RetentionEmailAction,
+  editedRetentionDraftBody,
   resolveRetentionEmailAction,
   retentionHeaderChipStatus,
   RETENTION_EMAIL_STATUS_CHIP,
   RETENTION_EMAIL_STATUS_LABEL,
+  type RetentionEmailDraftBody,
 } from "@/components/RetentionEmailAction";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +32,11 @@ import {
 } from "@/components/ui/tooltip";
 import { Skiper45MorphConfirmation } from "@/components/v1/skiper45";
 import { messageIdForEvidence } from "@/lib/evidence-messages";
+import {
+  evidenceMatchText,
+  firedRuleKind,
+  firedRuleSentence,
+} from "@/lib/fired-rule";
 import { formatEvidenceItem } from "@/lib/format";
 import { isNeonStubSignalId } from "@/lib/prediction-sync";
 import {
@@ -46,6 +53,17 @@ import type {
 } from "@/lib/types";
 import { useMarkActed, type MarkActedWalk } from "@/lib/use-mark-acted";
 import { cn } from "@/lib/utils";
+
+/**
+ * Clipboard text for Copy Reply.
+ * An edited retention body wins; otherwise the suggested-action reply.
+ */
+export function copyReplyClipboardText(
+  suggestedAction: string,
+  draft: RetentionEmailDraftBody | null,
+): string {
+  return editedRetentionDraftBody(draft) ?? suggestedAction;
+}
 
 type SignalReviewSuggestedActionProps = {
   signal: Signal;
@@ -274,6 +292,16 @@ export function SignalReviewSuggestedAction({
   const feedbackGateTitleId = useId();
   const feedbackGateDescId = useId();
   const [feedbackGateOpen, setFeedbackGateOpen] = useState(false);
+  const [copyPanelId, setCopyPanelId] = useState(signal.id);
+  // Drop Copied… / copy error / open gate when the review panel changes.
+  if (signal.id !== copyPanelId) {
+    setCopyPanelId(signal.id);
+    setCopyState("idle");
+    setFeedbackGateOpen(false);
+  } else if (canMarkActed && feedbackGateOpen) {
+    // Correct unlocks Run Actions — close the gate so Popover does not unmount open.
+    setFeedbackGateOpen(false);
+  }
 
   const requestMarkActed = useCallback(() => {
     if (isActed || actedPending || draftLoading) return;
@@ -283,21 +311,6 @@ export function SignalReviewSuggestedAction({
     }
     setFeedbackGateOpen(true);
   }, [actedPending, canMarkActed, draftLoading, isActed, setActed]);
-
-  // Drop Copied… / copy error / open gate when the review panel changes.
-  useEffect(() => {
-    setCopyState("idle");
-    setFeedbackGateOpen(false);
-    if (copyTimerRef.current != null) {
-      window.clearTimeout(copyTimerRef.current);
-      copyTimerRef.current = null;
-    }
-  }, [signal.id]);
-
-  // Correct unlocks Run Actions — close the gate so Popover does not unmount open.
-  useEffect(() => {
-    if (canMarkActed) setFeedbackGateOpen(false);
-  }, [canMarkActed]);
 
   function goToFeedback() {
     setFeedbackGateOpen(false);
@@ -342,13 +355,14 @@ export function SignalReviewSuggestedAction({
     return () => {
       if (copyTimerRef.current != null) {
         window.clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
       }
     };
-  }, []);
+  }, [signal.id]);
 
   async function copyReply() {
     if (!draftReady) return;
-    const text = actionText;
+    const text = copyReplyClipboardText(actionText, retentionDraft);
     const markCopied = () => {
       setCopyState("copied");
       if (copyTimerRef.current != null) {
@@ -398,8 +412,10 @@ export function SignalReviewSuggestedAction({
   const formatted = signal.evidence.map((item) => ({
     item,
     messageId: messageIdForEvidence(item, messages),
-    ...formatEvidenceItem(item),
+    kind: formatEvidenceItem(item).kind,
+    text: evidenceMatchText(item, signal.type),
   }));
+  const ruleKind = firedRuleKind(signal.evidence, signal.type);
   const quotes = formatted
     .filter((entry) => entry.kind === "quote")
     .slice(0, MAX_WHY_QUOTES);
@@ -418,6 +434,22 @@ export function SignalReviewSuggestedAction({
     customerName,
     supervisedAction,
   );
+  const resolvedDraft: RetentionEmailDraftBody | null = retentionEmail
+    ? {
+        body: retentionEmail.body,
+        generatedBody: retentionEmail.generatedBody,
+      }
+    : null;
+  const draftSyncKey = `${signal.id}\0${retentionEmail?.id ?? ""}\0${retentionEmail?.status ?? ""}\0${retentionEmail?.body ?? ""}\0${retentionEmail?.generatedBody ?? ""}`;
+  const [liveRetentionDraft, setLiveRetentionDraft] =
+    useState<RetentionEmailDraftBody | null>(null);
+  const [prevDraftSyncKey, setPrevDraftSyncKey] = useState(draftSyncKey);
+  // Drop an in-progress body when the review row or saved draft changes.
+  if (draftSyncKey !== prevDraftSyncKey) {
+    setPrevDraftSyncKey(draftSyncKey);
+    setLiveRetentionDraft(null);
+  }
+  const retentionDraft = liveRetentionDraft ?? resolvedDraft;
   const propRetentionStatus = retentionEmail?.status ?? null;
   const retentionSyncKey = `${signal.id}\0${supervisedAction?.id ?? ""}\0${propRetentionStatus ?? ""}`;
   /** Live retention decision for the Actions header chip (refresh lag). */
@@ -667,6 +699,7 @@ export function SignalReviewSuggestedAction({
             action={supervisedAction}
             embeddedActions={retentionEmail ? markActedControl : null}
             onStatusChange={setLiveRetentionStatus}
+            onDraftBodyChange={setLiveRetentionDraft}
           />
 
           {retentionEmail ? null : (
@@ -700,6 +733,53 @@ export function SignalReviewSuggestedAction({
                 "flex min-w-0 flex-col gap-3 py-3",
               )}
             >
+              {ruleKind ? (
+                <p
+                  data-fired-rule={ruleKind}
+                  className="text-copy-14 leading-5 text-sio-fg-base"
+                >
+                  {firedRuleSentence(ruleKind)}
+                </p>
+              ) : null}
+
+              {/* Phrase and keyword chips sit above the quote jump controls (at most two). */}
+              {showMatched ? (
+                <section
+                  aria-labelledby={matchedId}
+                  className="flex min-w-0 flex-col gap-1.5"
+                >
+                  {showWhy ? (
+                    <SupportHeading id={matchedId}>Matched</SupportHeading>
+                  ) : null}
+                  <ul className="flex flex-wrap gap-1.5">
+                    {matches.map(({ item, text, messageId }) => (
+                      <li key={item} className="min-w-0 max-w-full">
+                        <EvidenceChip
+                          text={text}
+                          active={Boolean(
+                            messageId && messageId === focusedMessageId,
+                          )}
+                          controlsId={
+                            messageId
+                              ? conversationMessageDomId(messageId)
+                              : null
+                          }
+                          onSelect={
+                            messageId && onFocusMessage
+                              ? () => onFocusMessage(messageId)
+                              : null
+                          }
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {showWhy && showMatched ? (
+                <Separator className="bg-sio-border-base" />
+              ) : null}
+
               {showWhy ? (
                 <section
                   aria-labelledby={whyId}
@@ -738,43 +818,6 @@ export function SignalReviewSuggestedAction({
                         : "No local evidence."}
                     </p>
                   )}
-                </section>
-              ) : null}
-
-              {showWhy && showMatched ? (
-                <Separator className="bg-sio-border-base" />
-              ) : null}
-
-              {showMatched ? (
-                <section
-                  aria-labelledby={matchedId}
-                  className="flex min-w-0 flex-col gap-1.5"
-                >
-                  {showWhy ? (
-                    <SupportHeading id={matchedId}>Matched</SupportHeading>
-                  ) : null}
-                  <ul className="flex flex-wrap gap-1.5">
-                    {matches.map(({ item, text, messageId }) => (
-                      <li key={item} className="min-w-0 max-w-full">
-                        <EvidenceChip
-                          text={text}
-                          active={Boolean(
-                            messageId && messageId === focusedMessageId,
-                          )}
-                          controlsId={
-                            messageId
-                              ? conversationMessageDomId(messageId)
-                              : null
-                          }
-                          onSelect={
-                            messageId && onFocusMessage
-                              ? () => onFocusMessage(messageId)
-                              : null
-                          }
-                        />
-                      </li>
-                    ))}
-                  </ul>
                 </section>
               ) : null}
             </div>

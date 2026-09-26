@@ -96,9 +96,14 @@ export function vaultShowcaseNavigateOnly(
   return vaultShowcaseAlreadyActive(kind, lastUploadedFileName);
 }
 
+const VAULT_SHOWCASE_LOADING_LABEL: Record<VaultShowcaseKind, string> = {
+  sample: "Finding signals…",
+  partner: "Finding signals…",
+};
+
 /** Idle / first-paint label before NDJSON progress arrives. */
-export function vaultShowcaseLoadingLabel(_kind: VaultShowcaseKind): string {
-  return "Finding signals…";
+export function vaultShowcaseLoadingLabel(kind: VaultShowcaseKind): string {
+  return VAULT_SHOWCASE_LOADING_LABEL[kind];
 }
 
 /** Realistic wait copy under the status line. */

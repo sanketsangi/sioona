@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSignalReviewTriage,
+  correctAdvanceHref,
   feedbackLabelForShortcutKey,
   isActedEnterBlockedTarget,
   isEditableShortcutTarget,
@@ -95,6 +96,36 @@ describe("buildSignalReviewTriage", () => {
         previewSignal: { id: "sig_done" },
       }).nextPendingPreviewId,
     ).toBeNull();
+  });
+});
+
+describe("correctAdvanceHref", () => {
+  it("opens the next Pending card when pending remains", () => {
+    expect(
+      correctAdvanceHref({
+        nextPendingPreviewId: "sig_next",
+        scoreFrom: "2026-08-17",
+        typeFilter: "retention",
+        actionFilter: "approve",
+      }),
+    ).toBe(
+      "/?view=insights&scoreFrom=2026-08-17&status=new&type=retention&action=approve&preview=sig_next",
+    );
+  });
+
+  it("last Correct opens Follow-up list with no preview id", () => {
+    const href = correctAdvanceHref({
+      nextPendingPreviewId: null,
+      scoreFrom: "2026-08-17",
+      mode: "action",
+      replaced: true,
+      file: "week.json",
+    });
+    expect(href).toBe(
+      "/?view=insights&mode=action&scoreFrom=2026-08-17&status=followup&replaced=1&file=week.json",
+    );
+    expect(href).not.toContain("preview=");
+    expect(href).toContain("status=followup");
   });
 });
 

@@ -1,4 +1,5 @@
 import { lastUploadedFileName } from "@/lib/upload-filename";
+import { isLivePartnerKeepSet } from "@/lib/vault-file";
 
 /** Synthetic-Data Week-4 Batch-02 — held-out; ingest only after explicit confirm. */
 export const WEEK4_BATCH02_HELD_OUT_BASENAME = "Zerodha_week_4_batch_02.json";
@@ -60,4 +61,48 @@ export function requiresHeldOutWeeklyIngestConfirm(options: {
 export function parseConfirmHeldOutWeeklyIngest(form: FormData): boolean {
   const value = form.get(CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD);
   return value === "true" || value === "1";
+}
+
+/** Shown on Upload before ingest when this request drops the current chats. */
+export const INGEST_REPLACES_CURRENT_CHATS =
+  "This file replaces the current chats.";
+
+/** Shown on Upload before ingest when matching chats update and others stay. */
+export const INGEST_UPDATES_MATCHING_CHATS =
+  "This file updates matching chats and keeps the rest.";
+
+/**
+ * POST /api/ingest replaceShowcase.
+ * Weekly packs replace on an explicit flag or the first export (count 0);
+ * later weeks update matches and keep the rest.
+ * Other filenames replace on an explicit flag, or when the loaded file is
+ * Sample, Partner Demo, or empty. A live upload otherwise keeps chats
+ * that are not in this file.
+ */
+export function replaceShowcaseOnIngest(options: {
+  uploadedBasename?: string | null;
+  explicitReplace: boolean;
+  priorWeeklyExportCount?: number | null;
+  lastUploadedFileName?: string | null;
+}): boolean {
+  const priorExports = options.priorWeeklyExportCount ?? 0;
+  if (isPartnerWeeklyPackBasename(options.uploadedBasename)) {
+    return options.explicitReplace || priorExports === 0;
+  }
+  return (
+    options.explicitReplace ||
+    !isLivePartnerKeepSet(options.lastUploadedFileName)
+  );
+}
+
+/** Sentence Upload shows for the ingest outcome of this file. */
+export function ingestCatalogOutcomeMessage(options: {
+  uploadedBasename?: string | null;
+  explicitReplace: boolean;
+  priorWeeklyExportCount?: number | null;
+  lastUploadedFileName?: string | null;
+}): string {
+  return replaceShowcaseOnIngest(options)
+    ? INGEST_REPLACES_CURRENT_CHATS
+    : INGEST_UPDATES_MATCHING_CHATS;
 }

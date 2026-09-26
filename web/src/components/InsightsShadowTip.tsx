@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { XIcon } from "@/components/icons/XIcon";
 import {
   INSIGHTS_SHADOW_TIP_COPY,
@@ -9,20 +9,38 @@ import {
 } from "@/lib/insights-shadow-tip";
 import { cn } from "@/lib/utils";
 
+const SHADOW_TIP_CHANGE = "sioona:insights-shadow-tip";
+
+function subscribeShadowTip(onStoreChange: () => void) {
+  window.addEventListener(SHADOW_TIP_CHANGE, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(SHADOW_TIP_CHANGE, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function shadowTipVisible(): boolean {
+  return !isInsightsShadowTipDismissed((key) =>
+    window.localStorage.getItem(key),
+  );
+}
+
+/** SSR and hydration match the first paint; the client snapshot hides a dismiss. */
+function shadowTipVisibleOnServer(): boolean {
+  return true;
+}
+
 /**
  * First-paint Insights tip. Dismissed into localStorage (same pattern as
  * header notifications). Copy matches Help: review only, nothing sent.
  */
 export function InsightsShadowTip({ className }: { className?: string }) {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    if (
-      isInsightsShadowTipDismissed((key) => window.localStorage.getItem(key))
-    ) {
-      setVisible(false);
-    }
-  }, []);
+  const visible = useSyncExternalStore(
+    subscribeShadowTip,
+    shadowTipVisible,
+    shadowTipVisibleOnServer,
+  );
 
   if (!visible) return null;
 
@@ -30,7 +48,7 @@ export function InsightsShadowTip({ className }: { className?: string }) {
     persistInsightsShadowTipDismissed((key, value) => {
       window.localStorage.setItem(key, value);
     });
-    setVisible(false);
+    window.dispatchEvent(new Event(SHADOW_TIP_CHANGE));
   }
 
   return (

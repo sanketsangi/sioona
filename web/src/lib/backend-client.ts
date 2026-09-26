@@ -111,6 +111,10 @@ export interface BackendSignalScore {
   incorrect_count: number;
   partially_correct_count: number;
   by_signal_type: BackendSignalScoreByType[];
+  /** Earliest in-slice ``reviewed_at``. Omitted or null when the window is empty. */
+  first_reviewed_at?: string | null;
+  /** Latest in-slice ``reviewed_at``. Omitted or null when the window is empty. */
+  last_reviewed_at?: string | null;
 }
 
 export class BackendClientError extends Error {

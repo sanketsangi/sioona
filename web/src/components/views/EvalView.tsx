@@ -23,6 +23,7 @@ import {
 import { formatPercent } from "@/lib/format";
 import type { SignalScoreWindow } from "@/lib/signal-score-window";
 import { parseEvalPanel, viewHref, cadenceActionHref, type EvalPanel } from "@/lib/views";
+import { evalSyncWarningWhenReviewsDisagree } from "@/lib/prediction-sync";
 import type { StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
@@ -34,7 +35,7 @@ import {
 const PANELS: { id: EvalPanel; label: string }[] = [
   { id: "metrics", label: "Metrics" },
   { id: "adapt", label: "Adapt" },
-  { id: "labeled", label: "Labeled" },
+  { id: "labeled", label: "Labeled pack" },
   { id: "export", label: "Export eval" },
 ];
 
@@ -49,6 +50,7 @@ export function EvalView({
   scoreWindow,
   cadenceAction,
   cadencePreviewId = null,
+  syncFailed = 0,
 }: {
   store: StoreData;
   panelRaw?: string | null;
@@ -62,6 +64,8 @@ export function EvalView({
   scoreWindow: SignalScoreWindow;
   cadenceAction: PilotCadenceAction;
   cadencePreviewId?: string | null;
+  /** URL `syncFailed` while unsynced predictions remain. */
+  syncFailed?: number;
 }) {
   const panel = parseEvalPanel(panelRaw);
   const metrics = applyBackendSignalScore(
@@ -99,6 +103,12 @@ export function EvalView({
             scoreFrom={scoreFrom}
             cadenceAction={cadenceAction}
             cadencePreviewId={cadencePreviewId}
+            syncWarning={evalSyncWarningWhenReviewsDisagree({
+              syncFailed,
+              signals: store.signals,
+              conversationCount: store.conversations.length,
+              neonReviewedCount: backendScore?.reviewed_count ?? null,
+            })}
           />
         ) : null}
         {panel === "adapt" ? (
@@ -133,6 +143,7 @@ function MetricsPanel({
   scoreFrom,
   cadenceAction,
   cadencePreviewId = null,
+  syncWarning = null,
 }: {
   pilot: PilotMetrics;
   backendScore: BackendSignalScore | null;
@@ -143,23 +154,40 @@ function MetricsPanel({
   scoreFrom: string | null;
   cadenceAction: PilotCadenceAction;
   cadencePreviewId?: string | null;
+  syncWarning?: string | null;
 }) {
   const online = backendScore !== null;
   const liftSign = pilot.opportunityLift >= 0 ? "+" : "";
-  const liftHint =
-    pilot.baselineOpportunities > 0
-      ? `${pilot.sioonaOpportunities} found − ${pilot.baselineOpportunities} baseline`
-      : "Set partner baseline for share-out";
+  const liftHint = `${pilot.sioonaOpportunities} found − ${pilot.baselineOpportunities} baseline`;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      {syncWarning ? (
+        <p className="text-copy-14 text-sio-fg-base" role="alert">
+          {syncWarning}
+        </p>
+      ) : null}
       <SignalScoreSummary
         score={backendScore}
         allTimeScore={allTimeScore}
         compact
         windowLabel={scoreWindow.label}
         windowInvalid={scoreWindow.status === "invalid"}
-        windowControl={<ScoreWindowControl window={scoreWindow} />}
+        windowControl={
+          <ScoreWindowControl
+            window={scoreWindow}
+            firstReviewedAt={
+              backendScore && backendScore.reviewed_count > 0
+                ? backendScore.first_reviewed_at
+                : null
+            }
+            lastReviewedAt={
+              backendScore && backendScore.reviewed_count > 0
+                ? backendScore.last_reviewed_at
+                : null
+            }
+          />
+        }
         goNoGo={online ? pilot.goNoGo : undefined}
         cadence={
           <MetricsCadence
@@ -178,7 +206,7 @@ function MetricsPanel({
         <div className={evalCardHeaderClassName}>
           <p className="eyebrow">Pilot</p>
         </div>
-        <div className="grid min-w-0 grid-cols-3 divide-x divide-sio-border-base overflow-hidden">
+        <div className="grid min-w-0 grid-cols-2 divide-x divide-sio-border-base overflow-hidden">
           <EvalMetric
             label="Opp."
             value={String(pilot.sioonaOpportunities)}
@@ -188,17 +216,6 @@ function MetricsPanel({
             label="Lift vs baseline"
             value={`${liftSign}${pilot.opportunityLift}`}
             hint={liftHint}
-          />
-          <EvalMetric
-            label="P Target"
-            value={formatPercent(pilot.reviewPrecisionTarget)}
-            hint={
-              !online || pilot.meetsReviewPrecisionTarget === null
-                ? `${pilot.reviewedCount} reviews`
-                : pilot.meetsReviewPrecisionTarget
-                  ? "Met"
-                  : "Below"
-            }
           />
         </div>
       </EvalCard>
