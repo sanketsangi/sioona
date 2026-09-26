@@ -48,11 +48,8 @@ class ScoreCounts:
 
     @property
     def signal_score(self) -> float | None:
-        """correct / (correct + incorrect); partial reviews tracked separately."""
-        denom = self.correct_count + self.incorrect_count
-        if denom == 0:
-            return None
-        return self.correct_count / denom
+        """``correct / reviewed``. Partials sit in the denominator only."""
+        return precision_from_counts(self.correct_count, self.reviewed_count)
 
 
 @dataclass
@@ -79,11 +76,15 @@ class SignalScoreResult:
 
     @property
     def signal_score(self) -> float | None:
-        """correct / (correct + incorrect); partial reviews tracked separately."""
-        denom = self.correct_count + self.incorrect_count
-        if denom == 0:
-            return None
-        return self.correct_count / denom
+        """``correct / reviewed``. Partials sit in the denominator only."""
+        return precision_from_counts(self.correct_count, self.reviewed_count)
+
+
+def precision_from_counts(correct_count: int, reviewed_count: int) -> float | None:
+    """Keep-set SignalScore. Null only when nothing was reviewed."""
+    if reviewed_count <= 0:
+        return None
+    return correct_count / reviewed_count
 
 
 def _empty_score(tenant_id: str) -> SignalScoreResult:
@@ -179,8 +180,9 @@ def calculate_signal_score(
 ) -> SignalScoreResult:
     """Compute SignalScore from human-reviewed signals only.
 
-    SignalScore = count(correct) / (count(correct) + count(incorrect)).
-    partially_correct is tracked in reviewed_count but excluded from the score.
+    SignalScore = count(correct) / count(reviewed).
+    ``reviewed`` is correct + incorrect + partially_correct, so a partial
+    review lowers the percent and never drops out of the denominator.
 
     Only canonical types (``lead`` / ``retention`` / ``upsell``) tally.
     Duplicate feedback rows cannot inflate ``n`` (distinct prediction id).

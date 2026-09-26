@@ -132,7 +132,7 @@ describe("computeEvalMetrics", () => {
     expect(metrics.reviewPrecision).toBe(1);
   });
 
-  it("excludes partially_correct from review precision denominator", () => {
+  it("counts partially_correct in the review precision denominator", () => {
     const [base] = runDetection(
       sampleStore.conversations,
       sampleStore.messages,
@@ -162,7 +162,7 @@ describe("computeEvalMetrics", () => {
     expect(metrics.reviewedCount).toBe(2);
     expect(metrics.correctCount).toBe(1);
     expect(metrics.partiallyCorrectCount).toBe(1);
-    expect(metrics.reviewPrecision).toBe(1);
+    expect(metrics.reviewPrecision).toBe(0.5);
   });
 });
 
