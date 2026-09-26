@@ -12,7 +12,7 @@ export type WorkspaceMode = "shadow" | "action";
 
 export type StatusFilter = "all" | "new" | "followup" | "acted";
 
-/** Queue CTA filter — Approve (retention email) vs Review. */
+/** Queue CTA filter — Approve (supervised draft) vs Review. */
 export type ActionFilter = "all" | "approve" | "review";
 
 export type SignalReviewTriage = {

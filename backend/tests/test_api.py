@@ -920,10 +920,38 @@ def test_acted_requires_feedback_and_survives_list(client: TestClient) -> None:
     )
     assert too_early.status_code == 400
 
-    feedback = client.post(
+    partial = client.post(
         f"/v1/signals/{signal_id}/feedback",
         headers=headers,
         json={"feedback": "partially_correct", "reviewed_by": "reviewer_1"},
+    )
+    assert partial.status_code == 200
+
+    partial_acted = client.post(
+        f"/v1/signals/{signal_id}/acted",
+        headers=headers,
+        json={"acted": True},
+    )
+    assert partial_acted.status_code == 400
+    assert "must be reviewed" in partial_acted.json()["detail"].lower()
+
+    incorrect = client.post(
+        f"/v1/signals/{signal_id}/feedback",
+        headers=headers,
+        json={"feedback": "incorrect", "reviewed_by": "reviewer_1"},
+    )
+    assert incorrect.status_code == 200
+    incorrect_acted = client.post(
+        f"/v1/signals/{signal_id}/acted",
+        headers=headers,
+        json={"acted": True},
+    )
+    assert incorrect_acted.status_code == 400
+
+    feedback = client.post(
+        f"/v1/signals/{signal_id}/feedback",
+        headers=headers,
+        json={"feedback": "correct", "reviewed_by": "reviewer_1"},
     )
     assert feedback.status_code == 200
 
@@ -934,7 +962,7 @@ def test_acted_requires_feedback_and_survives_list(client: TestClient) -> None:
     )
     assert acted.status_code == 200
     assert acted.json()["acted"] is True
-    assert acted.json()["feedback"]["feedback"] == "partially_correct"
+    assert acted.json()["feedback"]["feedback"] == "correct"
 
     listed = client.get(
         "/v1/tenants/tenant_demo/signals",
@@ -943,7 +971,22 @@ def test_acted_requires_feedback_and_survives_list(client: TestClient) -> None:
     assert listed.status_code == 200
     match = next(row for row in listed.json() if row["id"] == signal_id)
     assert match["acted"] is True
-    assert match["feedback"]["feedback"] == "partially_correct"
+    assert match["feedback"]["feedback"] == "correct"
+
+    changed = client.post(
+        f"/v1/signals/{signal_id}/feedback",
+        headers=headers,
+        json={"feedback": "incorrect", "reviewed_by": "reviewer_1"},
+    )
+    assert changed.status_code == 200
+    undone = client.post(
+        f"/v1/signals/{signal_id}/acted",
+        headers=headers,
+        json={"acted": False},
+    )
+    assert undone.status_code == 200
+    assert undone.json()["acted"] is False
+    assert undone.json()["feedback"]["feedback"] == "incorrect"
 
     other_tenant = client.post(
         f"/v1/signals/{signal_id}/acted",

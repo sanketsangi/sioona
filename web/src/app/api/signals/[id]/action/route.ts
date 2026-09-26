@@ -3,9 +3,11 @@ import { resolveFeedbackSignal } from "@/app/api/signals/[id]/feedback/route";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
 import { decideSupervisedAction, persistSupervisedActions, readStore } from "@/lib/store";
 import {
+  defaultConfidenceForStoredAction,
   findSupervisedAction,
-  HIGH_RETENTION_CONFIDENCE,
-  shouldGenerateRetentionEmail,
+  shouldGenerateSupervisedDraft,
+  signalTypeForSupervisedAction,
+  supervisedActionTypeForSignal,
 } from "@/lib/supervised-actions";
 import type {
   Signal,
@@ -52,31 +54,118 @@ function asEvidence(raw: unknown): string[] {
   return raw.filter((item): item is string => typeof item === "string");
 }
 
-function findStoredRetentionAction(
+function requestConfidence(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+}
+
+const RETENTION_CONFIDENCE_ERROR =
+  "Confidence is required to choose the retention draft.";
+
+function bothRetentionDrafts(hits: SupervisedAction[]): boolean {
+  return (
+    hits.some((action) => action.type === "retention_email_draft") &&
+    hits.some((action) => action.type === "retention_followup_draft")
+  );
+}
+
+function pickStoredAction(
+  hits: SupervisedAction[],
+  body: ActionBody,
+): SupervisedAction | undefined {
+  if (hits.length <= 1) return hits[0];
+  const requested = asSignalType(body.type);
+  const confidence = requestConfidence(body.confidence);
+  if (
+    bothRetentionDrafts(hits) &&
+    (requested == null || requested === "retention")
+  ) {
+    if (confidence == null) return undefined;
+    const kind = supervisedActionTypeForSignal({
+      type: "retention",
+      confidence,
+    });
+    return hits.find((action) => action.type === kind);
+  }
+  if (requested && confidence != null) {
+    const kind = supervisedActionTypeForSignal({
+      type: requested,
+      confidence,
+    });
+    const exact = hits.find((action) => action.type === kind);
+    if (exact) return exact;
+  }
+  if (requested) {
+    const typed = hits.find(
+      (action) => signalTypeForSupervisedAction(action.type) === requested,
+    );
+    if (typed) return typed;
+  }
+  return hits[0];
+}
+
+function storedHitsForRequest(
+  store: StoreData,
+  id: string,
+  body: ActionBody,
+): SupervisedAction[] {
+  const list = store.supervisedActions ?? [];
+  const bySignal = list.filter((action) => action.signalId === id);
+  if (bySignal.length > 0) return bySignal;
+
+  const backendId = body.backendSignalId?.trim();
+  if (backendId) {
+    const stubId = `sig_neon_${backendId}`;
+    const byBackend = list.filter(
+      (action) => action.signalId === stubId || action.signalId === backendId,
+    );
+    if (byBackend.length > 0) return byBackend;
+  }
+
+  const conversationId = body.conversationId?.trim();
+  if (!conversationId) return [];
+  const requested = asSignalType(body.type);
+  return list.filter((action) => {
+    if (action.conversationId !== conversationId) return false;
+    if (!requested) return true;
+    return signalTypeForSupervisedAction(action.type) === requested;
+  });
+}
+
+function findStoredAction(
   store: StoreData,
   id: string,
   body: ActionBody,
 ): SupervisedAction | undefined {
   const list = store.supervisedActions ?? [];
-  const bySignal = list.find((action) => action.signalId === id);
+  const bySignal = pickStoredAction(
+    list.filter((action) => action.signalId === id),
+    body,
+  );
   if (bySignal) return bySignal;
 
   const backendId = body.backendSignalId?.trim();
   if (backendId) {
     const stubId = `sig_neon_${backendId}`;
-    const byBackend = list.find(
-      (action) =>
-        action.signalId === stubId || action.signalId === backendId,
+    const byBackend = pickStoredAction(
+      list.filter(
+        (action) =>
+          action.signalId === stubId || action.signalId === backendId,
+      ),
+      body,
     );
     if (byBackend) return byBackend;
   }
 
   const conversationId = body.conversationId?.trim();
   if (!conversationId) return undefined;
-  return list.find(
-    (action) =>
-      action.conversationId === conversationId &&
-      action.type === "retention_email_draft",
+  const requested = asSignalType(body.type);
+  return pickStoredAction(
+    list.filter((action) => {
+      if (action.conversationId !== conversationId) return false;
+      if (!requested) return true;
+      return signalTypeForSupervisedAction(action.type) === requested;
+    }),
+    body,
   );
 }
 
@@ -96,19 +185,21 @@ export function resolveActionSignal(
   });
   if (fromStore) return fromStore;
 
-  const storedAction = findStoredRetentionAction(store, id, body);
+  const storedAction = findStoredAction(store, id, body);
   const conversationId =
     body.conversationId?.trim() || storedAction?.conversationId;
   if (!conversationId) return undefined;
 
-  const type = asSignalType(body.type) ?? (storedAction ? "retention" : null);
+  const type =
+    asSignalType(body.type) ??
+    (storedAction ? signalTypeForSupervisedAction(storedAction.type) : null);
   if (!type) return undefined;
 
   const confidence =
     typeof body.confidence === "number" && Number.isFinite(body.confidence)
       ? body.confidence
       : storedAction
-        ? HIGH_RETENTION_CONFIDENCE
+        ? defaultConfidenceForStoredAction(storedAction.type)
         : null;
   if (confidence == null) return undefined;
 
@@ -149,21 +240,39 @@ export async function POST(
     const signal = resolveActionSignal(store, id, body);
 
     if (!signal) {
+      const hits = storedHitsForRequest(store, id, body);
+      if (
+        bothRetentionDrafts(hits) &&
+        requestConfidence(body.confidence) == null
+      ) {
+        return NextResponse.json(
+          { error: RETENTION_CONFIDENCE_ERROR },
+          { status: 400 },
+        );
+      }
       return NextResponse.json({ error: "Signal not found" }, { status: 404 });
     }
 
-    if (shouldGenerateRetentionEmail(signal)) {
-      await persistSupervisedActions([signal], store.conversations);
+    const liveConfidence =
+      requestConfidence(body.confidence) ?? signal.confidence;
+    const liveSignal = {
+      ...signal,
+      confidence: liveConfidence,
+      score: liveConfidence,
+    };
+
+    if (shouldGenerateSupervisedDraft(liveSignal)) {
+      await persistSupervisedActions([liveSignal], store.conversations);
     }
 
     const afterEnsure = await readStore();
-    const action = findSupervisedAction(afterEnsure.supervisedActions, signal);
+    const action = findSupervisedAction(
+      afterEnsure.supervisedActions,
+      liveSignal,
+    );
     if (!action) {
       return NextResponse.json(
-        {
-          error:
-            "No retention email draft for this signal. Drafts are only generated for high-confidence retention.",
-        },
+        { error: "No supervised draft for this signal." },
         { status: 404 }
       );
     }

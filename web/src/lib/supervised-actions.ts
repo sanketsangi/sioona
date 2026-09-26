@@ -1,12 +1,17 @@
+import { pickAction } from "./detect";
 import { primaryQuote } from "./format";
+import { composeCustomerReplyDraft } from "./suggested-action-display";
 import type {
   ActionLogEvent,
   ActionLogEventKind,
   Conversation,
   Signal,
+  SignalType,
   StoreData,
   SupervisedAction,
   SupervisedActionDecision,
+  SupervisedActionType,
+  TaxonomyOverrides,
 } from "./types";
 
 /** Same high band as `pickAction` (≥0.75). */
@@ -81,6 +86,85 @@ export function composeRetentionEmailDraft(
   return { subject, body, evidenceQuote };
 }
 
+/**
+ * Kind for an emitted signal. High-confidence retention keeps the email
+ * draft; lower retention, lead, and upsell each get their own kind.
+ */
+export function supervisedActionTypeForSignal(
+  signal: Pick<Signal, "type" | "confidence">,
+): SupervisedActionType | null {
+  if (signal.type === "lead") return "lead_outreach_draft";
+  if (signal.type === "upsell") return "upsell_note_draft";
+  if (signal.type === "retention") {
+    return shouldGenerateRetentionEmail(signal)
+      ? "retention_email_draft"
+      : "retention_followup_draft";
+  }
+  return null;
+}
+
+/** True when this signal should have a supervised draft. */
+export function shouldGenerateSupervisedDraft(
+  signal: Pick<Signal, "type" | "confidence">,
+): boolean {
+  return supervisedActionTypeForSignal(signal) != null;
+}
+
+export function signalTypeForSupervisedAction(
+  type: SupervisedActionType,
+): SignalType {
+  if (type === "lead_outreach_draft") return "lead";
+  if (type === "upsell_note_draft") return "upsell";
+  return "retention";
+}
+
+/**
+ * Confidence used when a Neon stub omits it. Email stays at the high
+ * band; a follow-up must stay below that band so it is not promoted.
+ */
+export function defaultConfidenceForStoredAction(
+  type: SupervisedActionType,
+): number {
+  if (type === "retention_email_draft") return HIGH_RETENTION_CONFIDENCE;
+  return 0.5;
+}
+
+export type PlaybookDraftInput = {
+  type: SignalType;
+  score: number;
+  customerName?: string | null;
+  evidence?: string[];
+  overrides?: TaxonomyOverrides | null;
+};
+
+/**
+ * Display-only draft for lead, upsell, and lower-confidence retention.
+ * Subject is the taxonomy playbook line. Body is the customer reply when
+ * a Why quote exists; otherwise the playbook line. Never sent.
+ */
+export function composePlaybookDraft(
+  input: PlaybookDraftInput,
+): RetentionEmailDraft {
+  const playbook = pickAction(input.type, input.score, input.overrides);
+  const rawQuote = primaryQuote(input.evidence ?? [])?.trim() ?? "";
+  const evidenceQuote = rawQuote ? clipEmailQuote(rawQuote) : "";
+  const reply = composeCustomerReplyDraft({
+    type: input.type,
+    customerName: input.customerName,
+    evidence: input.evidence,
+  });
+  return {
+    subject: playbook,
+    body: reply || playbook,
+    evidenceQuote,
+  };
+}
+
+function actionIdFor(signalId: string, type: SupervisedActionType): string {
+  if (type === "retention_email_draft") return `act_${signalId}`;
+  return `act_${signalId}__${type}`;
+}
+
 export function actionKey(
   conversationId: string,
   type: SupervisedAction["type"] = "retention_email_draft",
@@ -90,26 +174,29 @@ export function actionKey(
 
 export function findSupervisedAction(
   actions: SupervisedAction[] | undefined,
-  signal: Pick<Signal, "id" | "conversationId">,
+  signal: Pick<Signal, "id" | "conversationId" | "type" | "confidence">,
 ): SupervisedAction | undefined {
+  const type = supervisedActionTypeForSignal(signal);
+  if (!type) return undefined;
   const list = actions ?? [];
   return (
-    list.find((action) => action.signalId === signal.id) ??
+    list.find(
+      (action) => action.signalId === signal.id && action.type === type,
+    ) ??
     list.find(
       (action) =>
-        action.conversationId === signal.conversationId &&
-        action.type === "retention_email_draft",
+        action.conversationId === signal.conversationId && action.type === type,
     )
   );
 }
 
-/** True when the queue CTA is Approve (Retention Email), else Review. */
+/** True when the queue CTA is Approve (a supervised draft exists). */
 export function isQueueApproveSignal(
   signal: Pick<Signal, "id" | "conversationId" | "type" | "confidence">,
   actions?: SupervisedAction[] | null,
 ): boolean {
   if (findSupervisedAction(actions ?? undefined, signal)) return true;
-  return shouldGenerateRetentionEmail(signal);
+  return shouldGenerateSupervisedDraft(signal);
 }
 
 function nowIso(clock?: () => string): string {
@@ -131,6 +218,52 @@ export function createRetentionEmailAction(opts: {
   return {
     id: opts.id ?? `act_${opts.signal.id}`,
     type: "retention_email_draft",
+    signalId: opts.signal.id,
+    conversationId: opts.signal.conversationId,
+    tenantId: opts.signal.tenantId,
+    subject: draft.subject,
+    body: draft.body,
+    generatedSubject: draft.subject,
+    generatedBody: draft.body,
+    evidenceQuote: draft.evidenceQuote,
+    status: "pending",
+    createdAt,
+  };
+}
+
+export function createSupervisedDraftAction(opts: {
+  signal: Pick<
+    Signal,
+    "id" | "conversationId" | "tenantId" | "type" | "confidence" | "score"
+  >;
+  customerName?: string | null;
+  evidence?: string[];
+  overrides?: TaxonomyOverrides | null;
+  id?: string;
+  createdAt?: string;
+}): SupervisedAction | null {
+  const type = supervisedActionTypeForSignal(opts.signal);
+  if (!type) return null;
+  if (type === "retention_email_draft") {
+    return createRetentionEmailAction({
+      signal: opts.signal,
+      customerName: opts.customerName,
+      evidence: opts.evidence,
+      id: opts.id,
+      createdAt: opts.createdAt,
+    });
+  }
+  const draft = composePlaybookDraft({
+    type: signalTypeForSupervisedAction(type),
+    score: opts.signal.score,
+    customerName: opts.customerName,
+    evidence: opts.evidence,
+    overrides: opts.overrides,
+  });
+  const createdAt = opts.createdAt ?? nowIso();
+  return {
+    id: opts.id ?? actionIdFor(opts.signal.id, type),
+    type,
     signalId: opts.signal.id,
     conversationId: opts.signal.conversationId,
     tenantId: opts.signal.tenantId,
@@ -190,21 +323,40 @@ export type EnsureSupervisedActionsResult = {
   changed: boolean;
 };
 
+function draftForAction(
+  action: SupervisedAction,
+  signal: Pick<Signal, "score" | "evidence">,
+  customerName: string | null | undefined,
+  overrides?: TaxonomyOverrides | null,
+): RetentionEmailDraft {
+  if (action.type === "retention_email_draft") {
+    return composeRetentionEmailDraft({
+      customerName,
+      evidence: signal.evidence,
+    });
+  }
+  return composePlaybookDraft({
+    type: signalTypeForSupervisedAction(action.type),
+    score: signal.score,
+    customerName,
+    evidence: signal.evidence,
+    overrides,
+  });
+}
+
 /**
  * When a pending draft was created before chat evidence was available
  * (Neon stubs), fill the quote and regenerate the unedited body.
  */
-function backfillPendingRetentionEvidence(
+function backfillPendingEvidence(
   action: SupervisedAction,
-  signal: Pick<Signal, "evidence">,
+  signal: Pick<Signal, "score" | "evidence">,
   customerName: string | null | undefined,
+  overrides?: TaxonomyOverrides | null,
 ): boolean {
   if (action.status !== "pending") return false;
   if (action.evidenceQuote.trim()) return false;
-  const draft = composeRetentionEmailDraft({
-    customerName,
-    evidence: signal.evidence,
-  });
+  const draft = draftForAction(action, signal, customerName, overrides);
   if (!draft.evidenceQuote) return false;
 
   const unedited =
@@ -221,10 +373,10 @@ function backfillPendingRetentionEvidence(
 }
 
 /**
- * Create missing retention-email drafts for high-confidence retention
- * signals. Existing drafts (pending or decided) are rematched to the
- * live signal id and never regenerated. Pending drafts with an empty
- * evidence quote are backfilled when chat evidence is now available.
+ * Create missing supervised drafts for every emitted signal. Existing
+ * drafts (pending or decided) are rematched to the live signal id and
+ * never regenerated. Pending drafts with an empty evidence quote are
+ * backfilled when chat evidence is now available.
  */
 export function ensureSupervisedActions(
   store: StoreData,
@@ -253,31 +405,38 @@ export function ensureSupervisedActions(
   let changed = false;
 
   for (const signal of candidates) {
-    if (!shouldGenerateRetentionEmail(signal)) continue;
-    const key = actionKey(signal.conversationId);
+    const type = supervisedActionTypeForSignal(signal);
+    if (!type) continue;
+    const key = actionKey(signal.conversationId, type);
     const existing = byKey.get(key);
+    const name = customerNameForSignal(
+      conversationsById,
+      signal.conversationId,
+    );
     if (existing) {
       if (existing.signalId !== signal.id) {
         existing.signalId = signal.id;
         changed = true;
       }
-      const name = customerNameForSignal(
-        conversationsById,
-        signal.conversationId,
-      );
-      if (backfillPendingRetentionEvidence(existing, signal, name)) {
+      if (
+        backfillPendingEvidence(
+          existing,
+          signal,
+          name,
+          store.taxonomyOverrides,
+        )
+      ) {
         changed = true;
       }
       continue;
     }
-    const action = createRetentionEmailAction({
+    const action = createSupervisedDraftAction({
       signal,
-      customerName: customerNameForSignal(
-        conversationsById,
-        signal.conversationId,
-      ),
+      customerName: name,
       evidence: signal.evidence,
+      overrides: store.taxonomyOverrides,
     });
+    if (!action) continue;
     byKey.set(key, action);
     created.push(action);
     changed = true;

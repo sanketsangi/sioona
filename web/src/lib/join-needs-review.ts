@@ -16,7 +16,8 @@ import { groupMessagesByConversation } from "./group-messages";
 import { isNeonStubSignalId } from "./prediction-sync";
 import { resolveSuggestedAction } from "./suggested-action-display";
 import type { StatusFilter, TypeFilter, ActionFilter } from "./views";
-import { isQueueApproveSignal } from "./supervised-actions";
+import { queueActionKindForSignal } from "./queue-action-kind";
+import { findSupervisedAction } from "./supervised-actions";
 import type {
   Conversation,
   FeedbackLabel,
@@ -29,18 +30,22 @@ import type {
 
 const KNOWN_TYPES = new Set<string>(["lead", "retention", "upsell"]);
 
-function asSignalType(raw: string): SignalType {
+function asSignalType(raw: string): SignalType | null {
   if (KNOWN_TYPES.has(raw)) return raw as SignalType;
-  return "lead";
+  return null;
 }
 
 /** Minimal card when Neon has a prediction the JSON store has not mirrored yet. */
-export function predictionToStubSignal(prediction: BackendPrediction): Signal {
+export function predictionToStubSignal(
+  prediction: BackendPrediction
+): Signal | null {
+  const type = asSignalType(prediction.signal_type);
+  if (!type) return null;
   return {
     id: `sig_neon_${prediction.id}`,
     tenantId: prediction.tenant_id,
     conversationId: prediction.conversation_id,
-    type: asSignalType(prediction.signal_type),
+    type,
     score: prediction.confidence,
     confidence: prediction.confidence,
     summary: prediction.summary,
@@ -103,6 +108,7 @@ export function joinNeedsReviewPredictions(
     const matched = findJsonSignal(prediction, index);
     if (!matched) {
       const stub = predictionToStubSignal(prediction);
+      if (!stub) continue;
       if (seenJsonIds.has(stub.id)) continue;
       seenJsonIds.add(stub.id);
       joined.push(stub);
@@ -280,8 +286,10 @@ export function joinTenantSignals(
       continue;
     }
 
+    const mapped = predictionToStubSignal(row);
+    if (!mapped) continue;
     const stub: Signal = {
-      ...predictionToStubSignal(row),
+      ...mapped,
       status,
       feedback,
     };
@@ -419,20 +427,27 @@ export function queueSignalsForFilter(opts: {
     list = list.filter((signal) => signal.type === opts.type);
   }
 
-  const actions = opts.supervisedActions;
+  const actions = opts.supervisedActions ?? undefined;
   const action = opts.action ?? "all";
   const filtered: Signal[] = [];
   let approveCount = 0;
+  let reviewCount = 0;
   for (const signal of list) {
-    const approve = isQueueApproveSignal(signal, actions);
-    if (approve) approveCount += 1;
+    const kind = queueActionKindForSignal(
+      signal,
+      "",
+      findSupervisedAction(actions, signal),
+    );
+    if (kind === "approve") approveCount += 1;
+    if (kind === "review") reviewCount += 1;
     if (action === "all") {
       filtered.push(signal);
-    } else if (action === "approve" ? approve : !approve) {
+    } else if (action === "approve" && kind === "approve") {
+      filtered.push(signal);
+    } else if (action === "review" && kind === "review") {
       filtered.push(signal);
     }
   }
-  const reviewCount = list.length - approveCount;
   const ordered = shuffleSignals(filtered);
 
   return {

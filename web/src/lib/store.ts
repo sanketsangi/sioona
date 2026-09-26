@@ -335,7 +335,7 @@ export async function replaceSignalsPreservingFeedback(
 }
 
 /**
- * Generate missing high-confidence retention email drafts and persist.
+ * Generate missing supervised drafts and persist.
  * Used on Insights load for signals already in the store (no re-detect).
  */
 export async function persistSupervisedActions(
@@ -411,7 +411,8 @@ export type SetSignalActedResult =
 
 /**
  * Shadow Mode only: persist `status: acted` (or undo to `reviewed`).
- * Requires existing feedback. Does not clear feedback or fire suggestedAction.
+ * Marking acted requires Correct feedback. Undo keeps any label.
+ * Does not clear feedback or fire suggestedAction.
  */
 export async function setSignalActed(
   signalId: string,
@@ -421,6 +422,9 @@ export async function setSignalActed(
   const signal = store.signals.find((s) => s.id === signalId);
   if (!signal) return { ok: false, reason: "not_found" };
   if (!signal.feedback) return { ok: false, reason: "not_reviewed" };
+  if (acted && signal.feedback.label !== "correct") {
+    return { ok: false, reason: "not_reviewed" };
+  }
   signal.status = acted ? "acted" : "reviewed";
   await writeStore(store);
   return { ok: true, signal };

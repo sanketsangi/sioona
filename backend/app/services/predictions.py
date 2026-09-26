@@ -9,12 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.signal_feedback import FEEDBACK_CORRECT
 from app.models.signal_prediction import SignalPrediction
 from app.services.feedback import SignalNotFoundError
 
 
 class PredictionNotReviewedError(Exception):
-    """Raised when Acted is set on a prediction that has no feedback."""
+    """Raised when Acted is set without Correct feedback."""
 
 
 @dataclass(frozen=True)
@@ -247,7 +248,7 @@ def set_prediction_acted(
     signal_id: UUID,
     acted: bool,
 ) -> SignalPrediction:
-    """Set or clear Acted. Requires existing feedback. Tenant-scoped."""
+    """Set or clear Acted. Marking acted requires Correct feedback. Tenant-scoped."""
     prediction = db.scalar(
         select(SignalPrediction)
         .options(joinedload(SignalPrediction.feedback))
@@ -258,7 +259,9 @@ def set_prediction_acted(
     )
     if prediction is None:
         raise SignalNotFoundError(f"Signal {signal_id} not found for tenant")
-    if prediction.feedback is None:
+    if prediction.feedback is None or (
+        acted and prediction.feedback.feedback != FEEDBACK_CORRECT
+    ):
         raise PredictionNotReviewedError(
             "Signal must be reviewed before marking acted"
         )

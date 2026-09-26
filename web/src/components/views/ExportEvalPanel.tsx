@@ -7,8 +7,9 @@ import {
   evalCardHeaderClassName,
   evalMetricCellClassName,
 } from "@/components/EvalCard";
+import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { Note, NoteContent } from "@/components/ui/Note";
-import { formatPercent, signalTypeLabel } from "@/lib/format";
+import { formatPercent } from "@/lib/format";
 import { viewHref } from "@/lib/views";
 import type { EvalMetrics } from "@/lib/eval";
 import type { PartnerExportEvalApiResponse } from "@/lib/partner-export-eval-api";
@@ -105,9 +106,9 @@ function ByTypeTable({ metrics }: { metrics: EvalMetrics }) {
             <tr key={row.type}>
               <th
                 scope="row"
-                className="whitespace-nowrap px-3 py-2.5 text-left text-copy-14 font-normal text-sio-fg-base sm:px-4"
+                className="whitespace-nowrap px-3 py-2.5 text-left font-normal sm:px-4"
               >
-                {signalTypeLabel(row.type)}
+                <SignalTypeChip type={row.type} />
               </th>
               <td className="tabular px-3 py-2.5 font-mono text-label-13 text-sio-fg-subtle sm:px-4">
                 {row.labeledCount}

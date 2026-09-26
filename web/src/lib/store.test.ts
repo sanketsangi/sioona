@@ -67,11 +67,29 @@ describe("setSignalActed", () => {
     expect(persisted?.feedback?.label).toBe("correct");
   });
 
-  it("undoes acted back to reviewed and keeps feedback", async () => {
+  it("rejects acted unless feedback is correct", async () => {
     const before = await readStore();
     const target = before.signals[0];
     await setSignalFeedback(target.id, "incorrect", "not churn");
+    const incorrect = await setSignalActed(target.id, true);
+    expect(incorrect).toEqual({ ok: false, reason: "not_reviewed" });
+
+    await setSignalFeedback(target.id, "partially_correct", "close");
+    const partial = await setSignalActed(target.id, true);
+    expect(partial).toEqual({ ok: false, reason: "not_reviewed" });
+
+    const after = await readStore();
+    expect(after.signals.find((s) => s.id === target.id)?.status).not.toBe(
+      "acted"
+    );
+  });
+
+  it("undoes acted back to reviewed and keeps feedback", async () => {
+    const before = await readStore();
+    const target = before.signals[0];
+    await setSignalFeedback(target.id, "correct", "not churn");
     await setSignalActed(target.id, true);
+    await setSignalFeedback(target.id, "incorrect", "not churn");
 
     const undone = await setSignalActed(target.id, false);
     expect(undone.ok).toBe(true);

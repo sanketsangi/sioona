@@ -35,16 +35,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { AppleBorderGradient } from "@/components/v1/skiper86";
 import { postSupervisedAction } from "@/lib/supervised-action-client";
 import {
-  createRetentionEmailAction,
-  shouldGenerateRetentionEmail,
-} from "@/lib/supervised-actions";
+  queueActionKindForSignal,
+  resolveRetentionEmailAction,
+  type QueueActionKind,
+} from "@/lib/queue-action-kind";
 import type {
   Signal,
   SupervisedAction,
   SupervisedActionDecision,
   SupervisedActionStatus,
+  SupervisedActionType,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+export {
+  queueActionKindForSignal,
+  resolveRetentionEmailAction,
+  type QueueActionKind,
+};
 
 export const RETENTION_EMAIL_STATUS_CHIP: Record<
   SupervisedActionStatus,
@@ -110,18 +118,41 @@ export function editedRetentionDraftBody(
 }
 
 /** Edit Draft control group — `inert` + data attr while the dialog is open. */
+export const SUPERVISED_DRAFT_TITLE: Record<SupervisedActionType, string> = {
+  retention_email_draft: "Retention Email",
+  retention_followup_draft: "Retention Follow-up",
+  lead_outreach_draft: "Lead Outreach",
+  upsell_note_draft: "Upsell Note",
+};
+
+const SUPERVISED_DRAFT_ARIA: Record<SupervisedActionType, string> = {
+  retention_email_draft: "Retention email",
+  retention_followup_draft: "Retention follow-up",
+  lead_outreach_draft: "Lead outreach",
+  upsell_note_draft: "Upsell note",
+};
+
+function pendingDraftCopy(type: SupervisedActionType): string {
+  if (type === "retention_email_draft") {
+    return "High-confidence retention draft. Edit and save here — you send from your tools; Sioona never sends or CRM-tags.";
+  }
+  return `${SUPERVISED_DRAFT_TITLE[type]} draft. Edit and save here — you send from your tools; Sioona never sends or CRM-tags.`;
+}
+
 export function RetentionEmailDecisionControlsFrame({
   locked,
+  label = "Retention email decisions",
   children,
 }: {
   locked: boolean;
+  label?: string;
   children: ReactNode;
 }) {
   return (
     <div
       className="flex flex-wrap items-center justify-end gap-1"
       role="group"
-      aria-label="Retention email decisions"
+      aria-label={label}
       data-draft-decisions={draftDecisionsDataAttr(locked)}
       {...(locked ? { inert: true } : {})}
     >
@@ -150,45 +181,6 @@ function statusMessage(status: SupervisedActionStatus): string | null {
       return null;
   }
 }
-
-export function resolveRetentionEmailAction(
-  signal: Signal,
-  customerName: string,
-  stored?: SupervisedAction | null,
-): SupervisedAction | null {
-  if (stored) {
-    // Neon stubs may have locked an empty quote before chat evidence joined.
-    // Prefer live signal evidence for display without rewriting decided drafts.
-    if (!stored.evidenceQuote.trim() && signal.evidence.length > 0) {
-      const filled = createRetentionEmailAction({
-        signal,
-        customerName,
-        evidence: signal.evidence,
-        id: stored.id,
-        createdAt: stored.createdAt,
-      });
-      if (filled.evidenceQuote) {
-        return { ...stored, evidenceQuote: filled.evidenceQuote };
-      }
-    }
-    return stored;
-  }
-  if (!shouldGenerateRetentionEmail(signal)) return null;
-  return createRetentionEmailAction({
-    signal,
-    customerName,
-    evidence: signal.evidence,
-  });
-}
-
-/** Insights list Action column — cadence-aware, not outbound. */
-export type QueueActionKind =
-  | "mark_acted"
-  | "acted"
-  | "view"
-  | "approve"
-  | "review"
-  | SupervisedActionDecision;
 
 /** List is the queue table. Review is the open-preview row. */
 export type QueueActionSurface = "list" | "review";
@@ -249,7 +241,15 @@ export function isRetentionDecisionKind(
 }
 
 /**
- * Existing retention status chip — same shell as the Recommended Actions header.
+ * Queue Action column shell — same pill, border, and type size as Approve.
+ * Status background and text color stay on `RETENTION_EMAIL_STATUS_CHIP`.
+ */
+const QUEUE_DECISION_CHIP_SHELL =
+  "h-7 rounded-full border-border px-3 py-0 text-[0.8rem] font-medium leading-5";
+
+/**
+ * Existing retention status chip in the queue Action column.
+ * Matches the Approve control's border and text size. Colors stay per status.
  */
 export function RetentionEmailDecisionChip({
   status,
@@ -257,36 +257,15 @@ export function RetentionEmailDecisionChip({
   status: SupervisedActionDecision;
 }) {
   return (
-    <InsightsReviewStatusChip className={RETENTION_EMAIL_STATUS_CHIP[status]}>
+    <InsightsReviewStatusChip
+      className={cn(
+        RETENTION_EMAIL_STATUS_CHIP[status],
+        QUEUE_DECISION_CHIP_SHELL,
+      )}
+    >
       {RETENTION_EMAIL_STATUS_LABEL[status]}
     </InsightsReviewStatusChip>
   );
-}
-
-/**
- * Queue Action kind by signal state.
- * Follow-up Correct ¬acted → mark_acted; Done → acted;
- * stored retention decision → that decision; pending Retention Email → Approve;
- * else Review.
- */
-export function queueActionKindForSignal(
-  signal: Signal,
-  customerName: string,
-  stored?: SupervisedAction | null,
-): QueueActionKind {
-  if (signal.status === "acted") return "acted";
-  if (signal.feedback?.label === "correct") return "mark_acted";
-  const decision = stored?.status;
-  if (
-    decision === "approved" ||
-    decision === "edited" ||
-    decision === "dismissed"
-  ) {
-    return decision;
-  }
-  return resolveRetentionEmailAction(signal, customerName, stored)
-    ? "approve"
-    : "review";
 }
 
 export function queueActionLabelForKind(
@@ -439,6 +418,8 @@ function RetentionEmailActionView({
 
   // Narrowed for nested handlers — outer early-return does not carry into closures.
   const currentAction = action;
+  const draftTitle = SUPERVISED_DRAFT_TITLE[currentAction.type];
+  const draftAria = SUPERVISED_DRAFT_ARIA[currentAction.type];
   const busy = pending != null;
   // Status chip + copy reflect the last decision; Edit Draft stays so partners
   // can revise. Still decision-only — never sends.
@@ -536,9 +517,23 @@ function RetentionEmailActionView({
       className="relative z-[1] flex shrink-0 flex-wrap items-center gap-2 w-full justify-end"
       data-review-actions-toolbar="true"
       role="group"
-      aria-label="Retention email actions"
+      aria-label={`${draftAria} actions`}
     >
-      <RetentionEmailDecisionControlsFrame locked={decisionsLocked}>
+      <RetentionEmailDecisionControlsFrame
+        locked={decisionsLocked}
+        label={`${draftAria} decisions`}
+      >
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="btn-secondary h-9 min-h-11 shrink-0 touch-manipulation px-2.5 md:min-h-9"
+          disabled={decisionsDisabled}
+          onClick={() => void submit("approved")}
+        >
+          {pending === "approved" ? <ButtonSpinner /> : null}
+          Approve
+        </Button>
         <Button
           ref={editButtonRef}
           type="button"
@@ -553,6 +548,17 @@ function RetentionEmailActionView({
           <RetentionEmailDraftIcon className="size-3.5 shrink-0" />
           Edit Draft
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="lg"
+          className="btn-secondary h-9 min-h-11 shrink-0 touch-manipulation px-2.5 md:min-h-9"
+          disabled={decisionsDisabled}
+          onClick={() => void submit("dismissed")}
+        >
+          {pending === "dismissed" ? <ButtonSpinner /> : null}
+          Dismiss
+        </Button>
       </RetentionEmailDecisionControlsFrame>
       {embeddedActions}
     </div>
@@ -562,8 +568,7 @@ function RetentionEmailActionView({
     <>
       {currentAction.status === "pending" ? (
         <p className="text-pretty text-copy-14 text-sio-fg-subtle">
-          High-confidence retention draft. Edit and save here — you send from
-          your tools; Sioona never sends or CRM-tags.
+          {pendingDraftCopy(currentAction.type)}
         </p>
       ) : null}
 
@@ -797,7 +802,7 @@ function RetentionEmailActionView({
         <div className="relative z-[1] flex min-w-0 items-center gap-2">
           <PlayCircleIcon className="size-4 shrink-0 text-sio-fg-base" />
           <h3 id={headingId} className={REVIEW_PANE_TITLE_CLASS}>
-            Retention Email
+            {draftTitle}
           </h3>
         </div>
         <div className="relative z-[1] flex min-w-0 flex-col gap-2">
@@ -814,7 +819,7 @@ function RetentionEmailActionView({
       className={cn("insights-review-pane", evalCardClassName, className)}
       aria-labelledby={headingId}
     >
-      <InsightsReviewPaneHeader id={headingId} title="Retention Email">
+      <InsightsReviewPaneHeader id={headingId} title={draftTitle}>
         {statusChip}
       </InsightsReviewPaneHeader>
       <CardContent className="flex min-w-0 flex-col px-0">

@@ -97,6 +97,37 @@ describe("POST /api/signals/[id]/acted", () => {
     expect(setPredictionActed).not.toHaveBeenCalled();
   });
 
+  it("returns 400 when feedback is not correct", async () => {
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    await setSignalFeedback(target.id, "incorrect");
+
+    const incorrect = await POST(actedRequest({ acted: true }), {
+      params: Promise.resolve({ id: target.id }),
+    });
+    expect(incorrect.status).toBe(400);
+    await expect(incorrect.json()).resolves.toEqual({
+      error: "Signal must be reviewed before marking acted",
+    });
+
+    await setSignalFeedback(target.id, "partially_correct");
+    const partial = await POST(actedRequest({ acted: true }), {
+      params: Promise.resolve({ id: target.id }),
+    });
+    expect(partial.status).toBe(400);
+    await expect(partial.json()).resolves.toEqual({
+      error: "Signal must be reviewed before marking acted",
+    });
+    expect(createPrediction).not.toHaveBeenCalled();
+    expect(setPredictionActed).not.toHaveBeenCalled();
+
+    const after = await readStore();
+    expect(after.signals.find((s) => s.id === target.id)?.status).not.toBe(
+      "acted"
+    );
+  });
+
   it("returns 400 when acted is not a boolean", async () => {
     const res = await POST(actedRequest({ acted: "yes" }), {
       params: Promise.resolve({ id: "sig_any" }),
@@ -449,9 +480,35 @@ describe("POST /api/signals/[id]/acted", () => {
       }),
       { params: Promise.resolve({ id: "sig_missing" }) }
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
+    const missingType = (await res.json()) as { error?: string };
+    expect(missingType.error).toBe(
+      "Signal type must be lead, retention, or upsell"
+    );
+    expect(missingType.error).not.toContain("83a80e70");
+    expect(createPrediction).not.toHaveBeenCalled();
+  });
+
+  it("does not recreate a lead when recovery has no known type", async () => {
+    setPredictionActed.mockRejectedValueOnce(
+      new BackendClientError(
+        "Signal 83a80e70-7a28-479e-a2c3-56e82ce010c3 not found for tenant",
+        404
+      )
+    );
+
+    const res = await POST(
+      actedRequest({
+        acted: true,
+        backendSignalId: "83a80e70-7a28-479e-a2c3-56e82ce010c3",
+        conversationId: "conv_unknown_type",
+        type: "complaint",
+      }),
+      { params: Promise.resolve({ id: "sig_missing" }) }
+    );
+    expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({
-      error: "Could not save Mark Acted. Try again.",
+      error: "Signal type must be lead, retention, or upsell",
     });
     expect(createPrediction).not.toHaveBeenCalled();
   });

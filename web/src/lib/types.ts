@@ -96,10 +96,14 @@ export interface AuditEvent {
 }
 
 /**
- * First supervised Action type. Add more kinds here later — do not
- * invent parallel action records.
+ * Supervised Action kinds on this record. Do not invent a parallel store.
+ * `retention_email_draft` stays the high-confidence retention email.
  */
-export type SupervisedActionType = "retention_email_draft";
+export type SupervisedActionType =
+  | "retention_email_draft"
+  | "retention_followup_draft"
+  | "lead_outreach_draft"
+  | "upsell_note_draft";
 
 /** Human decision on a generated draft. Nothing is sent until approved. */
 export type SupervisedActionDecision = "approved" | "edited" | "dismissed";
@@ -151,7 +155,7 @@ export interface StoreData {
   taxonomyOverrides?: TaxonomyOverrides;
   /** Append-only compliance log (e.g. SignalScore feedback events). */
   auditEvents?: AuditEvent[];
-  /** Supervised Action drafts (retention email first). */
+  /** Supervised Action drafts (one per conversation + kind). */
   supervisedActions?: SupervisedAction[];
   /** Evaluation log for action generation + decisions. */
   actionLogs?: ActionLogEvent[];

@@ -44,13 +44,25 @@ describe("queueActionLabelForSignal", () => {
     expect(queueActionLabelForSignal(signal(), "Priya")).toBe("Approve");
   });
 
-  it("returns Review for lead signals without a stored action", () => {
+  it("returns Approve for a pending lead, upsell, or lower-confidence retention", () => {
     expect(
       queueActionLabelForSignal(
-        signal({ type: "lead", confidence: 0.95 }),
+        signal({ type: "lead", confidence: 0.95, score: 0.95 }),
         "Rahul",
       ),
-    ).toBe("Review");
+    ).toBe("Approve");
+    expect(
+      queueActionLabelForSignal(
+        signal({ type: "upsell", confidence: 0.4, score: 0.4 }),
+        "Rahul",
+      ),
+    ).toBe("Approve");
+    expect(
+      queueActionLabelForSignal(
+        signal({ type: "retention", confidence: 0.4, score: 0.4 }),
+        "Priya",
+      ),
+    ).toBe("Approve");
   });
 
   it("returns Approve when a stored retention draft exists", () => {
@@ -274,8 +286,9 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Pending");
     expect(html).not.toContain("Approve Draft");
     expect(html).not.toContain("Approve &amp; Send");
+    expect(html).toContain(">Approve<");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
     expect(html).not.toContain("Dismiss Draft");
     expect(html).toContain("Evidence");
     expect(html).toContain("I want to close my account");
@@ -448,21 +461,25 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Retention Email");
     expect(html).not.toContain("Approve Draft");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
     expect(html).not.toContain('data-retention-email-panel="draft"');
     expect(html).not.toContain('data-retention-email-panel="evidence"');
     expect(html).not.toContain('<span>Evidence</span>');
     expect(html).not.toContain("retention-email-columns");
   });
 
-  it("renders nothing for lead signals without a stored action", () => {
+  it("shows a lead outreach draft without a stored action", () => {
     const html = renderToStaticMarkup(
       createElement(RetentionEmailAction, {
-        signal: signal({ type: "lead", confidence: 0.95 }),
+        signal: signal({ type: "lead", confidence: 0.95, score: 0.95 }),
         customerName: "Rahul",
       }),
     );
-    expect(html).toBe("");
+    expect(html).toContain("Lead Outreach");
+    expect(html).toContain(">Approve<");
+    expect(html).toContain("Edit Draft");
+    expect(html).toContain(">Dismiss<");
+    expect(html).not.toContain("Retention Email");
   });
 
   it("keeps Edit Draft after Approved so partners can revise", () => {
@@ -488,7 +505,7 @@ describe("RetentionEmailAction", () => {
     expect(html).not.toContain("Approve &amp; Send");
     expect(html).not.toContain("Approve Draft");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
     expect(html).not.toContain("This draft already has a decision.");
   });
 
@@ -515,7 +532,7 @@ describe("RetentionEmailAction", () => {
     );
     expect(html).not.toContain("Approve Draft");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
     // Body lives in Edit Draft dialog only — not an inline preview.
     expect(html).not.toContain("Revised retention note.");
   });
@@ -540,6 +557,49 @@ describe("RetentionEmailAction", () => {
     );
     expect(html).not.toContain("Approve Draft");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
+  });
+
+  it("names lead, follow-up, and upsell drafts", () => {
+    const cases = [
+      {
+        type: "lead" as const,
+        confidence: 0.8,
+        title: "Lead Outreach",
+        pending: "Lead Outreach draft.",
+      },
+      {
+        type: "retention" as const,
+        confidence: 0.4,
+        title: "Retention Follow-up",
+        pending: "Retention Follow-up draft.",
+      },
+      {
+        type: "upsell" as const,
+        confidence: 0.55,
+        title: "Upsell Note",
+        pending: "Upsell Note draft.",
+      },
+    ];
+    for (const item of cases) {
+      const row = signal({
+        type: item.type,
+        confidence: item.confidence,
+        score: item.confidence,
+      });
+      const html = renderToStaticMarkup(
+        createElement(RetentionEmailAction, {
+          signal: row,
+          customerName: "Priya",
+          embedded: true,
+        }),
+      );
+      expect(html).toContain(item.title);
+      expect(html).toContain(item.pending);
+      expect(html).toContain(">Approve<");
+      expect(html).toContain("Edit Draft");
+      expect(html).toContain(">Dismiss<");
+      expect(html).not.toContain("Best regards");
+    }
   });
 });

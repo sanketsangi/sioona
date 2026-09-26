@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { Signal, StoreData, SupervisedAction } from "./types";
 import {
   applySupervisedActionDecision,
+  composePlaybookDraft,
   composeRetentionEmailDraft,
   createRetentionEmailAction,
+  createSupervisedDraftAction,
   ensureSupervisedActions,
   findSupervisedAction,
   HIGH_RETENTION_CONFIDENCE,
@@ -66,18 +68,65 @@ describe("shouldGenerateRetentionEmail", () => {
 });
 
 describe("isQueueApproveSignal", () => {
-  it("matches high-confidence retention or a stored draft", () => {
+  it("is true for every emitted lead, retention, and upsell", () => {
     expect(isQueueApproveSignal(signal())).toBe(true);
-    expect(isQueueApproveSignal(signal({ type: "lead" }))).toBe(false);
-    const stored = createRetentionEmailAction({
-      signal: signal({ id: "sig_stored", confidence: 0.4 }),
-      customerName: "Priya",
-    });
+    expect(isQueueApproveSignal(signal({ type: "lead", confidence: 0.4 }))).toBe(
+      true,
+    );
     expect(
-      isQueueApproveSignal(signal({ id: "sig_stored", confidence: 0.4 }), [
-        stored,
-      ]),
+      isQueueApproveSignal(signal({ type: "upsell", confidence: 0.2 })),
     ).toBe(true);
+    expect(isQueueApproveSignal(signal({ confidence: 0.4 }))).toBe(true);
+  });
+});
+
+describe("composePlaybookDraft", () => {
+  it("uses the taxonomy line as subject and the customer reply as body", () => {
+    const draft = composePlaybookDraft({
+      type: "lead",
+      score: 0.8,
+      customerName: "Rahul",
+      evidence: ['quote: "What are your pricing plans"'],
+    });
+    expect(draft.subject).toBe(
+      "Route to sales / RM within 24h — send the product's pricing + onboarding or upgrade link",
+    );
+    expect(draft.body).toContain("Hi Rahul, thanks for asking about");
+    expect(draft.body).toContain("“What are your pricing plans”");
+    expect(draft.evidenceQuote).toBe("What are your pricing plans");
+  });
+
+  it("uses the playbook line as the body when there is no quote", () => {
+    const draft = composePlaybookDraft({
+      type: "upsell",
+      score: 0.4,
+      evidence: ['phrase: "insurance"'],
+    });
+    expect(draft.subject).toBe(
+      "Tag CRM opportunity and notify sales with conversation link",
+    );
+    expect(draft.body).toBe(draft.subject);
+    expect(draft.evidenceQuote).toBe("");
+  });
+
+  it("does not reuse the retention email for a lower-confidence follow-up", () => {
+    const email = composeRetentionEmailDraft({
+      customerName: "Priya",
+      evidence: ['quote: "I am closing my account"'],
+    });
+    const follow = composePlaybookDraft({
+      type: "retention",
+      score: 0.6,
+      customerName: "Priya",
+      evidence: ['quote: "I am closing my account"'],
+    });
+    expect(email.subject).toBe("Following up on your account — can we help?");
+    expect(email.body).toContain("Best regards");
+    expect(follow.subject).toBe(
+      "Escalate to senior support with ledger + prior tickets attached",
+    );
+    expect(follow.body).toContain("I saw your note about");
+    expect(follow.body).not.toContain("Best regards");
   });
 });
 
@@ -140,17 +189,121 @@ describe("ensureSupervisedActions", () => {
     expect(store.actionLogs).toHaveLength(1);
   });
 
-  it("skips lead and low-confidence retention", () => {
+  it("creates one draft per conversation and signal type", () => {
     const store = emptyStore([
-      signal({ id: "sig_lead", type: "lead", conversationId: "conv_lead" }),
+      signal({
+        id: "sig_lead",
+        type: "lead",
+        conversationId: "conv_shared",
+        score: 0.8,
+        confidence: 0.8,
+      }),
+      signal({
+        id: "sig_up",
+        type: "upsell",
+        conversationId: "conv_shared",
+        score: 0.55,
+        confidence: 0.55,
+      }),
       signal({
         id: "sig_low",
+        type: "retention",
         conversationId: "conv_low",
+        score: 0.4,
         confidence: 0.4,
       }),
     ]);
-    expect(ensureSupervisedActions(store).created).toHaveLength(0);
-    expect(store.supervisedActions).toHaveLength(0);
+    const { created } = ensureSupervisedActions(store);
+    expect(created.map((action) => action.type).sort()).toEqual(
+      [
+        "lead_outreach_draft",
+        "retention_followup_draft",
+        "upsell_note_draft",
+      ].sort(),
+    );
+    expect(created.find((action) => action.type === "lead_outreach_draft")?.id).toBe(
+      "act_sig_lead__lead_outreach_draft",
+    );
+    const again = ensureSupervisedActions(store);
+    expect(again.created).toHaveLength(0);
+    expect(store.supervisedActions).toHaveLength(3);
+  });
+
+  it("does not regenerate a decided or edited playbook draft", () => {
+    const store = emptyStore([
+      signal({
+        id: "sig_lead",
+        type: "lead",
+        conversationId: "conv_lead",
+        score: 0.8,
+        confidence: 0.8,
+      }),
+    ]);
+    const [action] = ensureSupervisedActions(store).created;
+    applySupervisedActionDecision(store, action.id, "edited", {
+      body: "Custom outreach.",
+    });
+    const snapshot = store.supervisedActions?.[0];
+    const { created, changed } = ensureSupervisedActions(store);
+    expect(created).toHaveLength(0);
+    expect(changed).toBe(false);
+    expect(store.supervisedActions?.[0]).toEqual(snapshot);
+    expect(store.supervisedActions?.[0].body).toBe("Custom outreach.");
+  });
+
+  it("shows the email after a band change without dropping the follow-up", () => {
+    const low = signal({ confidence: 0.6, score: 0.6 });
+    const store = emptyStore([low]);
+    ensureSupervisedActions(store);
+    expect(store.supervisedActions?.[0].type).toBe("retention_followup_draft");
+    store.supervisedActions![0].status = "approved";
+    const high = signal({ confidence: 0.9, score: 0.9 });
+    store.signals = [high];
+    ensureSupervisedActions(store);
+    expect(store.supervisedActions?.map((action) => action.type).sort()).toEqual(
+      ["retention_email_draft", "retention_followup_draft"].sort(),
+    );
+    expect(findSupervisedAction(store.supervisedActions, high)?.type).toBe(
+      "retention_email_draft",
+    );
+    const follow = store.supervisedActions?.find(
+      (action) => action.type === "retention_followup_draft",
+    );
+    expect(follow?.status).toBe("approved");
+    expect(findSupervisedAction(store.supervisedActions, low)?.id).toBe(
+      follow?.id,
+    );
+  });
+
+  it("backfills an empty pending playbook quote and leaves an edited body", () => {
+    const lead = signal({
+      id: "sig_lead",
+      type: "lead",
+      conversationId: "conv_lead",
+      score: 0.8,
+      confidence: 0.8,
+      evidence: [],
+    });
+    const store = emptyStore([lead]);
+    ensureSupervisedActions(store);
+    const draft = store.supervisedActions?.[0];
+    expect(draft?.type).toBe("lead_outreach_draft");
+    expect(draft?.evidenceQuote).toBe("");
+    expect(draft?.body).toBe(draft?.subject);
+    draft!.body = "Edited outreach.";
+    store.signals = [
+      {
+        ...lead,
+        evidence: ['quote: "What is the pricing for a demat account"'],
+      },
+    ];
+    const { created, changed } = ensureSupervisedActions(store);
+    expect(created).toHaveLength(0);
+    expect(changed).toBe(true);
+    expect(store.supervisedActions?.[0].evidenceQuote).toBe(
+      "What is the pricing for a demat account",
+    );
+    expect(store.supervisedActions?.[0].body).toBe("Edited outreach.");
   });
 
   it("rematches a stored draft to a new signal id", () => {

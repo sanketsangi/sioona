@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readStore, resetStore, writeStore } from "@/lib/store";
 import { ensureSupervisedActions } from "@/lib/supervised-actions";
+import * as supervised from "@/lib/supervised-actions";
 import { POST } from "./route";
 
 function actionRequest(
@@ -24,6 +25,7 @@ describe("POST /api/signals/[id]/action", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -32,18 +34,155 @@ describe("POST /api/signals/[id]/action", () => {
       params: Promise.resolve({ id: "sig_missing" }),
     });
     expect(res.status).toBe(404);
+    const data = (await res.json()) as { error?: string };
+    expect(data.error).toBe("Signal not found");
   });
 
-  it("returns 404 when the signal is not high-confidence retention", async () => {
+  it("returns an honest 404 when the signal has no draft", async () => {
     const store = await readStore();
     const lead = store.signals.find((item) => item.type === "lead");
     expect(lead).toBeTruthy();
+    vi.spyOn(supervised, "shouldGenerateSupervisedDraft").mockReturnValue(false);
+    vi.spyOn(supervised, "findSupervisedAction").mockReturnValue(undefined);
     const res = await POST(actionRequest(lead!.id, {}), {
       params: Promise.resolve({ id: lead!.id }),
     });
     expect(res.status).toBe(404);
     const data = (await res.json()) as { error?: string };
-    expect(data.error).toMatch(/high-confidence retention/i);
+    expect(data.error).toBe("No supervised draft for this signal.");
+  });
+
+  it("generates a lead outreach draft and records a decision without sending", async () => {
+    const store = await readStore();
+    const lead = store.signals.find((item) => item.type === "lead");
+    expect(lead).toBeTruthy();
+    const res = await POST(actionRequest(lead!.id, { decision: "approved" }), {
+      params: Promise.resolve({ id: lead!.id }),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { type: string; status: string };
+      sent: boolean;
+    };
+    expect(data.action.type).toBe("lead_outreach_draft");
+    expect(data.action.status).toBe("approved");
+    expect(data.sent).toBe(false);
+  });
+
+  it("generates a follow-up draft for lower-confidence retention", async () => {
+    const store = await readStore();
+    store.signals.push({
+      id: "sig_ret_low",
+      tenantId: store.tenant.id,
+      conversationId: "conv_ret_low_only",
+      type: "retention",
+      score: 0.42,
+      confidence: 0.42,
+      summary: "Fee complaint",
+      suggestedAction: "Call",
+      evidence: ['quote: "These fees are too high"'],
+      status: "new",
+      createdAt: "2026-09-01T00:00:00.000Z",
+    });
+    await writeStore(store);
+    const res = await POST(actionRequest("sig_ret_low", {}), {
+      params: Promise.resolve({ id: "sig_ret_low" }),
+    });
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { type: string; subject: string; body: string; status: string };
+    };
+    expect(data.action.type).toBe("retention_followup_draft");
+    expect(data.action.status).toBe("pending");
+    expect(data.action.subject).toBe(
+      "Offer loyalty credit / brokerage rebate pending policy approval",
+    );
+    expect(data.action.body).toContain("I saw your note about");
+    expect(data.action.body).not.toContain("Best regards");
+  });
+
+  it("generates an upsell note draft", async () => {
+    const store = await readStore();
+    let upsell = store.signals.find((item) => item.type === "upsell");
+    if (!upsell) {
+      upsell = {
+        id: "sig_up_test",
+        tenantId: store.tenant.id,
+        conversationId: "conv_up_only",
+        type: "upsell",
+        score: 0.66,
+        confidence: 0.66,
+        summary: "Insurance alongside equity",
+        suggestedAction: "Share eligibility",
+        evidence: ['quote: "Can you add insurance"'],
+        status: "new",
+        createdAt: "2026-09-01T00:00:00.000Z",
+      };
+      store.signals.push(upsell);
+      await writeStore(store);
+    }
+    const res = await POST(
+      actionRequest(upsell.id, { decision: "dismissed" }),
+      { params: Promise.resolve({ id: upsell.id }) },
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { type: string; status: string };
+      sent: boolean;
+    };
+    expect(data.action.type).toBe("upsell_note_draft");
+    expect(data.action.status).toBe("dismissed");
+    expect(data.sent).toBe(false);
+  });
+
+  it("does not promote a stored follow-up into a retention email", async () => {
+    const store = await readStore();
+    const conversationId = store.conversations[0]?.id ?? "conv_x";
+    const stubId = "sig_neon_follow_only";
+    store.supervisedActions = [
+      {
+        id: "act_follow_only",
+        type: "retention_followup_draft",
+        signalId: stubId,
+        conversationId,
+        tenantId: store.tenant.id,
+        subject:
+          "Escalate to senior support with ledger + prior tickets attached",
+        body: "Hi there — I saw your note about “pause my SIP”.",
+        generatedSubject:
+          "Escalate to senior support with ledger + prior tickets attached",
+        generatedBody: "Hi there — I saw your note about “pause my SIP”.",
+        evidenceQuote: "pause my SIP",
+        status: "pending",
+        createdAt: "2026-09-01T00:00:00.000Z",
+      },
+    ];
+    await writeStore(store);
+
+    const res = await POST(
+      actionRequest(stubId, {
+        decision: "approved",
+        conversationId,
+        type: "retention",
+      }),
+      { params: Promise.resolve({ id: stubId }) },
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { type: string; status: string };
+      sent: boolean;
+    };
+    expect(data.sent).toBe(false);
+    expect(data.action.status).toBe("approved");
+    expect(data.action.type).toBe("retention_followup_draft");
+
+    const after = await readStore();
+    expect(
+      after.supervisedActions?.some(
+        (action) =>
+          action.signalId === stubId && action.type === "retention_email_draft",
+      ),
+    ).toBe(false);
   });
 
   it("generates a draft then records approved without sending", async () => {
@@ -245,5 +384,148 @@ describe("POST /api/signals/[id]/action", () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as { action: { status: string } };
     expect(data.action.status).toBe("dismissed");
+  });
+
+  it("approves the email when both retention drafts share a signal", async () => {
+    const store = await readStore();
+    const conversationId = store.conversations[0]?.id ?? "conv_x";
+    const signalId = "sig_band";
+    store.signals.push({
+      id: signalId,
+      tenantId: store.tenant.id,
+      conversationId,
+      type: "retention",
+      score: 0.6,
+      confidence: 0.6,
+      summary: "Fees",
+      suggestedAction: "Call",
+      evidence: ['quote: "These fees are too high"'],
+      status: "new",
+      createdAt: "2026-09-01T00:00:00.000Z",
+    });
+    store.supervisedActions = [
+      {
+        id: "act_follow_band",
+        type: "retention_followup_draft",
+        signalId,
+        conversationId,
+        tenantId: store.tenant.id,
+        subject: "Follow up",
+        body: "Follow",
+        generatedSubject: "Follow up",
+        generatedBody: "Follow",
+        evidenceQuote: "fees",
+        status: "approved",
+        createdAt: "2026-09-01T00:00:00.000Z",
+        decidedAt: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        id: "act_email_band",
+        type: "retention_email_draft",
+        signalId,
+        conversationId,
+        tenantId: store.tenant.id,
+        subject: "Email",
+        body: "Email body",
+        generatedSubject: "Email",
+        generatedBody: "Email body",
+        evidenceQuote: "fees",
+        status: "pending",
+        createdAt: "2026-09-02T00:00:00.000Z",
+      },
+    ];
+    await writeStore(store);
+
+    const res = await POST(
+      actionRequest(signalId, {
+        decision: "approved",
+        type: "retention",
+        confidence: 0.9,
+      }),
+      { params: Promise.resolve({ id: signalId }) },
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { type: string; status: string };
+      sent: boolean;
+    };
+    expect(data.sent).toBe(false);
+    expect(data.action.type).toBe("retention_email_draft");
+    expect(data.action.status).toBe("approved");
+
+    const after = await readStore();
+    expect(
+      after.supervisedActions?.find(
+        (action) => action.type === "retention_followup_draft",
+      )?.status,
+    ).toBe("approved");
+    expect(
+      after.supervisedActions?.find(
+        (action) => action.type === "retention_email_draft",
+      )?.status,
+    ).toBe("approved");
+  });
+
+  it("does not approve the older follow-up when confidence is omitted", async () => {
+    const store = await readStore();
+    const conversationId = store.conversations[0]?.id ?? "conv_x";
+    const stubId = "sig_neon_band_both";
+    store.supervisedActions = [
+      {
+        id: "act_follow_omit",
+        type: "retention_followup_draft",
+        signalId: stubId,
+        conversationId,
+        tenantId: store.tenant.id,
+        subject: "Follow up",
+        body: "Follow",
+        generatedSubject: "Follow up",
+        generatedBody: "Follow",
+        evidenceQuote: "fees",
+        status: "pending",
+        createdAt: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        id: "act_email_omit",
+        type: "retention_email_draft",
+        signalId: stubId,
+        conversationId,
+        tenantId: store.tenant.id,
+        subject: "Email",
+        body: "Email body",
+        generatedSubject: "Email",
+        generatedBody: "Email body",
+        evidenceQuote: "fees",
+        status: "pending",
+        createdAt: "2026-09-02T00:00:00.000Z",
+      },
+    ];
+    await writeStore(store);
+
+    const res = await POST(
+      actionRequest(stubId, {
+        decision: "approved",
+        conversationId,
+        type: "retention",
+      }),
+      { params: Promise.resolve({ id: stubId }) },
+    );
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error?: string };
+    expect(data.error).toBe(
+      "Confidence is required to choose the retention draft.",
+    );
+
+    const after = await readStore();
+    expect(
+      after.supervisedActions?.find(
+        (action) => action.type === "retention_followup_draft",
+      )?.status,
+    ).toBe("pending");
+    expect(
+      after.supervisedActions?.find(
+        (action) => action.type === "retention_email_draft",
+      )?.status,
+    ).toBe("pending");
   });
 });

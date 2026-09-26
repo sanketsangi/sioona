@@ -263,7 +263,7 @@ export default async function PlatformPage({
   const followUp = followUpSignals(reviewedForCadence);
   if (fetches.insightsQueue) {
     // Fill Neon-stub evidence from overlay chats BEFORE drafting so
-    // retention emails lock in quotes (not empty "No local evidence").
+    // supervised drafts lock in quotes (not empty "No local evidence").
     const chats = mergeOverlayChats(
       store.conversations,
       store.messages,

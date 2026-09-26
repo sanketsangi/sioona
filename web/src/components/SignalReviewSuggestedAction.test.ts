@@ -14,7 +14,7 @@ import {
   SignalReviewSuggestedAction,
   copyReplyClipboardText,
 } from "@/components/SignalReviewSuggestedAction";
-import { createRetentionEmailAction } from "@/lib/supervised-actions";
+import { createRetentionEmailAction, createSupervisedDraftAction } from "@/lib/supervised-actions";
 import { resolveSuggestedAction } from "@/lib/suggested-action-display";
 import type { Message, Signal } from "@/lib/types";
 
@@ -83,6 +83,33 @@ describe("copyReplyClipboardText", () => {
       copyReplyClipboardText(suggested, {
         body: `  ${edited}  `,
         generatedBody: draft.generatedBody,
+      }),
+    ).toBe(edited);
+  });
+
+  it("pastes an edited lead draft body", () => {
+    const row = signal({
+      type: "lead",
+      score: 0.8,
+      confidence: 0.8,
+    });
+    const suggested = resolveSuggestedAction({
+      type: row.type,
+      customerName: "Priya",
+      evidence: row.evidence,
+      fallback: row.suggestedAction,
+    });
+    const draft = createSupervisedDraftAction({
+      signal: row,
+      customerName: "Priya",
+      evidence: row.evidence,
+    });
+    expect(draft?.type).toBe("lead_outreach_draft");
+    const edited = "Hi Priya, I can send the pricing link this afternoon.";
+    expect(
+      copyReplyClipboardText(suggested, {
+        body: edited,
+        generatedBody: draft?.generatedBody ?? "",
       }),
     ).toBe(edited);
   });
@@ -244,7 +271,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain('data-review-slot="retention-email"');
     expect(html).toContain("Edit Draft");
     expect(html).not.toContain("Approve Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
     // Edit Draft is in the Retention Email toolbar, left of Run Actions — not the title row.
     expect(html.indexOf("Retention Email")).toBeLessThan(html.indexOf("Edit Draft"));
     expect(html.indexOf("Edit Draft")).toBeLessThan(
@@ -292,7 +319,7 @@ describe("SignalReviewSuggestedAction", () => {
       /data-review-slot="retention-email"[\s\S]*<h3[\s\S]*Retention Email/,
     );
     expect(html).not.toContain("Approve Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
     expect(html).toContain(
       "min-w-0 flex-1 truncate text-heading-14 font-medium text-sio-fg-base",
     );
@@ -377,26 +404,47 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain('data-retention-email-panel="draft"');
     expect(html).not.toContain("Approve Draft");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
   });
 
-  it("omits Retention Email for non-retention signals", () => {
-    const html = renderToStaticMarkup(
-      createElement(SignalReviewSuggestedAction, {
-        signal: signal({ type: "lead", confidence: 0.95 }),
-        customerName: "Rahul",
-      }),
-    );
-
-    expect(html).toContain("Recommended Actions");
-    expect(html).not.toContain("Retention Email");
-    expect(html).not.toContain('data-review-slot="retention-email"');
-    // Without Retention Email, Run Actions stays in the Actions footer.
-    expect(html).toContain('data-review-actions-footer="true"');
-    expect(html).toContain(
-      "relative z-[1] flex shrink-0 flex-wrap items-center gap-2 w-full justify-end",
-    );
-    expect(html).toContain('aria-label="Run Actions"');
+  it("shows a named draft for lead, lower-confidence retention, and upsell", () => {
+    const cases = [
+      {
+        type: "lead" as const,
+        confidence: 0.95,
+        title: "Lead Outreach",
+      },
+      {
+        type: "retention" as const,
+        confidence: 0.4,
+        title: "Retention Follow-up",
+      },
+      {
+        type: "upsell" as const,
+        confidence: 0.6,
+        title: "Upsell Note",
+      },
+    ];
+    for (const item of cases) {
+      const html = renderToStaticMarkup(
+        createElement(SignalReviewSuggestedAction, {
+          signal: signal({
+            type: item.type,
+            confidence: item.confidence,
+            score: item.confidence,
+          }),
+          customerName: "Rahul",
+        }),
+      );
+      expect(html).toContain("Recommended Actions");
+      expect(html).toContain(item.title);
+      expect(html).toContain('data-review-slot="retention-email"');
+      expect(html).not.toContain('data-review-actions-footer="true"');
+      expect(html).toContain(">Approve<");
+      expect(html).toContain("Edit Draft");
+      expect(html).toContain(">Dismiss<");
+      expect(html).toContain('aria-label="Run Actions"');
+    }
   });
 
   it("omits Matched section when only quotes exist", () => {
@@ -417,7 +465,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain('data-retention-email-panel="draft"');
     expect(html).not.toContain("Approve Draft");
     expect(html).toContain("Edit Draft");
-    expect(html).not.toContain(">Dismiss<");
+    expect(html).toContain(">Dismiss<");
   });
 
   it("shows Matched alone when there are matches but no quotes", () => {

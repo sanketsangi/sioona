@@ -27,7 +27,7 @@ import {
   GROWW_TESTING_JSON_EXTERNAL_ID,
   ZERODHA_BATCH02_EXTERNAL_ID,
 } from "./testing-json-eval";
-import type { Conversation, Message, Signal } from "./types";
+import type { Conversation, Message, Signal, SupervisedAction } from "./types";
 
 /** Stable ids from Groww testing.json vs Zerodha Batch-02 (Partner Demo pack split). */
 const GROWW_CONV_ID = `conv_${GROWW_TESTING_JSON_EXTERNAL_ID}`;
@@ -161,8 +161,14 @@ describe("joinNeedsReviewPredictions", () => {
 describe("predictionToStubSignal", () => {
   it("maps prediction fields", () => {
     const stub = predictionToStubSignal(prediction({ id: "x" }));
-    expect(stub.backendSignalId).toBe("x");
-    expect(stub.type).toBe("lead");
+    expect(stub?.backendSignalId).toBe("x");
+    expect(stub?.type).toBe("lead");
+  });
+
+  it("does not invent a lead for an unknown signal type", () => {
+    expect(
+      predictionToStubSignal(prediction({ id: "bad", signal_type: "complaint" }))
+    ).toBeNull();
   });
 });
 
@@ -788,57 +794,72 @@ describe("queueSignalsForFilter", () => {
   });
 
   it("filters and counts Approve vs Review CTAs", () => {
-    const highRetention: Signal = {
+    const pendingDraft: Signal = {
       ...baseSignal,
       id: "sig_approve",
       type: "retention",
       confidence: 0.9,
       score: 0.9,
+      status: "new",
     };
-    const lowRetention: Signal = {
+    const correctNotActed: Signal = {
       ...baseSignal,
-      id: "sig_review_ret",
+      id: "sig_follow",
       type: "retention",
-      confidence: 0.4,
-      score: 0.4,
+      status: "reviewed",
+      feedback: { label: "correct", reviewedAt: "2026-08-02T00:00:00.000Z" },
     };
-    const result = queueSignalsForFilter({
-      pending: [highRetention, lowRetention, pending[0]],
-      reviewed: [],
+    const dismissed: Signal = {
+      ...baseSignal,
+      id: "sig_dismissed",
+      type: "lead",
       status: "new",
-      type: "all",
-    });
-    expect(result.approveCount).toBe(1);
-    expect(result.reviewCount).toBe(2);
-    expect(
-      queueSignalsForFilter({
-        pending: [highRetention, lowRetention, pending[0]],
-        reviewed: [],
-        status: "new",
-        type: "all",
-        action: "approve",
-      }).filtered.map((s) => s.id)
-    ).toEqual(["sig_approve"]);
-    expect(
-      queueSignalsForFilter({
-        pending: [highRetention, lowRetention, pending[0]],
-        reviewed: [],
-        status: "new",
-        type: "all",
-        action: "review",
-      })
-        .filtered.map((s) => s.id)
-        .sort(),
-    ).toEqual(["sig_p", "sig_review_ret"].sort());
-    const approveFilter = queueSignalsForFilter({
-      pending: [highRetention, lowRetention, pending[0]],
-      reviewed: [],
-      status: "new",
-      type: "all",
+    };
+    const dismissedAction: SupervisedAction = {
+      id: "act_sig_dismissed__lead_outreach_draft",
+      type: "lead_outreach_draft",
+      signalId: dismissed.id,
+      conversationId: dismissed.conversationId,
+      tenantId: dismissed.tenantId,
+      subject: "Outreach",
+      body: "Hi",
+      generatedSubject: "Outreach",
+      generatedBody: "Hi",
+      evidenceQuote: "",
+      status: "dismissed",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    };
+    const rows = {
+      pending: [pendingDraft, dismissed],
+      reviewed: [correctNotActed],
+      type: "all" as const,
+      supervisedActions: [dismissedAction],
+    };
+
+    const all = queueSignalsForFilter({ ...rows, status: "all" });
+    expect(all.approveCount).toBe(1);
+    expect(all.reviewCount).toBe(0);
+    expect(all.filtered.map((s) => s.id).sort()).toEqual(
+      ["sig_approve", "sig_dismissed", "sig_follow"].sort(),
+    );
+
+    const approve = queueSignalsForFilter({
+      ...rows,
+      status: "all",
       action: "approve",
     });
-    expect(approveFilter.approveCount).toBe(1);
-    expect(approveFilter.reviewCount).toBe(2);
+    expect(approve.filtered.map((s) => s.id)).toEqual(["sig_approve"]);
+    expect(approve.approveCount).toBe(1);
+    expect(approve.reviewCount).toBe(0);
+
+    const review = queueSignalsForFilter({
+      ...rows,
+      status: "all",
+      action: "review",
+    });
+    expect(review.filtered).toEqual([]);
+    expect(review.filtered.map((s) => s.id)).not.toContain("sig_follow");
+    expect(review.filtered.map((s) => s.id)).not.toContain("sig_dismissed");
   });
 });
 
@@ -933,11 +954,50 @@ describe("missingConversationIds / chat evidence", () => {
     ]);
   });
 
+  it("leaves an unknown Neon signal type off pending and reviewed queues", () => {
+    expect(
+      joinNeedsReviewPredictions(
+        [prediction({ id: "bad", signal_type: "complaint" })],
+        []
+      )
+    ).toEqual([]);
+    expect(
+      pendingQueueSignals(
+        [prediction({ id: "bad", signal_type: "complaint" })],
+        []
+      )
+    ).toEqual([]);
+    expect(
+      joinTenantSignals(
+        [tenantRow({ id: "bad-reviewed", signal_type: "complaint" })],
+        []
+      )
+    ).toEqual([]);
+  });
+
+  it("keeps the JSON type when a Neon id matches an unknown signal_type", () => {
+    const joined = joinNeedsReviewPredictions(
+      [
+        prediction({
+          id: "bad",
+          signal_type: "complaint",
+          conversation_id: "conv_1",
+        }),
+      ],
+      [{ ...baseSignal, id: "sig_a", backendSignalId: "bad", type: "retention" }]
+    );
+    expect(joined.map((signal) => signal.id)).toEqual(["sig_a"]);
+    expect(joined[0]?.type).toBe("retention");
+  });
+
   it("fills empty stub evidence and action from overlay chats", () => {
+    const mapped = predictionToStubSignal(
+      prediction({ id: "orphan", conversation_id: "conv_x" })
+    );
+    expect(mapped).not.toBeNull();
+    if (!mapped) return;
     const stub: Signal = {
-      ...predictionToStubSignal(
-        prediction({ id: "orphan", conversation_id: "conv_x" })
-      ),
+      ...mapped,
       status: "reviewed",
       feedback: {
         label: "correct",
@@ -976,6 +1036,8 @@ describe("missingConversationIds / chat evidence", () => {
     const stub = predictionToStubSignal(
       prediction({ id: "orphan", conversation_id: "conv_missing" })
     );
+    expect(stub).not.toBeNull();
+    if (!stub) return;
     const filled = applyChatEvidenceToSignals([stub], {
       conversations: [],
       messages: [],

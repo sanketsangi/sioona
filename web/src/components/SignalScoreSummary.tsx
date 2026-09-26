@@ -317,11 +317,15 @@ export function SignalScoreSummary({
               {byType.map((row) => (
                 <li
                   key={row.signal_type}
-                  className="flex min-w-0 items-baseline justify-between gap-3 text-copy-14"
+                  className="flex min-w-0 items-center justify-between gap-3 text-copy-14"
                 >
-                  <span className="min-w-0 truncate text-sio-fg-base">
-                    {typeLabel(row.signal_type)}
-                  </span>
+                  {KNOWN_TYPES.has(row.signal_type) ? (
+                    <SignalTypeChip type={row.signal_type as SignalType} />
+                  ) : (
+                    <span className="min-w-0 truncate text-sio-fg-base">
+                      {typeLabel(row.signal_type)}
+                    </span>
+                  )}
                   <span className="shrink-0 font-mono tabular text-sio-fg-subtle">
                     <span className="font-medium text-sio-fg-base">
                       {typeScorePercent(row)}

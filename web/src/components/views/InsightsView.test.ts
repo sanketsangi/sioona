@@ -283,11 +283,11 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Pending signal 10");
     expect(html).toContain('data-slot="card"');
     expect(html).toContain("preview=sig_1");
-    expect(html).toContain(">Review</a>");
-    const reviewAnchors = html.match(/<a\b[^>]*>Review<\/a>/g) ?? [];
-    expect(reviewAnchors.length).toBeGreaterThan(0);
+    expect(html).toContain(">Approve</a>");
+    const approveAnchors = html.match(/<a\b[^>]*>Approve<\/a>/g) ?? [];
+    expect(approveAnchors.length).toBeGreaterThan(0);
     expect(
-      reviewAnchors.every(
+      approveAnchors.every(
         (anchor) => anchor.includes("rounded-full") && !anchor.includes("w-7"),
       ),
     ).toBe(true);
@@ -469,15 +469,11 @@ describe("InsightsView pending landing empty Follow-up", () => {
   });
 
   it("Pending Action shows the stored retention decision chip", () => {
-    const decided = makePendingSignals(3).map((row, index) =>
-      index === 0
-        ? {
-            ...row,
-            type: "retention" as const,
-            summary: "Close account draft",
-          }
-        : row,
-    );
+    const decided = makePendingSignals(3).map((row, index) => ({
+      ...row,
+      type: "retention" as const,
+      summary: index === 0 ? "Close account draft" : row.summary,
+    }));
     const store = storeFromSignals(decided);
     store.supervisedActions = [
       {
@@ -1359,7 +1355,7 @@ describe("InsightsView pending review walk", () => {
     );
   });
 
-  it("Prev/Next/Skip walk only Approve signals when action=approve", () => {
+  it("Prev/Next/Skip walk every pending draft when action=approve", () => {
     const mixed: Signal[] = [
       {
         ...makePendingSignals(1)[0],
@@ -1400,6 +1396,9 @@ describe("InsightsView pending review walk", () => {
         summary: "Approve signal 2",
       },
     ];
+    const ordered = shuffleSignals(mixed);
+    const index = ordered.findIndex((row) => row.id === "sig_approve_1");
+    const next = ordered[index + 1];
     const html = renderPendingPreview({
       count: mixed.length,
       previewId: "sig_approve_1",
@@ -1407,32 +1406,41 @@ describe("InsightsView pending review walk", () => {
       signals: mixed,
     });
 
-    expect(html).toContain(
-      'href="/?view=insights&amp;status=new&amp;action=approve&amp;preview=sig_approve_2"',
-    );
-    expect(html).not.toContain("preview=sig_review_1");
-    expect(html).not.toContain("preview=sig_review_2");
+    expect(html).toContain("action=approve");
+    if (next) {
+      expect(html).toContain(
+        `href="/?view=insights&amp;status=new&amp;action=approve&amp;preview=${next.id}"`,
+      );
+    }
     const skipHref = html.match(
       /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
     )?.[1];
-    expect(skipHref).toBe(
-      "/?view=insights&amp;status=new&amp;action=approve&amp;preview=sig_approve_2",
-    );
+    if (next) {
+      expect(skipHref).toBe(
+        `/?view=insights&amp;status=new&amp;action=approve&amp;preview=${next.id}`,
+      );
+    }
 
+    const last = ordered[ordered.length - 1];
     const lastHtml = renderPendingPreview({
       count: mixed.length,
-      previewId: "sig_approve_2",
+      previewId: last.id,
       actionFilter: "approve",
       signals: mixed,
     });
-    expect(lastHtml).toContain(
-      'href="/?view=insights&amp;status=new&amp;action=approve&amp;preview=sig_approve_1"',
-    );
     const lastSkip = lastHtml.match(
       /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
     )?.[1];
     expect(lastSkip).toBe("/?view=insights&amp;status=new&amp;action=approve");
     expect(lastSkip).not.toContain("preview=");
+
+    const reviewHtml = renderPendingPreview({
+      count: mixed.length,
+      previewId: "sig_approve_1",
+      actionFilter: "review",
+      signals: mixed,
+    });
+    expect(reviewHtml).not.toContain("action=approve&amp;preview=");
   });
 
   it("keeps Prev/Next/Skip after Correct while pending remains", () => {

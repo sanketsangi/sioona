@@ -33,10 +33,12 @@ function asFeedbackLabel(raw: unknown): FeedbackLabel | undefined {
     : undefined;
 }
 
-function asSignalType(raw: unknown): SignalType {
+function asSignalType(raw: unknown): SignalType | null {
   if (raw === "lead" || raw === "retention" || raw === "upsell") return raw;
-  return "lead";
+  return null;
 }
+
+const ACTED_TYPE_ERROR = "Signal type must be lead, retention, or upsell";
 
 function isPredictionMissingError(err: unknown): boolean {
   return err instanceof BackendClientError && err.status === 404;
@@ -75,14 +77,16 @@ function neonOnlyActedSignal(
   id: string,
   row: BackendPredictionWithFeedback,
   acted: boolean
-): Signal {
+): Signal | null {
+  const type = asSignalType(row.signal_type);
+  if (!type) return null;
   const label = asFeedbackLabel(row.feedback?.feedback);
   const note = row.feedback?.note?.trim();
   return {
     id,
     tenantId: row.tenant_id,
     conversationId: row.conversation_id,
-    type: asSignalType(row.signal_type),
+    type,
     score: row.confidence,
     confidence: row.confidence,
     summary: row.summary ?? "",
@@ -128,7 +132,7 @@ export async function setActedRecoveringStaleId(opts: {
   tenantId: string;
   candidateIds: string[];
   conversationId: string;
-  signalType: SignalType;
+  signalType: SignalType | null;
   confidence: number;
   summary: string;
   acted: boolean;
@@ -149,8 +153,13 @@ export async function setActedRecoveringStaleId(opts: {
     }
   }
 
+  const signalType = asSignalType(opts.signalType);
+  if (!signalType) {
+    throw new BackendClientError(ACTED_TYPE_ERROR, 400);
+  }
+
   const conversationId = opts.conversationId.trim();
-  const canRecreate = Boolean(conversationId) && Boolean(opts.signalType);
+  const canRecreate = Boolean(conversationId);
   if (!canRecreate) {
     throw lastMissing instanceof Error
       ? lastMissing
@@ -159,9 +168,9 @@ export async function setActedRecoveringStaleId(opts: {
 
   const created = await createPrediction(opts.tenantId, {
     conversation_id: conversationId,
-    signal_type: opts.signalType,
+    signal_type: signalType,
     confidence: clampConfidence(opts.confidence),
-    summary: opts.summary.trim() || opts.signalType,
+    summary: opts.summary.trim() || signalType,
   });
 
   try {
@@ -213,6 +222,16 @@ export async function POST(
 
   const store = await readStore();
   const existing = resolveFeedbackSignal(store.signals, id, body);
+  if (
+    body.acted &&
+    existing?.feedback &&
+    existing.feedback.label !== "correct"
+  ) {
+    return NextResponse.json(
+      { error: "Signal must be reviewed before marking acted" },
+      { status: 400 }
+    );
+  }
   const neonStubId = neonPredictionIdFromStubSignalId(id);
   const bodyBackendId = body.backendSignalId?.trim() || undefined;
   const bodyConversationId = body.conversationId?.trim() || undefined;
@@ -296,8 +315,16 @@ export async function POST(
         return NextResponse.json({ signal: mirrored.signal, neonOnly: false });
       }
     }
+    const neonSignal = neonOnlyActedSignal(
+      id,
+      { ...row, id: liveId },
+      body.acted
+    );
+    if (!neonSignal) {
+      return NextResponse.json({ error: ACTED_TYPE_ERROR }, { status: 400 });
+    }
     return NextResponse.json({
-      signal: neonOnlyActedSignal(id, { ...row, id: liveId }, body.acted),
+      signal: neonSignal,
       neonOnly: true,
     });
   } catch (err) {

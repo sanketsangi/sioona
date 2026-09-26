@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-26):** Score asleep — Insights keeps the last queue counts, says the weekly score is waiting, and offers one Retry. An empty Neon queue is not treated as finished while JSON still has the keep-set. Eval metrics show the existing sync warning when uploaded chats and saved reviews disagree. Touch: Insights asleep panel, `QueueWakeRetry`, Eval metrics. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+**This pass (code, 2026-09-26):** Every emitted Insights signal has a supervised draft (lead outreach, retention follow-up, upsell note). High-confidence retention email is unchanged. Approve records a decision only — nothing is sent.
+
+**Prior pass (code, 2026-09-26):** Score asleep — Insights keeps the last queue counts, says the weekly score is waiting, and offers one Retry. An empty Neon queue is not treated as finished while JSON still has the keep-set. Eval metrics show the existing sync warning when uploaded chats and saved reviews disagree. Touch: Insights asleep panel, `QueueWakeRetry`, Eval metrics. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-26):** Adapt apply buttons — Incorrect defaults primary to Add Negative; Partially correct defaults primary to Add Phrase. The other action stays secondary and both still post the same draft (`phrases` / `negativePhrases`). Touch: `AdaptationPanel` + Vitest. Not taxonomy expansion / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 
