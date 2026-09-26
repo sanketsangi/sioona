@@ -29,6 +29,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { InsightsView } from "./InsightsView";
+import { shuffleSignals } from "@/lib/join-needs-review";
 
 function makePendingSignals(count: number): Signal[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -255,7 +256,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
         },
         tenantSignals: { ok: true, rows: [] },
         cadenceAction: cadenceReviews,
-      })
+      }),
     );
 
     expect(html).toContain("Conversation that needs your attention");
@@ -287,8 +288,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(reviewAnchors.length).toBeGreaterThan(0);
     expect(
       reviewAnchors.every(
-        (anchor) =>
-          anchor.includes("rounded-full") && !anchor.includes("w-7"),
+        (anchor) => anchor.includes("rounded-full") && !anchor.includes("w-7"),
       ),
     ).toBe(true);
     expect(html).toContain("data-queue-card");
@@ -458,7 +458,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
         },
         tenantSignals: { ok: true, rows: [] },
         cadenceAction: cadenceMidweek,
-      })
+      }),
     );
 
     expect(html).toContain("No Correct Signals");
@@ -666,7 +666,9 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     // List button posts Acted without opening preview (stay on Follow-up).
-    expect(html).toContain('aria-label="Mark as Acted for Pause SIP follow-up"');
+    expect(html).toContain(
+      'aria-label="Mark as Acted for Pause SIP follow-up"',
+    );
     expect(html).toMatch(/>\s*Mark as Acted\s*</);
     expect(html).not.toContain(">Review</a>");
     expect(html).not.toContain(">Mark as Acted</a>");
@@ -785,7 +787,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
           ],
         },
         cadenceAction: cadenceMidweek,
-      })
+      }),
     );
 
     expect(html).toContain("No Signals Need Review");
@@ -793,9 +795,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toMatch(/Upload this week’s export/);
     expect(html).not.toMatch(/upsert|keep-set|Day-1|external id|SignalScore/i);
     expect(html).toContain('data-slot="card"');
-    expect(html).toContain(
-      "flex flex-1 flex-col items-center justify-center",
-    );
+    expect(html).toContain("flex flex-1 flex-col items-center justify-center");
     expect(html).not.toContain("Review Pending");
   });
 
@@ -813,7 +813,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
         },
         tenantSignals: { ok: true, rows: [] },
         cadenceAction: cadenceReviews,
-      })
+      }),
     );
 
     expect(html).toContain("Review Queue Unavailable");
@@ -847,7 +847,10 @@ describe("InsightsView pending landing empty Follow-up", () => {
           ok: false,
           error: "Signal Score backend unreachable: timed out after 10000ms",
         },
-        cadenceAction: { id: "nextweek", label: "Next week — re-upload weekly export" },
+        cadenceAction: {
+          id: "nextweek",
+          label: "Next week — re-upload weekly export",
+        },
       }),
     );
 
@@ -878,7 +881,7 @@ describe("InsightsView pending landing empty Follow-up", () => {
           error: "Signal Score backend unreachable: timed out after 10000ms",
         },
         cadenceAction: cadenceReviews,
-      })
+      }),
     );
 
     expect(html).toContain("Follow-Up Queue Unavailable");
@@ -1081,6 +1084,44 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Pending signal 1");
   });
 
+  it("keeps the Sample queue when switching to Partner Demo", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_batch_02",
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Pending signal 1");
+    expect(html).toContain("Conversation that needs your attention");
+    expect(html).not.toContain("Usually ready in about 20 seconds.");
+    expect(html).not.toContain("animate-spin");
+    expect(html).not.toMatch(/href="\/\?view=upload"[^>]*>Cancel/);
+  });
+
   it("Cancel leaves a first-paint load when the keep-set is empty", () => {
     const store = storeFromSignals([]);
     store.pilot = { baselineOpportunities: 0 };
@@ -1232,11 +1273,15 @@ describe("InsightsView Neon pending overlay", () => {
 
 describe("InsightsView pending review walk", () => {
   const scoreFrom = "2026-08-17";
+  const walk = shuffleSignals(makePendingSignals(3));
+  const firstId = walk[0].id;
+  const secondId = walk[1].id;
+  const lastId = walk[2].id;
 
   it("disables Prev on the first pending and deep-links Next/Skip", () => {
     const html = renderPendingPreview({
       count: 3,
-      previewId: "sig_1",
+      previewId: firstId,
       scoreFrom,
     });
 
@@ -1254,37 +1299,37 @@ describe("InsightsView pending review walk", () => {
     expect(html).toContain("h-8 gap-2");
     expect(html).toContain('disabled=""');
     expect(html).not.toContain(
-      "href=\"/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=sig_3\"",
+      `href="/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=${lastId}"`,
     );
     expect(html).toContain(
-      "href=\"/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=sig_2\"",
+      `href="/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=${secondId}"`,
     );
     expect(html).not.toContain("Conversation that needs your attention");
-    expect(html).not.toContain('id="signal-summary-sig_1"');
-    expect(html).toContain('id="signal-review-summary-sig_1"');
+    expect(html).not.toContain(`id="signal-summary-${firstId}"`);
+    expect(html).toContain(`id="signal-review-summary-${firstId}"`);
   });
 
   it("disables Next on the last pending", () => {
     const html = renderPendingPreview({
       count: 3,
-      previewId: "sig_3",
+      previewId: lastId,
       scoreFrom,
     });
 
     expect(html).toContain("Next pending review");
     expect(html).toContain('disabled=""');
     expect(html).toContain(
-      "href=\"/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=sig_2\"",
+      `href="/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=${secondId}"`,
     );
     expect(html).not.toContain(
-      "href=\"/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=sig_4\"",
+      'href="/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=sig_4"',
     );
   });
 
   it("sends last Skip to the list without preview and keeps scoreFrom", () => {
     const html = renderPendingPreview({
       count: 3,
-      previewId: "sig_3",
+      previewId: lastId,
       scoreFrom,
     });
 
@@ -1300,17 +1345,17 @@ describe("InsightsView pending review walk", () => {
   it("keeps replaced=1 on Next and Skip after replace ingest", () => {
     const html = renderPendingPreview({
       count: 3,
-      previewId: "sig_1",
+      previewId: firstId,
       jsonKeepSet: true,
     });
     expect(html).toContain(
-      'href="/?view=insights&amp;status=new&amp;preview=sig_2&amp;replaced=1"',
+      `href="/?view=insights&amp;status=new&amp;preview=${secondId}&amp;replaced=1"`,
     );
     const skipHref = html.match(
       /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
     )?.[1];
     expect(skipHref).toBe(
-      "/?view=insights&amp;status=new&amp;preview=sig_2&amp;replaced=1",
+      `/?view=insights&amp;status=new&amp;preview=${secondId}&amp;replaced=1`,
     );
   });
 
@@ -1386,9 +1431,7 @@ describe("InsightsView pending review walk", () => {
     const lastSkip = lastHtml.match(
       /href="([^"]*)"[^>]*aria-label="Skip pending review"/,
     )?.[1];
-    expect(lastSkip).toBe(
-      "/?view=insights&amp;status=new&amp;action=approve",
-    );
+    expect(lastSkip).toBe("/?view=insights&amp;status=new&amp;action=approve");
     expect(lastSkip).not.toContain("preview=");
   });
 
@@ -1540,7 +1583,9 @@ describe("InsightsView review conversation + action", () => {
       "btn-secondary shrink-0 font-normal text-foreground",
     );
     expect(html).not.toContain("Display only — not sent.");
-    expect(html).toContain("Show in conversation: Please pause my SIP this month");
+    expect(html).toContain(
+      "Show in conversation: Please pause my SIP this month",
+    );
     expect(html).not.toContain("A / Enter → Mark as Acted");
   });
 
@@ -1619,8 +1664,10 @@ describe("InsightsView review conversation + action", () => {
     // Open review row is the short label. The list command stays Mark as Acted.
     expect(html).toMatch(/>\s*Acted\s*<\/button>/);
     expect(html).not.toContain("Mark as Acted");
-    expect(html).not.toContain("You run this in your tools — Sioona never sends.");
-    expect(html).toContain("data-review-slot=\"retention-email\"");
+    expect(html).not.toContain(
+      "You run this in your tools — Sioona never sends.",
+    );
+    expect(html).toContain('data-review-slot="retention-email"');
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
     const actionsSlot = html.indexOf('data-review-slot="actions"');
     const retentionSlot = html.indexOf('data-review-slot="retention-email"');
@@ -1712,7 +1759,9 @@ describe("InsightsView review conversation + action", () => {
     );
     expect(html).toContain("Recommended Actions");
     expect(html).toContain("Run Actions");
-    expect(html).not.toContain("You run this in your tools — Sioona never sends.");
+    expect(html).not.toContain(
+      "You run this in your tools — Sioona never sends.",
+    );
     expect(html).not.toContain(
       "Copy Reply, then A / Enter → Acted (does not send).",
     );
@@ -1788,9 +1837,15 @@ describe("InsightsView evidence-grounded review", () => {
     const whySlot = html.indexOf('data-review-slot="why"');
     expect(feedbackSlot).toBeGreaterThan(-1);
     expect(whySlot).toBeGreaterThan(feedbackSlot);
-    expect(html.indexOf("Show in conversation:", whySlot)).toBeGreaterThan(whySlot);
-    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeGreaterThan(-1);
-    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeLessThan(whySlot);
+    expect(html.indexOf("Show in conversation:", whySlot)).toBeGreaterThan(
+      whySlot,
+    );
+    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeGreaterThan(
+      -1,
+    );
+    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeLessThan(
+      whySlot,
+    );
     // Open Conversation lives in Pending review nav after Skip — not the rail.
     const pendingNav = html.match(
       /aria-label="Pending review"[^>]*>([\s\S]*?)<\/nav>/,

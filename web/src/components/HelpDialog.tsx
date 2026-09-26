@@ -28,7 +28,7 @@ const HELP_FAQ: { question: string; answer: string }[] = [
   {
     question: "What signals does Detect find?",
     answer:
-      "Lead, retention, and upsell opportunities in customer messages. Primary ranking favors retention.",
+      "Lead, retention, and upsell opportunities in customer messages. The queue is unordered; use the type filter to narrow it.",
   },
   {
     question: "How do I start a pilot week?",

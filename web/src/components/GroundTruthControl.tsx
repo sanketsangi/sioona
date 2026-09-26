@@ -25,7 +25,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -107,19 +106,29 @@ export function isGroundTruthSuggestedOption(
 }
 
 /**
- * Open-menu row chrome: quiet neutrals for every option (icons carry type).
- * Focus uses interactive wash — no signal tint fills.
+ * Open-menu row chrome matching Add Filter rows: label-14, base foreground,
+ * 44px / 32px hit area, and an inset interactive wash on highlight.
+ * Icons carry type. No persistent fill and no signal tint.
+ * The radio check is pulled into the row so it does not cover the label.
  */
 export function groundTruthOptionRowClass(
   _value: GroundTruthValue,
-  suggested: boolean,
+  _suggested: boolean,
 ): string {
   return cn(
-    "gap-2 rounded-md py-1.5 pr-8 pl-2 text-label-14 text-sio-fg-muted",
-    "focus:bg-sio-bg-interactive focus:text-sio-fg-base",
-    suggested && "bg-sio-bg-muted font-medium text-sio-fg-base",
+    "relative flex h-11 w-full min-w-0 cursor-pointer items-center gap-2 rounded-none px-3 py-0 text-left text-label-14 text-sio-fg-base outline-none touch-manipulation md:h-8",
+    "focus:bg-transparent focus:text-sio-fg-base data-[highlighted]:bg-transparent data-[highlighted]:text-sio-fg-base",
+    "focus-visible:shadow-[var(--focus-ring)]",
+    "before:pointer-events-none before:absolute before:inset-x-1 before:inset-y-0 before:rounded-lg before:bg-sio-bg-interactive before:opacity-0 before:content-['']",
+    "focus:before:opacity-100 data-[highlighted]:before:opacity-100",
+    "[&_[data-slot=dropdown-menu-radio-item-indicator]]:relative [&_[data-slot=dropdown-menu-radio-item-indicator]]:right-auto [&_[data-slot=dropdown-menu-radio-item-indicator]]:z-[1] [&_[data-slot=dropdown-menu-radio-item-indicator]]:order-last [&_[data-slot=dropdown-menu-radio-item-indicator]]:flex [&_[data-slot=dropdown-menu-radio-item-indicator]]:size-4 [&_[data-slot=dropdown-menu-radio-item-indicator]]:shrink-0 [&_[data-slot=dropdown-menu-radio-item-indicator]]:items-center [&_[data-slot=dropdown-menu-radio-item-indicator]]:justify-center",
+    "[&_[data-slot=dropdown-menu-radio-item-indicator]:empty]:hidden",
   );
 }
+
+/** Same listbox metrics as Add Filter’s type list. */
+export const GROUND_TRUTH_OPTIONS_LIST_CLASS =
+  "flex min-h-0 flex-1 flex-col overflow-y-auto py-1 overscroll-contain [scrollbar-width:thin] md:max-h-80 md:flex-none";
 
 /**
  * Compact Ground Truth picker for the Feedback pane header.
@@ -135,6 +144,18 @@ export function groundTruthSaveErrorMessage(error: string): string {
  */
 export const GROUND_TRUTH_ROLE_LABEL =
   "Gold label for the Labeled panel. Does not change this week’s score.";
+
+/**
+ * Same menu shell as Add Filter (`PopoverContent` in AddFilterPopover):
+ * panel radius, base fill and border, layered shadow, no default ring.
+ * Width matches that menu (`w-screen` below `md`, `md:w-80` at 320px).
+ * The options list stays a dropdown — not the filter’s full-viewport sheet.
+ */
+export const GROUND_TRUTH_MENU_CLASS = cn(
+  "material-menu flex h-auto w-screen max-md:w-screen max-md:max-w-none flex-col gap-0 overflow-hidden border border-sio-border-base bg-sio-bg-base p-0 text-sio-fg-base outline-none ring-0 overscroll-contain rounded-[var(--radius-panel)] shadow-[0_1px_1px_rgba(0,0,0,0.02),0_4px_8px_rgba(0,0,0,0.04),0_12px_24px_-4px_rgba(0,0,0,0.06)]",
+  "max-h-[var(--radix-dropdown-menu-content-available-height)] md:w-80",
+  "motion-reduce:animate-none",
+);
 
 /**
  * Quiet menu surface (`.material-menu`): panel radius, base fill and border,
@@ -329,20 +350,20 @@ export function GroundTruthControl({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            sideOffset={6}
+            sideOffset={8}
             aria-labelledby={labelId}
-            className="min-w-44 border border-sio-border-base bg-sio-bg-base p-1 text-sio-fg-base shadow-md ring-0"
+            className={GROUND_TRUTH_MENU_CLASS}
           >
-            <DropdownMenuLabel className="px-2 py-1.5 text-label-12 font-medium text-sio-fg-muted">
+            <DropdownMenuLabel className="flex h-12 flex-none items-center px-3 py-0 text-copy-16 font-normal text-sio-fg-muted md:h-10 md:text-label-14">
               Ground Truth
             </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-sio-border-subtle" />
             <DropdownMenuRadioGroup
               value={toGroundTruthRadioValue(value)}
               onValueChange={(next) => {
                 if (!next || pending) return;
                 void onSelect(fromGroundTruthRadioValue(next as RadioValue));
               }}
+              className={GROUND_TRUTH_OPTIONS_LIST_CLASS}
             >
               {GROUND_TRUTH_OPTIONS.map((opt) => {
                 const suggested = isGroundTruthSuggestedOption(
@@ -370,10 +391,14 @@ export function GroundTruthControl({
                       suggested,
                     )}
                   >
-                    <Icon className="size-3.5 shrink-0 text-sio-fg-subtle" />
-                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                    <span className="relative z-[1] flex size-4 shrink-0 items-center justify-center">
+                      <Icon className="size-4 shrink-0" />
+                    </span>
+                    <span className="relative z-[1] min-w-0 flex-1 truncate text-label-14 text-sio-fg-base">
+                      {opt.label}
+                    </span>
                     {suggested ? (
-                      <span className="ml-auto text-label-12 font-normal text-sio-fg-muted">
+                      <span className="relative z-[1] ml-auto shrink-0 text-label-12 font-normal text-sio-fg-muted">
                         Detected
                       </span>
                     ) : null}

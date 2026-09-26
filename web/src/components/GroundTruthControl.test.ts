@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import {
+  GROUND_TRUTH_MENU_CLASS,
   GROUND_TRUTH_ROLE_LABEL,
   GROUND_TRUTH_ROLE_POPOVER_CLASS,
   GroundTruthControl,
@@ -32,18 +33,34 @@ describe("isGroundTruthSuggestedOption", () => {
 });
 
 describe("groundTruthOptionRowClass", () => {
-  it("keeps every option quiet without signal colors", () => {
+  it("matches Add Filter rows without signal colors", () => {
     for (const value of ["", "lead", "retention", "upsell", "none"] as const) {
       const row = groundTruthOptionRowClass(value, false);
-      expect(row).toContain("text-sio-fg-muted");
+      expect(row).toContain("text-sio-fg-base");
+      expect(row).toContain("text-label-14");
+      expect(row).toContain("h-11");
+      expect(row).toContain("md:h-8");
+      expect(row).toContain("px-3");
+      expect(row).toContain("gap-2");
+      expect(row).toContain("touch-manipulation");
+      expect(row).toContain("before:bg-sio-bg-interactive");
+      expect(row).toContain("before:inset-x-1");
+      expect(row).toContain("before:rounded-lg");
+      expect(row).toContain("data-[highlighted]:before:opacity-100");
+      expect(row).toContain("focus:before:opacity-100");
+      expect(row).not.toContain("text-sio-fg-muted");
       expect(row).not.toContain("sio-signal-");
+      expect(row).not.toContain("focus:bg-accent");
     }
   });
 
-  it("marks the suggested detected type with quiet emphasis", () => {
+  it("does not give the suggested option a persistent fill", () => {
     const suggested = groundTruthOptionRowClass("retention", true);
-    expect(suggested).toContain("bg-sio-bg-muted");
-    expect(suggested).toContain("font-medium");
+    expect(suggested).toContain("text-sio-fg-base");
+    expect(suggested).toContain("text-label-14");
+    expect(suggested).toContain("before:bg-sio-bg-interactive");
+    expect(suggested).not.toContain("bg-sio-bg-muted");
+    expect(suggested).not.toContain("font-medium");
     expect(suggested).not.toContain("sio-signal-");
     expect(suggested).not.toContain("ring-1");
   });
@@ -100,6 +117,32 @@ describe("GroundTruthControl", () => {
     expect(html).toContain('aria-hidden="true"');
     expect(html).not.toContain("bg-sio-bg-base [outline-style:solid] outline-sio-border-base");
     expect(html).not.toContain("bg-sio-signal-lead-bg");
+  });
+});
+
+describe("GROUND_TRUTH_MENU_CLASS", () => {
+  it("uses the Add Filter menu shell", () => {
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("material-menu");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("rounded-[var(--radius-panel)]");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("bg-sio-bg-base");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("border-sio-border-base");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("p-0");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("ring-0");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("md:w-80");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("w-screen");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("max-md:w-screen");
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("max-md:max-w-none");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toMatch(/(?:^|\s)w-80(?:\s|$)/);
+    expect(GROUND_TRUTH_MENU_CLASS).toContain(
+      "shadow-[0_1px_1px_rgba(0,0,0,0.02),0_4px_8px_rgba(0,0,0,0.04),0_12px_24px_-4px_rgba(0,0,0,0.06)]",
+    );
+    expect(GROUND_TRUTH_MENU_CLASS).toContain("motion-reduce:animate-none");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toContain("shadow-md");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toContain("bg-popover");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toContain("h-dvh");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toContain("max-md:fixed");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toContain("max-md:inset-0");
+    expect(GROUND_TRUTH_MENU_CLASS).not.toContain("max-md:rounded-none");
   });
 });
 

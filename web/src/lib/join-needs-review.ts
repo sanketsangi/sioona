@@ -327,6 +327,30 @@ export function reviewedQueueSignals(
   return [...fromNeon, ...localOnly];
 }
 
+/** FNV-1a. Same id always lands in the same queue slot. */
+function queueHash(id: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Unordered queue. Type filters already narrow the list, so the default
+ * order is a stable shuffle — same signals stay put across refresh, paging,
+ * and Previous / Next.
+ */
+export function shuffleSignals(signals: Signal[]): Signal[] {
+  if (signals.length < 2) return signals;
+  return [...signals].sort((a, b) => {
+    const delta = queueHash(a.id) - queueHash(b.id);
+    if (delta !== 0) return delta;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+}
+
 /** Needs follow-up: Correct reviews not yet Mark Acted. */
 export function followUpSignals(reviewed: Signal[]): Signal[] {
   return reviewed.filter(
@@ -409,9 +433,10 @@ export function queueSignalsForFilter(opts: {
     }
   }
   const reviewCount = list.length - approveCount;
+  const ordered = shuffleSignals(filtered);
 
   return {
-    filtered,
+    filtered: ordered,
     pendingCount: opts.pending.length,
     followUpCount: followUp.length,
     doneCount: done.length,

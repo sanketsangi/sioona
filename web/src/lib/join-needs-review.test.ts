@@ -14,6 +14,7 @@ import {
   missingConversationIds,
   pendingQueueSignals,
   predictionToStubSignal,
+  shuffleSignals,
   queueSignalsForFilter,
   quotesFromCustomerMessages,
   resolvePreviewSignal,
@@ -687,6 +688,34 @@ describe("shouldOverlayKeepSetChats", () => {
   });
 });
 
+describe("shuffleSignals", () => {
+  it("keeps every signal and ignores type blocks", () => {
+    const blocked: Signal[] = [
+      { ...baseSignal, id: "r1", type: "retention" },
+      { ...baseSignal, id: "r2", type: "retention" },
+      { ...baseSignal, id: "u1", type: "upsell" },
+      { ...baseSignal, id: "u2", type: "upsell" },
+      { ...baseSignal, id: "l1", type: "lead" },
+      { ...baseSignal, id: "l2", type: "lead" },
+    ];
+    const shuffled = shuffleSignals(blocked);
+    expect(shuffled.map((s) => s.id).sort()).toEqual(
+      ["l1", "l2", "r1", "r2", "u1", "u2"].sort(),
+    );
+    expect(shuffled.map((s) => s.type)).not.toEqual([
+      "retention",
+      "retention",
+      "upsell",
+      "upsell",
+      "lead",
+      "lead",
+    ]);
+    expect(shuffleSignals(shuffled).map((s) => s.id)).toEqual(
+      shuffled.map((s) => s.id),
+    );
+  });
+});
+
 describe("queueSignalsForFilter", () => {
   const pending: Signal[] = [{ ...baseSignal, id: "sig_p" }];
   const follow: Signal = {
@@ -734,11 +763,9 @@ describe("queueSignalsForFilter", () => {
     expect(counts.followUpCount).toBe(1);
     expect(counts.doneCount).toBe(1);
     expect(counts.allCount).toBe(3);
-    expect(counts.filtered.map((s) => s.id)).toEqual([
-      "sig_p",
-      "sig_follow",
-      "sig_done",
-    ]);
+    expect(counts.filtered.map((s) => s.id).sort()).toEqual(
+      ["sig_done", "sig_follow", "sig_p"].sort(),
+    );
   });
 
   it("applies type filter on follow-up", () => {
@@ -799,8 +826,10 @@ describe("queueSignalsForFilter", () => {
         status: "new",
         type: "all",
         action: "review",
-      }).filtered.map((s) => s.id)
-    ).toEqual(["sig_review_ret", "sig_p"]);
+      })
+        .filtered.map((s) => s.id)
+        .sort(),
+    ).toEqual(["sig_p", "sig_review_ret"].sort());
     const approveFilter = queueSignalsForFilter({
       pending: [highRetention, lowRetention, pending[0]],
       reviewed: [],

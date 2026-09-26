@@ -74,6 +74,7 @@ import {
   vaultFileIsLoaded,
 } from "@/lib/vault-file";
 import {
+  isSampleToPartnerSwitch,
   resolveVaultShowcaseKind,
   vaultShowcaseWaitEmptyNext,
 } from "@/lib/vault-showcase";
@@ -170,7 +171,12 @@ export function InsightsView({
     store.pilot?.lastUploadedFileName,
     uploadedFileNames,
   );
-  const vaultMismatch = Boolean(vaultFile && !vaultLoaded);
+  /** Sample queue stays up; partner pack seeds without the wait panel. */
+  const sampleToPartner = isSampleToPartnerSwitch(
+    vaultFile,
+    store.pilot?.lastUploadedFileName,
+  );
+  const vaultMismatch = Boolean(vaultFile && !vaultLoaded) && !sampleToPartner;
   /** Sample / Partner Demo — auto wipe+seed; Insights paints while seeding. */
   const vaultShowcaseKind =
     vaultMismatch && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
@@ -453,7 +459,9 @@ export function InsightsView({
       }
     : null;
   const openConversationAction =
-    previewSignal && previewCustomerName != null && previewMessages.length > 0 ? (
+    previewSignal &&
+    previewCustomerName != null &&
+    previewMessages.length > 0 ? (
       <OpenConversationHeaderAction
         key={`open-conv-${previewSignal.id}`}
         messages={previewMessages}
@@ -543,6 +551,14 @@ export function InsightsView({
               </div>
               <InsightsShadowTip />
             </div>
+            {sampleToPartner && vaultFile ? (
+              <VaultShowcaseLoader
+                fileName={vaultFile}
+                keepSetFileName={store.pilot?.lastUploadedFileName}
+              >
+                {null}
+              </VaultShowcaseLoader>
+            ) : null}
             {vaultShowcaseLoading && vaultFile ? (
               <VaultShowcaseLoader
                 fileName={vaultFile}
@@ -587,7 +603,9 @@ export function InsightsView({
                     ...pendingSignals,
                     ...reviewedSignals.filter(
                       (signal) =>
-                        !pendingSignals.some((pending) => pending.id === signal.id),
+                        !pendingSignals.some(
+                          (pending) => pending.id === signal.id,
+                        ),
                     ),
                   ]}
                   pendingSignals={pendingSignals}

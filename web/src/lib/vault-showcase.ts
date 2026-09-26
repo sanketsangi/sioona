@@ -35,6 +35,21 @@ export function resolveVaultShowcaseKind(
   return null;
 }
 
+/**
+ * Sample → Partner Demo. Keep the Sample queue on screen while the partner
+ * pack seeds. The “Finding signals…” empty panel is the mismatch wait, and
+ * on Vercel that wait paints before this instance has the new keep-set.
+ */
+export function isSampleToPartnerSwitch(
+  vaultFile: string | null | undefined,
+  lastUploadedFileName: string | null | undefined,
+): boolean {
+  return (
+    resolveVaultShowcaseKind(vaultFile) === "partner" &&
+    resolveVaultShowcaseKind(lastUploadedFileName) === "sample"
+  );
+}
+
 /** True when the keep-set already is this showcase pack (no wipe+seed needed). */
 export function vaultShowcaseAlreadyActive(
   kind: VaultShowcaseKind,

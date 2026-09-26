@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChatBubbleIcon } from "@/components/icons/ChatBubbleIcon";
+import { CircleArrowIcon } from "@/components/icons/CircleArrowIcon";
 import { ClockIcon } from "@/components/icons/ClockIcon";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import {
@@ -68,6 +69,38 @@ function conversationsWithSignals(signals: Signal[]): number {
     if (signal.conversationId) ids.add(signal.conversationId);
   }
   return ids.size;
+}
+
+/** ≥50% threshold for green ↑ / red ↓. */
+const GOOD_COVERAGE_PCT = 50;
+
+/**
+ * Share of conversations that have a signal: +% with CircleArrowIcon.
+ * Green up at ≥50%; red down below that.
+ */
+function FoundVsTotal({ found, total }: { found: number; total: number }) {
+  const pct = total <= 0 ? 0 : Math.round((found / total) * 100);
+  const good = pct >= GOOD_COVERAGE_PCT;
+  const tone = good
+    ? "text-sio-status-success-fg"
+    : "text-sio-status-danger-fg";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 tabular text-label-12 font-medium",
+        tone,
+      )}
+      aria-label={`${pct}% of conversations have a signal`}
+    >
+      <CircleArrowIcon
+        className={cn("size-3.5 shrink-0", good && "rotate-180")}
+        tone={good ? "success" : "danger"}
+      />
+      {pct > 0 ? "+" : ""}
+      {pct}%
+    </span>
+  );
 }
 
 /** Keep-set counts for all three types — queue SignalTypeChip chrome + count. */
@@ -175,6 +208,7 @@ export function InsightsQueueMetrics({
   className,
 }: InsightsQueueMetricsProps) {
   const signalCount = signals.length;
+  const foundConversations = conversationsWithSignals(signals);
   const pendingConversationCount = conversationsWithSignals(pendingSignals);
   const typeCounts: Record<SignalType, number> = {
     lead: 0,
@@ -207,6 +241,12 @@ export function InsightsQueueMetrics({
             title="Conversations"
             value={String(conversationCount)}
             icon={<ChatBubbleIcon className="size-3.5" />}
+            compare={
+              <FoundVsTotal
+                found={foundConversations}
+                total={conversationCount}
+              />
+            }
           />
           <MetricCell
             title="Signals"

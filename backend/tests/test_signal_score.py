@@ -12,7 +12,7 @@ from app.services.feedback import (
     record_feedback,
 )
 from app.services.predictions import record_prediction
-from app.services.review_queue import list_signals_needing_review
+from app.services.review_queue import list_signals_needing_review, shuffle_predictions
 from app.models.signal_prediction import SignalPrediction
 from app.services.signal_score import ScoreCounts, calculate_signal_score
 
@@ -610,7 +610,7 @@ def test_needs_review_still_queues_non_canonical_feedback(db: Session) -> None:
     assert open_sig.id in {row.id for row in queue}
 
 
-def test_needs_review_ranks_retention_first(db: Session) -> None:
+def test_needs_review_shuffles_signal_types(db: Session) -> None:
     lead = _pred(db, conversation_id="c_lead", signal_type="lead")
     upsell = _pred(db, conversation_id="c_upsell", signal_type="upsell")
     retention = _pred(db, conversation_id="c_ret", signal_type="retention")
@@ -619,12 +619,13 @@ def test_needs_review_ranks_retention_first(db: Session) -> None:
     db.commit()
 
     queue = list_signals_needing_review(db, "tenant_a", limit=20)
-    types = [row.signal_type for row in queue]
-    assert types[0] == "retention"
-    assert "upsell" in types
-    assert types.index("retention") < types.index("upsell")
-    assert types.index("upsell") < types.index("lead")
-    assert {lead.id, upsell.id, retention.id, newer_lead.id} <= {row.id for row in queue}
+    again = list_signals_needing_review(db, "tenant_a", limit=20)
+    expected = [
+        row.id
+        for row in shuffle_predictions([lead, upsell, retention, newer_lead])
+    ]
+    assert [row.id for row in queue] == expected
+    assert [row.id for row in again] == expected
 
 
 def test_signal_score_excludes_orphan_reviews_when_keep_set_provided(

@@ -1,18 +1,27 @@
 """Shadow Mode review queue: predictions without feedback."""
 
-from sqlalchemy import case, exists, select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from app.models.signal_feedback import FEEDBACK_LABELS, SignalFeedback
 from app.models.signal_prediction import CANONICAL_SIGNAL_TYPES, SignalPrediction
 
-# Retention is the primary product signal; then upsell; then lead.
-_TYPE_RANK = case(
-    (SignalPrediction.signal_type == "retention", 0),
-    (SignalPrediction.signal_type == "upsell", 1),
-    (SignalPrediction.signal_type == "lead", 2),
-    else_=3,
-)
+# Wider than the page so one type cannot fill `limit` before the shuffle.
+_SHUFFLE_WINDOW = 300
+
+
+def _queue_hash(value: str) -> int:
+    """FNV-1a so the same prediction keeps its queue slot."""
+    hash_value = 2166136261
+    for char in value:
+        hash_value ^= ord(char)
+        hash_value = (hash_value * 16777619) & 0xFFFFFFFF
+    return hash_value
+
+
+def shuffle_predictions(rows: list[SignalPrediction]) -> list[SignalPrediction]:
+    """Stable unordered queue. Type filters on Insights narrow the list."""
+    return sorted(rows, key=lambda row: (_queue_hash(str(row.id)), str(row.id)))
 
 
 def list_signals_needing_review(
@@ -21,7 +30,7 @@ def list_signals_needing_review(
     *,
     limit: int = 20,
 ) -> list[SignalPrediction]:
-    """Return unreviewed canonical predictions: retention first, then newest."""
+    """Return unreviewed canonical predictions in a stable random order."""
     if limit < 1:
         limit = 1
     if limit > 100:
@@ -42,7 +51,8 @@ def list_signals_needing_review(
         .where(SignalPrediction.tenant_id == tenant_id)
         .where(SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES))
         .where(unreviewed)
-        .order_by(_TYPE_RANK, SignalPrediction.created_at.desc())
-        .limit(limit)
+        .order_by(SignalPrediction.created_at.desc(), SignalPrediction.id)
+        .limit(_SHUFFLE_WINDOW)
     )
-    return list(db.scalars(stmt).all())
+    shuffled = shuffle_predictions(list(db.scalars(stmt).all()))
+    return shuffled[:limit]

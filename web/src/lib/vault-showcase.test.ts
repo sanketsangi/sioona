@@ -5,6 +5,7 @@ import {
 } from "@/lib/partner-demo-replace-guard";
 import {
   initialVaultShowcaseLoadUi,
+  isSampleToPartnerSwitch,
   isVaultShowcaseFile,
   reduceVaultShowcaseLoadUi,
   resolveVaultShowcaseKind,
@@ -98,6 +99,29 @@ describe("vaultShowcaseInsightsHref / navigateOnly", () => {
     expect(vaultShowcaseNavigateOnly("partner", GROWW_SHOWCASE_SAMPLE_NAME)).toBe(
       false,
     );
+  });
+});
+
+describe("isSampleToPartnerSwitch", () => {
+  it("is only Sample keep-set to Partner Demo file", () => {
+    expect(
+      isSampleToPartnerSwitch(
+        ZERODHA_BATCH02_SAMPLE_NAME,
+        GROWW_SHOWCASE_SAMPLE_NAME,
+      ),
+    ).toBe(true);
+    expect(
+      isSampleToPartnerSwitch(
+        GROWW_SHOWCASE_SAMPLE_NAME,
+        ZERODHA_BATCH02_SAMPLE_NAME,
+      ),
+    ).toBe(false);
+    expect(
+      isSampleToPartnerSwitch(
+        ZERODHA_BATCH02_SAMPLE_NAME,
+        "Zerodha_week_5_batch_01.json",
+      ),
+    ).toBe(false);
   });
 });
 
