@@ -4,9 +4,11 @@ import {
   EvalMetric,
   evalCardHeaderClassName,
 } from "@/components/EvalCard";
+import { EvalTabLink } from "@/components/EvalTabLink";
 import { Pager } from "@/components/Pager";
-import { SegmentedTabs } from "@/components/SegmentedTabs";
-import { formatPercent, signalTypeLabel } from "@/lib/format";
+import { SignalTypeChip } from "@/components/SignalTypeChip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatPercent } from "@/lib/format";
 import {
   parseLabeledTab,
   parsePage,
@@ -99,20 +101,35 @@ export function LabeledTables({
         </div>
       </EvalCard>
 
-      <SegmentedTabs
-        label="Labeled tables"
-        activeId={table}
-        className="w-fit max-w-full"
-        items={[
-          { id: "byType", label: "By Type", href: tabHref("byType") },
-          {
-            id: "conversations",
-            label: "Conversations",
-            href: tabHref("conversations"),
-          },
-        ]}
-      />
+      <Tabs
+        value={table}
+        activationMode="manual"
+        className="min-h-0 flex-1 gap-4"
+      >
+        <TabsList
+          aria-label="Labeled tables"
+          className="!h-[3.25rem] w-fit max-w-full shrink-0 border border-border md:!h-9"
+        >
+          <TabsTrigger value="byType" asChild className="min-w-0 flex-none px-3 max-md:!h-11">
+            <EvalTabLink href={tabHref("byType")}>
+              <span className="truncate">By Type</span>
+            </EvalTabLink>
+          </TabsTrigger>
+          <TabsTrigger
+            value="conversations"
+            asChild
+            className="min-w-0 flex-none px-3 max-md:!h-11"
+          >
+            <EvalTabLink href={tabHref("conversations")}>
+              <span className="truncate">Conversations</span>
+            </EvalTabLink>
+          </TabsTrigger>
+        </TabsList>
 
+        <TabsContent
+          value={table}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
       {table === "byType" ? (
         <EvalCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-sio-border-base px-3 py-2.5 sm:px-4">
@@ -165,9 +182,9 @@ export function LabeledTables({
                   <tr key={row.type}>
                     <th
                       scope="row"
-                      className="whitespace-nowrap px-3 py-2.5 text-left text-copy-14 font-normal text-sio-fg-base sm:px-4"
+                      className="whitespace-nowrap px-3 py-2.5 text-left font-normal sm:px-4"
                     >
-                      {signalTypeLabel(row.type)}
+                      <SignalTypeChip type={row.type} />
                     </th>
                     <td className="tabular px-3 py-2.5 font-mono text-label-13 text-sio-fg-subtle sm:px-4">
                       {row.labeledCount}
@@ -316,6 +333,8 @@ export function LabeledTables({
           )}
         </EvalCard>
       )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

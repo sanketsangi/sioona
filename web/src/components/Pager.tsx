@@ -1,7 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
+import { PagerIconLink } from "@/components/PagerIconLink";
+
+/** Insights Prev / Next: outline Button, 44px on touch, 32px from md. */
+const pagerButtonClass =
+  "min-h-11 touch-manipulation md:h-8 md:min-h-8";
 
 export function Pager({
   page,
@@ -29,50 +33,25 @@ export function Pager({
         {label} {safePage} of {pageCount}
       </p>
       <div className="flex shrink-0 gap-2">
-        <PagerButton href={prevHref} direction="prev" />
-        <PagerButton href={nextHref} direction="next" />
+        <PagerIconLink
+          href={prevHref}
+          label="Previous"
+          labeled
+          className={pagerButtonClass}
+        >
+          <CaretLeft weight="regular" aria-hidden />
+          Previous
+        </PagerIconLink>
+        <PagerIconLink
+          href={nextHref}
+          label="Next"
+          labeled
+          className={pagerButtonClass}
+        >
+          Next
+          <CaretRight weight="regular" aria-hidden />
+        </PagerIconLink>
       </div>
     </nav>
-  );
-}
-
-function PagerButton({
-  href,
-  direction,
-}: {
-  href: string | null;
-  direction: "prev" | "next";
-}) {
-  const isPrev = direction === "prev";
-  const text = isPrev ? "Previous" : "Next";
-  const icon = isPrev ? (
-    <CaretLeft className="size-4" weight="regular" aria-hidden />
-  ) : (
-    <CaretRight className="size-4" weight="regular" aria-hidden />
-  );
-
-  const className = "btn-secondary min-w-11 px-3";
-
-  if (href == null) {
-    return (
-      <button type="button" className={className} disabled aria-label={text}>
-        {isPrev ? icon : null}
-        <span className="hidden min-[380px]:inline">{text}</span>
-        {isPrev ? null : icon}
-      </button>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      className={className}
-      scroll={false}
-      aria-label={text}
-    >
-      {isPrev ? icon : null}
-      <span className="hidden min-[380px]:inline">{text}</span>
-      {isPrev ? null : icon}
-    </Link>
   );
 }

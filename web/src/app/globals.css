@@ -1270,7 +1270,7 @@
   }
 
   /*
-   * Slider segmented control (Eval panels + Labeled tables + ModeToggle thumb).
+   * Slider segmented control (ModeToggle thumb).
    * Track/thumb colors match ModeToggle (base track + interactive thumb).
    * Thumb slides with translateX keyed off --seg-index; equal CSS grid columns
    * (ModeToggle is flex; same --seg-* vars).

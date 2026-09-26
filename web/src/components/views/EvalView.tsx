@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdaptationPanel } from "@/components/AdaptationPanel";
+import { EvalTabLink } from "@/components/EvalTabLink";
 import { BaselineForm } from "@/components/BaselineForm";
 import {
   EvalCard,
@@ -7,8 +8,8 @@ import {
   evalCardHeaderClassName,
 } from "@/components/EvalCard";
 import { ScoreWindowControl } from "@/components/ScoreWindowControl";
-import { SegmentedTabs } from "@/components/SegmentedTabs";
 import { SignalScoreSummary } from "@/components/SignalScoreSummary";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ViewFrame } from "@/components/ViewFrame";
 import { ExportEvalPanel } from "@/components/views/ExportEvalPanel";
 import { LabeledTables } from "@/components/views/LabeledTables";
@@ -78,57 +79,76 @@ export function EvalView({
 
   return (
     <ViewFrame className="gap-4">
-      <SegmentedTabs
-        label="Eval panels"
-        activeId={panel}
-        items={PANELS.map((item) => ({
-          id: item.id,
-          label: item.label,
-          href: viewHref("eval", {
-            panel: item.id,
-            scoreFrom,
-          }),
-        }))}
-      />
+      <Tabs
+        value={panel}
+        activationMode="manual"
+        className="min-h-0 min-w-0 flex-1 gap-4 md:gap-6"
+      >
+        <TabsList
+          aria-label="Eval panels"
+          className="!h-[3.25rem] w-full shrink-0 border border-border md:!h-9"
+        >
+          {PANELS.map((item) => (
+            <TabsTrigger
+              key={item.id}
+              value={item.id}
+              asChild
+              className="min-w-0 max-md:!h-11"
+            >
+              <EvalTabLink
+                href={viewHref("eval", {
+                  panel: item.id,
+                  scoreFrom,
+                })}
+              >
+                <span className="truncate">{item.label}</span>
+              </EvalTabLink>
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {panel === "metrics" ? (
-          <MetricsPanel
-            pilot={pilot}
-            backendScore={backendScore}
-            allTimeScore={allTimeScore}
-            baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
-            baselineNote={store.pilot?.baselineNote}
-            scoreWindow={scoreWindow}
-            scoreFrom={scoreFrom}
-            cadenceAction={cadenceAction}
-            cadencePreviewId={cadencePreviewId}
-            syncWarning={evalSyncWarningWhenReviewsDisagree({
-              syncFailed,
-              signals: store.signals,
-              conversationCount: store.conversations.length,
-              neonReviewedCount: backendScore?.reviewed_count ?? null,
-            })}
-          />
-        ) : null}
-        {panel === "adapt" ? (
-          <AdaptationPanel
-            signals={store.signals}
-            taxonomyOverrides={store.taxonomyOverrides ?? {}}
-            compact
-            adaptPageRaw={adaptPageRaw}
-          />
-        ) : null}
-        {panel === "labeled" ? (
-          <LabeledTables
-            store={store}
-            metrics={metrics}
-            labeledRaw={labeledRaw}
-            convPageRaw={convPageRaw}
-          />
-        ) : null}
-        {panel === "export" ? <ExportEvalPanel /> : null}
-      </div>
+        <TabsContent
+          value={panel}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          {panel === "metrics" ? (
+            <MetricsPanel
+              pilot={pilot}
+              backendScore={backendScore}
+              allTimeScore={allTimeScore}
+              baselineOpportunities={store.pilot?.baselineOpportunities ?? 0}
+              baselineNote={store.pilot?.baselineNote}
+              scoreWindow={scoreWindow}
+              scoreFrom={scoreFrom}
+              cadenceAction={cadenceAction}
+              cadencePreviewId={cadencePreviewId}
+              syncWarning={evalSyncWarningWhenReviewsDisagree({
+                syncFailed,
+                signals: store.signals,
+                conversationCount: store.conversations.length,
+                neonReviewedCount: backendScore?.reviewed_count ?? null,
+              })}
+            />
+          ) : null}
+          {panel === "adapt" ? (
+            <AdaptationPanel
+              signals={store.signals}
+              taxonomyOverrides={store.taxonomyOverrides ?? {}}
+              compact
+              adaptPageRaw={adaptPageRaw}
+            />
+          ) : null}
+          {panel === "labeled" ? (
+            <LabeledTables
+              store={store}
+              metrics={metrics}
+              labeledRaw={labeledRaw}
+              convPageRaw={convPageRaw}
+            />
+          ) : null}
+          {panel === "export" ? <ExportEvalPanel /> : null}
+        </TabsContent>
+      </Tabs>
     </ViewFrame>
   );
 }
