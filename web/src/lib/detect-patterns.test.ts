@@ -334,6 +334,17 @@ describe("matchIntentPatterns", () => {
     ).toContain("pledge-margin");
     expect(
       matchIntentPatterns(
+        "cash tight. pledge reliance/hdfcbank for f&o margins.",
+        "upsell"
+      ).map((h) => h.label)
+    ).toContain("pledge-margin");
+    expect(
+      matchIntentPatterns("pledge mandatory for mtf?", "upsell").map(
+        (h) => h.label
+      )
+    ).toContain("pledge-margin");
+    expect(
+      matchIntentPatterns(
         "my kite is running. father wants his own id — i'll help kyc.",
         "upsell"
       ).map((h) => h.label)
@@ -395,6 +406,12 @@ describe("matchIntentPatterns", () => {
     ).toEqual([]);
     expect(
       matchIntentPatterns("turn on mtf is stuck on loading", "upsell")
+    ).toEqual([]);
+    expect(
+      matchIntentPatterns(
+        "pledge collateral value dropped overnight — margin short. why?",
+        "upsell"
+      )
     ).toEqual([]);
     expect(
       matchIntentPatterns(

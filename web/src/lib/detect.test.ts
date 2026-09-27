@@ -639,6 +639,18 @@ describe("runDetection", () => {
     }
   });
 
+  it("does not fire upsell when pledge collateral value drops overnight", () => {
+    const text =
+      "Pledge collateral value dropped overnight — margin short. Why?";
+    const { conversation, messages } = conv("c_pledge_drop", "none", text);
+    const signals = detectSignalsForConversation(
+      conversation,
+      messages,
+      "tenant_demo"
+    );
+    expect(signals).toEqual([]);
+  });
+
   it("keeps fraud and phishing complaints as none, not upsell or lead", () => {
     const cases = [
       "Unauthorized insurance charge on my account. I never signed up for insurance.",

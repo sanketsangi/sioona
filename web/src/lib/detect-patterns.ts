@@ -277,8 +277,10 @@ const UPSELL_PATTERNS: Array<{ label: string; re: RegExp }> = [
   },
   {
     label: "pledge-margin",
-    // Pledge holdings for margin — allow a longer span for MF+stocks wording
-    re: /\bpledge\s+.{0,56}\b(?:margin|mtf|f&o)\b/i,
+    // Ask to pledge holdings for margin/MTF/F&O. A collateral-value drop
+    // ("pledge collateral value dropped … margin short") is a haircut
+    // complaint, not an adjacent-product ask.
+    re: /\bpledge\s+(?!collateral\s+value\s+dropped\b).{0,56}\b(?:margin|mtf|f&o)\b/i,
   },
   {
     label: "increase-margin",
