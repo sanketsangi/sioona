@@ -199,6 +199,30 @@ describe("buildHeaderNotifications", () => {
     expect(zero[0]?.href).toContain("upload");
   });
 
+  it("surfaces a failed Groq pass without zeroing the import signal count", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 19,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      importedCount: 100,
+      newSignalCount: 19,
+      llmFailed: 4,
+      llmFailure: "model",
+    });
+    const imported = items.find((item) => item.id === "import-complete");
+    const failed = items.find((item) => item.id === "llm-pass-failed");
+    expect(imported?.title).toBe(
+      "Imported 100 conversations · 19 local signals"
+    );
+    expect(failed?.title).toBe("Second pass failed");
+    expect(failed?.description).toContain("19 signals from the first pass");
+    expect(failed?.description).toContain("no longer serves this model");
+    expect(failed?.tone).toBe("warning");
+    expect(POPUP_NOTIFICATION_IDS).toContain("llm-pass-failed");
+  });
+
   it("after API up returns pending-review or empty", () => {
     const pending = buildHeaderNotifications({
       pendingCount: 2,

@@ -49,8 +49,9 @@ import {
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
 import {
-  defaultInsightsHref,
+  insightsHomeHref,
   isLivePartnerKeepSet,
+  livePartnerVaultChrome,
   resolveVaultActiveFile,
   vaultInsightsHref,
 } from "@/lib/vault-file";
@@ -98,6 +99,11 @@ function WorkspaceNav({
   const [seedingInsights, setSeedingInsights] = useState(false);
 
   async function onInsightsClick(event: MouseEvent<HTMLAnchorElement>) {
+    // A weekly upload is the home file. Do not seed Sample over it.
+    if (isLivePartnerKeepSet(lastUploadedFileName)) {
+      if (isMobile) setOpenMobile(false);
+      return;
+    }
     // Bare Insights → Sample. Seed first when Sample is not the keep-set.
     if (vaultShowcaseNavigateOnly("sample", lastUploadedFileName)) {
       if (isMobile) setOpenMobile(false);
@@ -130,7 +136,7 @@ function WorkspaceNav({
                 <Link
                   href={
                     item.view === "insights"
-                      ? defaultInsightsHref()
+                      ? insightsHomeHref(lastUploadedFileName)
                       : viewHref(item.view)
                   }
                   aria-current={active ? "page" : undefined}
@@ -175,12 +181,15 @@ function VaultNav({
   lastUploadedFileName,
   vaultFile,
   uploadedFileNames = [],
+  chatCount,
 }: {
   lastUploadedFileName?: string;
   /** `?file=` — drives Vault active pill when Insights is file-scoped. */
   vaultFile?: string | null;
   /** Real-export files. Kept off the sidebar DOM node. */
   uploadedFileNames?: string[];
+  /** Loaded chats. Zero means a weekly filename is still landing. */
+  chatCount?: number;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const router = useRouter();
@@ -226,7 +235,12 @@ function VaultNav({
     );
   }
 
-  const livePartner = isLivePartnerKeepSet(activeFile);
+  const livePartner = livePartnerVaultChrome({
+    activeFile,
+    lastUploadedFileName: filename,
+    uploadedFileNames,
+    chatCount,
+  });
   const allGroups: {
     title: string;
     icon: "sample" | "partner" | "upload";
@@ -401,6 +415,10 @@ function SidebarBrand({
   const [seeding, setSeeding] = useState(false);
 
   async function onBrandClick(event: MouseEvent<HTMLAnchorElement>) {
+    if (isLivePartnerKeepSet(lastUploadedFileName)) {
+      if (isMobile) setOpenMobile(false);
+      return;
+    }
     if (vaultShowcaseNavigateOnly("sample", lastUploadedFileName)) {
       if (isMobile) setOpenMobile(false);
       return;
@@ -425,7 +443,7 @@ function SidebarBrand({
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" asChild tooltip="Sioona">
             <Link
-              href={defaultInsightsHref()}
+              href={insightsHomeHref(lastUploadedFileName)}
               aria-label="Sioona"
               translate="no"
               aria-busy={seeding || undefined}
@@ -484,6 +502,7 @@ export function AppSidebar({
   lastUploadedFileName,
   vaultFile = null,
   uploadedFileNames,
+  chatCount,
   ...props
 }: ComponentProps<typeof Sidebar> & {
   activeView: PlatformView;
@@ -492,6 +511,7 @@ export function AppSidebar({
   vaultFile?: string | null;
   /** Real-export files. Must not be forwarded onto the sidebar element. */
   uploadedFileNames?: string[];
+  chatCount?: number;
 }) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -509,16 +529,20 @@ export function AppSidebar({
           lastUploadedFileName={lastUploadedFileName}
           vaultFile={vaultFile}
           uploadedFileNames={uploadedFileNames}
+          chatCount={chatCount}
         />
       </SidebarContent>
       <SidebarFooter>
         <AppSidebarFooter
-          hideIdentity={isLivePartnerKeepSet(
-            resolveVaultActiveFile({
+          hideIdentity={livePartnerVaultChrome({
+            activeFile: resolveVaultActiveFile({
               vaultFile,
               lastUploadedFileName,
             }),
-          )}
+            lastUploadedFileName,
+            uploadedFileNames,
+            chatCount,
+          })}
         />
       </SidebarFooter>
       <SidebarRail />

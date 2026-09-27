@@ -85,7 +85,16 @@ export async function POST(request: Request) {
       });
     }
 
-    const store = await refreshStorePilotFromNeon(await readStore());
+    const explicitReplace = parseReplaceFlag(form);
+    // Replace must not seed testing.json. That dual-write lands Groww in
+    // Neon immediately before this file, and the next hydrate paints both.
+    const store = await refreshStorePilotFromNeon(
+      await readStore(
+        explicitReplace
+          ? { seedShowcase: false, syncPredictions: false }
+          : undefined,
+      ),
+    );
     const drafts = parsedFiles.map((entry) => {
       const incoming = toStoreRecords(entry.parsed, store.tenant.id, {
         stableIds: true,
@@ -120,7 +129,7 @@ export async function POST(request: Request) {
     // / empty so demo chats are not mixed into the upload.
     const replaceShowcase = replaceShowcaseOnIngest({
       uploadedBasename: first.originalBasename,
-      explicitReplace: parseReplaceFlag(form),
+      explicitReplace,
       priorWeeklyExportCount,
       lastUploadedFileName: store.pilot?.lastUploadedFileName,
     });

@@ -68,6 +68,7 @@ export function PartnerDemoButton({
     syncCreated?: string;
     llmAdded?: string;
     llmFailed?: string;
+    llmFailure?: string;
     wipeFailed?: boolean;
     /** Fresh showcase apply — hide leftover Neon overlay until prune. */
     replaced?: boolean;
@@ -82,6 +83,7 @@ export function PartnerDemoButton({
     if (extras?.syncCreated) query.set("syncCreated", extras.syncCreated);
     if (extras?.llmAdded) query.set("llmAdded", extras.llmAdded);
     if (extras?.llmFailed) query.set("llmFailed", extras.llmFailed);
+    if (extras?.llmFailure) query.set("llmFailure", extras.llmFailure);
     if (extras?.wipeFailed) query.set("wipeFailed", "1");
     router.replace(`/?${query.toString()}`);
     router.refresh();
@@ -142,6 +144,7 @@ export function PartnerDemoButton({
         syncCreated: extras.syncCreated ?? undefined,
         llmAdded: llmExtras.llmAdded ?? undefined,
         llmFailed: llmExtras.llmFailed ?? undefined,
+        llmFailure: llmExtras.llmFailure ?? undefined,
         wipeFailed: data.wipeFailed,
       });
     } catch (err) {

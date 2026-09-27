@@ -86,6 +86,7 @@ export function vaultShowcaseInsightsHref(
     syncCreated?: string | null;
     llmAdded?: string | null;
     llmFailed?: string | null;
+    llmFailure?: string | null;
     wipeFailed?: boolean;
   },
 ): string {
@@ -96,6 +97,7 @@ export function vaultShowcaseInsightsHref(
     syncCreated: extras?.syncCreated ?? undefined,
     llmAdded: extras?.llmAdded ?? undefined,
     llmFailed: extras?.llmFailed ?? undefined,
+    llmFailure: extras?.llmFailure ?? undefined,
     wipeFailed: extras?.wipeFailed ? "1" : undefined,
   });
 }

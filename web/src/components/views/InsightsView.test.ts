@@ -231,6 +231,46 @@ describe("InsightsView window n / ≥5 footer", () => {
   });
 });
 
+describe("InsightsView failed second pass", () => {
+  it("shows the failure on the landing and keeps the heuristic queue", () => {
+    const pending = makePendingSignals(19);
+    const store = storeFromSignals(pending);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        newSignalCount: 19,
+        llmFailed: 4,
+        llmFailure: "model",
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Second pass failed");
+    expect(html).toContain("Groq no longer serves this model");
+    expect(html).toContain(
+      "19 signals from the first pass are still in the queue.",
+    );
+    expect(html).toContain("Pending signal 1");
+    expect(html).not.toContain("No signals");
+  });
+});
+
 describe("InsightsView pending landing empty Follow-up", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1346,7 +1386,7 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("taking longer than expected");
   });
 
-  it("keeps Upload CTA when a non-showcase Vault file is not loaded", () => {
+  it("keeps Upload CTA and demo chrome when a weekly file is not loaded yet", () => {
     const pending = makePendingSignals(1);
     const store = storeFromSignals(pending);
     store.pilot = {
@@ -1379,7 +1419,7 @@ describe("InsightsView Neon pending overlay", () => {
 
     expect(html).toContain("Upload this week’s export");
     expect(html).not.toContain("keep-set");
-    expect(html).not.toContain("Run Partner Demo");
+    expect(html).toContain("Run Partner Demo");
   });
 
   it("shows an earlier file from the same upload instead of the empty vault", () => {

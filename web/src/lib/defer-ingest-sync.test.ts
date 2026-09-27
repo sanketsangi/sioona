@@ -2,12 +2,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ingestDualWriteStillCurrent,
   persistDeferredIngestDualWrite,
+  remotePilotSupersedesIngest,
 } from "./defer-ingest-sync";
 import type { Conversation, Message, Signal, StoreData } from "./types";
 
 vi.mock("./store", () => ({
   readStore: vi.fn(),
+  readPersistedStore: vi.fn(),
   writeStore: vi.fn().mockResolvedValue(undefined),
+  mergeTaxonomyOverrides: (
+    base: Record<string, unknown> | undefined,
+    extra: Record<string, unknown> | undefined,
+  ) => ({ ...(base ?? {}), ...(extra ?? {}) }),
+}));
+
+vi.mock("./backend-client", () => ({
+  getPilotSettings: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("./supervised-actions", () => ({
+  ensureSupervisedActions: vi.fn(),
 }));
 
 vi.mock("./sync-predictions", () => ({
@@ -19,7 +33,8 @@ vi.mock("./sync-conversations", () => ({
   pruneConversationsNotInBackend: vi.fn(),
 }));
 
-import { readStore, writeStore } from "./store";
+import { getPilotSettings } from "./backend-client";
+import { readPersistedStore, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import {
   pruneConversationsNotInBackend,
@@ -92,7 +107,8 @@ const input = {
 
 describe("persistDeferredIngestDualWrite", () => {
   beforeEach(() => {
-    vi.mocked(readStore).mockReset();
+    vi.mocked(readPersistedStore).mockReset();
+    vi.mocked(getPilotSettings).mockReset().mockResolvedValue(null);
     vi.mocked(writeStore).mockReset().mockResolvedValue(undefined);
     vi.mocked(syncPredictionsToBackend).mockReset();
     vi.mocked(syncConversationsToBackend).mockReset().mockResolvedValue({
@@ -116,7 +132,7 @@ describe("persistDeferredIngestDualWrite", () => {
   });
 
   it("dual-writes chats + predictions then heals backendSignalId", async () => {
-    vi.mocked(readStore).mockResolvedValue(store([signal()]));
+    vi.mocked(readPersistedStore).mockResolvedValue(store([signal()]));
     vi.mocked(syncPredictionsToBackend).mockResolvedValue({
       signals: [signal({ backendSignalId: "pred-1" })],
       sync: {
@@ -152,7 +168,7 @@ describe("persistDeferredIngestDualWrite", () => {
   });
 
   it("skips prune on mid-week merge", async () => {
-    vi.mocked(readStore).mockResolvedValue(store([signal()]));
+    vi.mocked(readPersistedStore).mockResolvedValue(store([signal()]));
     vi.mocked(syncPredictionsToBackend).mockResolvedValue({
       signals: [signal({ backendSignalId: "pred-1" })],
       sync: {
@@ -180,7 +196,7 @@ describe("persistDeferredIngestDualWrite", () => {
 
   it("does not rewrite JSON when Neon ids did not change", async () => {
     const already = [signal({ backendSignalId: "pred-1" })];
-    vi.mocked(readStore).mockResolvedValue(store(already));
+    vi.mocked(readPersistedStore).mockResolvedValue(store(already));
     vi.mocked(syncPredictionsToBackend).mockResolvedValue({
       signals: already,
       sync: {
@@ -201,7 +217,7 @@ describe("persistDeferredIngestDualWrite", () => {
   });
 
   it("skips upsert and prune when a later ingest rewrote the store", async () => {
-    vi.mocked(readStore).mockResolvedValue(
+    vi.mocked(readPersistedStore).mockResolvedValue(
       store([signal()], {
         updatedAt: "2026-09-02T20:10:00.000Z",
         lastUploadedFileName: "later.csv",
@@ -230,7 +246,7 @@ describe("persistDeferredIngestDualWrite", () => {
       lastUploadedFileName: "Groww_batch_02",
     });
     laterSnap.conversations = [conversation({ id: "conv_reset" })];
-    vi.mocked(readStore)
+    vi.mocked(readPersistedStore)
       .mockResolvedValueOnce(ingestSnap)
       .mockResolvedValueOnce(ingestSnap)
       .mockResolvedValueOnce(laterSnap);
@@ -264,7 +280,7 @@ describe("persistDeferredIngestDualWrite", () => {
       updatedAt: "2026-09-02T20:10:00.000Z",
       lastUploadedFileName: "Groww_batch_02",
     });
-    vi.mocked(readStore)
+    vi.mocked(readPersistedStore)
       .mockResolvedValueOnce(ingestSnap)
       .mockResolvedValueOnce(laterSnap);
     vi.mocked(syncPredictionsToBackend).mockResolvedValue({
@@ -287,6 +303,93 @@ describe("persistDeferredIngestDualWrite", () => {
     expect(syncConversationsToBackend).toHaveBeenCalledTimes(1);
     expect(writeStore).not.toHaveBeenCalled();
     expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
+  });
+
+  it("dual-writes and prunes when this instance has no store file", async () => {
+    vi.mocked(readPersistedStore).mockResolvedValue(null);
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: [signal({ backendSignalId: "pred-1" })],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+
+    await persistDeferredIngestDualWrite({
+      ...input,
+      storeUpdatedAt: "2026-09-27T12:00:00.000Z",
+      lastUploadedFileName: "Zerodha_week_7_batch_01.json",
+    });
+
+    expect(syncConversationsToBackend).toHaveBeenCalledWith(
+      input.conversations,
+      input.messages,
+      "tenant_demo",
+      { clearUnlabeledGroundTruth: true },
+    );
+    expect(syncPredictionsToBackend).toHaveBeenCalled();
+    expect(pruneConversationsNotInBackend).toHaveBeenCalledWith(
+      "tenant_demo",
+      ["conv_1"],
+    );
+    expect(writeStore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversations: [
+          expect.objectContaining({
+            id: "conv_1",
+            sourceFile: "Zerodha_week_7_batch_01.json",
+          }),
+        ],
+        signals: [expect.objectContaining({ backendSignalId: "pred-1" })],
+        pilot: expect.objectContaining({
+          lastUploadedFileName: "Zerodha_week_7_batch_01.json",
+        }),
+      }),
+    );
+  });
+
+  it("does not dual-write a gone store over a newer Neon keep-set", async () => {
+    vi.mocked(readPersistedStore).mockResolvedValue(null);
+    vi.mocked(getPilotSettings).mockResolvedValue({
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 0,
+      baseline_note: null,
+      weekly_export_count: 1,
+      last_uploaded_file_name: "Groww_batch_02",
+      created_at: "2026-09-02T20:00:00.000Z",
+      updated_at: "2026-09-02T20:10:00.000Z",
+    });
+
+    await persistDeferredIngestDualWrite({
+      ...input,
+      storeUpdatedAt: "2026-09-02T20:00:00.000Z",
+      lastUploadedFileName: "Zerodha_week_7_batch_01.json",
+    });
+
+    expect(syncConversationsToBackend).not.toHaveBeenCalled();
+    expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
+    expect(writeStore).not.toHaveBeenCalled();
+  });
+});
+
+describe("remotePilotSupersedesIngest", () => {
+  it("keeps the same weekly filename even when the server clock is later", () => {
+    expect(
+      remotePilotSupersedesIngest(
+        {
+          last_uploaded_file_name: "Zerodha_week_7_batch_01.json",
+          updated_at: "2026-09-27T12:00:02.000Z",
+        },
+        {
+          lastUploadedFileName: "Zerodha_week_7_batch_01.json",
+          storeUpdatedAt: "2026-09-27T12:00:00.000Z",
+        },
+      ),
+    ).toBe(false);
   });
 });
 

@@ -30,6 +30,12 @@ vi.mock("@/components/views/TaxonomyView", () => ({
   TaxonomyView: () => null,
 }));
 
+vi.mock("@/lib/adopt-neon-keep-set", () => ({
+  adoptNeonKeepSetWhenLocalMisses: vi.fn(
+    async (store: StoreData) => store,
+  ),
+}));
+
 vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
   loadStore: vi.fn(),

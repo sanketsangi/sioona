@@ -278,6 +278,7 @@ export function UploadForm({
       const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
       if (llmExtras.llmAdded) query.set("llmAdded", llmExtras.llmAdded);
       if (llmExtras.llmFailed) query.set("llmFailed", llmExtras.llmFailed);
+      if (llmExtras.llmFailure) query.set("llmFailure", llmExtras.llmFailure);
       // JSON is the keep-set until deferred prune finishes — skip leftover Neon overlay.
       if (data.replaced) query.set("replaced", "1");
       const catalogFiles = data.catalogFiles?.filter(Boolean) ?? [];

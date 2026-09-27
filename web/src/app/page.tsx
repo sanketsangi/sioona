@@ -12,10 +12,15 @@ import {
   type TenantSignalsResult,
 } from "@/lib/fetch-tenant-signals";
 import { fetchSignalScoreSafe } from "@/lib/fetch-signal-score";
+import { adoptNeonKeepSetWhenLocalMisses } from "@/lib/adopt-neon-keep-set";
 import {
   fetchOverlayConversations,
   mergeOverlayChats,
 } from "@/lib/hydrate-conversations";
+import {
+  bundledShowcaseConversationIds,
+  omitBundledShowcaseChats,
+} from "@/lib/showcase-keep-set";
 import { persistDeferredPredictionSync } from "@/lib/defer-prediction-sync";
 import {
   platformPageFetches,
@@ -39,6 +44,7 @@ import { buildHeaderNotifications } from "@/lib/notifications";
 import {
   parseLlmAddedParam,
   parseLlmFailedParam,
+  parseLlmFailureParam,
 } from "@/lib/detect-llm-query";
 import {
   parseSyncCreatedParam,
@@ -126,6 +132,7 @@ export default async function PlatformPage({
     syncCreated?: string;
     llmAdded?: string;
     llmFailed?: string;
+    llmFailure?: string;
     preview?: string;
     scoreFrom?: string;
     wipeFailed?: string;
@@ -185,9 +192,31 @@ export default async function PlatformPage({
   // Never await POST /v1/predictions on GET / — Insights/Eval first paint
   // uses GET needs-review / GET signals. Dual-write runs after the response
   // on cold start only.
-  const { store: storeRaw, coldStart } = await loadStore({
+  const requestedVaultFile = parseVaultFile(sp.file);
+  const loaded = await loadStore({
     syncPredictions: false,
+    freshOnly: jsonKeepSet,
   });
+  // Replace leaves the bundled showcase in JSON until this request. Drop it
+  // before adopt/hydrate, or Groww rows paint beside the uploaded file.
+  const withoutShowcase = omitBundledShowcaseChats(
+    loaded.store,
+    await bundledShowcaseConversationIds(),
+  );
+  let storeForAdopt = loaded.store;
+  if (withoutShowcase !== loaded.store) {
+    if (withoutShowcase.conversations.length > 0) {
+      await writeStore(withoutShowcase);
+    }
+    storeForAdopt = withoutShowcase;
+  }
+  const storeAdopted = await adoptNeonKeepSetWhenLocalMisses(
+    storeForAdopt,
+    requestedVaultFile,
+    { freshOnly: jsonKeepSet },
+  );
+  const storeRaw = storeAdopted;
+  const coldStart = loaded.coldStart && storeAdopted === loaded.store;
   if (shouldDeferHomepagePredictionSync(fetches.predictionSync, coldStart)) {
     after(() => {
       void persistDeferredPredictionSync(storeRaw.tenant.id).catch((err) => {
@@ -328,7 +357,7 @@ export default async function PlatformPage({
   // Bare Insights (no ?file=) defaults to Sample so app start shows Groww_batch_02.
   const vaultFile =
     view === "insights"
-      ? resolveInsightsVaultFile(sp.file)
+      ? resolveInsightsVaultFile(sp.file, store.pilot?.lastUploadedFileName)
       : parseVaultFile(sp.file);
   const keepSetFileName = store.pilot?.lastUploadedFileName;
   const uploadedFileNames = listUploadedChatFiles(
@@ -343,6 +372,7 @@ export default async function PlatformPage({
     vaultFile,
     keepSetFileName,
     uploadedFileNames,
+    store.conversations.length,
   );
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
@@ -356,6 +386,8 @@ export default async function PlatformPage({
     wipeFailed,
     importedCount,
     newSignalCount,
+    llmFailed: parseLlmFailedParam(sp.llmFailed),
+    llmFailure: parseLlmFailureParam(sp.llmFailure),
   });
 
   const title = TITLES[view];
@@ -396,6 +428,7 @@ export default async function PlatformPage({
         syncCreated={syncCreated}
         llmAdded={parseLlmAddedParam(sp.llmAdded)}
         llmFailed={parseLlmFailedParam(sp.llmFailed)}
+        llmFailure={parseLlmFailureParam(sp.llmFailure)}
         cadenceAction={cadenceAction}
         cadencePreviewId={cadencePreviewId}
         workspaceMode={workspaceMode}
@@ -451,6 +484,7 @@ export default async function PlatformPage({
       lastUploadedFileName={keepSetFileName}
       headerBatchName={headerBatchName}
       uploadedFileNames={uploadedFileNames}
+      chatCount={store.conversations.length}
       vaultFile={vaultFile}
       notifications={notifications}
     >

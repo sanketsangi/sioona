@@ -4,15 +4,21 @@
  * eventually matches. Fail-soft — Insights paints JSON-only rows meanwhile.
  */
 
+import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
+import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
+import { getPilotSettings, type BackendPilotSettings } from "./backend-client";
 import { mergeSyncedBackendIds } from "./defer-prediction-sync";
 import { replayAbsentFeedback } from "./replay-absent-feedback";
-import { readStore, writeStore } from "./store";
+import { mergeTaxonomyOverrides, readPersistedStore, writeStore } from "./store";
 import {
   pruneConversationsNotInBackend,
   syncConversationsToBackend,
 } from "./sync-conversations";
+import { pilotSettingsFromRemote } from "./sync-pilot";
 import { syncPredictionsToBackend } from "./sync-predictions";
+import { ensureSupervisedActions } from "./supervised-actions";
 import type { Conversation, Message, Signal, StoreData } from "./types";
+import { stampUnstampedSourceFile, vaultFileMatchesKeepSet } from "./vault-file";
 
 export type DeferredIngestDualWriteInput = {
   tenantId: string;
@@ -65,13 +71,100 @@ export function ingestDualWriteStillCurrent(
   );
 }
 
+/**
+ * Neon pilot moved to a different file after this ingest. A missing local
+ * store must not replay an older snapshot over that newer keep-set.
+ * The same filename stays current: this ingest's own PUT is newer than
+ * the client `updatedAt` by server clock, and still belongs to this upload.
+ */
+export function remotePilotSupersedesIngest(
+  remote: Pick<
+    BackendPilotSettings,
+    "last_uploaded_file_name" | "updated_at"
+  > | null,
+  input: Pick<
+    DeferredIngestDualWriteInput,
+    "lastUploadedFileName" | "storeUpdatedAt"
+  >,
+): boolean {
+  if (!remote?.updated_at || !input.storeUpdatedAt) return false;
+  const remoteMs = Date.parse(remote.updated_at);
+  const inputMs = Date.parse(input.storeUpdatedAt);
+  if (!Number.isFinite(remoteMs) || !Number.isFinite(inputMs)) return false;
+  if (remoteMs <= inputMs) return false;
+  const remoteName = remote.last_uploaded_file_name?.trim() ?? "";
+  const inputName = input.lastUploadedFileName?.trim() ?? "";
+  if (
+    inputName &&
+    remoteName &&
+    vaultFileMatchesKeepSet(remoteName, inputName)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+async function ingestSupersededOnNeon(
+  input: DeferredIngestDualWriteInput,
+): Promise<boolean> {
+  try {
+    const remote = await getPilotSettings(input.tenantId);
+    return remotePilotSupersedesIngest(remote, input);
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the ingest corpus when this instance never had the JSON file. */
+async function writeMissingInstanceSnapshot(
+  input: DeferredIngestDualWriteInput,
+  signals: Signal[],
+): Promise<void> {
+  const remote = await getPilotSettings(input.tenantId).catch(() => null);
+  const pilot = remote
+    ? pilotSettingsFromRemote(remote)
+    : {
+        baselineOpportunities: 0,
+        ...(input.storeUpdatedAt ? { updatedAt: input.storeUpdatedAt } : {}),
+        ...(input.lastUploadedFileName
+          ? { lastUploadedFileName: input.lastUploadedFileName }
+          : {}),
+      };
+  if (
+    input.lastUploadedFileName &&
+    !pilot.lastUploadedFileName
+  ) {
+    pilot.lastUploadedFileName = input.lastUploadedFileName;
+  }
+  const store: StoreData = {
+    ...structuredClone(emptyShowcaseStore),
+    conversations: stampUnstampedSourceFile(
+      input.conversations,
+      input.lastUploadedFileName,
+    ),
+    messages: input.messages,
+    signals,
+    taxonomyOverrides: mergeTaxonomyOverrides(
+      emptyShowcaseStore.taxonomyOverrides,
+      PARTNER_EXPORT_ADAPT_OVERRIDES,
+    ),
+    pilot,
+  };
+  ensureSupervisedActions(store);
+  await writeStore(store);
+}
+
 export async function persistDeferredIngestDualWrite(
   input: DeferredIngestDualWriteInput
 ): Promise<void> {
   const { tenantId, conversations, messages, signals, replaceShowcase } = input;
 
-  const before = await readStore();
-  if (!ingestDualWriteStillCurrent(before, input)) return;
+  const before = await readPersistedStore();
+  if (before) {
+    if (!ingestDualWriteStillCurrent(before, input)) return;
+  } else if (await ingestSupersededOnNeon(input)) {
+    return;
+  }
 
   const [, { signals: synced }] = await Promise.all([
     syncConversationsToBackend(conversations, messages, tenantId, {
@@ -80,22 +173,27 @@ export async function persistDeferredIngestDualWrite(
     syncPredictionsToBackend(signals, tenantId),
   ]);
 
-  const latest = await readStore();
-  if (!ingestDualWriteStillCurrent(latest, input)) return;
+  const latest = await readPersistedStore();
+  if (latest && !ingestDualWriteStillCurrent(latest, input)) return;
 
-  const merged = mergeSyncedBackendIds(latest.signals, synced);
-  if (merged !== latest.signals) {
+  const merged = mergeSyncedBackendIds(
+    latest ? latest.signals : signals,
+    synced,
+  );
+  if (!latest) {
+    if (replaceShowcase) await writeMissingInstanceSnapshot(input, merged);
+  } else if (merged !== latest.signals) {
     await writeStore({ ...latest, signals: merged });
   }
   await replayAbsentFeedback(tenantId, merged);
 
   if (!replaceShowcase) return;
 
-  // writeStore / Reset / a later ingest can land after the heal check.
-  // Re-read immediately before prune so a stale keep-list cannot delete
-  // the current pack from Neon.
-  const prePrune = await readStore();
-  if (!ingestDualWriteStillCurrent(prePrune, input)) return;
+  // Reset / a later ingest can land after the heal check.
+  // A missing file is a different instance — still prune the replaced pack.
+  const prePrune = await readPersistedStore();
+  if (prePrune && !ingestDualWriteStillCurrent(prePrune, input)) return;
+  if (!prePrune && (await ingestSupersededOnNeon(input))) return;
 
   await pruneConversationsNotInBackend(
     tenantId,

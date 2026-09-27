@@ -1,3 +1,5 @@
+import { llmPassFailureNotice } from "@/lib/detect-llm-query";
+import type { LlmFailureKind } from "@/lib/detect-llm";
 import { viewHref } from "@/lib/views";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
 
@@ -33,6 +35,7 @@ export const POPUP_NOTIFICATION_IDS = [
   "score-unavailable",
   "sync-failed",
   "wipe-failed",
+  "llm-pass-failed",
 ] as const;
 
 /**
@@ -81,6 +84,10 @@ export function buildHeaderNotifications(input: {
   importedCount?: number | null;
   /** From ?signals= after Upload → Insights. */
   newSignalCount?: number | null;
+  /** From ?llmFailed= after a Groq pass that did not classify. */
+  llmFailed?: number;
+  /** From ?llmFailure= — key, model, timeout, or shape. */
+  llmFailure?: LlmFailureKind | null;
 }): HeaderNotification[] {
   const items: HeaderNotification[] = [];
 
@@ -107,7 +114,12 @@ export function buildHeaderNotifications(input: {
             : "Open Pending in Insights to review the Neon needs-review queue.",
       href: zeroSignals
         ? viewHref("upload")
-        : viewHref("insights", { status: "new" }),
+        : viewHref("insights", {
+            status: "new",
+            llmFailed:
+              (input.llmFailed ?? 0) > 0 ? String(input.llmFailed) : null,
+            llmFailure: input.llmFailure,
+          }),
       tone: zeroSignals || hasSyncFailure ? "warning" : "info",
     });
   }
@@ -150,6 +162,39 @@ export function buildHeaderNotifications(input: {
       description: "Shadow Mode queue — confirm or correct detections in Insights.",
       href: viewHref("insights", { status: "new" }),
       tone: "accent",
+    });
+  }
+
+  const llmFailed = input.llmFailed ?? 0;
+  if (llmFailed > 0) {
+    const notice = llmPassFailureNotice({
+      failed: llmFailed,
+      failure: input.llmFailure ?? null,
+      signalCount:
+        newSignalCount != null &&
+        !Number.isNaN(newSignalCount) &&
+        newSignalCount > 0
+          ? newSignalCount
+          : null,
+    });
+    items.push({
+      id: "llm-pass-failed",
+      title: notice.title,
+      description: notice.description,
+      href: viewHref("insights", {
+        status: "new",
+        llmFailed: String(llmFailed),
+        llmFailure: input.llmFailure,
+        signals:
+          newSignalCount != null && !Number.isNaN(newSignalCount)
+            ? String(newSignalCount)
+            : null,
+        imported:
+          importedCount != null && !Number.isNaN(importedCount)
+            ? String(importedCount)
+            : null,
+      }),
+      tone: "warning",
     });
   }
 

@@ -126,6 +126,7 @@ export function VaultShowcaseLoader({
             syncCreated: queryExtras.syncCreated,
             llmAdded: llmExtras.llmAdded,
             llmFailed: llmExtras.llmFailed,
+            llmFailure: llmExtras.llmFailure,
             wipeFailed: data.wipeFailed,
           }),
         );

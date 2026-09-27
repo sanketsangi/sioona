@@ -116,6 +116,7 @@ The JSON file store alone is enough to browse fixtures after reseeding, but
    - Add `GROQ_API_KEY` (Sensitive) = your `gsk_…` key (Production only)
    - Add `DETECT_LLM_CONCURRENCY` = `2` (Production)
    - Add `DETECT_LLM_MAX_CALLS` = `4` (Production) — detect + Neon sync must fit Hobby ~10s
+   - Leave `DETECT_LLM_MODEL` unset. The code default is `qwen/qwen3.8-27b`. Groq shut down `qwen/qwen3.6-27b` on 2026-09-14; that id fails every call.
    - Cap Groq spend at **$20/mo** in the Groq console (when Developer billing exists)
    - Leave Preview/Development unset so previews stay $0
    - Redeploy Production so serverless functions pick up the vars

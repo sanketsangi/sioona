@@ -39,6 +39,17 @@ export type ReadStoreOptions = {
    * Insights/Eval dual-write with `after()` so TTFB is not blocked.
    */
   syncPredictions?: boolean;
+  /**
+   * Replace landing (`replaced=1`). Cold hydrate keeps only chats written
+   * with the current filename.
+   */
+  freshOnly?: boolean;
+  /**
+   * Cold start with no JSON file. Default true.
+   * Explicit ingest replace passes false so testing.json is not seeded
+   * and dual-written into Neon before the page hydrates.
+   */
+  seedShowcase?: boolean;
 };
 
 export type ReadStoreLoad = {
@@ -206,10 +217,13 @@ export function appendAuditEvent(
   return entry;
 }
 
-export async function loadStore(
-  options?: ReadStoreOptions
-): Promise<ReadStoreLoad> {
-  const syncPredictions = options?.syncPredictions !== false;
+/**
+ * Read the instance-local JSON file (bundled `store.json` or `/tmp`).
+ * Missing file returns null — does not hydrate Neon or seed Sample.
+ * `after()` dual-write uses this so a different instance's empty `/tmp`
+ * is not treated as a later Reset.
+ */
+export async function readPersistedStore(): Promise<StoreData | null> {
   const storePath = await resolveStorePath();
   if (storePath) {
     try {
@@ -220,26 +234,46 @@ export async function loadStore(
         storeFileCache.mtimeMs === stat.mtimeMs &&
         storeFileCache.size === stat.size
       ) {
-        return { store: cloneStore(storeFileCache.store), coldStart: false };
+        return cloneStore(storeFileCache.store);
       }
       const raw = await fs.readFile(/*turbopackIgnore: true*/ storePath, "utf8");
       const store = normalizeStore(JSON.parse(raw) as StoreData);
-      // Cache a private clone; return another so cache ≠ caller mutations.
       cacheStoreSnapshot(storePath, stat, structuredClone(store));
-      return { store: cloneStore(store), coldStart: false };
+      return cloneStore(store);
     } catch {
       storeFileCache = null;
-      // No persisted file yet — fall through to seed from bundled fixtures.
+      return null;
     }
-  } else if (memoryStore) {
+  }
+  if (memoryStore) return cloneStore(memoryStore);
+  return null;
+}
+
+export async function loadStore(
+  options?: ReadStoreOptions
+): Promise<ReadStoreLoad> {
+  const syncPredictions = options?.syncPredictions !== false;
+  const seedShowcase = options?.seedShowcase !== false;
+  const persisted = await readPersistedStore();
+  if (persisted) return { store: persisted, coldStart: false };
+  if (!seedShowcase) {
     return {
-      store: cloneStore(memoryStore),
-      coldStart: false,
+      store: structuredClone(emptyShowcaseStore),
+      coldStart: true,
     };
   }
-  const { tryHydrateStoreFromNeon } = await import("./hydrate-conversations");
-  const hydrated = await tryHydrateStoreFromNeon({ syncPredictions });
+  const { tryHydrateStoreFromNeon, pendingLivePartnerStore } = await import(
+    "./hydrate-conversations"
+  );
+  const hydrated = await tryHydrateStoreFromNeon({
+    syncPredictions,
+    ...(options?.freshOnly ? { freshOnly: true } : {}),
+  });
   if (hydrated) return { store: hydrated, coldStart: true };
+  // A weekly filename is already on Neon and its chats are not written yet.
+  // Seeding Sample here would PUT Groww over that upload.
+  const pending = await pendingLivePartnerStore();
+  if (pending) return { store: pending, coldStart: true };
   return {
     store: await seedShowcaseStore({ syncPredictions }),
     coldStart: true,

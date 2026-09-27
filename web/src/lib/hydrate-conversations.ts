@@ -19,8 +19,11 @@ import {
   type BackendPredictionWithFeedback,
 } from "./backend-client";
 import { runHybridDetection } from "./detect-llm";
+import { pilotSettingsFromRemote } from "./sync-pilot";
 import { mergeTaxonomyOverrides, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
+import { bundledShowcaseConversationIds } from "./showcase-keep-set";
+import { isLivePartnerKeepSet } from "./vault-file";
 import type {
   Conversation,
   FeedbackLabel,
@@ -286,18 +289,116 @@ export type HydrateStoreOptions = {
    * dual-write after the response. GET /signals still attaches ids.
    */
   syncPredictions?: boolean;
+  /**
+   * Replace landing (`replaced=1`): keep only chats written with this
+   * filename. Older weeks stay on a normal hydrate so a mid-week upsert
+   * does not drop them. Day-1 (`weekly_export_count === 1`) does this
+   * even without the flag. Bundled showcase ids are always removed first
+   * when the pilot file is a live upload.
+   */
+  freshOnly?: boolean;
 };
 
 /**
+ * Weekly uploads PUT the filename before chats land. Rows last written
+ * before that pilot timestamp are the previous pack (Sample / Partner Demo).
+ * `apply: false` means no live-partner filter — keep every row.
+ */
+export function filterConversationsForLivePartner<
+  T extends { updated_at?: string },
+>(
+  rows: T[],
+  pilot: {
+    last_uploaded_file_name?: string | null;
+    updated_at?: string | null;
+  } | null,
+): { apply: boolean; rows: T[] } {
+  const name = pilot?.last_uploaded_file_name?.trim();
+  if (!pilot || !isLivePartnerKeepSet(name)) return { apply: false, rows };
+  const cutoff = pilot.updated_at ? Date.parse(pilot.updated_at) : NaN;
+  if (!Number.isFinite(cutoff)) return { apply: true, rows: [] };
+  return {
+    apply: true,
+    rows: rows.filter((row) => {
+      const ms = row.updated_at ? Date.parse(row.updated_at) : NaN;
+      return Number.isFinite(ms) && ms >= cutoff;
+    }),
+  };
+}
+
+/**
+ * Neon already names a weekly upload, but its chats are not written yet.
+ * In-memory only — persisting this would skip the next hydrate, and seeding
+ * Sample would PUT Groww over the upload.
+ */
+export async function pendingLivePartnerStore(): Promise<StoreData | null> {
+  const tenantId = emptyShowcaseStore.tenant.id;
+  try {
+    const remote = await getPilotSettings(tenantId);
+    const name = remote?.last_uploaded_file_name?.trim();
+    if (!remote || !isLivePartnerKeepSet(name)) return null;
+    const store = structuredClone(emptyShowcaseStore);
+    store.pilot = pilotSettingsFromRemote(remote);
+    return store;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a JSON store from Neon chats, re-detect, optionally dual-write
- * predictions, persist. Returns null when Neon has no rows or is unreachable.
+ * predictions, persist. Returns null when Neon has no rows, is unreachable,
+ * or a weekly filename is set and those chats are not written yet.
  */
 export async function tryHydrateStoreFromNeon(
   options?: HydrateStoreOptions
 ): Promise<StoreData | null> {
   const tenantId = emptyShowcaseStore.tenant.id;
-  const chats = await fetchHydrateConversations(tenantId);
-  if (!chats) return null;
+  let remotePilot: Awaited<ReturnType<typeof getPilotSettings>> = null;
+  try {
+    remotePilot = await getPilotSettings(tenantId);
+  } catch {
+    remotePilot = null;
+  }
+  let rows: BackendConversation[] = [];
+  try {
+    const fetched = await getConversations(tenantId);
+    if (!Array.isArray(fetched)) return null;
+    rows = fetched;
+  } catch {
+    return null;
+  }
+  // Drop Sample / Partner Demo before this hydrate is written and painted.
+  // A replace that seeded testing.json leaves those ids in Neon beside the file.
+  if (isLivePartnerKeepSet(remotePilot?.last_uploaded_file_name)) {
+    const showcaseIds = await bundledShowcaseConversationIds();
+    if (showcaseIds.size > 0) {
+      rows = rows.filter((row) => !showcaseIds.has(row.conversation_id));
+    }
+  }
+  if (rows.length === 0) return null;
+  const filtered = filterConversationsForLivePartner(rows, remotePilot);
+  // Filename is already the weekly upload, but Neon still has the previous pack.
+  if (filtered.apply && filtered.rows.length === 0) return null;
+  const dayOneReplace = remotePilot?.weekly_export_count === 1;
+  const sourceRows =
+    filtered.apply && (options?.freshOnly || dayOneReplace)
+      ? filtered.rows
+      : rows;
+  if (sourceRows.length === 0) return null;
+  const chats = mapBackendConversationsToStore(sourceRows, tenantId);
+  if (filtered.apply && remotePilot?.last_uploaded_file_name) {
+    const freshIds = new Set(
+      filtered.rows.map((row) => row.conversation_id),
+    );
+    const fileName = remotePilot.last_uploaded_file_name;
+    chats.conversations = chats.conversations.map((conversation) =>
+      freshIds.has(conversation.id)
+        ? { ...conversation, sourceFile: conversation.sourceFile ?? fileName }
+        : conversation,
+    );
+  }
+  if (chats.conversations.length === 0) return null;
 
   const taxonomyOverrides = mergeTaxonomyOverrides(
     emptyShowcaseStore.taxonomyOverrides,
@@ -350,25 +451,8 @@ export async function tryHydrateStoreFromNeon(
     taxonomyOverrides,
   };
 
-  try {
-    const remote = await getPilotSettings(tenantId);
-    if (remote) {
-      store.pilot = {
-        baselineOpportunities: remote.baseline_opportunities,
-        ...(remote.baseline_note
-          ? { baselineNote: remote.baseline_note }
-          : {}),
-        ...(remote.weekly_export_count != null
-          ? { weeklyExportCount: remote.weekly_export_count }
-          : {}),
-        ...(remote.last_uploaded_file_name
-          ? { lastUploadedFileName: remote.last_uploaded_file_name }
-          : {}),
-        updatedAt: remote.updated_at,
-      };
-    }
-  } catch {
-    // Fail-soft: keep emptyShowcaseStore.pilot (baseline 0, no export count).
+  if (remotePilot) {
+    store.pilot = pilotSettingsFromRemote(remotePilot);
   }
 
   await writeStore(store);

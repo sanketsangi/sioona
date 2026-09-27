@@ -21,7 +21,8 @@ import type {
 
 const SIGNAL_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 
-export const DEFAULT_DETECT_LLM_MODEL = "qwen/qwen3.6-27b";
+/** Groq shut down `qwen/qwen3.6-27b` on 2026-09-14. Successor is 3.8. */
+export const DEFAULT_DETECT_LLM_MODEL = "qwen/qwen3.8-27b";
 export const DETECT_LLM_MAX_CALLS = 8;
 /** Default 2 — Groq Free 429s at 8-wide; keep Hobby detect + Neon sync under 10s. */
 export const DETECT_LLM_CONCURRENCY = 2;
@@ -113,6 +114,19 @@ export type LlmClassifyFn = (input: {
   customerMessages: Message[];
 }) => Promise<LlmClassification | null>;
 
+/** Why a Groq call did not return a classification. */
+export type LlmFailureKind = "key" | "model" | "timeout" | "shape";
+
+export class LlmCallFailed extends Error {
+  readonly kind: LlmFailureKind | null;
+
+  constructor(kind: LlmFailureKind | null) {
+    super(kind ?? "llm_call_failed");
+    this.name = "LlmCallFailed";
+    this.kind = kind;
+  }
+}
+
 export type LlmPassStats = {
   enabled: boolean;
   candidates: number;
@@ -120,7 +134,58 @@ export type LlmPassStats = {
   added: number;
   failed: number;
   skipped: number;
+  /** First diagnosed failure when `failed` > 0. Omitted when every call succeeded. */
+  llmFailure?: LlmFailureKind;
 };
+
+/**
+ * Map a Groq HTTP error onto key / model. Other statuses stay undiagnosed
+ * so a 429 is not labeled as a bad response body.
+ */
+export function groqFailureKind(
+  status: number,
+  body: string
+): LlmFailureKind | null {
+  const text = body.toLowerCase();
+  if (
+    status === 401 ||
+    status === 403 ||
+    text.includes("invalid api key") ||
+    text.includes("invalid_api_key") ||
+    text.includes("expired_api_key")
+  ) {
+    return "key";
+  }
+  const modelGone =
+    text.includes("does not exist") ||
+    text.includes("decommission") ||
+    text.includes("not found") ||
+    text.includes("no longer") ||
+    text.includes("deprecated") ||
+    text.includes("model_not_found");
+  if ((status === 400 || status === 404) && text.includes("model") && modelGone) {
+    return "model";
+  }
+  if (status === 404 && text.includes("model")) return "model";
+  return null;
+}
+
+function llmFailureKindOf(err: unknown): LlmFailureKind | null {
+  if (!err || typeof err !== "object" || !("kind" in err)) return null;
+  const kind = (err as { kind?: unknown }).kind;
+  if (kind === "key" || kind === "model" || kind === "timeout" || kind === "shape") {
+    return kind;
+  }
+  return null;
+}
+
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const name = "name" in err ? String(err.name) : "";
+  if (name === "AbortError" || name === "TimeoutError") return true;
+  const message = "message" in err ? String(err.message) : "";
+  return /abort|timeout/i.test(message);
+}
 
 export type HybridDetectResult = {
   signals: Signal[];
@@ -423,6 +488,11 @@ export async function classifyConversationWithGroq(input: {
       body: JSON.stringify({
         model: detectLlmModel(),
         temperature: 0,
+        // 3.8 thinks by default. JSON mode 400s on raw reasoning, and a
+        // 6s abort would look like a timeout. Instruct mode keeps the
+        // JSON in message.content.
+        reasoning_effort: "none",
+        reasoning_format: "hidden",
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
@@ -430,25 +500,40 @@ export async function classifyConversationWithGroq(input: {
         ],
       }),
     });
-  } catch {
-    return null;
+  } catch (err) {
+    throw new LlmCallFailed(isAbortError(err) ? "timeout" : null);
   } finally {
     clear();
   }
 
-  if (!response.ok) return null;
+  if (!response.ok) {
+    let detail = "";
+    try {
+      detail = typeof response.text === "function" ? await response.text() : "";
+    } catch {
+      detail = "";
+    }
+    throw new LlmCallFailed(groqFailureKind(response.status, detail));
+  }
 
-  let payload: { choices?: Array<{ message?: { content?: string } }> };
+  let payload: {
+    choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
+  };
   try {
     payload = (await response.json()) as typeof payload;
   } catch {
-    return null;
+    throw new LlmCallFailed("shape");
   }
 
-  const content = payload.choices?.[0]?.message?.content;
-  if (!content) return null;
-
-  return parseLlmClassificationJson(content);
+  const message = payload.choices?.[0]?.message;
+  const content = typeof message?.content === "string" ? message.content : "";
+  const reasoning =
+    typeof message?.reasoning === "string" ? message.reasoning : "";
+  const parsed =
+    (content ? parseLlmClassificationJson(content) : null) ??
+    (reasoning ? parseLlmClassificationJson(reasoning) : null);
+  if (!parsed) throw new LlmCallFailed("shape");
+  return parsed;
 }
 
 function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
@@ -575,6 +660,7 @@ export async function applyLlmSecondPass(
   const added: Signal[] = [];
   let attempted = 0;
   let failed = 0;
+  let llmFailure: LlmFailureKind | undefined;
 
   await mapWithConcurrency(selected, concurrency, async (row) => {
     attempted += 1;
@@ -593,8 +679,10 @@ export async function applyLlmSecondPass(
         overrides
       );
       if (signal) added.push(signal);
-    } catch {
+    } catch (err) {
       failed += 1;
+      const kind = llmFailureKindOf(err);
+      if (!llmFailure && kind) llmFailure = kind;
     }
   });
 
@@ -607,6 +695,7 @@ export async function applyLlmSecondPass(
       added: added.length,
       failed,
       skipped,
+      ...(llmFailure ? { llmFailure } : {}),
     },
   };
 }

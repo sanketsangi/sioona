@@ -9,6 +9,7 @@ import {
   applyNeonFeedbackToSignals,
   fetchHydrateConversations,
   fetchOverlayConversations,
+  filterConversationsForLivePartner,
   filterHydratedChats,
   mapBackendConversationsToStore,
   mergeOverlayChats,
@@ -749,6 +750,212 @@ describe("tryHydrateStoreFromNeon", () => {
     await expect(tryHydrateStoreFromNeon()).resolves.toBeNull();
     expect(writeSpy).not.toHaveBeenCalled();
     expect(detectSpy).not.toHaveBeenCalled();
+  });
+
+  it("drops Sample rows written before a weekly filename and stamps the fresh chats", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-week7",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "Zerodha_week_7_batch_01.json",
+      created_at: "2026-09-27T12:00:00.000Z",
+      updated_at: "2026-09-27T12:00:00.000Z",
+    });
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow({
+        conversation_id: "conv_groww",
+        customer_name: "Eeshan Kulkarni",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      }),
+      partnerRow({
+        conversation_id: "conv_aditya",
+        customer_name: "Aditya Pawar",
+        updated_at: "2026-09-27T12:00:05.000Z",
+      }),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [{ ...detectedSignal, conversationId: "conv_aditya" }],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [
+        {
+          ...detectedSignal,
+          conversationId: "conv_aditya",
+          backendSignalId: "pred-hydrated-1",
+        },
+      ],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon({ freshOnly: true });
+
+    expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
+    expect(result?.conversations[0]?.customerName).toBe("Aditya Pawar");
+    expect(result?.conversations[0]?.sourceFile).toBe(
+      "Zerodha_week_7_batch_01.json",
+    );
+    expect(result?.pilot?.lastUploadedFileName).toBe(
+      "Zerodha_week_7_batch_01.json",
+    );
+  });
+
+  it("drops bundled showcase ids before paint even when they are newer than the pilot", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-week7",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "Zerodha_week_7_batch_01.json",
+      created_at: "2026-09-27T12:00:00.000Z",
+      updated_at: "2026-09-27T12:00:00.000Z",
+    });
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow({
+        conversation_id: "conv_rucha_patwardhan_12",
+        customer_name: "Rucha Patwardhan",
+        external_id: "rucha_patwardhan_12",
+        updated_at: "2026-09-27T12:05:00.000Z",
+      }),
+      partnerRow({
+        conversation_id: "conv_aditya",
+        customer_name: "Aditya Pawar",
+        external_id: "aditya_week7",
+        updated_at: "2026-09-27T12:05:00.000Z",
+      }),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [{ ...detectedSignal, conversationId: "conv_aditya" }],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, conversationId: "conv_aditya" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expect(result?.conversations.map((row) => row.customerName)).toEqual([
+      "Aditya Pawar",
+    ]);
+    expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
+  });
+
+  it("day-1 replace hydrates only chats written with the filename", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-week7",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 1,
+      last_uploaded_file_name: "Zerodha_week_7_batch_01.json",
+      created_at: "2026-09-27T12:00:00.000Z",
+      updated_at: "2026-09-27T12:00:00.000Z",
+    });
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow({
+        conversation_id: "conv_old_pack",
+        customer_name: "Older Pack",
+        updated_at: "2026-09-01T00:00:00.000Z",
+      }),
+      partnerRow({
+        conversation_id: "conv_aditya",
+        customer_name: "Aditya Pawar",
+        updated_at: "2026-09-27T12:00:05.000Z",
+      }),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [{ ...detectedSignal, conversationId: "conv_aditya" }],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, conversationId: "conv_aditya" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
+  });
+
+  it("returns null when the weekly filename is set and no chat is that new", async () => {
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
+      id: "pilot-week7",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 0,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "Zerodha_week_7_batch_01.json",
+      created_at: "2026-09-27T12:00:00.000Z",
+      updated_at: "2026-09-27T12:00:00.000Z",
+    });
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow({ updated_at: "2026-09-01T00:00:00.000Z" }),
+    ]);
+    const writeSpy = vi.spyOn(store, "writeStore");
+
+    await expect(tryHydrateStoreFromNeon()).resolves.toBeNull();
+    expect(writeSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("filterConversationsForLivePartner", () => {
+  it("keeps every row when the pilot file is Sample", () => {
+    const rows = [partnerRow()];
+    expect(
+      filterConversationsForLivePartner(rows, {
+        last_uploaded_file_name: "Groww_batch_02",
+        updated_at: "2026-09-27T12:00:00.000Z",
+      }).apply,
+    ).toBe(false);
   });
 });
 

@@ -5,7 +5,10 @@ import {
 } from "@/lib/partner-demo-replace-guard";
 import {
   defaultInsightsHref,
+  insightsHomeHref,
   isLivePartnerKeepSet,
+  livePartnerVaultChrome,
+  vaultKeepSetRefreshDelay,
   isVaultBatchRenderable,
   parseVaultFile,
   resolveHeaderBatchName,
@@ -33,6 +36,15 @@ describe("resolveInsightsVaultFile", () => {
     expect(resolveInsightsVaultFile(null)).toBe(GROWW_SHOWCASE_SAMPLE_NAME);
     expect(resolveInsightsVaultFile(undefined)).toBe(GROWW_SHOWCASE_SAMPLE_NAME);
     expect(resolveInsightsVaultFile("")).toBe(GROWW_SHOWCASE_SAMPLE_NAME);
+  });
+
+  it("keeps a weekly upload when bare Insights has that keep-set", () => {
+    expect(
+      resolveInsightsVaultFile(null, "Zerodha_week_7_batch_01.json"),
+    ).toBe("Zerodha_week_7_batch_01.json");
+    expect(resolveInsightsVaultFile(null, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(
+      GROWW_SHOWCASE_SAMPLE_NAME,
+    );
   });
 
   it("keeps an explicit ?file=", () => {
@@ -281,6 +293,64 @@ describe("resolveVaultActiveFile", () => {
         lastUploadedFileName: "   ",
       }),
     ).toBe(GROWW_SHOWCASE_SAMPLE_NAME);
+  });
+});
+
+describe("vaultFileIsLoaded chat count", () => {
+  it("treats a weekly filename with zero chats as not loaded", () => {
+    expect(
+      vaultFileIsLoaded(
+        "Zerodha_week_7_batch_01.json",
+        "Zerodha_week_7_batch_01.json",
+        ["Zerodha_week_7_batch_01.json"],
+        0,
+      ),
+    ).toBe(false);
+    expect(
+      vaultFileIsLoaded(
+        "Zerodha_week_7_batch_01.json",
+        "Zerodha_week_7_batch_01.json",
+        ["Zerodha_week_7_batch_01.json"],
+        100,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("livePartnerVaultChrome", () => {
+  it("does not hide Sample when the weekly URL is not the loaded store", () => {
+    expect(
+      livePartnerVaultChrome({
+        activeFile: "Zerodha_week_7_batch_01.json",
+        lastUploadedFileName: GROWW_SHOWCASE_SAMPLE_NAME,
+        chatCount: 56,
+      }),
+    ).toBe(false);
+    expect(
+      livePartnerVaultChrome({
+        activeFile: "Zerodha_week_7_batch_01.json",
+        lastUploadedFileName: "Zerodha_week_7_batch_01.json",
+        chatCount: 100,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("insightsHomeHref", () => {
+  it("opens the weekly file instead of Sample", () => {
+    expect(insightsHomeHref("Zerodha_week_7_batch_01.json")).toContain(
+      "Zerodha_week_7_batch_01.json",
+    );
+    expect(insightsHomeHref(GROWW_SHOWCASE_SAMPLE_NAME)).toContain(
+      "file=Groww_batch_02",
+    );
+  });
+});
+
+describe("vaultKeepSetRefreshDelay", () => {
+  it("stops after the refresh budget", () => {
+    expect(vaultKeepSetRefreshDelay(0)).toBe(800);
+    expect(vaultKeepSetRefreshDelay(8)).toBeNull();
   });
 });
 

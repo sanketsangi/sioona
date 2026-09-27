@@ -46,12 +46,14 @@ export function ReDetectButton({ className }: { className?: string }) {
       params.delete("syncCreated");
       params.delete("llmAdded");
       params.delete("llmFailed");
+      params.delete("llmFailure");
       const extras = syncQueryExtras(sync);
       if (extras.syncFailed) params.set("syncFailed", extras.syncFailed);
       if (extras.syncCreated) params.set("syncCreated", extras.syncCreated);
       const llmExtras = llmQueryExtras(parseLlmPassStats(data.detectLlm));
       if (llmExtras.llmAdded) params.set("llmAdded", llmExtras.llmAdded);
       if (llmExtras.llmFailed) params.set("llmFailed", llmExtras.llmFailed);
+      if (llmExtras.llmFailure) params.set("llmFailure", llmExtras.llmFailure);
 
       if (hasSyncFailures(sync) && sync) {
         setError(

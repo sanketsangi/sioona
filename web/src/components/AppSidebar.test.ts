@@ -217,7 +217,15 @@ describe("AppSidebar Vault", () => {
       vault.indexOf("Uploaded Chats"),
     );
     expect(vault).not.toContain("No uploads yet");
-    expect(vaultFileHrefCount(html, "user-upload.csv")).toBe(1);
+    expect(vaultFileHrefCount(html, "user-upload.csv")).toBe(3);
+  });
+
+  it("keeps Sample and Partner Demo when the weekly ?file= is not the loaded store", () => {
+    const html = renderSidebar("Groww_batch_02", "Zerodha_week_7_batch_01.json");
+    const vault = vaultSection(html);
+    expect(vault).toContain("Sample");
+    expect(vault).toContain("Partner Demo");
+    expect(html).toContain("sanket@sioona.ai");
   });
 
   it("prefers ?file= over last upload for the active pill", () => {

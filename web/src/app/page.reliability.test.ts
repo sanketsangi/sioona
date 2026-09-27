@@ -22,6 +22,12 @@ vi.mock("@/components/views/TaxonomyView", () => ({
   TaxonomyView: () => null,
 }));
 
+vi.mock("@/lib/adopt-neon-keep-set", () => ({
+  adoptNeonKeepSetWhenLocalMisses: vi.fn(
+    async (store: StoreData) => store,
+  ),
+}));
+
 vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
   loadStore: vi.fn(),
@@ -682,8 +688,22 @@ describe("PlatformPage deploy reliability", () => {
       searchParams: Promise.resolve({ view: "upload" }),
     });
 
-    expect(loadStore).toHaveBeenCalledWith({ syncPredictions: false });
+    expect(loadStore).toHaveBeenCalledWith({
+      syncPredictions: false,
+      freshOnly: false,
+    });
     expect(loadStore).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes freshOnly on a replace landing so hydrate skips the previous pack", async () => {
+    await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights", replaced: "1" }),
+    });
+
+    expect(loadStore).toHaveBeenCalledWith({
+      syncPredictions: false,
+      freshOnly: true,
+    });
   });
 
   it("does not schedule deferred prediction sync on Upload/Taxonomy even on cold start", async () => {

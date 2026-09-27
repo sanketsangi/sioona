@@ -6,7 +6,9 @@ import {
   DEFAULT_DETECT_LLM_MODEL,
   DETECT_LLM_CONCURRENCY,
   DETECT_LLM_MAX_CALLS,
+  groqFailureKind,
   isDetectLlmEnabled,
+  LlmCallFailed,
   parseLlmClassificationJson,
   recoverGroundedQuote,
   runHybridDetection,
@@ -269,6 +271,44 @@ describe("applyLlmSecondPass", () => {
     expect(llm.added).toBe(0);
   });
 
+  it("keeps heuristic signals when every Groq call fails", async () => {
+    const heuristic = await runHybridDetection(
+      [conv],
+      messages,
+      "tenant_demo"
+    );
+    expect(heuristic.signals.length).toBeGreaterThan(0);
+
+    const quiet: Conversation = { ...conv, id: "conv_quiet_fail" };
+    const quietMsgs: Message[] = [
+      {
+        ...messages[0],
+        id: "msg_quiet_fail",
+        conversationId: "conv_quiet_fail",
+        content:
+          "Please send the monthly account statement to my email when you can.",
+      },
+    ];
+
+    const { signals, llm } = await applyLlmSecondPass(
+      [conv, quiet],
+      [...messages, ...quietMsgs],
+      "tenant_demo",
+      heuristic.signals,
+      null,
+      {
+        classify: async () => {
+          throw new LlmCallFailed("model");
+        },
+      }
+    );
+
+    expect(signals).toEqual(heuristic.signals);
+    expect(llm.added).toBe(0);
+    expect(llm.failed).toBe(1);
+    expect(llm.llmFailure).toBe("model");
+  });
+
   it("adds a grounded retention signal on a none heuristic miss", async () => {
     const quiet: Conversation = {
       ...conv,
@@ -494,26 +534,41 @@ describe("classifyConversationWithGroq", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("returns null on HTTP errors, invalid JSON, and unknown types", async () => {
+  it("classifies Groq failures as key, model, timeout, or shape", async () => {
+    expect(
+      groqFailureKind(
+        400,
+        `The model \`qwen/qwen3.6-27b\` does not exist or you do not have access to it.`
+      )
+    ).toBe("model");
+    expect(groqFailureKind(401, "invalid api key")).toBe("key");
+    expect(
+      groqFailureKind(
+        401,
+        `{"error":{"message":"Invalid API Key","code":"expired_api_key"}}`
+      )
+    ).toBe("key");
+    expect(groqFailureKind(429, "rate limit")).toBeNull();
+
     vi.stubEnv("GROQ_API_KEY", "gsk_test");
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("aborted")));
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).rejects.toMatchObject({ name: "LlmCallFailed", kind: "timeout" });
 
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockRejectedValue(new Error("aborted"))
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        text: async () =>
+          "The model `qwen/qwen3.6-27b` has been decommissioned",
+      })
     );
     await expect(
       classifyConversationWithGroq({ conversation: conv, customerMessages })
-    ).resolves.toBeNull();
-
-    const httpFail = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 429,
-      json: async () => ({ error: "rate limited" }),
-    });
-    vi.stubGlobal("fetch", httpFail);
-    await expect(
-      classifyConversationWithGroq({ conversation: conv, customerMessages })
-    ).resolves.toBeNull();
+    ).rejects.toMatchObject({ kind: "model" });
 
     vi.stubGlobal(
       "fetch",
@@ -526,7 +581,48 @@ describe("classifyConversationWithGroq", () => {
     );
     await expect(
       classifyConversationWithGroq({ conversation: conv, customerMessages })
-    ).resolves.toBeNull();
+    ).rejects.toMatchObject({ kind: "shape" });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: "",
+                reasoning: JSON.stringify({
+                  signal: "retention_risk",
+                  confidence: 0.8,
+                  evidence: "close my account",
+                  reason: "Customer will close the account.",
+                }),
+              },
+            },
+          ],
+        }),
+      })
+    );
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).resolves.toMatchObject({ type: "retention" });
+  });
+
+  it("rejects an unknown label and an undiagnosed HTTP status", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        text: async () => "rate limit",
+      })
+    );
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).rejects.toMatchObject({ kind: null });
 
     vi.stubGlobal(
       "fetch",
@@ -550,7 +646,7 @@ describe("classifyConversationWithGroq", () => {
     );
     await expect(
       classifyConversationWithGroq({ conversation: conv, customerMessages })
-    ).resolves.toBeNull();
+    ).rejects.toMatchObject({ kind: "shape" });
   });
 
   it("parses a valid Groq payload, clamps confidence, and keeps two string quotes", async () => {
@@ -644,8 +740,12 @@ describe("classifyConversationWithGroq", () => {
     });
     const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
       model: string;
+      reasoning_effort: string;
+      reasoning_format: string;
     };
     expect(body.model).toBe(DEFAULT_DETECT_LLM_MODEL);
+    expect(body.reasoning_effort).toBe("none");
+    expect(body.reasoning_format).toBe("hidden");
   });
 
   it("parses fenced JSON and corpus type aliases from a small Qwen payload", async () => {

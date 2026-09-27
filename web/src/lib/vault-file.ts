@@ -22,11 +22,28 @@ export function parseVaultFile(raw?: string | null): string | null {
 }
 
 /**
- * Insights vault scope: explicit `?file=` wins; bare Insights defaults to Sample
- * so app start / Workspace Insights land on Groww_batch_02 (auto-load on mismatch).
+ * Insights vault scope: explicit `?file=` wins. Bare Insights stays on a live
+ * weekly upload so Sample auto-load does not replace it. With no upload,
+ * bare Insights is Sample (Groww_batch_02).
  */
-export function resolveInsightsVaultFile(raw?: string | null): string {
-  return parseVaultFile(raw) ?? GROWW_SHOWCASE_SAMPLE_NAME;
+export function resolveInsightsVaultFile(
+  raw?: string | null,
+  lastUploadedFileName?: string | null,
+): string {
+  const explicit = parseVaultFile(raw);
+  if (explicit) return explicit;
+  const keep = lastUploadedFileName?.trim();
+  if (isLivePartnerKeepSet(keep)) return keep!;
+  return GROWW_SHOWCASE_SAMPLE_NAME;
+}
+
+/** Workspace Insights / brand. A live upload must not navigate into Sample. */
+export function insightsHomeHref(
+  lastUploadedFileName?: string | null,
+): string {
+  const keep = lastUploadedFileName?.trim();
+  if (isLivePartnerKeepSet(keep)) return vaultInsightsHref(keep!);
+  return defaultInsightsHref();
 }
 
 /** Insights deep-link scoped to a vault catalog filename. */
@@ -166,16 +183,67 @@ export function uploadedFileIndex(
 /**
  * True when Insights can render this vault file: the keep-set itself, or
  * another file from the same multi-file export.
+ * A live filename with zero chats is still landing — not loaded.
  */
 export function vaultFileIsLoaded(
   vaultFile: string | null | undefined,
   lastUploadedFileName: string | null | undefined,
   uploadedFileNames: readonly string[] = [],
+  chatCount?: number,
 ): boolean {
   const file = parseVaultFile(vaultFile);
   if (!file) return true;
+  // Filename fallback can list a weekly upload before any chat is stored.
+  if (chatCount === 0) return false;
+  const inCatalog = uploadedFileIndex(uploadedFileNames, file) >= 0;
   if (vaultFileMatchesKeepSet(file, lastUploadedFileName)) return true;
-  return uploadedFileIndex(uploadedFileNames, file) >= 0;
+  return inCatalog;
+}
+
+/**
+ * Hide Sample / Partner Demo only when that partner file is actually loaded.
+ * A `?file=` name alone must not hide them while the store is still Sample.
+ */
+export function livePartnerVaultChrome(opts: {
+  activeFile?: string | null;
+  lastUploadedFileName?: string | null;
+  uploadedFileNames?: readonly string[];
+  chatCount?: number;
+}): boolean {
+  const active =
+    parseVaultFile(opts.activeFile) ?? opts.lastUploadedFileName?.trim() ?? "";
+  if (!isLivePartnerKeepSet(active)) return false;
+  return vaultFileIsLoaded(
+    active,
+    opts.lastUploadedFileName,
+    opts.uploadedFileNames ?? [],
+    opts.chatCount,
+  );
+}
+
+/** Stamp chats that Neon stored without a filename (single-file weekly replace). */
+export function stampUnstampedSourceFile<T extends { sourceFile?: string }>(
+  conversations: T[],
+  fileName: string | null | undefined,
+): T[] {
+  const name = fileName?.trim();
+  if (!name || !isLivePartnerKeepSet(name)) return conversations;
+  if (conversations.some((conversation) => conversation.sourceFile?.trim())) {
+    return conversations;
+  }
+  return conversations.map((conversation) => ({
+    ...conversation,
+    sourceFile: name,
+  }));
+}
+
+/** Insights refresh while a weekly upload is still landing in Neon. */
+export const VAULT_KEEP_SET_REFRESH_LIMIT = 8;
+
+export function vaultKeepSetRefreshDelay(attempt: number): number | null {
+  if (!Number.isInteger(attempt) || attempt < 0) return null;
+  if (attempt >= VAULT_KEEP_SET_REFRESH_LIMIT) return null;
+  return 800 + attempt * 400;
 }
 
 /**
@@ -186,8 +254,14 @@ export function isVaultBatchRenderable(
   vaultFile: string | null | undefined,
   lastUploadedFileName: string | null | undefined,
   uploadedFileNames: readonly string[] = [],
+  chatCount?: number,
 ): boolean {
-  return vaultFileIsLoaded(vaultFile, lastUploadedFileName, uploadedFileNames);
+  return vaultFileIsLoaded(
+    vaultFile,
+    lastUploadedFileName,
+    uploadedFileNames,
+    chatCount,
+  );
 }
 
 /**

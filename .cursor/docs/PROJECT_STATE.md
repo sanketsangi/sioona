@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-26
+**Last updated:** 2026-09-27
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` tip `5c6bc00` (detect/Insights coverage); this pass SignalScore quality (canonical types + count-SoT Go)
@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-26):** Every emitted Insights signal has a supervised draft (lead outreach, retention follow-up, upsell note). High-confidence retention email is unchanged. Approve records a decision only — nothing is sent.
+**This pass (code, 2026-09-27):** Detect v2 model — production had no `DETECT_LLM_MODEL`, so every Groq call used `qwen/qwen3.6-27b`. Groq shut that id down on 2026-09-14 (replacement `qwen/qwen3.8-27b`). Week-7 ingest `failed: 4` was that model (key present; not a timeout). Insights landing names a failed second pass; the first-pass signals stay in the queue. Touch: `detect-llm.ts`, Insights landing. Not Auth0 / not Batch-02 / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-26):** Every emitted Insights signal has a supervised draft (lead outreach, retention follow-up, upsell note). High-confidence retention email is unchanged. Approve records a decision only — nothing is sent.
 
 **Prior pass (code, 2026-09-26):** Score asleep — Insights keeps the last queue counts, says the weekly score is waiting, and offers one Retry. An empty Neon queue is not treated as finished while JSON still has the keep-set. Eval metrics show the existing sync warning when uploaded chats and saved reviews disagree. Touch: Insights asleep panel, `QueueWakeRetry`, Eval metrics. Not Adapt / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 

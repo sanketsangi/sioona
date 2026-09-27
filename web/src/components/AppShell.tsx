@@ -16,6 +16,7 @@ export function AppShell({
   lastUploadedFileName,
   headerBatchName,
   uploadedFileNames,
+  chatCount,
   vaultFile = null,
   activeView,
   workspaceMode = "shadow",
@@ -29,6 +30,7 @@ export function AppShell({
   headerBatchName?: string;
   /** Real-export files the sidebar and header can switch between. */
   uploadedFileNames?: string[];
+  chatCount?: number;
   /** `?file=` vault scope — active pill on AppSidebar. */
   vaultFile?: string | null;
   activeView: PlatformView;
@@ -63,6 +65,7 @@ export function AppShell({
         lastUploadedFileName={lastUploadedFileName}
         vaultFile={vaultFile}
         uploadedFileNames={uploadedFileNames}
+        chatCount={chatCount}
       />
 
       <SidebarInset

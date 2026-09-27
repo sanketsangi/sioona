@@ -63,6 +63,7 @@ export async function seedVaultShowcaseForNavigation(
         syncCreated: sync.syncCreated,
         llmAdded: llm.llmAdded,
         llmFailed: llm.llmFailed,
+        llmFailure: llm.llmFailure,
         wipeFailed: data.wipeFailed,
       }),
       skippedWipe: false,

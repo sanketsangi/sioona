@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   llmQueryExtras,
+  llmPassFailureNotice,
   parseLlmAddedParam,
   parseLlmFailedParam,
+  parseLlmFailureParam,
   parseLlmPassStats,
 } from "./detect-llm-query";
 
@@ -44,7 +46,7 @@ describe("llmQueryExtras", () => {
         failed: 0,
         skipped: 0,
       })
-    ).toEqual({ llmAdded: null, llmFailed: null });
+    ).toEqual({ llmAdded: null, llmFailed: null, llmFailure: null });
   });
 
   it("sets added and failed when Groq ran", () => {
@@ -57,7 +59,43 @@ describe("llmQueryExtras", () => {
         failed: 1,
         skipped: 2,
       })
-    ).toEqual({ llmAdded: "2", llmFailed: "1" });
+    ).toEqual({ llmAdded: "2", llmFailed: "1", llmFailure: null });
+  });
+
+  it("reads llmFailure and the legacy failure field", () => {
+    expect(
+      parseLlmPassStats({
+        enabled: true,
+        candidates: 81,
+        attempted: 4,
+        added: 0,
+        failed: 4,
+        skipped: 77,
+        llmFailure: "key",
+      })?.llmFailure
+    ).toBe("key");
+    expect(
+      parseLlmPassStats({
+        enabled: true,
+        candidates: 81,
+        attempted: 4,
+        added: 0,
+        failed: 4,
+        skipped: 77,
+        failure: "model",
+      })?.llmFailure
+    ).toBe("model");
+    expect(
+      llmQueryExtras({
+        enabled: true,
+        candidates: 81,
+        attempted: 4,
+        added: 0,
+        failed: 4,
+        skipped: 77,
+        llmFailure: "key",
+      }).llmFailure
+    ).toBe("key");
   });
 });
 
@@ -67,5 +105,23 @@ describe("parse llm URL params", () => {
     expect(parseLlmAddedParam("0")).toBe(0);
     expect(parseLlmFailedParam("2")).toBe(2);
     expect(parseLlmFailedParam(undefined)).toBe(0);
+    expect(parseLlmFailureParam("model")).toBe("model");
+    expect(parseLlmFailureParam("nope")).toBeNull();
+  });
+});
+
+describe("llmPassFailureNotice", () => {
+  it("names the model failure and keeps the first-pass count", () => {
+    expect(
+      llmPassFailureNotice({
+        failed: 4,
+        failure: "model",
+        signalCount: 19,
+      })
+    ).toEqual({
+      title: "Second pass failed",
+      description:
+        "Groq no longer serves this model. 4 second-pass calls failed. 19 signals from the first pass are still in the queue.",
+    });
   });
 });

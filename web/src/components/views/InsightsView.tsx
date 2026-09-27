@@ -20,6 +20,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { InsightsPartnerDemoAction } from "@/components/InsightsPartnerDemoAction";
+import { VaultKeepSetRefresh } from "@/components/VaultKeepSetRefresh";
 import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
@@ -46,6 +47,8 @@ import {
   reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
+import { llmPassFailureNotice } from "@/lib/detect-llm-query";
+import type { LlmFailureKind } from "@/lib/detect-llm";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { buildSignalReviewTriage } from "@/lib/review-triage";
 import {
@@ -67,7 +70,7 @@ import {
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import {
-  isLivePartnerKeepSet,
+  livePartnerVaultChrome,
   resolveVaultActiveFile,
   scopeChatsToUploadedFile,
   vaultFileEmptyNext,
@@ -109,6 +112,7 @@ export function InsightsView({
   syncCreated = 0,
   llmAdded = 0,
   llmFailed = 0,
+  llmFailure = null,
   cadenceAction,
   cadencePreviewId = null,
   workspaceMode = "shadow",
@@ -144,6 +148,7 @@ export function InsightsView({
   syncCreated?: number;
   llmAdded?: number;
   llmFailed?: number;
+  llmFailure?: LlmFailureKind | null;
   cadenceAction: PilotCadenceAction;
   /** First Correct-not-Acted signal for cadence Mark Acted deep links. */
   cadencePreviewId?: string | null;
@@ -166,7 +171,29 @@ export function InsightsView({
     vaultFile,
     store.pilot?.lastUploadedFileName,
     uploadedFileNames,
+    store.conversations.length,
   );
+  const livePartner = livePartnerVaultChrome({
+    activeFile: resolveVaultActiveFile({
+      vaultFile,
+      lastUploadedFileName: store.pilot?.lastUploadedFileName,
+    }),
+    lastUploadedFileName: store.pilot?.lastUploadedFileName,
+    uploadedFileNames,
+    chatCount: store.conversations.length,
+  });
+  const landingChats =
+    !resolveVaultShowcaseKind(vaultFile) &&
+    importedCount != null &&
+    importedCount > 0 &&
+    store.conversations.length < importedCount &&
+    (Boolean(vaultFile) ||
+      livePartnerVaultChrome({
+        activeFile: store.pilot?.lastUploadedFileName,
+        lastUploadedFileName: store.pilot?.lastUploadedFileName,
+        uploadedFileNames,
+        chatCount: store.conversations.length,
+      }));
   /**
    * Sample / Partner Demo — seed in the background. The current queue stays
    * (same as Sample → Partner Demo); do not treat that as an empty mismatch.
@@ -283,6 +310,7 @@ export function InsightsView({
     syncCreated: hasSyncFailure ? String(syncCreated) : null,
     llmAdded: llmAdded > 0 ? String(llmAdded) : null,
     llmFailed: llmFailed > 0 ? String(llmFailed) : null,
+    llmFailure: llmFailed > 0 ? llmFailure : null,
     scoreFrom,
     mode: workspaceMode === "action" ? "action" : null,
     file: vaultFile,
@@ -472,6 +500,20 @@ export function InsightsView({
     page: page > 1 ? String(page) : null,
   });
 
+  const llmPassNotice =
+    llmFailed > 0
+      ? llmPassFailureNotice({
+          failed: llmFailed,
+          failure: llmFailure,
+          signalCount:
+            newSignalCount != null &&
+            !Number.isNaN(newSignalCount) &&
+            newSignalCount > 0
+              ? newSignalCount
+              : null,
+        })
+      : null;
+
   const queueProps = {
     pendingSignals,
     reviewedSignals,
@@ -550,6 +592,10 @@ export function InsightsView({
 
   return (
     <ViewFrame className="gap-4">
+      <VaultKeepSetRefresh
+        active={Boolean(vaultEmpty) || landingChats}
+        fileName={vaultFile ?? store.pilot?.lastUploadedFileName ?? ""}
+      />
       <CanonicalizeInsightsStatus
         statusFilter={statusFilter}
         workspaceMode={workspaceMode}
@@ -567,12 +613,7 @@ export function InsightsView({
                 <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                   Conversation that needs your attention
                 </h2>
-                {isLivePartnerKeepSet(
-                  resolveVaultActiveFile({
-                    vaultFile,
-                    lastUploadedFileName: store.pilot?.lastUploadedFileName,
-                  }),
-                ) ? null : (
+                {livePartner ? null : (
                   <InsightsPartnerDemoAction
                     lastUploadedFileName={store.pilot?.lastUploadedFileName}
                   />
@@ -580,6 +621,19 @@ export function InsightsView({
               </div>
               <InsightsShadowTip />
             </div>
+            {llmPassNotice ? (
+              <div
+                className="status-banner status-banner-warning"
+                role="alert"
+              >
+                <p className="text-label-14 text-sio-fg-base">
+                  {llmPassNotice.title}
+                </p>
+                <p className="mt-1 text-copy-14 text-sio-fg-subtle">
+                  {llmPassNotice.description}
+                </p>
+              </div>
+            ) : null}
             {vaultShowcaseKind && vaultFile ? (
               <VaultShowcaseLoader
                 fileName={vaultFile}
