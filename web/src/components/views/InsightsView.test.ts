@@ -29,7 +29,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { InsightsView } from "./InsightsView";
-import { shuffleSignals } from "@/lib/join-needs-review";
+import {
+  queueSignalsForFilter,
+  shuffleSignals,
+} from "@/lib/join-needs-review";
 
 function makePendingSignals(count: number): Signal[] {
   return Array.from({ length: count }, (_, i) => ({
@@ -283,11 +286,12 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Pending signal 10");
     expect(html).toContain('data-slot="card"');
     expect(html).toContain("preview=sig_1");
-    expect(html).toContain(">Approve</a>");
-    const approveAnchors = html.match(/<a\b[^>]*>Approve<\/a>/g) ?? [];
-    expect(approveAnchors.length).toBeGreaterThan(0);
+    expect(html).toContain(">Review</a>");
+    expect(html).not.toContain(">Approve</a>");
+    const reviewAnchors = html.match(/<a\b[^>]*>Review<\/a>/g) ?? [];
+    expect(reviewAnchors.length).toBeGreaterThan(0);
     expect(
-      approveAnchors.every(
+      reviewAnchors.every(
         (anchor) => anchor.includes("rounded-full") && !anchor.includes("w-7"),
       ),
     ).toBe(true);
@@ -600,9 +604,91 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain(">Approve</a>");
+    expect(html).not.toContain(">Review</a>");
     expect(html).not.toContain("Approved");
     expect(html).not.toContain("Edited");
     expect(html).not.toContain("Dismissed");
+  });
+
+  it("Action column is Approve only for high-confidence retention", () => {
+    const rows: Signal[] = [
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_approve",
+        conversationId: "conv_approve",
+        backendSignalId: "pred-approve",
+        type: "retention",
+        score: 0.9,
+        confidence: 0.9,
+        summary: "High retention",
+      },
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_lead",
+        conversationId: "conv_lead",
+        backendSignalId: "pred-lead",
+        type: "lead",
+        score: 0.92,
+        confidence: 0.92,
+        summary: "Lead needs review",
+      },
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_upsell",
+        conversationId: "conv_upsell",
+        backendSignalId: "pred-upsell",
+        type: "upsell",
+        score: 0.6,
+        confidence: 0.6,
+        summary: "Upsell needs review",
+      },
+      {
+        ...makePendingSignals(1)[0],
+        id: "sig_low",
+        conversationId: "conv_low",
+        backendSignalId: "pred-low",
+        type: "retention",
+        score: 0.74,
+        confidence: 0.74,
+        summary: "Lower retention",
+      },
+    ];
+    const store = storeFromSignals(rows);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: {
+          ok: true,
+          predictions: rows.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.confidence,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    const approveAnchors = html.match(/<a\b[^>]*>Approve<\/a>/g) ?? [];
+    const reviewAnchors = html.match(/<a\b[^>]*>Review<\/a>/g) ?? [];
+    expect(approveAnchors).toHaveLength(2);
+    expect(reviewAnchors).toHaveLength(6);
+    expect(
+      approveAnchors.every((anchor) => anchor.includes("rounded-full")),
+    ).toBe(true);
+    expect(
+      reviewAnchors.every((anchor) => anchor.includes("rounded-full")),
+    ).toBe(true);
+    expect(html).toContain("Queue action: Approve, 1 signal");
+    expect(html).toContain("Queue action: Review, 3 signals");
   });
 
   it("Follow-up list Action is Mark as Acted (not Review link)", () => {
@@ -1032,7 +1118,7 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Leftover Groww pending");
   });
 
-  it("auto-loads Sample when Vault ?file= is not the keep-set", () => {
+  it("keeps the current queue while Sample seeds", () => {
     const pending = makePendingSignals(2);
     const store = storeFromSignals(pending);
     store.pilot = {
@@ -1063,21 +1149,22 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
-    // Insights paints immediately — no animated loading panel.
+    const visible = html.replace(
+      /<span class="sr-only"[\s\S]*?<\/span>/g,
+      "",
+    );
     expect(html).toContain("Conversation that needs your attention");
-    expect(html).toContain("Groww_batch_02");
-    expect(html).toContain("Finding signals…");
-    expect(html).toContain("Usually ready in about 20 seconds.");
-    expect(html).toContain("Cancel");
+    expect(html).toContain("Pending signal 1");
+    expect(html).toContain("Pending signal 2");
+    expect(visible).not.toContain("Finding signals…");
+    expect(html).not.toContain("Usually ready in about 20 seconds.");
+    expect(html).not.toContain("Sample failed to load");
+    expect(html).not.toContain("taking longer than expected");
+    expect(html).not.toContain("Still waiting on the current load");
+    expect(visible).not.toContain(">Cancel<");
     expect(html).not.toContain("animate-spin");
     expect(html).not.toContain('aria-label="Loading"');
-    // In-flight wipe Cancel always Upload — never prior keep-set Insights.
-    expect(html).toContain('href="/?view=upload"');
-    expect(html).not.toContain(
-      'href="/?view=insights&amp;file=Zerodha_week_5_batch_01.json"',
-    );
     expect(html).not.toContain("Sample Not Loaded");
-    expect(html).not.toContain("Pending signal 1");
   });
 
   it("keeps the Sample queue when switching to Partner Demo", () => {
@@ -1111,14 +1198,21 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
+    const visible = html.replace(
+      /<span class="sr-only"[\s\S]*?<\/span>/g,
+      "",
+    );
     expect(html).toContain("Pending signal 1");
     expect(html).toContain("Conversation that needs your attention");
+    expect(visible).not.toContain("Finding signals…");
     expect(html).not.toContain("Usually ready in about 20 seconds.");
+    expect(html).not.toContain("Partner Demo failed to load");
+    expect(html).not.toContain("taking longer than expected");
     expect(html).not.toContain("animate-spin");
     expect(html).not.toMatch(/href="\/\?view=upload"[^>]*>Cancel/);
   });
 
-  it("Cancel leaves a first-paint load when the keep-set is empty", () => {
+  it("keeps the normal empty queue while Sample seeds an empty keep-set", () => {
     const store = storeFromSignals([]);
     store.pilot = { baselineOpportunities: 0 };
     const html = renderToStaticMarkup(
@@ -1134,13 +1228,122 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
+    const visible = html.replace(
+      /<span class="sr-only"[\s\S]*?<\/span>/g,
+      "",
+    );
     expect(html).toContain("Conversation that needs your attention");
-    expect(html).toContain("Finding signals…");
-    expect(html).toContain("Cancel");
-    // Empty CTA Cancel → Upload (not a self Insights deep-link).
-    expect(html).toContain('href="/?view=upload"');
-    expect(html).toMatch(/href="\/\?view=upload"[^>]*>Cancel/);
+    expect(html).toContain("No Signals Yet");
+    expect(visible).not.toContain("Finding signals…");
+    expect(html).not.toContain("Usually ready in about 20 seconds.");
+    expect(html).not.toContain("Sample failed to load");
+    expect(html).not.toContain("taking longer than expected");
+    expect(visible).not.toContain(">Cancel<");
     expect(html).not.toContain("animate-spin");
+  });
+
+  it("keeps a batch_02.json preview that is already in the keep-set", () => {
+    const pending = makePendingSignals(1);
+    pending[0].id = "sig_conv_rucha_patwardhan_12_lead_0";
+    pending[0].conversationId = "conv_rucha_patwardhan_12";
+    pending[0].summary = "Rucha Patwardhan is exploring products";
+    const store = storeFromSignals(pending);
+    store.conversations[0].customerName = "Rucha Patwardhan";
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: pending[0].id,
+        vaultFile: "batch_02.json",
+        jsonKeepSet: true,
+        needsReview: {
+          ok: true,
+          predictions: pending.map((signal) => ({
+            id: signal.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: signal.conversationId,
+            signal_type: signal.type,
+            confidence: signal.score,
+            summary: signal.summary,
+            created_at: signal.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Rucha Patwardhan");
+    expect(html).toContain("exploring products");
+    expect(html).not.toContain("Signal Not Found");
+    expect(html).not.toContain("Upload this week’s export");
+    expect(html).not.toContain("Finding signals…");
+    expect(html).not.toContain("Usually ready in about 20 seconds.");
+    expect(html).not.toContain("taking longer than expected");
+  });
+
+  it("keeps an uploaded batch_02.json preview in the queue", () => {
+    const pending = makePendingSignals(1);
+    pending[0].id = "sig_conv_rucha_patwardhan_12_lead_0";
+    pending[0].conversationId = "conv_rucha_patwardhan_12";
+    pending[0].summary = "Rucha Patwardhan is exploring products";
+    const other = {
+      ...makePendingSignals(1)[0],
+      id: "sig_other",
+      conversationId: "conv_other",
+      summary: "Other file signal",
+      backendSignalId: "pred-other",
+    };
+    const store = storeFromSignals([pending[0], other]);
+    store.conversations[0].id = "conv_rucha_patwardhan_12";
+    store.conversations[0].customerName = "Rucha Patwardhan";
+    store.conversations[0].sourceFile = "batch_02";
+    store.conversations[1].sourceFile = "notes.csv";
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Batch_02.JSON",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: "sig_conv_rucha_patwardhan_12_lead_0",
+        vaultFile: "batch_02.json",
+        uploadedFileNames: ["batch_02", "notes.csv"],
+        needsReview: {
+          ok: true,
+          predictions: [pending[0], other].map((signal) => ({
+            id: signal.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: signal.conversationId,
+            signal_type: signal.type,
+            confidence: signal.score,
+            summary: signal.summary,
+            created_at: signal.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+        jsonKeepSet: true,
+      }),
+    );
+
+    expect(html).toContain("Rucha Patwardhan");
+    expect(html).toContain("exploring products");
+    expect(html).not.toContain("Signal Not Found");
+    expect(html).not.toContain("Other file signal");
+    expect(html).not.toContain("Finding signals…");
+    expect(html).not.toContain("Usually ready in about 20 seconds.");
+    expect(html).not.toContain("Sample failed to load");
+    expect(html).not.toContain("taking longer than expected");
   });
 
   it("keeps Upload CTA when a non-showcase Vault file is not loaded", () => {
@@ -1396,9 +1599,18 @@ describe("InsightsView pending review walk", () => {
         summary: "Approve signal 2",
       },
     ];
-    const ordered = shuffleSignals(mixed);
-    const index = ordered.findIndex((row) => row.id === "sig_approve_1");
-    const next = ordered[index + 1];
+    const approveWalk = queueSignalsForFilter({
+      pending: mixed,
+      reviewed: [],
+      status: "new",
+      type: "all",
+      action: "approve",
+    }).filtered;
+    expect(approveWalk.map((row) => row.id).sort()).toEqual(
+      ["sig_approve_1", "sig_approve_2"].sort(),
+    );
+    const index = approveWalk.findIndex((row) => row.id === "sig_approve_1");
+    const next = approveWalk[index + 1];
     const html = renderPendingPreview({
       count: mixed.length,
       previewId: "sig_approve_1",
@@ -1421,7 +1633,7 @@ describe("InsightsView pending review walk", () => {
       );
     }
 
-    const last = ordered[ordered.length - 1];
+    const last = approveWalk[approveWalk.length - 1];
     const lastHtml = renderPendingPreview({
       count: mixed.length,
       previewId: last.id,

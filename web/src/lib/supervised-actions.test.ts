@@ -68,15 +68,37 @@ describe("shouldGenerateRetentionEmail", () => {
 });
 
 describe("isQueueApproveSignal", () => {
-  it("is true for every emitted lead, retention, and upsell", () => {
+  it("is true only for a pending high-confidence retention email", () => {
     expect(isQueueApproveSignal(signal())).toBe(true);
-    expect(isQueueApproveSignal(signal({ type: "lead", confidence: 0.4 }))).toBe(
-      true,
-    );
+    expect(isQueueApproveSignal(signal({ confidence: 0.75 }))).toBe(true);
+    expect(isQueueApproveSignal(signal({ confidence: 0.74 }))).toBe(false);
     expect(
-      isQueueApproveSignal(signal({ type: "upsell", confidence: 0.2 })),
-    ).toBe(true);
-    expect(isQueueApproveSignal(signal({ confidence: 0.4 }))).toBe(true);
+      isQueueApproveSignal(signal({ type: "lead", confidence: 0.95 })),
+    ).toBe(false);
+    expect(
+      isQueueApproveSignal(signal({ type: "upsell", confidence: 0.9 })),
+    ).toBe(false);
+
+    const high = signal();
+    const pending = createRetentionEmailAction({
+      signal: high,
+      customerName: "Priya Shah",
+    });
+    expect(isQueueApproveSignal(high, [pending])).toBe(true);
+    expect(
+      isQueueApproveSignal(high, [{ ...pending, status: "approved" }]),
+    ).toBe(false);
+
+    const lead = signal({ type: "lead", confidence: 0.95, score: 0.95 });
+    const leadDraft = createSupervisedDraftAction({
+      signal: lead,
+      customerName: "Priya Shah",
+      evidence: lead.evidence,
+    });
+    expect(leadDraft?.type).toBe("lead_outreach_draft");
+    expect(isQueueApproveSignal(lead, leadDraft ? [leadDraft] : [])).toBe(
+      false,
+    );
   });
 });
 

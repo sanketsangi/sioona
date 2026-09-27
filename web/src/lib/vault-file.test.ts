@@ -11,7 +11,9 @@ import {
   resolveHeaderBatchName,
   resolveInsightsVaultFile,
   resolveVaultActiveFile,
+  scopeChatsToUploadedFile,
   vaultFileEmptyNext,
+  vaultFileIsLoaded,
   vaultFileMatchesKeepSet,
   vaultInsightsHref,
 } from "./vault-file";
@@ -83,6 +85,23 @@ describe("vaultFileMatchesKeepSet", () => {
     ).toBe(true);
   });
 
+  it("matches an uploaded file across extension, case, and source stamp", () => {
+    expect(vaultFileMatchesKeepSet("batch_02.json", "batch_02")).toBe(true);
+    expect(vaultFileMatchesKeepSet("batch_02.json", "Batch_02.JSON")).toBe(
+      true,
+    );
+    expect(
+      vaultFileMatchesKeepSet("batch_02.json", "exports/batch_02.json"),
+    ).toBe(true);
+    expect(vaultFileIsLoaded("batch_02.json", "Batch_02.JSON")).toBe(true);
+    expect(
+      vaultFileMatchesKeepSet("batch_02.json", GROWW_SHOWCASE_SAMPLE_NAME),
+    ).toBe(true);
+    expect(
+      vaultFileIsLoaded("batch_02.json", "notes.csv", ["batch_02", "notes.csv"]),
+    ).toBe(true);
+  });
+
   it("is false when keep-set is a different pack", () => {
     expect(
       vaultFileMatchesKeepSet(
@@ -96,6 +115,82 @@ describe("vaultFileMatchesKeepSet", () => {
         "Zerodha_week_5_batch_01.json",
       ),
     ).toBe(false);
+    expect(
+      vaultFileMatchesKeepSet("batch_02.json", "Zerodha_week_5_batch_01.json"),
+    ).toBe(false);
+    expect(
+      vaultFileMatchesKeepSet("batch_02.json", "batch_02 (2).json"),
+    ).toBe(false);
+  });
+});
+
+describe("scopeChatsToUploadedFile", () => {
+  it("keeps chats when sourceFile or the keep-set only differs by extension", () => {
+    const chats = {
+      conversations: [
+        {
+          id: "conv_rucha",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          sourceFile: "batch_02",
+        },
+        {
+          id: "conv_other",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          sourceFile: "notes.csv",
+        },
+      ],
+      messages: [],
+    };
+    const scoped = scopeChatsToUploadedFile(
+      chats,
+      "batch_02.json",
+      ["batch_02", "notes.csv"],
+      "Batch_02.JSON",
+    );
+    expect(scoped.conversations.map((conversation) => conversation.id)).toEqual(
+      ["conv_rucha"],
+    );
+  });
+
+  it("does not drop an unstamped keep-set chat when another file is listed", () => {
+    const chats = {
+      conversations: [
+        {
+          id: "conv_rucha",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+        },
+        {
+          id: "conv_notes",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          sourceFile: "notes.csv",
+        },
+      ],
+      messages: [],
+    };
+    const scoped = scopeChatsToUploadedFile(
+      chats,
+      "batch_02.json",
+      ["batch_02.json", "notes.csv"],
+      "batch_02.json",
+    );
+    expect(scoped.conversations.map((conversation) => conversation.id)).toContain(
+      "conv_rucha",
+    );
+    expect(scoped.conversations.map((conversation) => conversation.id)).not.toContain(
+      "conv_notes",
+    );
   });
 });
 

@@ -37,8 +37,8 @@ export function resolveVaultShowcaseKind(
 
 /**
  * Sample → Partner Demo. Keep the Sample queue on screen while the partner
- * pack seeds. The “Finding signals…” empty panel is the mismatch wait, and
- * on Vercel that wait paints before this instance has the new keep-set.
+ * pack seeds. Insights must not swap that queue for a wait or stall panel
+ * before this instance has the new keep-set.
  */
 export function isSampleToPartnerSwitch(
   vaultFile: string | null | undefined,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useEffect, useReducer, useRef, useState } from "react";
+import { type ReactNode, useEffect, useReducer, useRef } from "react";
 import { LayersIcon } from "@/components/icons/LayersIcon";
 import { Card, CardContent } from "@/components/ui/card";
 import { llmQueryExtras } from "@/lib/detect-llm-query";
@@ -22,12 +22,9 @@ import {
   resolveVaultShowcaseKind,
   shouldLandShowcaseLoad,
   VAULT_SHOWCASE_STALL_MS,
-  vaultShowcaseCanStartNewAttempt,
-  vaultShowcaseCancelHref,
   vaultShowcaseFailedMessage,
   vaultShowcaseInsightsHref,
   vaultShowcaseLoadingLabel,
-  vaultShowcaseShowRetry,
   vaultShowcaseStoreAction,
   type VaultShowcaseKind,
 } from "@/lib/vault-showcase";
@@ -38,24 +35,21 @@ const QUEUE_CARD_CLASS =
 
 /**
  * When Insights is scoped to Sample / Partner Demo but that pack is not the
- * keep-set, wipe+seed via the existing store actions. Insights paints while
- * the seed runs; a quiet fail panel replaces children only after stall /
- * hard failure (no animated loading chrome).
+ * keep-set, wipe+seed via the existing store actions. Children stay on screen
+ * for the whole attempt — stall and hard failure do not replace the queue.
  */
 export function VaultShowcaseLoader({
   fileName,
-  keepSetFileName = null,
   children,
 }: {
   fileName: string;
-  /** Current keep-set — Cancel returns here only after hard_fail settles. */
+  /** Prior keep-set. The queue is not replaced, so Cancel is not painted here. */
   keepSetFileName?: string | null;
-  /** Insights chrome while wipe+seed is in flight (no error yet). */
+  /** Insights queue while wipe+seed runs, including after stall / hard fail. */
   children: ReactNode;
 }) {
   const router = useRouter();
   const kind = resolveVaultShowcaseKind(fileName);
-  const [attempt, setAttempt] = useState(0);
   const [ui, dispatch] = useReducer(
     reduceVaultShowcaseLoadUi,
     kind ?? "sample",
@@ -154,37 +148,19 @@ export function VaultShowcaseLoader({
       abort.abort();
       window.clearTimeout(stallTimer);
     };
-  }, [kind, attempt, router]);
+  }, [kind, router]);
 
   if (!kind) return null;
 
-  const showRetry = vaultShowcaseShowRetry(ui);
-  const cancelHref = vaultShowcaseCancelHref(keepSetFileName, {
-    wipeInFlight: ui.wipeInFlight,
-  });
-
-  // Stall / hard fail — quiet non-animated panel (Insights chrome yields).
-  if (ui.error) {
-    return (
-      <VaultShowcaseFailPanel
-        kind={kind}
-        error={ui.error}
-        showRetry={showRetry}
-        cancelHref={cancelHref}
-        onRetry={() => {
-          if (!vaultShowcaseCanStartNewAttempt(ui)) return;
-          setAttempt((n) => n + 1);
-        }}
-      />
-    );
-  }
-
-  // In-flight seed — paint Insights; polite status for assistive tech only.
+  // Stall / hard fail stay quiet. Retry remains on the reducer but does not
+  // replace the Insights queue, and a stall must not start a second wipe.
   return (
     <>
-      <span className="sr-only" aria-live="polite" aria-atomic="true">
-        {ui.status ?? vaultShowcaseLoadingLabel(kind)}
-      </span>
+      {ui.error ? null : (
+        <span className="sr-only" aria-live="polite" aria-atomic="true">
+          {ui.status ?? vaultShowcaseLoadingLabel(kind)}
+        </span>
+      )}
       {children}
     </>
   );

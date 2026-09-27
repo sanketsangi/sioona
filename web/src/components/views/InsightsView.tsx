@@ -73,11 +73,7 @@ import {
   vaultFileEmptyNext,
   vaultFileIsLoaded,
 } from "@/lib/vault-file";
-import {
-  isSampleToPartnerSwitch,
-  resolveVaultShowcaseKind,
-  vaultShowcaseWaitEmptyNext,
-} from "@/lib/vault-showcase";
+import { resolveVaultShowcaseKind } from "@/lib/vault-showcase";
 import { VaultShowcaseLoader } from "@/components/VaultShowcaseLoader";
 
 /** Prefer store name; fall back to “Name (channel) …” summary prefix for Neon stubs. */
@@ -171,20 +167,15 @@ export function InsightsView({
     store.pilot?.lastUploadedFileName,
     uploadedFileNames,
   );
-  /** Sample queue stays up; partner pack seeds without the wait panel. */
-  const sampleToPartner = isSampleToPartnerSwitch(
-    vaultFile,
-    store.pilot?.lastUploadedFileName,
-  );
-  const vaultMismatch = Boolean(vaultFile && !vaultLoaded) && !sampleToPartner;
-  /** Sample / Partner Demo — auto wipe+seed; Insights paints while seeding. */
+  /**
+   * Sample / Partner Demo — seed in the background. The current queue stays
+   * (same as Sample → Partner Demo); do not treat that as an empty mismatch.
+   */
   const vaultShowcaseKind =
-    vaultMismatch && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
-  const vaultShowcaseLoading = Boolean(vaultShowcaseKind);
+    !vaultLoaded && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
+  const vaultMismatch = Boolean(vaultFile && !vaultLoaded && !vaultShowcaseKind);
   const vaultEmpty =
-    vaultMismatch && vaultFile && !vaultShowcaseKind
-      ? vaultFileEmptyNext(vaultFile)
-      : null;
+    vaultMismatch && vaultFile ? vaultFileEmptyNext(vaultFile) : null;
   const queueError = needsReview.ok ? null : needsReview.error;
   const tenantSignalsError = tenantSignals.ok ? null : tenantSignals.error;
   const pendingJoined =
@@ -215,6 +206,7 @@ export function InsightsView({
     chats,
     vaultFile,
     uploadedFileNames,
+    store.pilot?.lastUploadedFileName,
   );
   const fileScoped = queueChats !== chats;
   const conversationIds = fileScoped
@@ -361,34 +353,30 @@ export function InsightsView({
   };
   // Pending empty next step (mid-week Upload, etc.) — also used when Correct is
   // empty and there is nothing pending to review (same panel copy).
-  const pendingClear = vaultShowcaseKind
-    ? vaultShowcaseWaitEmptyNext(vaultShowcaseKind)
-    : vaultEmpty
+  const pendingClear = vaultEmpty
+    ? {
+        title: vaultEmpty.title,
+        description: vaultEmpty.description,
+        href: vaultEmpty.href,
+        label: vaultEmpty.label,
+      }
+    : cadenceAction.id === "reviews"
+      ? null
+      : cadenceEmpty;
+  const followUpEmpty = vaultEmpty
+    ? {
+        title: vaultEmpty.title,
+        description: vaultEmpty.description,
+        href: vaultEmpty.href,
+        label: vaultEmpty.label,
+      }
+    : pendingSignals.length > 0
       ? {
-          title: vaultEmpty.title,
-          description: vaultEmpty.description,
-          href: vaultEmpty.href,
-          label: vaultEmpty.label,
+          description: "Review pending detections first.",
+          href: pendingHref,
+          label: "Review Pending",
         }
-      : cadenceAction.id === "reviews"
-        ? null
-        : cadenceEmpty;
-  const followUpEmpty = vaultShowcaseKind
-    ? vaultShowcaseWaitEmptyNext(vaultShowcaseKind)
-    : vaultEmpty
-      ? {
-          title: vaultEmpty.title,
-          description: vaultEmpty.description,
-          href: vaultEmpty.href,
-          label: vaultEmpty.label,
-        }
-      : pendingSignals.length > 0
-        ? {
-            description: "Review pending detections first.",
-            href: pendingHref,
-            label: "Review Pending",
-          }
-        : pendingClear;
+      : pendingClear;
   const previewTriage = previewSignal
     ? buildSignalReviewTriage({
         pendingSignals,
@@ -475,10 +463,7 @@ export function InsightsView({
       ? null
       : normalizeSignalScoreCounts(backendScore);
   const scoreAsleep =
-    scoreUnavailable &&
-    !vaultMismatch &&
-    !vaultShowcaseLoading &&
-    store.conversations.length > 0;
+    scoreUnavailable && !vaultMismatch && store.conversations.length > 0;
   const scoreRetryHref = viewHref("insights", {
     ...queryExtras,
     status: statusQueryValue(statusFilter, workspaceMode),
@@ -519,6 +504,50 @@ export function InsightsView({
     scoreAsleep,
   };
 
+  const queueBody = (
+    <>
+      <InsightsQueueMetrics
+        conversationCount={
+          vaultMismatch ? 0 : queueChats.conversations.length
+        }
+        signals={[
+          ...pendingSignals,
+          ...reviewedSignals.filter(
+            (signal) =>
+              !pendingSignals.some((pending) => pending.id === signal.id),
+          ),
+        ]}
+        pendingSignals={pendingSignals}
+        reviewedCount={
+          weekCounts ? weekCounts.reviewedCount : vaultMismatch ? 0 : null
+        }
+        correctCount={weekCounts?.correctCount ?? null}
+        scoreWaiting={scoreAsleep}
+        retryHref={scoreAsleep ? scoreRetryHref : null}
+      />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+        <div className="flex w-full min-w-0 shrink-0">
+          <SignalQueueFilters
+            pendingSignals={pendingSignals}
+            reviewedSignals={reviewedSignals}
+            queueError={queueError}
+            statusFilter={statusFilter}
+            typeFilter={typeFilter}
+            actionFilter={actionFilter}
+            page={page}
+            previewId={reviewOpen ? null : previewId}
+            queryExtras={queryExtras}
+            supervisedActions={store.supervisedActions ?? []}
+          />
+        </div>
+        <SignalQueue
+          {...queueProps}
+          previewId={reviewOpen ? null : previewId}
+        />
+      </div>
+    </>
+  );
+
   return (
     <ViewFrame className="gap-4">
       <CanonicalizeInsightsStatus
@@ -551,96 +580,15 @@ export function InsightsView({
               </div>
               <InsightsShadowTip />
             </div>
-            {sampleToPartner && vaultFile ? (
+            {vaultShowcaseKind && vaultFile ? (
               <VaultShowcaseLoader
                 fileName={vaultFile}
                 keepSetFileName={store.pilot?.lastUploadedFileName}
               >
-                {null}
-              </VaultShowcaseLoader>
-            ) : null}
-            {vaultShowcaseLoading && vaultFile ? (
-              <VaultShowcaseLoader
-                fileName={vaultFile}
-                keepSetFileName={store.pilot?.lastUploadedFileName}
-              >
-                <InsightsQueueMetrics
-                  conversationCount={0}
-                  signals={[]}
-                  pendingSignals={[]}
-                  reviewedCount={0}
-                />
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-                  <div className="flex w-full min-w-0 shrink-0">
-                    <SignalQueueFilters
-                      pendingSignals={[]}
-                      reviewedSignals={[]}
-                      queueError={queueError}
-                      statusFilter={statusFilter}
-                      typeFilter={typeFilter}
-                      actionFilter={actionFilter}
-                      page={page}
-                      previewId={reviewOpen ? null : previewId}
-                      queryExtras={queryExtras}
-                      supervisedActions={store.supervisedActions ?? []}
-                    />
-                  </div>
-                  <SignalQueue
-                    {...queueProps}
-                    pendingSignals={[]}
-                    reviewedSignals={[]}
-                    previewId={reviewOpen ? null : previewId}
-                  />
-                </div>
+                {queueBody}
               </VaultShowcaseLoader>
             ) : (
-              <>
-                <InsightsQueueMetrics
-                  conversationCount={
-                    vaultMismatch ? 0 : queueChats.conversations.length
-                  }
-                  signals={[
-                    ...pendingSignals,
-                    ...reviewedSignals.filter(
-                      (signal) =>
-                        !pendingSignals.some(
-                          (pending) => pending.id === signal.id,
-                        ),
-                    ),
-                  ]}
-                  pendingSignals={pendingSignals}
-                  reviewedCount={
-                    weekCounts
-                      ? weekCounts.reviewedCount
-                      : vaultMismatch
-                        ? 0
-                        : null
-                  }
-                  correctCount={weekCounts?.correctCount ?? null}
-                  scoreWaiting={scoreAsleep}
-                  retryHref={scoreAsleep ? scoreRetryHref : null}
-                />
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-                  <div className="flex w-full min-w-0 shrink-0">
-                    <SignalQueueFilters
-                      pendingSignals={pendingSignals}
-                      reviewedSignals={reviewedSignals}
-                      queueError={queueError}
-                      statusFilter={statusFilter}
-                      typeFilter={typeFilter}
-                      actionFilter={actionFilter}
-                      page={page}
-                      previewId={reviewOpen ? null : previewId}
-                      queryExtras={queryExtras}
-                      supervisedActions={store.supervisedActions ?? []}
-                    />
-                  </div>
-                  <SignalQueue
-                    {...queueProps}
-                    previewId={reviewOpen ? null : previewId}
-                  />
-                </div>
-              </>
+              queueBody
             )}
           </div>
         }

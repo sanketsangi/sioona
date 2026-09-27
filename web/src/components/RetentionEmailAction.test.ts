@@ -19,7 +19,10 @@ import {
   RetentionEmailDecisionControlsFrame,
   retentionHeaderChipStatus,
 } from "@/components/RetentionEmailAction";
-import { createRetentionEmailAction } from "@/lib/supervised-actions";
+import {
+  createRetentionEmailAction,
+  createSupervisedDraftAction,
+} from "@/lib/supervised-actions";
 import type { Signal } from "@/lib/types";
 
 function signal(overrides: Partial<Signal> = {}): Signal {
@@ -44,39 +47,43 @@ describe("queueActionLabelForSignal", () => {
     expect(queueActionLabelForSignal(signal(), "Priya")).toBe("Approve");
   });
 
-  it("returns Approve for a pending lead, upsell, or lower-confidence retention", () => {
+  it("returns Review for a pending lead, upsell, or lower-confidence retention", () => {
     expect(
       queueActionLabelForSignal(
         signal({ type: "lead", confidence: 0.95, score: 0.95 }),
         "Rahul",
       ),
-    ).toBe("Approve");
+    ).toBe("Review");
     expect(
       queueActionLabelForSignal(
         signal({ type: "upsell", confidence: 0.4, score: 0.4 }),
         "Rahul",
       ),
-    ).toBe("Approve");
+    ).toBe("Review");
     expect(
       queueActionLabelForSignal(
-        signal({ type: "retention", confidence: 0.4, score: 0.4 }),
+        signal({ type: "retention", confidence: 0.74, score: 0.74 }),
         "Priya",
       ),
-    ).toBe("Approve");
+    ).toBe("Review");
+    expect(
+      queueActionKindForSignal(
+        signal({ type: "retention", confidence: 0.75, score: 0.75 }),
+        "Priya",
+      ),
+    ).toBe("approve");
   });
 
-  it("returns Approve when a stored retention draft exists", () => {
-    const stored = createRetentionEmailAction({
-      signal: signal({ type: "lead", confidence: 0.4 }),
-      customerName: "Priya",
+  it("returns Review when the stored draft is not a high-confidence retention email", () => {
+    const lead = signal({ type: "lead", confidence: 0.95, score: 0.95 });
+    const stored = createSupervisedDraftAction({
+      signal: lead,
+      customerName: "Rahul",
+      evidence: lead.evidence,
     });
-    expect(
-      queueActionLabelForSignal(
-        signal({ type: "lead", confidence: 0.4 }),
-        "Priya",
-        stored,
-      ),
-    ).toBe("Approve");
+    expect(stored?.type).toBe("lead_outreach_draft");
+    expect(stored?.status).toBe("pending");
+    expect(queueActionLabelForSignal(lead, "Rahul", stored)).toBe("Review");
   });
 
   it("returns Mark as Acted on the Follow-up list", () => {
@@ -207,6 +214,27 @@ describe("queueActionKindForSignal", () => {
         "Priya",
       ),
     ).toBe("mark_acted");
+  });
+
+  it("uses Review for lead, upsell, and lower-confidence retention", () => {
+    expect(
+      queueActionKindForSignal(
+        signal({ type: "lead", confidence: 0.95, score: 0.95 }),
+        "Rahul",
+      ),
+    ).toBe("review");
+    expect(
+      queueActionKindForSignal(
+        signal({ type: "upsell", confidence: 0.55, score: 0.55 }),
+        "Rahul",
+      ),
+    ).toBe("review");
+    expect(
+      queueActionKindForSignal(
+        signal({ type: "retention", confidence: 0.4, score: 0.4 }),
+        "Priya",
+      ),
+    ).toBe("review");
   });
 
   it("returns acted for Done rows", () => {

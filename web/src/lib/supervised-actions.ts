@@ -190,13 +190,23 @@ export function findSupervisedAction(
   );
 }
 
-/** True when the queue CTA is Approve (a supervised draft exists). */
+/**
+ * True when the queue CTA is Approve: a pending high-confidence retention
+ * email (`retention_email_draft`), or that draft would be composed.
+ * Lead, upsell, and lower-confidence retention stay Review.
+ * Cadence (Correct ¬acted / Done) is applied in `queueActionKindForSignal`.
+ */
 export function isQueueApproveSignal(
   signal: Pick<Signal, "id" | "conversationId" | "type" | "confidence">,
   actions?: SupervisedAction[] | null,
 ): boolean {
-  if (findSupervisedAction(actions ?? undefined, signal)) return true;
-  return shouldGenerateSupervisedDraft(signal);
+  const stored = findSupervisedAction(actions ?? undefined, signal);
+  if (stored) {
+    return (
+      stored.type === "retention_email_draft" && stored.status === "pending"
+    );
+  }
+  return shouldGenerateRetentionEmail(signal);
 }
 
 function nowIso(clock?: () => string): string {

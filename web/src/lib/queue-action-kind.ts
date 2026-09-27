@@ -56,8 +56,10 @@ export type QueueActionKind =
 /**
  * Queue Action kind by signal state.
  * Follow-up Correct ¬acted → mark_acted; Done → acted;
- * stored draft decision → that decision; pending supervised draft → Approve;
- * else Review.
+ * stored draft decision → that decision;
+ * pending high-confidence retention email (`retention_email_draft`,
+ * same band as `shouldGenerateRetentionEmail`) → Approve;
+ * every other signal that still needs a look → Review.
  */
 export function queueActionKindForSignal(
   signal: Signal,
@@ -74,7 +76,9 @@ export function queueActionKindForSignal(
   ) {
     return decision;
   }
-  return resolveRetentionEmailAction(signal, customerName, stored)
-    ? "approve"
-    : "review";
+  const draft = resolveRetentionEmailAction(signal, customerName, stored);
+  if (draft?.type === "retention_email_draft" && draft.status === "pending") {
+    return "approve";
+  }
+  return "review";
 }

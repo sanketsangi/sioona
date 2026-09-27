@@ -829,8 +829,35 @@ describe("queueSignalsForFilter", () => {
       status: "dismissed",
       createdAt: "2026-08-01T00:00:00.000Z",
     };
+    const leadReview: Signal = {
+      ...baseSignal,
+      id: "sig_lead_review",
+      conversationId: "conv_lead_review",
+      type: "lead",
+      confidence: 0.95,
+      score: 0.95,
+      status: "new",
+    };
+    const upsellReview: Signal = {
+      ...baseSignal,
+      id: "sig_upsell_review",
+      conversationId: "conv_upsell_review",
+      type: "upsell",
+      confidence: 0.4,
+      score: 0.4,
+      status: "new",
+    };
+    const lowerRetention: Signal = {
+      ...baseSignal,
+      id: "sig_low_retention",
+      conversationId: "conv_low_retention",
+      type: "retention",
+      confidence: 0.74,
+      score: 0.74,
+      status: "new",
+    };
     const rows = {
-      pending: [pendingDraft, dismissed],
+      pending: [pendingDraft, dismissed, leadReview, upsellReview, lowerRetention],
       reviewed: [correctNotActed],
       type: "all" as const,
       supervisedActions: [dismissedAction],
@@ -838,9 +865,16 @@ describe("queueSignalsForFilter", () => {
 
     const all = queueSignalsForFilter({ ...rows, status: "all" });
     expect(all.approveCount).toBe(1);
-    expect(all.reviewCount).toBe(0);
+    expect(all.reviewCount).toBe(3);
     expect(all.filtered.map((s) => s.id).sort()).toEqual(
-      ["sig_approve", "sig_dismissed", "sig_follow"].sort(),
+      [
+        "sig_approve",
+        "sig_dismissed",
+        "sig_follow",
+        "sig_lead_review",
+        "sig_low_retention",
+        "sig_upsell_review",
+      ].sort(),
     );
 
     const approve = queueSignalsForFilter({
@@ -850,16 +884,19 @@ describe("queueSignalsForFilter", () => {
     });
     expect(approve.filtered.map((s) => s.id)).toEqual(["sig_approve"]);
     expect(approve.approveCount).toBe(1);
-    expect(approve.reviewCount).toBe(0);
+    expect(approve.reviewCount).toBe(3);
 
     const review = queueSignalsForFilter({
       ...rows,
       status: "all",
       action: "review",
     });
-    expect(review.filtered).toEqual([]);
+    expect(review.filtered.map((s) => s.id).sort()).toEqual(
+      ["sig_lead_review", "sig_low_retention", "sig_upsell_review"].sort(),
+    );
     expect(review.filtered.map((s) => s.id)).not.toContain("sig_follow");
     expect(review.filtered.map((s) => s.id)).not.toContain("sig_dismissed");
+    expect(review.filtered.map((s) => s.id)).not.toContain("sig_approve");
   });
 });
 

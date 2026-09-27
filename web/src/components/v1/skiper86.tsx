@@ -30,10 +30,10 @@ export type AppleBorderGradientProps = {
   className?: string;
 };
 
-/** Quiet rotating stops — pending blue + retention amber + neutral borders. */
+/** Quiet rotating stops — pending blue, success green, retention amber, neutrals. */
 const SIO_BORDER_GRADIENT = [
-  "linear-gradient(0deg, color-mix(in oklch, var(--sio-status-pending-accent) 50%, transparent), color-mix(in oklch, var(--sio-signal-retention-accent) 40%, transparent), color-mix(in oklch, var(--sio-border-strong) 65%, transparent), color-mix(in oklch, var(--sio-fg-subtle) 30%, transparent))",
-  "linear-gradient(360deg, color-mix(in oklch, var(--sio-status-pending-accent) 50%, transparent), color-mix(in oklch, var(--sio-signal-retention-accent) 40%, transparent), color-mix(in oklch, var(--sio-border-strong) 65%, transparent), color-mix(in oklch, var(--sio-fg-subtle) 30%, transparent))",
+  "linear-gradient(0deg, color-mix(in oklch, var(--sio-status-pending-accent) 50%, transparent), color-mix(in oklch, var(--sio-status-success-accent) 50%, transparent), color-mix(in oklch, var(--sio-signal-retention-accent) 40%, transparent), color-mix(in oklch, var(--sio-border-strong) 65%, transparent), color-mix(in oklch, var(--sio-fg-subtle) 30%, transparent))",
+  "linear-gradient(360deg, color-mix(in oklch, var(--sio-status-pending-accent) 50%, transparent), color-mix(in oklch, var(--sio-status-success-accent) 50%, transparent), color-mix(in oklch, var(--sio-signal-retention-accent) 40%, transparent), color-mix(in oklch, var(--sio-border-strong) 65%, transparent), color-mix(in oklch, var(--sio-fg-subtle) 30%, transparent))",
 ] as const;
 
 const INTENSITY_BLUR: Record<AppleBorderIntensity, string> = {

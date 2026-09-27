@@ -9,6 +9,7 @@ import {
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
 import type { Conversation, Message } from "@/lib/types";
+import { catalogFileKey } from "@/lib/upload-filename";
 import { viewHref } from "@/lib/views";
 
 export { GROWW_SHOWCASE_SAMPLE_NAME, ZERODHA_BATCH02_SAMPLE_NAME };
@@ -60,9 +61,37 @@ export function isLivePartnerKeepSet(
   return true;
 }
 
+/** Basename only, so a path stamp matches the vault `?file=` label. */
+function vaultBasename(name: string): string {
+  const trimmed = name.trim();
+  const base = trimmed.split(/[/\\]/).pop()?.trim();
+  return base || trimmed;
+}
+
+/** Case-folded stem: `Batch_02.JSON` and `batch_02` are the same file. */
+function vaultStemKey(name: string): string {
+  return vaultBasename(name).replace(/\.[^.]+$/, "").toLowerCase();
+}
+
 /**
- * True when this vault row is the active keep-set (`lastUploadedFileName`),
- * including Sample names with or without an extension.
+ * Same upload when stems match, or the catalog label only adds a prefix
+ * (`Groww_batch_02` ↔ `batch_02.json`). Distinct copies (`batch_02 (2)`)
+ * stay different.
+ */
+function sameUploadStem(a: string, b: string): boolean {
+  const left = vaultStemKey(a);
+  const right = vaultStemKey(b);
+  if (!left || !right) return false;
+  if (left === right) return true;
+  const [shorter, longer] =
+    left.length <= right.length ? [left, right] : [right, left];
+  if (shorter.length < 4) return false;
+  return longer.endsWith(`_${shorter}`);
+}
+
+/**
+ * True when this vault row is the active keep-set (`lastUploadedFileName`)
+ * or the same upload under another stamp: extension, letter case, or path.
  */
 export function vaultFileMatchesKeepSet(
   vaultFile: string | null | undefined,
@@ -71,13 +100,13 @@ export function vaultFileMatchesKeepSet(
   const file = vaultFile?.trim();
   const last = lastUploadedFileName?.trim();
   if (!file || !last) return false;
-  if (last === file) return true;
+  const fileBase = vaultBasename(file);
+  const lastBase = vaultBasename(last);
+  if (catalogFileKey(fileBase) === catalogFileKey(lastBase)) return true;
   // Sample chrome: Groww_batch_02 ↔ Groww_batch_02.csv
-  if (matchesVaultSampleName(last, file)) return true;
-  if (matchesVaultSampleName(file, last)) return true;
-  const fileStem = file.replace(/\.[^.]+$/, "");
-  const lastStem = last.replace(/\.[^.]+$/, "");
-  return fileStem === lastStem;
+  if (matchesVaultSampleName(lastBase, fileBase)) return true;
+  if (matchesVaultSampleName(fileBase, lastBase)) return true;
+  return sameUploadStem(file, last);
 }
 
 /**
@@ -171,6 +200,7 @@ export function scopeChatsToUploadedFile<
   chats: T,
   vaultFile: string | null | undefined,
   uploadedFileNames: readonly string[],
+  lastUploadedFileName?: string | null,
 ): T {
   if (uploadedFileNames.length < 2) return chats;
   const file = parseVaultFile(vaultFile);
@@ -179,13 +209,29 @@ export function scopeChatsToUploadedFile<
   if (index < 0) return chats;
   const matched = uploadedFileNames[index];
   const fallback = uploadedFileNames[uploadedFileNames.length - 1];
+  // Chats with no stamp belong to the keep-set, even when it is not the
+  // last catalog row and the URL only differs by extension or case.
+  const keepUnstamped =
+    matched === fallback ||
+    vaultFileMatchesKeepSet(matched, lastUploadedFileName) ||
+    vaultFileMatchesKeepSet(file, lastUploadedFileName);
   const conversations = chats.conversations.filter((conversation) => {
     const source = conversation.sourceFile?.trim();
     if (source) {
-      return source === matched || vaultFileMatchesKeepSet(source, matched);
+      return (
+        vaultFileMatchesKeepSet(source, matched) ||
+        vaultFileMatchesKeepSet(source, file)
+      );
     }
-    return matched === fallback;
+    return keepUnstamped;
   });
+  const fileIsLoaded =
+    vaultFileMatchesKeepSet(file, lastUploadedFileName) ||
+    chats.conversations.some((conversation) =>
+      vaultFileMatchesKeepSet(conversation.sourceFile, file),
+    );
+  // A stem/case miss must not blank the loaded file's queue.
+  if (conversations.length === 0 && fileIsLoaded) return chats;
   const ids = new Set(conversations.map((conversation) => conversation.id));
   return {
     ...chats,
