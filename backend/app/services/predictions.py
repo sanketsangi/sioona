@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -230,14 +231,24 @@ def record_predictions_bulk(
 def list_tenant_predictions(
     db: Session,
     tenant_id: str,
+    conversation_ids: Sequence[str] | None = None,
 ) -> list[SignalPrediction]:
-    """Return this tenant's predictions with feedback loaded. Newest first."""
+    """Return this tenant's predictions with feedback loaded. Newest first.
+
+    ``conversation_ids`` scopes Follow-up / Done to the active keep-set.
+    Omitted → full tenant list (hydrate). Present but empty / blank → [].
+    """
     stmt = (
         select(SignalPrediction)
         .options(joinedload(SignalPrediction.feedback))
         .where(SignalPrediction.tenant_id == tenant_id)
         .order_by(SignalPrediction.created_at.desc())
     )
+    if conversation_ids is not None:
+        keep = [cid for cid in conversation_ids if cid]
+        if not keep:
+            return []
+        stmt = stmt.where(SignalPrediction.conversation_id.in_(keep))
     return list(db.scalars(stmt).unique().all())
 
 

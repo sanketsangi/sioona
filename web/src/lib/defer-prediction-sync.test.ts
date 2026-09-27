@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyDeferredPredictionSyncResult,
   mergeSyncedBackendIds,
   persistDeferredPredictionSync,
 } from "./defer-prediction-sync";
@@ -128,5 +129,95 @@ describe("persistDeferredPredictionSync", () => {
 
     expect(syncPredictionsToBackend).not.toHaveBeenCalled();
     expect(writeStore).not.toHaveBeenCalled();
+  });
+
+  it("records the syncFailed banner when deferred dual-write fails", async () => {
+    const before = store([
+      signal(),
+      signal({ id: "sig_2", conversationId: "conv_2" }),
+    ]);
+    const afterSync = store([
+      signal({ backendSignalId: "pred-1" }),
+      signal({ id: "sig_2", conversationId: "conv_2" }),
+    ]);
+    vi.mocked(readStore)
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(before);
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: afterSync.signals,
+      sync: {
+        attempted: 2,
+        created: 1,
+        updated: 0,
+        failed: 1,
+        skipped: 0,
+      },
+    });
+
+    await persistDeferredPredictionSync("tenant_demo");
+
+    const written = vi.mocked(writeStore).mock.calls[0]?.[0];
+    expect(written?.predictionSyncFailure).toEqual({ failed: 1, created: 1 });
+    expect(written?.signals[0]?.backendSignalId).toBe("pred-1");
+    expect(written?.signals[1]?.backendSignalId).toBeUndefined();
+  });
+
+  it("clears the syncFailed banner when a later deferred sync succeeds", async () => {
+    const before = store([signal({ backendSignalId: "pred-1" })]);
+    before.predictionSyncFailure = { failed: 2, created: 0 };
+    vi.mocked(readStore)
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(before);
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: before.signals,
+      sync: {
+        attempted: 1,
+        created: 0,
+        updated: 1,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+
+    await persistDeferredPredictionSync("tenant_demo");
+
+    const written = vi.mocked(writeStore).mock.calls[0]?.[0];
+    expect(written?.predictionSyncFailure).toBeUndefined();
+    expect(written?.signals[0]?.backendSignalId).toBe("pred-1");
+  });
+
+  it("records the syncFailed banner when deferred dual-write throws", async () => {
+    const before = store([signal()]);
+    vi.mocked(readStore)
+      .mockResolvedValueOnce(before)
+      .mockResolvedValueOnce(before);
+    vi.mocked(syncPredictionsToBackend).mockRejectedValue(
+      new Error("backend down")
+    );
+
+    await expect(persistDeferredPredictionSync("tenant_demo")).rejects.toThrow(
+      "backend down"
+    );
+    expect(writeStore).toHaveBeenCalledWith(
+      expect.objectContaining({
+        predictionSyncFailure: { failed: 1, created: 0 },
+      })
+    );
+  });
+});
+
+describe("applyDeferredPredictionSyncResult", () => {
+  it("leaves the snapshot alone when ids and the banner are unchanged", () => {
+    const latest = store([signal({ backendSignalId: "pred-1" })]);
+    latest.predictionSyncFailure = { failed: 1, created: 0 };
+    expect(
+      applyDeferredPredictionSyncResult(latest, latest.signals, {
+        attempted: 1,
+        created: 0,
+        updated: 0,
+        failed: 1,
+        skipped: 0,
+      })
+    ).toBeNull();
   });
 });

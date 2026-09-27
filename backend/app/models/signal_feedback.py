@@ -45,6 +45,11 @@ class SignalFeedback(Base):
     __table_args__ = (
         UniqueConstraint("signal_id", name="uq_signal_feedback_signal_id"),
         Index("ix_signal_feedback_tenant_id", "tenant_id"),
+        Index(
+            "ix_signal_feedback_tenant_reviewed_at",
+            "tenant_id",
+            "reviewed_at",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

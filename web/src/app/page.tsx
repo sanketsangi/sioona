@@ -20,6 +20,7 @@ import {
 import {
   bundledShowcaseConversationIds,
   omitBundledShowcaseChats,
+  persistOmittedBundledShowcase,
 } from "@/lib/showcase-keep-set";
 import { persistDeferredPredictionSync } from "@/lib/defer-prediction-sync";
 import {
@@ -50,6 +51,7 @@ import {
   parseSyncCreatedParam,
   parseSyncFailedParam,
   shouldShowSyncFailureBanner,
+  syncFailureBannerCounts,
 } from "@/lib/prediction-sync";
 import {
   computePilotCadenceSteps,
@@ -60,7 +62,7 @@ import {
 } from "@/lib/pilot-cadence";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
-import { loadStore, writeStore } from "@/lib/store";
+import { loadStore, persistMissingSupervisedDrafts } from "@/lib/store";
 import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import {
   persistDeferredPilotRefresh,
@@ -176,8 +178,8 @@ export default async function PlatformPage({
   }
 
   const previewId = sp.preview ?? null;
-  const syncFailed = parseSyncFailedParam(sp.syncFailed);
-  const syncCreated = parseSyncCreatedParam(sp.syncCreated);
+  const urlSyncFailed = parseSyncFailedParam(sp.syncFailed);
+  const urlSyncCreated = parseSyncCreatedParam(sp.syncCreated);
   const wipeFailed = sp.wipeFailed === "1";
   const jsonKeepSet = parseReplacedParam(sp.replaced);
   const scoreWindow = inspectSignalScoreWindow({
@@ -199,16 +201,18 @@ export default async function PlatformPage({
   });
   // Replace leaves the bundled showcase in JSON until this request. Drop it
   // before adopt/hydrate, or Groww rows paint beside the uploaded file.
-  const withoutShowcase = omitBundledShowcaseChats(
-    loaded.store,
-    await bundledShowcaseConversationIds(),
-  );
+  // Persist from a fresh read — the snapshot above is already stale if a
+  // label landed while showcase ids were loading.
+  const showcaseIds = await bundledShowcaseConversationIds();
+  const withoutShowcase = omitBundledShowcaseChats(loaded.store, showcaseIds);
   let storeForAdopt = loaded.store;
   if (withoutShowcase !== loaded.store) {
     if (withoutShowcase.conversations.length > 0) {
-      await writeStore(withoutShowcase);
+      storeForAdopt =
+        (await persistOmittedBundledShowcase(showcaseIds)) ?? withoutShowcase;
+    } else {
+      storeForAdopt = withoutShowcase;
     }
-    storeForAdopt = withoutShowcase;
   }
   const storeAdopted = await adoptNeonKeepSetWhenLocalMisses(
     storeForAdopt,
@@ -246,10 +250,21 @@ export default async function PlatformPage({
     // concurrent feedback / Acted on this instance's JSON store.
     await persistHealedPilot(store, storeRaw);
   }
+  // JSON already holds the keep-set → ask Neon only for those chats, and
+  // page needs-review past 100. Empty JSON is wipe recovery: leave the
+  // lists unfiltered so overlay can still find the remaining chats.
+  const queueKeepSet =
+    store.conversations.length > 0
+      ? {
+          conversationIds: store.conversations
+            .map((conversation) => conversation.id)
+            .filter((id) => id.length > 0),
+        }
+      : undefined;
   const [needsReview, tenantSignals] = fetches.insightsQueue
     ? await Promise.all([
-        fetchNeedsReview(storeRaw.tenant.id),
-        fetchTenantSignals(storeRaw.tenant.id),
+        fetchNeedsReview(storeRaw.tenant.id, queueKeepSet),
+        fetchTenantSignals(storeRaw.tenant.id, queueKeepSet),
       ])
     : [skippedNeedsReview, skippedTenantSignals];
   const pendingRaw =
@@ -303,14 +318,14 @@ export default async function PlatformPage({
       chats,
       store.taxonomyOverrides,
     );
-    const { changed } = ensureSupervisedActions(
-      store,
+    // Paint drafts on this response. Disk gets a missing draft only after
+    // another read, so this snapshot cannot replace a Correct / Acted /
+    // ground-truth save that landed during first paint.
+    ensureSupervisedActions(store, ensureCandidates, chats.conversations);
+    await persistMissingSupervisedDrafts(
       ensureCandidates,
       chats.conversations,
     );
-    if (changed) {
-      await writeStore(store);
-    }
   }
   const keepSetIds = keepSetConversationIds(
     store.conversations,
@@ -332,6 +347,13 @@ export default async function PlatformPage({
       ? fetchSignalScoreSafe(store.tenant.id, scoreKeepSet)
       : Promise.resolve(null),
   ]);
+  // Ingest sets ?syncFailed= on this navigation. A deferred after() failure
+  // is on the JSON snapshot and uses that same banner on the next load.
+  const { syncFailed, syncCreated } = syncFailureBannerCounts({
+    urlFailed: urlSyncFailed,
+    urlCreated: urlSyncCreated,
+    persisted: store.predictionSyncFailure,
+  });
   const hasSyncFailure = shouldShowSyncFailureBanner(syncFailed, store.signals);
   const cadencePreviewId = firstUnactedCorrectId(followUp);
   const cadenceAction = nextPilotCadenceAction(

@@ -37,6 +37,42 @@ export function hasSyncFailures(
   return Boolean(sync && sync.failed > 0);
 }
 
+/** Counts to persist when a deferred dual-write did not fully land. */
+export function persistedSyncFailureFromStats(
+  sync: PredictionSyncStats
+): { failed: number; created: number } | null {
+  if (sync.failed < 1) return null;
+  return { failed: sync.failed, created: sync.created };
+}
+
+/**
+ * Banner counts for Insights. A `?syncFailed=` set by ingest wins.
+ * Otherwise use the failure recorded by deferred `after()` dual-write.
+ * Callers still hide the banner when every row already has a Neon id.
+ */
+export function syncFailureBannerCounts(input: {
+  urlFailed: number;
+  urlCreated: number;
+  persisted?: { failed: number; created: number } | null;
+}): { syncFailed: number; syncCreated: number } {
+  if (input.urlFailed > 0) {
+    return {
+      syncFailed: input.urlFailed,
+      syncCreated: input.urlCreated,
+    };
+  }
+  const failed = input.persisted?.failed ?? 0;
+  if (!Number.isFinite(failed) || failed < 1) {
+    return { syncFailed: 0, syncCreated: 0 };
+  }
+  const created = input.persisted?.created ?? 0;
+  return {
+    syncFailed: Math.floor(failed),
+    syncCreated:
+      Number.isFinite(created) && created > 0 ? Math.floor(created) : 0,
+  };
+}
+
 /** URL query extras for Insights when dual-write had failures. */
 export function syncQueryExtras(
   sync: PredictionSyncStats | null | undefined

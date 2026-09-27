@@ -100,7 +100,8 @@ describe("POST /api/store Adapt actions", () => {
         lead: expect.objectContaining({
           phrases: expect.arrayContaining(["keep existing phrase", "open zerodha"]),
         }),
-      })
+      }),
+      { resumeIds: undefined }
     );
 
     const after = await readStore();

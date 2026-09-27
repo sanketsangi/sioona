@@ -406,6 +406,7 @@ export async function tryHydrateStoreFromNeon(
   );
 
   let signals: Signal[] = [];
+  let llmSkippedConversationIds: string[] | undefined;
   const testSleep = process.env.VITEST
     ? { sleep: async () => undefined }
     : undefined;
@@ -419,6 +420,9 @@ export async function tryHydrateStoreFromNeon(
       taxonomyOverrides
     );
     signals = detected.signals;
+    if (detected.llm.enabled) {
+      llmSkippedConversationIds = detected.llm.skippedIds ?? [];
+    }
     if (awaitPredictions) {
       const synced = await syncPredictionsToBackend(
         signals,
@@ -449,6 +453,9 @@ export async function tryHydrateStoreFromNeon(
     messages: chats.messages,
     signals,
     taxonomyOverrides,
+    ...(llmSkippedConversationIds
+      ? { llmSkippedConversationIds }
+      : {}),
   };
 
   if (remotePilot) {

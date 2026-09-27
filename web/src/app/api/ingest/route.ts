@@ -296,6 +296,9 @@ export async function POST(request: Request) {
       ];
     }
 
+    if (llm.enabled) {
+      store.llmSkippedConversationIds = llm.skippedIds ?? [];
+    }
     ensureSupervisedActions(store);
     await writeStore(store);
 

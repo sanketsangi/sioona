@@ -6,6 +6,7 @@
 
 import { promises as fs } from "fs";
 import { stableConversationId } from "./ingest";
+import { readStore, writeStore } from "./store";
 import { isLivePartnerKeepSet } from "./vault-file";
 import {
   parseTestingJsonDocument,
@@ -71,4 +72,19 @@ export function omitBundledShowcaseChats(
         }
       : {}),
   };
+}
+
+/**
+ * Drop bundled showcase chats from the latest JSON file.
+ * Re-reads first so a label saved while pack ids were loading is kept.
+ * Returns null when the latest file has nothing to drop.
+ */
+export async function persistOmittedBundledShowcase(
+  showcaseIds: Set<string>,
+): Promise<StoreData | null> {
+  const latest = await readStore();
+  const omitted = omitBundledShowcaseChats(latest, showcaseIds);
+  if (omitted === latest || omitted.conversations.length === 0) return null;
+  await writeStore(omitted);
+  return omitted;
 }

@@ -13,6 +13,7 @@ import { POST } from "./route";
 import { after } from "next/server";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runDetection } from "@/lib/detect";
+import * as detectLlm from "@/lib/detect-llm";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import * as backendClient from "@/lib/backend-client";
 import { BackendClientError } from "@/lib/backend-client";
@@ -1065,6 +1066,39 @@ describe("POST /api/ingest", () => {
       })
     );
     resolvePersist?.();
+  });
+
+  it("records chats the second pass skipped on a dump", async () => {
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [],
+      llm: {
+        enabled: true,
+        candidates: 12,
+        attempted: 8,
+        added: 0,
+        failed: 0,
+        skipped: 4,
+        skippedIds: ["conv_a", "conv_b", "conv_c", "conv_d"],
+      },
+    });
+
+    const response = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(response.status).toBe(200);
+    const after = await readStore();
+    expect(after.llmSkippedConversationIds).toEqual([
+      "conv_a",
+      "conv_b",
+      "conv_c",
+      "conv_d",
+    ]);
+    expect(detectLlm.runHybridDetection).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(Array),
+      "tenant_demo",
+      expect.anything()
+    );
   });
 });
 

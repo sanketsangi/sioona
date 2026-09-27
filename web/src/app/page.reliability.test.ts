@@ -32,6 +32,7 @@ vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
   loadStore: vi.fn(),
   writeStore: vi.fn().mockResolvedValue(undefined),
+  persistMissingSupervisedDrafts: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/fetch-needs-review", () => ({
@@ -88,7 +89,7 @@ function pageShellProps(result: ReactElement) {
     title: string;
     lastUploadedFileName?: string;
     headerBatchName?: string;
-    notifications: { id: string; title?: string }[];
+    notifications: { id: string; title?: string; description?: string }[];
     children?: ReactNode;
   };
 }
@@ -200,6 +201,24 @@ describe("PlatformPage deploy reliability", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("shows the sync-failed banner from a deferred dual-write failure on the next Insights load", async () => {
+    const stored = mockStore();
+    stored.predictionSyncFailure = { failed: 2, created: 1 };
+    stubStore(stored);
+
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({ view: "insights", status: "new" }),
+    })) as ReactElement;
+
+    const syncFailed = pageShellProps(result).notifications.find(
+      (item) => item.id === "sync-failed"
+    );
+    expect(syncFailed?.title).toBe("Neon Dual-Write Incomplete");
+    expect(syncFailed?.description).toBe(
+      "2 predictions not written (1 succeeded). Re-run Detection from Insights."
+    );
   });
 
   it("surfaces queue-unavailable and sync-failed when backend is down (no duplicate score card)", async () => {
@@ -431,7 +450,9 @@ describe("PlatformPage deploy reliability", () => {
       searchParams: Promise.resolve({ view: "insights" }),
     })) as ReactElement;
 
-    expect(fetchTenantSignals).toHaveBeenCalledWith("tenant_demo");
+    expect(fetchTenantSignals).toHaveBeenCalledWith("tenant_demo", {
+      conversationIds: ["conv_1", "conv_2"],
+    });
     const props = insightsViewProps(result);
     expect(props.tenantSignals.ok).toBe(true);
     if (props.tenantSignals.ok) {

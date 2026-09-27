@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   llmQueryExtras,
   llmPassFailureNotice,
+  llmSkipResumeNotice,
   parseLlmAddedParam,
   parseLlmFailedParam,
   parseLlmFailureParam,
@@ -123,5 +124,19 @@ describe("llmPassFailureNotice", () => {
       description:
         "Groq no longer serves this model. 4 second-pass calls failed. 19 signals from the first pass are still in the queue.",
     });
+  });
+});
+
+describe("llmSkipResumeNotice", () => {
+  it("names the next batch of skipped chats", () => {
+    expect(llmSkipResumeNotice(12, 8)).toEqual({
+      title: "Second pass has more chats",
+      description:
+        "12 chats were not classified. Re-run Detection classifies the next 8.",
+    });
+    expect(llmSkipResumeNotice(3, 8)?.description).toBe(
+      "3 chats were not classified. Re-run Detection classifies those chats next."
+    );
+    expect(llmSkipResumeNotice(0, 8)).toBeNull();
   });
 });

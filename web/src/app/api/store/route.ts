@@ -126,13 +126,17 @@ async function redetectWithOverrides(store: StoreData): Promise<{
   store: StoreData;
   redetectCount: number;
 }> {
-  const { signals: detected } = await runHybridDetection(
+  const { signals: detected, llm } = await runHybridDetection(
     store.conversations,
     store.messages,
     store.tenant.id,
-    store.taxonomyOverrides
+    store.taxonomyOverrides,
+    { resumeIds: store.llmSkippedConversationIds }
   );
   const updated = await replaceSignalsPreservingFeedback(detected);
+  if (llm.enabled) {
+    updated.llmSkippedConversationIds = llm.skippedIds ?? [];
+  }
   const synced = await syncPredictionsToBackend(
     updated.signals,
     store.tenant.id

@@ -47,7 +47,10 @@ import {
   reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
-import { llmPassFailureNotice } from "@/lib/detect-llm-query";
+import {
+  llmPassFailureNotice,
+  llmSkipResumeNotice,
+} from "@/lib/detect-llm-query";
 import type { LlmFailureKind } from "@/lib/detect-llm";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { buildSignalReviewTriage } from "@/lib/review-triage";
@@ -513,6 +516,9 @@ export function InsightsView({
               : null,
         })
       : null;
+  const llmSkipNotice = llmSkipResumeNotice(
+    store.llmSkippedConversationIds?.length ?? 0
+  );
 
   const queueProps = {
     pendingSignals,
@@ -631,6 +637,16 @@ export function InsightsView({
                 </p>
                 <p className="mt-1 text-copy-14 text-sio-fg-subtle">
                   {llmPassNotice.description}
+                </p>
+              </div>
+            ) : null}
+            {llmSkipNotice ? (
+              <div className="status-banner status-banner-info" role="status">
+                <p className="text-label-14 text-sio-fg-base">
+                  {llmSkipNotice.title}
+                </p>
+                <p className="mt-1 text-copy-14 text-sio-fg-subtle">
+                  {llmSkipNotice.description}
                 </p>
               </div>
             ) : null}

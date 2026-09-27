@@ -50,6 +50,38 @@ describe("fetchTenantSignals", () => {
     );
   });
 
+  it("requests only the active keep-set", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => [],
+      })
+    );
+
+    const result = await fetchTenantSignals("tenant_demo", {
+      conversationIds: ["conv_keep"],
+    });
+    expect(result).toEqual({ ok: true, rows: [] });
+    const url = String(vi.mocked(fetch).mock.calls[0]?.[0]);
+    expect(url).toContain("/v1/tenants/tenant_demo/signals?");
+    expect(url).toContain("conversation_id=conv_keep");
+    expect(url).not.toContain("needs-review");
+    expect(url).not.toContain("other_pack");
+  });
+
+  it("returns no rows for an explicit empty keep-set", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchTenantSignals("tenant_demo", {
+      conversationIds: [],
+    });
+    expect(result).toEqual({ ok: true, rows: [] });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("returns explicit error when backend is unreachable", async () => {
     vi.stubGlobal(
       "fetch",

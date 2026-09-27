@@ -2,7 +2,12 @@
  * URL + API helpers for Detect v2 pass-2 stats (`detectLlm` on detect/ingest/demo).
  */
 
-import type { LlmFailureKind, LlmPassStats } from "./detect-llm";
+import {
+  DETECT_LLM_MAX_CALLS,
+  detectLlmMaxCalls,
+  type LlmFailureKind,
+  type LlmPassStats,
+} from "./detect-llm";
 
 export type { LlmFailureKind, LlmPassStats };
 
@@ -93,6 +98,29 @@ export function llmPassFailureNotice(input: {
   return {
     title: "Second pass failed",
     description: `${cause} ${calls}.${kept}`,
+  };
+}
+
+/** Landing copy when a dump left zero-signal chats for the next re-detect. */
+export function llmSkipResumeNotice(
+  remaining: number,
+  maxCalls = detectLlmMaxCalls()
+): { title: string; description: string } | null {
+  if (!Number.isFinite(remaining) || remaining < 1) return null;
+  const left = Math.floor(remaining);
+  const cap =
+    Number.isFinite(maxCalls) && maxCalls > 0
+      ? Math.floor(maxCalls)
+      : DETECT_LLM_MAX_CALLS;
+  const next = Math.min(cap, left);
+  const chats = `${left} chat${left === 1 ? "" : "s"}`;
+  const follow =
+    next === left
+      ? `Re-run Detection classifies ${left === 1 ? "that chat" : "those chats"} next.`
+      : `Re-run Detection classifies the next ${next}.`;
+  return {
+    title: "Second pass has more chats",
+    description: `${chats} ${left === 1 ? "was" : "were"} not classified. ${follow}`,
   };
 }
 

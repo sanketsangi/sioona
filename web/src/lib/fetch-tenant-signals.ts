@@ -14,10 +14,22 @@ export type TenantSignalsResult =
   | { ok: false; error: string };
 
 export async function fetchTenantSignals(
-  tenantId: string
+  tenantId: string,
+  opts?: {
+    /** Active JSON keep-set. Empty array → no rows. Omit for hydrate / wipe. */
+    conversationIds?: string[];
+  }
 ): Promise<TenantSignalsResult> {
+  if (
+    opts?.conversationIds !== undefined &&
+    opts.conversationIds.every((id) => id.length === 0)
+  ) {
+    return { ok: true, rows: [] };
+  }
   try {
-    const rows = await getTenantSignals(tenantId);
+    const rows = await getTenantSignals(tenantId, {
+      conversationIds: opts?.conversationIds,
+    });
     return { ok: true, rows };
   } catch (err) {
     const message =

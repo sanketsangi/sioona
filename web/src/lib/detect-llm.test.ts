@@ -481,6 +481,98 @@ describe("applyLlmSecondPass", () => {
       })
     ).toBe(3);
   });
+
+  it("records skipped misses and classifies that set before a new miss", async () => {
+    const chats = Array.from({ length: 20 }, (_, index) => {
+      const id = `conv_miss_${String(index).padStart(2, "0")}`;
+      const content = `Please send the monthly account statement to my email when you can.${" ok".repeat(index + 1)}`;
+      const conversation: Conversation = {
+        ...conv,
+        id,
+        messageIds: [`msg_${id}`],
+      };
+      const message: Message = {
+        ...messages[0],
+        id: `msg_${id}`,
+        conversationId: id,
+        content,
+      };
+      return { conversation, message, content };
+    });
+    const conversations = chats.map((row) => row.conversation);
+    const allMessages = chats.map((row) => row.message);
+    const byLength = [...chats].sort(
+      (a, b) => b.content.length - a.content.length
+    );
+    const none = {
+      type: "none" as const,
+      confidence: 0.9,
+      summary: "Statement request with no product intent.",
+      quotes: [] as string[],
+    };
+
+    const firstCalls: string[] = [];
+    const first = await applyLlmSecondPass(
+      conversations,
+      allMessages,
+      "tenant_demo",
+      [],
+      null,
+      {
+        maxCalls: 8,
+        classify: async (input) => {
+          firstCalls.push(input.conversation.id);
+          return none;
+        },
+      }
+    );
+
+    expect(first.llm.candidates).toBe(20);
+    expect(first.llm.attempted).toBe(8);
+    expect(first.llm.skipped).toBe(12);
+    expect(new Set(firstCalls)).toEqual(
+      new Set(byLength.slice(0, 8).map((row) => row.conversation.id))
+    );
+    expect(first.llm.skippedIds).toEqual(
+      byLength.slice(8).map((row) => row.conversation.id)
+    );
+
+    const extraId = "conv_miss_new";
+    const secondCalls: string[] = [];
+    const second = await applyLlmSecondPass(
+      [...conversations, { ...conv, id: extraId, messageIds: ["msg_new"] }],
+      [
+        ...allMessages,
+        {
+          ...messages[0],
+          id: "msg_new",
+          conversationId: extraId,
+          content: `Please send the monthly account statement to my email when you can.${" ok".repeat(40)}`,
+        },
+      ],
+      "tenant_demo",
+      [],
+      null,
+      {
+        maxCalls: 8,
+        resumeIds: first.llm.skippedIds,
+        classify: async (input) => {
+          secondCalls.push(input.conversation.id);
+          return none;
+        },
+      }
+    );
+
+    const nextEight = first.llm.skippedIds?.slice(0, 8) ?? [];
+    expect(nextEight).toHaveLength(8);
+    expect(new Set(secondCalls)).toEqual(new Set(nextEight));
+    expect(secondCalls).not.toContain(extraId);
+    expect(second.llm.attempted).toBe(8);
+    expect(second.llm.skippedIds?.slice(0, 4)).toEqual(
+      first.llm.skippedIds?.slice(8)
+    );
+    expect(second.llm.skippedIds?.[4]).toBe(extraId);
+  });
 });
 
 describe("classifyConversationWithGroq", () => {

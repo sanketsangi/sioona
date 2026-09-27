@@ -13,7 +13,6 @@ import type {
 import { clipQuote } from "./clip-quote";
 import { pickAction } from "./detect";
 import { groupMessagesByConversation } from "./group-messages";
-import { isNeonStubSignalId } from "./prediction-sync";
 import { resolveSuggestedAction } from "./suggested-action-display";
 import type { StatusFilter, TypeFilter, ActionFilter } from "./views";
 import { queueActionKindForSignal } from "./queue-action-kind";
@@ -92,7 +91,8 @@ function findJsonSignal(
  * Map each needs-review prediction to a display Signal, preserving Neon order.
  * Prefers JSON match (evidence / local conversation). Unmatched Neon rows
  * become stubs so `/tmp` wipe / JSON drift still surfaces the queue; callers
- * must drop stubs with no store or overlay chat (`filterPendingWithChat`).
+ * must drop rows whose conversation is outside the keep-set
+ * (`filterPendingWithChat`).
  * Dedupes by JSON signal id when multiple Neon rows match the same local
  * signal (re-detect / dual-write races) so queue React keys stay unique.
  */
@@ -137,20 +137,19 @@ export function joinNeedsReviewPredictions(
 }
 
 /**
- * Hide Neon stubs that have no conversation in the JSON store or
- * request-scoped overlay. JSON-backed rows stay (local evidence). Stale
- * Sample / Partner Demo pack ids without a keep-set chat stay off the
- * Shadow Mode queue (pending, Follow-up, and Done).
+ * Keep Pending, Follow-up, and Done on the active keep-set (JSON store ∪
+ * wipe-only overlay). Stubs and JSON rows whose conversation is missing
+ * from that set stay off the queue, so another pack cannot appear as a card.
  */
 export function filterPendingWithChat(
   pending: Signal[],
   conversations: Conversation[]
 ): Signal[] {
   const have = new Set(conversations.map((conversation) => conversation.id));
-  return pending.filter((signal) => {
-    if (!isNeonStubSignalId(signal.id)) return true;
-    return Boolean(signal.conversationId) && have.has(signal.conversationId);
-  });
+  return pending.filter(
+    (signal) =>
+      Boolean(signal.conversationId) && have.has(signal.conversationId)
+  );
 }
 
 /**

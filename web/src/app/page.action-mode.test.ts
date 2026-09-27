@@ -40,6 +40,7 @@ vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
   loadStore: vi.fn(),
   writeStore: vi.fn().mockResolvedValue(undefined),
+  persistMissingSupervisedDrafts: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/fetch-needs-review", () => ({

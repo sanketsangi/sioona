@@ -302,6 +302,27 @@ describe("filterPendingWithChat", () => {
     expect(filtered.map((s) => s.id)).toEqual(["sig_a", "sig_b"]);
   });
 
+  it("drops JSON rows whose conversation is outside the keep-set", () => {
+    const otherPack: Signal = {
+      ...baseSignal,
+      id: "sig_other_pack",
+      conversationId: "conv_other_pack",
+    };
+    const filtered = filterPendingWithChat(
+      [otherPack, { ...baseSignal, id: "sig_keep" }],
+      [
+        {
+          id: "conv_1",
+          tenantId: "tenant_demo",
+          channel: "whatsapp",
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+        },
+      ]
+    );
+    expect(filtered.map((signal) => signal.id)).toEqual(["sig_keep"]);
+  });
+
   it("keeps Neon stubs when overlay/store has the conversation", () => {
     const pending = pendingQueueSignals(
       [

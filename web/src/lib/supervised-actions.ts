@@ -333,6 +333,65 @@ export type EnsureSupervisedActionsResult = {
   changed: boolean;
 };
 
+function supervisedDraftCandidates(
+  store: StoreData,
+  extraSignals: Signal[],
+  extraConversations: Conversation[],
+): {
+  candidates: Signal[];
+  conversationsById: Map<string, Conversation>;
+  existingKeys: Set<string>;
+} {
+  const conversationsById = new Map(
+    [...store.conversations, ...extraConversations].map((conversation) => [
+      conversation.id,
+      conversation,
+    ]),
+  );
+  const seenSignalIds = new Set<string>();
+  const candidates: Signal[] = [];
+  for (const signal of [...store.signals, ...extraSignals]) {
+    if (seenSignalIds.has(signal.id)) continue;
+    seenSignalIds.add(signal.id);
+    candidates.push(signal);
+  }
+  const existingKeys = new Set<string>();
+  for (const action of store.supervisedActions ?? []) {
+    existingKeys.add(actionKey(action.conversationId, action.type));
+  }
+  return { candidates, conversationsById, existingKeys };
+}
+
+/**
+ * One draft that this store still does not have.
+ * Does not mutate signals, feedback, Acted, or ground truth.
+ * Returns null when every candidate already has a draft.
+ */
+export function createFirstMissingSupervisedDraft(
+  store: StoreData,
+  extraSignals: Signal[] = [],
+  extraConversations: Conversation[] = [],
+): SupervisedAction | null {
+  const { candidates, conversationsById, existingKeys } =
+    supervisedDraftCandidates(store, extraSignals, extraConversations);
+  for (const signal of candidates) {
+    const type = supervisedActionTypeForSignal(signal);
+    if (!type) continue;
+    if (existingKeys.has(actionKey(signal.conversationId, type))) continue;
+    const action = createSupervisedDraftAction({
+      signal,
+      customerName: customerNameForSignal(
+        conversationsById,
+        signal.conversationId,
+      ),
+      evidence: signal.evidence,
+      overrides: store.taxonomyOverrides,
+    });
+    if (action) return action;
+  }
+  return null;
+}
+
 function draftForAction(
   action: SupervisedAction,
   signal: Pick<Signal, "score" | "evidence">,
@@ -393,18 +452,11 @@ export function ensureSupervisedActions(
   extraSignals: Signal[] = [],
   extraConversations: Conversation[] = [],
 ): EnsureSupervisedActionsResult {
-  const conversations = [...store.conversations, ...extraConversations];
-  const conversationsById = new Map(
-    conversations.map((conversation) => [conversation.id, conversation]),
+  const { candidates, conversationsById } = supervisedDraftCandidates(
+    store,
+    extraSignals,
+    extraConversations,
   );
-  const seenSignalIds = new Set<string>();
-  const candidates: Signal[] = [];
-  for (const signal of [...store.signals, ...extraSignals]) {
-    if (seenSignalIds.has(signal.id)) continue;
-    seenSignalIds.add(signal.id);
-    candidates.push(signal);
-  }
-
   const byKey = new Map<string, SupervisedAction>();
   for (const action of store.supervisedActions ?? []) {
     byKey.set(actionKey(action.conversationId, action.type), action);

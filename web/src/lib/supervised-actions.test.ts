@@ -4,6 +4,7 @@ import {
   applySupervisedActionDecision,
   composePlaybookDraft,
   composeRetentionEmailDraft,
+  createFirstMissingSupervisedDraft,
   createRetentionEmailAction,
   createSupervisedDraftAction,
   ensureSupervisedActions,
@@ -176,6 +177,33 @@ describe("composeRetentionEmailDraft", () => {
     expect(draft.body).toContain("Hi there,");
     expect(draft.body).toContain("recent conversation");
     expect(draft.evidenceQuote).toBe("");
+  });
+});
+
+describe("createFirstMissingSupervisedDraft", () => {
+  it("returns one draft and leaves feedback on the store untouched", () => {
+    const store = emptyStore([
+      signal({
+        feedback: {
+          label: "correct",
+          note: "kept",
+          reviewedAt: "2026-09-27T12:00:00.000Z",
+        },
+        status: "acted",
+      }),
+    ]);
+    store.conversations[0].groundTruth = "retention";
+    const draft = createFirstMissingSupervisedDraft(store);
+    expect(draft?.signalId).toBe("sig_ret_1");
+    expect(draft?.status).toBe("pending");
+    expect(store.supervisedActions ?? []).toHaveLength(0);
+    expect(store.signals[0].feedback?.label).toBe("correct");
+    expect(store.signals[0].status).toBe("acted");
+    expect(store.conversations[0].groundTruth).toBe("retention");
+    expect(createFirstMissingSupervisedDraft({
+      ...store,
+      supervisedActions: draft ? [draft] : [],
+    })).toBeNull();
   });
 });
 

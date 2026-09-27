@@ -56,6 +56,16 @@ export interface Signal {
   groundTruth?: SignalType | "none";
 }
 
+/**
+ * Last deferred prediction dual-write that did not fully land.
+ * Next Insights load feeds this into the existing `syncFailed` banner.
+ * Cleared when a later sync reports zero failures.
+ */
+export interface PredictionSyncFailure {
+  failed: number;
+  created: number;
+}
+
 /** Partner-agreed opportunity count from their current process. */
 export interface PilotSettings {
   baselineOpportunities: number;
@@ -152,6 +162,8 @@ export interface StoreData {
   messages: Message[];
   signals: Signal[];
   pilot?: PilotSettings;
+  /** Set inside `after()` when deferred prediction dual-write fails. */
+  predictionSyncFailure?: PredictionSyncFailure;
   taxonomyOverrides?: TaxonomyOverrides;
   /** Append-only compliance log (e.g. SignalScore feedback events). */
   auditEvents?: AuditEvent[];
@@ -159,4 +171,9 @@ export interface StoreData {
   supervisedActions?: SupervisedAction[];
   /** Evaluation log for action generation + decisions. */
   actionLogs?: ActionLogEvent[];
+  /**
+   * Zero-signal chats Groq did not classify because the run hit the call cap.
+   * The next re-detect classifies these before any newer misses.
+   */
+  llmSkippedConversationIds?: string[];
 }

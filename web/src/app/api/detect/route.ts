@@ -14,9 +14,13 @@ export async function POST() {
     store.conversations,
     store.messages,
     store.tenant.id,
-    store.taxonomyOverrides
+    store.taxonomyOverrides,
+    { resumeIds: store.llmSkippedConversationIds }
   );
   const updated = await replaceSignalsPreservingFeedback(detected);
+  if (llm.enabled) {
+    updated.llmSkippedConversationIds = llm.skippedIds ?? [];
+  }
   const { signals, sync } = await syncPredictionsToBackend(
     updated.signals,
     store.tenant.id

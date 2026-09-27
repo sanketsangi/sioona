@@ -753,6 +753,52 @@ def test_prediction_upsert_same_conversation_and_type(client: TestClient) -> Non
     assert matches[0]["id"] == signal_id
 
 
+def test_needs_review_and_signals_honor_keep_set_and_offset(
+    client: TestClient,
+) -> None:
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    for conversation_id in ("keep_a", "keep_b", "other_pack"):
+        created = client.post(
+            "/v1/predictions",
+            headers=headers,
+            json={
+                "conversation_id": conversation_id,
+                "signal_type": "lead",
+                "confidence": 0.8,
+                "summary": conversation_id,
+            },
+        )
+        assert created.status_code == 201
+
+    keep = [("conversation_id", "keep_a"), ("conversation_id", "keep_b")]
+    first = client.get(
+        "/v1/tenants/tenant_demo/signals/needs-review",
+        headers=headers,
+        params=[("limit", "1"), ("offset", "0"), *keep],
+    )
+    second = client.get(
+        "/v1/tenants/tenant_demo/signals/needs-review",
+        headers=headers,
+        params=[("limit", "1"), ("offset", "1"), *keep],
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert len(first.json()) == 1
+    assert len(second.json()) == 1
+    assert {
+        first.json()[0]["conversation_id"],
+        second.json()[0]["conversation_id"],
+    } == {"keep_a", "keep_b"}
+
+    listed = client.get(
+        "/v1/tenants/tenant_demo/signals",
+        headers=headers,
+        params=[("conversation_id", "keep_a")],
+    )
+    assert listed.status_code == 200
+    assert [row["conversation_id"] for row in listed.json()] == ["keep_a"]
+
+
 def test_prediction_bulk_upsert_and_tenant_isolation(client: TestClient) -> None:
     headers = {"X-Tenant-Id": "tenant_bulk"}
     first = client.post(

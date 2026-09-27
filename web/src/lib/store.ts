@@ -11,7 +11,10 @@ import { toConversationSyncPayload } from "./sync-conversations";
 import { syncPilotSettingsToBackend } from "./sync-pilot";
 import {
   applySupervisedActionDecision,
+  buildActionLogEvent,
+  createFirstMissingSupervisedDraft,
   ensureSupervisedActions,
+  logSupervisedAction,
 } from "./supervised-actions";
 import type {
   AuditEvent,
@@ -173,6 +176,20 @@ function normalizeFeedbackLabel(label: string): FeedbackLabel {
   return label as FeedbackLabel;
 }
 
+function normalizeLlmSkippedIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const id of raw) {
+    if (typeof id !== "string") continue;
+    const trimmed = id.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    ids.push(trimmed);
+  }
+  return ids;
+}
+
 export function normalizeStore(data: StoreData): StoreData {
   return {
     ...data,
@@ -184,6 +201,9 @@ export function normalizeStore(data: StoreData): StoreData {
     })),
     supervisedActions: data.supervisedActions ?? [],
     actionLogs: data.actionLogs ?? [],
+    llmSkippedConversationIds: normalizeLlmSkippedIds(
+      data.llmSkippedConversationIds
+    ),
     signals: data.signals.map((signal) =>
       signal.feedback
         ? {
@@ -384,6 +404,57 @@ export async function persistSupervisedActions(
   );
   if (changed) {
     await writeStore(store);
+  }
+  return created;
+}
+
+/** Stop after this many fresh reads so a bad draft id cannot spin. */
+const MAX_MISSING_DRAFT_PATCHES = 200;
+
+/**
+ * Re-read the JSON store and append one supervised draft that is still
+ * missing. Signals, feedback, Acted, and ground truth on that read stay
+ * as they are. Returns null when nothing is missing.
+ */
+export async function persistOneMissingSupervisedDraft(
+  extraSignals: Signal[] = [],
+  extraConversations: Conversation[] = []
+): Promise<SupervisedAction | null> {
+  const store = await readStore();
+  const action = createFirstMissingSupervisedDraft(
+    store,
+    extraSignals,
+    extraConversations
+  );
+  if (!action) return null;
+  store.supervisedActions = [...(store.supervisedActions ?? []), action];
+  store.actionLogs = [
+    ...(store.actionLogs ?? []),
+    buildActionLogEvent(action, "generated"),
+  ];
+  logSupervisedAction("generated", action);
+  await writeStore(store);
+  return action;
+}
+
+/**
+ * Backfill drafts that ingest did not write. Each draft is patched only
+ * after its own fresh read, so a label saved during page load stays.
+ */
+export async function persistMissingSupervisedDrafts(
+  extraSignals: Signal[] = [],
+  extraConversations: Conversation[] = []
+): Promise<SupervisedAction[]> {
+  const created: SupervisedAction[] = [];
+  const seen = new Set<string>();
+  for (let i = 0; i < MAX_MISSING_DRAFT_PATCHES; i++) {
+    const action = await persistOneMissingSupervisedDraft(
+      extraSignals,
+      extraConversations
+    );
+    if (!action || seen.has(action.id)) break;
+    seen.add(action.id);
+    created.push(action);
   }
   return created;
 }

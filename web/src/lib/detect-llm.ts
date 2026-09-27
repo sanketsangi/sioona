@@ -134,6 +134,11 @@ export type LlmPassStats = {
   added: number;
   failed: number;
   skipped: number;
+  /**
+   * Candidate conversation ids left after this run, skipped-first order.
+   * Present when pass 2 ran. The next re-detect classifies these before newer misses.
+   */
+  skippedIds?: string[];
   /** First diagnosed failure when `failed` > 0. Omitted when every call succeeded. */
   llmFailure?: LlmFailureKind;
 };
@@ -199,6 +204,11 @@ export type HybridDetectOptions = {
   concurrency?: number;
   /** Real heuristic ticks: 0 then 1…N conversations. */
   onProgress?: (done: number, total: number) => void | Promise<void>;
+  /**
+   * Chats skipped on the previous pass. Still-eligible ids are classified
+   * before any other zero-signal miss.
+   */
+  resumeIds?: readonly string[];
 };
 
 function emptyStats(enabled: boolean): LlmPassStats {
@@ -209,7 +219,15 @@ function emptyStats(enabled: boolean): LlmPassStats {
     added: 0,
     failed: 0,
     skipped: 0,
+    skippedIds: [],
   };
+}
+
+export function detectLlmMaxCalls(): number {
+  return positiveEnvNumber(
+    process.env.DETECT_LLM_MAX_CALLS,
+    DETECT_LLM_MAX_CALLS
+  );
 }
 
 export function isDetectLlmEnabled(): boolean {
@@ -600,8 +618,34 @@ function signalFromClassification(
 }
 
 /**
+ * Previously skipped chats stay ahead of every other zero-signal miss.
+ * Unknown or already-covered ids drop out. The remainder keeps length order.
+ */
+function prioritizeSkippedCandidates<T extends { conversation: Conversation }>(
+  candidates: T[],
+  resumeIds: readonly string[] | undefined
+): T[] {
+  if (!resumeIds || resumeIds.length === 0) return candidates;
+  const byId = new Map(candidates.map((row) => [row.conversation.id, row]));
+  const first: T[] = [];
+  const seen = new Set<string>();
+  for (const id of resumeIds) {
+    if (seen.has(id)) continue;
+    const row = byId.get(id);
+    if (!row) continue;
+    seen.add(id);
+    first.push(row);
+  }
+  if (first.length === 0) return candidates;
+  const rest = candidates.filter((row) => !seen.has(row.conversation.id));
+  return [...first, ...rest];
+}
+
+/**
  * Add LLM signals only for conversations heuristics did not fire on.
  * Does not replace or rewrite heuristic signals (precision gate).
+ * At most `maxCalls` Groq calls. Chats past the cap are returned as
+ * `skippedIds` so the next re-detect classifies them first.
  */
 export async function applyLlmSecondPass(
   conversations: Conversation[],
@@ -640,13 +684,13 @@ export async function applyLlmSecondPass(
         customerText(a.customerMessages).length
     );
 
-  const maxCalls = Math.max(
-    0,
-    options?.maxCalls ??
-      positiveEnvNumber(process.env.DETECT_LLM_MAX_CALLS, DETECT_LLM_MAX_CALLS)
-  );
-  const selected = candidates.slice(0, maxCalls);
-  const skipped = Math.max(0, candidates.length - selected.length);
+  const maxCalls = Math.max(0, options?.maxCalls ?? detectLlmMaxCalls());
+  const ordered = prioritizeSkippedCandidates(candidates, options?.resumeIds);
+  const selected = ordered.slice(0, maxCalls);
+  const skippedIds = ordered
+    .slice(selected.length)
+    .map((row) => row.conversation.id);
+  const skipped = skippedIds.length;
   const classifyFn = classify ?? classifyConversationWithGroq;
   const concurrency = Math.max(
     1,
@@ -695,6 +739,7 @@ export async function applyLlmSecondPass(
       added: added.length,
       failed,
       skipped,
+      skippedIds,
       ...(llmFailure ? { llmFailure } : {}),
     },
   };

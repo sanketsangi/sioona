@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
-import { readStore, resetStore, setSignalFeedback } from "@/lib/store";
+import * as detectLlm from "@/lib/detect-llm";
+import { readStore, resetStore, setSignalFeedback, writeStore } from "@/lib/store";
 import * as syncPredictions from "@/lib/sync-predictions";
 
 describe("POST /api/detect", () => {
@@ -59,5 +60,39 @@ describe("POST /api/detect", () => {
     );
     expect(persisted?.feedback?.label).toBe("correct");
     expect(persisted?.feedback?.note).toBe("keep me");
+  });
+
+  it("classifies the stored skip list and keeps the chats still waiting", async () => {
+    const before = await readStore();
+    before.llmSkippedConversationIds = ["conv_skip_a", "conv_skip_b"];
+    await writeStore(before);
+
+    const detectSpy = vi
+      .spyOn(detectLlm, "runHybridDetection")
+      .mockResolvedValue({
+        signals: before.signals,
+        llm: {
+          enabled: true,
+          candidates: 10,
+          attempted: 8,
+          added: 0,
+          failed: 0,
+          skipped: 2,
+          skippedIds: ["conv_skip_c"],
+        },
+      });
+
+    const res = await POST();
+    expect(res.status).toBe(200);
+    expect(detectSpy).toHaveBeenCalledWith(
+      before.conversations,
+      before.messages,
+      before.tenant.id,
+      before.taxonomyOverrides,
+      { resumeIds: ["conv_skip_a", "conv_skip_b"] }
+    );
+
+    const after = await readStore();
+    expect(after.llmSkippedConversationIds).toEqual(["conv_skip_c"]);
   });
 });

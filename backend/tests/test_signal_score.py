@@ -11,7 +11,7 @@ from app.services.feedback import (
     SignalNotFoundError,
     record_feedback,
 )
-from app.services.predictions import record_prediction
+from app.services.predictions import list_tenant_predictions, record_prediction
 from app.services.review_queue import list_signals_needing_review, shuffle_predictions
 from app.models.signal_prediction import SignalPrediction
 from app.services.signal_score import ScoreCounts, calculate_signal_score
@@ -914,4 +914,54 @@ def test_signal_score_counts_invariant(db: Session) -> None:
     assert len(list_signals_needing_review(db, "tenant_a", limit=0)) == 1
     assert len(list_signals_needing_review(db, "tenant_a", limit=50)) == 50
     assert len(list_signals_needing_review(db, "tenant_a", limit=101)) == 100
+
+
+def test_needs_review_pages_keep_set_past_cap_and_drops_other_packs(
+    db: Session,
+) -> None:
+    """A keep-set larger than 100 is reviewable; another corpus stays out."""
+    keep_ids = [f"keep_{index}" for index in range(105)]
+    for conversation_id in keep_ids:
+        _pred(db, conversation_id=conversation_id)
+    _pred(db, conversation_id="other_pack")
+
+    first = list_signals_needing_review(
+        db,
+        "tenant_a",
+        limit=101,
+        offset=0,
+        conversation_ids=keep_ids,
+    )
+    second = list_signals_needing_review(
+        db,
+        "tenant_a",
+        limit=100,
+        offset=100,
+        conversation_ids=keep_ids,
+    )
+    assert len(first) == 100
+    assert len(second) == 5
+    seen = {row.id for row in first} | {row.id for row in second}
+    assert len(seen) == 105
+    assert {row.conversation_id for row in first + second} == set(keep_ids)
+    assert list_signals_needing_review(
+        db, "tenant_a", conversation_ids=[]
+    ) == []
+    assert list_signals_needing_review(
+        db, "tenant_a", conversation_ids=[""]
+    ) == []
+
+
+def test_list_tenant_predictions_filters_to_keep_set(db: Session) -> None:
+    keep = _pred(db, conversation_id="pack_keep")
+    other = _pred(db, conversation_id="pack_other")
+    scoped = list_tenant_predictions(
+        db, "tenant_a", conversation_ids=["pack_keep"]
+    )
+    assert [row.id for row in scoped] == [keep.id]
+    assert list_tenant_predictions(db, "tenant_a", conversation_ids=[]) == []
+    assert {row.id for row in list_tenant_predictions(db, "tenant_a")} == {
+        keep.id,
+        other.id,
+    }
 

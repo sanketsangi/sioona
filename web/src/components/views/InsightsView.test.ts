@@ -269,6 +269,32 @@ describe("InsightsView failed second pass", () => {
     expect(html).toContain("Pending signal 1");
     expect(html).not.toContain("No signals");
   });
+
+  it("tells the landing that re-detect continues the skipped chats", () => {
+    const pending = makePendingSignals(2);
+    const store = storeFromSignals(pending);
+    store.llmSkippedConversationIds = Array.from(
+      { length: 12 },
+      (_, index) => `conv_skip_${index}`
+    );
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      })
+    );
+
+    expect(html).toContain("Second pass has more chats");
+    expect(html).toContain(
+      "12 chats were not classified. Re-run Detection classifies the next 8."
+    );
+    expect(html).toContain('role="status"');
+  });
 });
 
 describe("InsightsView pending landing empty Follow-up", () => {

@@ -13,7 +13,7 @@ Insights shows only the **active JSON keep-set** (Sample, Partner Demo, or repla
 
 1. Gate overlay with `shouldOverlayKeepSetChats`: overlay **only** when JSON conversations are empty (wipe recovery) and not `replaced=1`.
 2. When JSON already has chats, skip overlay even if Neon still has other-pack predictions (deferred wipe/prune race after Sample ↔ Partner Demo / replace-upload).
-3. Always `filterPendingWithChat` on **pending and reviewed** (Follow-up / Done) against store ∪ allowed overlay — drop stubs whose conversation is not in the keep-set.
+3. Always `filterPendingWithChat` on **pending and reviewed** (Follow-up / Done) against store ∪ allowed overlay — drop every row whose conversation is not in the keep-set (stubs and JSON).
 4. Mid-week weekly upsert (`replaced=false`) is unchanged: JSON keeps prior keep-set chats; no Detect/Adapt/Auth0 changes.
 
 ## Pending
@@ -21,8 +21,9 @@ Insights shows only the **active JSON keep-set** (Sample, Partner Demo, or repla
 1. Join Neon needs-review to JSON (`backendSignalId`, else conversation + type).
 2. Keep unmatched Neon rows as `sig_neon_*` stubs.
 3. Append JSON unreviewed rows Neon missed. Exclude locals already reviewed in `GET …/signals` (`backendSignalId` or conversation+type) so stale `/tmp` JSON cannot re-open them.
-4. **Drop stubs whose conversation is missing** from JSON store **and** request-scoped overlay (`filterPendingWithChat`). Overlay only when JSON is empty — include pending ids, not only reviewed. Overlay `GET`s only those ids (`conversation_id` query), not the full tenant list. Insights and Eval both fetch overlay (when gated on) so wipe-recovery SignalScore includes stub chats.
-5. Fill stub evidence / action from overlay (`applyChatEvidenceToSignals`).
+4. **Drop any row whose conversation is missing** from JSON store **and** request-scoped overlay (`filterPendingWithChat`). Overlay only when JSON is empty — include pending ids, not only reviewed. Overlay `GET`s only those ids (`conversation_id` query), not the full tenant list. Insights and Eval both fetch overlay (when gated on) so wipe-recovery SignalScore includes stub chats.
+5. When JSON already has chats, `fetchNeedsReview` / `fetchTenantSignals` send those conversation ids. Needs-review stays capped at 100 per request and walks `offset` until a short page, so Pending larger than 100 still reaches the existing pager. Omit the ids only for wipe recovery (empty JSON).
+6. Fill stub evidence / action from overlay (`applyChatEvidenceToSignals`).
 
 Stale Partner Demo pack ids (Groww leftovers vs Zerodha JSON) stay hidden: no overlay when JSON has chats → omit. `/tmp` wipe with Neon chats still present → stub + overlay → reviewable.
 

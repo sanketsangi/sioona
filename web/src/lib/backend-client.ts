@@ -446,13 +446,42 @@ export async function getSignalScore(
   );
 }
 
+/** Repeat `conversation_id`. Empty / blank → explicit empty keep-set, not the full tenant. */
+function appendKeepSetConversationIds(
+  params: URLSearchParams,
+  conversationIds: string[] | undefined
+): void {
+  if (conversationIds === undefined) return;
+  if (conversationIds.length === 0) {
+    params.append("conversation_id", "");
+    return;
+  }
+  for (const id of conversationIds) {
+    if (id) params.append("conversation_id", id);
+  }
+  if (!params.has("conversation_id")) {
+    params.append("conversation_id", "");
+  }
+}
+
 export async function getNeedsReview(
   tenantId: string,
-  limit = 20
+  opts?: {
+    limit?: number;
+    offset?: number;
+    /** Active keep-set. Empty array → no rows. Omitted → unfiltered page. */
+    conversationIds?: string[];
+  }
 ): Promise<BackendPrediction[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts?.limit ?? 20));
+  if (opts?.offset && opts.offset > 0) {
+    params.set("offset", String(opts.offset));
+  }
+  appendKeepSetConversationIds(params, opts?.conversationIds);
   const path = `/v1/tenants/${encodeURIComponent(
     tenantId
-  )}/signals/needs-review?limit=${limit}`;
+  )}/signals/needs-review?${params.toString()}`;
   return backendFetch<BackendPrediction[]>(tenantId, path);
 }
 
@@ -464,18 +493,7 @@ export async function getConversations(
   }
 ): Promise<BackendConversation[]> {
   const params = new URLSearchParams();
-  if (opts?.conversationIds !== undefined) {
-    if (opts.conversationIds.length === 0) {
-      params.append("conversation_id", "");
-    } else {
-      for (const id of opts.conversationIds) {
-        if (id) params.append("conversation_id", id);
-      }
-      if (!params.has("conversation_id")) {
-        params.append("conversation_id", "");
-      }
-    }
-  }
+  appendKeepSetConversationIds(params, opts?.conversationIds);
   const qs = params.toString();
   const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations${
     qs ? `?${qs}` : ""
@@ -501,9 +519,18 @@ export async function pruneConversations(
 }
 
 export async function getTenantSignals(
-  tenantId: string
+  tenantId: string,
+  opts?: {
+    /** Active keep-set. Empty array → no rows. Omitted → full tenant (hydrate). */
+    conversationIds?: string[];
+  }
 ): Promise<BackendPredictionWithFeedback[]> {
-  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/signals`;
+  const params = new URLSearchParams();
+  appendKeepSetConversationIds(params, opts?.conversationIds);
+  const qs = params.toString();
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/signals${
+    qs ? `?${qs}` : ""
+  }`;
   return backendFetch<BackendPredictionWithFeedback[]>(tenantId, path);
 }
 

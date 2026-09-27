@@ -8,6 +8,7 @@ import {
   parseSyncFailedParam,
   evalSyncWarningWhenReviewsDisagree,
   shouldShowSyncFailureBanner,
+  syncFailureBannerCounts,
   syncQueryExtras,
   uploadPredictionSyncWarning,
 } from "./prediction-sync";
@@ -77,6 +78,40 @@ describe("parse sync URL params", () => {
     expect(parseSyncFailedParam("0")).toBe(0);
     expect(parseSyncFailedParam(undefined)).toBe(0);
     expect(parseSyncCreatedParam("2")).toBe(2);
+  });
+});
+
+describe("syncFailureBannerCounts", () => {
+  const persisted = { failed: 2, created: 1 };
+
+  it("uses a deferred failure when ingest did not set syncFailed", () => {
+    expect(
+      syncFailureBannerCounts({
+        urlFailed: 0,
+        urlCreated: 0,
+        persisted,
+      })
+    ).toEqual({ syncFailed: 2, syncCreated: 1 });
+  });
+
+  it("keeps the ingest syncFailed query ahead of a stored failure", () => {
+    expect(
+      syncFailureBannerCounts({
+        urlFailed: 3,
+        urlCreated: 0,
+        persisted,
+      })
+    ).toEqual({ syncFailed: 3, syncCreated: 0 });
+  });
+
+  it("stays quiet after a successful sync clears the stored failure", () => {
+    expect(
+      syncFailureBannerCounts({
+        urlFailed: 0,
+        urlCreated: 0,
+        persisted: null,
+      })
+    ).toEqual({ syncFailed: 0, syncCreated: 0 });
   });
 });
 
