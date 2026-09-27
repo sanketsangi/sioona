@@ -11,6 +11,7 @@ from app.services.feedback import (
     SignalNotFoundError,
     record_feedback,
 )
+from app.services.pilot import upsert_pilot_settings
 from app.services.predictions import list_tenant_predictions, record_prediction
 from app.services.review_queue import list_signals_needing_review, shuffle_predictions
 from app.models.signal_prediction import SignalPrediction
@@ -299,6 +300,89 @@ def test_signal_score_keep_set_and_reviewed_at_compose(db: Session) -> None:
     assert empty_keep.signal_score is None
     assert empty_keep.first_reviewed_at is None
     assert empty_keep.last_reviewed_at is None
+
+
+def test_omitted_ids_skip_chats_from_before_the_weekly_file(db: Session) -> None:
+    """A weekly file does not score the previous pack still sitting in Neon."""
+    cutoff = datetime(2026, 9, 27, 21, 52, 29, tzinfo=timezone.utc)
+    reviewed_at = datetime(2026, 9, 27, 22, 0, tzinfo=timezone.utc)
+    old = _conversation(db, conversation_id="old_pack")
+    current = _conversation(db, conversation_id="week7_pack")
+    old.updated_at = cutoff - timedelta(hours=1)
+    current.updated_at = cutoff + timedelta(minutes=1)
+    pilot = upsert_pilot_settings(
+        db,
+        tenant_id="tenant_a",
+        baseline_opportunities=0,
+        weekly_export_count=2,
+        last_uploaded_file_name="Zerodha_week_7_batch_01.json",
+    )
+    pilot.updated_at = cutoff
+    db.commit()
+
+    for conversation_id in ("old_pack", "week7_pack"):
+        pred = _pred(db, conversation_id=conversation_id)
+        fb = record_feedback(
+            db,
+            tenant_id="tenant_a",
+            signal_id=pred.id,
+            feedback="correct",
+            reviewed_by="r1",
+        )
+        fb.reviewed_at = reviewed_at
+    db.commit()
+
+    scoped = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 9, 21, tzinfo=timezone.utc),
+    )
+    assert scoped.reviewed_count == 1
+    assert scoped.correct_count == 1
+
+    explicit = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 9, 21, tzinfo=timezone.utc),
+        conversation_ids=["old_pack"],
+    )
+    assert explicit.reviewed_count == 1
+
+
+def test_showcase_file_still_scores_every_neon_chat(db: Session) -> None:
+    cutoff = datetime(2026, 9, 27, 21, 52, 29, tzinfo=timezone.utc)
+    reviewed_at = datetime(2026, 9, 27, 22, 0, tzinfo=timezone.utc)
+    old = _conversation(db, conversation_id="sample_old")
+    current = _conversation(db, conversation_id="sample_new")
+    old.updated_at = cutoff - timedelta(hours=1)
+    current.updated_at = cutoff + timedelta(minutes=1)
+    pilot = upsert_pilot_settings(
+        db,
+        tenant_id="tenant_a",
+        baseline_opportunities=0,
+        last_uploaded_file_name="Groww_batch_02",
+    )
+    pilot.updated_at = cutoff
+    db.commit()
+
+    for conversation_id in ("sample_old", "sample_new"):
+        pred = _pred(db, conversation_id=conversation_id)
+        fb = record_feedback(
+            db,
+            tenant_id="tenant_a",
+            signal_id=pred.id,
+            feedback="correct",
+            reviewed_by="r1",
+        )
+        fb.reviewed_at = reviewed_at
+    db.commit()
+
+    result = calculate_signal_score(
+        db,
+        "tenant_a",
+        date_from=datetime(2026, 9, 21, tzinfo=timezone.utc),
+    )
+    assert result.reviewed_count == 2
 
 
 def test_week_window_counts_every_in_window_correct(db: Session) -> None:

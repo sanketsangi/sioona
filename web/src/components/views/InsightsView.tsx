@@ -505,8 +505,9 @@ export function InsightsView({
   });
 
   const llmPassNotice =
-    llmFailed > 0
-      ? llmPassFailureNotice({
+    vaultMismatch || llmFailed <= 0
+      ? null
+      : llmPassFailureNotice({
           failed: llmFailed,
           failure: llmFailure,
           signalCount:
@@ -515,11 +516,10 @@ export function InsightsView({
             newSignalCount > 0
               ? newSignalCount
               : null,
-        })
-      : null;
-  const llmSkipNotice = llmSkipResumeNotice(
-    store.llmSkippedConversationIds?.length ?? 0
-  );
+        });
+  const llmSkipNotice = vaultMismatch
+    ? null
+    : llmSkipResumeNotice(store.llmSkippedConversationIds?.length ?? 0);
 
   const queueProps = {
     pendingSignals,

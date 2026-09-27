@@ -91,13 +91,21 @@ function vaultStemKey(name: string): string {
 }
 
 /**
+ * Finder duplicate names (`file copy.json`, `file copy 2.json`) are the
+ * same upload as `file.json`. Catalog copies (`file (2).json`) stay distinct.
+ */
+function withoutMacCopySuffix(stem: string): string {
+  return stem.replace(/ copy(?: \d+)?$/, "");
+}
+
+/**
  * Same upload when stems match, or the catalog label only adds a prefix
  * (`Groww_batch_02` ↔ `batch_02.json`). Distinct copies (`batch_02 (2)`)
  * stay different.
  */
 function sameUploadStem(a: string, b: string): boolean {
-  const left = vaultStemKey(a);
-  const right = vaultStemKey(b);
+  const left = withoutMacCopySuffix(vaultStemKey(a));
+  const right = withoutMacCopySuffix(vaultStemKey(b));
   if (!left || !right) return false;
   if (left === right) return true;
   const [shorter, longer] =

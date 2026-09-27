@@ -134,6 +134,29 @@ describe("vaultFileMatchesKeepSet", () => {
       vaultFileMatchesKeepSet("batch_02.json", "batch_02 (2).json"),
     ).toBe(false);
   });
+
+  it("matches a Finder duplicate name to the uploaded keep-set", () => {
+    expect(
+      vaultFileMatchesKeepSet(
+        "Zerodha_week_7_batch_01 copy.json",
+        "Zerodha_week_7_batch_01.json",
+      ),
+    ).toBe(true);
+    expect(
+      vaultFileMatchesKeepSet(
+        "Zerodha_week_7_batch_01 copy 2.json",
+        "Zerodha_week_7_batch_01.json",
+      ),
+    ).toBe(true);
+    expect(
+      vaultFileIsLoaded(
+        "Zerodha_week_7_batch_01 copy.json",
+        "Zerodha_week_7_batch_01.json",
+        ["Zerodha_week_7_batch_01.json"],
+        20,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("scopeChatsToUploadedFile", () => {

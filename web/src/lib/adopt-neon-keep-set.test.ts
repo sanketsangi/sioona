@@ -100,6 +100,46 @@ describe("adoptNeonKeepSetWhenLocalMisses", () => {
     });
   });
 
+  it("adopts the weekly keep-set when the link is a Finder duplicate name", async () => {
+    vi.mocked(getPilotSettings).mockResolvedValue({
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 12,
+      baseline_note: null,
+      weekly_export_count: 3,
+      last_uploaded_file_name: week7,
+      created_at: "2026-09-27T12:00:00.000Z",
+      updated_at: "2026-09-27T12:00:00.000Z",
+    });
+    const hydrated = store({
+      conversations: [
+        {
+          id: "conv_aditya",
+          tenantId: "tenant_demo",
+          channel: "whatsapp",
+          startedAt: "2026-09-27T12:00:00.000Z",
+          messageIds: [],
+          customerName: "Aditya Pawar",
+          sourceFile: week7,
+        },
+      ],
+      pilot: {
+        baselineOpportunities: 12,
+        lastUploadedFileName: week7,
+        weeklyExportCount: 3,
+      },
+    });
+    vi.mocked(tryHydrateStoreFromNeon).mockResolvedValue(hydrated);
+
+    const result = await adoptNeonKeepSetWhenLocalMisses(
+      store(),
+      "Zerodha_week_7_batch_01 copy.json",
+    );
+
+    expect(result.pilot?.lastUploadedFileName).toBe(week7);
+    expect(tryHydrateStoreFromNeon).toHaveBeenCalled();
+  });
+
   it("keeps Sample when Neon does not yet have the weekly chats", async () => {
     vi.mocked(getPilotSettings).mockResolvedValue({
       id: "pilot-1",

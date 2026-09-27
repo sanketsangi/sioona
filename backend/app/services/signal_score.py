@@ -8,6 +8,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from app.models.conversation import Conversation
+from app.models.pilot_settings import PilotSettings
 from app.models.signal_feedback import (
     FEEDBACK_CORRECT,
     FEEDBACK_INCORRECT,
@@ -107,6 +108,38 @@ def _aware_utc(value: datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc)
 
 
+_SHOWCASE_STEMS = frozenset({"groww_batch_02", "zerodha_batch_02"})
+
+
+def _file_stem(name: str) -> str:
+    base = name.strip().replace("\\", "/").rsplit("/", 1)[-1]
+    if "." in base:
+        base = base.rsplit(".", 1)[0]
+    return base.lower()
+
+
+def _is_showcase_file(name: str | None) -> bool:
+    if not name or not name.strip():
+        return True
+    return _file_stem(name) in _SHOWCASE_STEMS
+
+
+def _live_partner_score_cutoff(db: Session, tenant_id: str) -> datetime | None:
+    """Chats written before this stamp belong to the previous pack.
+
+    Sample and Partner Demo keep every Neon conversation. A weekly upload
+    only scores chats updated at or after ``pilot_settings.updated_at``,
+    matching hydrate. Explicit ``conversation_ids`` skip this cutoff.
+    """
+    pilot = db.scalar(
+        select(PilotSettings).where(PilotSettings.tenant_id == tenant_id)
+    )
+    if pilot is None or _is_showcase_file(pilot.last_uploaded_file_name):
+        return None
+    cutoff = _aware_utc(pilot.updated_at)
+    return cutoff
+
+
 def resolve_score_keep_set(
     db: Session,
     tenant_id: str,
@@ -116,18 +149,23 @@ def resolve_score_keep_set(
 
     Resolution order:
     1. Client-provided sequence wins, including empty (no matching conversations).
-    2. Else Neon ``conversations`` ids for this tenant, if any rows exist.
+    2. Else Neon ``conversations`` for this tenant. A live weekly file drops
+       chats last written before that file's pilot stamp.
     3. Else None — legacy tenant-wide predictions ⨝ feedback.
     """
     if conversation_ids is not None:
         return frozenset(cid for cid in conversation_ids if cid)
-    neon_ids = db.execute(
-        select(Conversation.conversation_id).where(
-            Conversation.tenant_id == tenant_id
-        )
-    ).scalars().all()
+    cutoff = _live_partner_score_cutoff(db, tenant_id)
+    stmt = select(Conversation.conversation_id).where(
+        Conversation.tenant_id == tenant_id
+    )
+    if cutoff is not None:
+        stmt = stmt.where(Conversation.updated_at >= cutoff)
+    neon_ids = db.execute(stmt).scalars().all()
     if neon_ids:
         return frozenset(neon_ids)
+    if cutoff is not None:
+        return frozenset()
     return None
 
 

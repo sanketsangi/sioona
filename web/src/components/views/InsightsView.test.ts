@@ -1595,6 +1595,36 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).toContain("Upload this week’s export");
     expect(html).not.toContain("keep-set");
     expect(html).toContain("Run Partner Demo");
+    expect(html).not.toContain("Second pass has more chats");
+  });
+
+  it("does not borrow the loaded pack’s second-pass notice for an unloaded file", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    store.llmSkippedConversationIds = Array.from(
+      { length: 45 },
+      (_, index) => `conv_skip_${index}`,
+    );
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_week_7_batch_01 copy.json",
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("This file is not loaded yet");
+    expect(html).not.toContain("45 chats were not classified");
+    expect(html).not.toContain("Second pass has more chats");
   });
 
   it("shows an earlier file from the same upload instead of the empty vault", () => {
