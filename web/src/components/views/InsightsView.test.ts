@@ -1308,6 +1308,55 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("animate-spin");
   });
 
+  it("shows the pending queue when preview is not in the keep-set", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: "sig_from_another_pack",
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+        precomputedPending: pending,
+        precomputedReviewed: [],
+      }),
+    );
+
+    expect(html).toContain("Pending signal 1");
+    expect(html).toContain("Conversation that needs your attention");
+    expect(html).not.toContain("Signal Not Found");
+  });
+
+  it("opens review when preview is a Neon stub of a joined signal", () => {
+    const pending = makePendingSignals(1);
+    pending[0].backendSignalId = "pred-sagar";
+    pending[0].summary = "Sagar is exploring products";
+    const store = storeFromSignals(pending);
+    store.conversations[0].customerName = "Sagar Chavan";
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: "sig_neon_pred-sagar",
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+        precomputedPending: pending,
+        precomputedReviewed: [],
+      }),
+    );
+
+    expect(html).toContain("Sagar Chavan");
+    expect(html).toContain("exploring products");
+    expect(html).not.toContain("Signal Not Found");
+  });
+
   it("keeps a batch_02.json preview that is already in the keep-set", () => {
     const pending = makePendingSignals(1);
     pending[0].id = "sig_conv_rucha_patwardhan_12_lead_0";

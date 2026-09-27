@@ -345,6 +345,7 @@ export function InsightsView({
       )
     : null;
   const reviewOpen = Boolean(previewSignal && previewCustomerName != null);
+  const unresolvedPreview = Boolean(previewId) && !reviewOpen;
   const breadcrumbPageLabel = (() => {
     if (!previewSignal || previewCustomerName == null) return null;
     const who = previewCustomerName.trim() || "Customer";
@@ -583,15 +584,12 @@ export function InsightsView({
             typeFilter={typeFilter}
             actionFilter={actionFilter}
             page={page}
-            previewId={reviewOpen ? null : previewId}
+            previewId={null}
             queryExtras={queryExtras}
             supervisedActions={store.supervisedActions ?? []}
           />
         </div>
-        <SignalQueue
-          {...queueProps}
-          previewId={reviewOpen ? null : previewId}
-        />
+        <SignalQueue {...queueProps} previewId={null} />
       </div>
     </>
   );
@@ -606,6 +604,7 @@ export function InsightsView({
         statusFilter={statusFilter}
         workspaceMode={workspaceMode}
         statusOmitted={statusOmitted}
+        unresolvedPreview={unresolvedPreview}
       />
       <ClearStaleSyncFailedParams shouldClear={staleSyncFailedParam} />
 

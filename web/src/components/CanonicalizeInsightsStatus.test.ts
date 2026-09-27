@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { insightsStatusCanonicalUrl } from "./CanonicalizeInsightsStatus";
+import {
+  insightsStatusCanonicalUrl,
+  unresolvedPreviewCanonicalUrl,
+} from "./CanonicalizeInsightsStatus";
 
 describe("insightsStatusCanonicalUrl", () => {
   it("adds status=new when status omitted and filter is new", () => {
@@ -39,6 +42,22 @@ describe("insightsStatusCanonicalUrl", () => {
         true,
       ),
     ).toBe("/?view=insights&mode=action&status=followup");
+  });
+
+  it("drops a stale preview and keeps the pending filter", () => {
+    expect(
+      unresolvedPreviewCanonicalUrl(
+        "?view=insights&file=Zerodha_week_7_batch_01.json&status=new&preview=sig_missing",
+      ),
+    ).toBe(
+      "/?view=insights&file=Zerodha_week_7_batch_01.json&status=new",
+    );
+  });
+
+  it("returns null when the address bar has no preview", () => {
+    expect(
+      unresolvedPreviewCanonicalUrl("?view=insights&status=new"),
+    ).toBeNull();
   });
 
   it("does not override a status already present in the search string", () => {

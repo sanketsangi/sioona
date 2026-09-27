@@ -91,7 +91,10 @@ import {
   SCORE_WAITING_BODY,
   SCORE_WAITING_TITLE,
 } from "@/lib/backend-wake";
-import { queueSignalsForFilter } from "@/lib/join-needs-review";
+import {
+  queueSignalsForFilter,
+  resolvePreviewSignal,
+} from "@/lib/join-needs-review";
 import type {
   Conversation,
   Message,
@@ -798,14 +801,11 @@ export function SignalQueue({
   const backToQueueHref = queueHref({ preview: null, page });
 
   // Resolve preview across pending + reviewed (deep links ignore active filters).
-  const previewSignal = useMemo(() => {
-    if (!previewId) return null;
-    return (
-      pendingSignals.find((s) => s.id === previewId) ??
-      reviewedSignals.find((s) => s.id === previewId) ??
-      null
-    );
-  }, [previewId, pendingSignals, reviewedSignals]);
+  // Neon stub ids (`sig_neon_…`) still open the joined JSON card.
+  const previewSignal = useMemo(
+    () => resolvePreviewSignal(previewId, pendingSignals, reviewedSignals),
+    [previewId, pendingSignals, reviewedSignals],
+  );
 
   const filterChrome = showFilters ? (
     <QueueFilters

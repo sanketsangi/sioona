@@ -371,6 +371,20 @@ export function doneSignals(reviewed: Signal[]): Signal[] {
   return reviewed.filter((signal) => signal.status === "acted");
 }
 
+const NEON_PREVIEW_PREFIX = "sig_neon_";
+
+/**
+ * `?preview=` may still carry a Neon stub id (`sig_neon_<uuid>`) after the
+ * row joins onto the JSON signal id. Match the live card either way.
+ */
+function signalMatchesPreview(signal: Signal, previewId: string): boolean {
+  if (signal.id === previewId) return true;
+  const backendId = signal.backendSignalId;
+  if (!backendId) return false;
+  if (previewId === backendId) return true;
+  return previewId === `${NEON_PREVIEW_PREFIX}${backendId}`;
+}
+
 /**
  * Resolve `?preview=` across pending + reviewed.
  * When the same id is in both (JSON unreviewed + Neon Correct), prefer the
@@ -382,8 +396,10 @@ export function resolvePreviewSignal(
   reviewed: Signal[],
 ): Signal | null {
   if (!previewId) return null;
-  const fromPending = pending.find((s) => s.id === previewId) ?? null;
-  const fromReviewed = reviewed.find((s) => s.id === previewId) ?? null;
+  const fromPending =
+    pending.find((s) => signalMatchesPreview(s, previewId)) ?? null;
+  const fromReviewed =
+    reviewed.find((s) => signalMatchesPreview(s, previewId)) ?? null;
   if (fromPending && fromReviewed) {
     return fromReviewed.feedback ? fromReviewed : fromPending;
   }

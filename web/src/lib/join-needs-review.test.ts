@@ -595,6 +595,21 @@ describe("resolvePreviewSignal", () => {
     expect(resolvePreviewSignal(null, [], [])).toBeNull();
     expect(resolvePreviewSignal("sig_missing", [], [])).toBeNull();
   });
+
+  it("opens a joined JSON card from a leftover Neon stub preview id", () => {
+    const pending: Signal = {
+      ...baseSignal,
+      id: "sig_conv_sagar_lead_0",
+      backendSignalId: "pred-sagar",
+      status: "new",
+    };
+    expect(
+      resolvePreviewSignal("sig_neon_pred-sagar", [pending], [])?.id,
+    ).toBe("sig_conv_sagar_lead_0");
+    expect(resolvePreviewSignal("pred-sagar", [pending], [])?.id).toBe(
+      "sig_conv_sagar_lead_0",
+    );
+  });
 });
 
 describe("reviewedQueueSignals", () => {
