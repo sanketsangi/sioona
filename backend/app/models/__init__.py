@@ -10,6 +10,18 @@ from app.models.message import (
     Message,
 )
 from app.models.pilot_settings import PilotSettings
+from app.models.supervised_action import (
+    ACTION_LEAD_OUTREACH,
+    ACTION_RETENTION_EMAIL,
+    ACTION_RETENTION_FOLLOWUP,
+    ACTION_UPSELL_NOTE,
+    DECISION_APPROVED,
+    DECISION_DISMISSED,
+    DECISION_EDITED,
+    SUPERVISED_ACTION_STATUSES,
+    SUPERVISED_ACTION_TYPES,
+    SupervisedActionDecision,
+)
 from app.models.signal_feedback import (
     FEEDBACK_CORRECT,
     FEEDBACK_INCORRECT,
@@ -31,7 +43,17 @@ __all__ = [
     "MESSAGE_ROLE_SYSTEM",
     "MESSAGE_ROLES",
     "Message",
+    "ACTION_LEAD_OUTREACH",
+    "ACTION_RETENTION_EMAIL",
+    "ACTION_RETENTION_FOLLOWUP",
+    "ACTION_UPSELL_NOTE",
+    "DECISION_APPROVED",
+    "DECISION_DISMISSED",
+    "DECISION_EDITED",
     "PilotSettings",
+    "SUPERVISED_ACTION_STATUSES",
+    "SUPERVISED_ACTION_TYPES",
     "SignalFeedback",
+    "SupervisedActionDecision",
     "SignalPrediction",
 ]

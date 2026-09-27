@@ -15,6 +15,7 @@ from app.services.conversations import upsert_conversation
 from app.services.feedback import record_feedback
 from app.services.pilot import upsert_pilot_settings
 from app.services.predictions import record_prediction
+from app.services.supervised_actions import upsert_supervised_action_decision
 from app.services.tenant_data import count_tenant_rows, wipe_tenant_data
 
 
@@ -88,6 +89,25 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         baseline_note="keep",
         weekly_export_count=2,
     )
+    upsert_supervised_action_decision(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_a",
+        action_type="retention_email_draft",
+        status="approved",
+        subject="Your account",
+        body="Hi,",
+        evidence_quote="close",
+    )
+    upsert_supervised_action_decision(
+        db,
+        tenant_id="tenant_b",
+        conversation_id="conv_b",
+        action_type="lead_outreach_draft",
+        status="dismissed",
+        subject="Intro",
+        body="Hello,",
+    )
 
     counts = wipe_tenant_data(db, tenant_id="tenant_a")
     assert counts == {
@@ -95,6 +115,7 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         "messages": 1,
         "predictions": 1,
         "feedback": 1,
+        "supervised_actions": 1,
         "pilot_settings": 1,
     }
     assert count_tenant_rows(db, tenant_id="tenant_a") == {
@@ -102,6 +123,7 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         "messages": 0,
         "predictions": 0,
         "feedback": 0,
+        "supervised_actions": 0,
         "pilot_settings": 0,
     }
 
@@ -110,6 +132,7 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         "messages": 1,
         "predictions": 1,
         "feedback": 1,
+        "supervised_actions": 1,
         "pilot_settings": 1,
     }
     assert (
@@ -148,5 +171,6 @@ def test_wipe_tenant_data_empty_tenant_is_noop(db: Session) -> None:
         "messages": 0,
         "predictions": 0,
         "feedback": 0,
+        "supervised_actions": 0,
         "pilot_settings": 0,
     }

@@ -9,6 +9,7 @@ from app.api.routes import (
     predictions,
     review,
     scores,
+    supervised_actions,
     tenant_data,
 )
 from app.config import get_settings
@@ -31,6 +32,7 @@ app.include_router(feedback.router)
 app.include_router(scores.router)
 app.include_router(review.router)
 app.include_router(pilot.router)
+app.include_router(supervised_actions.router)
 app.include_router(tenant_data.router)
 
 

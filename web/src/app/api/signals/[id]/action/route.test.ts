@@ -528,4 +528,73 @@ describe("POST /api/signals/[id]/action", () => {
       )?.status,
     ).toBe("pending");
   });
+
+  it("keeps the JSON decision when Neon dual-write fails", async () => {
+    const store = await readStore();
+    const lead = store.signals.find((item) => item.type === "lead");
+    expect(lead).toBeTruthy();
+    const res = await POST(
+      actionRequest(lead!.id, { decision: "approved" }),
+      { params: Promise.resolve({ id: lead!.id }) },
+    );
+    expect(res.status).toBe(200);
+    const after = await readStore();
+    expect(
+      after.supervisedActions?.find((action) => action.signalId === lead!.id)
+        ?.status,
+    ).toBe("approved");
+  });
+
+  it("posts the edited subject and body when Neon accepts the decision", async () => {
+    const store = await readStore();
+    const lead = store.signals.find((item) => item.type === "lead");
+    expect(lead).toBeTruthy();
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        tenant_id: store.tenant.id,
+        conversation_id: lead!.conversationId,
+        action_type: "lead_outreach_draft",
+        status: "edited",
+        subject: "Custom subject",
+        body: "Custom body",
+        evidence_quote: "",
+        created_at: "2026-09-28T00:00:00.000Z",
+        decided_at: "2026-09-28T01:00:00.000Z",
+      }),
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await POST(
+      actionRequest(lead!.id, {
+        decision: "edited",
+        subject: "Custom subject",
+        body: "Custom body",
+      }),
+      { params: Promise.resolve({ id: lead!.id }) },
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      action: { status: string; subject: string; body: string };
+      sent: boolean;
+    };
+    expect(data.sent).toBe(false);
+    expect(data.action.status).toBe("edited");
+    expect(data.action.subject).toBe("Custom subject");
+    expect(data.action.body).toBe("Custom body");
+    expect(fetchMock).toHaveBeenCalled();
+    const init = fetchMock.mock.calls[0]?.[1];
+    const posted = JSON.parse(String(init?.body)) as {
+      status: string;
+      subject: string;
+      body: string;
+      action_type: string;
+    };
+    expect(posted.status).toBe("edited");
+    expect(posted.subject).toBe("Custom subject");
+    expect(posted.body).toBe("Custom body");
+    expect(posted.action_type).toBe("lead_outreach_draft");
+  });
 });

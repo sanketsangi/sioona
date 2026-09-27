@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveFeedbackSignal } from "@/app/api/signals/[id]/feedback/route";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
 import { decideSupervisedAction, persistSupervisedActions, readStore } from "@/lib/store";
+import { syncSupervisedActionDecision } from "@/lib/supervised-action-persistence";
 import {
   defaultConfidenceForStoredAction,
   findSupervisedAction,
@@ -299,6 +300,8 @@ export async function POST(
         { status: 400 }
       );
     }
+
+    await syncSupervisedActionDecision(result.action);
 
     return NextResponse.json({
       action: result.action,

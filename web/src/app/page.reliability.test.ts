@@ -28,6 +28,10 @@ vi.mock("@/lib/adopt-neon-keep-set", () => ({
   ),
 }));
 
+vi.mock("@/lib/supervised-action-persistence", () => ({
+  overlaySupervisedActionsFromNeon: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/lib/store", () => ({
   readStore: vi.fn(),
   loadStore: vi.fn(),

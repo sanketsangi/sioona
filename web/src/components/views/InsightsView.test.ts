@@ -28,6 +28,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/",
 }));
 
+import { applySupervisedDecisionOverlay } from "@/lib/supervised-action-persistence";
+import type { BackendSupervisedActionDecision } from "@/lib/backend-client";
 import { InsightsView } from "./InsightsView";
 import {
   queueSignalsForFilter,
@@ -619,6 +621,104 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Edited");
     expect(html).toContain("Dismissed");
     expect(html).not.toContain(">Approve</a>");
+  });
+
+  it("sig_neon rows show overlaid decisions when JSON has no supervisedActions", () => {
+    const specs = [
+      {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+        status: "approved" as const,
+        subject: "Approved subject",
+        body: "Approved body",
+      },
+      {
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2",
+        status: "edited" as const,
+        subject: "Edited subject",
+        body: "Edited body",
+      },
+      {
+        id: "cccccccc-cccc-4ccc-8ccc-ccccccccccc3",
+        status: "dismissed" as const,
+        subject: "Dismissed subject",
+        body: "Dismissed body",
+      },
+    ];
+    const store = storeFromSignals([]);
+    store.signals = [];
+    store.supervisedActions = [];
+    store.conversations = specs.map((spec, index) => ({
+      id: `conv_neon_${index + 1}`,
+      tenantId: "tenant_demo",
+      channel: "whatsapp" as const,
+      startedAt: "2026-08-01T00:00:00.000Z",
+      messageIds: [],
+      customerName: `Customer ${index + 1}`,
+    }));
+    const rows: BackendSupervisedActionDecision[] = specs.map((spec, index) => ({
+      id: spec.id,
+      tenant_id: "tenant_demo",
+      conversation_id: `conv_neon_${index + 1}`,
+      action_type: "retention_email_draft",
+      status: spec.status,
+      subject: spec.subject,
+      body: spec.body,
+      evidence_quote: "close the account",
+      created_at: "2026-09-28T00:00:00.000Z",
+      decided_at: "2026-09-28T01:00:00.000Z",
+    }));
+    applySupervisedDecisionOverlay(store, rows);
+    expect(store.supervisedActions).toHaveLength(3);
+    expect(store.supervisedActions?.[1]?.subject).toBe("Edited subject");
+    expect(store.supervisedActions?.[1]?.body).toBe("Edited body");
+
+    const needsReview = {
+      ok: true as const,
+      predictions: specs.map((spec, index) => ({
+        id: spec.id,
+        tenant_id: "tenant_demo",
+        conversation_id: `conv_neon_${index + 1}`,
+        signal_type: "retention" as const,
+        confidence: 0.9,
+        summary: `${spec.status} retention`,
+        created_at: "2026-09-28T00:00:00.000Z",
+      })),
+    };
+    const listHtml = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        needsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(listHtml).toContain(`sig_neon_${specs[0].id}`);
+    expect(listHtml).toContain(`sig_neon_${specs[1].id}`);
+    expect(listHtml).toContain(`sig_neon_${specs[2].id}`);
+    expect(listHtml).toContain("Approved");
+    expect(listHtml).toContain("Edited");
+    expect(listHtml).toContain("Dismissed");
+    expect(listHtml).not.toContain(">Approve</a>");
+
+    const previewHtml = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        previewId: `sig_neon_${specs[1].id}`,
+        needsReview,
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(previewHtml).toContain(`sig_neon_${specs[1].id}`);
+    expect(previewHtml).toContain("Edited");
+    expect(previewHtml).toContain("Edited draft saved — not sent.");
   });
 
   it("Pending Action stays Approve when the retention draft has no decision", () => {

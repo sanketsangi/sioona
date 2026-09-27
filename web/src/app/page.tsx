@@ -63,6 +63,7 @@ import {
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { loadStore, persistMissingSupervisedDrafts } from "@/lib/store";
+import { overlaySupervisedActionsFromNeon } from "@/lib/supervised-action-persistence";
 import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import {
   persistDeferredPilotRefresh,
@@ -327,6 +328,16 @@ export default async function PlatformPage({
       chats.conversations,
     );
   }
+  const decisionConversationIds =
+    view === "insights"
+      ? [
+          ...new Set(
+            keepSetChats
+              .map((conversation) => conversation.id)
+              .filter((id) => id.length > 0),
+          ),
+        ]
+      : [];
   const keepSetIds = keepSetConversationIds(
     store.conversations,
     overlayChats?.conversations,
@@ -346,6 +357,7 @@ export default async function PlatformPage({
     fetches.allTimeScore
       ? fetchSignalScoreSafe(store.tenant.id, scoreKeepSet)
       : Promise.resolve(null),
+    overlaySupervisedActionsFromNeon(store, decisionConversationIds),
   ]);
   // Ingest sets ?syncFailed= on this navigation. A deferred after() failure
   // is on the JSON snapshot and uses that same banner on the next load.

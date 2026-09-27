@@ -10,4 +10,5 @@ class TenantDataWipeResponse(BaseModel):
     messages: int = Field(ge=0)
     predictions: int = Field(ge=0)
     feedback: int = Field(ge=0)
+    supervised_actions: int = Field(ge=0)
     pilot_settings: int = Field(ge=0)

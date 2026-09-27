@@ -1,8 +1,9 @@
 """Tenant-scoped Neon wipe (Reset Demo / Partner Demo / partner deletion).
 
-Deletes conversations, messages, predictions, feedback, and pilot_settings
-for one tenant only. Explicit wipe is the only path that hard-deletes
-feedback — live SignalScore keep-set scoring must not delete reviews.
+Deletes conversations, messages, predictions, feedback, supervised action
+decisions, and pilot_settings for one tenant only. Explicit wipe is the
+only path that hard-deletes feedback — live SignalScore keep-set scoring
+must not delete reviews.
 """
 
 from sqlalchemy import delete, func, select
@@ -13,16 +14,22 @@ from app.models.message import Message
 from app.models.pilot_settings import PilotSettings
 from app.models.signal_feedback import SignalFeedback
 from app.models.signal_prediction import SignalPrediction
+from app.models.supervised_action import SupervisedActionDecision
 
 
 def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     """Delete all Neon rows for ``tenant_id``. Never touches other tenants.
 
-    Order: feedback → predictions → messages → conversations → pilot_settings
-    (feedback FK to predictions).
+    Order: feedback → predictions → decisions → messages → conversations →
+    pilot_settings (feedback FK to predictions).
     """
     feedback_deleted = db.execute(
         delete(SignalFeedback).where(SignalFeedback.tenant_id == tenant_id)
+    ).rowcount
+    decisions_deleted = db.execute(
+        delete(SupervisedActionDecision).where(
+            SupervisedActionDecision.tenant_id == tenant_id
+        )
     ).rowcount
     predictions_deleted = db.execute(
         delete(SignalPrediction).where(SignalPrediction.tenant_id == tenant_id)
@@ -43,6 +50,7 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
         "messages": int(messages_deleted or 0),
         "predictions": int(predictions_deleted or 0),
         "feedback": int(feedback_deleted or 0),
+        "supervised_actions": int(decisions_deleted or 0),
         "pilot_settings": int(pilot_deleted or 0),
     }
 
@@ -79,6 +87,14 @@ def count_tenant_rows(db: Session, *, tenant_id: str) -> dict[str, int]:
                 select(func.count())
                 .select_from(SignalFeedback)
                 .where(SignalFeedback.tenant_id == tenant_id)
+            )
+            or 0
+        ),
+        "supervised_actions": int(
+            db.scalar(
+                select(func.count())
+                .select_from(SupervisedActionDecision)
+                .where(SupervisedActionDecision.tenant_id == tenant_id)
             )
             or 0
         ),

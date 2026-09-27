@@ -518,6 +518,66 @@ export async function pruneConversations(
   });
 }
 
+export type BackendSupervisedActionType =
+  | "lead_outreach_draft"
+  | "upsell_note_draft"
+  | "retention_email_draft"
+  | "retention_followup_draft";
+
+export type BackendSupervisedActionStatus = "approved" | "edited" | "dismissed";
+
+export interface BackendSupervisedActionDecision {
+  id: string;
+  tenant_id: string;
+  conversation_id: string;
+  action_type: BackendSupervisedActionType;
+  status: BackendSupervisedActionStatus;
+  subject: string;
+  body: string;
+  evidence_quote: string;
+  created_at: string;
+  decided_at: string;
+}
+
+export async function upsertSupervisedActionDecision(
+  tenantId: string,
+  input: {
+    conversation_id: string;
+    action_type: BackendSupervisedActionType;
+    status: BackendSupervisedActionStatus;
+    subject: string;
+    body: string;
+    evidence_quote: string;
+    decided_at?: string;
+  }
+): Promise<BackendSupervisedActionDecision> {
+  return backendFetch<BackendSupervisedActionDecision>(
+    tenantId,
+    "/v1/supervised-actions",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    }
+  );
+}
+
+export async function getSupervisedActionDecisions(
+  tenantId: string,
+  opts?: {
+    /** Active keep-set. Empty array → no rows. Omitted → full tenant. */
+    conversationIds?: string[];
+  }
+): Promise<BackendSupervisedActionDecision[]> {
+  const params = new URLSearchParams();
+  appendKeepSetConversationIds(params, opts?.conversationIds);
+  const qs = params.toString();
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/supervised-actions${
+    qs ? `?${qs}` : ""
+  }`;
+  return backendFetch<BackendSupervisedActionDecision[]>(tenantId, path);
+}
+
 export async function getTenantSignals(
   tenantId: string,
   opts?: {

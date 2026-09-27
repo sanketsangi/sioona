@@ -1253,6 +1253,7 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "messages": 1,
         "predictions": 1,
         "feedback": 1,
+        "supervised_actions": 0,
         "pilot_settings": 1,
     }
 
@@ -1294,6 +1295,7 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "messages": 0,
         "predictions": 0,
         "feedback": 0,
+        "supervised_actions": 0,
         "pilot_settings": 0,
     }
 
@@ -1334,3 +1336,44 @@ def test_signal_score_returns_database_unavailable_on_sqlalchemy_error(
     )
     assert response.status_code == 500
     assert response.json() == {"detail": "database_unavailable"}
+
+
+def test_supervised_action_decision_round_trip(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    created = client.post(
+        "/v1/supervised-actions",
+        headers=headers,
+        json={
+            "conversation_id": "conv_email",
+            "action_type": "retention_email_draft",
+            "status": "edited",
+            "subject": "Edited subject",
+            "body": "Edited body",
+            "evidence_quote": "fees are high",
+        },
+    )
+    assert created.status_code == 200
+    payload = created.json()
+    assert payload["status"] == "edited"
+    assert payload["subject"] == "Edited subject"
+    assert payload["body"] == "Edited body"
+    assert "sent" not in payload
+
+    listed = client.get(
+        "/v1/tenants/tenant_demo/supervised-actions",
+        headers=headers,
+        params=[("conversation_id", "conv_email")],
+    )
+    assert listed.status_code == 200
+    rows = listed.json()
+    assert len(rows) == 1
+    assert rows[0]["action_type"] == "retention_email_draft"
+    assert rows[0]["body"] == "Edited body"
+
+    other = client.get(
+        "/v1/tenants/tenant_demo/supervised-actions",
+        headers=headers,
+        params=[("conversation_id", "conv_missing")],
+    )
+    assert other.status_code == 200
+    assert other.json() == []

@@ -23,7 +23,7 @@ def delete_tenant_data(
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
 ) -> TenantDataWipeResponse:
-    """Wipe Neon chats, messages, predictions, feedback, and pilot_settings.
+    """Wipe Neon chats, messages, predictions, feedback, decisions, and pilot settings.
 
     Requires ``X-Tenant-Id`` to match the path tenant. Does not touch other
     tenants. Intended for Reset Demo / Partner Demo / partner deletion only.
