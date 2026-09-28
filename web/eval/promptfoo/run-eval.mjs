@@ -8,7 +8,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-function loadEnvFile(path) {
+/** Keys present before any dotenv load (shell/OS). Next.js never overrides these. */
+const shellEnvKeys = new Set(Object.keys(process.env));
+
+function loadEnvFile(path, { override = false } = {}) {
   if (!existsSync(path)) return;
   for (const line of readFileSync(path, "utf8").split("\n")) {
     const trimmed = line.trim();
@@ -23,12 +26,20 @@ function loadEnvFile(path) {
     ) {
       value = value.slice(1, -1);
     }
-    if (!(key in process.env)) process.env[key] = value;
+    if (shellEnvKeys.has(key)) continue;
+    if (!override && key in process.env) continue;
+    process.env[key] = value;
   }
 }
 
 const evalDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(evalDir, "../..");
+
+/** Load web/.env then web/.env.local with Next.js precedence (.env.local wins). */
+function loadWebEnv() {
+  loadEnvFile(join(webRoot, ".env"));
+  loadEnvFile(join(webRoot, ".env.local"), { override: true });
+}
 const nvmNode = join(
   process.env.NVM_DIR ?? join(process.env.HOME ?? "", ".nvm"),
   "versions/node/v22.22.0/bin"
@@ -76,9 +87,7 @@ if (belowRequired) {
   process.exit(1);
 }
 
-for (const name of [".env", ".env.local"]) {
-  loadEnvFile(join(webRoot, name));
-}
+loadWebEnv();
 
 if (!process.env.GROQ_API_KEY?.trim()) {
   console.error(
