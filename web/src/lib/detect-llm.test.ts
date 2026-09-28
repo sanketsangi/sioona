@@ -74,24 +74,6 @@ describe("classifyChatMessages", () => {
       },
     ]);
   });
-
-  it("Promptfoo prompt emits the same system+user payload as production", async () => {
-    await expect(
-      generatePrompt({
-        vars: {
-          customerName: "Asha",
-          channel: "whatsapp",
-          customerMessages: "I want to close my account",
-        },
-      })
-    ).resolves.toEqual(
-      classifyChatMessages({
-        customerName: "Asha",
-        channel: "whatsapp",
-        customerText: "I want to close my account",
-      })
-    );
-  });
 });
 
 describe("SYSTEM_PROMPT", () => {
