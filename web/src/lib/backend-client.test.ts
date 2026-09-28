@@ -241,6 +241,27 @@ describe("backendFetch timeout", () => {
     );
   });
 
+  it("asks for chats written with this upload and waits longer", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getConversations("tenant_demo", {
+      updatedSince: "2026-09-28T07:06:26.326Z",
+      timeoutMs: 25_000,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "updated_since=2026-09-28T07%3A06%3A26.326Z",
+      ),
+      expect.objectContaining({ signal: expect.anything() }),
+    );
+  });
+
   it("prunes conversations not in the keep set", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

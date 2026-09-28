@@ -1,5 +1,6 @@
 """Conversation and message upsert endpoints (durable chats slice 1)."""
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -128,16 +129,21 @@ def get_tenant_conversations(
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
     conversation_id: Annotated[list[str] | None, Query()] = None,
+    updated_since: Annotated[datetime | None, Query()] = None,
 ) -> list[ConversationResponse]:
     """List this tenant's conversations. Insights still reads JSON; this is API-only.
 
     Repeat ``conversation_id`` to return only those rows (request-scoped
     overlay). Omitted → full tenant list (cold-start hydrate).
+    ``updated_since`` keeps rows written at or after that instant.
     """
     assert_tenant_match(tenant_id, header_tenant_id)
     try:
         rows = list_conversations(
-            db, tenant_id, conversation_ids=conversation_id
+            db,
+            tenant_id,
+            conversation_ids=conversation_id,
+            updated_since=updated_since,
         )
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc

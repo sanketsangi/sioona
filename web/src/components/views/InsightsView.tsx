@@ -47,10 +47,6 @@ import {
   reviewedQueueSignals,
   reviewedSignalsFromStore,
 } from "@/lib/join-needs-review";
-import {
-  llmPassFailureNotice,
-  llmSkipResumeNotice,
-} from "@/lib/detect-llm-query";
 import type { LlmFailureKind } from "@/lib/detect-llm";
 import { shouldShowSyncFailureBanner } from "@/lib/prediction-sync";
 import { buildSignalReviewTriage } from "@/lib/review-triage";
@@ -73,6 +69,7 @@ import {
   type PilotCadenceAction,
 } from "@/lib/pilot-cadence";
 import {
+  isLivePartnerKeepSet,
   livePartnerVaultChrome,
   resolveVaultActiveFile,
   scopeChatsToUploadedFile,
@@ -504,23 +501,11 @@ export function InsightsView({
     page: page > 1 ? String(page) : null,
   });
 
-  const llmPassNotice =
-    vaultMismatch || llmFailed <= 0
-      ? null
-      : llmPassFailureNotice({
-          failed: llmFailed,
-          failure: llmFailure,
-          signalCount:
-            newSignalCount != null &&
-            !Number.isNaN(newSignalCount) &&
-            newSignalCount > 0
-              ? newSignalCount
-              : null,
-        });
-  const llmSkipNotice = vaultMismatch
-    ? null
-    : llmSkipResumeNotice(store.llmSkippedConversationIds?.length ?? 0);
-
+  const importLanding =
+    Boolean(vaultEmpty && vaultFile) &&
+    importedCount != null &&
+    importedCount > 0 &&
+    isLivePartnerKeepSet(vaultFile);
   const queueProps = {
     pendingSignals,
     reviewedSignals,
@@ -551,6 +536,7 @@ export function InsightsView({
     actedWalk,
     supervisedActions,
     scoreAsleep,
+    landingFile: importLanding ? vaultFile : null,
   };
 
   const queueBody = (
@@ -626,29 +612,6 @@ export function InsightsView({
               </div>
               <InsightsShadowTip />
             </div>
-            {llmPassNotice ? (
-              <div
-                className="status-banner status-banner-warning"
-                role="alert"
-              >
-                <p className="text-label-14 text-sio-fg-base">
-                  {llmPassNotice.title}
-                </p>
-                <p className="mt-1 text-copy-14 text-sio-fg-subtle">
-                  {llmPassNotice.description}
-                </p>
-              </div>
-            ) : null}
-            {llmSkipNotice ? (
-              <div className="status-banner status-banner-info" role="status">
-                <p className="text-label-14 text-sio-fg-base">
-                  {llmSkipNotice.title}
-                </p>
-                <p className="mt-1 text-copy-14 text-sio-fg-subtle">
-                  {llmSkipNotice.description}
-                </p>
-              </div>
-            ) : null}
             {vaultShowcaseKind && vaultFile ? (
               <VaultShowcaseLoader
                 fileName={vaultFile}

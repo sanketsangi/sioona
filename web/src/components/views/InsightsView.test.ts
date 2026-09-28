@@ -234,7 +234,7 @@ describe("InsightsView window n / ≥5 footer", () => {
 });
 
 describe("InsightsView failed second pass", () => {
-  it("shows the failure on the landing and keeps the heuristic queue", () => {
+  it("keeps the heuristic queue and leaves the failure in notifications", () => {
     const pending = makePendingSignals(19);
     const store = storeFromSignals(pending);
     const html = renderToStaticMarkup(
@@ -263,16 +263,13 @@ describe("InsightsView failed second pass", () => {
       }),
     );
 
-    expect(html).toContain("Second pass failed");
-    expect(html).toContain("Groq no longer serves this model");
-    expect(html).toContain(
-      "19 signals from the first pass are still in the queue.",
-    );
+    expect(html).not.toContain("Second pass failed");
+    expect(html).not.toContain("Groq no longer serves this model");
     expect(html).toContain("Pending signal 1");
     expect(html).not.toContain("No signals");
   });
 
-  it("tells the landing that re-detect continues the skipped chats", () => {
+  it("leaves leftover second-pass chats off the landing", () => {
     const pending = makePendingSignals(2);
     const store = storeFromSignals(pending);
     store.llmSkippedConversationIds = Array.from(
@@ -291,11 +288,8 @@ describe("InsightsView failed second pass", () => {
       })
     );
 
-    expect(html).toContain("Second pass has more chats");
-    expect(html).toContain(
-      "12 chats were not classified. Re-run Detection classifies the next 8."
-    );
-    expect(html).toContain('role="status"');
+    expect(html).not.toContain("Second pass has more chats");
+    expect(html).not.toContain("12 chats were not classified");
   });
 });
 
@@ -1594,8 +1588,37 @@ describe("InsightsView Neon pending overlay", () => {
 
     expect(html).toContain("Upload this week’s export");
     expect(html).not.toContain("keep-set");
+    expect(html).not.toContain("Loading this week’s export");
     expect(html).toContain("Run Partner Demo");
     expect(html).not.toContain("Second pass has more chats");
+  });
+
+  it("waits for the uploaded file instead of asking for another export", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Groww_batch_02",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        importedCount: 100,
+        newSignalCount: 20,
+        statusFilter: "all",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_week_7_batch_01.json",
+        needsReview: { ok: false, error: "timed out" },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Loading this week’s export");
+    expect(html).toContain("The chats are still opening");
+    expect(html).not.toContain("This file is not loaded yet");
+    expect(html).not.toContain("Upload this week’s export");
   });
 
   it("does not borrow the loaded pack’s second-pass notice for an unloaded file", () => {

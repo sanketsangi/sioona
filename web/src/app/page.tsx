@@ -83,6 +83,7 @@ import {
   type PlatformView,
 } from "@/lib/views";
 import {
+  isLivePartnerKeepSet,
   isVaultBatchRenderable,
   listUploadedChatFiles,
   parseVaultFile,
@@ -410,18 +411,28 @@ export default async function PlatformPage({
   );
   const importedCount = sp.imported ? Number(sp.imported) : null;
   const newSignalCount = sp.signals ? Number(sp.signals) : null;
+  // The file is still opening on another instance. A needs-review miss
+  // against the previous pack is not a broken queue.
+  const importLanding =
+    (importedCount ?? 0) > 0 &&
+    !batchRenderable &&
+    isLivePartnerKeepSet(vaultFile);
   const notifications = buildHeaderNotifications({
     pendingCount,
-    queueError,
+    queueError: importLanding ? null : queueError,
+    suppressPendingReview: importLanding,
     syncFailed: hasSyncFailure ? syncFailed : 0,
     syncCreated: hasSyncFailure ? syncCreated : 0,
-    scoreUnavailable: fetches.windowedScore && backendScore == null,
+    scoreUnavailable: importLanding
+      ? false
+      : fetches.windowedScore && backendScore == null,
     demoReady: sp.demo === "1" && batchRenderable,
     wipeFailed,
     importedCount,
     newSignalCount,
     llmFailed: parseLlmFailedParam(sp.llmFailed),
     llmFailure: parseLlmFailureParam(sp.llmFailure),
+    llmSkipped: store.llmSkippedConversationIds?.length ?? 0,
   });
 
   const title = TITLES[view];

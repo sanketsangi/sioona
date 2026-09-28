@@ -314,6 +314,29 @@ def test_list_conversations_filters_by_conversation_ids(db: Session) -> None:
     assert list_conversations(db, "tenant_a", conversation_ids=[""]) == []
 
 
+def test_list_conversations_filters_updated_since(db: Session) -> None:
+    older = upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(conversation_id="conv_old"),
+    )
+    newer = upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(conversation_id="conv_new"),
+    )
+    older.conversation.updated_at = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    newer.conversation.updated_at = datetime(2026, 9, 28, 7, 8, tzinfo=timezone.utc)
+    db.flush()
+
+    listed = list_conversations(
+        db,
+        "tenant_a",
+        updated_since=datetime(2026, 9, 28, 7, 6, tzinfo=timezone.utc),
+    )
+    assert [row[0].conversation_id for row in listed] == ["conv_new"]
+
+
 def test_list_conversations_does_not_leak_other_tenant_messages(db: Session) -> None:
     upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
     upsert_conversation(

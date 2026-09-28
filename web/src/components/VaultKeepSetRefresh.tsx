@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { vaultKeepSetRefreshDelay } from "@/lib/vault-file";
-
-function refreshKey(fileName: string): string {
-  return `sioona-vault-refresh:${fileName}`;
-}
+import {
+  readVaultKeepSetRefreshAttempt,
+  vaultKeepSetRefreshDelay,
+  vaultKeepSetRefreshStorageKey,
+} from "@/lib/vault-file";
 
 /**
  * The redirect after upload can render before Neon has the chats.
@@ -23,14 +23,8 @@ export function VaultKeepSetRefresh({
 
   useEffect(() => {
     if (!active || !fileName) return;
-    const key = refreshKey(fileName);
-    let attempt = 0;
-    try {
-      attempt = Number(sessionStorage.getItem(key) ?? "0");
-      if (!Number.isFinite(attempt)) attempt = 0;
-    } catch {
-      attempt = 0;
-    }
+    const key = vaultKeepSetRefreshStorageKey(fileName);
+    const attempt = readVaultKeepSetRefreshAttempt(fileName);
     const delay = vaultKeepSetRefreshDelay(attempt);
     if (delay == null) return;
     const timer = window.setTimeout(() => {
@@ -47,7 +41,7 @@ export function VaultKeepSetRefresh({
   useEffect(() => {
     if (active || !fileName) return;
     try {
-      sessionStorage.removeItem(refreshKey(fileName));
+      sessionStorage.removeItem(vaultKeepSetRefreshStorageKey(fileName));
     } catch {
       // Ignore storage failures.
     }

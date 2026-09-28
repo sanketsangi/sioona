@@ -245,14 +245,38 @@ export function stampUnstampedSourceFile<T extends { sourceFile?: string }>(
   }));
 }
 
-/** Insights refresh while a weekly upload is still landing in Neon. */
-export const VAULT_KEEP_SET_REFRESH_LIMIT = 8;
+/**
+ * Insights refresh while a weekly upload is still landing in Neon.
+ * Deferred dual-write of a 100-chat pack can take about a minute.
+ */
+export const VAULT_KEEP_SET_REFRESH_LIMIT = 16;
+
+export function vaultKeepSetRefreshStorageKey(fileName: string): string {
+  return `sioona-vault-refresh:${fileName}`;
+}
+
+export function readVaultKeepSetRefreshAttempt(fileName: string): number {
+  if (typeof window === "undefined" || !fileName) return 0;
+  try {
+    const raw = window.sessionStorage.getItem(
+      vaultKeepSetRefreshStorageKey(fileName),
+    );
+    const attempt = Number(raw ?? "0");
+    return Number.isFinite(attempt) ? attempt : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export function vaultKeepSetRefreshDelay(attempt: number): number | null {
   if (!Number.isInteger(attempt) || attempt < 0) return null;
   if (attempt >= VAULT_KEEP_SET_REFRESH_LIMIT) return null;
-  return 800 + attempt * 400;
+  return Math.min(8_000, 1_000 + attempt * 1_000);
 }
+
+export const VAULT_IMPORT_LANDING_TITLE = "Loading this week’s export";
+export const VAULT_IMPORT_LANDING_DESCRIPTION =
+  "The chats are still opening. They show up here in a moment.";
 
 /**
  * True when Insights/Eval can render the selected vault's keep-set

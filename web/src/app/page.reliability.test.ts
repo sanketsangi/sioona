@@ -243,6 +243,27 @@ describe("PlatformPage deploy reliability", () => {
     expect(notifications.some((n) => n.id === "score-unavailable")).toBe(false);
   });
 
+  it("does not call the review queue down while a replace upload is still opening", async () => {
+    const result = (await PlatformPage({
+      searchParams: Promise.resolve({
+        view: "insights",
+        imported: "100",
+        signals: "20",
+        llmFailed: "2",
+        replaced: "1",
+        file: "Zerodha_week_7_batch_01.json",
+      }),
+    })) as ReactElement;
+
+    const { notifications } = pageShellProps(result);
+    expect(notifications.map((n) => n.id)).toEqual([
+      "import-complete",
+      "llm-pass-failed",
+    ]);
+    expect(notifications.some((n) => n.id === "queue-unavailable")).toBe(false);
+    expect(notifications.some((n) => n.id === "score-unavailable")).toBe(false);
+  });
+
   it("hides sync-failed when URL is stale but store is fully dual-written", async () => {
     stubStore(
       mockStore([

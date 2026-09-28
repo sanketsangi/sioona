@@ -372,8 +372,10 @@ describe("insightsHomeHref", () => {
 
 describe("vaultKeepSetRefreshDelay", () => {
   it("stops after the refresh budget", () => {
-    expect(vaultKeepSetRefreshDelay(0)).toBe(800);
-    expect(vaultKeepSetRefreshDelay(8)).toBeNull();
+    expect(vaultKeepSetRefreshDelay(0)).toBe(1_000);
+    expect(vaultKeepSetRefreshDelay(7)).toBe(8_000);
+    expect(vaultKeepSetRefreshDelay(15)).toBe(8_000);
+    expect(vaultKeepSetRefreshDelay(16)).toBeNull();
   });
 });
 

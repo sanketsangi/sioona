@@ -1,4 +1,7 @@
-import { llmPassFailureNotice } from "@/lib/detect-llm-query";
+import {
+  llmPassFailureNotice,
+  llmSkipResumeNotice,
+} from "@/lib/detect-llm-query";
 import type { LlmFailureKind } from "@/lib/detect-llm";
 import { viewHref } from "@/lib/views";
 import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
@@ -23,8 +26,11 @@ export const SCORE_UNAVAILABLE_TITLE = "Signal Score unavailable";
 export const SCORE_UNAVAILABLE_DESCRIPTION =
   "This week’s score is still loading. Open Eval and retry in a moment.";
 
-/** How long the tray stays open after an auto-open (then closes). */
-export const NOTIFICATION_AUTO_OPEN_HOLD_MS = 4000;
+/**
+ * How long a just-arrived notification stays open and highlighted
+ * so it can be read, then the tray closes.
+ */
+export const NOTIFICATION_AUTO_OPEN_HOLD_MS = 6000;
 
 /** Notification ids that briefly auto-open the header menu when unread. */
 export const POPUP_NOTIFICATION_IDS = [
@@ -36,6 +42,7 @@ export const POPUP_NOTIFICATION_IDS = [
   "sync-failed",
   "wipe-failed",
   "llm-pass-failed",
+  "llm-pass-remaining",
 ] as const;
 
 /**
@@ -53,6 +60,43 @@ export function notificationAutoOpenKey(item: {
  * Unread items that have not been auto-opened yet.
  * When `popupIds` is omitted, every notification is eligible.
  */
+/**
+ * First time a notification is seen. Later entries in one batch count as newer.
+ * Existing stamps stay put so a notice does not jump ahead on the next render.
+ */
+export function stampNotificationArrivals(
+  notifications: HeaderNotification[],
+  prev: Readonly<Record<string, number>>,
+  now: number,
+): Record<string, number> {
+  const next: Record<string, number> = { ...prev };
+  notifications.forEach((item, index) => {
+    const key = notificationAutoOpenKey(item);
+    if (next[key] == null) next[key] = now + index;
+  });
+  return next;
+}
+
+/**
+ * Newest arrival first. `pinKey` is the notice that just opened the tray,
+ * so it stays at the top while it is highlighted.
+ */
+export function orderNotificationsRecentFirst(
+  notifications: HeaderNotification[],
+  arrivedAt: Readonly<Record<string, number>>,
+  pinKey?: string | null,
+): HeaderNotification[] {
+  return notifications
+    .map((item, index) => ({
+      item,
+      index,
+      at: arrivedAt[notificationAutoOpenKey(item)] ?? index,
+      pinned: pinKey != null && notificationAutoOpenKey(item) === pinKey ? 1 : 0,
+    }))
+    .sort((a, b) => b.pinned - a.pinned || b.at - a.at || b.index - a.index)
+    .map(({ item }) => item);
+}
+
 export function freshPopupNotifications(
   notifications: HeaderNotification[],
   opts: {
@@ -88,6 +132,13 @@ export function buildHeaderNotifications(input: {
   llmFailed?: number;
   /** From ?llmFailure= — key, model, timeout, or shape. */
   llmFailure?: LlmFailureKind | null;
+  /** Chats the second pass skipped; stays until the next re-detect. */
+  llmSkipped?: number;
+  /**
+   * Replace upload is still opening on this instance. The previous pack's
+   * pending count is not this file's queue.
+   */
+  suppressPendingReview?: boolean;
 }): HeaderNotification[] {
   const items: HeaderNotification[] = [];
 
@@ -155,7 +206,7 @@ export function buildHeaderNotifications(input: {
       tone: "warning",
       sticky: true,
     });
-  } else if (input.pendingCount > 0) {
+  } else if (input.pendingCount > 0 && !input.suppressPendingReview) {
     items.push({
       id: "pending-review",
       title: `${input.pendingCount} signal${input.pendingCount === 1 ? "" : "s"} need review`,
@@ -195,6 +246,19 @@ export function buildHeaderNotifications(input: {
             : null,
       }),
       tone: "warning",
+      sticky: true,
+    });
+  }
+
+  const skipNotice = llmSkipResumeNotice(input.llmSkipped ?? 0);
+  if (skipNotice) {
+    items.push({
+      id: "llm-pass-remaining",
+      title: skipNotice.title,
+      description: skipNotice.description,
+      href: viewHref("insights", { status: "new" }),
+      tone: "info",
+      sticky: true,
     });
   }
 

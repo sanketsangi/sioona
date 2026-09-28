@@ -269,6 +269,9 @@ export interface BackendConversationBulkResult {
 }
 
 /** Bulk chat+message upserts are larger than single predictions (pilot ~100). */
+/** Weekly hydrate list. The default 10s fetch drops a pack that is still large. */
+export const HYDRATE_CONVERSATIONS_TIMEOUT_MS = 25_000;
+
 export const BACKEND_BULK_CONVERSATION_TIMEOUT_MS = 90_000;
 
 export async function upsertConversations(
@@ -490,15 +493,22 @@ export async function getConversations(
   opts?: {
     /** Insights overlay keep-set. Empty array → no rows (not the full tenant). */
     conversationIds?: string[];
+    /** ISO timestamp. Only rows updated at or after this instant. */
+    updatedSince?: string;
+    timeoutMs?: number;
   }
 ): Promise<BackendConversation[]> {
   const params = new URLSearchParams();
   appendKeepSetConversationIds(params, opts?.conversationIds);
+  const since = opts?.updatedSince?.trim();
+  if (since) params.set("updated_since", since);
   const qs = params.toString();
   const path = `/v1/tenants/${encodeURIComponent(tenantId)}/conversations${
     qs ? `?${qs}` : ""
   }`;
-  return backendFetch<BackendConversation[]>(tenantId, path);
+  return backendFetch<BackendConversation[]>(tenantId, path, {
+    ...(opts?.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
+  });
 }
 
 export interface BackendConversationPruneResult {

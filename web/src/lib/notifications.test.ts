@@ -9,6 +9,8 @@ import {
   buildHeaderNotifications,
   freshPopupNotifications,
   notificationAutoOpenKey,
+  orderNotificationsRecentFirst,
+  stampNotificationArrivals,
 } from "./notifications";
 
 describe("buildHeaderNotifications", () => {
@@ -220,7 +222,33 @@ describe("buildHeaderNotifications", () => {
     expect(failed?.description).toContain("19 signals from the first pass");
     expect(failed?.description).toContain("no longer serves this model");
     expect(failed?.tone).toBe("warning");
+    expect(failed?.sticky).toBe(true);
     expect(POPUP_NOTIFICATION_IDS).toContain("llm-pass-failed");
+  });
+
+  it("keeps leftover second-pass chats in the tray until re-detect", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 20,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      llmFailed: 6,
+      llmSkipped: 74,
+    });
+    const failed = items.find((item) => item.id === "llm-pass-failed");
+    const remaining = items.find((item) => item.id === "llm-pass-remaining");
+    expect(failed?.title).toBe("Second pass failed");
+    expect(failed?.description).toContain("6 second-pass calls failed");
+    expect(failed?.sticky).toBe(true);
+    expect(remaining?.title).toBe("Second pass has more chats");
+    expect(remaining?.description).toBe(
+      "74 chats were not classified. Re-run Detection classifies the next 8.",
+    );
+    expect(remaining?.tone).toBe("info");
+    expect(remaining?.sticky).toBe(true);
+    expect(remaining?.href).toContain("status=new");
+    expect(POPUP_NOTIFICATION_IDS).toContain("llm-pass-remaining");
   });
 
   it("after API up returns pending-review or empty", () => {
@@ -292,7 +320,62 @@ describe("freshPopupNotifications", () => {
     );
   });
 
-  it("exports a multi-second auto-open hold", () => {
-    expect(NOTIFICATION_AUTO_OPEN_HOLD_MS).toBeGreaterThanOrEqual(3000);
+  it("keeps the tray open long enough to read a new notice", () => {
+    expect(NOTIFICATION_AUTO_OPEN_HOLD_MS).toBeGreaterThanOrEqual(6000);
+    expect(NOTIFICATION_AUTO_OPEN_HOLD_MS).toBeLessThanOrEqual(8000);
+  });
+});
+
+describe("orderNotificationsRecentFirst", () => {
+  it("puts the newest arrival first and a later notice above the batch", () => {
+    const batch = buildHeaderNotifications({
+      pendingCount: 20,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      importedCount: 100,
+      newSignalCount: 20,
+      llmFailed: 6,
+      llmSkipped: 74,
+    });
+    const stamped = stampNotificationArrivals(batch, {}, 1_000);
+    const ordered = orderNotificationsRecentFirst(batch, stamped);
+    expect(ordered.map((item) => item.id)).toEqual([
+      "llm-pass-remaining",
+      "llm-pass-failed",
+      "pending-review",
+      "import-complete",
+    ]);
+    const pinned = orderNotificationsRecentFirst(
+      batch,
+      stamped,
+      notificationAutoOpenKey(
+        batch.find((item) => item.id === "llm-pass-failed")!,
+      ),
+    );
+    expect(pinned[0]?.id).toBe("llm-pass-failed");
+    expect(stampNotificationArrivals(batch, stamped, 9_000)).toEqual(stamped);
+
+    const withSync = buildHeaderNotifications({
+      pendingCount: 20,
+      queueError: null,
+      syncFailed: 2,
+      syncCreated: 1,
+      scoreUnavailable: false,
+      importedCount: 100,
+      newSignalCount: 20,
+      llmFailed: 6,
+      llmSkipped: 74,
+    });
+    const later = stampNotificationArrivals(withSync, stamped, 5_000);
+    expect(orderNotificationsRecentFirst(withSync, later)[0]?.id).toBe(
+      "sync-failed",
+    );
+    const remaining = batch.find((item) => item.id === "llm-pass-remaining");
+    expect(remaining).toBeTruthy();
+    expect(later[notificationAutoOpenKey(remaining!)]).toBe(
+      stamped[notificationAutoOpenKey(remaining!)],
+    );
   });
 });

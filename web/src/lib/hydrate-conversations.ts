@@ -12,6 +12,7 @@ import {
   getConversations,
   getPilotSettings,
   getTenantSignals,
+  HYDRATE_CONVERSATIONS_TIMEOUT_MS,
   type BackendConversation,
   type BackendGroundTruth,
   type BackendMessage,
@@ -361,8 +362,24 @@ export async function tryHydrateStoreFromNeon(
     remotePilot = null;
   }
   let rows: BackendConversation[] = [];
+  const liveName = remotePilot?.last_uploaded_file_name?.trim() ?? "";
+  const cutoffMs = remotePilot?.updated_at
+    ? Date.parse(remotePilot.updated_at)
+    : NaN;
+  const dayOneReplace = remotePilot?.weekly_export_count === 1;
+  const freshOnlyFetch = Boolean(
+    isLivePartnerKeepSet(liveName) &&
+      Number.isFinite(cutoffMs) &&
+      remotePilot?.updated_at &&
+      (options?.freshOnly || dayOneReplace),
+  );
   try {
-    const fetched = await getConversations(tenantId);
+    const fetched = await getConversations(tenantId, {
+      timeoutMs: HYDRATE_CONVERSATIONS_TIMEOUT_MS,
+      ...(freshOnlyFetch && remotePilot?.updated_at
+        ? { updatedSince: remotePilot.updated_at }
+        : {}),
+    });
     if (!Array.isArray(fetched)) return null;
     rows = fetched;
   } catch {
@@ -380,7 +397,6 @@ export async function tryHydrateStoreFromNeon(
   const filtered = filterConversationsForLivePartner(rows, remotePilot);
   // Filename is already the weekly upload, but Neon still has the previous pack.
   if (filtered.apply && filtered.rows.length === 0) return null;
-  const dayOneReplace = remotePilot?.weekly_export_count === 1;
   const sourceRows =
     filtered.apply && (options?.freshOnly || dayOneReplace)
       ? filtered.rows

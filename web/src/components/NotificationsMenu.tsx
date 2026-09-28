@@ -21,6 +21,8 @@ import {
   NOTIFICATION_AUTO_OPEN_HOLD_MS,
   freshPopupNotifications,
   notificationAutoOpenKey,
+  orderNotificationsRecentFirst,
+  stampNotificationArrivals,
   type HeaderNotification,
 } from "@/lib/notifications";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,8 @@ import { cn } from "@/lib/utils";
 const SEEN_STORAGE_KEY = "sioona.headerNotifications.seen";
 /** Session-scoped — each tab visit can surface a fresh popup once. */
 const AUTO_OPENED_STORAGE_KEY = "sioona.headerNotifications.autoOpened";
+/** Session-scoped arrival times so a new notice stays above older ones. */
+const ARRIVED_STORAGE_KEY = "sioona.headerNotifications.arrived";
 
 type NotificationsMenuProps = {
   notifications: HeaderNotification[];
@@ -53,6 +57,42 @@ function writeIdSet(key: string, ids: Set<string>, storage: Storage | null) {
   } catch {
     /* ignore quota / private mode */
   }
+}
+
+function readArrivals(storage: Storage | null): Record<string, number> {
+  if (!storage) return {};
+  try {
+    const raw = storage.getItem(ARRIVED_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const next: Record<string, number> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === "number" && Number.isFinite(value)) next[key] = value;
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function writeArrivals(arrivals: Record<string, number>, storage: Storage | null) {
+  if (!storage) return;
+  try {
+    storage.setItem(ARRIVED_STORAGE_KEY, JSON.stringify(arrivals));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function sameArrivals(
+  a: Readonly<Record<string, number>>,
+  b: Readonly<Record<string, number>>,
+): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) return false;
+  return aKeys.every((key) => a[key] === b[key]);
 }
 
 function sessionStore(): Storage | null {
@@ -83,7 +123,7 @@ function notificationIcon(id: string): ReactNode {
   if (id === "pending-review") {
     return <BoltIcon className="size-3.5 shrink-0" />;
   }
-  if (id === "sync-failed") {
+  if (id === "sync-failed" || id === "llm-pass-remaining") {
     return <RefreshClockwiseIcon className="size-3.5 shrink-0" />;
   }
   return <WarningIcon className="size-3.5 shrink-0" />;
@@ -113,15 +153,29 @@ function toneClasses(tone: HeaderNotification["tone"]) {
 function toneLabelFor(item: HeaderNotification): string {
   if (item.id === "partner-demo-ready") return "Demo";
   if (item.id === "import-complete") return "Import";
+  if (item.id === "llm-pass-failed" || item.id === "llm-pass-remaining") {
+    return "Detection";
+  }
   return toneClasses(item.tone).label;
+}
+
+function tileClassFor(item: HeaderNotification): string {
+  if (item.id === "llm-pass-remaining") {
+    return "bg-sio-bg-muted text-sio-fg-base";
+  }
+  return toneClasses(item.tone).tile;
 }
 
 export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
   const [open, setOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
+  const [arrivedAt, setArrivedAt] = useState<Record<string, number>>({});
+  const [spotlightKey, setSpotlightKey] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const autoCloseTimerRef = useRef<number | null>(null);
   const userPinnedRef = useRef(false);
+  const autoOpeningRef = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const clearAutoClose = useCallback(() => {
     if (autoCloseTimerRef.current != null) {
@@ -147,6 +201,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       clearAutoClose();
       if (opts?.markSeen) markSeen();
       if (opts?.userPinned) userPinnedRef.current = true;
+      setSpotlightKey(null);
       setOpen(false);
     },
     [clearAutoClose, markSeen],
@@ -155,9 +210,20 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
   useEffect(() => {
     queueMicrotask(() => {
       setSeenIds(readIdSet(SEEN_STORAGE_KEY, localStore()));
+      setArrivedAt(readArrivals(sessionStore()));
       setHydrated(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setArrivedAt((prev) => {
+      const next = stampNotificationArrivals(notifications, prev, Date.now());
+      if (sameArrivals(prev, next)) return prev;
+      writeArrivals(next, sessionStore());
+      return next;
+    });
+  }, [hydrated, notifications]);
 
   // Drop autoOpened keys whose notification is no longer present.
   useEffect(() => {
@@ -193,41 +259,62 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     });
     if (fresh.length === 0) return;
 
-    const nextOpened = new Set(alreadyOpened);
-    for (const n of fresh) nextOpened.add(notificationAutoOpenKey(n));
-    writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened, store);
     userPinnedRef.current = false;
 
     const reducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    let cancelled = false;
     const openAndScheduleClose = () => {
+      if (cancelled) return;
+      const nextOpened = new Set(alreadyOpened);
+      for (const n of fresh) nextOpened.add(notificationAutoOpenKey(n));
+      writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened, store);
+      const newest = orderNotificationsRecentFirst(fresh, arrivedAt)[0];
+      setSpotlightKey(newest ? notificationAutoOpenKey(newest) : null);
+      autoOpeningRef.current = true;
       setOpen(true);
+      window.setTimeout(() => {
+        autoOpeningRef.current = false;
+      }, 0);
       clearAutoClose();
-      const holdMs = reducedMotion
-        ? Math.min(NOTIFICATION_AUTO_OPEN_HOLD_MS, 2000)
-        : NOTIFICATION_AUTO_OPEN_HOLD_MS;
       autoCloseTimerRef.current = window.setTimeout(() => {
         autoCloseTimerRef.current = null;
+        setSpotlightKey(null);
         if (userPinnedRef.current) return;
         closeMenu({ markSeen: true });
-      }, holdMs);
+      }, NOTIFICATION_AUTO_OPEN_HOLD_MS);
     };
 
     if (reducedMotion) {
       queueMicrotask(openAndScheduleClose);
-      return () => clearAutoClose();
+      return () => {
+        cancelled = true;
+      };
     }
 
     const openTimer = window.setTimeout(openAndScheduleClose, 180);
     return () => {
+      cancelled = true;
       window.clearTimeout(openTimer);
-      clearAutoClose();
     };
-  }, [hydrated, notifications, seenIds, open, clearAutoClose, closeMenu]);
+  }, [hydrated, notifications, seenIds, arrivedAt, open, clearAutoClose, closeMenu]);
+
+  useEffect(() => {
+    if (!open || !spotlightKey) return;
+    const row = listRef.current?.querySelector("[data-recent='true']");
+    if (row instanceof HTMLElement && listRef.current) {
+      listRef.current.scrollTop = 0;
+    }
+  }, [open, spotlightKey]);
 
   useEffect(() => () => clearAutoClose(), [clearAutoClose]);
+
+  const ordered = useMemo(
+    () => orderNotificationsRecentFirst(notifications, arrivedAt, spotlightKey),
+    [notifications, arrivedAt, spotlightKey],
+  );
 
   const unreadCount = useMemo(() => {
     if (!hydrated) return notifications.length;
@@ -245,7 +332,13 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       open={open}
       onOpenChange={(next) => {
         if (next) {
+          if (autoOpeningRef.current) {
+            autoOpeningRef.current = false;
+            setOpen(true);
+            return;
+          }
           clearAutoClose();
+          setSpotlightKey(null);
           userPinnedRef.current = true;
           setOpen(true);
           return;
@@ -311,22 +404,25 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
               You&rsquo;re all caught up
             </p>
             <p className="mt-1 max-w-[16rem] text-pretty text-label-12 text-sio-fg-muted">
-              Pending reviews, imports, Neon sync issues, and Signal Score
+              Pending reviews, imports, second-pass leftovers, and Signal Score
               outages will appear here.
             </p>
           </div>
         ) : (
           <div
+            ref={listRef}
             className="hide-scrollbar max-h-[min(22rem,70vh)] overflow-y-auto overscroll-contain"
             role="list"
           >
-            {notifications.map((item, index) => {
-              const tone = toneClasses(item.tone);
+            {ordered.map((item, index) => {
               const unread =
                 item.sticky || (hydrated ? !seenIds.has(item.id) : true);
+              const recent = spotlightKey === notificationAutoOpenKey(item);
               const rowClass = cn(
                 "flex w-full items-start gap-3 px-3.5 py-3 text-left",
                 index > 0 && "border-t border-sio-border-base",
+                recent &&
+                  "bg-sio-bg-interactive shadow-[inset_2px_0_0_0_var(--sio-fg-base)]",
               );
 
               return (
@@ -338,6 +434,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                   <Link
                     href={item.href}
                     role="listitem"
+                    data-recent={recent ? "true" : undefined}
                     className={cn(
                       rowClass,
                       "group no-underline outline-none transition-colors duration-150 hover:bg-sio-bg-interactive focus-visible:bg-sio-bg-interactive",
@@ -346,7 +443,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                     <span
                       className={cn(
                         "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md",
-                        tone.tile,
+                        tileClassFor(item),
                       )}
                       aria-hidden
                     >
@@ -357,6 +454,9 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                         <span className="min-w-0">
                           <span className="mb-0.5 block text-label-12 text-sio-fg-muted">
                             {toneLabelFor(item)}
+                            {recent ? (
+                              <span className="sr-only">, just arrived</span>
+                            ) : null}
                             {unread ? (
                               <span className="ml-1.5 inline-block size-1.5 rounded-full bg-sio-fg-base align-middle" />
                             ) : null}

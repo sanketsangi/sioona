@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -83,6 +84,12 @@ import {
   type TypeFilter,
   type WorkspaceMode,
 } from "@/lib/views";
+import {
+  readVaultKeepSetRefreshAttempt,
+  VAULT_IMPORT_LANDING_DESCRIPTION,
+  VAULT_IMPORT_LANDING_TITLE,
+  vaultKeepSetRefreshDelay,
+} from "@/lib/vault-file";
 import {
   FOLLOWUP_UNAVAILABLE_PANEL_BODY,
   FOLLOWUP_UNAVAILABLE_PANEL_TITLE,
@@ -296,6 +303,11 @@ type SignalQueueProps = {
    * waiting and offer one Retry — not “reviews are done”.
    */
   scoreAsleep?: boolean;
+  /**
+   * Replace upload whose file is not on this instance yet.
+   * The empty panel waits for Neon instead of asking for another upload.
+   */
+  landingFile?: string | null;
 };
 
 function buildQueueHref(
@@ -772,7 +784,17 @@ export function SignalQueue({
   actedWalk = null,
   supervisedActions = [],
   scoreAsleep = false,
+  landingFile = null,
 }: SignalQueueProps) {
+  const [landingOpen, setLandingOpen] = useState(Boolean(landingFile));
+  useEffect(() => {
+    if (!landingFile) {
+      setLandingOpen(false);
+      return;
+    }
+    const attempt = readVaultKeepSetRefreshAttempt(landingFile);
+    setLandingOpen(vaultKeepSetRefreshDelay(attempt) != null);
+  }, [landingFile]);
   const {
     pendingCount,
     followUpCount,
@@ -887,7 +909,8 @@ export function SignalQueue({
   const showPendingError =
     Boolean(queueError) &&
     statusFilter === "new" &&
-    pendingSignals.length === 0;
+    pendingSignals.length === 0 &&
+    !landingFile;
   const showFollowUpError =
     Boolean(tenantSignalsError) &&
     (statusFilter === "followup" || statusFilter === "acted") &&
@@ -957,24 +980,33 @@ export function SignalQueue({
   }
 
   if (pendingSignals.length === 0 && reviewedSignals.length === 0) {
-    const next = pendingClear;
+    const opening = Boolean(landingFile) && landingOpen;
+    const next = opening ? null : pendingClear;
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {filterChrome}
         <QueueEmptyState
-          title={next?.title ?? "No Signals Yet"}
+          title={
+            opening
+              ? VAULT_IMPORT_LANDING_TITLE
+              : (next?.title ?? "No Signals Yet")
+          }
           description={
-            next?.description ??
-            "Upload chats or re-run detection to populate Shadow Mode."
+            opening
+              ? VAULT_IMPORT_LANDING_DESCRIPTION
+              : (next?.description ??
+                "Upload chats or re-run detection to populate Shadow Mode.")
           }
         >
-          <Link
-            href={next?.href ?? viewHref("upload")}
-            className="btn-primary mt-4"
-          >
-            {next?.label ?? "Uploaded Chats"}
-            <ArrowRight className="size-3.5" weight="bold" aria-hidden />
-          </Link>
+          {opening ? null : (
+            <Link
+              href={next?.href ?? viewHref("upload")}
+              className="btn-primary mt-4"
+            >
+              {next?.label ?? "Uploaded Chats"}
+              <ArrowRight className="size-3.5" weight="bold" aria-hidden />
+            </Link>
+          )}
         </QueueEmptyState>
       </div>
     );

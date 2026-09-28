@@ -807,6 +807,10 @@ describe("tryHydrateStoreFromNeon", () => {
 
     const result = await tryHydrateStoreFromNeon({ freshOnly: true });
 
+    expect(backendClient.getConversations).toHaveBeenCalledWith("tenant_demo", {
+      timeoutMs: 25_000,
+      updatedSince: "2026-09-27T12:00:00.000Z",
+    });
     expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
     expect(result?.conversations[0]?.customerName).toBe("Aditya Pawar");
     expect(result?.conversations[0]?.sourceFile).toBe(
@@ -923,6 +927,10 @@ describe("tryHydrateStoreFromNeon", () => {
 
     const result = await tryHydrateStoreFromNeon();
 
+    expect(backendClient.getConversations).toHaveBeenCalledWith("tenant_demo", {
+      timeoutMs: 25_000,
+      updatedSince: "2026-09-27T12:00:00.000Z",
+    });
     expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
   });
 
