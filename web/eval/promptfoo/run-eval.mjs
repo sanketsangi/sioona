@@ -61,10 +61,9 @@ if (belowRequired) {
 const envFiles = [".env", ".env.local"]
   .map((name) => join(webRoot, name))
   .filter((path) => existsSync(path));
-// Next.js order: .env then .env.local (local wins). Snapshot shell keys inside
-// loadWebEnvFiles so skip-if-present cannot make .env beat .env.local — and so
-// Promptfoo `--env-file` (which also skips already-set process.env) inherits
-// the same merged values.
+// Next.js order: .env then .env.local (local wins). Shell keys stay put.
+// Do not pass these paths as Promptfoo `--env-file`: that loader overrides
+// process.env, so a value already exported in the shell would lose to the files.
 loadWebEnvFiles(envFiles);
 
 if (!process.env.GROQ_API_KEY?.trim()) {
@@ -82,7 +81,6 @@ const promptfooArgs = [
   "-c",
   "promptfooconfig.yaml",
   "--no-cache",
-  ...envFiles.flatMap((f) => ["--env-file", f]),
   ...process.argv.slice(2),
 ];
 

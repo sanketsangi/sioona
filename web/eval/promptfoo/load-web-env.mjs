@@ -11,7 +11,8 @@ export function parseEnvFile(source) {
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eq = trimmed.indexOf("=");
     if (eq <= 0) continue;
-    const key = trimmed.slice(0, eq).trim();
+    let key = trimmed.slice(0, eq).trim();
+    if (key.startsWith("export ")) key = key.slice("export ".length).trim();
     let value = trimmed.slice(eq + 1).trim();
     if (
       (value.startsWith('"') && value.endsWith('"')) ||
@@ -30,8 +31,9 @@ export function parseEnvFile(source) {
  *
  * Snapshot keys already on `env` first so `.env.local` can replace `.env`
  * without being blocked by skip-if-present, and without clobbering the
- * real process environment. Promptfoo `--env-file` also skips keys already
- * set on process.env, so this merge must be correct before spawn.
+ * real process environment. The runner passes this merged env to Promptfoo
+ * and does not pass `--env-file`: Promptfoo 0.123 reloads those flags with
+ * dotenv `override: true`, which would replace shell values this merge kept.
  */
 export function loadWebEnvFiles(paths, env = process.env) {
   const protectedKeys = new Set(Object.keys(env));

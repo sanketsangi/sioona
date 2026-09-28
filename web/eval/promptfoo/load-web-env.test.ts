@@ -19,7 +19,7 @@ describe("parseEnvFile", () => {
           "",
           "GROQ_API_KEY=plain",
           'DETECT_LLM_MODEL="qwen/qwen3.8-27b"',
-          "GROQ_API_KEY='from-env'",
+          "export GROQ_API_KEY='from-env'",
         ].join("\n")
       )
     ).toEqual({
@@ -30,6 +30,23 @@ describe("parseEnvFile", () => {
 });
 
 describe("loadWebEnvFiles", () => {
+  it("lets a blank .env value lose to .env.local", () => {
+    const dir = mkdtempSync(join(tmpdir(), "sioona-load-web-env-"));
+    const envFile = writeEnv(dir, ".env", "GROQ_API_KEY=\nDETECT_LLM_MODEL=from-env\n");
+    const localFile = writeEnv(
+      dir,
+      ".env.local",
+      "GROQ_API_KEY=from-local\nDETECT_LLM_MODEL=from-local\n"
+    );
+
+    const env: Record<string, string> = {};
+    loadWebEnvFiles([envFile, localFile], env);
+
+    expect(env.GROQ_API_KEY).toBe("from-local");
+    expect(env.DETECT_LLM_MODEL).toBe("from-local");
+    expect(env.GROQ_API_KEY.trim()).not.toBe("");
+  });
+
   it("lets .env.local override .env (Next.js file precedence)", () => {
     const dir = mkdtempSync(join(tmpdir(), "sioona-load-web-env-"));
     const envFile = writeEnv(dir, ".env", "GROQ_API_KEY=from-env\nDETECT_LLM_MODEL=from-env\n");
