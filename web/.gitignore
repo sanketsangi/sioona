@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/evals/signal-detect/output/
+/output/
+.promptfoo/
 
 # next.js
 /.next/

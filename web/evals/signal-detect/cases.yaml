@@ -1,0 +1,292 @@
+# Labeled Detect v2 cases. Add a block to extend:
+#   - description: "short name"
+#     vars:
+#       id: unique_id
+#       customerName: Name
+#       channel: whatsapp | website_chat | intercom | in_app_chat
+#       expected_signal: retention_risk | upsell_opportunity | lead_intent | none
+#       messages: [{ role: customer|agent, content: "..." }]
+#
+# expected_signal uses corpus labels (not product lead/retention/upsell).
+
+- description: "lead — new demat + brokerage + SIP"
+  vars:
+    id: lead_01
+    customerName: Asha Mehta
+    channel: whatsapp
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: Hi, I want to open a demat account this week. What are your brokerage charges?
+      - role: agent
+        content: Happy to help! Are you a new investor or transferring holdings?
+      - role: customer
+        content: New investor. Looking to start investing in equity and want to start a SIP.
+
+- description: "lead — first-time account + pricing"
+  vars:
+    id: lead_02
+    customerName: Kavya Iyer
+    channel: whatsapp
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: Can I sign up for a new account online?
+      - role: agent
+        content: Yes — I can share the fee schedule and start onboarding.
+      - role: customer
+        content: Interested in your pricing for first-time investors. I want to start fresh this month.
+
+- description: "lead — new wallet + card + KYC"
+  vars:
+    id: lead_03
+    customerName: Riya Sharma
+    channel: in_app_chat
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: Hi, I'm new to your app.
+      - role: agent
+        content: Welcome! What would you like to set up?
+      - role: customer
+        content: I want to open a wallet and apply for a credit card. How do I complete KYC to add money and start using UPI?
+
+- description: "lead — same-product upgrade / limit raise"
+  vars:
+    id: lead_04
+    customerName: Suresh Menon
+    channel: website_chat
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: I already have an account with you.
+      - role: agent
+        content: Thanks for staying with us. How can I help?
+      - role: customer
+        content: Can I upgrade to the pro plan? I need a higher limit for withdrawals this quarter.
+
+- description: "lead — parents wealth plan + onboarding"
+  vars:
+    id: lead_05
+    customerName: Priya Nair
+    channel: intercom
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: We're evaluating wealth plans for my parents.
+      - role: agent
+        content: I can book a call with an advisor. What are you hoping to open?
+      - role: customer
+        content: Can someone walk us through pricing and onboarding? We want to open their first investment account.
+
+- description: "upsell — existing equity + loan against shares"
+  vars:
+    id: upsell_01
+    customerName: Neha Singh
+    channel: website_chat
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: I already trade equity with you — do you offer a premium advisory plan?
+      - role: agent
+        content: Yes, we have a wealth manager tier. What are you looking for?
+      - role: customer
+        content: Also want a portfolio review. Interested in adding mutual funds and loan against shares.
+
+- description: "upsell — F&O + margin + family account"
+  vars:
+    id: upsell_02
+    customerName: Aditya Ghosh
+    channel: whatsapp
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: Existing customer here. My equity account is fine.
+      - role: agent
+        content: Good to hear. What can I help with today?
+      - role: customer
+        content: Can you enable F&O and activate margin trading facility? Also want to add a family account for my wife.
+
+- description: "upsell — LAS + insurance add-on"
+  vars:
+    id: upsell_03
+    customerName: Meera Joshi
+    channel: intercom
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: I already have a demat login with you.
+      - role: agent
+        content: I can see your account. What do you need?
+      - role: customer
+        content: Do you offer loan against shares? Also interested in insurance alongside my account.
+
+- description: "upsell — PMS / AIF for existing client"
+  vars:
+    id: upsell_04
+    customerName: Rohan Kapoor
+    channel: website_chat
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: I have been trading equity on this login for two years.
+      - role: agent
+        content: Thanks for being with us. How can I help?
+      - role: customer
+        content: Do you offer PMS or AIF? I want to put a larger ticket in a managed product, not just my current brokerage.
+
+- description: "upsell — commodity + FD on same login"
+  vars:
+    id: upsell_05
+    customerName: Divya Menon
+    channel: in_app_chat
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: I already use your app for equities.
+      - role: agent
+        content: Noted. What else are you looking at?
+      - role: customer
+        content: Can I start a fixed deposit and also enable commodity trading on the same login?
+
+- description: "retention — close account + move portfolio"
+  vars:
+    id: retention_01
+    customerName: Rohan Kapoor
+    channel: whatsapp
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: I've asked three times about this unexplained fee. This is unacceptable.
+      - role: agent
+        content: Sorry for the trouble — let me check your ledger.
+      - role: customer
+        content: If this isn't fixed today I'm closing my account and moving my money elsewhere.
+      - role: customer
+        content: Your competitor is cheaper and actually replies.
+
+- description: "retention — close if support stays slow"
+  vars:
+    id: retention_02
+    customerName: Arjun Desai
+    channel: intercom
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: Not happy with support delays. Thinking of leaving.
+      - role: agent
+        content: We apologize — can we make this right?
+      - role: customer
+        content: I want to close account if the next reply takes another day.
+
+- description: "retention — switch brokers"
+  vars:
+    id: retention_03
+    customerName: Farhan Ali
+    channel: whatsapp
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: Tickets keep sitting for days.
+      - role: agent
+        content: Understood — escalating to a senior specialist now.
+      - role: customer
+        content: This is unacceptable. I'm going to switch brokers if support stays this slow.
+
+- description: "retention — delete account + switch app"
+  vars:
+    id: retention_04
+    customerName: Karan Malhotra
+    channel: in_app_chat
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: My refund failed weeks ago and no one helped.
+      - role: agent
+        content: I'm really sorry — let me escalate the refund.
+      - role: customer
+        content: This is the worst. I want to delete my account and I'm switching to another app.
+
+- description: "retention — cut brokerage or I'll shift"
+  vars:
+    id: retention_05
+    customerName: Sneha Pillai
+    channel: intercom
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: Your brokerage is too high compared to others.
+      - role: agent
+        content: Let me check what rebate options I can offer you.
+      - role: customer
+        content: Reduce my brokerage or I'll shift to another broker. I'm already parking SIPs elsewhere.
+
+- description: "none — monthly statement PDF"
+  vars:
+    id: none_01
+    customerName: Vikram Rao
+    channel: website_chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: Can you share my last month's statement PDF?
+      - role: agent
+        content: Sure — I've emailed the statement to your registered address.
+      - role: customer
+        content: Thanks, that's all I needed.
+
+- description: "none — OTP / password / app crash"
+  vars:
+    id: none_02
+    customerName: Nikhil Jain
+    channel: whatsapp
+    expected_signal: none
+    messages:
+      - role: customer
+        content: The app keeps crashing and I didn't receive OTP to login.
+      - role: agent
+        content: I can trigger a fresh OTP and a password reset.
+      - role: customer
+        content: Please help reset my password so I can log in again.
+
+- description: "none — video KYC tech error"
+  vars:
+    id: none_03
+    customerName: Pooja Nair
+    channel: in_app_chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: Video KYC not working and I got an OTP error while adding money.
+      - role: agent
+        content: Thanks for flagging — our team is resolving the KYC technical error now.
+      - role: customer
+        content: Please fix the app so I can finish KYC.
+
+- description: "none — UPI pending refund (ops)"
+  vars:
+    id: none_04
+    customerName: Sahil Gupta
+    channel: in_app_chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: My UPI payment is showing transaction pending — has the refund already been processed?
+      - role: agent
+        content: Yes, the refund has been processed; it will reflect in 24-48 hours.
+      - role: customer
+        content: Okay, I'll wait for it to show in the bank.
+
+- description: "none — phishing / unauthorized login"
+  vars:
+    id: none_05
+    customerName: Ananya Shah
+    channel: website_chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: Someone called asking for my OTP and TPIN. I think it is a fake app / phishing attempt.
+      - role: agent
+        content: Do not share OTP or TPIN. We will lock the session and send a secure reset.
+      - role: customer
+        content: There is also an unauthorized login alert on my email. Please secure the account — I am not closing it.

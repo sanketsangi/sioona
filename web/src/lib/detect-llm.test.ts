@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeEvalMetrics } from "./eval";
 import {
   applyLlmSecondPass,
+  buildDetectLlmUserPrompt,
   classifyConversationWithGroq,
   DEFAULT_DETECT_LLM_MODEL,
   DETECT_LLM_CONCURRENCY,
+  DETECT_LLM_CORPUS_SIGNALS,
   DETECT_LLM_MAX_CALLS,
   groqFailureKind,
   isDetectLlmEnabled,
@@ -53,6 +55,53 @@ describe("isDetectLlmEnabled", () => {
     expect(isDetectLlmEnabled()).toBe(false);
     vi.stubEnv("GROQ_API_KEY", "gsk_test");
     expect(isDetectLlmEnabled()).toBe(true);
+  });
+});
+
+describe("buildDetectLlmUserPrompt", () => {
+  it("formats customer-only text the same way as the Groq classifier", () => {
+    expect(
+      buildDetectLlmUserPrompt({
+        conversation: conv,
+        customerMessages: messages,
+      })
+    ).toBe(
+      [
+        "Classify this chat. Return the JSON object only.",
+        "",
+        "Customer: Asha",
+        "Channel: whatsapp",
+        "",
+        "Customer messages:",
+        "I am thinking of closing my account and moving my portfolio.",
+      ].join("\n")
+    );
+  });
+
+  it("returns null when there is no customer text", () => {
+    expect(
+      buildDetectLlmUserPrompt({
+        conversation: conv,
+        customerMessages: [
+          {
+            id: "m-agent",
+            conversationId: conv.id,
+            role: "agent",
+            content: "How can I help?",
+            timestamp: "2026-08-01T00:00:00.000Z",
+          },
+        ],
+      })
+    ).toBeNull();
+  });
+
+  it("lists the four corpus labels used by Promptfoo", () => {
+    expect(DETECT_LLM_CORPUS_SIGNALS).toEqual([
+      "retention_risk",
+      "upsell_opportunity",
+      "lead_intent",
+      "none",
+    ]);
   });
 });
 

@@ -35,5 +35,7 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 - `npm run start` — start production server
 - `npm run lint` — ESLint
 - `npm test` — Vitest (`detect` / `ingest` / `eval`)
+- `npm run eval` — Promptfoo Detect v2 eval (needs `GROQ_API_KEY`; same Qwen JSON classifier as production)
+- `npm run eval:mock` — same asserts, no Groq call (harness check)
 
 Product brief: [`../PRODUCT.md`](../PRODUCT.md).

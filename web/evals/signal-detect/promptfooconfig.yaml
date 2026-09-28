@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+#
+# Detect v2 Promptfoo eval (Groq Qwen JSON classifier).
+# From web/:  npm run eval          # live Groq
+#             npm run eval:mock     # harness only, no API
+# Add cases in cases.yaml.
+
+description: Sioona Detect v2 — signal JSON on finance chats
+sharing: false
+
+prompts:
+  - "Detect v2 ({{id}})"
+
+providers:
+  - id: file://provider.js
+    label: sioona-detect-llm
+
+defaultTest:
+  assert:
+    - type: is-json
+      value:
+        type: object
+        required:
+          - signal
+          - confidence
+          - evidence
+          - next_action
+          - reason
+        properties:
+          signal:
+            type: string
+            enum:
+              - retention_risk
+              - upsell_opportunity
+              - lead_intent
+              - none
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+          evidence:
+            type: string
+          next_action:
+            type: string
+          reason:
+            type: string
+    - type: javascript
+      value: file://asserts.js:assertIsAllowedSignal
+    - type: javascript
+      value: file://asserts.js:assertEvidenceWhenNotNone
+    - type: javascript
+      value: file://asserts.js:assertConfidenceRange
+    - type: javascript
+      value: file://asserts.js:assertSignalAccuracy
+
+tests: file://cases.yaml
+
+outputPath: evals/signal-detect/output/latest.json
+
+evaluateOptions:
+  maxConcurrency: 2
+  cache: true
+  showProgressBar: true
+
+commandLineOptions:
+  tableCellMaxLength: 48

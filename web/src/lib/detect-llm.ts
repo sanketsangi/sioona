@@ -479,19 +479,43 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-export async function classifyConversationWithGroq(input: {
-  conversation: Conversation;
-  customerMessages: Message[];
-}): Promise<LlmClassification | null> {
-  const apiKey = process.env.GROQ_API_KEY?.trim();
-  if (!apiKey) return null;
+/** Corpus labels the Groq classifier is allowed to emit. */
+export const DETECT_LLM_CORPUS_SIGNALS = [
+  "retention_risk",
+  "upsell_opportunity",
+  "lead_intent",
+  "none",
+] as const;
 
+export type DetectLlmCorpusSignal = (typeof DETECT_LLM_CORPUS_SIGNALS)[number];
+
+/**
+ * Same user prompt the Groq classifier sends. Null when there is no
+ * customer text (classifyConversationWithGroq returns null in that case).
+ */
+export function buildDetectLlmUserPrompt(input: {
+  conversation: Pick<Conversation, "customerName" | "channel">;
+  customerMessages: Message[];
+}): string | null {
   const text = truncate(customerText(input.customerMessages), CUSTOMER_TEXT_MAX);
   if (!text) return null;
-
   const who = input.conversation.customerName ?? "Customer";
   const channel = input.conversation.channel || "chat";
-  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
+  return `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
+}
+
+/**
+ * Raw Groq completion used by Detect v2 and Promptfoo. Same model, JSON
+ * mode, and reasoning flags as production. Throws LlmCallFailed.
+ */
+export async function requestDetectLlmCompletion(userPrompt: string): Promise<{
+  content: string;
+  reasoning: string;
+}> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) {
+    throw new LlmCallFailed("key");
+  }
 
   const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
   let response: Response;
@@ -547,6 +571,20 @@ export async function classifyConversationWithGroq(input: {
   const content = typeof message?.content === "string" ? message.content : "";
   const reasoning =
     typeof message?.reasoning === "string" ? message.reasoning : "";
+  return { content, reasoning };
+}
+
+export async function classifyConversationWithGroq(input: {
+  conversation: Conversation;
+  customerMessages: Message[];
+}): Promise<LlmClassification | null> {
+  const apiKey = process.env.GROQ_API_KEY?.trim();
+  if (!apiKey) return null;
+
+  const userPrompt = buildDetectLlmUserPrompt(input);
+  if (!userPrompt) return null;
+
+  const { content, reasoning } = await requestDetectLlmCompletion(userPrompt);
   const parsed =
     (content ? parseLlmClassificationJson(content) : null) ??
     (reasoning ? parseLlmClassificationJson(reasoning) : null);
