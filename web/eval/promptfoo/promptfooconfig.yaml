@@ -2,14 +2,7 @@
 description: Sioona signal detection — Groq Qwen classifier (Detect v2 pass 2)
 
 prompts:
-  - |-
-    Classify this chat. Return the JSON object only.
-
-    Customer: {{customerName}}
-    Channel: {{channel}}
-
-    Customer messages:
-    {{customerMessages}}
+  - file://chat-prompt.yaml
 
 providers:
   - id: groq:{{model}}
@@ -21,7 +14,6 @@ providers:
       reasoning_effort: none
       passthrough:
         reasoning_format: hidden
-      systemPrompt: file://system-prompt.txt
 
 defaultTest:
   vars:

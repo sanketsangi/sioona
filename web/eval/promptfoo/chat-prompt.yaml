@@ -1,0 +1,13 @@
+# OpenAI chat format — mirrors classifyConversationWithGroq messages[].
+# system content is synced from detect-llm.ts before eval runs.
+- role: system
+  content: file://system-prompt.txt
+- role: user
+  content: |-
+    Classify this chat. Return the JSON object only.
+
+    Customer: {{customerName}}
+    Channel: {{channel}}
+
+    Customer messages:
+    {{customerMessages}}
