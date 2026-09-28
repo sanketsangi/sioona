@@ -4,42 +4,13 @@
  * Requires Node >= 22.22 (Promptfoo) and GROQ_API_KEY in web/.env or .env.local.
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
-/** Keys present before any dotenv load (shell/OS). Next.js never overrides these. */
-const shellEnvKeys = new Set(Object.keys(process.env));
-
-function loadEnvFile(path, { override = false } = {}) {
-  if (!existsSync(path)) return;
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eq = trimmed.indexOf("=");
-    if (eq <= 0) continue;
-    const key = trimmed.slice(0, eq).trim();
-    let value = trimmed.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    if (shellEnvKeys.has(key)) continue;
-    if (!override && key in process.env) continue;
-    process.env[key] = value;
-  }
-}
+import { loadWebEnvFiles } from "./load-web-env.mjs";
 
 const evalDir = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(evalDir, "../..");
-
-/** Load web/.env then web/.env.local with Next.js precedence (.env.local wins). */
-function loadWebEnv() {
-  loadEnvFile(join(webRoot, ".env"));
-  loadEnvFile(join(webRoot, ".env.local"), { override: true });
-}
 const nvmNode = join(
   process.env.NVM_DIR ?? join(process.env.HOME ?? "", ".nvm"),
   "versions/node/v22.22.0/bin"
@@ -87,7 +58,14 @@ if (belowRequired) {
   process.exit(1);
 }
 
-loadWebEnv();
+const envFiles = [".env", ".env.local"]
+  .map((name) => join(webRoot, name))
+  .filter((path) => existsSync(path));
+// Next.js order: .env then .env.local (local wins). Snapshot shell keys inside
+// loadWebEnvFiles so skip-if-present cannot make .env beat .env.local — and so
+// Promptfoo `--env-file` (which also skips already-set process.env) inherits
+// the same merged values.
+loadWebEnvFiles(envFiles);
 
 if (!process.env.GROQ_API_KEY?.trim()) {
   console.error(
@@ -98,14 +76,13 @@ if (!process.env.GROQ_API_KEY?.trim()) {
 
 run(npx, ["tsx", "eval/promptfoo/sync-system-prompt.ts"]);
 
-const envFiles = [".env", ".env.local"].filter((f) => existsSync(join(webRoot, f)));
 const promptfooArgs = [
   "promptfoo",
   "eval",
   "-c",
   "promptfooconfig.yaml",
   "--no-cache",
-  ...envFiles.flatMap((f) => ["--env-file", join(webRoot, f)]),
+  ...envFiles.flatMap((f) => ["--env-file", f]),
   ...process.argv.slice(2),
 ];
 
