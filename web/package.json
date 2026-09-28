@@ -10,6 +10,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
+    "eval": "node eval/promptfoo/run-eval.mjs",
+    "eval:signal": "node eval/promptfoo/run-eval.mjs",
+    "eval:signal:smoke": "node eval/promptfoo/run-smoke.mjs",
     "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts",
     "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts"
   },
@@ -40,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "^16.3.0",
     "postcss": "^8",
+    "promptfoo": "^0.123.1",
     "shadcn": "^4.18.0",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",

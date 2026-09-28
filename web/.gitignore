@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/eval/promptfoo/system-prompt.txt
 
 # next.js
 /.next/

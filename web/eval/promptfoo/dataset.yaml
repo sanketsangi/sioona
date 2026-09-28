@@ -1,0 +1,253 @@
+# Finance support chats for Sioona signal-detection eval.
+# Extend by appending tests with customerName, channel, customerMessages, expectedSignal.
+# expectedSignal uses corpus labels from Detect v2: retention_risk | upsell_opportunity | lead_intent | none
+
+- description: Lead — new demat account and brokerage pricing
+  vars:
+    customerName: Asha Mehta
+    channel: whatsapp
+    customerMessages: |
+      Hi, I want to open a demat account this week. What are your brokerage charges?
+      New investor. Looking to start investing in equity and want to start a SIP.
+    expectedSignal: lead_intent
+  metadata:
+    turns:
+      - { role: customer, content: "Hi, I want to open a demat account this week. What are your brokerage charges?" }
+      - { role: agent, content: "Happy to help! Are you a new investor or transferring holdings?" }
+      - { role: customer, content: "New investor. Looking to start investing in equity and want to start a SIP." }
+
+- description: Retention — fee dispute then close account threat
+  vars:
+    customerName: Rohan Kapoor
+    channel: whatsapp
+    customerMessages: |
+      I've asked three times about this unexplained fee. This is unacceptable.
+      If this isn't fixed today I'm closing my account and moving my money elsewhere.
+      Your competitor is cheaper and actually replies.
+    expectedSignal: retention_risk
+  metadata:
+    turns:
+      - { role: customer, content: "I've asked three times about this unexplained fee. This is unacceptable." }
+      - { role: agent, content: "Sorry for the trouble — let me check your ledger." }
+      - { role: customer, content: "If this isn't fixed today I'm closing my account and moving my money elsewhere." }
+      - { role: customer, content: "Your competitor is cheaper and actually replies." }
+
+- description: Upsell — existing equity customer wants advisory and LAS
+  vars:
+    customerName: Neha Singh
+    channel: website_chat
+    customerMessages: |
+      I already trade equity with you — do you offer a premium advisory plan?
+      Also want a portfolio review. Interested in adding mutual funds and loan against shares.
+    expectedSignal: upsell_opportunity
+  metadata:
+    turns:
+      - { role: customer, content: "I already trade equity with you — do you offer a premium advisory plan?" }
+      - { role: agent, content: "Yes, we have a wealth manager tier. What are you looking for?" }
+      - { role: customer, content: "Also want a portfolio review. Interested in adding mutual funds and loan against shares." }
+
+- description: None — statement PDF request
+  vars:
+    customerName: Vikram Rao
+    channel: website_chat
+    customerMessages: |
+      Can you share my last month's statement PDF?
+    expectedSignal: none
+  metadata:
+    turns:
+      - { role: customer, content: "Can you share my last month's statement PDF?" }
+      - { role: agent, content: "Sure — I've emailed the statement to your registered address." }
+
+- description: Lead — wealth plan evaluation for parents
+  vars:
+    customerName: Priya Nair
+    channel: intercom
+    customerMessages: |
+      We're evaluating wealth plans for my parents. Can someone walk us through pricing and onboarding?
+    expectedSignal: lead_intent
+  metadata:
+    turns:
+      - { role: customer, content: "We're evaluating wealth plans for my parents. Can someone walk us through pricing and onboarding?" }
+      - { role: agent, content: "Absolutely. I can book a call with an advisor tomorrow." }
+
+- description: Retention — support delays and account closure
+  vars:
+    customerName: Arjun Desai
+    channel: intercom
+    customerMessages: |
+      Not happy with support delays. Thinking of leaving.
+      I want to close account if the next reply takes another day.
+    expectedSignal: retention_risk
+  metadata:
+    turns:
+      - { role: customer, content: "Not happy with support delays. Thinking of leaving." }
+      - { role: agent, content: "We apologize — can we make this right?" }
+      - { role: customer, content: "I want to close account if the next reply takes another day." }
+
+- description: Lead — online signup and first-time investor pricing
+  vars:
+    customerName: Kavya Iyer
+    channel: whatsapp
+    customerMessages: |
+      Can I sign up for a new account online? Interested in your pricing for first-time investors.
+    expectedSignal: lead_intent
+  metadata:
+    turns:
+      - { role: customer, content: "Can I sign up for a new account online? Interested in your pricing for first-time investors." }
+      - { role: agent, content: "Yes — I can share the fee schedule and start onboarding." }
+
+- description: Lead — same-product pro plan upgrade (limit raise)
+  vars:
+    customerName: Suresh Menon
+    channel: website_chat
+    customerMessages: |
+      Can I upgrade to the pro plan? I need higher limit for withdrawals this quarter.
+    expectedSignal: lead_intent
+  metadata:
+    turns:
+      - { role: customer, content: "Can I upgrade to the pro plan? I need higher limit for withdrawals this quarter." }
+      - { role: agent, content: "I can walk you through Pro and limit increases." }
+
+- description: Upsell — loan against shares and insurance add-on
+  vars:
+    customerName: Meera Joshi
+    channel: intercom
+    customerMessages: |
+      Do you offer loan against shares? Also interested in insurance alongside my account.
+    expectedSignal: upsell_opportunity
+  metadata:
+    turns:
+      - { role: customer, content: "Do you offer loan against shares? Also interested in insurance alongside my account." }
+      - { role: agent, content: "We do — I can send eligibility and rates." }
+
+- description: Retention — switch brokers over slow support
+  vars:
+    customerName: Farhan Ali
+    channel: whatsapp
+    customerMessages: |
+      This is unacceptable. I'm going to switch brokers if support stays this slow.
+    expectedSignal: retention_risk
+  metadata:
+    turns:
+      - { role: customer, content: "This is unacceptable. I'm going to switch brokers if support stays this slow." }
+      - { role: agent, content: "Understood — escalating to a senior specialist now." }
+
+- description: None — AMC fee breakdown on statement (ops)
+  vars:
+    customerName: Ananya Shah
+    channel: website_chat
+    customerMessages: |
+      What are the AMC fees shown on my mutual fund statement for June?
+    expectedSignal: none
+  metadata:
+    turns:
+      - { role: customer, content: "What are the AMC fees shown on my mutual fund statement for June?" }
+      - { role: agent, content: "Those are fund-level charges — I'll email the breakdown." }
+
+- description: None — feedback survey request
+  vars:
+    customerName: Dev Patel
+    channel: intercom
+    customerMessages: |
+      Can I leave feedback about yesterday's support call?
+    expectedSignal: none
+  metadata:
+    turns:
+      - { role: customer, content: "Can I leave feedback about yesterday's support call?" }
+      - { role: agent, content: "Of course — I'll send a short survey link." }
+
+- description: None — SIP debit date confirmation
+  vars:
+    customerName: Lakshmi Reddy
+    channel: whatsapp
+    customerMessages: |
+      When does my SIP get debited each month? Just confirming the date.
+    expectedSignal: none
+  metadata:
+    turns:
+      - { role: customer, content: "When does my SIP get debited each month? Just confirming the date." }
+      - { role: agent, content: "Your SIP debit date is the 5th of every month." }
+
+- description: Lead — KYC checklist and lowest brokerage plan
+  vars:
+    customerName: Rahul Verma
+    channel: website_chat
+    customerMessages: |
+      How do I open a demat account? What documents are required for KYC, and what's your lowest brokerage plan?
+    expectedSignal: lead_intent
+  metadata:
+    turns:
+      - { role: customer, content: "How do I open a demat account? What documents are required for KYC, and what's your lowest brokerage plan?" }
+      - { role: agent, content: "I'll send the KYC checklist and our plan comparison right away." }
+
+- description: Retention — high brokerage vs competitors
+  vars:
+    customerName: Sneha Pillai
+    channel: intercom
+    customerMessages: |
+      Your brokerage is too high compared to others. Reduce my brokerage or I'll shift to another broker.
+    expectedSignal: retention_risk
+  metadata:
+    turns:
+      - { role: customer, content: "Your brokerage is too high compared to others. Reduce my brokerage or I'll shift to another broker." }
+      - { role: agent, content: "Let me check what rebate options I can offer you." }
+
+- description: Upsell — F&O, margin, and family account
+  vars:
+    customerName: Aditya Ghosh
+    channel: whatsapp
+    customerMessages: |
+      Existing customer here — can you enable F&O and activate margin trading facility? Also want to add a family account for my wife.
+    expectedSignal: upsell_opportunity
+  metadata:
+    turns:
+      - { role: customer, content: "Existing customer here — can you enable F&O and activate margin trading facility? Also want to add a family account for my wife." }
+      - { role: agent, content: "Sure — I'll share the F&O activation and family account steps." }
+
+- description: None — app crash, OTP, password reset
+  vars:
+    customerName: Nikhil Jain
+    channel: whatsapp
+    customerMessages: |
+      The app keeps crashing and I didn't receive OTP to login. Please help reset my password.
+    expectedSignal: none
+  metadata:
+    turns:
+      - { role: customer, content: "The app keeps crashing and I didn't receive OTP to login. Please help reset my password." }
+      - { role: agent, content: "I've triggered a password reset link and a fresh OTP to your registered number." }
+
+- description: Lead — fintech wallet, card, and KYC to transact
+  vars:
+    customerName: Riya Sharma
+    channel: in_app_chat
+    customerMessages: |
+      Hi, I'm new to your app. I want to open a wallet and apply for a credit card. How do I complete KYC to add money and start using UPI?
+    expectedSignal: lead_intent
+  metadata:
+    turns:
+      - { role: customer, content: "Hi, I'm new to your app. I want to open a wallet and apply for a credit card. How do I complete KYC to add money and start using UPI?" }
+      - { role: agent, content: "Welcome! I'll guide you through wallet setup, KYC, and card eligibility." }
+
+- description: Retention — failed refund and delete account
+  vars:
+    customerName: Karan Malhotra
+    channel: in_app_chat
+    customerMessages: |
+      This is the worst — my refund failed weeks ago and no one helped. I want to delete my account and I'm switching to another app.
+    expectedSignal: retention_risk
+  metadata:
+    turns:
+      - { role: customer, content: "This is the worst — my refund failed weeks ago and no one helped. I want to delete my account and I'm switching to another app." }
+      - { role: agent, content: "I'm really sorry — let me escalate the refund and see how we can keep you." }
+
+- description: None — competitor UI comment without leave intent
+  vars:
+    customerName: Leela Banerjee
+    channel: whatsapp
+    customerMessages: |
+      I saw your competitor has a nicer UI, just FYI.
+    expectedSignal: none
+  metadata:
+    turns:
+      - { role: customer, content: "I saw your competitor has a nicer UI, just FYI." }
+      - { role: agent, content: "Thanks for the note — I'll share it with product." }
