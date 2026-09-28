@@ -13,6 +13,11 @@
 # testing
 /coverage
 
+# Promptfoo signal-detect cache and run output
+/.promptfoo/
+/eval/signal-detect/results/
+promptfoo-errors.log
+
 # next.js
 /.next/
 /out/

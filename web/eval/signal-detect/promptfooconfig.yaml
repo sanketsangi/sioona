@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: Sioona signal detection (Groq Qwen)
+
+# The prompt text is only a report label. The provider ignores it and
+# posts buildGroqDetectChatBody (same body as classifyConversationWithGroq).
+# expected_signal is a label. It is not sent to the model.
+prompts:
+  - detect-v2
+
+providers:
+  - id: file://provider.ts
+    label: groq-qwen-detect
+    config:
+      timeoutMs: 25000
+
+evaluateOptions:
+  maxConcurrency: 2
+  timeoutMs: 30000
+
+outputPath: eval/signal-detect/results/latest.json
+
+defaultTest:
+  assert:
+    - type: is-json
+      metric: json_contract
+      value:
+        type: object
+        additionalProperties: false
+        required:
+          - signal
+          - confidence
+          - evidence
+          - next_action
+          - reason
+        properties:
+          signal:
+            type: string
+            enum:
+              - retention_risk
+              - upsell_opportunity
+              - lead_intent
+              - none
+          confidence:
+            type: number
+            minimum: 0
+            maximum: 1
+          evidence:
+            type: string
+          next_action:
+            type: string
+          reason:
+            type: string
+    - type: javascript
+      metric: evidence
+      value: file://assertions/evidence.ts
+    - type: javascript
+      metric: signal_accuracy
+      value: file://assertions/signal.ts
+
+tests: file://dataset.yaml

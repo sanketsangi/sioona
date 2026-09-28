@@ -29,7 +29,7 @@ export const DETECT_LLM_CONCURRENCY = 2;
 export const DETECT_LLM_TIMEOUT_MS = 6_000;
 const CUSTOMER_TEXT_MAX = 2_400;
 
-const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
+export const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 /**
  * Compact classifier prompt for small Qwen models (json_object mode).
@@ -479,6 +479,57 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+export type DetectClassifierTurn = {
+  role: Message["role"];
+  content: string;
+};
+
+/** Groq chat body shared by Detect v2 and the Promptfoo signal eval. */
+export type GroqDetectChatBody = {
+  model: string;
+  temperature: 0;
+  reasoning_effort: "none";
+  reasoning_format: "hidden";
+  response_format: { type: "json_object" };
+  messages: Array<{ role: "system" | "user"; content: string }>;
+};
+
+/**
+ * Same request Detect v2 sends to Groq. Customer turns only; agent and
+ * system lines are dropped. Returns null when there is no customer text.
+ */
+export function buildGroqDetectChatBody(input: {
+  customerName?: string | null;
+  channel?: string | null;
+  messages: readonly DetectClassifierTurn[];
+  model?: string;
+}): GroqDetectChatBody | null {
+  const text = truncate(
+    customerText(input.messages as Message[]),
+    CUSTOMER_TEXT_MAX
+  );
+  if (!text) return null;
+
+  const who = input.customerName ?? "Customer";
+  const channel = input.channel || "chat";
+  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
+
+  return {
+    model: input.model?.trim() || detectLlmModel(),
+    temperature: 0,
+    // 3.8 thinks by default. JSON mode 400s on raw reasoning, and a
+    // 6s abort would look like a timeout. Instruct mode keeps the
+    // JSON in message.content.
+    reasoning_effort: "none",
+    reasoning_format: "hidden",
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+  };
+}
+
 export async function classifyConversationWithGroq(input: {
   conversation: Conversation;
   customerMessages: Message[];
@@ -486,12 +537,12 @@ export async function classifyConversationWithGroq(input: {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
 
-  const text = truncate(customerText(input.customerMessages), CUSTOMER_TEXT_MAX);
-  if (!text) return null;
-
-  const who = input.conversation.customerName ?? "Customer";
-  const channel = input.conversation.channel || "chat";
-  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
+  const body = buildGroqDetectChatBody({
+    customerName: input.conversation.customerName,
+    channel: input.conversation.channel,
+    messages: input.customerMessages,
+  });
+  if (!body) return null;
 
   const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
   let response: Response;
@@ -503,20 +554,7 @@ export async function classifyConversationWithGroq(input: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: detectLlmModel(),
-        temperature: 0,
-        // 3.8 thinks by default. JSON mode 400s on raw reasoning, and a
-        // 6s abort would look like a timeout. Instruct mode keeps the
-        // JSON in message.content.
-        reasoning_effort: "none",
-        reasoning_format: "hidden",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     throw new LlmCallFailed(isAbortError(err) ? "timeout" : null);

@@ -35,4 +35,6 @@ SignalScore feedback and review precision use the FastAPI backend when it is rea
 
 **Detect v2 (optional):** keyword heuristics always run. Set `DETECT_LLM=1` and `GROQ_API_KEY` in `web/` to add a Groq Qwen second pass on conversations heuristics miss (cap 8 calls / ingest). Off by default.
 
+**Signal eval:** from `web/`, `npm run eval` scores that classifier with Promptfoo. See [web/eval/signal-detect/README.md](web/eval/signal-detect/README.md).
+
 **Hosted demo** (https://sioona-demo.vercel.app): deploy FastAPI + Neon, then set Vercel Production `BACKEND_URL` — see [web/DEPLOY.md](./web/DEPLOY.md) and [backend/README.md](./backend/README.md#hosted-deploy-demo).

@@ -35,5 +35,6 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 - `npm run start` — start production server
 - `npm run lint` — ESLint
 - `npm test` — Vitest (`detect` / `ingest` / `eval`)
+- `npm run eval` — Promptfoo signal-detection eval (Groq Qwen). See [eval/signal-detect/README.md](eval/signal-detect/README.md)
 
 Product brief: [`../PRODUCT.md`](../PRODUCT.md).

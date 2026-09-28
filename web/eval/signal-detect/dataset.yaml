@@ -1,0 +1,282 @@
+# Finance support chats for signal detection.
+# Add a case by copying a block. expected_signal is the label only.
+# Allowed: retention_risk | upsell_opportunity | lead_intent | none
+# Include agent and customer turns. Later customer turns decide the label.
+
+- description: Retention — close the account after a fee dispute
+  vars:
+    customer_name: Ananya Rao
+    channel: chat
+    expected_signal: retention_risk
+    messages:
+      - role: agent
+        content: Hi Ananya, this is the broking desk. How can I help today?
+      - role: customer
+        content: The brokerage on my 12 March equity order is higher than the plan I signed.
+      - role: agent
+        content: I can raise that with billing. Should I open a ticket for the difference?
+      - role: customer
+        content: No. I am closing my account and moving my portfolio to another broker.
+
+- description: Retention — park SIPs elsewhere and stop using the app
+  vars:
+    customer_name: Rohan Mehta
+    channel: whatsapp
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: My monthly SIP debit failed again this morning.
+      - role: agent
+        content: Sorry about that. I can retry the mandate or send a fresh UPI link.
+      - role: customer
+        content: Don't retry it. I am parking my SIPs with Groww from next month and I will stop using this app.
+
+- description: Retention — Hinglish threat to close and shift broker
+  vars:
+    customer_name: Kavita Iyer
+    channel: chat
+    expected_signal: retention_risk
+    messages:
+      - role: agent
+        content: Kavita, support here. Tell me what is failing on the order pad.
+      - role: customer
+        content: App phir se hang ho gaya jab maine order place kiya.
+      - role: agent
+        content: I have flagged the hang to engineering. Want me to place the order from our side?
+      - role: customer
+        content: Nahi. Agar aaj fix nahi hua toh main account close kar dunga aur dusre broker pe shift kar lunga.
+
+- description: Retention — pause trading and shift holdings to Upstox
+  vars:
+    customer_name: Imran Qureshi
+    channel: chat
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: Please pause my trading on this login.
+      - role: agent
+        content: I can freeze fresh orders. Do you want the cash left in the ledger?
+      - role: customer
+        content: Move the cash to my bank. I am shifting the holdings to Upstox this week.
+
+- description: Retention — pricing question, then a switch to Angel One
+  vars:
+    customer_name: Sneha Kulkarni
+    channel: email
+    expected_signal: retention_risk
+    messages:
+      - role: customer
+        content: What are your AMC charges on an existing equity account?
+      - role: agent
+        content: AMC is waived above the balance threshold. I can send the slab sheet.
+      - role: customer
+        content: No need. I am switching to Angel One and transferring my holdings out.
+
+- description: Upsell — existing equity customer asks for loan against shares
+  vars:
+    customer_name: Vikram Shah
+    channel: chat
+    expected_signal: upsell_opportunity
+    messages:
+      - role: agent
+        content: Vikram, you are through to the equity desk. What do you need?
+      - role: customer
+        content: I already trade delivery equity with you on this login.
+      - role: agent
+        content: Yes, the account is active. Is this about an open order?
+      - role: customer
+        content: No. Do you offer loan against shares on these holdings?
+
+- description: Upsell — family view on the same login
+  vars:
+    customer_name: Neha Kapoor
+    channel: whatsapp
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: I have been trading equity here for two years.
+      - role: agent
+        content: Glad you are still with us. What would you like to do?
+      - role: customer
+        content: Can you turn on a family view so I can see my wife's holdings on the same login?
+
+- description: Upsell — PMS for part of an existing portfolio
+  vars:
+    customer_name: Arjun Reddy
+    channel: chat
+    expected_signal: upsell_opportunity
+    messages:
+      - role: agent
+        content: Arjun, this is relationship support. How can I help?
+      - role: customer
+        content: My equity portfolio already sits with you.
+      - role: agent
+        content: I can see the holdings. Are you asking about a corporate action?
+      - role: customer
+        content: I want to know about your PMS for a portion of these holdings.
+
+- description: Upsell — enable F&O and MTF on the same account
+  vars:
+    customer_name: Pooja Nair
+    channel: chat
+    expected_signal: upsell_opportunity
+    messages:
+      - role: customer
+        content: I only do delivery equity right now on this account.
+      - role: agent
+        content: Delivery is enabled. Do you want a margin statement?
+      - role: customer
+        content: Please enable F&O and MTF on this same account. I want to use margin from next week.
+
+- description: Upsell — term insurance alongside an existing equity login
+  vars:
+    customer_name: Harsh Patel
+    channel: whatsapp
+    expected_signal: upsell_opportunity
+    messages:
+      - role: agent
+        content: Harsh, support here. Is this about today's trade?
+      - role: customer
+        content: No, the trade is fine. I use you for equity delivery.
+      - role: agent
+        content: Understood. What else can I help with?
+      - role: customer
+        content: Do you also sell term insurance I can buy alongside this account?
+
+- description: Lead — open a demat account and ask charges
+  vars:
+    customer_name: Meera Joshi
+    channel: chat
+    expected_signal: lead_intent
+    messages:
+      - role: agent
+        content: Welcome. Are you an existing client?
+      - role: customer
+        content: No, I don't have an account yet.
+      - role: agent
+        content: I can help you start. What are you looking to do?
+      - role: customer
+        content: I want to open a demat account. What are your charges?
+
+- description: Lead — first ELSS SIP, new to investing
+  vars:
+    customer_name: Aditya Verma
+    channel: chat
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: Hi, I have never invested before.
+      - role: agent
+        content: We can walk you through a first product. Equity, mutual funds, or something else?
+      - role: customer
+        content: I want to start my first ELSS SIP. How do I open an account with you?
+
+- description: Lead — same-product limit raise on an existing account
+  vars:
+    customer_name: Divya Menon
+    channel: chat
+    expected_signal: lead_intent
+    messages:
+      - role: agent
+        content: Divya, trading support. What do you need on the account?
+      - role: customer
+        content: I already trade equity intraday with you.
+      - role: agent
+        content: The segment is active. Is an order stuck?
+      - role: customer
+        content: Please raise my intraday exposure limit on this account.
+
+- description: Lead — open their own demat, starting fresh
+  vars:
+    customer_name: Karthik Rao
+    channel: whatsapp
+    expected_signal: lead_intent
+    messages:
+      - role: customer
+        content: My father has a demat with you. I don't.
+      - role: agent
+        content: I can't share his account. Do you want an application of your own?
+      - role: customer
+        content: Yes. I want to open my own demat and start fresh. What documents do you need?
+
+- description: Lead — same-product card upgrade and limit raise
+  vars:
+    customer_name: Fatima Khan
+    channel: chat
+    expected_signal: lead_intent
+    messages:
+      - role: agent
+        content: Fatima, cards desk. How can I help?
+      - role: customer
+        content: I already hold your debit card on this login.
+      - role: agent
+        content: I see the active card. Lost card, or something else?
+      - role: customer
+        content: Please upgrade it to the metal card and raise the daily limit.
+
+- description: None — login OTP resend
+  vars:
+    customer_name: Suresh Iyer
+    channel: chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: I cannot log in to the app this morning.
+      - role: agent
+        content: Is the password failing, or is the OTP not arriving?
+      - role: customer
+        content: The password is fine. Please resend the login OTP to my registered mobile.
+
+- description: None — tax statement download
+  vars:
+    customer_name: Lakshmi Natarajan
+    channel: email
+    expected_signal: none
+    messages:
+      - role: agent
+        content: Hello Lakshmi, what do you need from the account?
+      - role: customer
+        content: Please email last year's tax P&L statement and the April contract notes.
+      - role: agent
+        content: I can send those to your registered email. Anything else?
+      - role: customer
+        content: That's all. I need them for my CA. No changes to the account.
+
+- description: None — order status, no leave intent
+  vars:
+    customer_name: Rahul Desai
+    channel: chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: The app froze for a minute after I placed an order.
+      - role: agent
+        content: Sorry about the freeze. Which symbol was it?
+      - role: customer
+        content: Please tell me the status of my RELIANCE CNC order placed this morning. I am not closing anything.
+
+- description: None — phishing and an unauthorized insurance charge
+  vars:
+    customer_name: Priya Banerjee
+    channel: whatsapp
+    expected_signal: none
+    messages:
+      - role: customer
+        content: I got an SMS saying term insurance was bought in my name.
+      - role: agent
+        content: I don't see a policy on the login. Did you approve a payment?
+      - role: customer
+        content: I never bought insurance. This is a phishing SMS and an unauthorized charge. Please block it.
+
+- description: None — early close talk, later turn is only OTP
+  vars:
+    customer_name: Amit Khanna
+    channel: chat
+    expected_signal: none
+    messages:
+      - role: customer
+        content: This app is so slow I was thinking of closing my account.
+      - role: agent
+        content: I can log the slowness. Are you still trying to sign in?
+      - role: customer
+        content: Forget the account comment. Please resend the login OTP to my registered mobile.
