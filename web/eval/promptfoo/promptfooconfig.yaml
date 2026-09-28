@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: Sioona signal detection — Groq Qwen classifier (Detect v2 pass 2)
+
+# Groq/OpenAI parse a string prompt as one user message and ignore
+# provider `systemPrompt`. Return OpenAI chat messages so live eval
+# prepends SYSTEM_PROMPT the same way classifyConversationWithGroq does.
+prompts:
+  - file://prompt.ts
+
+providers:
+  - id: groq:{{model}}
+    label: Sioona Detect v2 (Groq Qwen)
+    config:
+      temperature: 0
+      response_format:
+        type: json_object
+      reasoning_effort: none
+      passthrough:
+        reasoning_format: hidden
+
+defaultTest:
+  vars:
+    model: qwen/qwen3.8-27b
+  assert:
+    - type: is-json
+    - type: javascript
+      value: |
+        const allowed = ['retention_risk', 'upsell_opportunity', 'lead_intent', 'none'];
+        const o = JSON.parse(output);
+        return allowed.includes(o.signal);
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        if (o.signal === 'none') return true;
+        return typeof o.evidence === 'string' && o.evidence.trim().length > 0;
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        const c = o.confidence;
+        return typeof c === 'number' && c >= 0 && c <= 1;
+    - type: javascript
+      value: |
+        const o = JSON.parse(output);
+        return o.signal === context.vars.expectedSignal;
+      metric: accuracy
+
+tests: file://dataset.yaml
+
+evaluateOptions:
+  maxConcurrency: 2

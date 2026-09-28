@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeEvalMetrics } from "./eval";
 import {
   applyLlmSecondPass,
+  classifyChatMessages,
   classifyConversationWithGroq,
   DEFAULT_DETECT_LLM_MODEL,
   DETECT_LLM_CONCURRENCY,
@@ -53,6 +54,25 @@ describe("isDetectLlmEnabled", () => {
     expect(isDetectLlmEnabled()).toBe(false);
     vi.stubEnv("GROQ_API_KEY", "gsk_test");
     expect(isDetectLlmEnabled()).toBe(true);
+  });
+});
+
+describe("classifyChatMessages", () => {
+  it("prepends SYSTEM_PROMPT as a system role then the user classify text", () => {
+    expect(
+      classifyChatMessages({
+        customerName: "Asha",
+        channel: "whatsapp",
+        customerText: "I want to close my account",
+      })
+    ).toEqual([
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content:
+          "Classify this chat. Return the JSON object only.\n\nCustomer: Asha\nChannel: whatsapp\n\nCustomer messages:\nI want to close my account",
+      },
+    ]);
   });
 });
 
@@ -790,8 +810,15 @@ describe("classifyConversationWithGroq", () => {
     );
     const body = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
       model: string;
+      messages: Array<{ role: string; content: string }>;
     };
     expect(body.model).toBe("qwen/test-model");
+    expect(body.messages[0]).toEqual({
+      role: "system",
+      content: SYSTEM_PROMPT,
+    });
+    expect(body.messages[1]?.role).toBe("user");
+    expect(body.messages[1]?.content).toContain("Classify this chat");
     expect(String(fetchMock.mock.calls[0][1].body)).toContain("retention_risk");
     expect(String(fetchMock.mock.calls[0][1].body)).toContain(
       "upsell_opportunity"

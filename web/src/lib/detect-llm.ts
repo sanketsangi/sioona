@@ -479,6 +479,26 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+export type ClassifyChatMessage = {
+  role: "system" | "user";
+  content: string;
+};
+
+/** Same system+user payload production Groq and Promptfoo live eval must send. */
+export function classifyChatMessages(input: {
+  customerName?: string | null;
+  channel?: string;
+  customerText: string;
+}): ClassifyChatMessage[] {
+  const who = input.customerName ?? "Customer";
+  const channel = input.channel || "chat";
+  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${input.customerText}`;
+  return [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: userPrompt },
+  ];
+}
+
 export async function classifyConversationWithGroq(input: {
   conversation: Conversation;
   customerMessages: Message[];
@@ -489,9 +509,11 @@ export async function classifyConversationWithGroq(input: {
   const text = truncate(customerText(input.customerMessages), CUSTOMER_TEXT_MAX);
   if (!text) return null;
 
-  const who = input.conversation.customerName ?? "Customer";
-  const channel = input.conversation.channel || "chat";
-  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${text}`;
+  const messages = classifyChatMessages({
+    customerName: input.conversation.customerName,
+    channel: input.conversation.channel,
+    customerText: text,
+  });
 
   const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
   let response: Response;
@@ -512,10 +534,7 @@ export async function classifyConversationWithGroq(input: {
         reasoning_effort: "none",
         reasoning_format: "hidden",
         response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
+        messages,
       }),
     });
   } catch (err) {
