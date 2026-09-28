@@ -1,8 +1,11 @@
 # yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
 description: Sioona signal detection — Groq Qwen classifier (Detect v2 pass 2)
 
+# Groq/OpenAI parse a string prompt as one user message and ignore
+# provider `systemPrompt`. Return OpenAI chat messages so live eval
+# prepends SYSTEM_PROMPT the same way classifyConversationWithGroq does.
 prompts:
-  - file://chat-prompt.yaml
+  - file://prompt.ts
 
 providers:
   - id: groq:{{model}}
