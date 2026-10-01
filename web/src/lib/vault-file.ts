@@ -8,7 +8,6 @@ import {
   matchesVaultSampleName,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
-import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 import type { Conversation, Message } from "@/lib/types";
 import { catalogFileKey } from "@/lib/upload-filename";
 import { viewHref } from "@/lib/views";
@@ -52,7 +51,7 @@ export function insightsVaultFileForTenant(opts: {
   if (explicit) return explicit;
   const keep = opts.lastUploadedFileName?.trim();
   if (isLivePartnerKeepSet(keep)) return keep!;
-  if (opts.tenantId !== DEMO_TENANT_ID && opts.conversationCount === 0) {
+  if (opts.tenantId !== "tenant_demo" && opts.conversationCount === 0) {
     return null;
   }
   return GROWW_SHOWCASE_SAMPLE_NAME;

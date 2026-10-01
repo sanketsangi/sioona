@@ -27,7 +27,6 @@ import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { detectEarlyWarnings } from "@/lib/early-warning";
-import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 import { attachSignalCommercial, topCallsToday } from "@/lib/signal-commercial";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
@@ -207,7 +206,7 @@ export function InsightsView({
    * on screen. Do not treat the switch as an upload-mismatch empty state.
    */
   const vaultShowcaseKind =
-    store.tenant.id === DEMO_TENANT_ID && !vaultLoaded && vaultFile
+    store.tenant.id === "tenant_demo" && !vaultLoaded && vaultFile
       ? resolveVaultShowcaseKind(vaultFile)
       : null;
   const vaultMismatch = Boolean(vaultFile && !vaultLoaded && !vaultShowcaseKind);
@@ -409,7 +408,7 @@ export function InsightsView({
     label: cadenceActionCta(cadenceAction),
   };
   const emptyTenant =
-    store.tenant.id !== DEMO_TENANT_ID &&
+    store.tenant.id !== "tenant_demo" &&
     store.conversations.length === 0 &&
     pendingSignals.length === 0 &&
     reviewedSignals.length === 0 &&
