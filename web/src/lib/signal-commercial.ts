@@ -112,7 +112,7 @@ export function signalCommercialLabel(signal: Pick<
   "urgency" | "urgencyTimeframe" | "mentionedValueInr"
 >): string | null {
   if (!signal.urgency && signal.mentionedValueInr == null) return null;
-  const parts = [signal.urgency ?? "low"];
+  const parts: string[] = [signal.urgency ?? "low"];
   if (signal.urgencyTimeframe) parts.push(signal.urgencyTimeframe);
   if (signal.mentionedValueInr != null) {
     parts.push(formatMentionedInr(signal.mentionedValueInr));
