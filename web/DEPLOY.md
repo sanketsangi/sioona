@@ -220,3 +220,22 @@ No new environment variables and no migration. Insights shows an At risk list fo
 ## Reviewer workflow
 
 No new environment variables. The Insights review pane records Saved, Lost, or Converted (buttons or `1` / `2` / `3`). `/?view=insights&call=today` is the Top 10, ranked by urgency × value. Reply drafts follow the customer’s language (Hindi, Hinglish, or English) and stay on screen until a person copies them. Sioona does not send them.
+
+## Live read-only ingestion
+
+Off unless `LIVE_INGEST=1`. Leave it unset on Vercel until a pilot asks for it. Secrets stay in the host environment. Do not commit them.
+
+| Variable | Scope | Value |
+|----------|--------|--------|
+| `LIVE_INGEST` | Server | `1` to enable the routes. Anything else returns 404. |
+| `INTERCOM_CLIENT_ID` | Server | Intercom OAuth app id. Used only to build the authorize redirect. |
+| `INTERCOM_CLIENT_SECRET` | Server | Reserved. The callback does not exchange the code. |
+| `INTERCOM_ACCESS_TOKEN` | Server | Read-only token for `POST /api/ingest/live/intercom/poll` (GET against Intercom). |
+| `INTERCOM_WEBHOOK_SECRET` | Server | Must match `X-Sioona-Webhook-Secret` on the Intercom webhook and poll. |
+| `WHATSAPP_WEBHOOK_SECRET` | Server | Same header for `POST /api/ingest/live/whatsapp`. |
+| `SIOONA_TENANT_ID` | Server | Partner tenant the webhook must name. Live ingest rejects `tenant_demo`. |
+
+Intercom, WhatsApp, and the Intercom poll also send `X-Sioona-Tenant-Id` (`tenant_partner`). A missing header, a mismatch with `SIOONA_TENANT_ID`, or a missing secret is 401. Chats land in that tenant’s store.
+| `WHATSAPP_PROVIDER` | Server | `gupshup` (default) or `interakt` (`?provider=`). |
+
+Webhook and poll bodies go through the existing redaction and detection path. The connectors never post a reply. OAuth token exchange is left to the operator: set `INTERCOM_ACCESS_TOKEN` after authorizing, so a token is not written to disk or returned by the callback.
