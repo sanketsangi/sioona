@@ -30,6 +30,7 @@ from app.models.signal_feedback import (
     SignalFeedback,
 )
 from app.models.signal_prediction import SignalPrediction
+from app.models.taxonomy_override import TaxonomyOverride
 
 __all__ = [
     "Base",
@@ -56,4 +57,5 @@ __all__ = [
     "SignalFeedback",
     "SupervisedActionDecision",
     "SignalPrediction",
+    "TaxonomyOverride",
 ]

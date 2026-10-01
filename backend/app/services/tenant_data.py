@@ -15,6 +15,7 @@ from app.models.pilot_settings import PilotSettings
 from app.models.signal_feedback import SignalFeedback
 from app.models.signal_prediction import SignalPrediction
 from app.models.supervised_action import SupervisedActionDecision
+from app.models.taxonomy_override import TaxonomyOverride
 
 
 def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
@@ -43,6 +44,9 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     pilot_deleted = db.execute(
         delete(PilotSettings).where(PilotSettings.tenant_id == tenant_id)
     ).rowcount
+    taxonomy_deleted = db.execute(
+        delete(TaxonomyOverride).where(TaxonomyOverride.tenant_id == tenant_id)
+    ).rowcount
     db.commit()
 
     return {
@@ -52,6 +56,7 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
         "feedback": int(feedback_deleted or 0),
         "supervised_actions": int(decisions_deleted or 0),
         "pilot_settings": int(pilot_deleted or 0),
+        "taxonomy_overrides": int(taxonomy_deleted or 0),
     }
 
 
@@ -103,6 +108,14 @@ def count_tenant_rows(db: Session, *, tenant_id: str) -> dict[str, int]:
                 select(func.count())
                 .select_from(PilotSettings)
                 .where(PilotSettings.tenant_id == tenant_id)
+            )
+            or 0
+        ),
+        "taxonomy_overrides": int(
+            db.scalar(
+                select(func.count())
+                .select_from(TaxonomyOverride)
+                .where(TaxonomyOverride.tenant_id == tenant_id)
             )
             or 0
         ),

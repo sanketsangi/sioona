@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -12,9 +12,15 @@ from app.schemas.prediction import (
     PredictionBulkResponse,
     PredictionBulkUpsert,
     PredictionCreate,
+    PredictionOutcomeUpdate,
     PredictionResponse,
 )
-from app.services.predictions import record_prediction, record_predictions_bulk
+from app.services.feedback import SignalNotFoundError
+from app.services.predictions import (
+    record_prediction,
+    record_predictions_bulk,
+    set_prediction_outcome,
+)
 
 router = APIRouter(tags=["predictions"])
 
@@ -73,5 +79,44 @@ def create_or_update_predictions_bulk(
             created=result.created,
             updated=result.updated,
         )
+    except SQLAlchemyError as exc:
+        raise HTTPException(status_code=500, detail="database_unavailable") from exc
+
+
+@router.post(
+    "/v1/signals/{signal_id}/outcome",
+    response_model=PredictionResponse,
+)
+def record_signal_outcome(
+    signal_id: str,
+    body: PredictionOutcomeUpdate,
+    tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PredictionResponse:
+    """Persist retained / churned / converted / no change / unknown."""
+    from uuid import UUID
+
+    try:
+        parsed = UUID(signal_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="signal id must be a UUID",
+        ) from exc
+    try:
+        prediction = set_prediction_outcome(
+            db,
+            tenant_id=tenant_id,
+            signal_id=parsed,
+            outcome=body.outcome,
+            value_inr=body.value_inr,
+            recorded_on=body.recorded_on,
+        )
+        return PredictionResponse.model_validate(prediction)
+    except SignalNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc

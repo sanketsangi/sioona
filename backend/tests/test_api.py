@@ -1255,6 +1255,7 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "feedback": 1,
         "supervised_actions": 0,
         "pilot_settings": 1,
+        "taxonomy_overrides": 0,
     }
 
     listed_a = client.get(
@@ -1297,6 +1298,7 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "feedback": 0,
         "supervised_actions": 0,
         "pilot_settings": 0,
+        "taxonomy_overrides": 0,
     }
 
 

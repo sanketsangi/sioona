@@ -117,6 +117,7 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         "feedback": 1,
         "supervised_actions": 1,
         "pilot_settings": 1,
+        "taxonomy_overrides": 0,
     }
     assert count_tenant_rows(db, tenant_id="tenant_a") == {
         "conversations": 0,
@@ -125,6 +126,7 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         "feedback": 0,
         "supervised_actions": 0,
         "pilot_settings": 0,
+        "taxonomy_overrides": 0,
     }
 
     assert count_tenant_rows(db, tenant_id="tenant_b") == {
@@ -134,6 +136,7 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
         "feedback": 1,
         "supervised_actions": 1,
         "pilot_settings": 1,
+        "taxonomy_overrides": 0,
     }
     assert (
         db.scalar(
@@ -173,4 +176,5 @@ def test_wipe_tenant_data_empty_tenant_is_noop(db: Session) -> None:
         "feedback": 0,
         "supervised_actions": 0,
         "pilot_settings": 0,
+        "taxonomy_overrides": 0,
     }
