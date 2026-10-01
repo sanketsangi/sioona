@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { authEnforced } from "@/lib/auth-token";
+import { requireApiSession } from "@/lib/auth-guard";
 import type { PartnerExportEvalApiErr } from "@/lib/partner-export-eval-api";
 import {
   loadPartnerExportEval,
@@ -35,6 +37,11 @@ function toPayload(result: PartnerExportEvalResult): PartnerExportEvalApiOk {
  * Offline labeled Detect P/R (base vs Adapt). Does not touch Neon or the JSON store.
  */
 export async function GET(request: Request) {
+  const session = await requireApiSession(request, "read");
+  if (session instanceof NextResponse) return session;
+  if (authEnforced() && session.role !== "admin") {
+    return NextResponse.json({ error: "Admin role required." }, { status: 403 });
+  }
   const url = new URL(request.url);
   const preferWeek2 =
     url.searchParams.get("week2") === "1" ||

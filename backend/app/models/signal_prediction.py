@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     Index,
@@ -28,6 +29,27 @@ if TYPE_CHECKING:
 # Pilot SignalScore types only — junk / legacy names must not enter the tally.
 CANONICAL_SIGNAL_TYPES = frozenset({"lead", "retention", "upsell"})
 
+OUTCOME_RETAINED = "retained"
+OUTCOME_CHURNED = "churned"
+OUTCOME_CONVERTED = "converted"
+OUTCOME_NO_CHANGE = "no_change"
+OUTCOME_UNKNOWN = "unknown"
+SIGNAL_OUTCOMES = frozenset(
+    {
+        OUTCOME_RETAINED,
+        OUTCOME_CHURNED,
+        OUTCOME_CONVERTED,
+        OUTCOME_NO_CHANGE,
+        OUTCOME_UNKNOWN,
+    }
+)
+# Retention signals whose rupee value is still "found" (saved or not yet known).
+REVENUE_AT_RISK_OUTCOMES = frozenset(
+    {OUTCOME_RETAINED, OUTCOME_CHURNED, OUTCOME_UNKNOWN}
+)
+# Any canonical type: money the reviewer says was kept or won.
+REVENUE_SAVED_OUTCOMES = frozenset({OUTCOME_RETAINED, OUTCOME_CONVERTED})
+
 
 class SignalPrediction(Base):
     """A model prediction for a conversation signal."""
@@ -44,6 +66,11 @@ class SignalPrediction(Base):
         Index("ix_signal_predictions_conversation_id", "conversation_id"),
         Index("ix_signal_predictions_signal_type", "signal_type"),
         Index("ix_signal_predictions_tenant_created", "tenant_id", "created_at"),
+        CheckConstraint(
+            "outcome IS NULL OR outcome IN "
+            "('retained', 'churned', 'converted', 'no_change', 'unknown')",
+            name="ck_signal_predictions_outcome",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -61,6 +88,12 @@ class SignalPrediction(Base):
         nullable=False,
         default=False,
         server_default=false(),
+    )
+    outcome: Mapped[str | None] = mapped_column(String, nullable=True)
+    outcome_value_inr: Mapped[float | None] = mapped_column(Float, nullable=True)
+    outcome_recorded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -18,10 +18,13 @@ import {
   signalScoreConversationIds,
 } from "@/lib/join-needs-review";
 import { resolveSignalScoreDateFrom } from "@/lib/signal-score-window";
+import { requireApiSession } from "@/lib/auth-guard";
 import { readStore } from "@/lib/store";
 import { parseReplacedParam } from "@/lib/views";
 
 export async function GET(request: Request) {
+  const session = await requireApiSession(request, "read");
+  if (session instanceof NextResponse) return session;
   const store = await readStore();
   const url = new URL(request.url);
   const jsonKeepSet = parseReplacedParam(url.searchParams.get("replaced"));

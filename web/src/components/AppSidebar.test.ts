@@ -26,6 +26,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { AppSidebar } from "@/components/AppSidebar";
+import { accountSurface } from "@/lib/account-surface";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import {
   GROWW_SHOWCASE_SAMPLE_NAME,
@@ -243,8 +244,6 @@ describe("AppSidebar Vault", () => {
     expect(vault).toContain('title="user-upload.csv"');
     expect(vault).not.toContain("Sample");
     expect(vault).not.toContain("Partner Demo");
-    expect(html).toContain("Sanket Sangi");
-    expect(html).toContain("sanket@sioona.ai");
     expect(maskPathCount(vault, FILE_MASK)).toBe(1);
     expect(vaultSubButtonActive(html, "user-upload.csv")).toBe(true);
     expect(vault.indexOf("user-upload.csv")).toBeGreaterThan(
@@ -259,7 +258,6 @@ describe("AppSidebar Vault", () => {
     const vault = vaultSection(html);
     expect(vault).toContain("Sample");
     expect(vault).toContain("Partner Demo");
-    expect(html).toContain("sanket@sioona.ai");
   });
 
   it("prefers ?file= over last upload for the active pill", () => {
@@ -280,6 +278,44 @@ describe("AppSidebar Vault", () => {
     expect(vaultSubButtonActive(html, "Zerodha_week_5_batch_01.json")).toBe(
       false,
     );
+  });
+});
+
+describe("AppSidebar account", () => {
+  it("shows the signed-in email and role with sign-out", () => {
+    const account = accountSurface({
+      session: { email: "reviewer@partner.example", role: "reviewer" },
+      authOn: true,
+      publicDemo: false,
+    });
+    const html = renderToStaticMarkup(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(AppSidebar, {
+          activeView: "insights",
+          account,
+        }),
+      ),
+    );
+
+    expect(html).toContain("reviewer@partner.example");
+    expect(html).toContain("Reviewer");
+    expect(html).toContain('aria-label="Sign out reviewer@partner.example"');
+    expect(html).toContain("Sign out");
+    expect(html).not.toContain("Sanket Sangi");
+    expect(html).not.toContain("sanket@sioona.ai");
+    expect(html).not.toContain("maya-chen");
+  });
+
+  it("shows a public demo identity when no session is passed", () => {
+    const html = renderSidebar();
+    expect(html).toContain('aria-label="Demo, Public demo"');
+    expect(html).toContain("Public demo");
+    expect(html).toContain('href="/login"');
+    expect(html).toContain("Sign in");
+    expect(html).not.toContain("Sanket Sangi");
+    expect(html).not.toContain("Sign out");
   });
 });
 

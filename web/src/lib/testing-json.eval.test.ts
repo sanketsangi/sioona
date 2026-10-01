@@ -7,6 +7,7 @@ import {
   loadTestingJsonEval,
   mapTestingLabelsToGroundTruth,
 } from "./testing-json-eval";
+import { pseudonymCustomerName } from "./redact";
 
 describe("testing.json synthetic eval", () => {
   it("maps multi-label and out-of-scope signals per policy", () => {
@@ -45,7 +46,7 @@ describe("testing.json synthetic eval", () => {
         (c) => c.externalId === "eeshan_kulkarni_41"
       )
         ?.customerName
-    ).toBe("Eeshan Kulkarni");
+    ).toBe(pseudonymCustomerName("Eeshan Kulkarni"));
     expect(result.store.signals[0]?.summary).toMatch(
       /^(Eeshan|Rahul|Priya|Amit|[A-Z][a-z]+)/
     );

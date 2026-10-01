@@ -29,6 +29,8 @@ def _to_response(result: SignalScoreResult) -> SignalScoreResponse:
         partially_correct_count=result.partially_correct_count,
         first_reviewed_at=result.first_reviewed_at,
         last_reviewed_at=result.last_reviewed_at,
+        revenue_at_risk_found_inr=result.revenue_at_risk_found_inr,
+        revenue_saved_inr=result.revenue_saved_inr,
         by_signal_type=[
             SignalScoreByType(
                 signal_type=bucket.signal_type,

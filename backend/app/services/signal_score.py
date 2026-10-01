@@ -15,7 +15,12 @@ from app.models.signal_feedback import (
     FEEDBACK_LABELS,
     SignalFeedback,
 )
-from app.models.signal_prediction import CANONICAL_SIGNAL_TYPES, SignalPrediction
+from app.models.signal_prediction import (
+    CANONICAL_SIGNAL_TYPES,
+    REVENUE_AT_RISK_OUTCOMES,
+    REVENUE_SAVED_OUTCOMES,
+    SignalPrediction,
+)
 
 
 @dataclass
@@ -74,6 +79,10 @@ class SignalScoreResult:
     first_reviewed_at: datetime | None = None
     """Latest ``reviewed_at`` in this slice. None when nothing counted."""
     last_reviewed_at: datetime | None = None
+    """Sum of retention values marked retained, churned, or unknown."""
+    revenue_at_risk_found_inr: float = 0.0
+    """Sum of values marked retained or converted, any canonical type."""
+    revenue_saved_inr: float = 0.0
 
     @property
     def signal_score(self) -> float | None:
@@ -86,6 +95,48 @@ def precision_from_counts(correct_count: int, reviewed_count: int) -> float | No
     if reviewed_count <= 0:
         return None
     return correct_count / reviewed_count
+
+
+def _revenue_totals(
+    db: Session,
+    tenant_id: str,
+    *,
+    date_from: datetime | None,
+    date_to: datetime | None,
+    conversation_ids: Sequence[str] | None,
+) -> tuple[float, float]:
+    """Rupee totals for the leak report. ``no_change`` and null values add nothing.
+
+    The date window filters ``outcome_recorded_at``, not ``reviewed_at``.
+    """
+    stmt = select(
+        SignalPrediction.signal_type,
+        SignalPrediction.outcome,
+        SignalPrediction.outcome_value_inr,
+    ).where(
+        SignalPrediction.tenant_id == tenant_id,
+        SignalPrediction.outcome.is_not(None),
+        SignalPrediction.outcome_value_inr.is_not(None),
+        SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES),
+    )
+    if date_from is not None:
+        stmt = stmt.where(SignalPrediction.outcome_recorded_at >= date_from)
+    if date_to is not None:
+        stmt = stmt.where(SignalPrediction.outcome_recorded_at <= date_to)
+    if conversation_ids is not None:
+        stmt = stmt.where(SignalPrediction.conversation_id.in_(conversation_ids))
+
+    at_risk = 0.0
+    saved = 0.0
+    for signal_type, outcome, value in db.execute(stmt).all():
+        if value is None or outcome is None:
+            continue
+        amount = float(value)
+        if signal_type == "retention" and outcome in REVENUE_AT_RISK_OUTCOMES:
+            at_risk += amount
+        if outcome in REVENUE_SAVED_OUTCOMES:
+            saved += amount
+    return at_risk, saved
 
 
 def _empty_score(tenant_id: str) -> SignalScoreResult:
@@ -235,14 +286,16 @@ def calculate_signal_score(
     excluded from the score.
     """
     keep_set = resolve_score_keep_set(db, tenant_id, conversation_ids)
+    aware_from = _aware_utc(date_from)
+    aware_to = _aware_utc(date_to)
     if keep_set is not None and len(keep_set) == 0:
         return _empty_score(tenant_id)
 
     rows = db.execute(
         _reviewed_tally_query(
             tenant_id,
-            date_from=_aware_utc(date_from),
-            date_to=_aware_utc(date_to),
+            date_from=aware_from,
+            date_to=aware_to,
             conversation_ids=keep_set,
         )
     ).all()
@@ -272,6 +325,14 @@ def calculate_signal_score(
     if signal_type is not None:
         by_type = [bucket for bucket in by_type if bucket.signal_type == signal_type]
 
+    at_risk, saved = _revenue_totals(
+        db,
+        tenant_id,
+        date_from=aware_from,
+        date_to=aware_to,
+        conversation_ids=keep_set,
+    )
+
     return SignalScoreResult(
         tenant_id=tenant_id,
         reviewed_count=overall.reviewed_count,
@@ -285,4 +346,6 @@ def calculate_signal_score(
         last_reviewed_at=(
             _aware_utc(last_reviewed_at) if overall.reviewed_count else None
         ),
+        revenue_at_risk_found_inr=at_risk,
+        revenue_saved_inr=saved,
     )

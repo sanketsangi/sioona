@@ -4,15 +4,50 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date, datetime, time, timezone
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.conversation import Conversation
 from app.models.signal_feedback import FEEDBACK_CORRECT
 from app.models.signal_prediction import SignalPrediction
 from app.services.feedback import SignalNotFoundError
+
+
+def _looks_like_fk_violation(exc: IntegrityError) -> bool:
+    text = str(getattr(exc, "orig", exc)).lower()
+    return "foreign key" in text or "fk_signal_predictions" in text
+
+
+def ensure_conversation_stub(
+    db: Session, *, tenant_id: str, conversation_id: str
+) -> None:
+    """Insert a placeholder chat so a Postgres FK can accept the prediction."""
+    existing = db.scalar(
+        select(Conversation).where(
+            Conversation.tenant_id == tenant_id,
+            Conversation.conversation_id == conversation_id,
+        )
+    )
+    if existing is not None:
+        return
+    now = datetime.now(timezone.utc)
+    db.add(
+        Conversation(
+            tenant_id=tenant_id,
+            conversation_id=conversation_id,
+            channel="unknown",
+            customer_name=None,
+            started_at=now,
+        )
+    )
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
 
 
 class PredictionNotReviewedError(Exception):
@@ -48,6 +83,7 @@ def record_prediction(
     signal_type: str,
     confidence: float,
     summary: str,
+    _fk_retried: bool = False,
 ) -> SignalPrediction:
     """Insert or update the prediction for tenant + conversation + type.
 
@@ -77,8 +113,21 @@ def record_prediction(
     db.add(prediction)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
+        if _looks_like_fk_violation(exc) and not _fk_retried:
+            ensure_conversation_stub(
+                db, tenant_id=tenant_id, conversation_id=conversation_id
+            )
+            return record_prediction(
+                db,
+                tenant_id=tenant_id,
+                conversation_id=conversation_id,
+                signal_type=signal_type,
+                confidence=confidence,
+                summary=summary,
+                _fk_retried=True,
+            )
         raced = db.scalar(
             select(SignalPrediction).where(
                 SignalPrediction.tenant_id == tenant_id,
@@ -278,6 +327,36 @@ def set_prediction_acted(
         )
 
     prediction.acted = acted
+    db.commit()
+    db.refresh(prediction)
+    return prediction
+
+
+def set_prediction_outcome(
+    db: Session,
+    *,
+    tenant_id: str,
+    signal_id: UUID,
+    outcome: str,
+    value_inr: float | None,
+    recorded_on: date | None,
+) -> SignalPrediction:
+    """Record what happened after a reviewed signal. Tenant-scoped."""
+    prediction = db.scalar(
+        select(SignalPrediction).where(
+            SignalPrediction.id == signal_id,
+            SignalPrediction.tenant_id == tenant_id,
+        )
+    )
+    if prediction is None:
+        raise SignalNotFoundError(f"Signal {signal_id} not found for tenant")
+    if recorded_on is None:
+        recorded_at = datetime.now(timezone.utc)
+    else:
+        recorded_at = datetime.combine(recorded_on, time.min, tzinfo=timezone.utc)
+    prediction.outcome = outcome
+    prediction.outcome_value_inr = value_inr
+    prediction.outcome_recorded_at = recorded_at
     db.commit()
     db.refresh(prediction)
     return prediction

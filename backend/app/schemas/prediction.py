@@ -1,6 +1,6 @@
 """Schemas for signal predictions."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -32,6 +32,19 @@ class PredictionActedUpdate(BaseModel):
     acted: bool
 
 
+SignalOutcomeLabel = Literal[
+    "retained", "churned", "converted", "no_change", "unknown"
+]
+
+
+class PredictionOutcomeUpdate(BaseModel):
+    """What happened after the signal, for the revenue-leak totals."""
+
+    outcome: SignalOutcomeLabel
+    value_inr: float | None = Field(default=None, ge=0)
+    recorded_on: date | None = None
+
+
 class PredictionResponse(BaseModel):
     """Stored prediction returned to clients."""
 
@@ -44,6 +57,9 @@ class PredictionResponse(BaseModel):
     confidence: float
     summary: str
     acted: bool = False
+    outcome: str | None = None
+    outcome_value_inr: float | None = None
+    outcome_recorded_at: datetime | None = None
     created_at: datetime
 
 

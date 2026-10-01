@@ -12,3 +12,4 @@ class TenantDataWipeResponse(BaseModel):
     feedback: int = Field(ge=0)
     supervised_actions: int = Field(ge=0)
     pilot_settings: int = Field(ge=0)
+    taxonomy_overrides: int = Field(ge=0)

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { containsPii, redactText, REDACTION_TOKENS } from "./redact";
+import {
+  containsPii,
+  pseudonymCustomerName,
+  redactText,
+  REDACTION_TOKENS,
+  safeExternalId,
+  scrubCustomerName,
+} from "./redact";
 import { scoreType } from "./detect";
 import { toStoreRecords } from "./ingest";
 
@@ -51,6 +58,25 @@ describe("redactText", () => {
     );
   });
 
+  it("masks UPI, IFSC, client codes, labeled DOB, address, and PIN", () => {
+    expect(redactText("pay me name@okaxis today")).toContain(REDACTION_TOKENS.upi);
+    expect(redactText("IFSC HDFC0001234")).toContain(REDACTION_TOKENS.ifsc);
+    expect(redactText("client code AB123456 on file")).toContain(
+      REDACTION_TOKENS.clientCode,
+    );
+    expect(redactText("DOB: 01/02/1990")).toContain(REDACTION_TOKENS.dob);
+    expect(redactText("address: 12 MG Road, Pune 411001")).toContain(
+      REDACTION_TOKENS.address,
+    );
+    expect(redactText("PIN code 411001")).toContain(REDACTION_TOKENS.pin);
+    expect(redactText("SIP of 5000 on the 5th, ticket #42 resolved")).toBe(
+      "SIP of 5000 on the 5th, ticket #42 resolved",
+    );
+    expect(redactText("trade on 01/02/2024 was fine")).toBe(
+      "trade on 01/02/2024 was fine",
+    );
+  });
+
   it("leaves ordinary text and short numbers untouched", () => {
     const text = "SIP of 5000 on the 5th, ticket #42 resolved";
     expect(redactText(text)).toBe(text);
@@ -67,6 +93,29 @@ describe("redactText", () => {
     expect(out).toContain(REDACTION_TOKENS.pan);
     expect(out).toContain(REDACTION_TOKENS.phone);
     expect(out).toContain(REDACTION_TOKENS.email);
+  });
+});
+
+describe("pseudonymCustomerName", () => {
+  it("uses a stable id and matches phone spellings", () => {
+    const a = pseudonymCustomerName("Asha Mehta");
+    const b = pseudonymCustomerName("asha   mehta");
+    expect(a).toMatch(/^Customer [0-9a-f]{8}$/);
+    expect(a).toBe(b);
+    expect(a).not.toContain("Asha");
+    expect(pseudonymCustomerName("+91 98765 43210")).toBe(
+      pseudonymCustomerName("9876543210"),
+    );
+    expect(pseudonymCustomerName(a)).toBe(a);
+  });
+
+  it("scrubs the raw name and hides phone-like external ids", () => {
+    expect(scrubCustomerName("Asha Mehta wants to close", "Asha Mehta")).toBe(
+      "[name] wants to close",
+    );
+    expect(safeExternalId("Neha_Singh", "Neha Singh")).toMatch(/^ext_[0-9a-f]{8}$/);
+    expect(safeExternalId("wa-reupload-1", "Asha")).toBe("wa-reupload-1");
+    expect(safeExternalId("9876543210")).toMatch(/^ext_/);
   });
 });
 

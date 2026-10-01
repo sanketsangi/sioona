@@ -7,6 +7,7 @@ import { QueueWakeRetry } from "@/components/QueueWakeRetry";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { shouldWakeBackendFromNotifications } from "@/lib/backend-wake";
 import { stopCursorRefStrip } from "@/lib/cursor-ref-hydration";
+import type { AccountSurface } from "@/lib/account-surface";
 import type { HeaderNotification } from "@/lib/notifications";
 import type { PlatformView, WorkspaceMode } from "@/lib/views";
 
@@ -22,6 +23,7 @@ export function AppShell({
   workspaceMode = "shadow",
   detailOpen = false,
   notifications = [],
+  account = null,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -37,6 +39,8 @@ export function AppShell({
   workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
+  /** Sidebar account. Null hides it (sign-in redirect). */
+  account?: AccountSurface | null;
 }) {
   useEffect(() => {
     stopCursorRefStrip();
@@ -66,6 +70,7 @@ export function AppShell({
         vaultFile={vaultFile}
         uploadedFileNames={uploadedFileNames}
         chatCount={chatCount}
+        account={account}
       />
 
       <SidebarInset

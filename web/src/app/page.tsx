@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { after } from "next/server";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -62,7 +63,10 @@ import {
 } from "@/lib/pilot-cadence";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
+import { accountSurface } from "@/lib/account-surface";
+import { authEnforced, publicDemoEnabled, SESSION_COOKIE, verifySessionToken } from "@/lib/auth-token";
 import { loadStore, persistMissingSupervisedDrafts } from "@/lib/store";
+import { DEMO_TENANT_ID, enterStoreTenant } from "@/lib/tenant-context";
 import { overlaySupervisedActionsFromNeon } from "@/lib/supervised-action-persistence";
 import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import {
@@ -146,6 +150,17 @@ export default async function PlatformPage({
   }>;
 }) {
   const sp = await searchParams;
+  let session: Awaited<ReturnType<typeof verifySessionToken>> = null;
+  try {
+    const cookieStore = await cookies();
+    session = await verifySessionToken(cookieStore.get(SESSION_COOKIE)?.value);
+  } catch {
+    session = null;
+  }
+  if (authEnforced() && !session && !publicDemoEnabled()) {
+    redirect("/login");
+  }
+  enterStoreTenant(session?.tenantId ?? DEMO_TENANT_ID);
   const view = parseView(sp.view);
   const signalId = sp.signal ?? null;
   const unlocked = isActionModeUnlocked();
@@ -533,6 +548,11 @@ export default async function PlatformPage({
       chatCount={store.conversations.length}
       vaultFile={vaultFile}
       notifications={notifications}
+      account={accountSurface({
+        session,
+        authOn: authEnforced(),
+        publicDemo: publicDemoEnabled(),
+      })}
     >
       {viewNode}
     </AppShell>

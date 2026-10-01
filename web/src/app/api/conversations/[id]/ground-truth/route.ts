@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiSession } from "@/lib/auth-guard";
 import { setConversationGroundTruth } from "@/lib/store";
 import type { SignalType } from "@/lib/types";
 
@@ -13,6 +14,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const session = await requireApiSession(request, "mutate");
+  if (session instanceof NextResponse) return session;
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as {
     groundTruth?: SignalType | "none" | null;

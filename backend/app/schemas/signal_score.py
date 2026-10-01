@@ -42,3 +42,7 @@ class SignalScoreResponse(BaseModel):
     first_reviewed_at: datetime | None = None
     """Latest feedback ``reviewed_at`` in this slice. Absent when empty."""
     last_reviewed_at: datetime | None = None
+    """Retention rupees marked retained, churned, or unknown."""
+    revenue_at_risk_found_inr: float = 0
+    """Rupees marked retained or converted."""
+    revenue_saved_inr: float = 0

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.deps import assert_tenant_match, require_admin_role, require_tenant_id
 from app.db import get_db
 from app.schemas.tenant_data import TenantDataWipeResponse
 from app.services.tenant_data import wipe_tenant_data
@@ -22,6 +22,7 @@ def delete_tenant_data(
     tenant_id: str,
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
+    _: Annotated[None, Depends(require_admin_role)],
 ) -> TenantDataWipeResponse:
     """Wipe Neon chats, messages, predictions, feedback, decisions, and pilot settings.
 

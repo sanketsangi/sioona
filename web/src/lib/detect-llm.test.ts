@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeEvalMetrics } from "./eval";
+import { pseudonymCustomerName } from "./redact";
 import {
   applyLlmSecondPass,
   classifyChatMessages,
@@ -70,7 +71,7 @@ describe("classifyChatMessages", () => {
       {
         role: "user",
         content:
-          "Classify this chat. Return the JSON object only.\n\nCustomer: Asha\nChannel: whatsapp\n\nCustomer messages:\nI want to close my account",
+          `Classify this chat. Return the JSON object only.\n\nCustomer: ${pseudonymCustomerName("Asha")}\nChannel: whatsapp\n\nCustomer messages:\nI want to close my account`,
       },
     ]);
   });

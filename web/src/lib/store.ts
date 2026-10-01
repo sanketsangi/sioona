@@ -34,6 +34,7 @@ import {
   wipeTenantDataFailSoft,
   type TenantWipeStats,
 } from "./wipe-tenant";
+import { currentStoreTenant, DEMO_TENANT_ID } from "./tenant-context";
 
 export type ReadStoreOptions = {
   /**
@@ -124,48 +125,75 @@ export async function resetStoreWithWipe(): Promise<ResetStoreResult> {
 // per-instance ephemeral. Cold start hydrates conversations from Neon when
 // present; otherwise reseeds from testing.json.
 const BUNDLED_DATA_DIR = path.join(process.cwd(), "data");
-const BUNDLED_STORE_PATH = path.join(BUNDLED_DATA_DIR, "store.json");
 const TMP_DATA_DIR = path.join(os.tmpdir(), "sioona-store");
-const TMP_STORE_PATH = path.join(TMP_DATA_DIR, "store.json");
 
-/** Per-worker tmp store under Vitest so parallel files never race data/store.json. */
-function vitestStoreCandidate(): [string, string] | null {
+/** Per-worker tmp dir under Vitest so parallel files never race data/store.json. */
+function vitestStoreDir(): string | null {
   if (!process.env.VITEST) return null;
   const worker =
     process.env.VITEST_POOL_ID ?? process.env.VITEST_WORKER_ID ?? "0";
-  const dir = path.join(os.tmpdir(), `sioona-store-vitest-${worker}`);
-  return [dir, path.join(dir, "store.json")];
+  return path.join(os.tmpdir(), `sioona-store-vitest-${worker}`);
 }
 
-// Resolved once to the first writable store path; `null` means no writable
-// filesystem, in which case we keep an in-memory seed so reads never throw.
-let resolvedStorePath: string | null | undefined;
-let memoryStore: StoreData | null = null;
+/** Demo stays on store.json. Other tenants get their own file. */
+export function storeFileNameForTenant(tenantId: string): string {
+  if (!tenantId || tenantId === DEMO_TENANT_ID) return "store.json";
+  const safe = tenantId.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64);
+  if (!safe || safe === DEMO_TENANT_ID) return "store.json";
+  return `store.${safe}.json`;
+}
 
-/** Pick (and cache) the first writable location for the JSON store. */
-async function resolveStorePath(): Promise<string | null> {
-  if (resolvedStorePath !== undefined) return resolvedStorePath;
-  const candidates: Array<[string, string]> = [];
-  const vitest = vitestStoreCandidate();
-  if (vitest) candidates.push(vitest);
-  candidates.push(
-    [BUNDLED_DATA_DIR, BUNDLED_STORE_PATH],
-    [TMP_DATA_DIR, TMP_STORE_PATH]
+export function emptyStoreForTenant(tenantId: string): StoreData {
+  const store = structuredClone(emptyShowcaseStore);
+  store.tenant = {
+    id: tenantId,
+    name: tenantId === DEMO_TENANT_ID ? "Demo" : tenantId,
+    createdAt: new Date().toISOString(),
+  };
+  store.conversations = [];
+  store.messages = [];
+  store.signals = [];
+  store.taxonomyOverrides = {};
+  return store;
+}
+
+// Resolved once to the first writable directory; `null` means no writable
+// filesystem, in which case we keep an in-memory seed so reads never throw.
+let resolvedStoreDir: string | null | undefined;
+const memoryStores = new Map<string, StoreData>();
+
+/** Pick (and cache) the first writable directory for JSON stores. */
+async function resolveStoreDir(): Promise<string | null> {
+  if (resolvedStoreDir !== undefined) return resolvedStoreDir;
+  const candidates = [vitestStoreDir(), BUNDLED_DATA_DIR, TMP_DATA_DIR].filter(
+    (dir): dir is string => Boolean(dir),
   );
-  for (const [dir, file] of candidates) {
+  for (const dir of candidates) {
     try {
       await fs.mkdir(/*turbopackIgnore: true*/ dir, { recursive: true });
       const probe = path.join(dir, ".write-probe");
       await fs.writeFile(/*turbopackIgnore: true*/ probe, "ok", "utf8");
       await fs.rm(/*turbopackIgnore: true*/ probe, { force: true });
-      resolvedStorePath = file;
-      return file;
+      resolvedStoreDir = dir;
+      return dir;
     } catch {
       // Not writable (e.g. EROFS/EACCES on serverless) — try the next one.
     }
   }
-  resolvedStorePath = null;
+  resolvedStoreDir = null;
   return null;
+}
+
+/** File for the request tenant. Demo keeps the historical store.json path. */
+async function resolveStorePath(): Promise<string | null> {
+  const dir = await resolveStoreDir();
+  if (!dir) return null;
+  // Tenant filenames are runtime (`store.json` / `store.<id>.json`). Without
+  // this, Turbopack treats the join as an unbounded read and traces the repo.
+  return path.join(
+    /*turbopackIgnore: true*/ dir,
+    storeFileNameForTenant(currentStoreTenant()),
+  );
 }
 
 /** Map legacy JSON feedback labels to canonical SignalScore labels. */
@@ -265,18 +293,30 @@ export async function readPersistedStore(): Promise<StoreData | null> {
       return null;
     }
   }
-  if (memoryStore) return cloneStore(memoryStore);
+  const memory = memoryStores.get(currentStoreTenant());
+  if (memory) return cloneStore(memory);
   return null;
 }
 
-export async function loadStore(
+async function loadStoreLocal(
   options?: ReadStoreOptions
 ): Promise<ReadStoreLoad> {
+  const tenantId = currentStoreTenant();
   const syncPredictions = options?.syncPredictions !== false;
-  const seedShowcase = options?.seedShowcase !== false;
+  const seedShowcase =
+    options?.seedShowcase !== false && tenantId === DEMO_TENANT_ID;
   const persisted = await readPersistedStore();
   if (persisted) return { store: persisted, coldStart: false };
   if (!seedShowcase) {
+    if (tenantId !== DEMO_TENANT_ID) {
+      const { tryHydrateStoreFromNeon } = await import("./hydrate-conversations");
+      const hydrated = await tryHydrateStoreFromNeon({
+        syncPredictions,
+        ...(options?.freshOnly ? { freshOnly: true } : {}),
+      });
+      if (hydrated) return { store: hydrated, coldStart: true };
+      return { store: emptyStoreForTenant(tenantId), coldStart: true };
+    }
     return {
       store: structuredClone(emptyShowcaseStore),
       coldStart: true,
@@ -300,6 +340,22 @@ export async function loadStore(
   };
 }
 
+export async function loadStore(
+  options?: ReadStoreOptions
+): Promise<ReadStoreLoad> {
+  const loaded = await loadStoreLocal(options);
+  const { taxonomyNeonEnabled, taxonomyOverridesFromNeon } = await import(
+    "./sync-taxonomy"
+  );
+  if (!taxonomyNeonEnabled()) return loaded;
+  const remote = await taxonomyOverridesFromNeon(loaded.store.tenant.id);
+  if (!remote) return loaded;
+  return {
+    ...loaded,
+    store: { ...loaded.store, taxonomyOverrides: remote },
+  };
+}
+
 export async function readStore(
   options?: ReadStoreOptions
 ): Promise<StoreData> {
@@ -313,7 +369,7 @@ export async function writeStore(data: StoreData): Promise<void> {
   if (!storePath) {
     // Fully read-only filesystem: keep the store in memory so a GET before any
     // write still returns seeded fixtures without throwing (per-instance only).
-    memoryStore = normalized;
+    memoryStores.set(currentStoreTenant(), normalized);
     storeFileCache = null;
     return;
   }
@@ -332,8 +388,8 @@ export async function writeStore(data: StoreData): Promise<void> {
     cacheStoreSnapshot(storePath, stat, structuredClone(normalized));
   } catch {
     // Became unwritable at runtime — degrade to in-memory rather than throwing.
-    resolvedStorePath = null;
-    memoryStore = normalized;
+    resolvedStoreDir = null;
+    memoryStores.set(currentStoreTenant(), normalized);
     storeFileCache = null;
   }
 }
@@ -610,6 +666,11 @@ export async function addTaxonomyOverride(
     [type]: { [field]: [term] },
   });
   await writeStore(store);
+  const { syncTaxonomyOverridesToBackend } = await import("./sync-taxonomy");
+  await syncTaxonomyOverridesToBackend(
+    store.tenant.id,
+    store.taxonomyOverrides ?? {},
+  );
   return store;
 }
 

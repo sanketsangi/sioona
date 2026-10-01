@@ -151,11 +151,14 @@ export function AdaptationPanel({
   taxonomyOverrides,
   compact = false,
   adaptPageRaw,
+  hideSampleAdapt = false,
 }: {
   signals: Signal[];
   taxonomyOverrides: TaxonomyOverrides;
   compact?: boolean;
   adaptPageRaw?: string | null;
+  /** Real partner exports must not one-click a sample Adapt pack. */
+  hideSampleAdapt?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -347,6 +350,7 @@ export function AdaptationPanel({
           Reject → Add Negative (stop false positives). Wrong reason / miss →
           Add Phrase. Each change re-detects immediately.
         </p>
+        {hideSampleAdapt ? null : (
         <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
@@ -369,6 +373,7 @@ export function AdaptationPanel({
             Apply Zerodha Adapt
           </button>
         </div>
+        )}
       </div>
 
       <div aria-live="polite">

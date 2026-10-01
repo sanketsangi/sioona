@@ -33,6 +33,19 @@ export interface Conversation {
   groundTruth?: SignalType | "none";
 }
 
+export type SignalOutcome =
+  | "retained"
+  | "churned"
+  | "converted"
+  | "no_change"
+  | "unknown";
+
+export interface SignalOutcomeRecord {
+  outcome: SignalOutcome;
+  valueInr?: number;
+  recordedAt?: string;
+}
+
 export interface Signal {
   id: string;
   tenantId: string;
@@ -54,6 +67,8 @@ export interface Signal {
   };
   /** Present on labeled eval fixtures */
   groundTruth?: SignalType | "none";
+  /** What happened after review. Feeds revenue at risk / revenue saved. */
+  outcome?: SignalOutcomeRecord;
 }
 
 /**

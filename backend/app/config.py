@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://user:password@localhost:5432/sioona"
     app_name: str = "Sioona Signal Score API"
     app_version: str = "0.1.0"
+    sioona_env: str = "development"
+    sioona_service_token: str = ""
 
 
 @lru_cache

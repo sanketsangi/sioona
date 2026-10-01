@@ -1,21 +1,24 @@
 /**
- * Off-TTFB dual-write after POST /api/ingest.
- * JSON already has chats + newSignals; this upserts Neon so needs-review
- * eventually matches. Fail-soft — Insights paints JSON-only rows meanwhile.
+ * Neon dual-write after POST /api/ingest has written JSON.
+ * Conversations land before predictions. The route awaits this and
+ * surfaces failed counts instead of swallowing them.
  */
 
-import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import { getPilotSettings, type BackendPilotSettings } from "./backend-client";
 import { mergeSyncedBackendIds } from "./defer-prediction-sync";
 import { replayAbsentFeedback } from "./replay-absent-feedback";
-import { mergeTaxonomyOverrides, readPersistedStore, writeStore } from "./store";
+import { readPersistedStore, writeStore } from "./store";
 import {
   pruneConversationsNotInBackend,
   syncConversationsToBackend,
+  type ConversationSyncStats,
 } from "./sync-conversations";
 import { pilotSettingsFromRemote } from "./sync-pilot";
-import { syncPredictionsToBackend } from "./sync-predictions";
+import {
+  syncPredictionsToBackend,
+  type PredictionSyncStats,
+} from "./sync-predictions";
 import { ensureSupervisedActions } from "./supervised-actions";
 import type { Conversation, Message, Signal, StoreData } from "./types";
 import { stampUnstampedSourceFile, vaultFileMatchesKeepSet } from "./vault-file";
@@ -30,6 +33,32 @@ export type DeferredIngestDualWriteInput = {
   storeUpdatedAt?: string;
   lastUploadedFileName?: string;
 };
+
+export type DeferredIngestSyncResult = {
+  predictionSync: PredictionSyncStats;
+  conversationSync: ConversationSyncStats;
+};
+
+function emptyDeferredSync(): DeferredIngestSyncResult {
+  return {
+    predictionSync: {
+      attempted: 0,
+      created: 0,
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+    },
+    conversationSync: {
+      attempted: 0,
+      created: 0,
+      updated: 0,
+      failed: 0,
+      skipped: 0,
+      messagesCreated: 0,
+      messagesUpdated: 0,
+    },
+  };
+}
 
 /** True when this after() snapshot still matches the latest JSON store. */
 export function ingestDualWriteStillCurrent(
@@ -144,10 +173,7 @@ async function writeMissingInstanceSnapshot(
     ),
     messages: input.messages,
     signals,
-    taxonomyOverrides: mergeTaxonomyOverrides(
-      emptyShowcaseStore.taxonomyOverrides,
-      PARTNER_EXPORT_ADAPT_OVERRIDES,
-    ),
+    taxonomyOverrides: emptyShowcaseStore.taxonomyOverrides ?? {},
     pilot,
   };
   ensureSupervisedActions(store);
@@ -156,25 +182,30 @@ async function writeMissingInstanceSnapshot(
 
 export async function persistDeferredIngestDualWrite(
   input: DeferredIngestDualWriteInput
-): Promise<void> {
+): Promise<DeferredIngestSyncResult> {
   const { tenantId, conversations, messages, signals, replaceShowcase } = input;
 
   const before = await readPersistedStore();
   if (before) {
-    if (!ingestDualWriteStillCurrent(before, input)) return;
+    if (!ingestDualWriteStillCurrent(before, input)) return emptyDeferredSync();
   } else if (await ingestSupersededOnNeon(input)) {
-    return;
+    return emptyDeferredSync();
   }
 
-  const [, { signals: synced }] = await Promise.all([
-    syncConversationsToBackend(conversations, messages, tenantId, {
-      clearUnlabeledGroundTruth: replaceShowcase,
-    }),
-    syncPredictionsToBackend(signals, tenantId),
-  ]);
+  // Conversations first so a Postgres FK from predictions can resolve.
+  const conversationSync = await syncConversationsToBackend(
+    conversations,
+    messages,
+    tenantId,
+    { clearUnlabeledGroundTruth: replaceShowcase },
+  );
+  const { signals: synced, sync: predictionSync } =
+    await syncPredictionsToBackend(signals, tenantId);
 
   const latest = await readPersistedStore();
-  if (latest && !ingestDualWriteStillCurrent(latest, input)) return;
+  if (latest && !ingestDualWriteStillCurrent(latest, input)) {
+    return { predictionSync, conversationSync };
+  }
 
   const merged = mergeSyncedBackendIds(
     latest ? latest.signals : signals,
@@ -187,16 +218,21 @@ export async function persistDeferredIngestDualWrite(
   }
   await replayAbsentFeedback(tenantId, merged);
 
-  if (!replaceShowcase) return;
+  if (!replaceShowcase) return { predictionSync, conversationSync };
 
   // Reset / a later ingest can land after the heal check.
   // A missing file is a different instance — still prune the replaced pack.
   const prePrune = await readPersistedStore();
-  if (prePrune && !ingestDualWriteStillCurrent(prePrune, input)) return;
-  if (!prePrune && (await ingestSupersededOnNeon(input))) return;
+  if (prePrune && !ingestDualWriteStillCurrent(prePrune, input)) {
+    return { predictionSync, conversationSync };
+  }
+  if (!prePrune && (await ingestSupersededOnNeon(input))) {
+    return { predictionSync, conversationSync };
+  }
 
   await pruneConversationsNotInBackend(
     tenantId,
     conversations.map((conversation) => conversation.id)
   );
+  return { predictionSync, conversationSync };
 }

@@ -25,6 +25,7 @@ import { formatPercent } from "@/lib/format";
 import type { SignalScoreWindow } from "@/lib/signal-score-window";
 import { parseEvalPanel, viewHref, cadenceActionHref, type EvalPanel } from "@/lib/views";
 import { evalSyncWarningWhenReviewsDisagree } from "@/lib/prediction-sync";
+import { isLivePartnerKeepSet } from "@/lib/vault-file";
 import type { StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
@@ -136,6 +137,9 @@ export function EvalView({
               taxonomyOverrides={store.taxonomyOverrides ?? {}}
               compact
               adaptPageRaw={adaptPageRaw}
+              hideSampleAdapt={isLivePartnerKeepSet(
+                store.pilot?.lastUploadedFileName,
+              )}
             />
           ) : null}
           {panel === "labeled" ? (

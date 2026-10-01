@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-10-01
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` tip `5c6bc00` (detect/Insights coverage); this pass Insights keep-set queue paging
@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-09-28):** Insights Approve / Edit / Dismiss decisions dual-write to Neon `supervised_action_decisions` (tenant + conversation + action type) and overlay onto the keep-set before the queue renders, so Approved / Edited / Dismissed chips survive Vercel `/tmp`. JSON write stays; a Neon miss does not 500 the button or wipe the local decision. Nothing is sent. Touch: Alembic `009`, FastAPI upsert/list, `supervised-action-persistence`, Insights load. Not Auth0 / not chat SoT / not outbound / not a keep-set go.
+**This pass (code, 2026-10-01):** Pilot readiness for one real redacted export. Web sessions are signed httpOnly cookies (`admin` / `reviewer` / `demo`), not Auth0. FastAPI `/v1` accepts a shared `SIOONA_SERVICE_TOKEN` from the Next server; `/docs` is off when `SIOONA_ENV=production`. Customer names become stable `Customer <hash>` ids before JSON, Neon, or Groq. Reviewers can record retained / churned / converted / no change / unknown plus an optional rupee amount; Eval shows revenue at risk found and revenue saved. Ingest waits for Neon and returns a sync error. Taxonomy overrides persist in Neon. Alembic `010` adds those columns, the override table, and a Postgres FK from predictions to conversations. Sample Adapt packs no longer merge on a live partner upload. Not Auth0 / not hosting migration / not outbound / not a keep-set go.
+
+**Prior pass (code, 2026-09-28):** Insights Approve / Edit / Dismiss decisions dual-write to Neon `supervised_action_decisions` (tenant + conversation + action type) and overlay onto the keep-set before the queue renders, so Approved / Edited / Dismissed chips survive Vercel `/tmp`. JSON write stays; a Neon miss does not 500 the button or wipe the local decision. Nothing is sent. Touch: Alembic `009`, FastAPI upsert/list, `supervised-action-persistence`, Insights load. Not Auth0 / not chat SoT / not outbound / not a keep-set go.
 
 **Prior pass (code, 2026-09-27):** Groq still classifies at most 8 zero-signal chats per run. A dump stores the skipped conversation ids; the next re-detect classifies that set before any newer miss. Insights landing names the remainder. Concurrency stays 2. Touch: `detect-llm.ts`, store, detect/ingest, Insights landing. Not 429 retries / not Groq project limits / not heuristic or taxonomy edits / not Auth0 / not Batch-02 / not outbound / not a keep-set go.
 
