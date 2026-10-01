@@ -930,6 +930,44 @@ describe("classifyConversationWithGroq", () => {
       quotes: ["close my account"],
     });
   });
+
+  it("retries a 429 and then accepts the grounded classification", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
+    vi.stubEnv("DETECT_LLM_MAX_ATTEMPTS", "2");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => "rate limit",
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  signal: "retention_risk",
+                  confidence: 0.9,
+                  evidence: "close my account",
+                  reason: "Customer will leave.",
+                }),
+              },
+            },
+          ],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await classifyConversationWithGroq({
+      conversation: conv,
+      customerMessages,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result?.type).toBe("retention");
+  });
 });
 
 describe("testing.json hybrid vs heuristic", () => {

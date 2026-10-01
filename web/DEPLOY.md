@@ -195,3 +195,16 @@ npx vercel --prod --yes --token "$VERCEL_TOKEN"
 No new environment variables. The report is `/?view=report` (anonymised by default). Download PDF is `GET /api/revenue-report/pdf`.
 
 Outcomes use the existing `signal_predictions` columns from Alembic `010_outcomes_taxonomy_fk` (`retained`, `churned`, `converted`, `no_change`, `unknown`). Saved / Lost / Converted on the report write those columns through `POST /api/signals/:id/outcome`. No extra migration. Do not point a laptop `alembic upgrade` at production Neon. Nothing is sent.
+
+## LLM-first detection
+
+When `DETECT_LLM=1`, Groq classifies every chat unless `DETECT_LLM_PRIMARY=0` (that keeps the old miss-only second pass). Heuristics remain the fallback when a call fails, the quote is not in the customer text, or the run hits the cap. Skipped conversation ids resume on the next re-detect.
+
+| Variable | Scope | Value |
+|----------|--------|--------|
+| `DETECT_LLM_PRIMARY` | Server | Omit or `1` for LLM-first. `0` restores miss-only pass 2. |
+| `DETECT_LLM_MAX_CALLS` | Server | Still **`4`** on Vercel Hobby so one request stays under ~10s. Unset locally covers about 120 chats. Re-detect continues the remainder. |
+| `DETECT_LLM_MAX_ATTEMPTS` | Server | `3` (default). Retries 429, 5xx, and timeouts only. |
+| `DETECT_LLM_MIN_INTERVAL_MS` | Server | `200` (default) between Groq calls. |
+
+Do not raise the Hobby cap in the Vercel dashboard unless the runtime can finish the batch. Nothing is sent to a customer.

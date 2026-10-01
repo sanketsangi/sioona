@@ -8,7 +8,7 @@ prompts:
   - file://prompt.ts
 
 providers:
-  - id: groq:{{model}}
+  - id: groq:qwen/qwen3.8-27b
     label: Sioona Detect v2 (Groq Qwen)
     config:
       temperature: 0

@@ -1,6 +1,8 @@
 /**
- * Detect v2 pass 2: managed Groq Qwen classifier on conversations
- * heuristics left as none. Env-gated; fail-soft; never overrides a heuristic hit.
+ * Detect: heuristics are a cheap pre-filter and a fallback.
+ * When `DETECT_LLM=1` and `DETECT_LLM_PRIMARY` is not `0`, Groq classifies
+ * every chat (batched, paced, retried). A grounded LLM label replaces the
+ * heuristic hit. A failed or ungrounded call keeps the heuristic signal.
  */
 
 import { clipQuote } from "./clip-quote";
@@ -28,6 +30,10 @@ export const DETECT_LLM_MAX_CALLS = 8;
 /** Default 2 — Groq Free 429s at 8-wide; keep Hobby detect + Neon sync under 10s. */
 export const DETECT_LLM_CONCURRENCY = 2;
 export const DETECT_LLM_TIMEOUT_MS = 6_000;
+/** Local pilot exports (about 100 chats) finish in one run when the cap is unset. */
+export const DETECT_LLM_PRIMARY_LOCAL_MAX_CALLS = 120;
+export const DETECT_LLM_MAX_ATTEMPTS = 3;
+export const DETECT_LLM_MIN_INTERVAL_MS = 200;
 const CUSTOMER_TEXT_MAX = 2_400;
 
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -73,6 +79,9 @@ Examples (later turns win):
 
 "This app is slow." later: "Please resend the login OTP to my registered mobile."
 {"signal":"none","confidence":0.95,"evidence":"","next_action":"none","reason":"Later turn is login OTP, which is ops."}
+
+"Paisa nikalna hai. Zerodha pe shift kar raha hoon."
+{"signal":"retention_risk","confidence":0.84,"evidence":"Zerodha pe shift kar raha hoon","next_action":"Same-day callback before the transfer","reason":"Hinglish leave-and-switch intent."}
 
 JSON object only.`;
 
@@ -120,11 +129,13 @@ export type LlmFailureKind = "key" | "model" | "timeout" | "shape";
 
 export class LlmCallFailed extends Error {
   readonly kind: LlmFailureKind | null;
+  readonly retryable: boolean;
 
-  constructor(kind: LlmFailureKind | null) {
+  constructor(kind: LlmFailureKind | null, retryable = false) {
     super(kind ?? "llm_call_failed");
     this.name = "LlmCallFailed";
     this.kind = kind;
+    this.retryable = retryable;
   }
 }
 
@@ -231,6 +242,21 @@ export function detectLlmMaxCalls(): number {
   );
 }
 
+/** Primary mode is on unless explicitly set to 0. Second pass stays available. */
+export function isLlmPrimaryEnabled(): boolean {
+  return process.env.DETECT_LLM_PRIMARY !== "0";
+}
+
+/**
+ * Honor DETECT_LLM_MAX_CALLS when set (Vercel Hobby stays small).
+ * Otherwise cover a pilot export locally and keep the short cap on Vercel.
+ */
+export function detectLlmPrimaryMaxCalls(): number {
+  if (process.env.DETECT_LLM_MAX_CALLS?.trim()) return detectLlmMaxCalls();
+  if (process.env.VERCEL) return DETECT_LLM_MAX_CALLS;
+  return DETECT_LLM_PRIMARY_LOCAL_MAX_CALLS;
+}
+
 export function isDetectLlmEnabled(): boolean {
   if (process.env.DETECT_LLM !== "1") return false;
   return Boolean(process.env.GROQ_API_KEY?.trim());
@@ -243,6 +269,92 @@ export function detectLlmModel(): string {
 function positiveEnvNumber(raw: string | undefined, fallback: number): number {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+let nextGroqAt = 0;
+let groqPace: Promise<void> = Promise.resolve();
+
+/** Space Groq calls so a pilot batch does not burst the free-tier limit. */
+export async function paceGroqCall(): Promise<void> {
+  const raw = process.env.DETECT_LLM_MIN_INTERVAL_MS;
+  const parsed = raw == null || raw.trim() === "" ? DETECT_LLM_MIN_INTERVAL_MS : Number(raw);
+  const gap = Number.isFinite(parsed) ? parsed : DETECT_LLM_MIN_INTERVAL_MS;
+  if (gap <= 0) return;
+  const ticket = groqPace.then(async () => {
+    const wait = nextGroqAt - Date.now();
+    if (wait > 0) await sleep(wait);
+    nextGroqAt = Date.now() + gap;
+  });
+  groqPace = ticket.then(
+    () => undefined,
+    () => undefined
+  );
+  await ticket;
+}
+
+async function requestGroqClassification(
+  apiKey: string,
+  messages: ClassifyChatMessage[]
+): Promise<LlmClassification> {
+  await paceGroqCall();
+  const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(GROQ_CHAT_URL, {
+      method: "POST",
+      signal,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: detectLlmModel(),
+        temperature: 0,
+        reasoning_effort: "none",
+        reasoning_format: "hidden",
+        response_format: { type: "json_object" },
+        messages,
+      }),
+    });
+  } catch (err) {
+    throw new LlmCallFailed(isAbortError(err) ? "timeout" : null, true);
+  } finally {
+    clear();
+  }
+
+  if (!response.ok) {
+    let detail = "";
+    try {
+      detail = typeof response.text === "function" ? await response.text() : "";
+    } catch {
+      detail = "";
+    }
+    const retryable = response.status === 429 || response.status >= 500;
+    throw new LlmCallFailed(groqFailureKind(response.status, detail), retryable);
+  }
+
+  let payload: {
+    choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
+  };
+  try {
+    payload = (await response.json()) as typeof payload;
+  } catch {
+    throw new LlmCallFailed("shape");
+  }
+
+  const message = payload.choices?.[0]?.message;
+  const content = typeof message?.content === "string" ? message.content : "";
+  const reasoning =
+    typeof message?.reasoning === "string" ? message.reasoning : "";
+  const parsed =
+    (content ? parseLlmClassificationJson(content) : null) ??
+    (reasoning ? parseLlmClassificationJson(reasoning) : null);
+  if (!parsed) throw new LlmCallFailed("shape");
+  return parsed;
 }
 
 function collapseWs(text: string): string {
@@ -516,62 +628,25 @@ export async function classifyConversationWithGroq(input: {
     customerText: text,
   });
 
-  const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
-  let response: Response;
-  try {
-    response = await fetch(GROQ_CHAT_URL, {
-      method: "POST",
-      signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: detectLlmModel(),
-        temperature: 0,
-        // 3.8 thinks by default. JSON mode 400s on raw reasoning, and a
-        // 6s abort would look like a timeout. Instruct mode keeps the
-        // JSON in message.content.
-        reasoning_effort: "none",
-        reasoning_format: "hidden",
-        response_format: { type: "json_object" },
-        messages,
-      }),
-    });
-  } catch (err) {
-    throw new LlmCallFailed(isAbortError(err) ? "timeout" : null);
-  } finally {
-    clear();
-  }
-
-  if (!response.ok) {
-    let detail = "";
+  const maxAttempts = Math.min(
+    4,
+    Math.max(1, Math.floor(positiveEnvNumber(
+      process.env.DETECT_LLM_MAX_ATTEMPTS,
+      DETECT_LLM_MAX_ATTEMPTS
+    )))
+  );
+  let lastError: unknown = new LlmCallFailed("shape");
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      detail = typeof response.text === "function" ? await response.text() : "";
-    } catch {
-      detail = "";
+      return await requestGroqClassification(apiKey, messages);
+    } catch (err) {
+      lastError = err;
+      const retryable = err instanceof LlmCallFailed && err.retryable;
+      if (!retryable || attempt >= maxAttempts - 1) throw err;
+      await sleep(200 * 2 ** attempt);
     }
-    throw new LlmCallFailed(groqFailureKind(response.status, detail));
   }
-
-  let payload: {
-    choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
-  };
-  try {
-    payload = (await response.json()) as typeof payload;
-  } catch {
-    throw new LlmCallFailed("shape");
-  }
-
-  const message = payload.choices?.[0]?.message;
-  const content = typeof message?.content === "string" ? message.content : "";
-  const reasoning =
-    typeof message?.reasoning === "string" ? message.reasoning : "";
-  const parsed =
-    (content ? parseLlmClassificationJson(content) : null) ??
-    (reasoning ? parseLlmClassificationJson(reasoning) : null);
-  if (!parsed) throw new LlmCallFailed("shape");
-  return parsed;
+  throw lastError;
 }
 
 function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
@@ -765,6 +840,117 @@ export async function applyLlmSecondPass(
   };
 }
 
+/**
+ * LLM classifies every chat with customer text. Heuristic hits stay only
+ * when the model fails, the quote is not grounded, or the call cap skips
+ * the chat. An explicit `none` drops the heuristic hit for that chat.
+ */
+export async function applyLlmPrimaryPass(
+  conversations: Conversation[],
+  messages: Message[],
+  tenantId: string,
+  heuristicSignals: Signal[],
+  overrides?: TaxonomyOverrides | null,
+  options?: HybridDetectOptions
+): Promise<HybridDetectResult> {
+  const classify = options?.classify;
+  const enabled = Boolean(classify) || isDetectLlmEnabled();
+  if (!enabled) {
+    return { signals: heuristicSignals, llm: emptyStats(false) };
+  }
+
+  const byConversation = new Map<string, Message[]>();
+  for (const message of messages) {
+    const list = byConversation.get(message.conversationId) ?? [];
+    list.push(message);
+    byConversation.set(message.conversationId, list);
+  }
+
+  const candidates = conversations
+    .map((conversation) => ({
+      conversation,
+      customerMessages: (byConversation.get(conversation.id) ?? []).filter(
+        (m) => m.role === "customer"
+      ),
+    }))
+    .filter((row) => customerText(row.customerMessages).length > 0)
+    .sort(
+      (a, b) =>
+        customerText(b.customerMessages).length -
+        customerText(a.customerMessages).length
+    );
+
+  const maxCalls = Math.max(
+    0,
+    options?.maxCalls ?? detectLlmPrimaryMaxCalls()
+  );
+  const ordered = prioritizeSkippedCandidates(candidates, options?.resumeIds);
+  const selected = ordered.slice(0, maxCalls);
+  const skippedIds = ordered.slice(selected.length).map((row) => row.conversation.id);
+  const classifyFn = classify ?? classifyConversationWithGroq;
+  const concurrency = Math.max(
+    1,
+    options?.concurrency ??
+      positiveEnvNumber(
+        process.env.DETECT_LLM_CONCURRENCY,
+        DETECT_LLM_CONCURRENCY
+      )
+  );
+
+  const accepted = new Map<string, Signal>();
+  const dropped = new Set<string>();
+  let attempted = 0;
+  let failed = 0;
+  let llmFailure: LlmFailureKind | undefined;
+
+  await mapWithConcurrency(selected, concurrency, async (row) => {
+    attempted += 1;
+    try {
+      const result = await classifyFn(row);
+      if (!result) {
+        failed += 1;
+        return;
+      }
+      if (result.type === "none") {
+        dropped.add(row.conversation.id);
+        return;
+      }
+      const source = customerText(row.customerMessages);
+      const signal = signalFromClassification(
+        row.conversation,
+        tenantId,
+        result,
+        source,
+        overrides
+      );
+      if (signal) accepted.set(row.conversation.id, signal);
+    } catch (err) {
+      failed += 1;
+      const kind = llmFailureKindOf(err);
+      if (!llmFailure && kind) llmFailure = kind;
+    }
+  });
+
+  const kept = heuristicSignals.filter(
+    (signal) =>
+      !accepted.has(signal.conversationId) && !dropped.has(signal.conversationId)
+  );
+
+  return {
+    signals: [...kept, ...accepted.values()],
+    llm: {
+      enabled: true,
+      candidates: candidates.length,
+      attempted,
+      added: accepted.size,
+      failed,
+      skipped: skippedIds.length,
+      skippedIds,
+      ...(llmFailure ? { llmFailure } : {}),
+    },
+  };
+}
+
 export async function runHybridDetection(
   conversations: Conversation[],
   messages: Message[],
@@ -781,7 +967,17 @@ export async function runHybridDetection(
         options.onProgress
       )
     : runDetection(conversations, messages, tenantId, overrides);
-  return applyLlmSecondPass(
+  if (!isLlmPrimaryEnabled()) {
+    return applyLlmSecondPass(
+      conversations,
+      messages,
+      tenantId,
+      heuristic,
+      overrides,
+      options
+    );
+  }
+  return applyLlmPrimaryPass(
     conversations,
     messages,
     tenantId,
