@@ -19,6 +19,10 @@ import { FolderIcon } from "@/components/icons/FolderIcon";
 import { ListChecksIcon } from "@/components/icons/ListChecksIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
 import { NavUser } from "@/components/NavUser";
+import {
+  anonymousDemoAccount,
+  type AccountSurface,
+} from "@/lib/account-surface";
 import { SioonaLogotype } from "@/components/SioonaLogotype";
 import {
   Collapsible,
@@ -473,18 +477,13 @@ function SidebarBrand({
   );
 }
 
-function AppSidebarFooter() {
+function AppSidebarFooter({ account }: { account: AccountSurface | null }) {
   return (
     <>
       <HelpDialog />
       <GuidanceDialog />
       <FeedbackDialog />
-      <NavUser
-        user={{
-          name: "Sanket Sangi",
-          email: "sanket@sioona.ai",
-        }}
-      />
+      {account ? <NavUser account={account} /> : null}
     </>
   );
 }
@@ -496,6 +495,7 @@ export function AppSidebar({
   vaultFile = null,
   uploadedFileNames,
   chatCount,
+  account = anonymousDemoAccount(),
   ...props
 }: ComponentProps<typeof Sidebar> & {
   activeView: PlatformView;
@@ -505,6 +505,8 @@ export function AppSidebar({
   /** Real-export files. Must not be forwarded onto the sidebar element. */
   uploadedFileNames?: string[];
   chatCount?: number;
+  /** Signed-in session, public demo, or null when sign-in is required. */
+  account?: AccountSurface | null;
 }) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -526,7 +528,7 @@ export function AppSidebar({
         />
       </SidebarContent>
       <SidebarFooter className="shrink-0">
-        <AppSidebarFooter />
+        <AppSidebarFooter account={account} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

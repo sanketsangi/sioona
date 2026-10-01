@@ -63,6 +63,7 @@ import {
 } from "@/lib/pilot-cadence";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
+import { accountSurface } from "@/lib/account-surface";
 import { authEnforced, publicDemoEnabled, SESSION_COOKIE, verifySessionToken } from "@/lib/auth-token";
 import { loadStore, persistMissingSupervisedDrafts } from "@/lib/store";
 import { DEMO_TENANT_ID, enterStoreTenant } from "@/lib/tenant-context";
@@ -547,10 +548,11 @@ export default async function PlatformPage({
       chatCount={store.conversations.length}
       vaultFile={vaultFile}
       notifications={notifications}
-      accountHref={authEnforced() && !session ? "/login" : null}
-      accountLabel={
-        authEnforced() ? (session ? session.email : "Sign in") : null
-      }
+      account={accountSurface({
+        session,
+        authOn: authEnforced(),
+        publicDemo: publicDemoEnabled(),
+      })}
     >
       {viewNode}
     </AppShell>
