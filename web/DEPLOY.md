@@ -189,3 +189,9 @@ If you prefer non-interactive deploys, create a token at
 cd web
 npx vercel --prod --yes --token "$VERCEL_TOKEN"
 ```
+
+## Revenue leak report
+
+No new environment variables. The report is `/?view=report` (anonymised by default). Download PDF is `GET /api/revenue-report/pdf`.
+
+Outcomes use the existing `signal_predictions` columns from Alembic `010_outcomes_taxonomy_fk` (`retained`, `churned`, `converted`, `no_change`, `unknown`). Saved / Lost / Converted on the report write those columns through `POST /api/signals/:id/outcome`. No extra migration. Do not point a laptop `alembic upgrade` at production Neon. Nothing is sent.

@@ -86,6 +86,7 @@ const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
   { view: "insights", label: "Insights", icon: null },
   { view: "upload", label: "Upload", icon: null },
   { view: "eval", label: "Eval", icon: null },
+  { view: "report", label: "Report", icon: null },
   { view: "taxonomy", label: "Taxonomy", icon: Tag },
 ];
 
@@ -161,6 +162,8 @@ function WorkspaceNav({
                     <ChartLineUpIcon className="size-4 shrink-0 text-sio-fg-base" />
                   ) : item.view === "eval" ? (
                     <ListChecksIcon className="size-4 shrink-0 text-sio-fg-base" />
+                  ) : item.view === "report" ? (
+                    <FileIcon className="size-4 shrink-0 text-sio-fg-base" />
                   ) : Icon ? (
                     <Icon
                       className="size-4 shrink-0"

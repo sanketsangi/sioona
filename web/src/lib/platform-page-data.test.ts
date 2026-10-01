@@ -44,6 +44,16 @@ describe("platformPageFetches", () => {
     });
   });
 
+  it("loads the week-window score for the revenue leak report", () => {
+    expect(platformPageFetches("report")).toEqual({
+      insightsQueue: false,
+      windowedScore: true,
+      allTimeScore: false,
+      predictionSync: "defer",
+      pilotRefresh: "defer",
+    });
+  });
+
   it("plans GET /pilot per view: await Upload, defer Insights/Eval, skip Taxonomy", () => {
     expect(platformPageFetches("upload").pilotRefresh).toBe("await");
     expect(platformPageFetches("insights").pilotRefresh).toBe("defer");

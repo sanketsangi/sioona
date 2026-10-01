@@ -102,6 +102,7 @@ const TITLES: Record<PlatformView, string> = {
   upload: "Uploaded Chats",
   eval: "Eval & SignalScore",
   taxonomy: "Signal Taxonomy",
+  report: "Revenue Leak",
 };
 
 export async function generateMetadata({
@@ -147,6 +148,7 @@ export default async function PlatformPage({
     mode?: string;
     replaced?: string;
     file?: string;
+    reveal?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -525,6 +527,18 @@ export default async function PlatformPage({
         cadenceAction={cadenceAction}
         cadencePreviewId={cadencePreviewId}
         syncFailed={hasSyncFailure ? syncFailed : 0}
+      />
+    );
+  } else if (view === "report") {
+    const { RevenueLeakReportView } = await import(
+      "@/components/views/RevenueLeakReportView"
+    );
+    viewNode = (
+      <RevenueLeakReportView
+        store={store}
+        backendScore={backendScore}
+        windowLabel={scoreWindow.label}
+        anonymised={sp.reveal !== "1"}
       />
     );
   } else if (view === "taxonomy") {
