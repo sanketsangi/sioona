@@ -640,7 +640,7 @@ export function InsightsView({
               page: null,
               preview: null,
             })}
-            className="link-accent w-fit text-label-12"
+            className="btn-secondary h-9 w-fit"
           >
             {callToday ? "Show the full queue" : "Top 10 to call today"}
           </Link>

@@ -2687,12 +2687,25 @@ describe("InsightsView evidence-grounded review", () => {
     expect(insights).toContain("No chats yet");
     expect(insights).toContain("Upload chats");
     expect(insights).not.toContain("Sample is not loaded");
+    expect(insights).not.toContain("link-accent w-fit text-label-12");
+    expect(insights).not.toContain('id="at-risk-heading"');
+    const callLink = insights.match(
+      /<a href="([^"]*)" class="btn-secondary h-9 w-fit">([^<]*)<\/a>/,
+    );
+    expect(callLink?.[2]).toBe("Top 10 to call today");
+    expect(callLink?.[1]).toContain("call=today");
+    expect(callLink?.[1]).toContain("status=new");
 
     const top = renderToStaticMarkup(
       createElement(InsightsView, { ...props, callToday: true }),
     );
     expect(top).toContain("No calls today");
     expect(top).toContain("Upload chats");
+    const fullQueue = top.match(
+      /<a href="([^"]*)" class="btn-secondary h-9 w-fit">([^<]*)<\/a>/,
+    );
+    expect(fullQueue?.[2]).toBe("Show the full queue");
+    expect(fullQueue?.[1] ?? "").not.toContain("call=today");
 
     const report = renderToStaticMarkup(
       await RevenueLeakReportView({

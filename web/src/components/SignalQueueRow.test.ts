@@ -93,6 +93,27 @@ describe("SignalQueueRow", () => {
     expect(html).not.toContain("Please pause my SIP this month");
   });
 
+  it("renders the commercial label as a compact full-radius pill", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalQueueRow, {
+        signal: signal({
+          urgency: "low",
+          urgencyTimeframe: "this week",
+          mentionedValueInr: 3,
+        }),
+        customerName: "Priya",
+      }),
+    );
+
+    expect(html).toContain("rounded-full");
+    expect(html).toContain("text-label-12");
+    expect(html).toContain("capitalize");
+    expect(html).toContain("tabular");
+    expect(html).toContain("truncate");
+    expect(html).toContain("low · this week · ₹3");
+    expect(html).toContain('title="low · this week · ₹3"');
+  });
+
   it("renders a selected table row with expanded summary and no Review", () => {
     const html = renderToStaticMarkup(
       createElement(SignalQueueRow, {

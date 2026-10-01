@@ -20,6 +20,13 @@ export const QUEUE_REVIEW_ACTION_CLASS =
 export const QUEUE_CARD_ACTION_CLASS =
   "w-full min-h-11 touch-manipulation rounded-full px-3";
 
+/**
+ * Urgency × timeframe × mentioned value. Same hairline `rounded-full` as
+ * signal chips, muted so Type / Score stay the primary chrome.
+ */
+const COMMERCIAL_PILL_CLASS =
+  "h-5 w-fit max-w-full min-w-0 items-center truncate rounded-full bg-sio-bg-base px-2 text-label-12 capitalize leading-4 text-sio-fg-muted tabular shadow-[0_0_0_1px_rgba(0,0,0,0.08)]";
+
 type SignalQueueRowProps = {
   signal: Signal;
   customerName: string;
@@ -119,12 +126,17 @@ export function SignalQueueRow({
       </TableCell>
 
       <TableCell className="min-w-[7.25rem]">
-        <SignalTypeChip type={signal.type} />
-        {commercialLabel ? (
-          <p className="mt-1 text-label-12 capitalize text-sio-fg-muted tabular">
-            {commercialLabel}
-          </p>
-        ) : null}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <SignalTypeChip type={signal.type} />
+          {commercialLabel ? (
+            <p
+              className={cn("flex", COMMERCIAL_PILL_CLASS)}
+              title={commercialLabel}
+            >
+              {commercialLabel}
+            </p>
+          ) : null}
+        </div>
       </TableCell>
 
       <TableCell className="min-w-[5.5rem] whitespace-normal">
@@ -196,7 +208,10 @@ export function SignalQueueCard({
           type={signal.type}
         />
         {commercialLabel ? (
-          <span className="text-label-12 capitalize text-sio-fg-muted tabular">
+          <span
+            className={cn("inline-flex", COMMERCIAL_PILL_CLASS)}
+            title={commercialLabel}
+          >
             {commercialLabel}
           </span>
         ) : null}
