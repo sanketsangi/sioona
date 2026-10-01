@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { BackendClientError } from "./backend-client";
+import { pseudonymCustomerName } from "./redact";
 import type { BackendConversation } from "./backend-client";
 import type { BackendPredictionWithFeedback } from "./backend-client";
 import { runDetection } from "./detect";
@@ -27,21 +27,8 @@ const ADAPT_CHAT_CONTENT =
   "Portfolio review please. I am already doing SIPs. Yes, send the link. I want to open/start this week.";
 
 function expectAdaptOverrides(overrides: TaxonomyOverrides | undefined) {
-  expect(overrides?.lead?.negativePhrases).toEqual(
-    expect.arrayContaining([
-      "portfolio review",
-      "already doing sip",
-      "move my money",
-    ])
-  );
-  expect(overrides?.upsell?.phrases).toEqual(
-    expect.arrayContaining([
-      "portfolio review",
-      "already doing sip",
-      "increase investment",
-      "where do i even start",
-    ])
-  );
+  expect(overrides?.lead?.negativePhrases ?? []).toEqual([]);
+  expect(overrides?.upsell?.phrases ?? []).toEqual([]);
 }
 
 function partnerRow(
@@ -125,7 +112,7 @@ describe("mapBackendConversationsToStore", () => {
       id: "conv_partner_upload_1",
       tenantId: "tenant_demo",
       channel: "whatsapp",
-      customerName: "Priya",
+      customerName: pseudonymCustomerName("Priya"),
       startedAt: "2026-08-01T10:00:00.000Z",
       externalId: "priya_export_1",
       messageIds: ["msg_partner_1"],
@@ -392,9 +379,6 @@ describe("tryHydrateStoreFromNeon", () => {
     expectAdaptOverrides(
       (writeSpy.mock.calls[0]?.[0] as { taxonomyOverrides?: TaxonomyOverrides })
         .taxonomyOverrides
-    );
-    expect(result?.taxonomyOverrides?.lead?.negativePhrases).toEqual(
-      PARTNER_EXPORT_ADAPT_OVERRIDES.lead?.negativePhrases
     );
     expect(result?.pilot?.baselineOpportunities).toBe(0);
     expect(result?.pilot?.weeklyExportCount).toBeUndefined();
@@ -663,7 +647,7 @@ describe("tryHydrateStoreFromNeon", () => {
     expect(writeSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("still writes chats and Adapt overrides when detect throws after a successful GET", async () => {
+  it("still writes chats when detect throws after a successful GET", async () => {
     vi.spyOn(backendClient, "getConversations").mockResolvedValue([
       partnerRow(),
     ]);
@@ -734,10 +718,8 @@ describe("tryHydrateStoreFromNeon", () => {
     const result = await tryHydrateStoreFromNeon();
 
     expectAdaptOverrides(result?.taxonomyOverrides);
+    expect(result?.signals.some((signal) => signal.type === "lead")).toBe(true);
     expect(result?.signals.some((signal) => signal.type === "upsell")).toBe(
-      true
-    );
-    expect(result?.signals.some((signal) => signal.type === "lead")).toBe(
       false
     );
   });
@@ -812,7 +794,9 @@ describe("tryHydrateStoreFromNeon", () => {
       updatedSince: "2026-09-27T12:00:00.000Z",
     });
     expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
-    expect(result?.conversations[0]?.customerName).toBe("Aditya Pawar");
+    expect(result?.conversations[0]?.customerName).toBe(
+      pseudonymCustomerName("Aditya Pawar"),
+    );
     expect(result?.conversations[0]?.sourceFile).toBe(
       "Zerodha_week_7_batch_01.json",
     );
@@ -873,7 +857,7 @@ describe("tryHydrateStoreFromNeon", () => {
     const result = await tryHydrateStoreFromNeon();
 
     expect(result?.conversations.map((row) => row.customerName)).toEqual([
-      "Aditya Pawar",
+      pseudonymCustomerName("Aditya Pawar"),
     ]);
     expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
   });

@@ -4,6 +4,7 @@
  */
 
 import { clipQuote } from "./clip-quote";
+import { pseudonymCustomerName, redactText } from "./redact";
 import {
   pickAction,
   runDetection,
@@ -490,9 +491,9 @@ export function classifyChatMessages(input: {
   channel?: string;
   customerText: string;
 }): ClassifyChatMessage[] {
-  const who = input.customerName ?? "Customer";
+  const who = pseudonymCustomerName(input.customerName) ?? "Customer";
   const channel = input.channel || "chat";
-  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${input.customerText}`;
+  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${redactText(input.customerText)}`;
   return [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: userPrompt },
@@ -610,7 +611,7 @@ function signalFromClassification(
     `llm: ${detectLlmModel()}`,
   ];
   const score = Number(classification.confidence.toFixed(3));
-  const who = conversation.customerName ?? "Customer";
+  const who = pseudonymCustomerName(conversation.customerName) ?? "Customer";
   const via = conversation.channel ? ` (${conversation.channel})` : "";
 
   return {
@@ -625,7 +626,7 @@ function signalFromClassification(
       `${who}${via} may be a ${classification.type} signal — review before acting.`,
     suggestedAction: resolveSuggestedAction({
       type: classification.type,
-      customerName: conversation.customerName,
+      customerName: who,
       evidence,
       fallback: pickAction(classification.type, score, overrides),
     }),

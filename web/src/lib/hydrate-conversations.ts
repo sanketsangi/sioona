@@ -2,11 +2,17 @@
  * Cold-start hydrate: pull conversations + messages from Neon when the JSON
  * store file is missing. Fail-soft — empty/down/404/500 → null (caller seeds
  * testing.json). Copies Neon ground_truth onto conversations + matching
- * signals; never invents GT. Taxonomy stays JSON: union Adapt fixture into
- * taxonomyOverrides before re-detect (same merge as Day-1 replace ingest).
+ * signals; never invents GT. Taxonomy overrides come from the tenant store
+ * (Neon when synced). Sample Adapt packs are not applied on hydrate.
  */
 
-import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
+import { currentStoreTenant } from "@/lib/tenant-context";
+import {
+  pseudonymCustomerName,
+  redactText,
+  safeExternalId,
+  scrubCustomerName,
+} from "./redact";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   getConversations,
@@ -21,7 +27,7 @@ import {
 } from "./backend-client";
 import { runHybridDetection } from "./detect-llm";
 import { pilotSettingsFromRemote } from "./sync-pilot";
-import { mergeTaxonomyOverrides, writeStore } from "./store";
+import { writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import { bundledShowcaseConversationIds } from "./showcase-keep-set";
 import { isLivePartnerKeepSet } from "./vault-file";
@@ -90,7 +96,12 @@ export function mapBackendConversationsToStore(
     const mappedMessages: Message[] = [];
     for (const backendMessage of row.messages ?? []) {
       const mapped = mapMessage(backendMessage, row.conversation_id);
-      if (mapped) mappedMessages.push(mapped);
+      if (!mapped) continue;
+      mapped.content = scrubCustomerName(
+        redactText(mapped.content),
+        row.customer_name,
+      );
+      mappedMessages.push(mapped);
     }
     const conversation: Conversation = {
       id: row.conversation_id,
@@ -100,10 +111,13 @@ export function mapBackendConversationsToStore(
       messageIds: mappedMessages.map((message) => message.id),
     };
     if (row.customer_name) {
-      conversation.customerName = row.customer_name;
+      conversation.customerName = pseudonymCustomerName(row.customer_name);
     }
     if (row.external_id) {
-      conversation.externalId = row.external_id;
+      conversation.externalId = safeExternalId(
+        row.external_id,
+        row.customer_name,
+      );
     }
     const groundTruth = asGroundTruth(row.ground_truth);
     if (groundTruth) {
@@ -333,7 +347,7 @@ export function filterConversationsForLivePartner<
  * Sample would PUT Groww over the upload.
  */
 export async function pendingLivePartnerStore(): Promise<StoreData | null> {
-  const tenantId = emptyShowcaseStore.tenant.id;
+  const tenantId = currentStoreTenant();
   try {
     const remote = await getPilotSettings(tenantId);
     const name = remote?.last_uploaded_file_name?.trim();
@@ -354,7 +368,7 @@ export async function pendingLivePartnerStore(): Promise<StoreData | null> {
 export async function tryHydrateStoreFromNeon(
   options?: HydrateStoreOptions
 ): Promise<StoreData | null> {
-  const tenantId = emptyShowcaseStore.tenant.id;
+  const tenantId = currentStoreTenant();
   let remotePilot: Awaited<ReturnType<typeof getPilotSettings>> = null;
   try {
     remotePilot = await getPilotSettings(tenantId);
@@ -416,10 +430,7 @@ export async function tryHydrateStoreFromNeon(
   }
   if (chats.conversations.length === 0) return null;
 
-  const taxonomyOverrides = mergeTaxonomyOverrides(
-    emptyShowcaseStore.taxonomyOverrides,
-    PARTNER_EXPORT_ADAPT_OVERRIDES
-  );
+  const taxonomyOverrides = emptyShowcaseStore.taxonomyOverrides ?? {};
 
   let signals: Signal[] = [];
   let llmSkippedConversationIds: string[] | undefined;

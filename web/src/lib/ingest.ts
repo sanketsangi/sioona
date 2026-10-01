@@ -7,7 +7,12 @@ import {
   type IngestConversationInput,
   type IngestFormat,
 } from "./ingest-platforms";
-import { redactText } from "./redact";
+import {
+  pseudonymCustomerName,
+  redactText,
+  safeExternalId,
+  scrubCustomerName,
+} from "./redact";
 import { mapTestingLabelsToGroundTruth } from "./label-ground-truth";
 import type { Conversation, Message, SignalType } from "./types";
 
@@ -376,7 +381,7 @@ export function toStoreRecords(
         conversationId,
         role: msg.role,
         // PII redaction on the ingest path, before anything is stored.
-        content: redactText(msg.content),
+        content: scrubCustomerName(redactText(msg.content), input.customerName),
         timestamp: msg.timestamp || startedAt,
       });
     }
@@ -384,9 +389,9 @@ export function toStoreRecords(
     conversations.push({
       id: conversationId,
       tenantId,
-      externalId: input.externalId,
+      externalId: safeExternalId(input.externalId, input.customerName),
       channel: input.channel || "upload",
-      customerName: input.customerName,
+      customerName: pseudonymCustomerName(input.customerName),
       startedAt,
       messageIds,
       groundTruth: input.groundTruth,
