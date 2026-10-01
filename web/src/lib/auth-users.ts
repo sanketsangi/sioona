@@ -7,9 +7,15 @@ import {
 
 import { isTenantId, type AuthRole } from "@/lib/auth-token";
 
+/**
+ * Password accounts. `demo` stays a session-only role for the anonymous
+ * public demo (`auth-guard` demo session). It is not a sign-in role.
+ */
+export type PilotRole = Exclude<AuthRole, "demo">;
+
 export type PilotUser = {
   email: string;
-  role: "admin" | "reviewer";
+  role: PilotRole;
   tenantId: string;
   password?: string;
   passwordHash?: string;
@@ -46,7 +52,7 @@ export function verifyPilotPassword(input: string, user: PilotUser): boolean {
   return passwordsMatch(input, user.password);
 }
 
-function asRole(value: unknown): AuthRole | null {
+function asRole(value: unknown): PilotRole | null {
   if (value === "admin" || value === "reviewer") return value;
   return null;
 }

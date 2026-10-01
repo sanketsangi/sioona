@@ -188,7 +188,12 @@ async function resolveStoreDir(): Promise<string | null> {
 async function resolveStorePath(): Promise<string | null> {
   const dir = await resolveStoreDir();
   if (!dir) return null;
-  return path.join(dir, storeFileNameForTenant(currentStoreTenant()));
+  // Tenant filenames are runtime (`store.json` / `store.<id>.json`). Without
+  // this, Turbopack treats the join as an unbounded read and traces the repo.
+  return path.join(
+    /*turbopackIgnore: true*/ dir,
+    storeFileNameForTenant(currentStoreTenant()),
+  );
 }
 
 /** Map legacy JSON feedback labels to canonical SignalScore labels. */
