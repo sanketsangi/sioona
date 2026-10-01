@@ -57,6 +57,8 @@ type AppHeaderProps = {
   workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
+  accountHref?: string | null;
+  accountLabel?: string | null;
 };
 
 /**
@@ -73,6 +75,8 @@ export function AppHeader({
   workspaceMode = "shadow",
   detailOpen = false,
   notifications = [],
+  accountHref = null,
+  accountLabel = null,
 }: AppHeaderProps) {
   const TitleIcon =
     title &&
@@ -148,6 +152,29 @@ export function AppHeader({
         </div>
 
         <div className="app-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
+          {accountLabel ? (
+            accountHref ? (
+              <Link
+                href={accountHref}
+                className="inline-flex h-8 max-w-[10rem] items-center truncate rounded-sm px-2 text-label-13 text-sio-fg-subtle hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
+              >
+                {accountLabel}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                className="inline-flex h-8 max-w-[12rem] items-center truncate rounded-sm px-2 text-label-13 text-sio-fg-subtle hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
+                aria-label={`Sign out ${accountLabel}`}
+                onClick={() => {
+                  void fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+                    window.location.assign("/login");
+                  });
+                }}
+              >
+                {accountLabel}
+              </button>
+            )
+          ) : null}
           <Suspense
             fallback={
               <ModeToggleFallback workspaceMode={workspaceMode} />

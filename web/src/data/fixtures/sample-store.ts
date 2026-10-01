@@ -9,7 +9,7 @@ import type { StoreData } from "@/lib/types";
 export const emptyShowcaseStore: StoreData = {
   tenant: {
     id: "tenant_demo",
-    name: "Acme Inc.",
+    name: "Demo",
     createdAt: "2026-07-01T00:00:00.000Z",
   },
   conversations: [],

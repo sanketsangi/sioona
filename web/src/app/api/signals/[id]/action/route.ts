@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiSession } from "@/lib/auth-guard";
 import { resolveFeedbackSignal } from "@/app/api/signals/[id]/feedback/route";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
 import { decideSupervisedAction, persistSupervisedActions, readStore } from "@/lib/store";
@@ -233,6 +234,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const session = await requireApiSession(request, "mutate");
+  if (session instanceof NextResponse) return session;
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as ActionBody;
 

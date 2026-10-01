@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiSession } from "@/lib/auth-guard";
 import {
   BackendClientError,
   createPrediction,
@@ -210,6 +211,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  const session = await requireApiSession(request, "mutate");
+  if (session instanceof NextResponse) return session;
   const { id } = await context.params;
   const body = (await request.json().catch(() => ({}))) as ActedBody;
 

@@ -22,6 +22,8 @@ export function AppShell({
   workspaceMode = "shadow",
   detailOpen = false,
   notifications = [],
+  accountHref,
+  accountLabel,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -37,6 +39,8 @@ export function AppShell({
   workspaceMode?: WorkspaceMode;
   detailOpen?: boolean;
   notifications?: HeaderNotification[];
+  accountHref?: string | null;
+  accountLabel?: string | null;
 }) {
   useEffect(() => {
     stopCursorRefStrip();
@@ -81,6 +85,8 @@ export function AppShell({
           workspaceMode={workspaceMode}
           detailOpen={detailOpen}
           notifications={notifications}
+          accountHref={accountHref}
+          accountLabel={accountLabel}
         />
         <QueueWakeRetry
           active={shouldWakeBackendFromNotifications(notifications)}

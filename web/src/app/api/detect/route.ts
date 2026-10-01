@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireApiSession } from "@/lib/auth-guard";
 import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
@@ -8,7 +9,9 @@ import {
 } from "@/lib/store";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const session = await requireApiSession(request, "mutate");
+  if (session instanceof NextResponse) return session;
   const store = await readStore();
   const { signals: detected, llm } = await runHybridDetection(
     store.conversations,
