@@ -6,7 +6,7 @@
  * (Neon when synced). Sample Adapt packs are not applied on hydrate.
  */
 
-import { currentStoreTenant } from "@/lib/tenant-context";
+import { currentStoreTenant, DEMO_TENANT_ID } from "@/lib/tenant-context";
 import {
   pseudonymCustomerName,
   redactText,
@@ -27,6 +27,7 @@ import {
 } from "./backend-client";
 import { runHybridDetection } from "./detect-llm";
 import { pilotSettingsFromRemote } from "./sync-pilot";
+import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
 import { writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import { bundledShowcaseConversationIds } from "./showcase-keep-set";
@@ -430,7 +431,11 @@ export async function tryHydrateStoreFromNeon(
   }
   if (chats.conversations.length === 0) return null;
 
-  const taxonomyOverrides = emptyShowcaseStore.taxonomyOverrides ?? {};
+  // Reviewer phrases already stored for this tenant (Neon Adapt).
+  const taxonomyOverrides =
+    (await taxonomyOverridesFromNeon(tenantId)) ??
+    emptyShowcaseStore.taxonomyOverrides ??
+    {};
 
   let signals: Signal[] = [];
   let llmSkippedConversationIds: string[] | undefined;
@@ -476,6 +481,15 @@ export async function tryHydrateStoreFromNeon(
 
   const store: StoreData = {
     ...structuredClone(emptyShowcaseStore),
+    // Same tenant the chats were loaded for. Showcase shell id is tenant_demo.
+    tenant: {
+      id: tenantId,
+      name:
+        tenantId === DEMO_TENANT_ID
+          ? emptyShowcaseStore.tenant.name
+          : tenantId,
+      createdAt: emptyShowcaseStore.tenant.createdAt,
+    },
     conversations: chats.conversations,
     messages: chats.messages,
     signals,
