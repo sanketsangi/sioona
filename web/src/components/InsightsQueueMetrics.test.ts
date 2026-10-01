@@ -70,6 +70,24 @@ describe("InsightsQueueMetrics week footer", () => {
     expect(html).not.toMatch(/>Go</);
   });
 
+  it("waiting Retry matches the outline Partner Demo control", () => {
+    const html = renderToStaticMarkup(
+      createElement(InsightsQueueMetrics, {
+        conversationCount: 0,
+        signals: [],
+        pendingSignals: [],
+        scoreWaiting: true,
+        retryHref: "/?view=insights&file=Groww_batch_02",
+      }),
+    );
+
+    expect(html).toContain(">Retry<");
+    expect(html).toContain(
+      "btn-secondary rounded-[var(--radius-panel)] !h-9 !px-3.5",
+    );
+    expect(html).not.toContain("btn-primary");
+  });
+
   it("offline week score omits the footer and does not invent a ratio or Go", () => {
     const html = renderFooter({ reviewedCount: null, correctCount: null });
 

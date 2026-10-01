@@ -112,6 +112,8 @@ Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/compo
 | `feedback.label === partially_correct` | **Partially Correct** | Orange/amber (`sio-status-warning-*`) — BUILDING |
 | `status === acted` | **Acted** | Muted (`sio-fg-faint`) — CANCELED |
 
+Do not put a Shadow Mode banner under “Conversation that needs your attention.” Never render “Shadow Mode — Confirm or correct detections. Replies are drafts only; nothing is sent.” as a status, warning, or dismissible tip (`InsightsShadowTip`). That explanation stays in Help.
+
 URL filter stays `status=new` for the Neon needs-review bucket. Queue chrome uses Geist filter pills immediately above the queue table: **Add Filter** (solid, Type menu) plus four EvidenceChip-style status chips (All / Pending / Correct / Done). Selected chips use applied chrome (solid + X). Type lives in Add Filter. Status chips stay URL `Link`s. Not beside the section title, not a combined Filters menu, and not `SegmentedTabs`. Status chips use **feedback presence/label** once reviewed (so a reviewed row never stays Pending from a stale `status===new`). Queue rows and the Pending metric breakdown always show the text label with the StatusDot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status. The page title stays **Insights** in `AppHeader`; the list has an `sr-only` **Insights Queue** heading (review breadcrumb uses the same label).
 
 ### Signal chrome (reuse lock)

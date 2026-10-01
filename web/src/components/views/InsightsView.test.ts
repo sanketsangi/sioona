@@ -326,23 +326,19 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Conversation that needs your attention");
-    expect(html).toContain("Shadow Mode — Confirm or correct detections");
-    expect(html).toContain("nothing is sent");
-    expect(html).toContain('aria-label="Dismiss Shadow Mode tip"');
+    expect(html).not.toContain("Shadow Mode — Confirm or correct detections");
+    expect(html).not.toContain('aria-label="Dismiss Shadow Mode tip"');
     expect(html).toContain("Run Partner Demo");
     expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
     expect(html).toContain("Queue metrics");
     const titleAt = html.indexOf("Conversation that needs your attention");
-    const tipAt = html.indexOf("Shadow Mode — Confirm or correct detections");
     const demoAt = html.indexOf("Run Partner Demo");
     const metricsAt = html.indexOf('aria-label="Queue metrics"');
     const filtersAt = html.indexOf("Add Filter");
     const tableAt = html.indexOf("Pending signal 1");
     expect(titleAt).toBeGreaterThan(-1);
     expect(demoAt).toBeGreaterThan(titleAt);
-    expect(tipAt).toBeGreaterThan(titleAt);
     expect(metricsAt).toBeGreaterThan(demoAt);
-    expect(metricsAt).toBeGreaterThan(tipAt);
     expect(filtersAt).toBeGreaterThan(metricsAt);
     expect(tableAt).toBeGreaterThan(filtersAt);
     expect(html).toContain("Pending signal 1");

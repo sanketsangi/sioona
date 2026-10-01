@@ -22,7 +22,6 @@ import {
 import { InsightsPartnerDemoAction } from "@/components/InsightsPartnerDemoAction";
 import { VaultKeepSetRefresh } from "@/components/VaultKeepSetRefresh";
 import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
-import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { attachSignalCommercial, topCallsToday } from "@/lib/signal-commercial";
@@ -669,18 +668,15 @@ export function InsightsView({
         reviewKey={reviewOpen ? previewId : null}
         list={
           <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-            <div className="flex min-w-0 shrink-0 flex-col gap-2">
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
-                  Conversation that needs your attention
-                </h2>
-                {showDemoActions && !livePartner ? (
-                  <InsightsPartnerDemoAction
-                    lastUploadedFileName={store.pilot?.lastUploadedFileName}
-                  />
-                ) : null}
-              </div>
-              <InsightsShadowTip />
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
+                Conversation that needs your attention
+              </h2>
+              {showDemoActions && !livePartner ? (
+                <InsightsPartnerDemoAction
+                  lastUploadedFileName={store.pilot?.lastUploadedFileName}
+                />
+              ) : null}
             </div>
             {vaultShowcaseKind && vaultFile ? (
               <VaultShowcaseLoader

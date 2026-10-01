@@ -272,7 +272,10 @@ export function InsightsQueueMetrics({
               {SCORE_WAITING_LINE}
             </p>
             {retryHref ? (
-              <Link href={retryHref} className="btn-primary">
+              <Link
+                href={retryHref}
+                className="btn-secondary rounded-[var(--radius-panel)] !h-9 !px-3.5"
+              >
                 {SCORE_WAITING_RETRY}
               </Link>
             ) : null}
