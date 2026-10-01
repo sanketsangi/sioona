@@ -84,6 +84,16 @@ export function feedbackLabelForShortcutKey(key: string): FeedbackLabel | null {
   return FEEDBACK_SHORTCUT_BY_KEY[key.toLowerCase()] ?? null;
 }
 
+/** 1 Saved, 2 Lost, 3 Converted. Does not message the customer. */
+export function commercialOutcomeForShortcutKey(
+  key: string,
+): "saved" | "lost" | "converted" | null {
+  if (key === "1") return "saved";
+  if (key === "2") return "lost";
+  if (key === "3") return "converted";
+  return null;
+}
+
 /**
  * Mark Acted keyboard on Follow-up / Correct panels.
  * A or Enter — not undo; skip when Feedback still owns Enter (pending review).

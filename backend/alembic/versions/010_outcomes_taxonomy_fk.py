@@ -36,12 +36,6 @@ def upgrade() -> None:
         "signal_predictions",
         sa.Column("outcome_recorded_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.create_check_constraint(
-        "ck_signal_predictions_outcome",
-        "signal_predictions",
-        "outcome IS NULL OR outcome IN "
-        "('retained', 'churned', 'converted', 'no_change', 'unknown')",
-    )
     op.create_table(
         "taxonomy_overrides",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -72,6 +66,14 @@ def upgrade() -> None:
     bind = op.get_bind()
     if bind.dialect.name != "postgresql":
         return
+
+    # SQLite Alembic cannot ALTER in a check constraint. Postgres keeps it.
+    op.create_check_constraint(
+        "ck_signal_predictions_outcome",
+        "signal_predictions",
+        "outcome IS NULL OR outcome IN "
+        "('retained', 'churned', 'converted', 'no_change', 'unknown')",
+    )
 
     op.execute(
         """
@@ -117,13 +119,13 @@ def downgrade() -> None:
             "signal_predictions",
             type_="foreignkey",
         )
+        op.drop_constraint(
+            "ck_signal_predictions_outcome",
+            "signal_predictions",
+            type_="check",
+        )
     op.drop_index("ix_taxonomy_overrides_tenant_id", table_name="taxonomy_overrides")
     op.drop_table("taxonomy_overrides")
-    op.drop_constraint(
-        "ck_signal_predictions_outcome",
-        "signal_predictions",
-        type_="check",
-    )
     op.drop_column("signal_predictions", "outcome_recorded_at")
     op.drop_column("signal_predictions", "outcome_value_inr")
     op.drop_column("signal_predictions", "outcome")

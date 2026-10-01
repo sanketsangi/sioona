@@ -92,7 +92,7 @@ import {
   listUploadedChatFiles,
   parseVaultFile,
   resolveHeaderBatchName,
-  resolveInsightsVaultFile,
+  insightsVaultFileForTenant,
 } from "@/lib/vault-file";
 
 export const dynamic = "force-dynamic";
@@ -102,6 +102,7 @@ const TITLES: Record<PlatformView, string> = {
   upload: "Uploaded Chats",
   eval: "Eval & SignalScore",
   taxonomy: "Signal Taxonomy",
+  report: "Revenue Leak",
 };
 
 export async function generateMetadata({
@@ -147,6 +148,8 @@ export default async function PlatformPage({
     mode?: string;
     replaced?: string;
     file?: string;
+    reveal?: string;
+    call?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -404,10 +407,16 @@ export default async function PlatformPage({
   ]).length;
   const scoreFromQuery =
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
-  // Bare Insights (no ?file=) defaults to Sample so app start shows Groww_batch_02.
+  // Bare Insights (no ?file=) defaults to Sample for the showcase tenant.
+  // A signed-in tenant with no chats stays empty instead of loading Sample.
   const vaultFile =
     view === "insights"
-      ? resolveInsightsVaultFile(sp.file, store.pilot?.lastUploadedFileName)
+      ? insightsVaultFileForTenant({
+          raw: sp.file,
+          lastUploadedFileName: store.pilot?.lastUploadedFileName,
+          tenantId: store.tenant.id,
+          conversationCount: store.conversations.length,
+        })
       : parseVaultFile(sp.file);
   const keepSetFileName = store.pilot?.lastUploadedFileName;
   const uploadedFileNames = listUploadedChatFiles(
@@ -497,6 +506,7 @@ export default async function PlatformPage({
         precomputedPending={pendingRaw}
         precomputedReviewed={reviewedRaw}
         scoreUnavailable={fetches.windowedScore && backendScore == null}
+        callToday={sp.call === "today"}
       />
     );
   } else if (view === "upload") {
@@ -525,6 +535,18 @@ export default async function PlatformPage({
         cadenceAction={cadenceAction}
         cadencePreviewId={cadencePreviewId}
         syncFailed={hasSyncFailure ? syncFailed : 0}
+      />
+    );
+  } else if (view === "report") {
+    const { RevenueLeakReportView } = await import(
+      "@/components/views/RevenueLeakReportView"
+    );
+    viewNode = (
+      <RevenueLeakReportView
+        store={store}
+        backendScore={backendScore}
+        windowLabel={scoreWindow.label}
+        anonymised={sp.reveal !== "1"}
       />
     );
   } else if (view === "taxonomy") {

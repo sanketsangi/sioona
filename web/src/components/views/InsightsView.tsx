@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AtRiskPanel } from "@/components/AtRiskPanel";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
@@ -25,6 +26,8 @@ import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
+import { detectEarlyWarnings } from "@/lib/early-warning";
+import { attachSignalCommercial, topCallsToday } from "@/lib/signal-commercial";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
   customerNameFromExternalId,
@@ -122,6 +125,7 @@ export function InsightsView({
   precomputedPending = null,
   precomputedReviewed = null,
   scoreUnavailable = false,
+  callToday = false,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -166,6 +170,8 @@ export function InsightsView({
   precomputedReviewed?: Signal[] | null;
   /** Score service did not answer. Keeps last queue counts and one Retry. */
   scoreUnavailable?: boolean;
+  /** `?call=today` — first 10 pending signals by urgency × value. */
+  callToday?: boolean;
 }) {
   const vaultLoaded = vaultFileIsLoaded(
     vaultFile,
@@ -200,7 +206,9 @@ export function InsightsView({
    * on screen. Do not treat the switch as an upload-mismatch empty state.
    */
   const vaultShowcaseKind =
-    !vaultLoaded && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
+    store.tenant.id === "tenant_demo" && !vaultLoaded && vaultFile
+      ? resolveVaultShowcaseKind(vaultFile)
+      : null;
   const vaultMismatch = Boolean(vaultFile && !vaultLoaded && !vaultShowcaseKind);
   const vaultEmpty =
     vaultMismatch && vaultFile ? vaultFileEmptyNext(vaultFile) : null;
@@ -246,7 +254,7 @@ export function InsightsView({
       conversationIds.has(signal.conversationId),
     );
   }
-  const pendingSignals = vaultMismatch
+  let pendingSignals = vaultMismatch
     ? []
     : applyChatEvidenceToSignals(
         signalsForFile(
@@ -266,8 +274,13 @@ export function InsightsView({
       );
   // Prev / Next / Skip + Mark Acted advances walk the filtered subset
   // (status list is separate; walk is always pending / Follow-up ∩ type ∩ action).
+  pendingSignals = pendingSignals.map((signal) =>
+    signal.urgency
+      ? signal
+      : attachSignalCommercial(signal, (signal.evidence ?? []).join("\n")),
+  );
   const supervisedActions = store.supervisedActions ?? [];
-  const walkPendingSignals = queueSignalsForFilter({
+  const filteredPending = queueSignalsForFilter({
     pending: pendingSignals,
     reviewed: [],
     status: "new",
@@ -275,6 +288,11 @@ export function InsightsView({
     action: actionFilter,
     supervisedActions,
   }).filtered;
+  // Top 10 is only the list and the walk. Counts and filters stay on the full queue.
+  const listPendingSignals = callToday
+    ? topCallsToday(filteredPending)
+    : pendingSignals;
+  const walkPendingSignals = callToday ? listPendingSignals : filteredPending;
   const walkFollowUpSignals = queueSignalsForFilter({
     pending: [],
     reviewed: reviewedSignals,
@@ -315,6 +333,7 @@ export function InsightsView({
     scoreFrom,
     mode: workspaceMode === "action" ? "action" : null,
     file: vaultFile,
+    call: callToday ? "today" : null,
   };
 
   // Prefer Neon Correct when the same id is also JSON-unreviewed pending.
@@ -381,9 +400,42 @@ export function InsightsView({
     href: cadenceHref,
     label: cadenceActionCta(cadenceAction),
   };
+  const emptyTenant =
+    store.tenant.id !== "tenant_demo" &&
+    store.conversations.length === 0 &&
+    pendingSignals.length === 0 &&
+    reviewedSignals.length === 0 &&
+    !vaultMismatch;
   // Pending empty next step (mid-week Upload, etc.) — also used when Correct is
   // empty and there is nothing pending to review (same panel copy).
-  const pendingClear = vaultEmpty
+  const pendingClear = emptyTenant
+    ? callToday
+      ? {
+          title: "No calls today",
+          description:
+            "This tenant has no chats yet. Upload an export, then the Top 10 fills from pending signals. Nothing is sent.",
+          href: viewHref("upload"),
+          label: "Upload chats",
+        }
+      : {
+          title: "No chats yet",
+          description:
+            "Upload this week’s export to start. Nothing is sent.",
+          href: viewHref("upload"),
+          label: "Upload chats",
+        }
+    : callToday && pendingSignals.length === 0
+      ? {
+          title: "No calls today",
+          description: "No pending signals are ranked for today.",
+          href: viewHref("insights", {
+            ...queryExtras,
+            call: null,
+            status: "new",
+          }),
+          label: "Show the full queue",
+        }
+      : vaultEmpty
     ? {
         title: vaultEmpty.title,
         description: vaultEmpty.description,
@@ -393,7 +445,14 @@ export function InsightsView({
     : cadenceAction.id === "reviews"
       ? null
       : cadenceEmpty;
-  const followUpEmpty = vaultEmpty
+  const followUpEmpty = emptyTenant
+    ? {
+        title: "No chats yet",
+        description: "Upload this week’s export to start. Nothing is sent.",
+        href: viewHref("upload"),
+        label: "Upload chats",
+      }
+    : vaultEmpty
     ? {
         title: vaultEmpty.title,
         description: vaultEmpty.description,
@@ -428,6 +487,7 @@ export function InsightsView({
     mode: workspaceMode,
     replaced: jsonKeepSet,
     file: vaultFile,
+    callToday,
   };
   // Any open ?preview= while filtered needs-review remains — including after
   // Correct / Mark as Acted (follow-up / Done origin). Hide only when the
@@ -540,8 +600,13 @@ export function InsightsView({
     landingFile: importLanding ? vaultFile : null,
   };
 
+  const earlyWarnings = vaultMismatch
+    ? []
+    : detectEarlyWarnings(queueChats.conversations, queueChats.messages);
+
   const queueBody = (
     <>
+      <AtRiskPanel warnings={earlyWarnings} />
       <InsightsQueueMetrics
         conversationCount={
           vaultMismatch ? 0 : queueChats.conversations.length
@@ -562,7 +627,23 @@ export function InsightsView({
         retryHref={scoreAsleep ? scoreRetryHref : null}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-        <div className="flex w-full min-w-0 shrink-0">
+        <div className="flex w-full min-w-0 shrink-0 flex-col gap-2">
+          <Link
+            href={viewHref("insights", {
+              ...queryExtras,
+              status: callToday
+                ? statusQueryValue(statusFilter, workspaceMode)
+                : "new",
+              type: typeFilter === "all" ? null : typeFilter,
+              action: actionFilter === "all" ? null : actionFilter,
+              call: callToday ? null : "today",
+              page: null,
+              preview: null,
+            })}
+            className="btn-secondary h-9 w-fit"
+          >
+            {callToday ? "Show the full queue" : "Top 10 to call today"}
+          </Link>
           <SignalQueueFilters
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}
@@ -576,7 +657,11 @@ export function InsightsView({
             supervisedActions={store.supervisedActions ?? []}
           />
         </div>
-        <SignalQueue {...queueProps} previewId={null} />
+        <SignalQueue
+          {...queueProps}
+          pendingSignals={listPendingSignals}
+          previewId={null}
+        />
       </div>
     </>
   );
@@ -690,7 +775,11 @@ export function InsightsView({
                 </div>
               </div>
               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                <SignalQueue {...queueProps} previewId={previewId} />
+                <SignalQueue
+                  {...queueProps}
+                  pendingSignals={listPendingSignals}
+                  previewId={previewId}
+                />
               </div>
             </div>
           </ConversationDrawerControlProvider>

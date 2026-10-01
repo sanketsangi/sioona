@@ -4,7 +4,7 @@ import {
 } from "@/lib/pilot-cadence";
 import type { FeedbackLabel } from "@/lib/types";
 
-export type PlatformView = "insights" | "upload" | "eval" | "taxonomy";
+export type PlatformView = "insights" | "upload" | "eval" | "taxonomy" | "report";
 
 export type EvalPanel = "metrics" | "adapt" | "labeled" | "export";
 
@@ -34,7 +34,7 @@ export type SignalReviewTriage = {
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
 export type LabeledTab = "byType" | "conversations";
 
-const VIEWS: PlatformView[] = ["insights", "upload", "eval", "taxonomy"];
+const VIEWS: PlatformView[] = ["insights", "upload", "eval", "taxonomy", "report"];
 const EVAL_PANELS: EvalPanel[] = ["metrics", "adapt", "labeled", "export"];
 const STATUS_FILTERS: StatusFilter[] = ["all", "new", "followup", "acted"];
 const ACTION_FILTERS: ActionFilter[] = ["all", "approve", "review"];
@@ -268,6 +268,8 @@ export function pendingReviewWalkHref(opts: {
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   file?: string | null;
+  /** Keep `?call=today` so Prev / Next / Skip stay on the Top 10 list. */
+  callToday?: boolean;
 }): string {
   const mode = opts.mode ?? "shadow";
   const status = opts.statusFilter ?? "all";
@@ -282,6 +284,7 @@ export function pendingReviewWalkHref(opts: {
     preview: opts.previewId,
     replaced: replacedQueryValue(opts.replaced),
     file: opts.file,
+    call: opts.callToday ? "today" : null,
   });
 }
 

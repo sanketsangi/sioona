@@ -37,6 +37,26 @@ export function resolveInsightsVaultFile(
   return GROWW_SHOWCASE_SAMPLE_NAME;
 }
 
+/**
+ * Bare Insights for a signed-in tenant with no chats stays empty.
+ * Sample auto-load is only for the showcase tenant.
+ */
+export function insightsVaultFileForTenant(opts: {
+  raw?: string | null;
+  lastUploadedFileName?: string | null;
+  tenantId: string;
+  conversationCount: number;
+}): string | null {
+  const explicit = parseVaultFile(opts.raw);
+  if (explicit) return explicit;
+  const keep = opts.lastUploadedFileName?.trim();
+  if (isLivePartnerKeepSet(keep)) return keep!;
+  if (opts.tenantId !== "tenant_demo" && opts.conversationCount === 0) {
+    return null;
+  }
+  return GROWW_SHOWCASE_SAMPLE_NAME;
+}
+
 /** Workspace Insights / brand. A live upload must not navigate into Sample. */
 export function insightsHomeHref(
   lastUploadedFileName?: string | null,

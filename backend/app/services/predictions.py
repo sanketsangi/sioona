@@ -75,6 +75,23 @@ def _prediction_key(conversation_id: str, signal_type: str) -> tuple[str, str]:
     return (conversation_id, signal_type)
 
 
+def _optional_str(raw: object) -> str | None:
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    return text or None
+
+
+def _optional_inr(raw: object) -> int | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
 def record_prediction(
     db: Session,
     *,
@@ -83,6 +100,9 @@ def record_prediction(
     signal_type: str,
     confidence: float,
     summary: str,
+    urgency: str | None = None,
+    urgency_timeframe: str | None = None,
+    mentioned_value_inr: int | None = None,
     _fk_retried: bool = False,
 ) -> SignalPrediction:
     """Insert or update the prediction for tenant + conversation + type.
@@ -99,6 +119,9 @@ def record_prediction(
     if existing is not None:
         existing.confidence = confidence
         existing.summary = summary
+        existing.urgency = urgency
+        existing.urgency_timeframe = urgency_timeframe
+        existing.mentioned_value_inr = mentioned_value_inr
         db.commit()
         db.refresh(existing)
         return existing
@@ -109,6 +132,9 @@ def record_prediction(
         signal_type=signal_type,
         confidence=confidence,
         summary=summary,
+        urgency=urgency,
+        urgency_timeframe=urgency_timeframe,
+        mentioned_value_inr=mentioned_value_inr,
     )
     db.add(prediction)
     try:
@@ -126,6 +152,9 @@ def record_prediction(
                 signal_type=signal_type,
                 confidence=confidence,
                 summary=summary,
+                urgency=urgency,
+                urgency_timeframe=urgency_timeframe,
+                mentioned_value_inr=mentioned_value_inr,
                 _fk_retried=True,
             )
         raced = db.scalar(
@@ -139,6 +168,9 @@ def record_prediction(
             raise
         raced.confidence = confidence
         raced.summary = summary
+        raced.urgency = urgency
+        raced.urgency_timeframe = urgency_timeframe
+        raced.mentioned_value_inr = mentioned_value_inr
         db.commit()
         db.refresh(raced)
         return raced
@@ -174,6 +206,9 @@ def record_predictions_bulk(
             "signal_type": signal_type,
             "confidence": float(raw["confidence"]),  # type: ignore[arg-type]
             "summary": str(raw["summary"]),
+            "urgency": _optional_str(raw.get("urgency")),
+            "urgency_timeframe": _optional_str(raw.get("urgency_timeframe")),
+            "mentioned_value_inr": _optional_inr(raw.get("mentioned_value_inr")),
         }
 
     conversation_ids = list({key[0] for key in ordered_keys})
@@ -199,6 +234,9 @@ def record_predictions_bulk(
         if row is not None:
             row.confidence = float(payload["confidence"])  # type: ignore[arg-type]
             row.summary = str(payload["summary"])
+            row.urgency = _optional_str(payload.get("urgency"))
+            row.urgency_timeframe = _optional_str(payload.get("urgency_timeframe"))
+            row.mentioned_value_inr = _optional_inr(payload.get("mentioned_value_inr"))
             updated += 1
             items.append(PredictionUpsertItem(prediction=row, created=False))
             continue
@@ -209,6 +247,9 @@ def record_predictions_bulk(
             signal_type=str(payload["signal_type"]),
             confidence=float(payload["confidence"]),  # type: ignore[arg-type]
             summary=str(payload["summary"]),
+            urgency=_optional_str(payload.get("urgency")),
+            urgency_timeframe=_optional_str(payload.get("urgency_timeframe")),
+            mentioned_value_inr=_optional_inr(payload.get("mentioned_value_inr")),
         )
         db.add(prediction)
         existing[key] = prediction
@@ -245,6 +286,9 @@ def record_predictions_bulk(
                 signal_type=str(payload["signal_type"]),
                 confidence=float(payload["confidence"]),  # type: ignore[arg-type]
                 summary=str(payload["summary"]),
+                urgency=_optional_str(payload.get("urgency")),
+                urgency_timeframe=_optional_str(payload.get("urgency_timeframe")),
+                mentioned_value_inr=_optional_inr(payload.get("mentioned_value_inr")),
             )
             if prior is not None:
                 updated += 1

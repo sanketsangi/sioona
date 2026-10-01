@@ -5,6 +5,7 @@ import {
   matchIntentPatterns,
 } from "./detect-patterns";
 import { groupMessagesByConversation } from "./group-messages";
+import { attachSignalCommercial } from "./signal-commercial";
 import { resolveSuggestedAction } from "./suggested-action-display";
 import {
   getEffectiveTaxonomy,
@@ -321,25 +322,31 @@ export function detectSignalsForConversation(
   }
 
   const now = new Date().toISOString();
-  return selected.map((r, index) => ({
-    id: `sig_${conversation.id}_${r.type}_${index}`,
-    tenantId,
-    conversationId: conversation.id,
-    type: r.type,
-    score: Number(r.score.toFixed(3)),
-    confidence: Number(r.score.toFixed(3)),
-    summary: buildSummary(r.type, conversation, r.score),
-    suggestedAction: resolveSuggestedAction({
-      type: r.type,
-      customerName: conversation.customerName,
-      evidence: r.evidence,
-      fallback: pickAction(r.type, r.score, overrides),
-    }),
-    evidence: r.evidence,
-    status: "new" as const,
-    createdAt: now,
-    groundTruth: conversation.groundTruth,
-  }));
+  const customerBlob = customerMessages.map((message) => message.content).join("\n");
+  return selected.map((r, index) =>
+    attachSignalCommercial(
+      {
+        id: `sig_${conversation.id}_${r.type}_${index}`,
+        tenantId,
+        conversationId: conversation.id,
+        type: r.type,
+        score: Number(r.score.toFixed(3)),
+        confidence: Number(r.score.toFixed(3)),
+        summary: buildSummary(r.type, conversation, r.score),
+        suggestedAction: resolveSuggestedAction({
+          type: r.type,
+          customerName: conversation.customerName,
+          evidence: r.evidence,
+          fallback: pickAction(r.type, r.score, overrides),
+        }),
+        evidence: r.evidence,
+        status: "new" as const,
+        createdAt: now,
+        groundTruth: conversation.groundTruth,
+      },
+      `${customerBlob}\n${r.evidence.join("\n")}`
+    )
+  );
 }
 
 export function runDetection(

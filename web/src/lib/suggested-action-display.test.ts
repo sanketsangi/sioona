@@ -5,6 +5,26 @@ import {
 } from "./suggested-action-display";
 
 describe("composeCustomerReplyDraft", () => {
+  it("writes Hinglish when the customer wrote Hinglish", () => {
+    expect(
+      composeCustomerReplyDraft({
+        type: "retention",
+        customerName: "Asha",
+        evidence: ['quote: "paisa nikalna hai, Zerodha pe shift kar raha hoon"'],
+      }),
+    ).toContain("aapne likha");
+  });
+
+  it("writes Hindi when the quote is in Devanagari", () => {
+    expect(
+      composeCustomerReplyDraft({
+        type: "retention",
+        customerName: "Asha",
+        evidence: ['quote: "पैसा निकालना है"'],
+      }),
+    ).toContain("नमस्ते");
+  });
+
   it("builds a retention reply from name + first Why quote", () => {
     expect(
       composeCustomerReplyDraft({

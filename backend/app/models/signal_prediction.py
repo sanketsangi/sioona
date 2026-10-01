@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -83,6 +84,9 @@ class SignalPrediction(Base):
     signal_type: Mapped[str] = mapped_column(String, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
+    urgency: Mapped[str | None] = mapped_column(String, nullable=True)
+    urgency_timeframe: Mapped[str | None] = mapped_column(String, nullable=True)
+    mentioned_value_inr: Mapped[int | None] = mapped_column(Integer, nullable=True)
     acted: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

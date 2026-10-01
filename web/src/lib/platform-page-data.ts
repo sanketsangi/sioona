@@ -40,13 +40,14 @@ export type PlatformPageFetches = {
 
 export function platformPageFetches(view: PlatformView): PlatformPageFetches {
   const insightsOrEval = view === "insights" || view === "eval";
+  const scored = insightsOrEval || view === "report";
   return {
     insightsQueue: insightsOrEval,
-    windowedScore: insightsOrEval,
+    windowedScore: scored,
     allTimeScore: view === "eval",
-    predictionSync: insightsOrEval ? "defer" : "skip",
+    predictionSync: scored ? "defer" : "skip",
     pilotRefresh:
-      view === "upload" ? "await" : insightsOrEval ? "defer" : "skip",
+      view === "upload" ? "await" : scored ? "defer" : "skip",
   };
 }
 

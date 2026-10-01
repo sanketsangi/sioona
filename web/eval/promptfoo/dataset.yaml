@@ -251,3 +251,68 @@
     turns:
       - { role: customer, content: "I saw your competitor has a nicer UI, just FYI." }
       - { role: agent, content: "Thanks for the note — I'll share it with product." }
+
+- description: Hinglish retention — paisa nikalna and Zerodha shift
+  vars:
+    customerName: Amit Joshi
+    channel: whatsapp
+    customerMessages: |
+      Bhai paisa nikalna hai. Zerodha pe shift kar raha hoon.
+    expectedSignal: retention_risk
+  metadata:
+    hinglish: true
+    turns:
+      - { role: customer, content: "Bhai paisa nikalna hai. Zerodha pe shift kar raha hoon." }
+      - { role: agent, content: "Main samajh sakta hoon. Kya reason hai shift ka?" }
+
+- description: Hinglish retention — withdrawal fail and account band
+  vars:
+    customerName: Sana Qureshi
+    channel: whatsapp
+    customerMessages: |
+      Withdrawal fail ho gaya do baar. Account band karna hai is hafte.
+    expectedSignal: retention_risk
+  metadata:
+    hinglish: true
+    turns:
+      - { role: customer, content: "Withdrawal fail ho gaya do baar. Account band karna hai is hafte." }
+      - { role: agent, content: "Refund team ko escalate karti hoon." }
+
+- description: Hinglish lead — naya demat and brokerage
+  vars:
+    customerName: Kabir Shah
+    channel: intercom
+    customerMessages: |
+      Naya demat kholna hai. Brokerage kitni padegi equity pe?
+    expectedSignal: lead_intent
+  metadata:
+    hinglish: true
+    turns:
+      - { role: customer, content: "Naya demat kholna hai. Brokerage kitni padegi equity pe?" }
+      - { role: agent, content: "I can share the brokerage card and onboarding link." }
+
+- description: Hinglish upsell — existing customer wants LAS
+  vars:
+    customerName: Meera Iyer
+    channel: whatsapp
+    customerMessages: |
+      Existing account hai. Mutual fund aur loan against shares chahiye.
+    expectedSignal: upsell_opportunity
+  metadata:
+    hinglish: true
+    turns:
+      - { role: customer, content: "Existing account hai. Mutual fund aur loan against shares chahiye." }
+      - { role: agent, content: "I'll ask your RM to share LAS eligibility." }
+
+- description: Hinglish none — statement PDF
+  vars:
+    customerName: Dev Patel
+    channel: whatsapp
+    customerMessages: |
+      Statement bhej do please, last month ka PDF.
+    expectedSignal: none
+  metadata:
+    hinglish: true
+    turns:
+      - { role: customer, content: "Statement bhej do please, last month ka PDF." }
+      - { role: agent, content: "Sent to your registered email." }

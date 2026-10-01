@@ -52,6 +52,28 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
+def test_prediction_persists_urgency_and_value(client: TestClient) -> None:
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    created = client.post(
+        "/v1/predictions",
+        headers=headers,
+        json={
+            "conversation_id": "conv_value",
+            "signal_type": "retention",
+            "confidence": 0.8,
+            "summary": "Wants to withdraw this week",
+            "urgency": "high",
+            "urgency_timeframe": "This week",
+            "mentioned_value_inr": 200000,
+        },
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["urgency"] == "high"
+    assert body["urgency_timeframe"] == "This week"
+    assert body["mentioned_value_inr"] == 200000
+
+
 def test_prediction_feedback_and_score_flow(client: TestClient) -> None:
     headers = {"X-Tenant-Id": "tenant_demo"}
 

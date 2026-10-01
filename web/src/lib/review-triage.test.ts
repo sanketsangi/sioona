@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSignalReviewTriage,
+  commercialOutcomeForShortcutKey,
   correctAdvanceHref,
   feedbackLabelForShortcutKey,
   isActedEnterBlockedTarget,
@@ -135,6 +136,10 @@ describe("feedbackLabelForShortcutKey", () => {
     expect(feedbackLabelForShortcutKey("i")).toBe("incorrect");
     expect(feedbackLabelForShortcutKey("P")).toBe("partially_correct");
     expect(feedbackLabelForShortcutKey("x")).toBeNull();
+    expect(commercialOutcomeForShortcutKey("1")).toBe("saved");
+    expect(commercialOutcomeForShortcutKey("2")).toBe("lost");
+    expect(commercialOutcomeForShortcutKey("3")).toBe("converted");
+    expect(commercialOutcomeForShortcutKey("c")).toBeNull();
   });
 });
 

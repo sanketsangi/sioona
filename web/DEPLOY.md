@@ -189,3 +189,53 @@ If you prefer non-interactive deploys, create a token at
 cd web
 npx vercel --prod --yes --token "$VERCEL_TOKEN"
 ```
+
+## Revenue leak report
+
+No new environment variables. The report is `/?view=report` (anonymised by default). Download PDF is `GET /api/revenue-report/pdf`.
+
+Outcomes use the existing `signal_predictions` columns from Alembic `010_outcomes_taxonomy_fk` (`retained`, `churned`, `converted`, `no_change`, `unknown`). Saved / Lost / Converted on the report write those columns through `POST /api/signals/:id/outcome`. No extra migration. Do not point a laptop `alembic upgrade` at production Neon. Nothing is sent.
+
+## LLM-first detection
+
+When `DETECT_LLM=1`, Groq classifies every chat unless `DETECT_LLM_PRIMARY=0` (that keeps the old miss-only second pass). Heuristics remain the fallback when a call fails, the quote is not in the customer text, or the run hits the cap. Skipped conversation ids resume on the next re-detect.
+
+| Variable | Scope | Value |
+|----------|--------|--------|
+| `DETECT_LLM_PRIMARY` | Server | Omit or `1` for LLM-first. `0` restores miss-only pass 2. |
+| `DETECT_LLM_MAX_CALLS` | Server | Still **`4`** on Vercel Hobby so one request stays under ~10s. Unset locally covers about 120 chats. Re-detect continues the remainder. |
+| `DETECT_LLM_MAX_ATTEMPTS` | Server | `3` (default). Retries 429, 5xx, and timeouts only. |
+| `DETECT_LLM_MIN_INTERVAL_MS` | Server | `200` (default) between Groq calls. |
+
+Do not raise the Hobby cap in the Vercel dashboard unless the runtime can finish the batch. Nothing is sent to a customer.
+
+## Urgency and value
+
+No new environment variables. Each signal stores `urgency` (`high` / `medium` / `low`), an optional timeframe, and `mentioned_value_inr` when the customer stated an amount. Alembic `011_signal_urgency_value` adds those nullable columns on `signal_predictions`. Render’s deploy migration applies it. Do not run it against production Neon from a laptop. The Insights queue sorts by urgency × value. Older rows without the columns stay in the previous stable order.
+
+## Early-warning signals
+
+No new environment variables and no migration. Insights shows an At risk list for repeated complaints, unresolved issues, failed withdrawals or payouts, slow agent replies, and a negative trend across one customer's chats. Those rows are not `lead` / `retention` / `upsell` predictions, so they do not change SignalScore. Nothing is sent.
+
+## Reviewer workflow
+
+No new environment variables. The Insights review pane records Saved, Lost, or Converted (buttons or `1` / `2` / `3`). `/?view=insights&call=today` is the Top 10, ranked by urgency × value. Reply drafts follow the customer’s language (Hindi, Hinglish, or English) and stay on screen until a person copies them. Sioona does not send them.
+
+## Live read-only ingestion
+
+Off unless `LIVE_INGEST=1`. Leave it unset on Vercel until a pilot asks for it. Secrets stay in the host environment. Do not commit them.
+
+| Variable | Scope | Value |
+|----------|--------|--------|
+| `LIVE_INGEST` | Server | `1` to enable the routes. Anything else returns 404. |
+| `INTERCOM_CLIENT_ID` | Server | Intercom OAuth app id. Used only to build the authorize redirect. |
+| `INTERCOM_CLIENT_SECRET` | Server | Reserved. The callback does not exchange the code. |
+| `INTERCOM_ACCESS_TOKEN` | Server | Read-only token for `POST /api/ingest/live/intercom/poll` (GET against Intercom). |
+| `INTERCOM_WEBHOOK_SECRET` | Server | Must match `X-Sioona-Webhook-Secret` on the Intercom webhook and poll. |
+| `WHATSAPP_WEBHOOK_SECRET` | Server | Same header for `POST /api/ingest/live/whatsapp`. |
+| `SIOONA_TENANT_ID` | Server | Partner tenant the webhook must name. Live ingest rejects `tenant_demo`. |
+
+Intercom, WhatsApp, and the Intercom poll also send `X-Sioona-Tenant-Id` (`tenant_partner`). A missing header, a mismatch with `SIOONA_TENANT_ID`, or a missing secret is 401. Chats land in that tenant’s store.
+| `WHATSAPP_PROVIDER` | Server | `gupshup` (default) or `interakt` (`?provider=`). |
+
+Webhook and poll bodies go through the existing redaction and detection path. The connectors never post a reply. OAuth token exchange is left to the operator: set `INTERCOM_ACCESS_TOKEN` after authorizing, so a token is not written to disk or returned by the callback.
