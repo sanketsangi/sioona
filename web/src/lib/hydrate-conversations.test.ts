@@ -19,6 +19,7 @@ import * as backendClient from "./backend-client";
 import * as detectLlm from "./detect-llm";
 import * as store from "./store";
 import * as syncPredictions from "./sync-predictions";
+import { runWithTenant } from "./tenant-context";
 import type { Signal, TaxonomyOverrides } from "./types";
 
 const NEON_UUID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
@@ -916,6 +917,101 @@ describe("tryHydrateStoreFromNeon", () => {
       updatedSince: "2026-09-27T12:00:00.000Z",
     });
     expect(result?.conversations.map((row) => row.id)).toEqual(["conv_aditya"]);
+  });
+
+  it("stamps the session tenant on the hydrated store", async () => {
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow({ tenant_id: "tenant_partner" }),
+    ]);
+    vi.spyOn(detectLlm, "runHybridDetection").mockResolvedValue({
+      signals: [{ ...detectedSignal, tenantId: "tenant_partner" }],
+      llm: {
+        enabled: false,
+        candidates: 0,
+        attempted: 0,
+        added: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await runWithTenant("tenant_partner", () =>
+      tryHydrateStoreFromNeon({ syncPredictions: false }),
+    );
+
+    expect(backendClient.getConversations).toHaveBeenCalledWith(
+      "tenant_partner",
+      expect.objectContaining({ timeoutMs: 25_000 }),
+    );
+    expect(result?.tenant).toEqual({
+      id: "tenant_partner",
+      name: "tenant_partner",
+      createdAt: "2026-07-01T00:00:00.000Z",
+    });
+    expect(writeSpy.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        tenant: expect.objectContaining({ id: "tenant_partner" }),
+      }),
+    );
+  });
+
+  it("detects and persists Neon taxonomy overrides", async () => {
+    vi.stubEnv("SIOONA_TAXONOMY_NEON", "1");
+    vi.spyOn(backendClient, "getTaxonomyOverrides").mockResolvedValue({
+      retention: {
+        phrases: ["close my account"],
+        keywords: [],
+        negative_phrases: ["just browsing"],
+      },
+    });
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([
+      partnerRow(),
+    ]);
+    const detectSpy = vi
+      .spyOn(detectLlm, "runHybridDetection")
+      .mockResolvedValue({
+        signals: [detectedSignal],
+        llm: {
+          enabled: false,
+          candidates: 0,
+          attempted: 0,
+          added: 0,
+          failed: 0,
+          skipped: 0,
+        },
+      });
+    vi.spyOn(syncPredictions, "syncPredictionsToBackend").mockResolvedValue({
+      signals: [{ ...detectedSignal, backendSignalId: "pred-hydrated-1" }],
+      sync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    });
+    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+
+    const result = await tryHydrateStoreFromNeon();
+
+    const expected: TaxonomyOverrides = {
+      retention: {
+        phrases: ["close my account"],
+        negativePhrases: ["just browsing"],
+      },
+    };
+    expect(backendClient.getTaxonomyOverrides).toHaveBeenCalledWith(
+      "tenant_demo",
+    );
+    expect(detectSpy.mock.calls[0]?.[3]).toEqual(expected);
+    expect(result?.taxonomyOverrides).toEqual(expected);
+    expect(
+      (writeSpy.mock.calls[0]?.[0] as { taxonomyOverrides?: TaxonomyOverrides })
+        .taxonomyOverrides,
+    ).toEqual(expected);
   });
 
   it("returns null when the weekly filename is set and no chat is that new", async () => {
