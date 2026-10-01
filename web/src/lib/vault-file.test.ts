@@ -12,6 +12,7 @@ import {
   isVaultBatchRenderable,
   parseVaultFile,
   resolveHeaderBatchName,
+  insightsVaultFileForTenant,
   resolveInsightsVaultFile,
   resolveVaultActiveFile,
   scopeChatsToUploadedFile,
@@ -54,6 +55,23 @@ describe("resolveInsightsVaultFile", () => {
     expect(resolveInsightsVaultFile("  user-upload.csv  ")).toBe(
       "user-upload.csv",
     );
+  });
+});
+
+describe("insightsVaultFileForTenant", () => {
+  it("leaves a signed-in tenant with no chats off Sample", () => {
+    expect(
+      insightsVaultFileForTenant({
+        tenantId: "tenant_partner",
+        conversationCount: 0,
+      }),
+    ).toBeNull();
+    expect(
+      insightsVaultFileForTenant({
+        tenantId: "tenant_demo",
+        conversationCount: 0,
+      }),
+    ).toBe(GROWW_SHOWCASE_SAMPLE_NAME);
   });
 });
 

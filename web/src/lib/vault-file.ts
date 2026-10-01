@@ -8,6 +8,7 @@ import {
   matchesVaultSampleName,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
+import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 import type { Conversation, Message } from "@/lib/types";
 import { catalogFileKey } from "@/lib/upload-filename";
 import { viewHref } from "@/lib/views";
@@ -34,6 +35,26 @@ export function resolveInsightsVaultFile(
   if (explicit) return explicit;
   const keep = lastUploadedFileName?.trim();
   if (isLivePartnerKeepSet(keep)) return keep!;
+  return GROWW_SHOWCASE_SAMPLE_NAME;
+}
+
+/**
+ * Bare Insights for a signed-in tenant with no chats stays empty.
+ * Sample auto-load is only for the showcase tenant.
+ */
+export function insightsVaultFileForTenant(opts: {
+  raw?: string | null;
+  lastUploadedFileName?: string | null;
+  tenantId: string;
+  conversationCount: number;
+}): string | null {
+  const explicit = parseVaultFile(opts.raw);
+  if (explicit) return explicit;
+  const keep = opts.lastUploadedFileName?.trim();
+  if (isLivePartnerKeepSet(keep)) return keep!;
+  if (opts.tenantId !== DEMO_TENANT_ID && opts.conversationCount === 0) {
+    return null;
+  }
   return GROWW_SHOWCASE_SAMPLE_NAME;
 }
 

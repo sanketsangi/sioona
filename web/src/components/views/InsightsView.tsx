@@ -27,6 +27,7 @@ import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { detectEarlyWarnings } from "@/lib/early-warning";
+import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 import { attachSignalCommercial, topCallsToday } from "@/lib/signal-commercial";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
@@ -206,7 +207,9 @@ export function InsightsView({
    * on screen. Do not treat the switch as an upload-mismatch empty state.
    */
   const vaultShowcaseKind =
-    !vaultLoaded && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
+    store.tenant.id === DEMO_TENANT_ID && !vaultLoaded && vaultFile
+      ? resolveVaultShowcaseKind(vaultFile)
+      : null;
   const vaultMismatch = Boolean(vaultFile && !vaultLoaded && !vaultShowcaseKind);
   const vaultEmpty =
     vaultMismatch && vaultFile ? vaultFileEmptyNext(vaultFile) : null;
@@ -275,7 +278,7 @@ export function InsightsView({
   pendingSignals = pendingSignals.map((signal) =>
     signal.urgency
       ? signal
-      : attachSignalCommercial(signal, signal.evidence.join("\n")),
+      : attachSignalCommercial(signal, (signal.evidence ?? []).join("\n")),
   );
   const supervisedActions = store.supervisedActions ?? [];
   if (callToday) {
@@ -405,9 +408,41 @@ export function InsightsView({
     href: cadenceHref,
     label: cadenceActionCta(cadenceAction),
   };
+  const emptyTenant =
+    store.conversations.length === 0 &&
+    pendingSignals.length === 0 &&
+    reviewedSignals.length === 0 &&
+    !vaultMismatch;
   // Pending empty next step (mid-week Upload, etc.) — also used when Correct is
   // empty and there is nothing pending to review (same panel copy).
-  const pendingClear = vaultEmpty
+  const pendingClear = emptyTenant
+    ? callToday
+      ? {
+          title: "No calls today",
+          description:
+            "This tenant has no chats yet. Upload an export, then the Top 10 fills from pending signals. Nothing is sent.",
+          href: viewHref("upload"),
+          label: "Upload chats",
+        }
+      : {
+          title: "No chats yet",
+          description:
+            "Upload this week’s export to start. Nothing is sent.",
+          href: viewHref("upload"),
+          label: "Upload chats",
+        }
+    : callToday && pendingSignals.length === 0
+      ? {
+          title: "No calls today",
+          description: "No pending signals are ranked for today.",
+          href: viewHref("insights", {
+            ...queryExtras,
+            call: null,
+            status: "new",
+          }),
+          label: "Show the full queue",
+        }
+      : vaultEmpty
     ? {
         title: vaultEmpty.title,
         description: vaultEmpty.description,
@@ -417,7 +452,14 @@ export function InsightsView({
     : cadenceAction.id === "reviews"
       ? null
       : cadenceEmpty;
-  const followUpEmpty = vaultEmpty
+  const followUpEmpty = emptyTenant
+    ? {
+        title: "No chats yet",
+        description: "Upload this week’s export to start. Nothing is sent.",
+        href: viewHref("upload"),
+        label: "Upload chats",
+      }
+    : vaultEmpty
     ? {
         title: vaultEmpty.title,
         description: vaultEmpty.description,

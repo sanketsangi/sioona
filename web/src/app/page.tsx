@@ -92,7 +92,7 @@ import {
   listUploadedChatFiles,
   parseVaultFile,
   resolveHeaderBatchName,
-  resolveInsightsVaultFile,
+  insightsVaultFileForTenant,
 } from "@/lib/vault-file";
 
 export const dynamic = "force-dynamic";
@@ -407,10 +407,16 @@ export default async function PlatformPage({
   ]).length;
   const scoreFromQuery =
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
-  // Bare Insights (no ?file=) defaults to Sample so app start shows Groww_batch_02.
+  // Bare Insights (no ?file=) defaults to Sample for the showcase tenant.
+  // A signed-in tenant with no chats stays empty instead of loading Sample.
   const vaultFile =
     view === "insights"
-      ? resolveInsightsVaultFile(sp.file, store.pilot?.lastUploadedFileName)
+      ? insightsVaultFileForTenant({
+          raw: sp.file,
+          lastUploadedFileName: store.pilot?.lastUploadedFileName,
+          tenantId: store.tenant.id,
+          conversationCount: store.conversations.length,
+        })
       : parseVaultFile(sp.file);
   const keepSetFileName = store.pilot?.lastUploadedFileName;
   const uploadedFileNames = listUploadedChatFiles(

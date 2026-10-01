@@ -31,6 +31,7 @@ vi.mock("next/navigation", () => ({
 import { applySupervisedDecisionOverlay } from "@/lib/supervised-action-persistence";
 import type { BackendSupervisedActionDecision } from "@/lib/backend-client";
 import { InsightsView } from "./InsightsView";
+import { RevenueLeakReportView } from "./RevenueLeakReportView";
 import {
   queueSignalsForFilter,
   shuffleSignals,
@@ -2658,5 +2659,49 @@ describe("InsightsView evidence-grounded review", () => {
     );
     expect(html).not.toContain("Leftover Groww Correct");
     expect(html).not.toContain("sig_neon_old-correct");
+  });
+
+  it("shows empty states for a signed-in tenant with no chats", async () => {
+    const store: StoreData = {
+      tenant: {
+        id: "tenant_partner",
+        name: "Partner",
+        createdAt: "2026-10-01T00:00:00.000Z",
+      },
+      conversations: [],
+      messages: [],
+      signals: [],
+      pilot: { baselineOpportunities: 0 },
+    };
+    const props = {
+      store,
+      statusFilter: "new" as const,
+      typeFilter: "all" as const,
+      page: 1,
+      vaultFile: null,
+      needsReview: { ok: true as const, predictions: [] },
+      tenantSignals: { ok: true as const, rows: [] },
+      cadenceAction: cadenceReviews,
+    };
+    const insights = renderToStaticMarkup(createElement(InsightsView, props));
+    expect(insights).toContain("No chats yet");
+    expect(insights).toContain("Upload chats");
+    expect(insights).not.toContain("Sample is not loaded");
+
+    const top = renderToStaticMarkup(
+      createElement(InsightsView, { ...props, callToday: true }),
+    );
+    expect(top).toContain("No calls today");
+    expect(top).toContain("Upload chats");
+
+    const report = renderToStaticMarkup(
+      await RevenueLeakReportView({
+        store,
+        backendScore: null,
+        windowLabel: "This week",
+        anonymised: true,
+      }),
+    );
+    expect(report).toContain("No retention signals in this pilot file.");
   });
 });
