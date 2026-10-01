@@ -60,6 +60,12 @@ export interface Signal {
   createdAt: string;
   /** UUID from FastAPI `signal_predictions` when dual-written */
   backendSignalId?: string;
+  /** high / medium / low. Omitted on older rows. */
+  urgency?: "high" | "medium" | "low";
+  /** Timeframe the customer stated, when there is one. */
+  urgencyTimeframe?: string;
+  /** Rupee amount or portfolio size stated in the chat. */
+  mentionedValueInr?: number;
   feedback?: {
     label: FeedbackLabel;
     note?: string;

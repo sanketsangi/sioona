@@ -7,6 +7,7 @@
 
 import { clipQuote } from "./clip-quote";
 import { pseudonymCustomerName, redactText } from "./redact";
+import { attachSignalCommercial } from "./signal-commercial";
 import {
   pickAction,
   runDetection,
@@ -689,27 +690,30 @@ function signalFromClassification(
   const who = pseudonymCustomerName(conversation.customerName) ?? "Customer";
   const via = conversation.channel ? ` (${conversation.channel})` : "";
 
-  return {
-    id: `sig_${conversation.id}_${classification.type}_llm`,
-    tenantId,
-    conversationId: conversation.id,
-    type: classification.type,
-    score,
-    confidence: score,
-    summary:
-      summary ||
-      `${who}${via} may be a ${classification.type} signal — review before acting.`,
-    suggestedAction: resolveSuggestedAction({
+  return attachSignalCommercial(
+    {
+      id: `sig_${conversation.id}_${classification.type}_llm`,
+      tenantId,
+      conversationId: conversation.id,
       type: classification.type,
-      customerName: who,
+      score,
+      confidence: score,
+      summary:
+        summary ||
+        `${who}${via} may be a ${classification.type} signal — review before acting.`,
+      suggestedAction: resolveSuggestedAction({
+        type: classification.type,
+        customerName: who,
+        evidence,
+        fallback: pickAction(classification.type, score, overrides),
+      }),
       evidence,
-      fallback: pickAction(classification.type, score, overrides),
-    }),
-    evidence,
-    status: "new",
-    createdAt: new Date().toISOString(),
-    groundTruth: conversation.groundTruth,
-  };
+      status: "new",
+      createdAt: new Date().toISOString(),
+      groundTruth: conversation.groundTruth,
+    },
+    sourceText
+  );
 }
 
 /**

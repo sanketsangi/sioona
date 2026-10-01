@@ -8,6 +8,7 @@ import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { SignalUser } from "@/components/SignalUser";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { queueSignalSummary } from "@/lib/format";
+import { signalCommercialLabel } from "@/lib/signal-commercial";
 import type { Signal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -48,6 +49,7 @@ export function SignalQueueRow({
     signal.summary?.trim() || "",
     customerName,
   );
+  const commercialLabel = signalCommercialLabel(signal);
   const summaryId = expandText
     ? `signal-review-summary-${signal.id}`
     : `signal-summary-${signal.id}`;
@@ -118,6 +120,11 @@ export function SignalQueueRow({
 
       <TableCell className="min-w-[7.25rem]">
         <SignalTypeChip type={signal.type} />
+        {commercialLabel ? (
+          <p className="mt-1 text-label-12 capitalize text-sio-fg-muted tabular">
+            {commercialLabel}
+          </p>
+        ) : null}
       </TableCell>
 
       <TableCell className="min-w-[5.5rem] whitespace-normal">
@@ -157,6 +164,7 @@ export function SignalQueueCard({
     signal.summary?.trim() || "",
     customerName,
   );
+  const commercialLabel = signalCommercialLabel(signal);
 
   return (
     <li
@@ -187,6 +195,11 @@ export function SignalQueueCard({
           evidence={signal.evidence}
           type={signal.type}
         />
+        {commercialLabel ? (
+          <span className="text-label-12 capitalize text-sio-fg-muted tabular">
+            {commercialLabel}
+          </span>
+        ) : null}
       </div>
       {action ? (
         <div

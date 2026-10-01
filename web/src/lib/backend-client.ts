@@ -75,6 +75,9 @@ export interface BackendPrediction {
   signal_type: string;
   confidence: number;
   summary: string;
+  urgency?: "high" | "medium" | "low" | null;
+  urgency_timeframe?: string | null;
+  mentioned_value_inr?: number | null;
   created_at: string;
   /** Present after 004; treat missing as false (fail-soft). */
   acted?: boolean;
@@ -377,6 +380,9 @@ export async function createPrediction(
     signal_type: string;
     confidence: number;
     summary: string;
+    urgency?: "high" | "medium" | "low";
+    urgency_timeframe?: string;
+    mentioned_value_inr?: number;
   }
 ): Promise<BackendPrediction> {
   return backendFetch<BackendPrediction>(tenantId, "/v1/predictions", {
@@ -402,6 +408,9 @@ export async function createPredictionsBulk(
     signal_type: string;
     confidence: number;
     summary: string;
+    urgency?: "high" | "medium" | "low";
+    urgency_timeframe?: string;
+    mentioned_value_inr?: number;
   }>
 ): Promise<BackendPredictionBulkResult> {
   return backendFetch<BackendPredictionBulkResult>(

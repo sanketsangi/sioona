@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.schemas.feedback import FeedbackResponse
 
 CanonicalSignalType = Literal["lead", "retention", "upsell"]
+SignalUrgency = Literal["high", "medium", "low"]
 
 
 class PredictionCreate(BaseModel):
@@ -18,6 +19,9 @@ class PredictionCreate(BaseModel):
     signal_type: CanonicalSignalType
     confidence: float = Field(..., ge=0.0, le=1.0)
     summary: str = Field(..., min_length=1)
+    urgency: SignalUrgency | None = None
+    urgency_timeframe: str | None = None
+    mentioned_value_inr: int | None = Field(default=None, ge=0)
 
 
 class PredictionBulkUpsert(BaseModel):
@@ -56,6 +60,9 @@ class PredictionResponse(BaseModel):
     signal_type: str
     confidence: float
     summary: str
+    urgency: str | None = None
+    urgency_timeframe: str | None = None
+    mentioned_value_inr: int | None = None
     acted: bool = False
     outcome: str | None = None
     outcome_value_inr: float | None = None

@@ -16,6 +16,7 @@ import { groupMessagesByConversation } from "./group-messages";
 import { resolveSuggestedAction } from "./suggested-action-display";
 import type { StatusFilter, TypeFilter, ActionFilter } from "./views";
 import { queueActionKindForSignal } from "./queue-action-kind";
+import { signalCallRank } from "./signal-commercial";
 import { findSupervisedAction } from "./supervised-actions";
 import type {
   Conversation,
@@ -55,6 +56,13 @@ export function predictionToStubSignal(
     backendSignalId: prediction.id,
     ...(outcomeFromRow(prediction)
       ? { outcome: outcomeFromRow(prediction) }
+      : {}),
+    ...(prediction.urgency ? { urgency: prediction.urgency } : {}),
+    ...(prediction.urgency_timeframe
+      ? { urgencyTimeframe: prediction.urgency_timeframe }
+      : {}),
+    ...(prediction.mentioned_value_inr != null
+      ? { mentionedValueInr: prediction.mentioned_value_inr }
       : {}),
   };
 }
@@ -154,6 +162,21 @@ export function joinNeedsReviewPredictions(
       // Pending queue SoT is Neon — treat as unreviewed for UI status
       status: "new" as const,
       feedback: undefined,
+      ...(prediction.urgency || matched.urgency
+        ? { urgency: prediction.urgency || matched.urgency }
+        : {}),
+      ...(prediction.urgency_timeframe || matched.urgencyTimeframe
+        ? {
+            urgencyTimeframe:
+              prediction.urgency_timeframe || matched.urgencyTimeframe,
+          }
+        : {}),
+      ...((prediction.mentioned_value_inr ?? matched.mentionedValueInr) != null
+        ? {
+            mentionedValueInr:
+              prediction.mentioned_value_inr ?? matched.mentionedValueInr,
+          }
+        : {}),
     });
   }
 
@@ -306,6 +329,13 @@ export function joinTenantSignals(
         status,
         feedback,
         ...(outcomeFromRow(row) ? { outcome: outcomeFromRow(row) } : {}),
+        ...(row.urgency ? { urgency: row.urgency } : {}),
+        ...(row.urgency_timeframe
+          ? { urgencyTimeframe: row.urgency_timeframe }
+          : {}),
+        ...(row.mentioned_value_inr != null
+          ? { mentionedValueInr: row.mentioned_value_inr }
+          : {}),
       });
       continue;
     }
@@ -371,13 +401,14 @@ function queueHash(id: string): number {
 }
 
 /**
- * Unordered queue. Type filters already narrow the list, so the default
- * order is a stable shuffle — same signals stay put across refresh, paging,
- * and Previous / Next.
+ * Call order: urgency × mentioned value, then the stable hash so a queue
+ * without those fields stays put across refresh, paging, and Previous / Next.
  */
 export function shuffleSignals(signals: Signal[]): Signal[] {
   if (signals.length < 2) return signals;
   return [...signals].sort((a, b) => {
+    const rank = signalCallRank(b) - signalCallRank(a);
+    if (rank !== 0) return rank;
     const delta = queueHash(a.id) - queueHash(b.id);
     if (delta !== 0) return delta;
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;

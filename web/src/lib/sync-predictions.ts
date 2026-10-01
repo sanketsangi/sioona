@@ -70,6 +70,13 @@ function predictionInput(signal: Signal) {
     signal_type: signal.type,
     confidence: signal.confidence,
     summary: signal.summary,
+    ...(signal.urgency ? { urgency: signal.urgency } : {}),
+    ...(signal.urgencyTimeframe
+      ? { urgency_timeframe: signal.urgencyTimeframe }
+      : {}),
+    ...(signal.mentionedValueInr != null
+      ? { mentioned_value_inr: signal.mentionedValueInr }
+      : {}),
   };
 }
 

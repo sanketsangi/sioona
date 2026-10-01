@@ -40,6 +40,9 @@ def create_prediction(
             signal_type=body.signal_type,
             confidence=body.confidence,
             summary=body.summary,
+            urgency=body.urgency,
+            urgency_timeframe=body.urgency_timeframe,
+            mentioned_value_inr=body.mentioned_value_inr,
         )
         return PredictionResponse.model_validate(prediction)
     except SQLAlchemyError as exc:
@@ -67,6 +70,9 @@ def create_or_update_predictions_bulk(
                     "signal_type": row.signal_type,
                     "confidence": row.confidence,
                     "summary": row.summary,
+                    "urgency": row.urgency,
+                    "urgency_timeframe": row.urgency_timeframe,
+                    "mentioned_value_inr": row.mentioned_value_inr,
                 }
                 for row in body.predictions
             ],
