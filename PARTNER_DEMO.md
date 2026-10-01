@@ -118,7 +118,9 @@ Same as the one-liner offer above — anonymized export, keep-set SignalScore + 
 
 On hold / below target: use **Adapt From Reviews** on Eval to add phrases or negatives from rejects, then re-detect.
 
-Cold open and **Reset Demo** load Groww `testing.json` (~100 conversations). **Run Partner Demo** wipes this tenant on Neon, then loads only `zerodha_batch_02.json` — it does not merge Groww + Zerodha and does not apply Zerodha Adapt. Cold first run sets baseline **4**; a prior **partner** baseline on Neon (e.g. share-out **12**) is restored after wipe so lift does not regress to cold-demo. `weekly_export_count` still resets.
+Real export checklist: [`docs/REAL_EXPORT.md`](docs/REAL_EXPORT.md).
+
+Cold open and **Reset Demo** load Groww `web/data/samples/testing.json` (~100 conversations). **Run Partner Demo** wipes this tenant on Neon, then loads only `zerodha_batch_02.json` — it does not merge Groww + Zerodha and does not apply Zerodha Adapt. Cold first run sets baseline **4**; a prior **partner** baseline on Neon (e.g. share-out **12**) is restored after wipe so lift does not regress to cold-demo. `weekly_export_count` still resets.
 
 ## Week-1 pilot rhythm (visible in the strip)
 
@@ -165,8 +167,7 @@ Cadence helper on Insights empty queue, Upload, and Eval — not in the header b
 
 | File | Role |
 |------|------|
-| Repo-root `testing.json` | Canonical Groww labeled corpus (eval + cold open / Reset) |
-| `web/data/samples/testing.json` | Deployable Groww copy for Next/Vercel runtime (keep in sync with root) |
+| `web/data/samples/testing.json` | Canonical Groww labeled corpus (eval + cold open / Reset) |
 | `web/data/samples/zerodha_batch_02.json` | Committed Zerodha Batch-02 — Partner Demo only |
 
 **Run Partner Demo** wipes Neon, then loads only `zerodha_batch_02.json`, dual-writes predictions to FastAPI/Neon, and sets the cold-demo baseline. No Zerodha Adapt on that click. **Reset Demo** returns Groww `testing.json`.

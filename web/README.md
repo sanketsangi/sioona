@@ -22,8 +22,7 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 
 ## Showcase corpus
 
-- Repo-root `testing.json` — canonical labeled corpus
-- `data/samples/testing.json` — Groww Batch 02; cold open + Reset (keep in sync with repo root)
+- `data/samples/testing.json` — Groww Batch 02; canonical labeled corpus, cold open + Reset
 - `data/samples/zerodha_batch_02.json` — Zerodha Batch 02; Run Partner Demo only (wipe then replace)
 - Upload still accepts partner CSV / Intercom JSON / WhatsApp `.txt`
 - Eval lanes (not Upload pack): `src/data/fixtures/partner-shaped-labeled.csv`, `src/data/fixtures/real-partner-export.template.csv`

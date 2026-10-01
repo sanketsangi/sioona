@@ -17,7 +17,7 @@ Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages
 | API | FastAPI Signal Score (`backend/`) | Auth0-gated multi-tenant API |
 | Detect | Heuristics (`detect.ts`) + optional Groq pass 2 (`detect-llm.ts`; **Detect v2 closed / hosted**) | vLLM / LangGraph / QLoRA |
 | Data | JSON `store.ts` for chats/taxonomy (UI SoT when file exists) + **Neon** for SignalScore, needs-review queue, dual-written conversations/messages, `ground_truth`, Acted, pilot settings + hydrate | Full Neon chat SoT + taxonomy + pgvector |
-| Auth | `X-Tenant-Id` header (`tenant_demo`) | Auth0 |
+| Auth | Signed session cookie + `SIOONA_SERVICE_TOKEN` (not Auth0) | Auth0 |
 
 **Signal Score + pending queue SoT:** FastAPI + Neon (`backend/`). Insights pending: `GET …/needs-review` → `join-needs-review.ts`. Follow-up / Done: `GET …/signals` (correct ¬acted / acted). JSON `reviewPrecision` is a legacy mirror when the backend is unreachable.
 

@@ -1,6 +1,6 @@
 # Deploying Sioona (`web/`) to Vercel
 
-The Sioona app is a **Next.js 15 App Router** project that lives in the `web/`
+The Sioona app is a **Next.js 16 App Router** project that lives in the `web/`
 subdirectory of the repo. Deploy with the Vercel **Root Directory** set to `web`.
 
 Production alias: [https://sioona-demo.vercel.app](https://sioona-demo.vercel.app)
@@ -15,7 +15,9 @@ Set env vars first:
 ```bash
 export BACKEND_URL="https://sioona-api.onrender.com"   # Render FastAPI
 export VERCEL_URL="https://sioona-demo.vercel.app"     # Vercel web
-export TENANT="tenant_demo"
+export TENANT="tenant_partner"                         # not tenant_demo for a real partner
+# Optional. When SIOONA_SERVICE_TOKEN is set on Render, send it on /v1 calls.
+# export SIOONA_SERVICE_TOKEN="(same value as Vercel and Render; do not commit)"
 ```
 
 ### Before each deploy (local)
@@ -48,14 +50,48 @@ curl -sS -D- -o /dev/null "$VERCEL_URL/insights/sig_test" | rg -i "^location:"
 
 # 4. Shadow Mode queue API
 curl -sS "$BACKEND_URL/v1/tenants/$TENANT/signals/needs-review" \
-  -H "X-Tenant-Id: $TENANT"
+  -H "X-Tenant-Id: $TENANT" \
+  ${SIOONA_SERVICE_TOKEN:+-H "Authorization: Bearer $SIOONA_SERVICE_TOKEN"}
 # expect: JSON array (may be empty)
 
 # 5. Signal Score API
 curl -sS "$BACKEND_URL/v1/tenants/$TENANT/signal-score" \
-  -H "X-Tenant-Id: $TENANT"
+  -H "X-Tenant-Id: $TENANT" \
+  ${SIOONA_SERVICE_TOKEN:+-H "Authorization: Bearer $SIOONA_SERVICE_TOKEN"}
 # expect: reviewed_count, signal_score fields
 ```
+
+## Pilot auth (manual — do not commit secrets)
+
+Set these in the Vercel and Render dashboards, then redeploy. This repo does not change production env for you.
+
+Vercel (`web`):
+
+- `AUTH_SECRET` — long random string. Signs the `sioona_session` cookie.
+- `SIOONA_SERVICE_TOKEN` — same value as Render. The browser never sees it.
+- `SIOONA_TENANT_ID` — partner tenant, for example `tenant_partner`. Must not be `tenant_demo`.
+- `SIOONA_ADMIN_EMAIL` and `SIOONA_ADMIN_PASSWORD` — one admin. Or `SIOONA_PILOT_USERS` as a JSON array of `{email, role, tenantId, password}` or `passwordHash` (`scrypt$…` from `node web/scripts/hash-pilot-password.mjs`).
+- Optional `SIOONA_REVIEWER_EMAIL` and `SIOONA_REVIEWER_PASSWORD`.
+- Optional `SIOONA_PUBLIC_DEMO=1` — anonymous read-only access to `tenant_demo` only. Leave unset in production until that tenant holds no real chats.
+- Optional `SIOONA_ALLOW_DEMO_ACTIONS=1` — lets an admin run Reset and Partner Demo in production. Those actions only touch `tenant_demo`.
+- Optional `SIOONA_ENV=production`.
+
+Render (`backend`):
+
+- `SIOONA_SERVICE_TOKEN` — same value as Vercel.
+- `SIOONA_ENV=production` — disables `/docs`, `/redoc`, and `/openapi.json`. If this is production and the token is empty, `/v1` returns 503.
+
+Neon:
+
+```bash
+cd backend && alembic upgrade head
+```
+
+That applies revision `010_outcomes_taxonomy_fk` (outcome columns, `taxonomy_overrides`, Postgres foreign key). Run it yourself against the pilot database. Do not point it at a throwaway URL from this repo.
+
+Until `AUTH_SECRET` is set on Vercel production, the app requires sign-in (`VERCEL_ENV=production` turns enforcement on) and the public demo stays closed. Local `next dev` without `AUTH_SECRET` stays open for development.
+
+Real export checklist: [`../docs/REAL_EXPORT.md`](../docs/REAL_EXPORT.md).
 
 ## One-time: log in
 

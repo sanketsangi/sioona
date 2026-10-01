@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-09-04
+**Last updated:** 2026-10-01
 
 ---
 
@@ -21,24 +21,26 @@ Partner export (Upload)
         ▼
   Next.js BFF (web/) ── ingest / detect / store mutations
         │
-        ├─► JSON store (chats, taxonomyOverrides, local signals)
-        │         ▲ cold-start hydrate when /tmp store missing
+        ├─► JSON store (per-tenant file; demo path still store.json)
+        │         ▲ cold-start hydrate when the file is missing
         │         │
-        └─► FastAPI (backend/) + Neon
+        └─► FastAPI (backend/) + Neon  (Bearer service token from the web server)
               conversations / messages / ground_truth
-              signal_predictions + feedback + acted
+              signal_predictions + feedback + acted + outcome
+              taxonomy_overrides
               pilot_settings
-              needs-review queue + Signal Score
+              needs-review queue + Signal Score + revenue totals
 ```
 
 | Concern                                          | Source of truth                                            |
 | ------------------------------------------------ | ---------------------------------------------------------- |
-| Chats + taxonomy overrides (UI when file exists) | JSON `store.ts`                                            |
+| Chats (UI when the tenant file exists)           | JSON `store.ts`; Neon hydrate when the file is missing     |
 | Pending Insights queue                           | Neon `GET …/signals/needs-review` → `join-needs-review.ts` |
 | Follow-up / Done                                 | Neon `GET …/signals` (`correct` ¬acted / `acted`) + join   |
 | Signal Score / keep-set reviews                  | FastAPI + Neon (`reviewed_at` week window)                 |
+| Taxonomy overrides                               | Neon `taxonomy_overrides` (JSON mirror for the open file)  |
 | Taxonomy base phrases                            | `web/src/lib/taxonomy.ts` (never Neon)                     |
-| Auth                                             | Soft header `X-Tenant-Id` (`tenant_demo`) — not Auth0      |
+| Auth                                             | Signed session cookie + `SIOONA_SERVICE_TOKEN`. Not Auth0. |
 
 Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sioona-api` + Neon `sioona`. Hydrate + Adapt union + pilot restore survive wipe. Platform SSR also overlays `store.pilot` from Neon (heal stale `/tmp` after Partner Demo / cross-instance `set_baseline`). Partner Demo restores a prior partner baseline after wipe (cold-demo 4 only when none exists).
 
@@ -53,7 +55,7 @@ Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sio
 | `web/src/lib/`                          | Domain logic (prefer edits here)                               |
 | `web/data/`                             | Runtime store + samples — **never commit `store.json`**        |
 | `backend/app/`                          | FastAPI routes, models, services                               |
-| `backend/alembic/versions/`             | `001`–`006` (head = pilot settings)                            |
+| `backend/alembic/versions/`             | `001`–`010` (head = outcomes, taxonomy overrides, prediction FK) |
 | `.cursor/docs/PROJECT_STATE.md`         | Heading, gates, do-not-start                                   |
 | `.cursor/rules/sioona-architecture.mdc` | Always-on short stack rules                                    |
 

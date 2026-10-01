@@ -4,7 +4,7 @@ Live showcase files in this directory:
 
 | File | Format | Notes |
 |------|--------|--------|
-| `testing.json` | Sioona-shaped JSON | Groww Batch 02 (~100 labeled chats). Cold open + Reset Demo. Keep in sync with repo-root `testing.json`. |
+| `testing.json` | Sioona-shaped JSON | Groww Batch 02 (~100 labeled chats). Canonical corpus. Cold open + Reset Demo. |
 | `zerodha_batch_02.json` | Sioona-shaped JSON | Zerodha Batch 02 (100 labeled chats). **Run Partner Demo** wipes Neon then loads this file only — never merged with Groww. |
 | `real-partner-export.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-1 drop-in — paste redacted partner chats here |
 | `real-partner-export.week2.local.csv` | Sioona CSV + `ground_truth` | **Gitignored** week-2 held-out drop-in — does not overwrite week-1 |
@@ -52,7 +52,7 @@ Synthetic fixture gate (still must stay at 1.0) — test-only pack in `src/data/
 npx vitest run src/lib/eval.test.ts src/lib/detect.test.ts
 ```
 
-Root corpus `testing.json` (100 labeled Groww chats; measurement, not a 1.0 gate):
+`web/data/samples/testing.json` (100 labeled Groww chats; measurement, not a 1.0 gate):
 
 ```bash
 npx vitest run src/lib/testing-json.eval.test.ts
