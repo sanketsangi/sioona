@@ -31,6 +31,7 @@ export async function RevenueLeakReportView({
     anonymised,
     reviewed: backendScore?.reviewed_count ?? 0,
     correct: backendScore?.correct_count ?? 0,
+    incorrect: backendScore?.incorrect_count ?? 0,
   });
 
   return (

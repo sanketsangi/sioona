@@ -280,19 +280,7 @@ export function InsightsView({
       : attachSignalCommercial(signal, (signal.evidence ?? []).join("\n")),
   );
   const supervisedActions = store.supervisedActions ?? [];
-  if (callToday) {
-    pendingSignals = topCallsToday(
-      queueSignalsForFilter({
-        pending: pendingSignals,
-        reviewed: [],
-        status: "new",
-        type: typeFilter,
-        action: actionFilter,
-        supervisedActions,
-      }).filtered,
-    );
-  }
-  const walkPendingSignals = queueSignalsForFilter({
+  const filteredPending = queueSignalsForFilter({
     pending: pendingSignals,
     reviewed: [],
     status: "new",
@@ -300,6 +288,11 @@ export function InsightsView({
     action: actionFilter,
     supervisedActions,
   }).filtered;
+  // Top 10 is only the list and the walk. Counts and filters stay on the full queue.
+  const listPendingSignals = callToday
+    ? topCallsToday(filteredPending)
+    : pendingSignals;
+  const walkPendingSignals = callToday ? listPendingSignals : filteredPending;
   const walkFollowUpSignals = queueSignalsForFilter({
     pending: [],
     reviewed: reviewedSignals,
@@ -494,6 +487,7 @@ export function InsightsView({
     mode: workspaceMode,
     replaced: jsonKeepSet,
     file: vaultFile,
+    callToday,
   };
   // Any open ?preview= while filtered needs-review remains — including after
   // Correct / Mark as Acted (follow-up / Done origin). Hide only when the
@@ -663,7 +657,11 @@ export function InsightsView({
             supervisedActions={store.supervisedActions ?? []}
           />
         </div>
-        <SignalQueue {...queueProps} previewId={null} />
+        <SignalQueue
+          {...queueProps}
+          pendingSignals={listPendingSignals}
+          previewId={null}
+        />
       </div>
     </>
   );
@@ -777,7 +775,11 @@ export function InsightsView({
                 </div>
               </div>
               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                <SignalQueue {...queueProps} previewId={previewId} />
+                <SignalQueue
+                  {...queueProps}
+                  pendingSignals={listPendingSignals}
+                  previewId={previewId}
+                />
               </div>
             </div>
           </ConversationDrawerControlProvider>

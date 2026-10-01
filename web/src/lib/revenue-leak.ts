@@ -60,7 +60,10 @@ export interface RevenueLeakReport {
   precision: {
     reviewed: number;
     correct: number;
-    /** Null when reviewed is 0. */
+    /**
+     * `correct / (correct + incorrect)`. Null when that denominator is 0
+     * (no Correct or Incorrect, including a partial-only window).
+     */
     score: number | null;
   };
 }
@@ -103,7 +106,7 @@ export function extractMentionedInr(text: string): number | null {
   const crore =
     /(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:crore|crores|\bcr\b)/gi;
   const lakh = /(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:lakh|lakhs|lac|lacs)\b/gi;
-  const rupee = /(?:₹|rs\.?|inr)\s*(\d[\d,]*(?:\.\d+)?)/gi;
+  const rupee = /(?:₹|\brs\.?|\binr)\s*(\d[\d,]*(?:\.\d+)?)/gi;
   for (const match of text.matchAll(crore)) {
     const n = parseAmountToken(match[1] ?? "");
     if (n != null) amounts.push(Math.round(n * 10_000_000));
@@ -191,6 +194,7 @@ export function buildRevenueLeakReport(input: {
   anonymised?: boolean;
   reviewed?: number;
   correct?: number;
+  incorrect?: number;
 }): RevenueLeakReport {
   const anonymised = input.anonymised !== false;
   const conversations = new Map(
@@ -267,6 +271,8 @@ export function buildRevenueLeakReport(input: {
 
   const reviewed = input.reviewed ?? 0;
   const correct = input.correct ?? 0;
+  const incorrect = input.incorrect ?? 0;
+  const decided = correct + incorrect;
   return {
     windowLabel: input.windowLabel,
     fileLabel: input.fileLabel ?? null,
@@ -279,7 +285,7 @@ export function buildRevenueLeakReport(input: {
     precision: {
       reviewed,
       correct,
-      score: reviewed > 0 ? correct / reviewed : null,
+      score: decided > 0 ? correct / decided : null,
     },
   };
 }

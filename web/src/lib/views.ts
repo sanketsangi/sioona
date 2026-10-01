@@ -268,6 +268,8 @@ export function pendingReviewWalkHref(opts: {
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   file?: string | null;
+  /** Keep `?call=today` so Prev / Next / Skip stay on the Top 10 list. */
+  callToday?: boolean;
 }): string {
   const mode = opts.mode ?? "shadow";
   const status = opts.statusFilter ?? "all";
@@ -282,6 +284,7 @@ export function pendingReviewWalkHref(opts: {
     preview: opts.previewId,
     replaced: replacedQueryValue(opts.replaced),
     file: opts.file,
+    call: opts.callToday ? "today" : null,
   });
 }
 

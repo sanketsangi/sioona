@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   });
   const reviewed = score?.reviewed_count ?? 0;
   const correct = score?.correct_count ?? 0;
+  const incorrect = score?.incorrect_count ?? 0;
 
   const report = buildRevenueLeakReport({
     signals: store.signals ?? [],
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
     anonymised: !reveal,
     reviewed,
     correct,
+    incorrect,
   });
   const pdf = buildRevenueLeakPdf(report);
   return new NextResponse(Buffer.from(pdf), {

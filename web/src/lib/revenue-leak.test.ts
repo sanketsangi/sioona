@@ -3,6 +3,7 @@ import {
   buildRevenueLeakReport,
   extractMentionedInr,
   inferCommercial,
+  precisionLabel,
   pseudonymFor,
 } from "./revenue-leak";
 import type { Conversation, Message, Signal } from "./types";
@@ -88,6 +89,7 @@ describe("buildRevenueLeakReport", () => {
       windowLabel: "Last 7 days",
       reviewed: 5,
       correct: 4,
+      incorrect: 1,
     });
     expect(report.anonymised).toBe(true);
     expect(report.customersAtRisk[0]?.customerLabel).toBe(pseudonymFor("conv_1"));
@@ -122,5 +124,37 @@ describe("buildRevenueLeakReport", () => {
     expect(report.inrAtRisk).toBe(200000);
     expect(report.inrSaved).toBe(200000);
     expect(report.outcomes.saved).toBe(1);
+  });
+
+  it("excludes partials from SignalScore precision", () => {
+    const report = buildRevenueLeakReport({
+      signals: [],
+      conversations: [],
+      messages: [],
+      windowLabel: "Last 7 days",
+      reviewed: 6,
+      correct: 3,
+      incorrect: 0,
+    });
+    expect(report.precision.score).toBe(1);
+    expect(precisionLabel(report.precision.score, report.precision.reviewed)).toBe(
+      "100% (6 reviewed)",
+    );
+  });
+
+  it("returns null precision when the window is partial-only", () => {
+    const report = buildRevenueLeakReport({
+      signals: [],
+      conversations: [],
+      messages: [],
+      windowLabel: "Last 7 days",
+      reviewed: 3,
+      correct: 0,
+      incorrect: 0,
+    });
+    expect(report.precision.score).toBeNull();
+    expect(precisionLabel(report.precision.score, report.precision.reviewed)).toBe(
+      "Insufficient data",
+    );
   });
 });

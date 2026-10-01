@@ -1,6 +1,10 @@
+import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 import { liveIngestEnabled } from "@/lib/live-ingest/flag";
-import { intercomOAuthStartUrl } from "@/lib/live-ingest/intercom";
+import {
+  INTERCOM_OAUTH_STATE_COOKIE,
+  intercomOAuthStartUrl,
+} from "@/lib/live-ingest/intercom";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +17,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "intercom_client_id_missing" }, { status: 503 });
   }
   const origin = new URL(request.url).origin;
+  const state = randomBytes(32).toString("base64url");
   const url = intercomOAuthStartUrl(
     clientId,
     `${origin}/api/ingest/live/intercom/callback`,
-    process.env.INTERCOM_WEBHOOK_SECRET?.trim() || "sioona",
+    state,
   );
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+  response.cookies.set(INTERCOM_OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/api/ingest/live/intercom",
+    maxAge: 600,
+  });
+  return response;
 }

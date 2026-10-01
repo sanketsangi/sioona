@@ -59,6 +59,17 @@ describe("whatsapp adapters", () => {
     expect(chats[0]?.customerName).toBe("Asha");
     expect(chats[0]?.messages[0]?.content).toBe("Withdrawal failed");
   });
+
+  it("reads a Gupshup unix timestamp in seconds", () => {
+    const chats = parseWhatsAppWebhook("gupshup", {
+      payload: {
+        id: "m2",
+        timestamp: 1_700_000_000,
+        payload: { text: "paisa nikalna hai" },
+      },
+    });
+    expect(chats[0]?.messages[0]?.timestamp).toBe("2023-11-14T22:13:20.000Z");
+  });
 });
 
 describe("intercom connector", () => {
@@ -109,6 +120,7 @@ describe("acceptLiveChats", () => {
     };
     const detect = vi.fn(async () => ({ signals: [], llm: { enabled: false, added: 0, failed: 0, failure: null, skipped: 0 } }));
     const write = vi.fn(async () => undefined);
+    const dualWrite = vi.fn(async () => undefined);
     const result = await acceptLiveChats(
       [
         {
@@ -126,6 +138,7 @@ describe("acceptLiveChats", () => {
       {
         read: async () => store,
         write,
+        dualWrite,
         detect: detect as never,
       },
     );

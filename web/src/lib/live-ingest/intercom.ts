@@ -9,6 +9,30 @@ import type { IngestConversationInput } from "../ingest-platforms";
 const INTERCOM_CONVERSATIONS_URL =
   "https://api.intercom.io/conversations?per_page=20";
 
+/** Short-lived CSRF nonce. Never the webhook secret. */
+export const INTERCOM_OAUTH_STATE_COOKIE = "intercom_oauth_state";
+
+export function readRequestCookie(
+  request: Request,
+  name: string,
+): string | undefined {
+  const header = request.headers.get("cookie");
+  if (!header) return undefined;
+  for (const piece of header.split(";")) {
+    const trimmed = piece.trim();
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+    if (trimmed.slice(0, eq) !== name) continue;
+    const raw = trimmed.slice(eq + 1);
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }
+  return undefined;
+}
+
 export function intercomOAuthStartUrl(
   clientId: string,
   redirectUri: string,

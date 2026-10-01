@@ -17,6 +17,17 @@ function textOf(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Gupshup sends `timestamp` as unix seconds or milliseconds. */
+function timestampOf(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    const ms = value < 1_000_000_000_000 ? value * 1000 : value;
+    return new Date(ms).toISOString();
+  }
+  const text = textOf(value);
+  if (text) return text;
+  return new Date(0).toISOString();
+}
+
 export function parseGupshupWebhook(body: unknown): IngestConversationInput[] {
   const root = asRecord(body);
   const payload = asRecord(root?.payload) ?? root;
@@ -29,8 +40,7 @@ export function parseGupshupWebhook(body: unknown): IngestConversationInput[] {
   if (!text) return [];
   const id = textOf(payload.id) || textOf(payload.source) || "gupshup";
   const name = textOf(asRecord(payload.sender)?.name) || undefined;
-  const timestamp =
-    textOf(payload.timestamp) || new Date(0).toISOString();
+  const timestamp = timestampOf(payload.timestamp);
   return [
     {
       externalId: `gupshup:${id}`,
