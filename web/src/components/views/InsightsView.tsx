@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AtRiskPanel } from "@/components/AtRiskPanel";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
@@ -25,6 +26,7 @@ import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
+import { detectEarlyWarnings } from "@/lib/early-warning";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
   customerNameFromExternalId,
@@ -540,8 +542,13 @@ export function InsightsView({
     landingFile: importLanding ? vaultFile : null,
   };
 
+  const earlyWarnings = vaultMismatch
+    ? []
+    : detectEarlyWarnings(queueChats.conversations, queueChats.messages);
+
   const queueBody = (
     <>
+      <AtRiskPanel warnings={earlyWarnings} />
       <InsightsQueueMetrics
         conversationCount={
           vaultMismatch ? 0 : queueChats.conversations.length

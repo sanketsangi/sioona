@@ -212,3 +212,7 @@ Do not raise the Hobby cap in the Vercel dashboard unless the runtime can finish
 ## Urgency and value
 
 No new environment variables. Each signal stores `urgency` (`high` / `medium` / `low`), an optional timeframe, and `mentioned_value_inr` when the customer stated an amount. Alembic `011_signal_urgency_value` adds those nullable columns on `signal_predictions`. Render’s deploy migration applies it. Do not run it against production Neon from a laptop. The Insights queue sorts by urgency × value. Older rows without the columns stay in the previous stable order.
+
+## Early-warning signals
+
+No new environment variables and no migration. Insights shows an At risk list for repeated complaints, unresolved issues, failed withdrawals or payouts, slow agent replies, and a negative trend across one customer's chats. Those rows are not `lead` / `retention` / `upsell` predictions, so they do not change SignalScore. Nothing is sent.
