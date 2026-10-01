@@ -8,7 +8,10 @@ import {
   SCORE_UNAVAILABLE_TITLE,
   buildHeaderNotifications,
   freshPopupNotifications,
+  isNotificationUnread,
   notificationAutoOpenKey,
+  notificationCategory,
+  notificationSeenKey,
   orderNotificationsRecentFirst,
   stampNotificationArrivals,
 } from "./notifications";
@@ -70,12 +73,14 @@ describe("buildHeaderNotifications", () => {
       "sync-failed",
       "score-unavailable",
     ]);
-    expect(items[0]?.title).toBe("Neon Dual-Write Incomplete");
+    expect(items[0]?.title).toBe("Prediction sync incomplete");
     expect(items[0]?.tone).toBe("warning");
+    expect(items[0]?.sticky).toBe(true);
     expect(items[0]?.description).toContain("2 predictions not written");
     expect(items[0]?.description).toContain("1 succeeded");
     expect(items[1]?.title).toBe(SCORE_UNAVAILABLE_TITLE);
     expect(items[1]?.description).toBe(SCORE_UNAVAILABLE_DESCRIPTION);
+    expect(items[1]?.sticky).toBe(true);
     expect(items[1]?.description).not.toMatch(/FastAPI|BACKEND_URL/);
   });
 
@@ -106,8 +111,11 @@ describe("buildHeaderNotifications", () => {
       wipeFailed: true,
     });
     expect(items.map((i) => i.id)).toEqual(["wipe-failed"]);
+    expect(items[0]?.title).toBe("Demo reset incomplete");
     expect(items[0]?.tone).toBe("warning");
+    expect(items[0]?.sticky).toBe(true);
     expect(items[0]?.href).toContain("wipeFailed=1");
+    expect(JSON.stringify(items)).not.toMatch(/FastAPI|Neon|BACKEND_URL/i);
   });
 
   it("stacks demo ready ahead of sync failure", () => {
@@ -311,13 +319,51 @@ describe("freshPopupNotifications", () => {
       newSignalCount: 1,
     });
     const freshAgain = freshPopupNotifications(secondImport, {
-      seenIds: new Set(),
+      seenIds: new Set([notificationSeenKey(importItem!)]),
       alreadyOpened: new Set([notificationAutoOpenKey(importItem!)]),
     });
     expect(freshAgain.map((i) => i.id)).toContain("import-complete");
     expect(notificationAutoOpenKey(secondImport[0]!)).not.toBe(
       notificationAutoOpenKey(importItem!),
     );
+    expect(isNotificationUnread(secondImport[0]!, new Set([notificationSeenKey(importItem!)]))).toBe(
+      true,
+    );
+  });
+
+  it("keeps an acknowledged pending queue quiet when only the count changes", () => {
+    const first = buildHeaderNotifications({
+      pendingCount: 3,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+    });
+    const next = buildHeaderNotifications({
+      pendingCount: 2,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+    });
+    const pending = first[0]!;
+    const seen = new Set([notificationSeenKey(pending)]);
+    expect(notificationSeenKey(pending)).toBe("pending-review");
+    expect(isNotificationUnread(next[0]!, seen)).toBe(false);
+    expect(
+      freshPopupNotifications(next, {
+        seenIds: seen,
+        alreadyOpened: new Set([notificationAutoOpenKey(pending)]),
+      }),
+    ).toEqual([]);
+  });
+
+  it("names each tray category", () => {
+    expect(notificationCategory("queue-unavailable")).toBe("Queue");
+    expect(notificationCategory("sync-failed")).toBe("Sync");
+    expect(notificationCategory("score-unavailable")).toBe("Score");
+    expect(notificationCategory("wipe-failed")).toBe("Reset");
+    expect(notificationCategory("llm-pass-remaining")).toBe("Detection");
   });
 
   it("keeps the tray open long enough to read a new notice", () => {

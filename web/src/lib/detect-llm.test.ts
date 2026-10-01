@@ -440,6 +440,43 @@ describe("applyLlmSecondPass", () => {
     expect(signals).toHaveLength(0);
   });
 
+  it("rejects a long summary when the quote is not in the customer text", async () => {
+    const quiet: Conversation = { ...conv, id: "conv_long_summary" };
+    const quietMsgs: Message[] = [
+      {
+        ...messages[0],
+        conversationId: "conv_long_summary",
+        content:
+          "Please send the monthly account statement to my email when you can.",
+      },
+    ];
+
+    const { signals: heuristic } = await runHybridDetection(
+      [quiet],
+      quietMsgs,
+      "tenant_demo"
+    );
+    expect(heuristic).toHaveLength(0);
+
+    const { signals } = await applyLlmSecondPass(
+      [quiet],
+      quietMsgs,
+      "tenant_demo",
+      heuristic,
+      null,
+      {
+        classify: async () => ({
+          type: "lead",
+          confidence: 0.9,
+          summary: "Customer wants to open a new demat account this week.",
+          quotes: ["I want to open a demat account today please"],
+        }),
+      }
+    );
+
+    expect(signals).toHaveLength(0);
+  });
+
   it("treats none / low confidence as no signal", async () => {
     const quiet: Conversation = { ...conv, id: "conv_ops" };
     const quietMsgs: Message[] = [

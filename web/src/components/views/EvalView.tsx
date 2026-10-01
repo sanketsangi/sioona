@@ -86,14 +86,14 @@ export function EvalView({
       >
         <TabsList
           aria-label="Eval panels"
-          className="!h-[3.25rem] w-full shrink-0 border border-border md:!h-9"
+          className="!h-9 w-full shrink-0 border border-border"
         >
           {PANELS.map((item) => (
             <TabsTrigger
               key={item.id}
               value={item.id}
               asChild
-              className="min-w-0 max-md:!h-11"
+              className="min-w-0"
             >
               <EvalTabLink
                 href={viewHref("eval", {

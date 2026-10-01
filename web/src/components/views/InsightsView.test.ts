@@ -1278,7 +1278,7 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Leftover Groww pending");
   });
 
-  it("keeps the current queue while Sample seeds", () => {
+  it("does not keep another pack’s signals when Sample is selected", () => {
     const pending = makePendingSignals(2);
     const store = storeFromSignals(pending);
     store.pilot = {
@@ -1314,8 +1314,9 @@ describe("InsightsView Neon pending overlay", () => {
       "",
     );
     expect(html).toContain("Conversation that needs your attention");
-    expect(html).toContain("Pending signal 1");
-    expect(html).toContain("Pending signal 2");
+    expect(html).not.toContain("Pending signal 1");
+    expect(html).not.toContain("Pending signal 2");
+    expect(html).toContain("No Signals Yet");
     expect(visible).not.toContain("Finding signals…");
     expect(html).not.toContain("Usually ready in about 20 seconds.");
     expect(html).not.toContain("Sample failed to load");
@@ -1327,7 +1328,7 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Sample Not Loaded");
   });
 
-  it("keeps the Sample queue when switching to Partner Demo", () => {
+  it("does not keep Sample signals when Partner Demo is selected", () => {
     const pending = makePendingSignals(1);
     const store = storeFromSignals(pending);
     store.pilot = {
@@ -1362,7 +1363,8 @@ describe("InsightsView Neon pending overlay", () => {
       /<span class="sr-only"[\s\S]*?<\/span>/g,
       "",
     );
-    expect(html).toContain("Pending signal 1");
+    expect(html).not.toContain("Pending signal 1");
+    expect(html).toContain("No Signals Yet");
     expect(html).toContain("Conversation that needs your attention");
     expect(visible).not.toContain("Finding signals…");
     expect(html).not.toContain("Usually ready in about 20 seconds.");
@@ -1451,7 +1453,7 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Signal Not Found");
   });
 
-  it("keeps a batch_02.json preview that is already in the keep-set", () => {
+  it("does not treat batch_02.json as the Sample keep-set", () => {
     const pending = makePendingSignals(1);
     pending[0].id = "sig_conv_rucha_patwardhan_12_lead_0";
     pending[0].conversationId = "conv_rucha_patwardhan_12";
@@ -1488,10 +1490,9 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
-    expect(html).toContain("Rucha Patwardhan");
-    expect(html).toContain("exploring products");
-    expect(html).not.toContain("Signal Not Found");
-    expect(html).not.toContain("Upload this week’s export");
+    expect(html).not.toContain("Rucha Patwardhan");
+    expect(html).not.toContain("exploring products");
+    expect(html).toContain("Upload this week’s export");
     expect(html).not.toContain("Finding signals…");
     expect(html).not.toContain("Usually ready in about 20 seconds.");
     expect(html).not.toContain("taking longer than expected");
@@ -1700,6 +1701,146 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("Week 8 pause");
     expect(html).not.toContain("This file is not loaded yet");
     expect(html).not.toContain("Upload this week’s export");
+  });
+
+  it("scopes one uploaded file and leaves unstamped demo chats out", () => {
+    const week = makePendingSignals(1)[0];
+    week.summary = "Week pending";
+    week.conversationId = "conv_week";
+    const demo = {
+      ...makePendingSignals(1)[0],
+      id: "sig_demo",
+      conversationId: "conv_demo",
+      summary: "Demo leftover",
+      backendSignalId: "pred-demo",
+    };
+    const store = storeFromSignals([week, demo]);
+    store.conversations[0].sourceFile = "week.csv";
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "week.csv",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "week.csv",
+        uploadedFileNames: ["week.csv"],
+        needsReview: {
+          ok: true,
+          predictions: [week, demo].map((signal) => ({
+            id: signal.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: signal.conversationId,
+            signal_type: signal.type,
+            confidence: signal.score,
+            summary: signal.summary,
+            created_at: signal.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain("Week pending");
+    expect(html).not.toContain("Demo leftover");
+  });
+
+  it("shows only the selected file on pending, follow-up, and done", () => {
+    const weekPending = {
+      ...makePendingSignals(1)[0],
+      id: "sig_week_pending",
+      conversationId: "conv_week",
+      summary: "Week pending only",
+      backendSignalId: "pred-week-pending",
+    };
+    const otherPending = {
+      ...makePendingSignals(1)[0],
+      id: "sig_other_pending",
+      conversationId: "conv_other",
+      summary: "Other pending only",
+      backendSignalId: "pred-other-pending",
+    };
+    const reviewedAt = "2026-08-02T00:00:00.000Z";
+    const weekFollow = {
+      ...weekPending,
+      id: "sig_week_follow",
+      summary: "Week follow-up only",
+      status: "reviewed" as const,
+      backendSignalId: "pred-week-follow",
+      feedback: { label: "correct" as const, reviewedAt },
+    };
+    const otherFollow = {
+      ...otherPending,
+      id: "sig_other_follow",
+      summary: "Other follow-up only",
+      status: "reviewed" as const,
+      backendSignalId: "pred-other-follow",
+      feedback: { label: "correct" as const, reviewedAt },
+    };
+    const weekDone = {
+      ...weekFollow,
+      id: "sig_week_done",
+      summary: "Week done only",
+      status: "acted" as const,
+      backendSignalId: "pred-week-done",
+    };
+    const otherDone = {
+      ...otherFollow,
+      id: "sig_other_done",
+      summary: "Other done only",
+      status: "acted" as const,
+      backendSignalId: "pred-other-done",
+    };
+    const store = storeFromSignals([
+      weekPending,
+      otherPending,
+      weekFollow,
+      otherFollow,
+      weekDone,
+      otherDone,
+    ]);
+    for (const conversation of store.conversations) {
+      conversation.sourceFile =
+        conversation.id === "conv_week" ? "week.csv" : "notes.csv";
+    }
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "notes.csv",
+    };
+    const shared = {
+      store,
+      typeFilter: "all" as const,
+      page: 1,
+      vaultFile: "week.csv",
+      uploadedFileNames: ["week.csv", "notes.csv"],
+      needsReview: { ok: true as const, predictions: [] },
+      tenantSignals: { ok: true as const, rows: [] },
+      cadenceAction: cadenceReviews,
+      precomputedPending: [weekPending, otherPending],
+      precomputedReviewed: [weekFollow, otherFollow, weekDone, otherDone],
+    };
+
+    const pendingHtml = renderToStaticMarkup(
+      createElement(InsightsView, { ...shared, statusFilter: "new" }),
+    );
+    expect(pendingHtml).toContain("Week pending only");
+    expect(pendingHtml).not.toContain("Other pending only");
+
+    const followHtml = renderToStaticMarkup(
+      createElement(InsightsView, { ...shared, statusFilter: "followup" }),
+    );
+    expect(followHtml).toContain("Week follow-up only");
+    expect(followHtml).not.toContain("Other follow-up only");
+
+    const doneHtml = renderToStaticMarkup(
+      createElement(InsightsView, { ...shared, statusFilter: "acted" }),
+    );
+    expect(doneHtml).toContain("Week done only");
+    expect(doneHtml).not.toContain("Other done only");
   });
 
   it("keeps Run Partner Demo when keep-set is Groww (pack is not last upload)", () => {
@@ -2065,7 +2206,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("border-border bg-background");
     expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).toContain(
-      "text-heading-16 font-medium !text-sio-fg-base ml-2 max-w-[min(16rem,calc(100vw-8rem))]",
+      "block min-w-0 truncate text-heading-16 font-medium !text-sio-fg-base",
     );
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",
@@ -2166,7 +2307,7 @@ describe("InsightsView review conversation + action", () => {
     expect(whySlot).toBeGreaterThan(actionsSlot);
     expect(html).not.toContain('data-review-actions-footer="true"');
     expect(html).toContain(
-      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+      "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90",
     );
     expect(html).toContain("Copy Reply");
     expect(html).toContain("Hi Priya — I saw your note about");
@@ -2185,7 +2326,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).toContain("border-border bg-background");
     expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).toContain(
-      "text-heading-16 font-medium !text-sio-fg-base ml-2 max-w-[min(16rem,calc(100vw-8rem))]",
+      "block min-w-0 truncate text-heading-16 font-medium !text-sio-fg-base",
     );
     expect(html).not.toContain(
       "btn-secondary shrink-0 font-normal text-foreground",

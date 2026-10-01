@@ -35,4 +35,13 @@ describe("promptfoo Groq provider systemPrompt gap", () => {
     expect(config).not.toMatch(/systemPrompt:/);
     expect(config).toContain("file://prompt.ts");
   });
+
+  it("loads the injection suite through prompt.ts without provider systemPrompt", () => {
+    const config = readFileSync(
+      join(evalDir, "promptfooconfig.injection.yaml"),
+      "utf8"
+    );
+    expect(config).not.toMatch(/systemPrompt:/);
+    expect(config).toContain("file://prompt.ts");
+  });
 });

@@ -108,7 +108,7 @@ describe("vaultFileMatchesKeepSet", () => {
     expect(vaultFileIsLoaded("batch_02.json", "Batch_02.JSON")).toBe(true);
     expect(
       vaultFileMatchesKeepSet("batch_02.json", GROWW_SHOWCASE_SAMPLE_NAME),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       vaultFileIsLoaded("batch_02.json", "notes.csv", ["batch_02", "notes.csv"]),
     ).toBe(true);
@@ -193,7 +193,88 @@ describe("scopeChatsToUploadedFile", () => {
     );
   });
 
-  it("does not drop an unstamped keep-set chat when another file is listed", () => {
+  it("filters a catalog of one and drops the other file’s chats", () => {
+    const chats = {
+      conversations: [
+        {
+          id: "conv_week",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: ["msg_week"],
+          sourceFile: "week.csv",
+        },
+        {
+          id: "conv_other",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: ["msg_other"],
+          sourceFile: "notes.csv",
+        },
+      ],
+      messages: [
+        {
+          id: "msg_week",
+          conversationId: "conv_week",
+          role: "customer" as const,
+          content: "Week",
+          timestamp: "2026-08-01T00:00:00.000Z",
+        },
+        {
+          id: "msg_other",
+          conversationId: "conv_other",
+          role: "customer" as const,
+          content: "Other",
+          timestamp: "2026-08-01T00:00:00.000Z",
+        },
+      ],
+    };
+    const scoped = scopeChatsToUploadedFile(
+      chats,
+      "week.csv",
+      ["week.csv"],
+      "week.csv",
+    );
+    expect(scoped.conversations.map((conversation) => conversation.id)).toEqual([
+      "conv_week",
+    ]);
+    expect(scoped.messages.map((message) => message.id)).toEqual(["msg_week"]);
+  });
+
+  it("does not attach an unstamped demo chat to the selected upload", () => {
+    const chats = {
+      conversations: [
+        {
+          id: "conv_demo",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+        },
+        {
+          id: "conv_week",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          sourceFile: "week.csv",
+        },
+      ],
+      messages: [],
+    };
+    const scoped = scopeChatsToUploadedFile(
+      chats,
+      "week.csv",
+      ["week.csv"],
+      "week.csv",
+    );
+    expect(scoped.conversations.map((conversation) => conversation.id)).toEqual([
+      "conv_week",
+    ]);
+  });
+
+  it("keeps unstamped chats when the selected file is the only pack", () => {
     const chats = {
       conversations: [
         {
@@ -203,29 +284,60 @@ describe("scopeChatsToUploadedFile", () => {
           startedAt: "2026-08-01T00:00:00.000Z",
           messageIds: [],
         },
-        {
-          id: "conv_notes",
-          tenantId: "tenant_demo",
-          channel: "whatsapp" as const,
-          startedAt: "2026-08-01T00:00:00.000Z",
-          messageIds: [],
-          sourceFile: "notes.csv",
-        },
       ],
       messages: [],
     };
     const scoped = scopeChatsToUploadedFile(
       chats,
       "batch_02.json",
-      ["batch_02.json", "notes.csv"],
+      ["batch_02.json"],
       "batch_02.json",
     );
-    expect(scoped.conversations.map((conversation) => conversation.id)).toContain(
+    expect(scoped.conversations.map((conversation) => conversation.id)).toEqual([
       "conv_rucha",
+    ]);
+  });
+
+  it("scopes a showcase row to that pack, not the whole store", () => {
+    const chats = {
+      conversations: [
+        {
+          id: "conv_groww",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          sourceFile: GROWW_SHOWCASE_SAMPLE_NAME,
+        },
+        {
+          id: "conv_zerodha",
+          tenantId: "tenant_demo",
+          channel: "whatsapp" as const,
+          startedAt: "2026-08-01T00:00:00.000Z",
+          messageIds: [],
+          sourceFile: ZERODHA_BATCH02_SAMPLE_NAME,
+        },
+      ],
+      messages: [],
+    };
+    const sample = scopeChatsToUploadedFile(
+      chats,
+      GROWW_SHOWCASE_SAMPLE_NAME,
+      [],
+      GROWW_SHOWCASE_SAMPLE_NAME,
     );
-    expect(scoped.conversations.map((conversation) => conversation.id)).not.toContain(
-      "conv_notes",
+    expect(sample.conversations.map((conversation) => conversation.id)).toEqual([
+      "conv_groww",
+    ]);
+    const partner = scopeChatsToUploadedFile(
+      chats,
+      ZERODHA_BATCH02_SAMPLE_NAME,
+      [],
+      GROWW_SHOWCASE_SAMPLE_NAME,
     );
+    expect(partner.conversations.map((conversation) => conversation.id)).toEqual([
+      "conv_zerodha",
+    ]);
   });
 });
 
@@ -354,6 +466,27 @@ describe("livePartnerVaultChrome", () => {
         activeFile: "Zerodha_week_7_batch_01.json",
         lastUploadedFileName: "Zerodha_week_7_batch_01.json",
         chatCount: 100,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not hide Sample while the weekly filename has no chats", () => {
+    expect(
+      livePartnerVaultChrome({
+        activeFile: "Zerodha_week_7_batch_01.json",
+        lastUploadedFileName: "Zerodha_week_7_batch_01.json",
+        uploadedFileNames: ["Zerodha_week_7_batch_01.json"],
+        chatCount: 0,
+      }),
+    ).toBe(false);
+  });
+
+  it("hides Sample when a real upload is loaded even if the URL is Sample", () => {
+    expect(
+      livePartnerVaultChrome({
+        activeFile: GROWW_SHOWCASE_SAMPLE_NAME,
+        lastUploadedFileName: "user-upload.csv",
+        chatCount: 12,
       }),
     ).toBe(true);
   });

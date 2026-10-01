@@ -12,6 +12,7 @@
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
     "eval": "node eval/promptfoo/run-eval.mjs",
     "eval:signal": "node eval/promptfoo/run-eval.mjs",
+    "eval:signal:injection": "node eval/promptfoo/run-eval.mjs -c promptfooconfig.injection.yaml",
     "eval:signal:smoke": "node eval/promptfoo/run-smoke.mjs",
     "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts",
     "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts"

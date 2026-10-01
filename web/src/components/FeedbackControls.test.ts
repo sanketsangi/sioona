@@ -144,6 +144,10 @@ describe("FeedbackControls", () => {
     expect(html).toContain("Correct");
     expect(html).toContain("Incorrect");
     expect(html).toContain("Partially Correct");
+    expect(html).toContain("Partial");
+    expect(html).toContain("@container/feedback");
+    expect(html).toContain("@min-[12rem]/feedback:hidden");
+    expect(html).not.toContain("min-[420px]");
     expect(html).toContain("Optional note");
     expect(html).not.toContain("C / I / P · Enter → Correct.");
     expect(html).not.toContain(
@@ -168,7 +172,7 @@ describe("FeedbackControls", () => {
     expect(html.match(/insights-review-well/g)?.length).toBe(1);
     expect(html).not.toContain("Adapt From Reviews");
     expect(html).not.toContain('role="alert"');
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Partial counts against the weekly score the same as Incorrect.",
     );
   });
@@ -176,7 +180,7 @@ describe("FeedbackControls", () => {
   const INVERSE =
     "bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90";
   const OUTLINE =
-    "min-h-11 w-full touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9";
+    "min-h-9 w-full touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive";
 
   /** Exclusive C/I/P: only the pressed label is inverse; others outline. */
   function expectExclusiveInverse(html: string) {
@@ -256,7 +260,7 @@ describe("FeedbackControls", () => {
     expect(html).toContain("border-border bg-background");
     expect(html).toContain("h-8 gap-2 shrink-0");
     expect(html).not.toContain(
-      "min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9",
+      "min-h-9 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive",
     );
     expect(html).toContain('href="');
     expect(html).toMatch(/href="[^"]*view=eval[^"]*panel=adapt/);
@@ -293,7 +297,7 @@ describe("FeedbackControls", () => {
     expect(html).not.toContain("Wrong rationale? Add the right phrase.");
     expect(html).not.toContain("Add the right phrase");
     expect(html).toContain("Adapt From Reviews");
-    expect(html).toContain(
+    expect(html).not.toContain(
       "Partial counts against the weekly score the same as Incorrect.",
     );
     expect(html).toContain("Optional note");
@@ -329,7 +333,7 @@ describe("FeedbackControls", () => {
     expect(html).toContain("Ground Truth");
     expect(html).toContain("Unset");
     expect(html).toContain('data-pill-background="true"');
-    expect(html).toContain("rounded-[10ex]");
+    expect(html).toContain("rounded-full");
     // Right-aligned cluster: Feedback status then GT (GT pinned to the corner).
     expect(html.indexOf("Pending")).toBeLessThan(
       html.indexOf('aria-label="Ground Truth, Unset"'),

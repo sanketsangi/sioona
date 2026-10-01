@@ -540,7 +540,7 @@ export function SignalReviewSuggestedAction({
             type="button"
             variant="default"
             size="lg"
-            className="min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9"
+            className="min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90"
             disabled={actionsBusy}
             aria-busy={actedPending}
             aria-haspopup={canMarkActed ? undefined : "dialog"}

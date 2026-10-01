@@ -5,7 +5,7 @@ import { PagerIconLink } from "@/components/PagerIconLink";
 
 /** Insights Prev / Next: outline Button, 44px on touch, 32px from md. */
 const pagerButtonClass =
-  "min-h-11 touch-manipulation md:h-8 md:min-h-8";
+  "h-8 min-h-8 touch-manipulation";
 
 export function Pager({
   page,

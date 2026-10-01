@@ -158,8 +158,6 @@ export function DrawerTrigger({
   );
 }
 
-const SWIPE_CLOSE_PX = 80;
-
 export function DrawerContent({
   children,
   className = "",
@@ -172,36 +170,6 @@ export function DrawerContent({
 }) {
   const { open, setOpen, titleId, descriptionId, contentRef } =
     useDrawerContext("DrawerContent");
-  const dragStartY = useRef<number | null>(null);
-  const [dragOffset, setDragOffset] = useState(0);
-  const [dragging, setDragging] = useState(false);
-
-  const onHandlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (window.matchMedia("(min-width: 768px)").matches) return;
-    dragStartY.current = e.clientY;
-    setDragging(true);
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onHandlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartY.current == null) return;
-    const delta = Math.max(0, e.clientY - dragStartY.current);
-    setDragOffset(delta);
-  };
-
-  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (dragStartY.current == null) return;
-    const delta = Math.max(0, e.clientY - dragStartY.current);
-    dragStartY.current = null;
-    setDragging(false);
-    setDragOffset(0);
-    if (delta >= SWIPE_CLOSE_PX) setOpen(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* already released */
-    }
-  };
 
   if (!open) return null;
 
@@ -225,25 +193,7 @@ export function DrawerContent({
               "aria-describedby": descriptionId,
             })}
         className={`conversation-drawer-panel ${className}`}
-        style={
-          dragOffset > 0
-            ? {
-                transform: `translateY(${dragOffset}px)`,
-                transition: dragging ? "none" : undefined,
-              }
-            : undefined
-        }
       >
-        <div
-          className="conversation-drawer-handle"
-          onPointerDown={onHandlePointerDown}
-          onPointerMove={onHandlePointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          role="presentation"
-        >
-          <span className="conversation-drawer-handle-bar" aria-hidden />
-        </div>
         {children}
       </div>
     </div>,

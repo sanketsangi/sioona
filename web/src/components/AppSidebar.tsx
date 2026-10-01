@@ -473,25 +473,18 @@ function SidebarBrand({
   );
 }
 
-function AppSidebarFooter({
-  hideIdentity = false,
-}: {
-  /** Live partner export — no fictional sidebar identity. */
-  hideIdentity?: boolean;
-}) {
+function AppSidebarFooter() {
   return (
     <>
       <HelpDialog />
       <GuidanceDialog />
       <FeedbackDialog />
-      {hideIdentity ? null : (
-        <NavUser
-          user={{
-            name: "Sanket Sangi",
-            email: "sanket@sioona.ai",
-          }}
-        />
-      )}
+      <NavUser
+        user={{
+          name: "Sanket Sangi",
+          email: "sanket@sioona.ai",
+        }}
+      />
     </>
   );
 }
@@ -532,18 +525,8 @@ export function AppSidebar({
           chatCount={chatCount}
         />
       </SidebarContent>
-      <SidebarFooter>
-        <AppSidebarFooter
-          hideIdentity={livePartnerVaultChrome({
-            activeFile: resolveVaultActiveFile({
-              vaultFile,
-              lastUploadedFileName,
-            }),
-            lastUploadedFileName,
-            uploadedFileNames,
-            chatCount,
-          })}
-        />
+      <SidebarFooter className="shrink-0">
+        <AppSidebarFooter />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

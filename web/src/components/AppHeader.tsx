@@ -147,11 +147,9 @@ export function AppHeader({
           ) : null}
         </div>
 
-        <div className="app-header-actions flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="app-header-actions flex shrink-0 items-center gap-2">
           <Suspense
-            fallback={
-              <ModeToggleFallback workspaceMode={workspaceMode} />
-            }
+            fallback={<ModeToggleFallback workspaceMode={workspaceMode} />}
           >
             <ModeToggle workspaceMode={workspaceMode} />
           </Suspense>
@@ -169,7 +167,7 @@ const modeTrackClass = cn(
 );
 
 const modeItemClass = cn(
-  "relative z-[1] size-11 shrink-0 touch-manipulation rounded-none border-0 bg-transparent px-0",
+  "relative z-[1] !size-9 shrink-0 touch-manipulation rounded-none border-0 bg-transparent !px-0",
   "inline-flex items-center justify-center text-sio-fg-subtle shadow-none outline-none transition-colors duration-150",
   "hover:bg-transparent hover:text-sio-fg-base",
   "focus-visible:z-10 focus-visible:border-transparent focus-visible:shadow-[var(--focus-ring)] focus-visible:ring-0",
@@ -177,7 +175,6 @@ const modeItemClass = cn(
   "group-data-[spacing=0]/toggle-group:px-0",
   "group-data-[orientation=horizontal]/toggle-group:data-[spacing=0]:first:rounded-l-[var(--radius-control)]",
   "group-data-[orientation=horizontal]/toggle-group:data-[spacing=0]:last:rounded-r-[var(--radius-control)]",
-  "md:size-9",
 );
 
 const modeLinkClass = cn(
@@ -288,10 +285,13 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
       bounceTimerRef.current = null;
     }, holdMs);
 
-    liveClearRef.current = setTimeout(() => {
-      setLiveMessage("");
-      liveClearRef.current = null;
-    }, Math.max(holdMs + 400, 800));
+    liveClearRef.current = setTimeout(
+      () => {
+        setLiveMessage("");
+        liveClearRef.current = null;
+      },
+      Math.max(holdMs + 400, 800),
+    );
   }
 
   if (unlocked) {
@@ -460,7 +460,11 @@ function ModeToggleItem({
           {children}
         </ToggleGroupItem>
       </TooltipTrigger>
-      <TooltipContent side="bottom" align="center" className="flex items-center gap-1.5">
+      <TooltipContent
+        side="bottom"
+        align="center"
+        className="flex items-center gap-1.5"
+      >
         {tooltip}
       </TooltipContent>
     </Tooltip>

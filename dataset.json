@@ -1,0 +1,362 @@
+[
+  {
+    "externalId": "asha-mehta",
+    "channel": "whatsapp",
+    "customerName": "Asha Mehta",
+    "groundTruth": "lead",
+    "description": "Lead — new demat account and brokerage pricing",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Hi, I want to open a demat account this week. What are your brokerage charges?"
+      },
+      {
+        "role": "agent",
+        "content": "Happy to help! Are you a new investor or transferring holdings?"
+      },
+      {
+        "role": "customer",
+        "content": "New investor. Looking to start investing in equity and want to start a SIP."
+      }
+    ]
+  },
+  {
+    "externalId": "rohan-kapoor",
+    "channel": "whatsapp",
+    "customerName": "Rohan Kapoor",
+    "groundTruth": "retention",
+    "description": "Retention — fee dispute then close account threat",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "I've asked three times about this unexplained fee. This is unacceptable."
+      },
+      {
+        "role": "agent",
+        "content": "Sorry for the trouble — let me check your ledger."
+      },
+      {
+        "role": "customer",
+        "content": "If this isn't fixed today I'm closing my account and moving my money elsewhere."
+      },
+      {
+        "role": "customer",
+        "content": "Your competitor is cheaper and actually replies."
+      }
+    ]
+  },
+  {
+    "externalId": "neha-singh",
+    "channel": "website_chat",
+    "customerName": "Neha Singh",
+    "groundTruth": "upsell",
+    "description": "Upsell — existing equity customer wants advisory and LAS",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "I already trade equity with you — do you offer a premium advisory plan?"
+      },
+      {
+        "role": "agent",
+        "content": "Yes, we have a wealth manager tier. What are you looking for?"
+      },
+      {
+        "role": "customer",
+        "content": "Also want a portfolio review. Interested in adding mutual funds and loan against shares."
+      }
+    ]
+  },
+  {
+    "externalId": "vikram-rao",
+    "channel": "website_chat",
+    "customerName": "Vikram Rao",
+    "groundTruth": "none",
+    "description": "None — statement PDF request",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Can you share my last month's statement PDF?"
+      },
+      {
+        "role": "agent",
+        "content": "Sure — I've emailed the statement to your registered address."
+      }
+    ]
+  },
+  {
+    "externalId": "priya-nair",
+    "channel": "intercom",
+    "customerName": "Priya Nair",
+    "groundTruth": "lead",
+    "description": "Lead — wealth plan evaluation for parents",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "We're evaluating wealth plans for my parents. Can someone walk us through pricing and onboarding?"
+      },
+      {
+        "role": "agent",
+        "content": "Absolutely. I can book a call with an advisor tomorrow."
+      }
+    ]
+  },
+  {
+    "externalId": "arjun-desai",
+    "channel": "intercom",
+    "customerName": "Arjun Desai",
+    "groundTruth": "retention",
+    "description": "Retention — support delays and account closure",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Not happy with support delays. Thinking of leaving."
+      },
+      {
+        "role": "agent",
+        "content": "We apologize — can we make this right?"
+      },
+      {
+        "role": "customer",
+        "content": "I want to close account if the next reply takes another day."
+      }
+    ]
+  },
+  {
+    "externalId": "kavya-iyer",
+    "channel": "whatsapp",
+    "customerName": "Kavya Iyer",
+    "groundTruth": "lead",
+    "description": "Lead — online signup and first-time investor pricing",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Can I sign up for a new account online? Interested in your pricing for first-time investors."
+      },
+      {
+        "role": "agent",
+        "content": "Yes — I can share the fee schedule and start onboarding."
+      }
+    ]
+  },
+  {
+    "externalId": "suresh-menon",
+    "channel": "website_chat",
+    "customerName": "Suresh Menon",
+    "groundTruth": "lead",
+    "description": "Lead — same-product pro plan upgrade (limit raise)",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Can I upgrade to the pro plan? I need higher limit for withdrawals this quarter."
+      },
+      {
+        "role": "agent",
+        "content": "I can walk you through Pro and limit increases."
+      }
+    ]
+  },
+  {
+    "externalId": "meera-joshi",
+    "channel": "intercom",
+    "customerName": "Meera Joshi",
+    "groundTruth": "upsell",
+    "description": "Upsell — loan against shares and insurance add-on",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Do you offer loan against shares? Also interested in insurance alongside my account."
+      },
+      {
+        "role": "agent",
+        "content": "We do — I can send eligibility and rates."
+      }
+    ]
+  },
+  {
+    "externalId": "farhan-ali",
+    "channel": "whatsapp",
+    "customerName": "Farhan Ali",
+    "groundTruth": "retention",
+    "description": "Retention — switch brokers over slow support",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "This is unacceptable. I'm going to switch brokers if support stays this slow."
+      },
+      {
+        "role": "agent",
+        "content": "Understood — escalating to a senior specialist now."
+      }
+    ]
+  },
+  {
+    "externalId": "ananya-shah",
+    "channel": "website_chat",
+    "customerName": "Ananya Shah",
+    "groundTruth": "none",
+    "description": "None — AMC fee breakdown on statement (ops)",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "What are the AMC fees shown on my mutual fund statement for June?"
+      },
+      {
+        "role": "agent",
+        "content": "Those are fund-level charges — I'll email the breakdown."
+      }
+    ]
+  },
+  {
+    "externalId": "dev-patel",
+    "channel": "intercom",
+    "customerName": "Dev Patel",
+    "groundTruth": "none",
+    "description": "None — feedback survey request",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Can I leave feedback about yesterday's support call?"
+      },
+      {
+        "role": "agent",
+        "content": "Of course — I'll send a short survey link."
+      }
+    ]
+  },
+  {
+    "externalId": "lakshmi-reddy",
+    "channel": "whatsapp",
+    "customerName": "Lakshmi Reddy",
+    "groundTruth": "none",
+    "description": "None — SIP debit date confirmation",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "When does my SIP get debited each month? Just confirming the date."
+      },
+      {
+        "role": "agent",
+        "content": "Your SIP debit date is the 5th of every month."
+      }
+    ]
+  },
+  {
+    "externalId": "rahul-verma",
+    "channel": "website_chat",
+    "customerName": "Rahul Verma",
+    "groundTruth": "lead",
+    "description": "Lead — KYC checklist and lowest brokerage plan",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "How do I open a demat account? What documents are required for KYC, and what's your lowest brokerage plan?"
+      },
+      {
+        "role": "agent",
+        "content": "I'll send the KYC checklist and our plan comparison right away."
+      }
+    ]
+  },
+  {
+    "externalId": "sneha-pillai",
+    "channel": "intercom",
+    "customerName": "Sneha Pillai",
+    "groundTruth": "retention",
+    "description": "Retention — high brokerage vs competitors",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Your brokerage is too high compared to others. Reduce my brokerage or I'll shift to another broker."
+      },
+      {
+        "role": "agent",
+        "content": "Let me check what rebate options I can offer you."
+      }
+    ]
+  },
+  {
+    "externalId": "aditya-ghosh",
+    "channel": "whatsapp",
+    "customerName": "Aditya Ghosh",
+    "groundTruth": "upsell",
+    "description": "Upsell — F&O, margin, and family account",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Existing customer here — can you enable F&O and activate margin trading facility? Also want to add a family account for my wife."
+      },
+      {
+        "role": "agent",
+        "content": "Sure — I'll share the F&O activation and family account steps."
+      }
+    ]
+  },
+  {
+    "externalId": "nikhil-jain",
+    "channel": "whatsapp",
+    "customerName": "Nikhil Jain",
+    "groundTruth": "none",
+    "description": "None — app crash, OTP, password reset",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "The app keeps crashing and I didn't receive OTP to login. Please help reset my password."
+      },
+      {
+        "role": "agent",
+        "content": "I've triggered a password reset link and a fresh OTP to your registered number."
+      }
+    ]
+  },
+  {
+    "externalId": "riya-sharma",
+    "channel": "in_app_chat",
+    "customerName": "Riya Sharma",
+    "groundTruth": "lead",
+    "description": "Lead — fintech wallet, card, and KYC to transact",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "Hi, I'm new to your app. I want to open a wallet and apply for a credit card. How do I complete KYC to add money and start using UPI?"
+      },
+      {
+        "role": "agent",
+        "content": "Welcome! I'll guide you through wallet setup, KYC, and card eligibility."
+      }
+    ]
+  },
+  {
+    "externalId": "karan-malhotra",
+    "channel": "in_app_chat",
+    "customerName": "Karan Malhotra",
+    "groundTruth": "retention",
+    "description": "Retention — failed refund and delete account",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "This is the worst — my refund failed weeks ago and no one helped. I want to delete my account and I'm switching to another app."
+      },
+      {
+        "role": "agent",
+        "content": "I'm really sorry — let me escalate the refund and see how we can keep you."
+      }
+    ]
+  },
+  {
+    "externalId": "leela-banerjee",
+    "channel": "whatsapp",
+    "customerName": "Leela Banerjee",
+    "groundTruth": "none",
+    "description": "None — competitor UI comment without leave intent",
+    "messages": [
+      {
+        "role": "customer",
+        "content": "I saw your competitor has a nicer UI, just FYI."
+      },
+      {
+        "role": "agent",
+        "content": "Thanks for the note — I'll share it with product."
+      }
+    ]
+  }
+]

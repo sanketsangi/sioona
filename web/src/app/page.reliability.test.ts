@@ -219,7 +219,7 @@ describe("PlatformPage deploy reliability", () => {
     const syncFailed = pageShellProps(result).notifications.find(
       (item) => item.id === "sync-failed"
     );
-    expect(syncFailed?.title).toBe("Neon Dual-Write Incomplete");
+    expect(syncFailed?.title).toBe("Prediction sync incomplete");
     expect(syncFailed?.description).toBe(
       "2 predictions not written (1 succeeded). Re-run Detection from Insights."
     );

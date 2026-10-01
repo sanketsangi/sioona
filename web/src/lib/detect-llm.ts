@@ -603,7 +603,7 @@ function signalFromClassification(
   }
 
   const summary = classification.summary.trim();
-  if (groundedQuotes.length === 0 && summary.length < 20) return null;
+  if (groundedQuotes.length === 0) return null;
 
   const evidence = [
     ...groundedQuotes.slice(0, 2),

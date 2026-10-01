@@ -135,6 +135,12 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain("Copied…");
     expect(html).toContain("Copy reply to clipboard");
     expect(html).toContain('aria-label="Run Actions"');
+    const runActionsButton =
+      (html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? []).find((markup) =>
+        markup.includes('aria-label="Run Actions"'),
+      ) ?? "";
+    expect(runActionsButton).toContain("Run Actions</button>");
+    expect(runActionsButton).not.toContain("review-action-label");
     expect(html).toContain('data-review-reply-row="true"');
     expect(html).toContain('data-review-actions-toolbar="true"');
     // Retention Email present → Run Actions nests under helper copy; no footer chrome.
@@ -198,7 +204,7 @@ describe("SignalReviewSuggestedAction", () => {
       /aria-label="Run Actions"[^>]*data-size="lg"|data-size="lg"[^>]*aria-label="Run Actions"/,
     );
     expect(html).toContain(
-      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+      "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90",
     );
     expect(html).not.toMatch(
       /class="[^"]*btn-primary[^"]*"[^>]*aria-label="Run Actions"|aria-label="Run Actions"[^>]*class="[^"]*btn-primary/,
@@ -680,7 +686,7 @@ describe("SignalReviewSuggestedAction", () => {
 
   it("keeps Correct-before-Acted gate with inverse Run Actions", () => {
     const runActionsInverse =
-      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
+      "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90";
     const pending = renderToStaticMarkup(
       createElement(SignalReviewSuggestedAction, {
         signal: signal({
@@ -832,7 +838,7 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).not.toContain("Display only — not sent.");
     expect(html).toContain("btn-secondary shrink-0");
     expect(html).toContain(
-      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+      "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90",
     );
     expect(html).toContain("aria-keyshortcuts");
     expect(html).not.toContain("bg-sio-status-success-bg");
@@ -904,7 +910,7 @@ describe("SignalReviewSuggestedAction", () => {
 
     expect(html).toContain("Run Actions");
     expect(html).toContain(
-      "min-h-11 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9",
+      "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90",
     );
   });
 });

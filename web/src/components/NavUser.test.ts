@@ -23,6 +23,8 @@ describe("NavUser", () => {
     expect(html).toContain("rounded-[var(--radius-control)]");
     expect(html).toContain("Sanket Sangi");
     expect(html).toContain("sanket@sioona.ai");
+    expect(html).toContain('aria-label="Sanket Sangi, Account menu"');
+    expect(html).toContain('aria-haspopup="dialog"');
     expect(html).not.toContain(">SS</span>");
   });
 });

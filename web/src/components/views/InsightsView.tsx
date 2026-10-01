@@ -195,8 +195,9 @@ export function InsightsView({
         chatCount: store.conversations.length,
       }));
   /**
-   * Sample / Partner Demo — seed in the background. The current queue stays
-   * (same as Sample → Partner Demo); do not treat that as an empty mismatch.
+   * Sample / Partner Demo still wipe+seed in the background. The queue is
+   * already scoped to that file, so the previous pack's signals are not left
+   * on screen. Do not treat the switch as an upload-mismatch empty state.
    */
   const vaultShowcaseKind =
     !vaultLoaded && vaultFile ? resolveVaultShowcaseKind(vaultFile) : null;
@@ -629,29 +630,29 @@ export function InsightsView({
             key={previewSignal?.id ?? "no-preview"}
           >
             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
-              <div className="sticky top-0 z-10 flex min-w-0 shrink-0 flex-col gap-3 bg-sio-bg-muted min-[540px]:flex-row min-[540px]:items-end min-[540px]:justify-between min-[540px]:gap-4">
-                <div className="min-w-0">
+              <div className="sticky top-0 z-10 flex min-w-0 shrink-0 flex-col gap-3 bg-sio-bg-muted min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
+                <div className="min-w-0 min-[540px]:flex-1">
                   {breadcrumbPageLabel ? (
                     <Breadcrumb
                       aria-label="Insights review"
                       className="min-w-0 scroll-mt-4"
                     >
-                      <BreadcrumbList className="min-w-0">
-                        <BreadcrumbItem>
+                      <BreadcrumbList className="min-w-0 flex-nowrap gap-1.5 sm:gap-1.5">
+                        <BreadcrumbItem className="shrink-0">
                           <BreadcrumbLink asChild>
                             <Link
                               href={backToQueueHref}
                               scroll={false}
-                              className="inline-flex min-h-11 items-center touch-manipulation md:min-h-6"
+                              className="inline-flex min-h-6 items-center touch-manipulation"
                             >
                               Insights Queue
                             </Link>
                           </BreadcrumbLink>
                         </BreadcrumbItem>
-                        <BreadcrumbSeparator />
+                        <BreadcrumbSeparator className="shrink-0" />
                         <BreadcrumbItem className="min-w-0">
                           <BreadcrumbPage
-                            className="text-heading-16 font-medium !text-sio-fg-base ml-2 max-w-[min(16rem,calc(100vw-8rem))] truncate sm:max-w-xs"
+                            className="block min-w-0 truncate text-heading-16 font-medium !text-sio-fg-base"
                             title={breadcrumbPageLabel}
                             translate="no"
                           >

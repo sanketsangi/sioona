@@ -20,7 +20,7 @@ export function InsightsPartnerDemoAction({
       <PartnerDemoButton
         label="Run Partner Demo"
         lastUploadedFileName={lastUploadedFileName}
-        className="btn-secondary rounded-[var(--radius-panel)]"
+        className="btn-secondary rounded-[var(--radius-panel)] !h-9 !px-3.5"
         onErrorChange={setDemoError}
       />
       {demoError ? (

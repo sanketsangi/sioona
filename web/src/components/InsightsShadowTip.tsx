@@ -64,7 +64,7 @@ export function InsightsShadowTip({ className }: { className?: string }) {
       </p>
       <button
         type="button"
-        className="inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-muted hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] md:size-8"
+        className="inline-flex size-8 shrink-0 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-muted hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)]"
         onClick={dismiss}
         aria-label="Dismiss Shadow Mode tip"
       >

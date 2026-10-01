@@ -6,9 +6,11 @@ import type { PilotCadenceAction } from "@/lib/pilot-cadence";
 export function UploadView({
   hasPartnerExport = false,
   lastUploadedFileName,
+  chatCount,
 }: {
   hasPartnerExport?: boolean;
   lastUploadedFileName?: string;
+  chatCount?: number;
   cadenceAction: PilotCadenceAction;
   cadencePreviewId?: string | null;
 }) {
@@ -19,6 +21,7 @@ export function UploadView({
           <UploadForm
             hasPartnerExport={hasPartnerExport}
             lastUploadedFileName={lastUploadedFileName}
+            chatCount={chatCount}
           />
         </section>
         <UploadTips />

@@ -36,9 +36,9 @@ export function resolveVaultShowcaseKind(
 }
 
 /**
- * Sample → Partner Demo. Keep the Sample queue on screen while the partner
- * pack seeds. Insights must not swap that queue for a wait or stall panel
- * before this instance has the new keep-set.
+ * Sample → Partner Demo. The previous pack's signals must leave the queue
+ * as soon as the other file is selected. Wipe+seed still runs; this flag
+ * does not keep Sample chats on screen.
  */
 export function isSampleToPartnerSwitch(
   vaultFile: string | null | undefined,

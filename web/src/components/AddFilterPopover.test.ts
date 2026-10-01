@@ -135,8 +135,8 @@ describe("AddFilterMenuPanel", () => {
     const html = renderToStaticMarkup(panel());
 
     expect(html).toContain('placeholder="Filter by…"');
-    expect(html).toContain("text-copy-16");
-    expect(html).toContain("md:text-label-14");
+    expect(html).toContain("text-label-14");
+    expect(html).not.toContain("text-copy-16");
     expect(html).toContain("filter-popover-query");
     expect(html).toContain("appearance-none");
     expect(html).toContain("focus-visible:shadow-none");
@@ -152,8 +152,8 @@ describe("AddFilterMenuPanel", () => {
     expect(html).not.toContain(">Status</span>");
     expect(html).not.toContain("key-status");
     expect(html).toContain("overscroll-contain");
-    expect(html).toContain("h-11");
-    expect(html).toContain("md:h-8");
+    expect(html).toContain("h-8");
+    expect(html).not.toContain("h-11");
     expect(html).toContain("inset-x-1");
     expect(html).toContain("bg-sio-bg-interactive");
     expect(html).not.toContain("<hr");

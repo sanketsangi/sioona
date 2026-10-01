@@ -99,19 +99,15 @@ function withoutMacCopySuffix(stem: string): string {
 }
 
 /**
- * Same upload when stems match, or the catalog label only adds a prefix
- * (`Groww_batch_02` ↔ `batch_02.json`). Distinct copies (`batch_02 (2)`)
- * stay different.
+ * Same upload when stems match after extension, case, path, and Finder
+ * “copy” suffixes. A shorter stem is not the same file (`batch_02.json` ≠
+ * `Groww_batch_02`). Catalog copies (`file (2).json`) stay distinct.
  */
 function sameUploadStem(a: string, b: string): boolean {
   const left = withoutMacCopySuffix(vaultStemKey(a));
   const right = withoutMacCopySuffix(vaultStemKey(b));
   if (!left || !right) return false;
-  if (left === right) return true;
-  const [shorter, longer] =
-    left.length <= right.length ? [left, right] : [right, left];
-  if (shorter.length < 4) return false;
-  return longer.endsWith(`_${shorter}`);
+  return left === right;
 }
 
 /**
@@ -209,8 +205,10 @@ export function vaultFileIsLoaded(
 }
 
 /**
- * Hide Sample / Partner Demo only when that partner file is actually loaded.
- * A `?file=` name alone must not hide them while the store is still Sample.
+ * Hide Sample / Partner Demo only when a non-showcase upload is loaded
+ * (`chatCount > 0`). A weekly `?file=` that is not the loaded store, and a
+ * filename with zero chats, leave those rows up. `activeFile` does not hide
+ * them by itself.
  */
 export function livePartnerVaultChrome(opts: {
   activeFile?: string | null;
@@ -218,15 +216,15 @@ export function livePartnerVaultChrome(opts: {
   uploadedFileNames?: readonly string[];
   chatCount?: number;
 }): boolean {
-  const active =
-    parseVaultFile(opts.activeFile) ?? opts.lastUploadedFileName?.trim() ?? "";
-  if (!isLivePartnerKeepSet(active)) return false;
-  return vaultFileIsLoaded(
-    active,
-    opts.lastUploadedFileName,
-    opts.uploadedFileNames ?? [],
-    opts.chatCount,
-  );
+  if (opts.chatCount === 0) return false;
+  const keep = opts.lastUploadedFileName?.trim() ?? "";
+  const catalog = opts.uploadedFileNames ?? [];
+  const realUpload =
+    isLivePartnerKeepSet(keep) ||
+    catalog.some((name) => isLivePartnerKeepSet(name));
+  if (!realUpload) return false;
+  if (opts.chatCount == null) return true;
+  return opts.chatCount > 0;
 }
 
 /** Stamp chats that Neon stored without a filename (single-file weekly replace). */
@@ -297,8 +295,10 @@ export function isVaultBatchRenderable(
 }
 
 /**
- * When one export loaded several files, Insights shows the selected file's
- * chats. A single catalog entry leaves the store unfiltered.
+ * Insights shows the selected vault file's chats, including a catalog of one
+ * and a Sample / Partner Demo row. Unstamped chats stay only when nothing in
+ * the store is stamped and this file is that loaded pack. Leftover unstamped
+ * demo chats do not attach to a selected upload.
  */
 export function scopeChatsToUploadedFile<
   T extends { conversations: Conversation[]; messages: Message[] },
@@ -308,19 +308,17 @@ export function scopeChatsToUploadedFile<
   uploadedFileNames: readonly string[],
   lastUploadedFileName?: string | null,
 ): T {
-  if (uploadedFileNames.length < 2) return chats;
   const file = parseVaultFile(vaultFile);
   if (!file) return chats;
   const index = uploadedFileIndex(uploadedFileNames, file);
-  if (index < 0) return chats;
-  const matched = uploadedFileNames[index];
-  const fallback = uploadedFileNames[uploadedFileNames.length - 1];
-  // Chats with no stamp belong to the keep-set, even when it is not the
-  // last catalog row and the URL only differs by extension or case.
+  const matched = index >= 0 ? uploadedFileNames[index] : file;
+  const anyStamped = chats.conversations.some((conversation) =>
+    Boolean(conversation.sourceFile?.trim()),
+  );
   const keepUnstamped =
-    matched === fallback ||
-    vaultFileMatchesKeepSet(matched, lastUploadedFileName) ||
-    vaultFileMatchesKeepSet(file, lastUploadedFileName);
+    !anyStamped &&
+    (vaultFileMatchesKeepSet(matched, lastUploadedFileName) ||
+      vaultFileMatchesKeepSet(file, lastUploadedFileName));
   const conversations = chats.conversations.filter((conversation) => {
     const source = conversation.sourceFile?.trim();
     if (source) {
@@ -331,13 +329,6 @@ export function scopeChatsToUploadedFile<
     }
     return keepUnstamped;
   });
-  const fileIsLoaded =
-    vaultFileMatchesKeepSet(file, lastUploadedFileName) ||
-    chats.conversations.some((conversation) =>
-      vaultFileMatchesKeepSet(conversation.sourceFile, file),
-    );
-  // A stem/case miss must not blank the loaded file's queue.
-  if (conversations.length === 0 && fileIsLoaded) return chats;
   const ids = new Set(conversations.map((conversation) => conversation.id));
   return {
     ...chats,

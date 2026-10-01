@@ -57,9 +57,53 @@ export function notificationAutoOpenKey(item: {
 }
 
 /**
- * Unread items that have not been auto-opened yet.
- * When `popupIds` is omitted, every notification is eligible.
+ * Import is a discrete event: a new title is unread again.
+ * Pending review is a live count — acknowledging the queue stays
+ * acknowledged when the number ticks during review.
  */
+const TITLE_SCOPED_SEEN_IDS = new Set<string>(["import-complete"]);
+
+export function notificationSeenKey(item: {
+  id: string;
+  title: string;
+}): string {
+  if (TITLE_SCOPED_SEEN_IDS.has(item.id)) return notificationAutoOpenKey(item);
+  return item.id;
+}
+
+/** Sticky conditions stay unread until they clear. */
+export function isNotificationUnread(
+  item: HeaderNotification,
+  seenKeys: ReadonlySet<string>,
+): boolean {
+  if (item.sticky) return true;
+  return !seenKeys.has(notificationSeenKey(item));
+}
+
+/** Tray category. Paired with the icon so status is not color-only. */
+export function notificationCategory(id: string): string {
+  switch (id) {
+    case "import-complete":
+      return "Import";
+    case "partner-demo-ready":
+      return "Demo";
+    case "pending-review":
+    case "queue-unavailable":
+      return "Queue";
+    case "llm-pass-failed":
+    case "llm-pass-remaining":
+      return "Detection";
+    case "sync-failed":
+      return "Sync";
+    case "wipe-failed":
+      return "Reset";
+    case "score-unavailable":
+      return "Score";
+    default:
+      return "Notice";
+  }
+}
+
 /**
  * First time a notification is seen. Later entries in one batch count as newer.
  * Existing stamps stay put so a notice does not jump ahead on the next render.
@@ -111,7 +155,7 @@ export function freshPopupNotifications(
   return notifications.filter(
     (n) =>
       (popupIds === null || popupIds.has(n.id)) &&
-      (n.sticky || !opts.seenIds.has(n.id)) &&
+      isNotificationUnread(n, opts.seenIds) &&
       !opts.alreadyOpened.has(notificationAutoOpenKey(n)),
   );
 }
@@ -159,7 +203,7 @@ export function buildHeaderNotifications(input: {
       description: zeroSignals
         ? ZERO_SIGNAL_HINT
         : hasSyncFailure
-          ? "Neon sync failed for some predictions — needs-review queue may be incomplete."
+          ? "Some predictions did not sync — the review queue may be incomplete."
           : input.pendingCount === 0
             ? "Import finished — use the status tabs or re-run detection if the queue stays empty."
             : "Open Pending in Insights to review the Neon needs-review queue.",
@@ -189,11 +233,12 @@ export function buildHeaderNotifications(input: {
   if (input.wipeFailed) {
     items.push({
       id: "wipe-failed",
-      title: "Neon Wipe Incomplete",
+      title: "Demo reset incomplete",
       description:
-        "Demo reseeded in JSON, but FastAPI did not clear this tenant’s Neon rows. Leftover chats may remain until the API is up.",
+        "The demo was reseeded, but this workspace was not fully cleared. Leftover chats may remain until you retry.",
       href: viewHref("insights", { wipeFailed: "1" }),
       tone: "warning",
+      sticky: true,
     });
   }
 
@@ -265,7 +310,7 @@ export function buildHeaderNotifications(input: {
   if (input.syncFailed > 0) {
     items.push({
       id: "sync-failed",
-      title: "Neon Dual-Write Incomplete",
+      title: "Prediction sync incomplete",
       description: `${input.syncFailed} prediction${input.syncFailed === 1 ? "" : "s"} not written${
         input.syncCreated > 0 ? ` (${input.syncCreated} succeeded)` : ""
       }. Re-run Detection from Insights.`,
@@ -276,6 +321,7 @@ export function buildHeaderNotifications(input: {
           input.syncCreated > 0 ? String(input.syncCreated) : null,
       }),
       tone: "warning",
+      sticky: true,
     });
   }
 
@@ -287,6 +333,7 @@ export function buildHeaderNotifications(input: {
       description: SCORE_UNAVAILABLE_DESCRIPTION,
       href: viewHref("eval", { panel: "metrics" }),
       tone: "warning",
+      sticky: true,
     });
   }
 
