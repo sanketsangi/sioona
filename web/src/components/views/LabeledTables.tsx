@@ -108,9 +108,9 @@ export function LabeledTables({
       >
         <TabsList
           aria-label="Labeled tables"
-          className="!h-[3.25rem] w-fit max-w-full shrink-0 border border-border md:!h-9"
+          className="!h-9 w-fit max-w-full shrink-0 border border-border"
         >
-          <TabsTrigger value="byType" asChild className="min-w-0 flex-none px-3 max-md:!h-11">
+          <TabsTrigger value="byType" asChild className="min-w-0 flex-none px-3">
             <EvalTabLink href={tabHref("byType")}>
               <span className="truncate">By Type</span>
             </EvalTabLink>
@@ -118,7 +118,7 @@ export function LabeledTables({
           <TabsTrigger
             value="conversations"
             asChild
-            className="min-w-0 flex-none px-3 max-md:!h-11"
+            className="min-w-0 flex-none px-3"
           >
             <EvalTabLink href={tabHref("conversations")}>
               <span className="truncate">Conversations</span>

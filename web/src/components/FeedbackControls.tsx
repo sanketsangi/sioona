@@ -20,6 +20,12 @@ import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
 import { GoodIcon } from "@/components/icons/GoodIcon";
 import { WarningIcon } from "@/components/icons/WarningIcon";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,14 +85,10 @@ const FEEDBACK_CHIP: Record<FeedbackLabel | "pending", string> = {
 export const ADAPT_NOTE_HELPER =
   "This note is shown beside the Adapt term. A full sentence is not the phrase that gets added.";
 
-/** Weekly score is correct / reviewed; Partial is in that denominator like Incorrect. */
-const PARTIAL_SCORE_HINT =
-  "Partial counts against the weekly score the same as Incorrect.";
-
 const outlineBtn =
-  "min-h-11 w-full touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9";
+  "min-h-9 w-full touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive";
 const primaryBtn =
-  "min-h-11 w-full touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9";
+  "min-h-9 w-full touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90";
 
 /**
  * Inverse fill chrome: Correct is the default primary while Pending;
@@ -154,7 +156,6 @@ export function FeedbackControls({
   const inflightRef = useRef(false);
   const headingId = useId();
   const noteId = useId();
-  const scoreHintId = useId();
   const initialNote = signal.feedback?.note ?? "";
   const serverLabel = signal.feedback?.label ?? null;
   const [note, setNote] = useState(initialNote);
@@ -310,11 +311,11 @@ export function FeedbackControls({
   }
 
   const actionButtons = (
+    <TooltipProvider>
     <div
-      className="grid grid-cols-3 gap-2"
+      className="grid min-w-0 grid-cols-3 gap-2"
       role="group"
       aria-label="Feedback actions"
-      aria-describedby={scoreHintId}
     >
       {options.map((option) => {
         const isCurrent = feedbackLabel === option.label;
@@ -324,12 +325,12 @@ export function FeedbackControls({
         );
         const { Icon } = option;
         return (
+          <Tooltip key={option.label}>
+          <TooltipTrigger asChild>
           <Button
-            key={option.label}
             type="button"
             variant={isPrimary ? "default" : "outline"}
             size="lg"
-            title={`${option.hint} (${option.shortcut})`}
             disabled={busy}
             aria-busy={pending === option.label}
             aria-pressed={isCurrent}
@@ -337,26 +338,22 @@ export function FeedbackControls({
             onClick={() => void submit(option.label)}
             className={cn(
               isPrimary ? primaryBtn : outlineBtn,
+              "min-w-0",
+              option.label === "partially_correct" && "@container/feedback",
               busy && "cursor-wait",
             )}
           >
             {pending === option.label ? (
               <ButtonSpinner data-icon="inline-start" />
             ) : (
-              <Icon
-                data-icon="inline-start"
-                className={
-                  option.label === "partially_correct"
-                    ? "-translate-y-[2px]"
-                    : undefined
-                }
-              />
+              <Icon data-icon="inline-start" />
             )}
-            <span className="leading-none">
+            <span className="min-w-0 leading-none">
               {option.label === "partially_correct" ? (
                 <>
-                  <span className="min-[420px]:hidden">Partial</span>
-                  <span className="hidden min-[420px]:inline">
+                  {/* Button is the container. A viewport breakpoint still showed the long label in the narrow review rail and clipped the icon. */}
+                  <span className="@min-[12rem]/feedback:hidden">Partial</span>
+                  <span className="hidden @min-[12rem]/feedback:inline">
                     {option.title}
                   </span>
                 </>
@@ -365,9 +362,15 @@ export function FeedbackControls({
               )}
             </span>
           </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {`${option.hint} (${option.shortcut})`}
+          </TooltipContent>
+          </Tooltip>
         );
       })}
     </div>
+    </TooltipProvider>
   );
 
   return (
@@ -424,18 +427,11 @@ export function FeedbackControls({
               onChange={(e) => setNote(e.target.value)}
               onKeyDown={onNoteKeyDown}
               placeholder="Optional note — e.g. ops language, not churn…"
-              className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-sio-fg-base placeholder:text-sio-fg-muted md:min-h-9"
+              className="min-h-9 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base placeholder:text-sio-fg-muted"
             />
           </div>
 
           {actionButtons}
-
-          <p
-            id={scoreHintId}
-            className="text-pretty text-copy-14 text-sio-fg-subtle"
-          >
-            {PARTIAL_SCORE_HINT}
-          </p>
 
           {needsAdapt ? (
             <div role="status" aria-live="polite">

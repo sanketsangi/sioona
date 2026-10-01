@@ -83,7 +83,7 @@ export const skiper45DialogContentClassName = cn(
   "[&_[data-slot=dialog-title]]:text-lg [&_[data-slot=dialog-title]]:font-semibold [&_[data-slot=dialog-title]]:tracking-tight",
   "[&_[data-slot=dialog-description]]:text-[15px] [&_[data-slot=dialog-description]]:leading-relaxed",
   "[&_[data-slot=dialog-footer]]:mt-1 [&_[data-slot=dialog-footer]]:gap-3 [&_[data-slot=dialog-footer]]:sm:justify-stretch",
-  "[&_[data-slot=dialog-footer]_button]:min-h-11 [&_[data-slot=dialog-footer]_button]:rounded-full sm:[&_[data-slot=dialog-footer]_button]:flex-1",
+  "[&_[data-slot=dialog-footer]_button]:min-h-9 [&_[data-slot=dialog-footer]_button]:rounded-full sm:[&_[data-slot=dialog-footer]_button]:flex-1",
 );
 
 /**
@@ -222,7 +222,7 @@ export function Skiper45MorphConfirmation({
             type="button"
             variant="outline"
             size="lg"
-            className="min-h-11 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive md:min-h-9"
+            className="min-h-9 touch-manipulation border-sio-border-subtle bg-sio-bg-base text-sio-fg-base hover:border-sio-border-strong hover:bg-sio-bg-interactive"
             onClick={() => onOpenChange(false)}
           >
             {cancelLabel}
@@ -232,7 +232,7 @@ export function Skiper45MorphConfirmation({
             type="button"
             variant="default"
             size="lg"
-            className="min-h-11 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90 md:min-h-9"
+            className="min-h-9 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90"
             onClick={onConfirm}
           >
             {confirmLabel}

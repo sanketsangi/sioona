@@ -504,6 +504,7 @@ export default async function PlatformPage({
       <UploadView
         hasPartnerExport={hasMidWeekExport(store.pilot?.weeklyExportCount)}
         lastUploadedFileName={store.pilot?.lastUploadedFileName}
+        chatCount={store.conversations.length}
         cadenceAction={cadenceAction}
         cadencePreviewId={cadencePreviewId}
       />

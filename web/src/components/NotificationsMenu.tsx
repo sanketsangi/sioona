@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { BellIcon } from "@/components/icons/BellIcon";
 import { BoltIcon } from "@/components/icons/BoltIcon";
 import { CheckCircleIcon } from "@/components/icons/CheckCircleIcon";
@@ -20,7 +27,10 @@ import {
 import {
   NOTIFICATION_AUTO_OPEN_HOLD_MS,
   freshPopupNotifications,
+  isNotificationUnread,
   notificationAutoOpenKey,
+  notificationCategory,
+  notificationSeenKey,
   orderNotificationsRecentFirst,
   stampNotificationArrivals,
   type HeaderNotification,
@@ -65,10 +75,12 @@ function readArrivals(storage: Storage | null): Record<string, number> {
     const raw = storage.getItem(ARRIVED_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      return {};
     const next: Record<string, number> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value === "number" && Number.isFinite(value)) next[key] = value;
+      if (typeof value === "number" && Number.isFinite(value))
+        next[key] = value;
     }
     return next;
   } catch {
@@ -76,7 +88,10 @@ function readArrivals(storage: Storage | null): Record<string, number> {
   }
 }
 
-function writeArrivals(arrivals: Record<string, number>, storage: Storage | null) {
+function writeArrivals(
+  arrivals: Record<string, number>,
+  storage: Storage | null,
+) {
   if (!storage) return;
   try {
     storage.setItem(ARRIVED_STORAGE_KEY, JSON.stringify(arrivals));
@@ -129,41 +144,14 @@ function notificationIcon(id: string): ReactNode {
   return <WarningIcon className="size-3.5 shrink-0" />;
 }
 
-function toneClasses(tone: HeaderNotification["tone"]) {
-  switch (tone) {
-    case "accent":
-      return {
-        tile: "bg-sio-bg-muted text-sio-fg-base",
-        label: "Queue",
-      };
-    case "info":
-      return {
-        tile: "bg-sio-status-success-bg text-sio-status-success-fg",
-        label: "Import",
-      };
-    case "warning":
-    default:
-      return {
-        tile: "bg-sio-status-warning-bg text-sio-status-warning-fg",
-        label: "Warning",
-      };
-  }
-}
-
-function toneLabelFor(item: HeaderNotification): string {
-  if (item.id === "partner-demo-ready") return "Demo";
-  if (item.id === "import-complete") return "Import";
-  if (item.id === "llm-pass-failed" || item.id === "llm-pass-remaining") {
-    return "Detection";
-  }
-  return toneClasses(item.tone).label;
-}
-
 function tileClassFor(item: HeaderNotification): string {
-  if (item.id === "llm-pass-remaining") {
+  if (item.id === "llm-pass-remaining" || item.tone === "accent") {
     return "bg-sio-bg-muted text-sio-fg-base";
   }
-  return toneClasses(item.tone).tile;
+  if (item.tone === "info") {
+    return "bg-sio-status-success-bg text-sio-status-success-fg";
+  }
+  return "bg-sio-status-warning-bg text-sio-status-warning-fg";
 }
 
 export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
@@ -189,10 +177,19 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     setSeenIds((prev) => {
       const nextSeen = new Set(prev);
       for (const n of notifications) {
-        if (!n.sticky) nextSeen.add(n.id);
+        if (!n.sticky) nextSeen.add(notificationSeenKey(n));
       }
-      writeIdSet(SEEN_STORAGE_KEY, nextSeen, localStore());
-      return nextSeen;
+      const capped =
+        nextSeen.size <= 40
+          ? nextSeen
+          : new Set(
+              [
+                ...notifications.map((n) => notificationSeenKey(n)),
+                ...[...nextSeen].slice(-24),
+              ].slice(0, 40),
+            );
+      writeIdSet(SEEN_STORAGE_KEY, capped, localStore());
+      return capped;
     });
   }, [notifications]);
 
@@ -283,7 +280,9 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
         autoCloseTimerRef.current = null;
         setSpotlightKey(null);
         if (userPinnedRef.current) return;
-        closeMenu({ markSeen: true });
+        // Auto-close does not acknowledge. The unread mark stays until
+        // the reviewer opens the tray or follows a notice.
+        closeMenu();
       }, NOTIFICATION_AUTO_OPEN_HOLD_MS);
     };
 
@@ -299,7 +298,15 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       cancelled = true;
       window.clearTimeout(openTimer);
     };
-  }, [hydrated, notifications, seenIds, arrivedAt, open, clearAutoClose, closeMenu]);
+  }, [
+    hydrated,
+    notifications,
+    seenIds,
+    arrivedAt,
+    open,
+    clearAutoClose,
+    closeMenu,
+  ]);
 
   useEffect(() => {
     if (!open || !spotlightKey) return;
@@ -317,15 +324,18 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
   );
 
   const unreadCount = useMemo(() => {
-    if (!hydrated) return notifications.length;
-    return notifications.filter((n) => n.sticky || !seenIds.has(n.id)).length;
+    if (!hydrated) return 0;
+    return notifications.filter((n) => isNotificationUnread(n, seenIds)).length;
   }, [hydrated, notifications, seenIds]);
 
   const hasUnread = unreadCount > 0;
   const countLabel =
     notifications.length === 0
       ? "None"
-      : `${notifications.length} open`;
+      : unreadCount > 0
+        ? `${unreadCount} unread`
+        : `${notifications.length} open`;
+  const unreadBadge = unreadCount > 9 ? "9+" : String(unreadCount);
 
   return (
     <DropdownMenu
@@ -349,19 +359,19 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="btn-secondary relative size-11 shrink-0 px-0 outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none md:size-9"
+          className="btn-secondary relative !size-9 shrink-0 !px-0 outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
           aria-label={
-            hasUnread
-              ? `Notifications, ${unreadCount} unread`
-              : "Notifications"
+            hasUnread ? `Notifications, ${unreadCount} unread` : "Notifications"
           }
         >
           <BellIcon className="size-4 shrink-0" />
           {hasUnread ? (
             <span
-              className="absolute left-1.5 top-1.5 size-2 rounded-full bg-sio-fg-base ring-2 ring-sio-bg-base"
+              className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sio-fg-base px-1 text-[10px] font-medium leading-none text-sio-fg-on-color tabular-nums ring-2 ring-sio-bg-base"
               aria-hidden
-            />
+            >
+              {unreadBadge}
+            </span>
           ) : null}
         </button>
       </DropdownMenuTrigger>
@@ -415,8 +425,9 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
             role="list"
           >
             {ordered.map((item, index) => {
-              const unread =
-                item.sticky || (hydrated ? !seenIds.has(item.id) : true);
+              const unread = hydrated
+                ? isNotificationUnread(item, seenIds)
+                : item.sticky === true;
               const recent = spotlightKey === notificationAutoOpenKey(item);
               const rowClass = cn(
                 "flex w-full items-start gap-3 px-3.5 py-3 text-left",
@@ -427,9 +438,9 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
 
               return (
                 <DropdownMenuItem
-                  key={item.id}
+                  key={notificationAutoOpenKey(item)}
                   asChild
-                  className="cursor-pointer rounded-none px-0 py-0 focus:bg-transparent data-[highlighted]:bg-transparent"
+                  className="cursor-pointer rounded-none px-0 py-0 outline-none focus:bg-transparent"
                 >
                   <Link
                     href={item.href}
@@ -437,7 +448,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                     data-recent={recent ? "true" : undefined}
                     className={cn(
                       rowClass,
-                      "group no-underline outline-none transition-colors duration-150 hover:bg-sio-bg-interactive focus-visible:bg-sio-bg-interactive",
+                      "group no-underline outline-none transition-colors duration-150 hover:bg-sio-bg-interactive focus-visible:bg-sio-bg-interactive focus-visible:shadow-[var(--focus-ring)] data-[highlighted]:bg-sio-bg-interactive",
                     )}
                   >
                     <span
@@ -453,19 +464,27 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                       <span className="flex items-start justify-between gap-2">
                         <span className="min-w-0">
                           <span className="mb-0.5 block text-label-12 text-sio-fg-muted">
-                            {toneLabelFor(item)}
+                            {notificationCategory(item.id)}
                             {recent ? (
                               <span className="sr-only">, just arrived</span>
                             ) : null}
                             {unread ? (
-                              <span className="ml-1.5 inline-block size-1.5 rounded-full bg-sio-fg-base align-middle" />
+                              <>
+                                <span className="sr-only">, unread</span>
+                                <span className="ml-1.5 inline-block size-1.5 rounded-full bg-sio-fg-base align-middle" />
+                              </>
                             ) : null}
                           </span>
-                          <span className="block text-balance text-label-14 font-medium text-sio-fg-base">
+                          <span
+                            className={cn(
+                              "block text-balance text-label-14 text-sio-fg-base",
+                              unread ? "font-medium" : "font-normal",
+                            )}
+                          >
                             {item.title}
                           </span>
                         </span>
-                        <ExternalIcon className="mt-0.5 size-3.5 shrink-0 text-sio-fg-faint opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100" />
+                        <ExternalIcon className="mt-0.5 size-3.5 shrink-0 text-sio-fg-muted opacity-60 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100" />
                       </span>
                       <span className="mt-1 block text-pretty text-label-12 leading-4 text-sio-fg-muted">
                         {item.description}

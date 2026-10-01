@@ -34,6 +34,8 @@ export const FilterPillTrigger = forwardRef<
     variant: "add" | "suggestion" | "applied";
     href?: string;
     clearable?: boolean;
+    /** Closed Ground Truth chip: full pill, hairline border, quiet hover. */
+    shape?: "default" | "full";
   }
 >(function FilterPillTrigger(
   {
@@ -43,31 +45,41 @@ export const FilterPillTrigger = forwardRef<
     type = "button",
     href,
     clearable = false,
+    shape = "default",
     ...props
   },
   ref,
 ) {
   const solid = variant === "add" || variant === "applied";
+  const full = shape === "full";
+  const radius = full ? "rounded-full" : "rounded-[10ex]";
   const inner = (
     <>
       <div
         className={cn(
-          "absolute inset-0 rounded-[10ex] outline-1 outline-offset-0 transition-colors duration-150 motion-reduce:transition-none",
-          solid
-            ? PILL_SOLID_BG
-            : cn(
-                "bg-transparent outline-dashed",
-                PILL_LINE,
-                "group-hover:bg-sio-bg-interactive group-hover/trigger:bg-sio-bg-base group-hover/trigger:outline-transparent",
-                "group-focus-visible/trigger:bg-sio-bg-base group-focus-visible/trigger:outline-transparent",
-              ),
+          "absolute inset-0 outline-offset-0 transition-[background-color,border-color,outline-color] duration-150 motion-reduce:transition-none",
+          radius,
+          full
+            ? "bg-transparent group-hover/trigger:bg-sio-bg-interactive group-focus-visible/trigger:bg-sio-bg-interactive"
+            : "outline-1",
+          !full &&
+            (solid
+              ? PILL_SOLID_BG
+              : cn(
+                  "bg-transparent outline-dashed",
+                  PILL_LINE,
+                  "group-hover:bg-sio-bg-interactive group-hover/trigger:bg-sio-bg-base group-hover/trigger:outline-transparent",
+                  "group-focus-visible/trigger:bg-sio-bg-base group-focus-visible/trigger:outline-transparent",
+                )),
         )}
         data-pill-background="true"
         aria-hidden
       >
+        {full ? null : (
         <div
           className={cn(
-            "pointer-events-none absolute inset-0 rounded-[10ex] outline-1 outline-offset-0 [outline-style:solid] outline-transparent transition-colors duration-150 motion-reduce:transition-none",
+            "pointer-events-none absolute inset-0 outline-1 outline-offset-0 [outline-style:solid] outline-transparent transition-colors duration-150 motion-reduce:transition-none",
+            radius,
             solid
               ? PILL_HAIRLINE_SHADOW
               : cn(
@@ -76,10 +88,12 @@ export const FilterPillTrigger = forwardRef<
                 ),
           )}
         />
+        )}
       </div>
       <div
         className={cn(
-          "relative flex h-8 flex-row items-center gap-1.5 rounded-[10ex] px-3 text-label-14",
+          "relative flex h-8 flex-row items-center gap-1.5 px-3 text-label-14",
+          radius,
           variant === "add" &&
             "w-[110px] cursor-pointer justify-center leading-none !ring-0",
           variant === "applied" && clearable && "pr-7",
@@ -91,6 +105,8 @@ export const FilterPillTrigger = forwardRef<
   );
   const triggerClass = cn(
     FILTER_PILL_TRIGGER_CLASS,
+    full &&
+      "rounded-full border border-sio-border-subtle bg-transparent transition-[background-color,border-color] duration-150 motion-reduce:transition-none hover:border-sio-border-strong hover:bg-sio-bg-interactive",
     href && "inline-flex",
     className,
   );

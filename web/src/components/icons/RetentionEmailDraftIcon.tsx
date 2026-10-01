@@ -1,8 +1,12 @@
-type IconProps = { className?: string };
+type IconProps = {
+  className?: string;
+  "data-icon"?: "inline-start" | "inline-end";
+};
 
 /** Pen / draft glyph for Retention Email draft well. */
 export function RetentionEmailDraftIcon({
   className = "size-4 shrink-0",
+  ...props
 }: IconProps) {
   return (
     <svg
@@ -13,6 +17,7 @@ export function RetentionEmailDraftIcon({
       fill="none"
       className={className}
       aria-hidden
+      {...props}
     >
       <path
         fillRule="evenodd"

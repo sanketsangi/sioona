@@ -28,7 +28,7 @@ Partner review is Feedback, Recommended Actions, and Why This Fired, then the we
 
 - **Transcript:** visible beside those cards when the review pane is at least `42rem` (a normal laptop with the sidebar open). Evidence quote is highlighted. Open Conversation is hidden at that width. Below that, Open Conversation and the quote open the drawer.
 - **Review cards:** Feedback (Correct / Incorrect / Partially correct, note, Ground Truth in the header), then Recommended Actions (draft, Copy Reply, Run Actions, retention email), then Why This Fired. Nothing is sent.
-- **Live export:** when the loaded file is not Sample and not Partner Demo, hide Reset, Run Partner Demo, the Sample and Partner Demo vault rows, and the sidebar identity.
+- **Live export:** when a non-showcase upload is loaded (chats present, not a filename-only landing), hide Reset, Run Partner Demo, and the Sample and Partner Demo vault rows. A weekly `?file=` that is not loaded does not hide them. The sidebar footer always shows Help, Guidance, Feedback, and the user account.
 - **Copy:** Insights empty states and upload helpers say review five chats, mark the ones we got right, the weekly score is on Eval, and nothing is sent. Do not use keep-set, upsert, Day-1 replace, external id, or SignalScore in those helpers.
 - **Empty / asleep:** a vault mismatch offers one next click (upload this week’s export). When the score service is asleep and uploaded chats are still loaded, Insights keeps the last queue counts, says the weekly score is waiting, and offers one Retry. An empty score queue is not finished work in that case. The Conversations cell shows the coverage share (chats with a signal / total) with the circle arrow.
 

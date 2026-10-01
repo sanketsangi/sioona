@@ -4,12 +4,16 @@ import { useRouter } from "next/navigation";
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { evalCardClassName, evalCardPadClassName } from "@/components/EvalCard";
+import { CheckCircleOutlineIcon } from "@/components/icons/CheckCircleOutlineIcon";
+import { CrossCircleIcon } from "@/components/icons/CrossCircleIcon";
 import { PlayCircleIcon } from "@/components/icons/PlayCircleIcon";
 import { RetentionEmailDraftIcon } from "@/components/icons/RetentionEmailDraftIcon";
 import { RetentionEmailEvidenceIcon } from "@/components/icons/RetentionEmailEvidenceIcon";
@@ -32,6 +36,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AppleBorderGradient } from "@/components/v1/skiper86";
 import { postSupervisedAction } from "@/lib/supervised-action-client";
 import {
@@ -117,6 +127,26 @@ export function editedRetentionDraftBody(
   return body;
 }
 
+/**
+ * Content-box width of `[data-review-slot="retention-email"]` where Approve,
+ * Edit Draft, and Dismiss fit with labels beside Run Actions.
+ * Below this, those three are icon-only. Run Actions keeps its label.
+ */
+export const REVIEW_ACTIONS_LABELED_MIN_PX = 424;
+
+export function isReviewActionsCompact(contentWidthPx: number): boolean {
+  return contentWidthPx < REVIEW_ACTIONS_LABELED_MIN_PX;
+}
+
+function contentBoxWidth(node: HTMLElement): number {
+  const style = getComputedStyle(node);
+  return (
+    node.clientWidth -
+    parseFloat(style.paddingLeft) -
+    parseFloat(style.paddingRight)
+  );
+}
+
 /** Edit Draft control group — `inert` + data attr while the dialog is open. */
 export const SUPERVISED_DRAFT_TITLE: Record<SupervisedActionType, string> = {
   retention_email_draft: "Retention Email",
@@ -137,6 +167,26 @@ function pendingDraftCopy(type: SupervisedActionType): string {
     return "High-confidence retention draft. Edit and save here — you send from your tools; Sioona never sends or CRM-tags.";
   }
   return `${SUPERVISED_DRAFT_TITLE[type]} draft. Edit and save here — you send from your tools; Sioona never sends or CRM-tags.`;
+}
+
+function DraftDecisionTooltip({
+  label,
+  compact,
+  children,
+}: {
+  label: string;
+  compact: boolean;
+  children: ReactElement;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <TooltipProvider>
+      <Tooltip open={compact && open} onOpenChange={setOpen}>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 export function RetentionEmailDecisionControlsFrame({
@@ -368,11 +418,31 @@ function RetentionEmailActionView({
   const subjectRef = useRef<HTMLInputElement>(null);
   const onStatusChangeRef = useRef(onStatusChange);
   const onDraftBodyChangeRef = useRef(onDraftBodyChange);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [actionsCompact, setActionsCompact] = useState(false);
 
   useEffect(() => {
     onStatusChangeRef.current = onStatusChange;
     onDraftBodyChangeRef.current = onDraftBodyChange;
   }, [onStatusChange, onDraftBodyChange]);
+
+  useLayoutEffect(() => {
+    if (!container) {
+      setActionsCompact(false);
+      return;
+    }
+    const publish = (width: number) => {
+      setActionsCompact(isReviewActionsCompact(width));
+    };
+    publish(contentBoxWidth(container));
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width == null) return;
+      publish(width);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [container]);
 
   const initial = resolveRetentionEmailAction(
     signal,
@@ -523,42 +593,68 @@ function RetentionEmailActionView({
         locked={decisionsLocked}
         label={`${draftAria} decisions`}
       >
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="btn-secondary h-9 min-h-11 shrink-0 touch-manipulation px-2.5 md:min-h-9"
-          disabled={decisionsDisabled}
-          onClick={() => void submit("approved")}
-        >
-          {pending === "approved" ? <ButtonSpinner /> : null}
-          Approve
-        </Button>
-        <Button
-          ref={editButtonRef}
-          type="button"
-          variant="outline"
-          size="lg"
-          className="btn-secondary h-9 min-h-11 shrink-0 touch-manipulation gap-1.5 px-2.5 md:min-h-9"
-          disabled={decisionsDisabled}
-          aria-haspopup="dialog"
-          aria-expanded={editing}
-          onClick={requestEdit}
-        >
-          <RetentionEmailDraftIcon className="size-3.5 shrink-0" />
-          Edit Draft
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          className="btn-secondary h-9 min-h-11 shrink-0 touch-manipulation px-2.5 md:min-h-9"
-          disabled={decisionsDisabled}
-          onClick={() => void submit("dismissed")}
-        >
-          {pending === "dismissed" ? <ButtonSpinner /> : null}
-          Dismiss
-        </Button>
+        <DraftDecisionTooltip label="Approve" compact={actionsCompact}>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="btn-secondary h-9 min-h-9 shrink-0 touch-manipulation gap-1.5 px-2.5"
+            disabled={decisionsDisabled}
+            aria-label="Approve"
+            onClick={() => void submit("approved")}
+          >
+            {pending === "approved" ? (
+              <ButtonSpinner data-icon="inline-start" />
+            ) : (
+              <CheckCircleOutlineIcon
+                data-icon="inline-start"
+                className="size-3.5 shrink-0"
+              />
+            )}
+            <span className="review-action-label" aria-hidden="true">Approve</span>
+          </Button>
+        </DraftDecisionTooltip>
+        <DraftDecisionTooltip label="Edit Draft" compact={actionsCompact}>
+          <Button
+            ref={editButtonRef}
+            type="button"
+            variant="outline"
+            size="lg"
+            className="btn-secondary h-9 min-h-9 shrink-0 touch-manipulation gap-1.5 px-2.5"
+            disabled={decisionsDisabled}
+            aria-label="Edit Draft"
+            aria-haspopup="dialog"
+            aria-expanded={editing}
+            onClick={requestEdit}
+          >
+            <RetentionEmailDraftIcon
+              data-icon="inline-start"
+              className="size-3.5 shrink-0"
+            />
+            <span className="review-action-label" aria-hidden="true">Edit Draft</span>
+          </Button>
+        </DraftDecisionTooltip>
+        <DraftDecisionTooltip label="Dismiss" compact={actionsCompact}>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="btn-secondary h-9 min-h-9 shrink-0 touch-manipulation gap-1.5 px-2.5"
+            disabled={decisionsDisabled}
+            aria-label="Dismiss"
+            onClick={() => void submit("dismissed")}
+          >
+            {pending === "dismissed" ? (
+              <ButtonSpinner data-icon="inline-start" />
+            ) : (
+              <CrossCircleIcon
+                data-icon="inline-start"
+                className="size-3.5 shrink-0"
+              />
+            )}
+            <span className="review-action-label" aria-hidden="true">Dismiss</span>
+          </Button>
+        </DraftDecisionTooltip>
       </RetentionEmailDecisionControlsFrame>
       {embeddedActions}
     </div>
@@ -713,7 +809,7 @@ function RetentionEmailActionView({
                 value={subject}
                 onChange={(event) => setSubject(event.target.value)}
                 placeholder="e.g. Following up on your account…"
-                className="min-h-11 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:min-h-9 md:text-sm"
+                className="min-h-9 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base"
                 aria-invalid={!subject.trim()}
                 disabled={busy}
               />
@@ -738,7 +834,7 @@ function RetentionEmailActionView({
                   }
                 }}
                 placeholder="Short, polite follow-up…"
-                className="min-h-56 resize-y border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base md:text-sm"
+                className="min-h-56 resize-y border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base"
                 aria-invalid={!body.trim()}
                 disabled={busy}
               />
@@ -780,6 +876,7 @@ function RetentionEmailActionView({
   if (embedded) {
     return (
       <section
+        ref={setContainer}
         data-review-slot="retention-email"
         data-retention-border="gradient"
         className={cn(
@@ -814,6 +911,7 @@ function RetentionEmailActionView({
 
   return (
     <Card
+      ref={setContainer}
       size="sm"
       data-review-slot="retention-email"
       className={cn("insights-review-pane", evalCardClassName, className)}

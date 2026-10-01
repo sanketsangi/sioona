@@ -21,7 +21,7 @@ import {
   PARTNER_DEMO_REPLACE_CONFIRM_MESSAGE,
 } from "@/lib/partner-demo-replace-guard";
 import { lastUploadedFileName as uploadBasename } from "@/lib/upload-filename";
-import { isLivePartnerKeepSet } from "@/lib/vault-file";
+import { livePartnerVaultChrome } from "@/lib/vault-file";
 import {
   CONFIRM_HELD_OUT_WEEKLY_INGEST_FIELD,
   HELD_OUT_WEEKLY_INGEST_CONFIRM_CODE,
@@ -99,9 +99,12 @@ export function uploadActiveFilePrompt(
 export function UploadForm({
   hasPartnerExport = false,
   lastUploadedFileName,
+  chatCount,
 }: {
   hasPartnerExport?: boolean;
   lastUploadedFileName?: string;
+  /** Loaded chats. Zero keeps Reset and Run Partner Demo during a landing. */
+  chatCount?: number;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -467,7 +470,10 @@ export function UploadForm({
                 )}
                 Upload & Detect
               </button>
-              {isLivePartnerKeepSet(lastUploadedFileName) ? null : (
+              {livePartnerVaultChrome({
+                lastUploadedFileName,
+                chatCount,
+              }) ? null : (
                 <>
                   <PartnerDemoButton
                     label="Run Partner Demo"

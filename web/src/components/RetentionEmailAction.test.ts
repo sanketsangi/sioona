@@ -10,20 +10,73 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+import { readFileSync } from "node:fs";
+
 import {
   draftDecisionControlsLocked,
   draftDecisionsDataAttr,
+  isReviewActionsCompact,
   queueActionKindForSignal,
   queueActionLabelForSignal,
   RetentionEmailAction,
   RetentionEmailDecisionControlsFrame,
   retentionHeaderChipStatus,
+  REVIEW_ACTIONS_LABELED_MIN_PX,
 } from "@/components/RetentionEmailAction";
+import { GEIST_MASK_SVG } from "@/components/icons/geist-mask-svg";
 import {
   createRetentionEmailAction,
   createSupervisedDraftAction,
 } from "@/lib/supervised-actions";
 import type { Signal } from "@/lib/types";
+
+/** Toolbar decision button whose visible label is exactly `label`. */
+function decisionButtonMarkup(html: string, label: string): string {
+  const matches = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+  const button = matches.find(
+    (markup) =>
+      markup.includes(`aria-label="${label}"`) &&
+      markup.includes(`review-action-label`),
+  );
+  expect(button, label).toBeTruthy();
+  return button ?? "";
+}
+
+function expectDraftDecisionIcons(html: string) {
+  const approve = decisionButtonMarkup(html, "Approve");
+  const edit = decisionButtonMarkup(html, "Edit Draft");
+  const dismiss = decisionButtonMarkup(html, "Dismiss");
+
+  expect(approve).toContain('data-icon="inline-start"');
+  expect(approve).toContain("size-3.5");
+  expect(approve).toContain(
+    encodeURIComponent(GEIST_MASK_SVG["/icons/check-circle.svg"]),
+  );
+  expect(approve).not.toContain(
+    encodeURIComponent(GEIST_MASK_SVG["/icons/good.svg"]),
+  );
+  expect(approve).not.toContain(
+    encodeURIComponent(GEIST_MASK_SVG["/icons/cross-circle.svg"]),
+  );
+
+  expect(edit).toContain('data-icon="inline-start"');
+  expect(edit).toContain('class="size-3.5 shrink-0"');
+
+  expect(dismiss).toContain('data-icon="inline-start"');
+  expect(dismiss).toContain("size-3.5");
+  expect(dismiss).toContain(
+    encodeURIComponent(GEIST_MASK_SVG["/icons/cross-circle.svg"]),
+  );
+  expect(dismiss).not.toContain(
+    encodeURIComponent(GEIST_MASK_SVG["/icons/good.svg"]),
+  );
+  expect(dismiss).not.toContain(
+    encodeURIComponent(GEIST_MASK_SVG["/icons/check-circle.svg"]),
+  );
+
+  expect(html.indexOf(approve)).toBeLessThan(html.indexOf(edit));
+  expect(html.indexOf(edit)).toBeLessThan(html.indexOf(dismiss));
+}
 
 function signal(overrides: Partial<Signal> = {}): Signal {
   return {
@@ -295,6 +348,32 @@ describe("RetentionEmailDecisionControlsFrame", () => {
   });
 });
 
+describe("review actions toolbar density", () => {
+  it("hides Approve, Edit Draft, and Dismiss below 424px and leaves Run Actions labeled", () => {
+    expect(REVIEW_ACTIONS_LABELED_MIN_PX).toBe(424);
+    expect(isReviewActionsCompact(334)).toBe(true);
+    expect(isReviewActionsCompact(423)).toBe(true);
+    expect(isReviewActionsCompact(424)).toBe(false);
+    expect(isReviewActionsCompact(845)).toBe(false);
+    const css = readFileSync(
+      new URL("../app/globals.css", import.meta.url),
+      "utf8",
+    );
+    expect(css).toContain("@container retention-email (width < 424px)");
+    expect(css).toContain(
+      '[data-review-actions-toolbar="true"] button:has(.review-action-label)',
+    );
+    expect(css).toContain(
+      '[data-review-actions-toolbar="true"] .review-action-label',
+    );
+    expect(css).toContain("flex-wrap: nowrap");
+    const narrowRule = css.slice(
+      css.indexOf("@container retention-email (width < 424px)"),
+    );
+    expect(narrowRule).not.toContain("Run Actions");
+  });
+});
+
 describe("RetentionEmailAction", () => {
   it("shows evidence with toolbar Edit Draft (no inline draft well)", () => {
     const action = createRetentionEmailAction({
@@ -317,6 +396,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain(">Approve<");
     expect(html).toContain("Edit Draft");
     expect(html).toContain(">Dismiss<");
+    expectDraftDecisionIcons(html);
     expect(html).not.toContain("Dismiss Draft");
     expect(html).toContain("Evidence");
     expect(html).toContain("I want to close my account");
@@ -334,7 +414,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain('data-review-actions-toolbar="true"');
     expect(html).toContain('aria-label="Retention email actions"');
     expect(html).toContain(
-      "btn-secondary h-9 min-h-11 shrink-0 touch-manipulation gap-1.5 px-2.5 md:min-h-9",
+      "btn-secondary h-9 min-h-9 shrink-0 touch-manipulation gap-1.5 px-2.5",
     );
     expect(html).toContain("Sioona never sends or CRM-tags");
     expect(html).toContain("data-review-slot=\"retention-email\"");
@@ -627,6 +707,7 @@ describe("RetentionEmailAction", () => {
       expect(html).toContain(">Approve<");
       expect(html).toContain("Edit Draft");
       expect(html).toContain(">Dismiss<");
+      expectDraftDecisionIcons(html);
       expect(html).not.toContain("Best regards");
     }
   });

@@ -75,13 +75,16 @@ if (!process.env.GROQ_API_KEY?.trim()) {
 
 run(npx, ["tsx", "eval/promptfoo/sync-system-prompt.ts"]);
 
+const extra = process.argv.slice(2);
+const hasConfig = extra.some(
+  (arg) => arg === "-c" || arg === "--config" || arg.startsWith("--config=")
+);
 const promptfooArgs = [
   "promptfoo",
   "eval",
-  "-c",
-  "promptfooconfig.yaml",
+  ...(hasConfig ? [] : ["-c", "promptfooconfig.yaml"]),
   "--no-cache",
-  ...process.argv.slice(2),
+  ...extra,
 ];
 
 run(npx, promptfooArgs, { cwd: evalDir });

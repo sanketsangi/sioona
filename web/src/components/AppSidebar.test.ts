@@ -181,6 +181,8 @@ describe("AppSidebar Vault", () => {
   });
 
   it("lists every uploaded file without putting the prop on the sidebar element", () => {
+    const longName =
+      "Zerodha_week_12_batch_01_partner_export_with_a_very_long_name.json";
     const html = renderToStaticMarkup(
       createElement(
         SidebarProvider,
@@ -189,18 +191,49 @@ describe("AppSidebar Vault", () => {
           activeView: "insights",
           lastUploadedFileName: "week-a.csv",
           vaultFile: "week-b.csv",
-          uploadedFileNames: ["week-a.csv", "week-b.csv"],
+          uploadedFileNames: ["week-a.csv", longName, "week-b.csv"],
+          chatCount: 3,
         }),
       ),
     );
     const vault = vaultSection(html);
     expect(html).not.toContain("uploadedFileNames");
     expect(html).not.toContain("uploadedfilenames");
+    expect(vault).not.toContain("Sample");
+    expect(vault).not.toContain("Partner Demo");
     expect(vault).toContain('title="week-a.csv"');
+    expect(vault).toContain(`title="${longName}"`);
     expect(vault).toContain('title="week-b.csv"');
+    expect(vault).toContain("truncate");
+    expect(vault.indexOf('title="week-a.csv"')).toBeLessThan(
+      vault.indexOf(`title="${longName}"`),
+    );
+    expect(vault.indexOf(`title="${longName}"`)).toBeLessThan(
+      vault.indexOf('title="week-b.csv"'),
+    );
     expect(vaultSubButtonActive(html, "week-b.csv")).toBe(true);
     expect(vaultSubButtonActive(html, "week-a.csv")).toBe(false);
     expect(vault).not.toContain("No uploads yet");
+  });
+
+  it("keeps Sample and Partner Demo while a listed file has no chats yet", () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(AppSidebar, {
+          activeView: "insights",
+          lastUploadedFileName: "user-upload.csv",
+          uploadedFileNames: ["user-upload.csv"],
+          chatCount: 0,
+        }),
+      ),
+    );
+    const vault = vaultSection(html);
+    expect(vault).toContain("Sample");
+    expect(vault).toContain("Partner Demo");
+    expect(vault).toContain('title="user-upload.csv"');
+    expect(vault).toContain("Uploaded Chats");
   });
 
   it("lists an unmatched user upload under Uploaded Chats", () => {
@@ -210,7 +243,8 @@ describe("AppSidebar Vault", () => {
     expect(vault).toContain('title="user-upload.csv"');
     expect(vault).not.toContain("Sample");
     expect(vault).not.toContain("Partner Demo");
-    expect(html).not.toContain("sanket@sioona.ai");
+    expect(html).toContain("Sanket Sangi");
+    expect(html).toContain("sanket@sioona.ai");
     expect(maskPathCount(vault, FILE_MASK)).toBe(1);
     expect(vaultSubButtonActive(html, "user-upload.csv")).toBe(true);
     expect(vault.indexOf("user-upload.csv")).toBeGreaterThan(
@@ -229,10 +263,19 @@ describe("AppSidebar Vault", () => {
   });
 
   it("prefers ?file= over last upload for the active pill", () => {
-    const html = renderSidebar(
-      "Zerodha_week_5_batch_01.json",
-      GROWW_SHOWCASE_SAMPLE_NAME,
+    const html = renderToStaticMarkup(
+      createElement(
+        SidebarProvider,
+        null,
+        createElement(AppSidebar, {
+          activeView: "insights",
+          lastUploadedFileName: "Zerodha_week_5_batch_01.json",
+          vaultFile: GROWW_SHOWCASE_SAMPLE_NAME,
+          chatCount: 0,
+        }),
+      ),
     );
+    expect(vaultSection(html)).toContain("Sample");
     expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(true);
     expect(vaultSubButtonActive(html, "Zerodha_week_5_batch_01.json")).toBe(
       false,

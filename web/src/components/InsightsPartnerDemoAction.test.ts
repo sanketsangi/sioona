@@ -29,6 +29,8 @@ describe("InsightsPartnerDemoAction", () => {
     );
     expect(html).toContain("Run Partner Demo");
     expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
+    expect(html).toContain("!h-9");
+    expect(html).toContain("!px-3.5");
   });
 
   it("does not treat Groww or weekly Zerodha uploads as the Partner Demo pack", () => {

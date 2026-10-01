@@ -155,10 +155,10 @@ export function buildAddFilterItems({
 }
 
 const INPUT_CLASS =
-  "h-12 min-w-0 flex-1 appearance-none border-0 bg-transparent px-3 text-copy-16 text-sio-fg-base placeholder:text-sio-fg-muted !outline-none shadow-none focus-visible:shadow-none md:h-10 md:text-label-14 filter-popover-query";
+  "h-10 min-w-0 flex-1 appearance-none border-0 bg-transparent px-3 text-label-14 text-sio-fg-base placeholder:text-sio-fg-muted !outline-none shadow-none focus-visible:shadow-none filter-popover-query";
 
 const ROW_CLASS =
-  "relative flex h-11 w-full min-w-0 cursor-pointer items-center gap-2 px-3 text-left text-label-14 text-sio-fg-base outline-none focus-visible:shadow-[var(--focus-ring)] touch-manipulation md:h-8";
+  "relative flex h-8 w-full min-w-0 cursor-pointer items-center gap-2 px-3 text-left text-label-14 text-sio-fg-base outline-none focus-visible:shadow-[var(--focus-ring)] touch-manipulation";
 
 export function AddFilterMenuPanel({
   query,
@@ -194,8 +194,8 @@ export function AddFilterMenuPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-12 flex-none flex-row items-center text-label-14 md:h-10">
-        <label className="flex h-12 min-w-0 flex-1 flex-row items-center md:h-10 md:min-w-[7.5rem]">
+      <div className="flex h-10 flex-none flex-row items-center text-label-14">
+        <label className="flex h-10 min-w-0 flex-1 flex-row items-center md:min-w-[7.5rem]">
           <span className="sr-only">Filter by</span>
           <input
             ref={inputRef}
