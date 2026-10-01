@@ -1,0 +1,385 @@
+conversation_id,role,content,customer_name,channel,timestamp,ground_truth
+kuber_w1_meera_01,customer,"Hi, this is Meera Kulkarni. Can you confirm the withdrawal of ₹50,000 placed on Sunday reached the bank?",Meera Kulkarni,whatsapp,2026-09-21T03:40:00.000Z,none
+kuber_w1_meera_01,agent,I have checked the request and will write back shortly.,,whatsapp,2026-09-21T03:45:00.000Z,none
+kuber_w1_meera_01,customer,Thanks. The mobile on the form is the one you already have.,Meera Kulkarni,whatsapp,2026-09-21T03:51:00.000Z,none
+kuber_w1_meera_02,customer,"Hi. Again, withdrawal pending. This is a problem.",Meera Kulkarni,whatsapp,2026-09-23T05:35:00.000Z,none
+kuber_w1_meera_02,agent,I have raised it with the payouts desk.,,whatsapp,2026-09-23T05:40:00.000Z,none
+kuber_w1_meera_02,customer,Paisa nahi aaya. Amount not credited. Bahut late hai.,Meera Kulkarni,whatsapp,2026-09-23T05:46:00.000Z,none
+kuber_w1_meera_03,customer,"Hello, following up on the same withdrawal.",Meera Kulkarni,whatsapp,2026-09-25T10:30:00.000Z,none
+kuber_w1_meera_03,customer,"Still waiting, no update. Koi jawab nahi. Kitni baar. Bhai.",Meera Kulkarni,whatsapp,2026-09-25T10:35:00.000Z,none
+kuber_w1_meera_03,agent,I am chasing the payouts desk.,,whatsapp,2026-09-25T15:35:00.000Z,none
+kuber_w1_meera_03,customer,"Ok I will wait, but this is not fair.",Meera Kulkarni,whatsapp,2026-09-25T15:42:00.000Z,none
+kuber_w1_meera_04,customer,I am angry. Worst experience so far.,Meera Kulkarni,whatsapp,2026-09-27T12:40:00.000Z,retention
+kuber_w1_meera_04,agent,I am sorry this dragged on. I have escalated to the desk.,,whatsapp,2026-09-27T12:45:00.000Z,retention
+kuber_w1_meera_04,customer,If this isn't fixed I will close my account. Call 9811100001. UPI meera.k@oksbi. Email meera.kulkarni@example.com.,Meera Kulkarni,whatsapp,2026-09-27T12:51:00.000Z,retention
+kuber_w1_meera_04,customer,"An ₹8 lakh portfolio should not wait on ₹50,000. Today.",Meera Kulkarni,whatsapp,2026-09-27T12:58:00.000Z,retention
+kuber_w1_arjun_01,customer,Hi. The delivery bill for INFY looks odd. There is a small problem on the contract note.,Arjun Deshmukh,intercom,2026-09-22T04:45:00.000Z,none
+kuber_w1_arjun_01,agent,Please share the date on that note and I will read the line.,,intercom,2026-09-22T04:50:00.000Z,none
+kuber_w1_arjun_01,customer,"Thanks. It is the 21st delivery, quantity 20.",Arjun Deshmukh,intercom,2026-09-22T04:56:00.000Z,none
+kuber_w1_arjun_02,customer,Phir se problem. Brokerage bahut zyada lag raha hai on the same scrips.,Arjun Deshmukh,intercom,2026-09-24T07:10:00.000Z,none
+kuber_w1_arjun_02,agent,I can see the delivery lines. I will send a breakup.,,intercom,2026-09-24T07:15:00.000Z,none
+kuber_w1_arjun_02,customer,Not happy with the bill bhai. Same scrips as Tuesday.,Arjun Deshmukh,intercom,2026-09-24T07:21:00.000Z,none
+kuber_w1_arjun_03,customer,This is unacceptable. Brokerage is too high.,Arjun Deshmukh,intercom,2026-09-26T11:50:00.000Z,retention
+kuber_w1_arjun_03,agent,I have the breakup ready if you want it on mail.,,intercom,2026-09-26T11:55:00.000Z,retention
+kuber_w1_arjun_03,customer,I am shifting to another broker. Your competitor is cheaper. ₹12 lakh portfolio. This month. The desk has been useless.,Arjun Deshmukh,intercom,2026-09-26T12:01:00.000Z,retention
+kuber_w1_fatima_01,customer,Hello. The app keeps crashing on the holdings screen. There is an issue after the last update.,Fatima Qureshi,in_app_chat,2026-09-21T08:35:00.000Z,none
+kuber_w1_fatima_01,agent,"Please force-close and reopen once, then tell me the screen.",,in_app_chat,2026-09-21T08:40:00.000Z,none
+kuber_w1_fatima_01,customer,Thanks. It happens on the holdings tab.,Fatima Qureshi,in_app_chat,2026-09-21T08:46:00.000Z,none
+kuber_w1_fatima_02,customer,App phir se crash. Every time the order window freezes. Bhai.,Fatima Qureshi,in_app_chat,2026-09-23T10:00:00.000Z,none
+kuber_w1_fatima_02,agent,I am logging the build number from your session.,,in_app_chat,2026-09-23T10:05:00.000Z,none
+kuber_w1_fatima_02,customer,Issue open since Monday. Still waiting. Koi reply nahi on the earlier note.,Fatima Qureshi,in_app_chat,2026-09-23T10:11:00.000Z,none
+kuber_w1_fatima_03,customer,Bhai bas ho gaya. I am frustrated and thinking of leaving.,Fatima Qureshi,in_app_chat,2026-09-27T06:15:00.000Z,retention
+kuber_w1_fatima_03,agent,I can ask a senior to call you this afternoon.,,in_app_chat,2026-09-27T06:20:00.000Z,retention
+kuber_w1_fatima_03,customer,Switch to another app. ₹3 lakh should not sit on a frozen window. This week.,Fatima Qureshi,in_app_chat,2026-09-27T06:26:00.000Z,retention
+kuber_w1_harpreet_01,customer,Good morning. Please share the contract note for the INFY delivery from yesterday. There is a small problem reading the PDF.,Harpreet Singh,whatsapp,2026-09-22T03:35:00.000Z,none
+kuber_w1_harpreet_01,customer,"Whn you get a minute, the PDF is enough.",Harpreet Singh,whatsapp,2026-09-22T03:40:00.000Z,none
+kuber_w1_harpreet_01,agent,Sharing the PDF on this chat.,,whatsapp,2026-09-22T08:40:00.000Z,none
+kuber_w1_harpreet_01,customer,Received the file.,Harpreet Singh,whatsapp,2026-09-22T08:47:00.000Z,none
+kuber_w1_harpreet_02,customer,"Bhai again, no reply on the pledge query and I am unhappy.",Harpreet Singh,whatsapp,2026-09-25T07:40:00.000Z,retention
+kuber_w1_harpreet_02,agent,I have the pledge note open now.,,whatsapp,2026-09-25T07:45:00.000Z,retention
+kuber_w1_harpreet_02,customer,If this isn't fixed I will move my money. ₹6 lakh. This week. The wait is pathetic.,Harpreet Singh,whatsapp,2026-09-25T07:51:00.000Z,retention
+kuber_w1_lakshmi_01,customer,Hello. I already trade equity. Can you add a family account for my daughter?,Lakshmi Iyer,intercom,2026-09-23T04:50:00.000Z,upsell
+kuber_w1_lakshmi_01,agent,Yes. I will send the second-holder form.,,intercom,2026-09-23T04:55:00.000Z,upsell
+kuber_w1_lakshmi_01,customer,"Also do you offer loan against shares on my ₹15 lakh portfolio? This month. Map payouts to lakshmi.iyer@okaxis, IFSC ICIC0001111. Thanks.",Lakshmi Iyer,intercom,2026-09-23T05:01:00.000Z,upsell
+kuber_w1_lakshmi_02,customer,"Family account form galat hai, problem again. Bhai the second holder spelling is off.",Lakshmi Iyer,intercom,2026-09-24T10:35:00.000Z,none
+kuber_w1_lakshmi_02,agent,Please type the spelling in one line and I will correct the form.,,intercom,2026-09-24T10:40:00.000Z,none
+kuber_w1_lakshmi_02,customer,"It should be Iyer, not Iyar. Bahut basic miss.",Lakshmi Iyer,intercom,2026-09-24T10:46:00.000Z,none
+kuber_w1_lakshmi_03,customer,The family form is pathetic.,Lakshmi Iyer,intercom,2026-09-26T06:30:00.000Z,upsell
+kuber_w1_lakshmi_03,agent,The spelling is corrected on the draft.,,intercom,2026-09-26T06:35:00.000Z,upsell
+kuber_w1_lakshmi_03,customer,"Still, do you offer margin trading facility as well? ₹15 lakh. This month.",Lakshmi Iyer,intercom,2026-09-26T06:41:00.000Z,upsell
+kuber_w1_nikhil_01,customer,"Hi, I want to open a demat account this week. What are your brokerage charges? I can start with ₹2 lakh.",Nikhil Bansal,whatsapp,2026-09-21T05:30:00.000Z,lead
+kuber_w1_nikhil_01,agent,Sharing the fee card and the opening checklist.,,whatsapp,2026-09-21T05:35:00.000Z,lead
+kuber_w1_nikhil_01,customer,One issue: email nikhil.bansal@example.com and also desk-test@example.com. Call +91 98450 11013 or 9811100022.,Nikhil Bansal,whatsapp,2026-09-21T05:41:00.000Z,lead
+kuber_w1_nikhil_01,customer,PAN is QQQQQ1111B. date of birth: 02/11/1988. pincode: 560001. IFSC SBIN0002222. UCC: ZX100200. The spare code is KB123456.,Nikhil Bansal,whatsapp,2026-09-21T05:48:00.000Z,lead
+kuber_w1_nikhil_02,customer,"Bhai the link nahi aaya. Again, still want to open a demat.",Nikhil Bansal,whatsapp,2026-09-24T12:45:00.000Z,lead
+kuber_w1_nikhil_02,agent,I am resending the opening link to the mail you shared.,,whatsapp,2026-09-24T12:50:00.000Z,lead
+kuber_w1_nikhil_02,customer,Still waiting for the account opening link. PAN on the scan is ZZZZZ0001A.,Nikhil Bansal,whatsapp,2026-09-24T12:56:00.000Z,lead
+kuber_w1_pooja_01,customer,The MTF screen is blank. App not opening since morning. There is an issue on that page.,Pooja Reddy,in_app_chat,2026-09-22T04:10:00.000Z,none
+kuber_w1_pooja_01,agent,Please update the app and try the holdings tab first.,,in_app_chat,2026-09-22T04:15:00.000Z,none
+kuber_w1_pooja_01,customer,Thanks. I will update and write if it stays blank.,Pooja Reddy,in_app_chat,2026-09-22T04:21:00.000Z,none
+kuber_w1_pooja_02,customer,Phir se issue. MTF screen galat numbers dikha raha hai. Every time. Bhai.,Pooja Reddy,in_app_chat,2026-09-24T05:55:00.000Z,none
+kuber_w1_pooja_02,agent,Please share a screenshot of the numbers you see.,,in_app_chat,2026-09-24T06:00:00.000Z,none
+kuber_w1_pooja_02,customer,"Nahi, the rate cell is blank on two symbols.",Pooja Reddy,in_app_chat,2026-09-24T06:06:00.000Z,none
+kuber_w1_pooja_03,customer,"Brokerage bahut zyada hai and I am not happy, but I already trade equity.",Pooja Reddy,in_app_chat,2026-09-26T09:35:00.000Z,upsell
+kuber_w1_pooja_03,agent,"I can explain the delivery lines, and also the segment form.",,in_app_chat,2026-09-26T09:40:00.000Z,upsell
+kuber_w1_pooja_03,customer,Please enable F&O and margin trading facility. MTF ka rate kya hai. ₹4 lakh. Is mahine. UPI poojareddy@paytm.,Pooja Reddy,in_app_chat,2026-09-26T09:46:00.000Z,upsell
+kuber_w1_rahul_01,customer,"Hello. I placed a withdrawal of ₹75,000 on Sunday. Can you confirm it reached the bank?",Rahul Menon,whatsapp,2026-09-21T07:50:00.000Z,none
+kuber_w1_rahul_01,agent,I will check the bank file and write back.,,whatsapp,2026-09-21T07:55:00.000Z,none
+kuber_w1_rahul_01,customer,Thanks. No rush if the file is in the batch.,Rahul Menon,whatsapp,2026-09-21T08:01:00.000Z,none
+kuber_w1_rahul_02,customer,Withdrawal pending since Monday. Still waiting. No update. Amount not credited. Bhai koi update nahi.,Rahul Menon,whatsapp,2026-09-23T12:15:00.000Z,none
+kuber_w1_rahul_02,agent,I am chasing the bank file.,,whatsapp,2026-09-23T12:20:00.000Z,none
+kuber_w1_rahul_02,customer,Tried UPI rahulmenon@ybl and IFSC HDFC0001234. PAN ZZZZZ0001A. DOB: 14/08/1992.,Rahul Menon,whatsapp,2026-09-23T12:26:00.000Z,none
+kuber_w1_rahul_02,customer,"address: 22 Sample Marg, Banjara Hills, Hyderabad",Rahul Menon,whatsapp,2026-09-23T12:33:00.000Z,none
+kuber_w1_rahul_02,customer,pin code 500034. client code KU998877. Aadhaar 1111 2222 3333. Account 998877665544332.,Rahul Menon,whatsapp,2026-09-23T12:37:00.000Z,none
+kuber_w1_rahul_03,customer,Last time I ask. Escalate this now.,Rahul Menon,whatsapp,2026-09-26T13:35:00.000Z,retention
+kuber_w1_rahul_03,agent,I have escalated to the desk.,,whatsapp,2026-09-26T13:40:00.000Z,retention
+kuber_w1_rahul_03,customer,"If this isn't fixed I am closing my account and will transfer my holdings out. The ₹75,000 is still out. Today. This is useless.",Rahul Menon,whatsapp,2026-09-26T13:46:00.000Z,retention
+kuber_w1_hc_soft,customer,Hi. I have been a client for three years.,Asha Patel,intercom,2026-09-22T05:40:00.000Z,retention
+kuber_w1_hc_soft,agent,Good to hear from you.,,intercom,2026-09-22T05:45:00.000Z,retention
+kuber_w1_hc_soft,customer,Lately I am thinking of other options. Nothing firm yet.,Asha Patel,intercom,2026-09-22T05:51:00.000Z,retention
+kuber_w1_hc_soft,agent,I can ask your RM to call if you want.,,intercom,2026-09-22T05:58:00.000Z,retention
+kuber_w1_hc_soft,customer,Just putting it on record. No action today.,Asha Patel,intercom,2026-09-22T06:02:00.000Z,retention
+kuber_w1_hc_sarcasm,customer,"Wow, nine days for a payout, truly premium service.",Bhavna Nair,whatsapp,2026-09-24T04:20:00.000Z,retention
+kuber_w1_hc_sarcasm,agent,Sorry the credit is taking time.,,whatsapp,2026-09-24T04:25:00.000Z,retention
+kuber_w1_hc_sarcasm,customer,I am so delighted I could clap. Please keep this standard.,Bhavna Nair,whatsapp,2026-09-24T04:31:00.000Z,retention
+kuber_w1_hc_sarcasm,agent,I have shared this with the payouts desk.,,whatsapp,2026-09-24T04:38:00.000Z,retention
+kuber_w1_hc_sarcasm,customer,"It really helps me decide. Sure, I will definitely stay forever after this comedy.",Bhavna Nair,whatsapp,2026-09-24T04:42:00.000Z,retention
+kuber_w1_hc_buried,customer,Good morning. Please send yesterday's contract note for TCS.,Chirag Joshi,in_app_chat,2026-09-25T04:30:00.000Z,retention
+kuber_w1_hc_buried,agent,Sharing it here.,,in_app_chat,2026-09-25T04:35:00.000Z,retention
+kuber_w1_hc_buried,customer,The quantity shows 14 shares.,Chirag Joshi,in_app_chat,2026-09-25T04:41:00.000Z,retention
+kuber_w1_hc_buried,agent,That matches the fill we see.,,in_app_chat,2026-09-25T04:48:00.000Z,retention
+kuber_w1_hc_buried,customer,I also need the trade time for that fill.,Chirag Joshi,in_app_chat,2026-09-25T04:52:00.000Z,retention
+kuber_w1_hc_buried,agent,It was 10:16 exchange time.,,in_app_chat,2026-09-25T04:57:00.000Z,retention
+kuber_w1_hc_buried,customer,Pls also confirm the exchange order number.,Chirag Joshi,in_app_chat,2026-09-25T05:03:00.000Z,retention
+kuber_w1_hc_buried,agent,I am pulling the order log.,,in_app_chat,2026-09-25T05:10:00.000Z,retention
+kuber_w1_hc_buried,customer,"Whn you have it, a screenshot is enough.",Chirag Joshi,in_app_chat,2026-09-25T05:14:00.000Z,retention
+kuber_w1_hc_buried,agent,I will place the screenshot on this thread.,,in_app_chat,2026-09-25T05:19:00.000Z,retention
+kuber_w1_hc_buried,customer,The quantity matches. Forget the note.,Chirag Joshi,in_app_chat,2026-09-25T05:25:00.000Z,retention
+kuber_w1_hc_buried,customer,If this isn't fixed I will close my account.,Chirag Joshi,in_app_chat,2026-09-25T05:32:00.000Z,retention
+kuber_w1_hc_buried,agent,I hear you. I will ask a senior to call.,,in_app_chat,2026-09-25T05:36:00.000Z,retention
+kuber_w1_hc_buried,customer,My ₹8 lakh portfolio should not sit in a queue. Today.,Chirag Joshi,in_app_chat,2026-09-25T05:41:00.000Z,retention
+kuber_w1_hc_lead_mix,customer,Your desk has ignored me since Monday and this is unacceptable.,Devika Kapoor,intercom,2026-09-23T08:55:00.000Z,lead
+kuber_w1_hc_lead_mix,agent,I am sorry the wait was long.,,intercom,2026-09-23T09:00:00.000Z,lead
+kuber_w1_hc_lead_mix,customer,I still want to open a demat account for my father.,Devika Kapoor,intercom,2026-09-23T09:06:00.000Z,lead
+kuber_w1_hc_lead_mix,agent,I can start that file.,,intercom,2026-09-23T09:13:00.000Z,lead
+kuber_w1_hc_lead_mix,customer,What are your brokerage charges? About ₹2 lakh. By Friday.,Devika Kapoor,intercom,2026-09-23T09:17:00.000Z,lead
+kuber_w1_ret_silent,customer,Hello.,Eshan Shetty,whatsapp,2026-09-27T03:45:00.000Z,retention
+kuber_w1_ret_silent,customer,I want to close my account.,Eshan Shetty,whatsapp,2026-09-27T03:50:00.000Z,retention
+kuber_w1_ret_silent,customer,Please transfer my holdings out. This week.,Eshan Shetty,whatsapp,2026-09-27T03:56:00.000Z,retention
+kuber_w1_ret_switch,customer,Hello. I am shifting to another broker.,Farhan Gill,intercom,2026-09-22T11:10:00.000Z,retention
+kuber_w1_ret_switch,agent,May I ask what pushed the decision?,,intercom,2026-09-22T11:15:00.000Z,retention
+kuber_w1_ret_switch,customer,Your competitor is cheaper. Zerodha will hold the shares. ₹12 lakh. By Friday.,Farhan Gill,intercom,2026-09-22T11:21:00.000Z,retention
+kuber_w1_ret_amc,customer,The annual bill was a shock.,Gauri Bose,in_app_chat,2026-09-24T08:05:00.000Z,retention
+kuber_w1_ret_amc,agent,I can send the DP line items.,,in_app_chat,2026-09-24T08:10:00.000Z,retention
+kuber_w1_ret_amc,customer,Brokerage is too high. I will close my account if the bill is not reversed. This month.,Gauri Bose,in_app_chat,2026-09-24T08:16:00.000Z,retention
+kuber_w1_ret_payout,customer,Still waiting for payout of ₹1.2 lakh.,Harsh Saxena,whatsapp,2026-09-25T10:25:00.000Z,retention
+kuber_w1_ret_payout,agent,I am checking the bank batch.,,whatsapp,2026-09-25T10:30:00.000Z,retention
+kuber_w1_ret_payout,customer,Funds not credited. Escalate this now. By Friday.,Harsh Saxena,whatsapp,2026-09-25T10:36:00.000Z,retention
+kuber_w1_ret_closure,customer,Please start the account closure process.,Indira Malhotra,intercom,2026-09-26T05:00:00.000Z,retention
+kuber_w1_ret_closure,agent,I will share the closure checklist.,,intercom,2026-09-26T05:05:00.000Z,retention
+kuber_w1_ret_closure,customer,I want to transfer my holdings out. Today.,Indira Malhotra,intercom,2026-09-26T05:11:00.000Z,retention
+kuber_w1_lead_demat,customer,Good morning. I want to open a demat account this week.,Jatin Pawar,whatsapp,2026-09-21T09:40:00.000Z,lead
+kuber_w1_lead_demat,agent,Happy to help. Sharing the document list.,,whatsapp,2026-09-21T09:45:00.000Z,lead
+kuber_w1_lead_demat,customer,What are your brokerage charges if I begin with ₹3.5 lakh?,Jatin Pawar,whatsapp,2026-09-21T09:51:00.000Z,lead
+kuber_w1_lead_demat,agent,Delivery is on the standard card. I can mail it.,,whatsapp,2026-09-21T09:58:00.000Z,lead
+kuber_w1_lead_sip,customer,Hello. I am a first time investor and want to start SIP.,Kavya Khatri,in_app_chat,2026-09-23T03:55:00.000Z,lead
+kuber_w1_lead_sip,agent,We can set that up after the account is open.,,in_app_chat,2026-09-23T04:00:00.000Z,lead
+kuber_w1_lead_sip,customer,How do I open a demat? This month.,Kavya Khatri,in_app_chat,2026-09-23T04:06:00.000Z,lead
+kuber_w1_lead_ipo,customer,Looking to invest in the sample IPO.,Lalit Dutta,intercom,2026-09-25T06:20:00.000Z,lead
+kuber_w1_lead_ipo,agent,I can explain the bid window.,,intercom,2026-09-25T06:25:00.000Z,lead
+kuber_w1_lead_ipo,customer,"What are your charges, and can I open a trading account by Friday? ₹6 lakh.",Lalit Dutta,intercom,2026-09-25T06:31:00.000Z,lead
+kuber_w1_lead_pricing,customer,Walk us through pricing for a new account.,Mohan Hegde,whatsapp,2026-09-27T06:35:00.000Z,lead
+kuber_w1_lead_pricing,agent,Sending the plan card.,,whatsapp,2026-09-27T06:40:00.000Z,lead
+kuber_w1_lead_pricing,customer,Interested in your brokerage plan. This month.,Mohan Hegde,whatsapp,2026-09-27T06:46:00.000Z,lead
+kuber_w1_upsell_fno,customer,I already trade equity. Please enable F&O.,Neelam Bhatt,intercom,2026-09-22T08:45:00.000Z,upsell
+kuber_w1_upsell_fno,agent,I will check the income-proof flag.,,intercom,2026-09-22T08:50:00.000Z,upsell
+kuber_w1_upsell_fno,customer,Also activate margin trading facility. ₹8 lakh portfolio. This week.,Neelam Bhatt,intercom,2026-09-22T08:56:00.000Z,upsell
+kuber_w1_upsell_las,customer,Do you offer loan against shares?,Omkar Chawla,whatsapp,2026-09-24T05:15:00.000Z,upsell
+kuber_w1_upsell_las,agent,"Yes, against approved holdings.",,whatsapp,2026-09-24T05:20:00.000Z,upsell
+kuber_w1_upsell_las,customer,I want to pledge about ₹15 lakh of holdings. This month.,Omkar Chawla,whatsapp,2026-09-24T05:26:00.000Z,upsell
+kuber_w1_upsell_family,customer,Please add a family account for my spouse.,Pranav Grover,in_app_chat,2026-09-26T04:05:00.000Z,upsell
+kuber_w1_upsell_family,agent,Sharing the joint-holder steps.,,in_app_chat,2026-09-26T04:10:00.000Z,upsell
+kuber_w1_upsell_family,customer,We already trade with you. ₹40 lakh. By Friday.,Pranav Grover,in_app_chat,2026-09-26T04:16:00.000Z,upsell
+kuber_w1_upsell_advisory,customer,Do you offer a premium advisory plan alongside my equity account?,Ritika Talwar,intercom,2026-09-27T10:50:00.000Z,upsell
+kuber_w1_upsell_advisory,agent,I can book a portfolio conversation with the desk.,,intercom,2026-09-27T10:55:00.000Z,upsell
+kuber_w1_upsell_advisory,customer,Portfolio review for ₹1.1 crore. This month.,Ritika Talwar,intercom,2026-09-27T11:01:00.000Z,upsell
+kuber_w1_ret_he_01,customer,Hello. Zerodha pe shift kar raha hoon. I am shifting to another broker. Brokerage bahut zyada hai. ₹8 lakh. Is mahine.,Aditi Sethi,whatsapp,2026-09-22T03:30:00.000Z,retention
+kuber_w1_ret_he_01,agent,I can note the transfer request.,,whatsapp,2026-09-22T03:35:00.000Z,retention
+kuber_w1_ret_he_01,customer,Bhai please start it.,Aditi Sethi,whatsapp,2026-09-22T03:41:00.000Z,retention
+kuber_w1_ret_he_02,customer,"Hello. Paisa nikalna hai, 50k withdraw karna hai. If this isn't fixed I will close my account. Aaj. ₹50,000.",Aditi Wadhwa,intercom,2026-09-23T04:37:00.000Z,retention
+kuber_w1_ret_he_02,agent,I am checking the withdrawal row.,,intercom,2026-09-23T04:42:00.000Z,retention
+kuber_w1_ret_he_02,customer,Nahi ruka jaa raha bhai.,Aditi Wadhwa,intercom,2026-09-23T04:48:00.000Z,retention
+kuber_w1_ret_he_03,customer,Hello. Mera payout nahi aaya. Still waiting for payout. Bahut slow. This week.,Aditi Parekh,in_app_chat,2026-09-24T05:44:00.000Z,retention
+kuber_w1_ret_he_03,agent,I have the batch number.,,in_app_chat,2026-09-24T05:49:00.000Z,retention
+kuber_w1_ret_he_03,customer,Bhai kitna time aur.,Aditi Parekh,in_app_chat,2026-09-24T05:55:00.000Z,retention
+kuber_w1_ret_he_04,customer,Hello. Close my demat account please. Paisa nahi chahiye yahan. ₹3 lakh. By Friday.,Aditi Menon,whatsapp,2026-09-25T06:51:00.000Z,retention
+kuber_w1_ret_he_04,agent,I will share the closure steps.,,whatsapp,2026-09-25T06:56:00.000Z,retention
+kuber_w1_ret_he_04,customer,"Haan bhai, aaj hi.",Aditi Menon,whatsapp,2026-09-25T07:02:00.000Z,retention
+kuber_w1_ret_he_05,customer,Hello. Not happy bhai. Move my money. Kya fayda is desk ka. This month.,Aditi Reddy,intercom,2026-09-26T07:58:00.000Z,retention
+kuber_w1_ret_he_05,agent,I can ask a senior to call.,,intercom,2026-09-26T08:03:00.000Z,retention
+kuber_w1_ret_he_05,customer,Please kar do.,Aditi Reddy,intercom,2026-09-26T08:09:00.000Z,retention
+kuber_w1_ret_he_06,customer,"Hello. Frustrated hoon. Last time I ask. Escalate this now, nahi to I will transfer my holdings out.",Aditi Bansal,in_app_chat,2026-09-27T09:05:00.000Z,retention
+kuber_w1_ret_he_06,agent,Escalating to the desk.,,in_app_chat,2026-09-27T09:10:00.000Z,retention
+kuber_w1_ret_he_06,customer,Bhai aaj last din hai.,Aditi Bansal,in_app_chat,2026-09-27T09:16:00.000Z,retention
+kuber_w1_ret_he_07,customer,Hello. Yeh kya line hai. Why so many hidden charges. Close my trading account. Is hafte.,Aditi Iyer,whatsapp,2026-09-21T10:12:00.000Z,retention
+kuber_w1_ret_he_07,agent,I can read the charge lines with you.,,whatsapp,2026-09-21T10:17:00.000Z,retention
+kuber_w1_ret_he_07,customer,"Nahi chahiye explanation, closure chahiye.",Aditi Iyer,whatsapp,2026-09-21T10:23:00.000Z,retention
+kuber_w1_ret_he_08,customer,Hello. Bhai I am thinking of leaving. Service bakwas. Withdraw everything. ₹1.2 lakh. Aaj.,Aditi Singh,intercom,2026-09-22T11:19:00.000Z,retention
+kuber_w1_ret_he_08,agent,I hear you. A senior will call.,,intercom,2026-09-22T11:24:00.000Z,retention
+kuber_w1_ret_he_08,customer,"Haan, aaj.",Aditi Singh,intercom,2026-09-22T11:30:00.000Z,retention
+kuber_w1_lead_he_01,customer,"Bhai naya account chahiye. I want to open a demat account. Brokerage kya hai, what are your brokerage? ₹2 lakh. Is hafte.",Aditi Qureshi,in_app_chat,2026-09-21T07:30:00.000Z,lead
+kuber_w1_lead_he_01,agent,Sharing the fee card.,,in_app_chat,2026-09-21T07:35:00.000Z,lead
+kuber_w1_lead_he_01,customer,"Haan bhai, please send it.",Aditi Qureshi,in_app_chat,2026-09-21T07:41:00.000Z,lead
+kuber_w1_lead_he_02,customer,Mera pehla account. First time investor. Want to start SIP. This month. Bhai help.,Aditi Deshmukh,whatsapp,2026-09-22T08:37:00.000Z,lead
+kuber_w1_lead_he_02,agent,We can open that after KYC documents.,,whatsapp,2026-09-22T08:42:00.000Z,lead
+kuber_w1_lead_he_02,customer,"Haan bhai, please send it.",Aditi Deshmukh,whatsapp,2026-09-22T08:48:00.000Z,lead
+kuber_w1_lead_he_03,customer,Demat kholna hai. Open a trading account. Account opening charges batao. Aaj.,Aditi Kulkarni,intercom,2026-09-23T09:44:00.000Z,lead
+kuber_w1_lead_he_03,agent,Sending the charge card.,,intercom,2026-09-23T09:49:00.000Z,lead
+kuber_w1_lead_he_03,customer,"Haan bhai, please send it.",Aditi Kulkarni,intercom,2026-09-23T09:55:00.000Z,lead
+kuber_w1_lead_he_04,customer,Interested in your pricing bhai. Looking for a broker. Kya documents chahiye. ₹3 lakh. By Friday.,Aditi Joshi,in_app_chat,2026-09-24T10:51:00.000Z,lead
+kuber_w1_lead_he_04,agent,"PAN, address proof, and a cancelled cheque.",,in_app_chat,2026-09-24T10:56:00.000Z,lead
+kuber_w1_lead_he_04,customer,"Haan bhai, please send it.",Aditi Joshi,in_app_chat,2026-09-24T11:02:00.000Z,lead
+kuber_w1_upsell_he_01,customer,Already trade equity bhai. MTF ka rate kya hai. Please enable margin trading facility. ₹5 lakh. Is mahine.,Aditi Kapoor,whatsapp,2026-09-23T09:30:00.000Z,upsell
+kuber_w1_upsell_he_01,agent,I will share the MTF card.,,whatsapp,2026-09-23T09:35:00.000Z,upsell
+kuber_w1_upsell_he_01,customer,"Theek hai bhai, send the form.",Aditi Kapoor,whatsapp,2026-09-23T09:41:00.000Z,upsell
+kuber_w1_upsell_he_02,customer,Family account chahiye. Add a family account for my wife. Bahut easy hona chahiye.,Aditi Shetty,in_app_chat,2026-09-24T09:37:00.000Z,upsell
+kuber_w1_upsell_he_02,agent,Sending the second-holder form.,,in_app_chat,2026-09-24T09:42:00.000Z,upsell
+kuber_w1_upsell_he_02,customer,"Theek hai bhai, send the form.",Aditi Shetty,in_app_chat,2026-09-24T09:48:00.000Z,upsell
+kuber_w1_upsell_he_03,customer,Loan against shares chahiye bhai. Do you offer loan against shares on ₹20 lakh. This week.,Aditi Gill,intercom,2026-09-25T09:44:00.000Z,upsell
+kuber_w1_upsell_he_03,agent,"Yes, I can check eligible holdings.",,intercom,2026-09-25T09:49:00.000Z,upsell
+kuber_w1_upsell_he_03,customer,"Theek hai bhai, send the form.",Aditi Gill,intercom,2026-09-25T09:55:00.000Z,upsell
+kuber_w1_upsell_he_04,customer,F&O activate karna hai. I already trade with you. Activate F&O please. Aaj.,Aditi Bose,whatsapp,2026-09-26T09:51:00.000Z,upsell
+kuber_w1_upsell_he_04,agent,I will check the segment flag.,,whatsapp,2026-09-26T09:56:00.000Z,upsell
+kuber_w1_upsell_he_04,customer,"Theek hai bhai, send the form.",Aditi Bose,whatsapp,2026-09-26T10:02:00.000Z,upsell
+kuber_w1_ret_hi_01,customer,नमस्ते। मैं खाता बंद करने की सोच रहा हूँ।,Aditi Saxena,whatsapp,2026-09-21T04:30:00.000Z,retention
+kuber_w1_ret_hi_01,agent,मैं कारण नोट कर लेता हूँ।,,whatsapp,2026-09-21T04:35:00.000Z,retention
+kuber_w1_ret_hi_01,customer,ब्रोकरेज बहुत ज्यादा लग रहा है। पोर्टफोलियो यहीं पड़ा है।,Aditi Saxena,whatsapp,2026-09-21T04:41:00.000Z,retention
+kuber_w1_ret_hi_02,customer,पैसा निकालना है। चार दिन से पेआउट अटका है।,Aditi Malhotra,intercom,2026-09-22T05:37:00.000Z,retention
+kuber_w1_ret_hi_02,agent,मैं बैंक फाइल देखता हूँ।,,intercom,2026-09-22T05:42:00.000Z,retention
+kuber_w1_ret_hi_02,customer,अब दूसरे ब्रोकर पर जाना बेहतर है।,Aditi Malhotra,intercom,2026-09-22T05:48:00.000Z,retention
+kuber_w1_ret_hi_03,customer,मेरा ₹8 lakh का पोर्टफोलियो यहीं पड़ा है।,Aditi Pawar,in_app_chat,2026-09-23T06:44:00.000Z,retention
+kuber_w1_ret_hi_03,agent,मैं आपकी बात दर्ज कर रहा हूँ।,,in_app_chat,2026-09-23T06:49:00.000Z,retention
+kuber_w1_ret_hi_03,customer,सेवा ठीक नहीं है। मैं शिफ्ट करने वाला हूँ।,Aditi Pawar,in_app_chat,2026-09-23T06:55:00.000Z,retention
+kuber_w1_ret_hi_04,customer,आज तक पैसा नहीं आया। मैं नाराज हूँ।,Aditi Khatri,whatsapp,2026-09-24T07:51:00.000Z,retention
+kuber_w1_ret_hi_04,agent,मैं डेस्क को लिखता हूँ।,,whatsapp,2026-09-24T07:56:00.000Z,retention
+kuber_w1_ret_hi_04,customer,खाता बंद कर दीजिए।,Aditi Khatri,whatsapp,2026-09-24T08:02:00.000Z,retention
+kuber_w1_lead_hi_01,customer,मैं नया डीमैट खाता खोलना चाहता हूँ।,Aditi Dutta,intercom,2026-09-25T08:58:00.000Z,lead
+kuber_w1_lead_hi_01,agent,दस्तावेज सूची भेज रहा हूँ।,,intercom,2026-09-25T09:03:00.000Z,lead
+kuber_w1_lead_hi_01,customer,I want to open a demat account. ₹2 lakh. इस हफ्ते।,Aditi Dutta,intercom,2026-09-25T09:09:00.000Z,lead
+kuber_w1_lead_hi_02,customer,पहले कभी निवेश नहीं किया।,Aditi Hegde,in_app_chat,2026-09-26T10:05:00.000Z,lead
+kuber_w1_lead_hi_02,agent,हम खोलने में मदद करेंगे।,,in_app_chat,2026-09-26T10:10:00.000Z,lead
+kuber_w1_lead_hi_02,customer,Want to start SIP this month.,Aditi Hegde,in_app_chat,2026-09-26T10:16:00.000Z,lead
+kuber_w1_lead_hi_03,customer,डीमैट खाता कैसे खुलेगा।,Aditi Bhatt,whatsapp,2026-09-27T05:12:00.000Z,lead
+kuber_w1_lead_hi_03,agent,मैं प्रक्रिया लिखता हूँ।,,whatsapp,2026-09-27T05:17:00.000Z,lead
+kuber_w1_lead_hi_03,customer,मुझे ब्रोकरेज प्लान समझाइए।,Aditi Bhatt,whatsapp,2026-09-27T05:23:00.000Z,lead
+kuber_w1_lead_hi_04,customer,आईपीओ में पैसा लगाना है।,Aditi Chawla,intercom,2026-09-21T06:19:00.000Z,lead
+kuber_w1_lead_hi_04,agent,बोली की खिड़की बता सकता हूँ।,,intercom,2026-09-21T06:24:00.000Z,lead
+kuber_w1_lead_hi_04,customer,खाता खोलने की प्रक्रिया बताइए।,Aditi Chawla,intercom,2026-09-21T06:30:00.000Z,lead
+kuber_w1_upsell_hi_01,customer,मैं पहले से इक्विटी ट्रेड करता हूँ।,Aditi Grover,in_app_chat,2026-09-22T06:36:00.000Z,upsell
+kuber_w1_upsell_hi_01,agent,सेगमेंट फॉर्म भेजता हूँ।,,in_app_chat,2026-09-22T06:41:00.000Z,upsell
+kuber_w1_upsell_hi_01,customer,Please enable F&O. एमटीएफ का रेट क्या है।,Aditi Grover,in_app_chat,2026-09-22T06:47:00.000Z,upsell
+kuber_w1_upsell_hi_02,customer,शेयर पर लोन चाहिए।,Aditi Talwar,whatsapp,2026-09-23T07:43:00.000Z,upsell
+kuber_w1_upsell_hi_02,agent,पात्र होल्डिंग देखता हूँ।,,whatsapp,2026-09-23T07:48:00.000Z,upsell
+kuber_w1_upsell_hi_02,customer,Do you offer loan against shares. ₹15 lakh.,Aditi Talwar,whatsapp,2026-09-23T07:54:00.000Z,upsell
+kuber_w1_upsell_hi_03,customer,मार्जिन ट्रेडिंग शुरू करनी है।,Aditi Nair,intercom,2026-09-24T08:50:00.000Z,upsell
+kuber_w1_upsell_hi_03,agent,मैं फॉर्म भेजता हूँ।,,intercom,2026-09-24T08:55:00.000Z,upsell
+kuber_w1_upsell_hi_03,customer,परिवार का खाता भी जोड़िए।,Aditi Nair,intercom,2026-09-24T09:01:00.000Z,upsell
+kuber_w1_upsell_hi_04,customer,एफ एंड ओ एक्टिवेशन चाहिए।,Aditi Patel,in_app_chat,2026-09-25T09:57:00.000Z,upsell
+kuber_w1_upsell_hi_04,agent,फ्लैग चेक करता हूँ।,,in_app_chat,2026-09-25T10:02:00.000Z,upsell
+kuber_w1_upsell_hi_04,customer,मेरे पोर्टफोलियो पर चालू करिए।,Aditi Patel,in_app_chat,2026-09-25T10:08:00.000Z,upsell
+kuber_w1_ops_otp_01,customer,Hello. OTP not received on the registered mobile since morning. Call 9700002211 or +91-9811100023.,Aditi Vora,in_app_chat,2026-09-21T03:42:00.000Z,none
+kuber_w1_ops_otp_01,agent,I have triggered a fresh OTP.,,in_app_chat,2026-09-21T03:47:00.000Z,none
+kuber_w1_ops_otp_01,customer,Pls confirm once it shows as sent.,Aditi Vora,in_app_chat,2026-09-21T03:53:00.000Z,none
+kuber_w1_ops_otp_02,customer,OTP not received after three tries on the login screen.,Aditi Naik,intercom,2026-09-23T04:42:00.000Z,none
+kuber_w1_ops_otp_02,agent,Please check the network and request it once more.,,intercom,2026-09-23T04:47:00.000Z,none
+kuber_w1_ops_otp_02,customer,I will try from home Wi-Fi.,Aditi Naik,intercom,2026-09-23T04:53:00.000Z,none
+kuber_w1_ops_otp_03,customer,"Good morning. OTP not received for the withdrawal screen, so I cannot see the status.",Bharat Sethi,whatsapp,2026-09-25T05:42:00.000Z,none
+kuber_w1_ops_otp_03,agent,A fresh OTP is on the way.,,whatsapp,2026-09-25T05:47:00.000Z,none
+kuber_w1_ops_otp_03,customer,Whn it arrives I will enter it.,Bharat Sethi,whatsapp,2026-09-25T05:53:00.000Z,none
+kuber_w1_ops_otp_04,customer,Bhai OTP not received. Nahi aa raha since morning.,Bharat Wadhwa,whatsapp,2026-09-22T06:42:00.000Z,none
+kuber_w1_ops_otp_04,agent,I have sent a fresh OTP.,,whatsapp,2026-09-22T06:47:00.000Z,none
+kuber_w1_ops_otp_04,customer,Bahut der ho gayi. Main wait kar raha hoon.,Bharat Wadhwa,whatsapp,2026-09-22T06:53:00.000Z,none
+kuber_w1_ops_password_01,customer,Hi. Please reset my password. I forgot password after the update.,Bharat Parekh,whatsapp,2026-09-22T03:42:00.000Z,none
+kuber_w1_ops_password_01,agent,The reset mail is queued.,,whatsapp,2026-09-22T03:47:00.000Z,none
+kuber_w1_ops_password_01,customer,I will use the link as soon as it arrives.,Bharat Parekh,whatsapp,2026-09-22T03:53:00.000Z,none
+kuber_w1_ops_password_02,customer,Reset my password please. The old one no longer works.,Bharat Menon,in_app_chat,2026-09-24T09:42:00.000Z,none
+kuber_w1_ops_password_02,agent,Sending the reset steps.,,in_app_chat,2026-09-24T09:47:00.000Z,none
+kuber_w1_ops_password_02,customer,"Thanks, I will set a new one tonight.",Bharat Menon,in_app_chat,2026-09-24T09:53:00.000Z,none
+kuber_w1_ops_password_03,customer,Bhai reset my password. Purana password nahi chal raha.,Bharat Reddy,intercom,2026-09-26T03:42:00.000Z,none
+kuber_w1_ops_password_03,agent,Reset link is on the way.,,intercom,2026-09-26T03:47:00.000Z,none
+kuber_w1_ops_password_03,customer,"Theek hai, main dekhta hoon.",Bharat Reddy,intercom,2026-09-26T03:53:00.000Z,none
+kuber_w1_ops_password_04,customer,पासवर्ड भूल गया हूँ। Please reset my password.,Bharat Bansal,in_app_chat,2026-09-27T04:42:00.000Z,none
+kuber_w1_ops_password_04,agent,Reset link bhej raha hoon.,,in_app_chat,2026-09-27T04:47:00.000Z,none
+kuber_w1_ops_password_04,customer,लिंक आते ही बदल दूँगा।,Bharat Bansal,in_app_chat,2026-09-27T04:53:00.000Z,none
+kuber_w1_ops_app_01,customer,Good morning. App keeps crashing on the holdings tab. It started yesterday.,Bharat Iyer,in_app_chat,2026-09-21T10:42:00.000Z,none
+kuber_w1_ops_app_01,agent,Please update and reopen.,,in_app_chat,2026-09-21T10:47:00.000Z,none
+kuber_w1_ops_app_01,customer,I will update tommorow morning if the store is slow.,Bharat Iyer,in_app_chat,2026-09-21T10:53:00.000Z,none
+kuber_w1_ops_app_02,customer,App keeps crashing when I open the order book.,Bharat Singh,intercom,2026-09-23T11:42:00.000Z,none
+kuber_w1_ops_app_02,agent,Please share the app version from settings.,,intercom,2026-09-23T11:47:00.000Z,none
+kuber_w1_ops_app_02,customer,Version is on the splash screen. I will type it next.,Bharat Singh,intercom,2026-09-23T11:53:00.000Z,none
+kuber_w1_ops_app_03,customer,App keeps crashing on the reports tab since the last install.,Bharat Qureshi,intercom,2026-09-26T12:42:00.000Z,none
+kuber_w1_ops_app_03,agent,We have that build in the log.,,intercom,2026-09-26T12:47:00.000Z,none
+kuber_w1_ops_app_03,customer,"Ok, I will wait for the next install.",Bharat Qureshi,intercom,2026-09-26T12:53:00.000Z,none
+kuber_w1_ops_app_04,customer,Bhai app keeps crashing. Holdings khulte hi band ho jata hai.,Bharat Deshmukh,in_app_chat,2026-09-24T10:42:00.000Z,none
+kuber_w1_ops_app_04,agent,Please update the build.,,in_app_chat,2026-09-24T10:47:00.000Z,none
+kuber_w1_ops_app_04,customer,"Nahi ho raha update, storage full hai.",Bharat Deshmukh,in_app_chat,2026-09-24T10:53:00.000Z,none
+kuber_w1_ops_kyc_01,customer,Hello. Unable to complete KYC. Video KYC not working.,Bharat Kulkarni,whatsapp,2026-09-22T07:42:00.000Z,none
+kuber_w1_ops_kyc_01,agent,Please retry on Wi-Fi and share a screenshot.,,whatsapp,2026-09-22T07:47:00.000Z,none
+kuber_w1_ops_kyc_01,customer,I tried on Wi-Fi. The status page stays on pending.,Bharat Kulkarni,whatsapp,2026-09-22T07:53:00.000Z,none
+kuber_w1_ops_kyc_02,customer,Video KYC not working on the laptop camera.,Bharat Joshi,whatsapp,2026-09-25T08:42:00.000Z,none
+kuber_w1_ops_kyc_02,agent,A phone camera usually clears that step.,,whatsapp,2026-09-25T08:47:00.000Z,none
+kuber_w1_ops_kyc_02,customer,I will try the phone camera tonight.,Bharat Joshi,whatsapp,2026-09-25T08:53:00.000Z,none
+kuber_w1_ops_kyc_03,customer,Bhai video KYC not working. Nahi ho raha from the phone.,Bharat Kapoor,in_app_chat,2026-09-27T07:42:00.000Z,none
+kuber_w1_ops_kyc_03,agent,Please try better light and retry.,,in_app_chat,2026-09-27T07:47:00.000Z,none
+kuber_w1_ops_kyc_03,customer,"Theek hai, shaam ko karta hoon.",Bharat Kapoor,in_app_chat,2026-09-27T07:53:00.000Z,none
+kuber_w1_ops_kyc_04,customer,वीडियो केवाईसी नहीं हो रही। Video KYC not working.,Bharat Shetty,intercom,2026-09-23T07:42:00.000Z,none
+kuber_w1_ops_kyc_04,agent,फोन कैमरा से एक बार और कोशिश कीजिए।,,intercom,2026-09-23T07:47:00.000Z,none
+kuber_w1_ops_kyc_04,customer,स्थिति अभी भी लंबित है।,Bharat Shetty,intercom,2026-09-23T07:53:00.000Z,none
+kuber_w1_ops_contract_01,customer,Good morning. Please send the contract note for the TCS delivery yesterday. My client code is KB123456.,Bharat Gill,in_app_chat,2026-09-21T12:42:00.000Z,none
+kuber_w1_ops_contract_01,agent,I will attach the PDF on this chat.,,in_app_chat,2026-09-21T12:47:00.000Z,none
+kuber_w1_ops_contract_01,customer,Pls also include the INFY fill from the same day.,Bharat Gill,in_app_chat,2026-09-21T12:53:00.000Z,none
+kuber_w1_ops_contract_02,customer,Please send the contract note for the RELIANCE delivery on Monday.,Bharat Bose,in_app_chat,2026-09-24T12:42:00.000Z,none
+kuber_w1_ops_contract_02,agent,Attaching it now.,,in_app_chat,2026-09-24T12:47:00.000Z,none
+kuber_w1_ops_contract_02,customer,"Got it, that is the file I needed.",Bharat Bose,in_app_chat,2026-09-24T12:53:00.000Z,none
+kuber_w1_ops_contract_03,customer,Bhai contract note bhej do for yesterday ITC trades. Nahi dikh raha.,Bharat Saxena,whatsapp,2026-09-25T12:42:00.000Z,none
+kuber_w1_ops_contract_03,agent,PDF attach kar raha hoon.,,whatsapp,2026-09-25T12:47:00.000Z,none
+kuber_w1_ops_contract_03,customer,"Bahut accha, yehi chahiye tha.",Bharat Saxena,whatsapp,2026-09-25T12:53:00.000Z,none
+kuber_w1_ops_contract_04,customer,कल का कॉन्ट्रैक्ट नोट चाहिए। Please send the contract note for yesterday.,Bharat Malhotra,intercom,2026-09-26T12:42:00.000Z,none
+kuber_w1_ops_contract_04,agent,PDF इसी चैट पर लगा रहा हूँ।,,intercom,2026-09-26T12:47:00.000Z,none
+kuber_w1_ops_contract_04,customer,"मिल गया, धन्यवाद।",Bharat Malhotra,intercom,2026-09-26T12:53:00.000Z,none
+kuber_w1_none_en_01,customer,Hello. Please check allotment status for my sample IPO bid.,Bharat Pawar,whatsapp,2026-09-21T03:30:00.000Z,none
+kuber_w1_none_en_01,agent,The bid is still in the book. No allotment file yet.,,whatsapp,2026-09-21T03:35:00.000Z,none
+kuber_w1_none_en_01,customer,"Ok, please update me when the file arrives.",Bharat Pawar,whatsapp,2026-09-21T03:41:00.000Z,none
+kuber_w1_none_en_02,customer,When does my SIP get debited in September?,Bharat Khatri,intercom,2026-09-22T04:37:00.000Z,none
+kuber_w1_none_en_02,agent,The debit date on the mandate is the 7th.,,intercom,2026-09-22T04:42:00.000Z,none
+kuber_w1_none_en_02,customer,"Thanks, just confirming the date.",Bharat Khatri,intercom,2026-09-22T04:48:00.000Z,none
+kuber_w1_none_en_03,customer,Why was AMC fees deducted on the ledger this quarter?,Bharat Dutta,in_app_chat,2026-09-23T05:44:00.000Z,none
+kuber_w1_none_en_03,agent,I will share the breakup from the DP.,,in_app_chat,2026-09-23T05:49:00.000Z,none
+kuber_w1_none_en_03,customer,Please send it for my CA. No other change.,Bharat Dutta,in_app_chat,2026-09-23T05:55:00.000Z,none
+kuber_w1_none_en_04,customer,The refund already processed note is on the ledger. I need the reference number.,Bharat Hegde,whatsapp,2026-09-24T06:51:00.000Z,none
+kuber_w1_none_en_04,agent,The reference is on the bank line from Tuesday.,,whatsapp,2026-09-24T06:56:00.000Z,none
+kuber_w1_none_en_04,customer,"Thanks, that is all I needed.",Bharat Hegde,whatsapp,2026-09-24T07:02:00.000Z,none
+kuber_w1_none_en_05,customer,Please cancel my order in ITC. It was a misclick.,Bharat Bhatt,intercom,2026-09-25T07:58:00.000Z,none
+kuber_w1_none_en_05,agent,The order is withdrawn from the book.,,intercom,2026-09-25T08:03:00.000Z,none
+kuber_w1_none_en_05,customer,Thanks for the quick look.,Bharat Bhatt,intercom,2026-09-25T08:09:00.000Z,none
+kuber_w1_none_en_06,customer,I am unable to download the statement for August.,Bharat Chawla,in_app_chat,2026-09-26T09:05:00.000Z,none
+kuber_w1_none_en_06,agent,Try the reports tab after a refresh.,,in_app_chat,2026-09-26T09:10:00.000Z,none
+kuber_w1_none_en_06,customer,I will try that path.,Bharat Chawla,in_app_chat,2026-09-26T09:16:00.000Z,none
+kuber_w1_none_en_07,customer,Please check transaction status of the dividend credit from Tuesday.,Bharat Grover,whatsapp,2026-09-27T10:12:00.000Z,none
+kuber_w1_none_en_07,agent,It is in the clearing batch.,,whatsapp,2026-09-27T10:17:00.000Z,none
+kuber_w1_none_en_07,customer,"Ok, I will look tommorow.",Bharat Grover,whatsapp,2026-09-27T10:23:00.000Z,none
+kuber_w1_none_en_08,customer,Please update my email on the profile. The old one bounces.,Bharat Talwar,intercom,2026-09-21T11:19:00.000Z,none
+kuber_w1_none_en_08,agent,Send the new mail from the registered mobile.,,intercom,2026-09-21T11:24:00.000Z,none
+kuber_w1_none_en_08,customer,I will send it from the registered mobile.,Bharat Talwar,intercom,2026-09-21T11:30:00.000Z,none
+kuber_w1_none_en_09,customer,I was not able to place order in the pre-open. The button did nothing.,Bharat Nair,in_app_chat,2026-09-22T03:36:00.000Z,none
+kuber_w1_none_en_09,agent,Pre-open had ended for that scrip.,,in_app_chat,2026-09-22T03:41:00.000Z,none
+kuber_w1_none_en_09,customer,Understood. I will use the regular session.,Bharat Nair,in_app_chat,2026-09-22T03:47:00.000Z,none
+kuber_w1_none_en_10,customer,The payment is pending on a purchase I did not mean to submit.,Bharat Patel,whatsapp,2026-09-23T04:43:00.000Z,none
+kuber_w1_none_en_10,agent,I can see the unpaid block. It will expire.,,whatsapp,2026-09-23T04:48:00.000Z,none
+kuber_w1_none_en_10,customer,Please leave it to expire.,Bharat Patel,whatsapp,2026-09-23T04:54:00.000Z,none
+kuber_w1_none_en_11,customer,What time does the equity session open on a normal day?,Bharat Vora,intercom,2026-09-24T05:50:00.000Z,none
+kuber_w1_none_en_11,agent,The regular session opens at 9:15.,,intercom,2026-09-24T05:55:00.000Z,none
+kuber_w1_none_en_11,customer,"Thanks, that was my only question.",Bharat Vora,intercom,2026-09-24T06:01:00.000Z,none
+kuber_w1_none_en_12,customer,My watchlist is empty after the update. The symbols are gone.,Bharat Naik,in_app_chat,2026-09-25T06:57:00.000Z,none
+kuber_w1_none_en_12,agent,Please sign out and sign in once.,,in_app_chat,2026-09-25T07:02:00.000Z,none
+kuber_w1_none_en_12,customer,I will try that.,Bharat Naik,in_app_chat,2026-09-25T07:08:00.000Z,none
+kuber_w1_none_en_13,customer,How will the bonus shares for RELIANCE show on the ledger?,Chitra Sethi,whatsapp,2026-09-26T08:04:00.000Z,none
+kuber_w1_none_en_13,agent,They show as a corporate action line after the record date.,,whatsapp,2026-09-26T08:09:00.000Z,none
+kuber_w1_none_en_13,customer,"Ok, I will wait for the record date.",Chitra Sethi,whatsapp,2026-09-26T08:15:00.000Z,none
+kuber_w1_none_en_14,customer,The profile photo is cropped wrong. Can you tell me where to change it?,Chitra Wadhwa,intercom,2026-09-27T09:11:00.000Z,none
+kuber_w1_none_en_14,agent,"Profile, then the avatar, then upload.",,intercom,2026-09-27T09:16:00.000Z,none
+kuber_w1_none_en_14,customer,Found it. Thanks.,Chitra Wadhwa,intercom,2026-09-27T09:22:00.000Z,none
+kuber_w1_none_en_15,customer,The opening balance on the ledger does not match my notebook.,Chitra Parekh,in_app_chat,2026-09-21T10:18:00.000Z,none
+kuber_w1_none_en_15,agent,Send the date you are comparing and I will line it up.,,in_app_chat,2026-09-21T10:23:00.000Z,none
+kuber_w1_none_en_15,customer,It is the 21st morning figure.,Chitra Parekh,in_app_chat,2026-09-21T10:29:00.000Z,none
+kuber_w1_none_en_16,customer,"Chat support, the font on the order ticket is too small to read.",Chitra Menon,whatsapp,2026-09-22T10:35:00.000Z,none
+kuber_w1_none_en_16,agent,We have logged the display note.,,whatsapp,2026-09-22T10:40:00.000Z,none
+kuber_w1_none_en_16,customer,Thanks.,Chitra Menon,whatsapp,2026-09-22T10:46:00.000Z,none
+kuber_w1_none_en_17,customer,Hello.,Chitra Reddy,intercom,2026-09-23T03:42:00.000Z,none
+kuber_w1_none_en_17,customer,Please send the trade confirmation PDF for HDFCBANK.,Chitra Reddy,intercom,2026-09-23T03:47:00.000Z,none
+kuber_w1_none_en_17,customer,Pls reply when you recieve this. Whn you can.,Chitra Reddy,intercom,2026-09-23T03:53:00.000Z,none
+kuber_w1_none_en_18,customer,"Is the equity segment already active on this login, or do I need a fresh form?",Chitra Bansal,in_app_chat,2026-09-24T04:49:00.000Z,none
+kuber_w1_none_en_18,agent,Equity segment is already active. No fresh form.,,in_app_chat,2026-09-24T04:54:00.000Z,none
+kuber_w1_none_en_18,customer,"Great, thanks.",Chitra Bansal,in_app_chat,2026-09-24T05:00:00.000Z,none
+kuber_w1_none_en_19,customer,I want the bank nickname on the payout screen corrected. The spelling is off by one letter.,Chitra Iyer,whatsapp,2026-09-25T05:56:00.000Z,none
+kuber_w1_none_en_19,agent,Share the cheque image from the registered mobile.,,whatsapp,2026-09-25T06:01:00.000Z,none
+kuber_w1_none_en_19,customer,I will upload it in the profile section.,Chitra Iyer,whatsapp,2026-09-25T06:07:00.000Z,none
+kuber_w1_none_he_01,customer,Bhai contract note nahi dikh raha for ITC. Bas the PDF chahiye.,Chitra Singh,intercom,2026-09-24T11:30:00.000Z,none
+kuber_w1_none_he_01,agent,Attaching the PDF.,,intercom,2026-09-24T11:35:00.000Z,none
+kuber_w1_none_he_01,customer,"Bahut accha, that is the one.",Chitra Singh,intercom,2026-09-24T11:41:00.000Z,none
+kuber_w1_none_he_02,customer,Mera watchlist empty ho gaya bhai after the update.,Chitra Qureshi,whatsapp,2026-09-25T11:37:00.000Z,none
+kuber_w1_none_he_02,agent,Please sign out and sign in.,,whatsapp,2026-09-25T11:42:00.000Z,none
+kuber_w1_none_he_02,customer,"Theek hai, main try karta hoon.",Chitra Qureshi,whatsapp,2026-09-25T11:48:00.000Z,none
+kuber_w1_none_he_03,customer,Bhai when does my SIP get debited? Bas date chahiye.,Chitra Deshmukh,in_app_chat,2026-09-26T11:44:00.000Z,none
+kuber_w1_none_he_03,agent,The mandate date is the 7th.,,in_app_chat,2026-09-26T11:49:00.000Z,none
+kuber_w1_none_he_03,customer,Theek hai bhai.,Chitra Deshmukh,in_app_chat,2026-09-26T11:55:00.000Z,none
+kuber_w1_none_he_04,customer,AMC fees ka breakup chahiye bhai. Bahut confusing line on the ledger.,Chitra Kulkarni,intercom,2026-09-27T11:51:00.000Z,none
+kuber_w1_none_he_04,agent,I will send the DP lines.,,intercom,2026-09-27T11:56:00.000Z,none
+kuber_w1_none_he_04,customer,"Haan, bhej do.",Chitra Kulkarni,intercom,2026-09-27T12:02:00.000Z,none
+kuber_w1_none_he_05,customer,Bhai cancel my order in SBIN. Galti se lag gaya. Nahi chahiye.,Chitra Joshi,whatsapp,2026-09-21T11:58:00.000Z,none
+kuber_w1_none_he_05,agent,The order is withdrawn.,,whatsapp,2026-09-21T12:03:00.000Z,none
+kuber_w1_none_he_05,customer,Theek hai.,Chitra Joshi,whatsapp,2026-09-21T12:09:00.000Z,none
+kuber_w1_none_he_06,customer,Statement download nahi ho raha bhai. August PDF.,Chitra Kapoor,in_app_chat,2026-09-22T12:05:00.000Z,none
+kuber_w1_none_he_06,agent,Try the reports tab.,,in_app_chat,2026-09-22T12:10:00.000Z,none
+kuber_w1_none_he_06,customer,Dekhta hoon.,Chitra Kapoor,in_app_chat,2026-09-22T12:16:00.000Z,none
+kuber_w1_none_he_07,customer,Bhai update my email. Purana mail nahi chal raha.,Chitra Shetty,intercom,2026-09-23T12:12:00.000Z,none
+kuber_w1_none_he_07,agent,Send the new mail from the registered mobile.,,intercom,2026-09-23T12:17:00.000Z,none
+kuber_w1_none_he_07,customer,Bhejta hoon.,Chitra Shetty,intercom,2026-09-23T12:23:00.000Z,none
+kuber_w1_none_he_08,customer,"IPO allotment status batao bhai. Bas status, kuch aur nahi.",Chitra Gill,whatsapp,2026-09-24T12:19:00.000Z,none
+kuber_w1_none_he_08,agent,No allotment file yet.,,whatsapp,2026-09-24T12:24:00.000Z,none
+kuber_w1_none_he_08,customer,"Theek hai, main wait karta hoon.",Chitra Gill,whatsapp,2026-09-24T12:30:00.000Z,none
+kuber_w1_none_he_09,customer,"Holdings quantity 10 dikha raha hai bhai, notebook says 12. Please check the bonus line.",Chitra Bose,in_app_chat,2026-09-25T11:36:00.000Z,none
+kuber_w1_none_he_09,agent,I will compare it with the corporate action file.,,in_app_chat,2026-09-25T11:41:00.000Z,none
+kuber_w1_none_he_09,customer,Haan bhai.,Chitra Bose,in_app_chat,2026-09-25T11:47:00.000Z,none
+kuber_w1_none_he_10,customer,Good morning bhai. Ledger opening balance samajh nahi aa raha.,Chitra Saxena,intercom,2026-09-26T11:43:00.000Z,none
+kuber_w1_none_he_10,agent,Tell me the date you are comparing.,,intercom,2026-09-26T11:48:00.000Z,none
+kuber_w1_none_he_10,customer,"21st morning, bhai.",Chitra Saxena,intercom,2026-09-26T11:54:00.000Z,none
+kuber_w1_none_hi_01,customer,नमस्ते। सैंपल आईपीओ की अलॉटमेंट स्थिति बताइए।,Chitra Malhotra,whatsapp,2026-09-25T13:35:00.000Z,none
+kuber_w1_none_hi_01,agent,फाइल अभी नहीं आई।,,whatsapp,2026-09-25T13:40:00.000Z,none
+kuber_w1_none_hi_01,customer,"ठीक है, आते ही बताइए।",Chitra Malhotra,whatsapp,2026-09-25T13:46:00.000Z,none
+kuber_w1_none_hi_02,customer,एसआईपी किस तारीख को कटेगी। When does my SIP get debited.,Chitra Pawar,whatsapp,2026-09-26T13:35:00.000Z,none
+kuber_w1_none_hi_02,agent,मैंडेट की तारीख 7 है।,,whatsapp,2026-09-26T13:40:00.000Z,none
+kuber_w1_none_hi_02,customer,धन्यवाद।,Chitra Pawar,whatsapp,2026-09-26T13:46:00.000Z,none
+kuber_w1_none_hi_03,customer,ऐप होल्डिंग्स पर अटक जाता है। App keeps crashing since morning.,Chitra Khatri,whatsapp,2026-09-27T13:35:00.000Z,none
+kuber_w1_none_hi_03,agent,अपडेट करके दोबारा खोलिए।,,whatsapp,2026-09-27T13:40:00.000Z,none
+kuber_w1_none_hi_03,customer,ठीक है।,Chitra Khatri,whatsapp,2026-09-27T13:46:00.000Z,none
