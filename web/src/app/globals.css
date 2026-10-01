@@ -458,14 +458,15 @@
   }
 
   /*
-   * Insights review: one panel. Phone/tablet stack Recommended Actions
-   * (Retention Email nested) → Feedback; Conversation opens in a right
-   * Drawer (sticky header Open Conversation / Why This Fired). Laptop+
-   * splits rail | fixed 385px Conversation; the rail is the only left-column
-   * scroller. Recommended Actions hugs content (no inner card scrollbar).
-   * Conversation well is 385px when the split is active; MessageScroller
-   * scrolls inside. Rail / stacked-split keep overflow scroll but hide
-   * scrollbar chrome so Feedback / GT stay reachable without a visible gutter.
+   * Insights review: one panel. Below 48rem of the review pane, Recommended
+   * Actions (Retention Email nested) and Feedback stack, and Conversation
+   * opens in a right Drawer (sticky header Open Conversation / Why This
+   * Fired). At 48rem+ the pane splits rail | fixed 385px Conversation; the
+   * rail is the only left-column scroller. Recommended Actions hugs content
+   * (no inner card scrollbar). Conversation well is 385px when the split is
+   * active; MessageScroller scrolls inside. Rail / stacked-split keep
+   * overflow scroll but hide scrollbar chrome so Feedback / GT stay reachable
+   * without a visible gutter.
    */
   .insights-review {
     container-type: inline-size;
@@ -528,10 +529,10 @@
   }
 
   /*
-   * Below 42rem of the review pane (phone / narrow overflow): hide the
-   * inline transcript. Open Conversation and the evidence quote open
-   * ConversationDrawer. A normal laptop content column is wider than
-   * 42rem, so the transcript stays on screen with the quote highlighted.
+   * Below 48rem of the review pane: hide the inline transcript. Open
+   * Conversation and the evidence quote open ConversationDrawer. A normal
+   * laptop content column is wider than 48rem, so the transcript stays on
+   * screen with the quote highlighted.
    */
   .insights-review-split [data-review-slot="transcript"] {
     display: none;
@@ -759,7 +760,7 @@
     gap: 1rem;
   }
 
-  @container review (min-width: 42rem) {
+  @container review (min-width: 48rem) {
     .insights-review-split {
       display: grid;
       flex: 1 1 0%;

@@ -82,7 +82,7 @@ Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/sh
 
 ### Insights in-queue review (accordion)
 
-Operator review happens **in the queue**, not on a full-page Signal Detail screen. Clicking a row (or **Review**) opens that signal via `?preview=<signalId>` (one open at a time). On a normal laptop the transcript sits beside the review cards (`@container review` `42rem`: rail | fixed **385px** chat, evidence quote highlighted). Narrower panes hide the inline transcript and use the drawer. Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body:
+Operator review happens **in the queue**, not on a full-page Signal Detail screen. Clicking a row (or **Review**) opens that signal via `?preview=<signalId>` (one open at a time). On a normal laptop the transcript sits beside the review cards (`@container review` `48rem`: rail | fixed **385px** chat, evidence quote highlighted). Narrower panes hide the inline transcript and use the drawer. Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body:
 
 1. **Signal cell (in-row):** row chrome stays identical open or closed — truncated Signal summary (no unwrap, no selected fill / `aria-current` bar). Full text and evidence live in the expand body; no duplicate full-signal block there beyond Why This Fired.
 2. **Feedback** — Correct / Incorrect / Partially correct, optional note, Ground Truth in the header.
@@ -92,7 +92,7 @@ Smooth expand/collapse uses compositor-friendly `grid-template-rows` and honors 
 
 ### Conversation drawer (Insights)
 
-Shared `ConversationDrawer` → local `Drawer` shim. From review-pane `42rem` the transcript is inline (`SignalReviewConversation`, fixed 385px) with the evidence quote highlighted. Below that, **Open Conversation** and the quote open the drawer.
+Shared `ConversationDrawer` → local `Drawer` shim. From review-pane `48rem` the transcript is inline (`SignalReviewConversation`, fixed 385px) with the evidence quote highlighted. Below that, **Open Conversation** and the quote open the drawer.
 
 - **Header:** ops lockup — `SignalUser` (customer initials) + title = customer name (`DrawerTitle`, `translate="no"`) + subtitle **Conversation** and optional message count (`DrawerDescription`, truncate). Close on the right. Dialog uses `aria-labelledby` on the title. Escape, backdrop click, and focus return to the trigger unchanged.
 - **Layout:** shrink-0 header + flex-1 scroll body (`overscroll-behavior: contain`, safe-area on all sides) + optional footer. Panel outer padding + compact inner gutters; messages in a `max-w-lg` column. Vertical header/footer `py-3`+. Same message alignment lock as above (customer right / agent left); identity via avatar only — no per-message name/**Agent** labels; no StatusDot on messages. Optional UTC clock under bubbles (`formatMessageTime`).
@@ -111,6 +111,8 @@ Operator-facing status chrome via `SignalStatus` → `StatusDot` (`web/src/compo
 | `feedback.label === incorrect` | **Incorrect** | Red (`sio-status-danger-*`) — ERROR |
 | `feedback.label === partially_correct` | **Partially Correct** | Orange/amber (`sio-status-warning-*`) — BUILDING |
 | `status === acted` | **Acted** | Muted (`sio-fg-faint`) — CANCELED |
+
+Do not put a Shadow Mode banner under “Conversation that needs your attention.” Never render “Shadow Mode — Confirm or correct detections. Replies are drafts only; nothing is sent.” as a status, warning, or dismissible tip (`InsightsShadowTip`). That explanation stays in Help.
 
 URL filter stays `status=new` for the Neon needs-review bucket. Queue chrome uses Geist filter pills immediately above the queue table: **Add Filter** (solid, Type menu) plus four EvidenceChip-style status chips (All / Pending / Correct / Done). Selected chips use applied chrome (solid + X). Type lives in Add Filter. Status chips stay URL `Link`s. Not beside the section title, not a combined Filters menu, and not `SegmentedTabs`. Status chips use **feedback presence/label** once reviewed (so a reviewed row never stays Pending from a stale `status===new`). Queue rows and the Pending metric breakdown always show the text label with the StatusDot (color is not the only cue). Do not use signal-type colors (lead/retention/upsell) for status. The page title stays **Insights** in `AppHeader`; the list has an `sr-only` **Insights Queue** heading (review breadcrumb uses the same label).
 

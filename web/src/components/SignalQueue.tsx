@@ -250,6 +250,8 @@ type QueueHref = (next: {
   action?: ActionFilter;
   page?: number;
   preview?: string | null;
+  /** `today` applies Top 10; `null` clears it. Omit to keep the current param. */
+  call?: "today" | null;
 }) => string;
 
 type EmptyNext = {
@@ -285,6 +287,8 @@ type SignalQueueProps = {
   queryExtras?: Record<string, string | undefined | null>;
   /** When false, filters are rendered by the parent (e.g. Insights header). */
   showFilters?: boolean;
+  /** `?call=today` — Top 10 pending calls, rendered as a queue filter pill. */
+  callToday?: boolean;
   /** Pending-empty (status=new) next step after a closed week — not “upload to populate”. */
   pendingClear?: EmptyNext | null;
   /** Follow-up-empty next step (cadence or pending). */
@@ -325,6 +329,12 @@ function buildQueueHref(
     const action = next.action ?? actionFilter;
     const pageNum = next.page ?? 1;
     const preview = next.preview !== undefined ? next.preview : previewId;
+    const call =
+      next.call !== undefined
+        ? next.call
+        : queryExtras?.call === "today"
+          ? "today"
+          : null;
     return viewHref("insights", {
       ...queryExtras,
       status: statusQueryValue(status, workspaceMode),
@@ -332,6 +342,7 @@ function buildQueueHref(
       action: action === "all" ? null : action,
       page: pageNum > 1 ? String(pageNum) : null,
       preview: preview || null,
+      call,
     });
   };
 }
@@ -467,6 +478,7 @@ export function SignalQueueFilters({
   previewId = null,
   queryExtras,
   supervisedActions = [],
+  callToday = false,
 }: Omit<SignalQueueProps, "showFilters">) {
   const {
     pendingCount,
@@ -503,6 +515,7 @@ export function SignalQueueFilters({
       approveCount={approveCount}
       reviewCount={reviewCount}
       queueHref={queueHref}
+      callToday={callToday}
     />
   );
 }
@@ -777,6 +790,7 @@ export function SignalQueue({
   previewId = null,
   queryExtras,
   showFilters = true,
+  callToday = false,
   pendingClear = null,
   followUpEmpty = null,
   doneEmpty = null,
@@ -841,6 +855,7 @@ export function SignalQueue({
       approveCount={approveCount}
       reviewCount={reviewCount}
       queueHref={queueHref}
+      callToday={callToday}
     />
   ) : null;
 
@@ -1183,6 +1198,7 @@ function QueueFilters({
   approveCount,
   reviewCount,
   queueHref,
+  callToday = false,
 }: {
   statusFilter: StatusFilter;
   typeFilter: TypeFilter;
@@ -1194,6 +1210,7 @@ function QueueFilters({
   approveCount: number;
   reviewCount: number;
   queueHref: QueueHref;
+  callToday?: boolean;
 }) {
   const typeLabel =
     TYPE_OPTIONS.find((option) => option.value === typeFilter)?.label ??
@@ -1215,6 +1232,18 @@ function QueueFilters({
     action: "all",
     page: 1,
     preview: null,
+  });
+
+  const applyCallTodayHref = queueHref({
+    status: "new",
+    page: 1,
+    preview: null,
+    call: "today",
+  });
+  const clearCallTodayHref = queueHref({
+    page: 1,
+    preview: null,
+    call: null,
   });
 
   return (
@@ -1325,6 +1354,32 @@ function QueueFilters({
           </FilterPillFrame>
         );
       })}
+
+      <FilterPillFrame>
+        <FilterPillTrigger
+          variant={callToday ? "applied" : "suggestion"}
+          clearable={callToday}
+          href={
+            callToday
+              ? queueHref({ page: 1, preview: null })
+              : applyCallTodayHref
+          }
+          aria-current={callToday ? "true" : undefined}
+          aria-label="Top 10 to call today"
+        >
+          <span className="flex min-w-0 flex-row items-center font-medium leading-none whitespace-nowrap">
+            <span className="text-sio-fg-subtle transition-colors duration-150 motion-reduce:transition-none group-hover:text-sio-fg-base">
+              Top 10 to call today
+            </span>
+          </span>
+        </FilterPillTrigger>
+        {callToday ? (
+          <FilterPillClear
+            href={clearCallTodayHref}
+            label="Show the full queue"
+          />
+        ) : null}
+      </FilterPillFrame>
     </div>
   );
 }

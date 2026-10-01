@@ -326,23 +326,19 @@ describe("InsightsView pending landing empty Follow-up", () => {
     );
 
     expect(html).toContain("Conversation that needs your attention");
-    expect(html).toContain("Shadow Mode — Confirm or correct detections");
-    expect(html).toContain("nothing is sent");
-    expect(html).toContain('aria-label="Dismiss Shadow Mode tip"');
+    expect(html).not.toContain("Shadow Mode — Confirm or correct detections");
+    expect(html).not.toContain('aria-label="Dismiss Shadow Mode tip"');
     expect(html).toContain("Run Partner Demo");
     expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
     expect(html).toContain("Queue metrics");
     const titleAt = html.indexOf("Conversation that needs your attention");
-    const tipAt = html.indexOf("Shadow Mode — Confirm or correct detections");
     const demoAt = html.indexOf("Run Partner Demo");
     const metricsAt = html.indexOf('aria-label="Queue metrics"');
     const filtersAt = html.indexOf("Add Filter");
     const tableAt = html.indexOf("Pending signal 1");
     expect(titleAt).toBeGreaterThan(-1);
     expect(demoAt).toBeGreaterThan(titleAt);
-    expect(tipAt).toBeGreaterThan(titleAt);
     expect(metricsAt).toBeGreaterThan(demoAt);
-    expect(metricsAt).toBeGreaterThan(tipAt);
     expect(filtersAt).toBeGreaterThan(metricsAt);
     expect(tableAt).toBeGreaterThan(filtersAt);
     expect(html).toContain("Pending signal 1");
@@ -2708,10 +2704,11 @@ describe("InsightsView evidence-grounded review", () => {
     expect(insights).not.toContain("Sample is not loaded");
     expect(insights).not.toContain("link-accent w-fit text-label-12");
     expect(insights).not.toContain('id="at-risk-heading"');
+    expect(insights).toContain("Top 10 to call today");
+    expect(insights).not.toContain("btn-secondary h-9 w-fit");
     const callLink = insights.match(
-      /<a href="([^"]*)" class="btn-secondary h-9 w-fit">([^<]*)<\/a>/,
+      /<a href="([^"]*)"[^>]*aria-label="Top 10 to call today"/,
     );
-    expect(callLink?.[2]).toBe("Top 10 to call today");
     expect(callLink?.[1]).toContain("call=today");
     expect(callLink?.[1]).toContain("status=new");
 
@@ -2720,10 +2717,10 @@ describe("InsightsView evidence-grounded review", () => {
     );
     expect(top).toContain("No calls today");
     expect(top).toContain("Upload chats");
+    expect(top).toContain("Top 10 to call today");
     const fullQueue = top.match(
-      /<a href="([^"]*)" class="btn-secondary h-9 w-fit">([^<]*)<\/a>/,
+      /<a href="([^"]*)"[^>]*aria-label="Show the full queue"/,
     );
-    expect(fullQueue?.[2]).toBe("Show the full queue");
     expect(fullQueue?.[1] ?? "").not.toContain("call=today");
 
     const report = renderToStaticMarkup(

@@ -54,13 +54,14 @@ describe("NavUser", () => {
     expect(html).not.toContain("maya-chen");
   });
 
-  it("shows a public demo identity and a sign-in link", () => {
+  it("hides the demo identity and shows a sign-in link", () => {
     const html = renderNav(anonymousDemoAccount());
 
-    expect(html).toContain("Demo");
-    expect(html).toContain("Public demo");
-    expect(html).toContain('aria-label="Demo, Public demo"');
+    expect(html).not.toContain("Public demo");
+    expect(html).not.toContain('aria-label="Demo, Public demo"');
     expect(html).toContain('href="/login"');
+    expect(html).toContain('data-variant="outline"');
+    expect(html).toContain("group-data-[collapsible=icon]:hidden");
     expect(html).toContain("Sign in");
     expect(html).not.toContain("Sign out");
     expect(html).not.toContain("maya-chen");
