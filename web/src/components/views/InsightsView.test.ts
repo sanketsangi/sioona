@@ -2708,10 +2708,11 @@ describe("InsightsView evidence-grounded review", () => {
     expect(insights).not.toContain("Sample is not loaded");
     expect(insights).not.toContain("link-accent w-fit text-label-12");
     expect(insights).not.toContain('id="at-risk-heading"');
+    expect(insights).toContain("Top 10 to call today");
+    expect(insights).not.toContain("btn-secondary h-9 w-fit");
     const callLink = insights.match(
-      /<a href="([^"]*)" class="btn-secondary h-9 w-fit">([^<]*)<\/a>/,
+      /<a href="([^"]*)"[^>]*aria-label="Top 10 to call today"/,
     );
-    expect(callLink?.[2]).toBe("Top 10 to call today");
     expect(callLink?.[1]).toContain("call=today");
     expect(callLink?.[1]).toContain("status=new");
 
@@ -2720,10 +2721,10 @@ describe("InsightsView evidence-grounded review", () => {
     );
     expect(top).toContain("No calls today");
     expect(top).toContain("Upload chats");
+    expect(top).toContain("Top 10 to call today");
     const fullQueue = top.match(
-      /<a href="([^"]*)" class="btn-secondary h-9 w-fit">([^<]*)<\/a>/,
+      /<a href="([^"]*)"[^>]*aria-label="Show the full queue"/,
     );
-    expect(fullQueue?.[2]).toBe("Show the full queue");
     expect(fullQueue?.[1] ?? "").not.toContain("call=today");
 
     const report = renderToStaticMarkup(

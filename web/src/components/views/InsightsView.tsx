@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { AtRiskPanel } from "@/components/AtRiskPanel";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
 import { MarkActedHeaderAction } from "@/components/MarkActedHeaderAction";
@@ -26,7 +25,6 @@ import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
-import { detectEarlyWarnings } from "@/lib/early-warning";
 import { attachSignalCommercial, topCallsToday } from "@/lib/signal-commercial";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
@@ -606,13 +604,8 @@ export function InsightsView({
     landingFile: importLanding ? vaultFile : null,
   };
 
-  const earlyWarnings = vaultMismatch
-    ? []
-    : detectEarlyWarnings(queueChats.conversations, queueChats.messages);
-
   const queueBody = (
     <>
-      <AtRiskPanel warnings={earlyWarnings} />
       <InsightsQueueMetrics
         conversationCount={
           vaultMismatch ? 0 : queueChats.conversations.length
@@ -634,22 +627,6 @@ export function InsightsView({
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
         <div className="flex w-full min-w-0 shrink-0 flex-col gap-2">
-          <Link
-            href={viewHref("insights", {
-              ...queryExtras,
-              status: callToday
-                ? statusQueryValue(statusFilter, workspaceMode)
-                : "new",
-              type: typeFilter === "all" ? null : typeFilter,
-              action: actionFilter === "all" ? null : actionFilter,
-              call: callToday ? null : "today",
-              page: null,
-              preview: null,
-            })}
-            className="btn-secondary h-9 w-fit"
-          >
-            {callToday ? "Show the full queue" : "Top 10 to call today"}
-          </Link>
           <SignalQueueFilters
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}
@@ -661,6 +638,7 @@ export function InsightsView({
             previewId={null}
             queryExtras={queryExtras}
             supervisedActions={store.supervisedActions ?? []}
+            callToday={callToday}
           />
         </div>
         <SignalQueue

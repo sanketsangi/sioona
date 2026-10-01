@@ -320,10 +320,10 @@ describe("AppSidebar account", () => {
     expect(html).not.toContain("maya-chen");
   });
 
-  it("shows a public demo identity when no session is passed", () => {
+  it("hides the demo identity and shows sign-in when no session is passed", () => {
     const html = renderSidebar();
-    expect(html).toContain('aria-label="Demo, Public demo"');
-    expect(html).toContain("Public demo");
+    expect(html).not.toContain('aria-label="Demo, Public demo"');
+    expect(html).not.toContain("Public demo");
     expect(html).toContain('href="/login"');
     expect(html).toContain("Sign in");
     expect(html).not.toContain("Sanket Sangi");
