@@ -202,11 +202,13 @@ export function buildHeaderNotifications(input: {
       title: `Imported ${importedCount} conversations · ${newSignalCount} local signals`,
       description: zeroSignals
         ? ZERO_SIGNAL_HINT
-        : hasSyncFailure
-          ? "Some predictions did not sync — the review queue may be incomplete."
-          : input.pendingCount === 0
-            ? "Import finished — use the status tabs or re-run detection if the queue stays empty."
-            : "Open Pending in Insights to review the Neon needs-review queue.",
+        : input.suppressPendingReview
+          ? "This export is still opening. The chats show up here in a moment."
+          : hasSyncFailure
+            ? "Some predictions did not sync — the review queue may be incomplete."
+            : input.pendingCount === 0
+              ? "Import finished — use the status tabs or re-run detection if the queue stays empty."
+              : "Open Pending in Insights to review the Neon needs-review queue.",
       href: zeroSignals
         ? viewHref("upload")
         : viewHref("insights", {
@@ -272,6 +274,7 @@ export function buildHeaderNotifications(input: {
         newSignalCount > 0
           ? newSignalCount
           : null,
+      inQueue: !input.suppressPendingReview,
     });
     items.push({
       id: "llm-pass-failed",

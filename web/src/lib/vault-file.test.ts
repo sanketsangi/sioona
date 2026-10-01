@@ -8,6 +8,9 @@ import {
   insightsHomeHref,
   isLivePartnerKeepSet,
   livePartnerVaultChrome,
+  planVaultKeepSetRefresh,
+  VAULT_KEEP_SET_REFRESH_LIMIT,
+  vaultImportLandingVisible,
   vaultKeepSetRefreshDelay,
   isVaultBatchRenderable,
   parseVaultFile,
@@ -527,6 +530,23 @@ describe("vaultKeepSetRefreshDelay", () => {
     expect(vaultKeepSetRefreshDelay(7)).toBe(8_000);
     expect(vaultKeepSetRefreshDelay(15)).toBe(8_000);
     expect(vaultKeepSetRefreshDelay(16)).toBeNull();
+  });
+
+  it("re-arms until the budget is spent, then the loading panel closes", () => {
+    const delays: number[] = [];
+    let attempt = 0;
+    while (vaultImportLandingVisible(attempt)) {
+      const step = planVaultKeepSetRefresh(attempt);
+      expect(step.kind).toBe("wait");
+      if (step.kind !== "wait") break;
+      delays.push(step.delayMs);
+      attempt = step.nextAttempt;
+    }
+    expect(delays).toHaveLength(VAULT_KEEP_SET_REFRESH_LIMIT);
+    expect(delays[0]).toBe(1_000);
+    expect(delays.at(-1)).toBe(8_000);
+    expect(vaultImportLandingVisible(attempt)).toBe(false);
+    expect(planVaultKeepSetRefresh(attempt)).toEqual({ kind: "done" });
   });
 });
 

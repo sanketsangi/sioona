@@ -292,6 +292,30 @@ export function vaultKeepSetRefreshDelay(attempt: number): number | null {
   return Math.min(8_000, 1_000 + attempt * 1_000);
 }
 
+/** Same-tab signal so the loading panel closes when the refresh budget ends. */
+export const VAULT_KEEP_SET_REFRESH_EVENT = "sioona-vault-refresh";
+
+export type VaultKeepSetRefreshStep =
+  | { kind: "wait"; delayMs: number; nextAttempt: number }
+  | { kind: "done" };
+
+/**
+ * One step of the landing poll. `router.refresh()` does not change the
+ * file name, so the caller must schedule the next step itself.
+ */
+export function planVaultKeepSetRefresh(
+  attempt: number,
+): VaultKeepSetRefreshStep {
+  const delayMs = vaultKeepSetRefreshDelay(attempt);
+  if (delayMs == null) return { kind: "done" };
+  return { kind: "wait", delayMs, nextAttempt: attempt + 1 };
+}
+
+/** Loading title stays up only while another refresh is still scheduled. */
+export function vaultImportLandingVisible(attempt: number): boolean {
+  return vaultKeepSetRefreshDelay(attempt) != null;
+}
+
 export const VAULT_IMPORT_LANDING_TITLE = "Loading this week’s export";
 export const VAULT_IMPORT_LANDING_DESCRIPTION =
   "The chats are still opening. They show up here in a moment.";

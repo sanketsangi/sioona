@@ -262,6 +262,12 @@ describe("PlatformPage deploy reliability", () => {
     ]);
     expect(notifications.some((n) => n.id === "queue-unavailable")).toBe(false);
     expect(notifications.some((n) => n.id === "score-unavailable")).toBe(false);
+    expect(
+      notifications.find((n) => n.id === "import-complete")?.description,
+    ).toBe("This export is still opening. The chats show up here in a moment.");
+    expect(
+      notifications.find((n) => n.id === "llm-pass-failed")?.description,
+    ).not.toContain("still in the queue");
   });
 
   it("hides sync-failed when URL is stale but store is fully dual-written", async () => {

@@ -88,7 +88,8 @@ import {
   readVaultKeepSetRefreshAttempt,
   VAULT_IMPORT_LANDING_DESCRIPTION,
   VAULT_IMPORT_LANDING_TITLE,
-  vaultKeepSetRefreshDelay,
+  VAULT_KEEP_SET_REFRESH_EVENT,
+  vaultImportLandingVisible,
 } from "@/lib/vault-file";
 import {
   FOLLOWUP_UNAVAILABLE_PANEL_BODY,
@@ -806,8 +807,27 @@ export function SignalQueue({
       setLandingOpen(false);
       return;
     }
-    const attempt = readVaultKeepSetRefreshAttempt(landingFile);
-    setLandingOpen(vaultKeepSetRefreshDelay(attempt) != null);
+    const apply = (attempt: number) => {
+      setLandingOpen(vaultImportLandingVisible(attempt));
+    };
+    apply(readVaultKeepSetRefreshAttempt(landingFile));
+    const onRefresh = (event: Event) => {
+      const detail =
+        event instanceof CustomEvent ? event.detail : null;
+      if (
+        !detail ||
+        detail.fileName !== landingFile ||
+        typeof detail.attempt !== "number"
+      ) {
+        return;
+      }
+      apply(
+        Math.max(readVaultKeepSetRefreshAttempt(landingFile), detail.attempt),
+      );
+    };
+    window.addEventListener(VAULT_KEEP_SET_REFRESH_EVENT, onRefresh);
+    return () =>
+      window.removeEventListener(VAULT_KEEP_SET_REFRESH_EVENT, onRefresh);
   }, [landingFile]);
   const {
     pendingCount,

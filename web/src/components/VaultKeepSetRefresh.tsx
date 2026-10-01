@@ -1,16 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  planVaultKeepSetRefresh,
   readVaultKeepSetRefreshAttempt,
-  vaultKeepSetRefreshDelay,
+  VAULT_KEEP_SET_REFRESH_EVENT,
   vaultKeepSetRefreshStorageKey,
 } from "@/lib/vault-file";
 
 /**
  * The redirect after upload can render before Neon has the chats.
- * Refresh a few times, then leave the upload empty state in place.
+ * Refresh until the file is renderable or the attempt budget is spent.
+ * `router.refresh()` keeps the same file name, so a local generation
+ * re-arms the next wait.
  */
 export function VaultKeepSetRefresh({
   active,
@@ -20,23 +23,46 @@ export function VaultKeepSetRefresh({
   fileName: string;
 }) {
   const router = useRouter();
+  const [generation, setGeneration] = useState(0);
+  const attemptRef = useRef(0);
+  const fileRef = useRef(fileName);
+  if (fileRef.current !== fileName) {
+    fileRef.current = fileName;
+    attemptRef.current = 0;
+  }
 
   useEffect(() => {
     if (!active || !fileName) return;
     const key = vaultKeepSetRefreshStorageKey(fileName);
-    const attempt = readVaultKeepSetRefreshAttempt(fileName);
-    const delay = vaultKeepSetRefreshDelay(attempt);
-    if (delay == null) return;
+    const storedAttempt = Math.max(
+      readVaultKeepSetRefreshAttempt(fileName),
+      attemptRef.current,
+    );
+    const step = planVaultKeepSetRefresh(storedAttempt);
+    const notify = (attempt: number) => {
+      window.dispatchEvent(
+        new CustomEvent(VAULT_KEEP_SET_REFRESH_EVENT, {
+          detail: { fileName, attempt },
+        }),
+      );
+    };
+    if (step.kind === "done") {
+      notify(storedAttempt);
+      return;
+    }
     const timer = window.setTimeout(() => {
+      attemptRef.current = step.nextAttempt;
       try {
-        sessionStorage.setItem(key, String(attempt + 1));
+        sessionStorage.setItem(key, String(step.nextAttempt));
       } catch {
-        // Private mode — one refresh is still worth trying.
+        // Private mode still advances the in-memory attempt.
       }
+      notify(step.nextAttempt);
       router.refresh();
-    }, delay);
+      setGeneration((current) => current + 1);
+    }, step.delayMs);
     return () => window.clearTimeout(timer);
-  }, [active, fileName, router]);
+  }, [active, fileName, generation, router]);
 
   useEffect(() => {
     if (active || !fileName) return;

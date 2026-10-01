@@ -125,6 +125,21 @@ describe("llmPassFailureNotice", () => {
         "Groq no longer serves this model. 4 second-pass calls failed. 19 signals from the first pass are still in the queue.",
     });
   });
+
+  it("does not claim the queue holds signals while the export is still opening", () => {
+    expect(
+      llmPassFailureNotice({
+        failed: 4,
+        failure: null,
+        signalCount: 10,
+        inQueue: false,
+      }),
+    ).toEqual({
+      title: "Second pass failed",
+      description:
+        "The second pass failed. 4 second-pass calls failed. 10 signals from the first pass are saved. They show up when this export finishes opening.",
+    });
+  });
 });
 
 describe("llmSkipResumeNotice", () => {

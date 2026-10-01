@@ -79,6 +79,8 @@ export function llmPassFailureNotice(input: {
   failed: number;
   failure: LlmFailureKind | null;
   signalCount: number | null;
+  /** False while the uploaded file is not on screen yet. */
+  inQueue?: boolean;
 }): { title: string; description: string } {
   const calls = `${input.failed} second-pass call${input.failed === 1 ? "" : "s"} failed`;
   const cause =
@@ -91,10 +93,18 @@ export function llmPassFailureNotice(input: {
           : input.failure === "shape"
             ? "Groq’s reply could not be read."
             : "The second pass failed.";
-  const kept =
+  const count =
     input.signalCount != null && input.signalCount > 0
-      ? ` ${input.signalCount} signal${input.signalCount === 1 ? "" : "s"} from the first pass ${input.signalCount === 1 ? "is" : "are"} still in the queue.`
-      : " Signals from the first pass stay in the queue.";
+      ? input.signalCount
+      : null;
+  const kept =
+    input.inQueue === false
+      ? count != null
+        ? ` ${count} signal${count === 1 ? "" : "s"} from the first pass ${count === 1 ? "is" : "are"} saved. ${count === 1 ? "It shows up" : "They show up"} when this export finishes opening.`
+        : " Signals from the first pass show up when this export finishes opening."
+      : count != null
+        ? ` ${count} signal${count === 1 ? "" : "s"} from the first pass ${count === 1 ? "is" : "are"} still in the queue.`
+        : " Signals from the first pass stay in the queue.";
   return {
     title: "Second pass failed",
     description: `${cause} ${calls}.${kept}`,

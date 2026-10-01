@@ -209,6 +209,35 @@ describe("buildHeaderNotifications", () => {
     expect(zero[0]?.href).toContain("upload");
   });
 
+  it("does not say the import finished while the uploaded file is still opening", () => {
+    const items = buildHeaderNotifications({
+      pendingCount: 0,
+      queueError: null,
+      syncFailed: 0,
+      syncCreated: 0,
+      scoreUnavailable: false,
+      suppressPendingReview: true,
+      importedCount: 20,
+      newSignalCount: 10,
+      llmFailed: 4,
+    });
+    const imported = items.find((item) => item.id === "import-complete");
+    const failed = items.find((item) => item.id === "llm-pass-failed");
+    expect(items.map((item) => item.id)).toEqual([
+      "import-complete",
+      "llm-pass-failed",
+    ]);
+    expect(imported?.description).toBe(
+      "This export is still opening. The chats show up here in a moment.",
+    );
+    expect(imported?.description).not.toContain("Import finished");
+    expect(failed?.description).toContain("4 second-pass calls failed");
+    expect(failed?.description).not.toContain("still in the queue");
+    expect(failed?.description).toContain(
+      "10 signals from the first pass are saved",
+    );
+  });
+
   it("surfaces a failed Groq pass without zeroing the import signal count", () => {
     const items = buildHeaderNotifications({
       pendingCount: 19,
