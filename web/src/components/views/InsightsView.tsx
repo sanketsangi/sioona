@@ -409,6 +409,7 @@ export function InsightsView({
     label: cadenceActionCta(cadenceAction),
   };
   const emptyTenant =
+    store.tenant.id !== DEMO_TENANT_ID &&
     store.conversations.length === 0 &&
     pendingSignals.length === 0 &&
     reviewedSignals.length === 0 &&
