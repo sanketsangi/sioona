@@ -15,6 +15,18 @@ function greetingName(customerName: string | null | undefined): string {
   return who || "there";
 }
 
+export type ReplyLanguage = "hindi" | "hinglish" | "english";
+
+const HINGLISH_RE =
+  /\b(hai|hoon|hain|raha|rahi|rahe|nahi|nahin|paisa|bhai|mein|mera|meri|kya|aap|kar raha|kar rahi)\b/i;
+
+/** Match the customer's own wording. English when the quote is English. */
+export function detectReplyLanguage(text: string): ReplyLanguage {
+  if (/[\u0900-\u097F]/.test(text)) return "hindi";
+  if (HINGLISH_RE.test(text)) return "hinglish";
+  return "english";
+}
+
 export type CustomerReplyDraftInput = {
   type: SignalType;
   customerName?: string | null;
@@ -36,6 +48,26 @@ export function composeCustomerReplyDraft(
   if (!rawQuote) return "";
   const name = greetingName(input.customerName);
   const quote = clipReplyQuote(rawQuote);
+  const language = detectReplyLanguage(quote);
+
+  if (language === "hindi") {
+    if (input.type === "retention") {
+      return `नमस्ते ${name} — आपने लिखा “${quote}”. मैं इसे देख लेता हूँ और आज कॉल कर सकता हूँ. बात कब हो सकती है?`;
+    }
+    if (input.type === "lead") {
+      return `नमस्ते ${name}, “${quote}” के बारे में धन्यवाद. जब समय हो, सही प्लान और आगे के कदम बता सकता हूँ.`;
+    }
+    return `नमस्ते ${name}, “${quote}” पर फॉलो-अप. अगर चाहें तो योग्यता और आगे के कदम देख लेता हूँ.`;
+  }
+  if (language === "hinglish") {
+    if (input.type === "retention") {
+      return `Hi ${name} — aapne likha “${quote}”. Main isko dekh leta hoon aur aaj call kar sakta hoon. Kab baat ho sakti hai?`;
+    }
+    if (input.type === "lead") {
+      return `Hi ${name}, “${quote}” ke baare mein thanks. Jab time ho, sahi plan aur next steps bata sakta hoon.`;
+    }
+    return `Hi ${name}, “${quote}” par follow-up. Chahein to eligibility aur next steps dekh leta hoon.`;
+  }
 
   if (input.type === "retention") {
     return `Hi ${name} — I saw your note about “${quote}”. I can look into this and call you today if helpful. When works for a quick chat?`;

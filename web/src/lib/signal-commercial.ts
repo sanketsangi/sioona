@@ -44,7 +44,9 @@ export function extractMentionedInr(text: string): number | undefined {
     const n = parseToken(match[1] ?? "");
     if (n != null) amounts.push(Math.round(n * 100_000));
   }
-  for (const match of text.matchAll(/(?:₹|rs\.?|inr)\s*(\d[\d,]*(?:\.\d+)?)/gi)) {
+  for (const match of text.matchAll(
+    /(?:₹|\brs\.?|\binr)\s*(\d[\d,]*(?:\.\d+)?)/gi
+  )) {
     const n = parseToken(match[1] ?? "");
     if (n != null) amounts.push(Math.round(n));
   }
@@ -82,6 +84,16 @@ export function urgencyWeight(level: SignalUrgency | undefined): number {
 }
 
 /** Higher means call sooner. Missing fields rank as low urgency and no value. */
+export const TOP_CALLS_TODAY = 10;
+
+export function topCallsToday<T extends Pick<Signal, "urgency" | "mentionedValueInr">>(
+  signals: T[],
+): T[] {
+  return [...signals]
+    .sort((a, b) => signalCallRank(b) - signalCallRank(a))
+    .slice(0, TOP_CALLS_TODAY);
+}
+
 export function signalCallRank(signal: Pick<Signal, "urgency" | "mentionedValueInr">): number {
   const weight = urgencyWeight(signal.urgency);
   return weight * (signal.mentionedValueInr ?? 0) + weight;

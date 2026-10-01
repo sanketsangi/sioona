@@ -216,3 +216,7 @@ No new environment variables. Each signal stores `urgency` (`high` / `medium` / 
 ## Early-warning signals
 
 No new environment variables and no migration. Insights shows an At risk list for repeated complaints, unresolved issues, failed withdrawals or payouts, slow agent replies, and a negative trend across one customer's chats. Those rows are not `lead` / `retention` / `upsell` predictions, so they do not change SignalScore. Nothing is sent.
+
+## Reviewer workflow
+
+No new environment variables. The Insights review pane records Saved, Lost, or Converted (buttons or `1` / `2` / `3`). `/?view=insights&call=today` is the Top 10, ranked by urgency × value. Reply drafts follow the customer’s language (Hindi, Hinglish, or English) and stay on screen until a person copies them. Sioona does not send them.

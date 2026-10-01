@@ -27,6 +27,7 @@ import { InsightsShadowTip } from "@/components/InsightsShadowTip";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { detectEarlyWarnings } from "@/lib/early-warning";
+import { attachSignalCommercial, topCallsToday } from "@/lib/signal-commercial";
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import {
   customerNameFromExternalId,
@@ -124,6 +125,7 @@ export function InsightsView({
   precomputedPending = null,
   precomputedReviewed = null,
   scoreUnavailable = false,
+  callToday = false,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -168,6 +170,8 @@ export function InsightsView({
   precomputedReviewed?: Signal[] | null;
   /** Score service did not answer. Keeps last queue counts and one Retry. */
   scoreUnavailable?: boolean;
+  /** `?call=today` — first 10 pending signals by urgency × value. */
+  callToday?: boolean;
 }) {
   const vaultLoaded = vaultFileIsLoaded(
     vaultFile,
@@ -248,7 +252,7 @@ export function InsightsView({
       conversationIds.has(signal.conversationId),
     );
   }
-  const pendingSignals = vaultMismatch
+  let pendingSignals = vaultMismatch
     ? []
     : applyChatEvidenceToSignals(
         signalsForFile(
@@ -268,7 +272,24 @@ export function InsightsView({
       );
   // Prev / Next / Skip + Mark Acted advances walk the filtered subset
   // (status list is separate; walk is always pending / Follow-up ∩ type ∩ action).
+  pendingSignals = pendingSignals.map((signal) =>
+    signal.urgency
+      ? signal
+      : attachSignalCommercial(signal, signal.evidence.join("\n")),
+  );
   const supervisedActions = store.supervisedActions ?? [];
+  if (callToday) {
+    pendingSignals = topCallsToday(
+      queueSignalsForFilter({
+        pending: pendingSignals,
+        reviewed: [],
+        status: "new",
+        type: typeFilter,
+        action: actionFilter,
+        supervisedActions,
+      }).filtered,
+    );
+  }
   const walkPendingSignals = queueSignalsForFilter({
     pending: pendingSignals,
     reviewed: [],
@@ -317,6 +338,7 @@ export function InsightsView({
     scoreFrom,
     mode: workspaceMode === "action" ? "action" : null,
     file: vaultFile,
+    call: callToday ? "today" : null,
   };
 
   // Prefer Neon Correct when the same id is also JSON-unreviewed pending.
@@ -569,7 +591,23 @@ export function InsightsView({
         retryHref={scoreAsleep ? scoreRetryHref : null}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
-        <div className="flex w-full min-w-0 shrink-0">
+        <div className="flex w-full min-w-0 shrink-0 flex-col gap-2">
+          <Link
+            href={viewHref("insights", {
+              ...queryExtras,
+              status: callToday
+                ? statusQueryValue(statusFilter, workspaceMode)
+                : "new",
+              type: typeFilter === "all" ? null : typeFilter,
+              action: actionFilter === "all" ? null : actionFilter,
+              call: callToday ? null : "today",
+              page: null,
+              preview: null,
+            })}
+            className="link-accent w-fit text-label-12"
+          >
+            {callToday ? "Show the full queue" : "Top 10 to call today"}
+          </Link>
           <SignalQueueFilters
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}

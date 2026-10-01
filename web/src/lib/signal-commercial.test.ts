@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   inferSignalCommercial,
   signalCallRank,
+  topCallsToday,
 } from "./signal-commercial";
 import { shuffleSignals } from "./join-needs-review";
 import type { Signal } from "./types";
@@ -20,6 +21,11 @@ describe("inferSignalCommercial", () => {
     const row = inferSignalCommercial("Please send last month's statement PDF.");
     expect(row.urgency).toBe("low");
     expect(row.mentionedValueInr).toBeUndefined();
+  });
+
+  it("does not treat the end of a word as a rupee sign", () => {
+    expect(inferSignalCommercial("offers 3 plans").mentionedValueInr).toBeUndefined();
+    expect(inferSignalCommercial("fees are Rs 500").mentionedValueInr).toBe(500);
   });
 });
 
@@ -49,5 +55,15 @@ describe("queue order", () => {
     const ordered = shuffleSignals([low, high]);
     expect(ordered.map((row) => row.id)).toEqual(["sig_high", "sig_low"]);
     expect(signalCallRank(high)).toBeGreaterThan(signalCallRank(low));
+  });
+
+  it("keeps only the first ten calls", () => {
+    const rows = Array.from({ length: 12 }, (_, index) => ({
+      id: `s${index}`,
+      urgency: "low" as const,
+      mentionedValueInr: index,
+    }));
+    expect(topCallsToday(rows)).toHaveLength(10);
+    expect(topCallsToday(rows)[0]?.mentionedValueInr).toBe(11);
   });
 });

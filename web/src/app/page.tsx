@@ -149,6 +149,7 @@ export default async function PlatformPage({
     replaced?: string;
     file?: string;
     reveal?: string;
+    call?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -499,6 +500,7 @@ export default async function PlatformPage({
         precomputedPending={pendingRaw}
         precomputedReviewed={reviewedRaw}
         scoreUnavailable={fetches.windowedScore && backendScore == null}
+        callToday={sp.call === "today"}
       />
     );
   } else if (view === "upload") {

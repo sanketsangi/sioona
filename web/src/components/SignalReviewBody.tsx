@@ -7,12 +7,14 @@ import {
   useConversationDrawerOpen,
 } from "@/components/conversation-drawer-control";
 import { FeedbackControls } from "@/components/FeedbackControls";
+import { RevenueLeakOutcomeButtons } from "@/components/RevenueLeakOutcomeButtons";
 import { SignalOutcomeControl } from "@/components/SignalOutcomeControl";
 import { SignalReviewConversation } from "@/components/SignalReviewConversation";
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import type { MarkActedWalk } from "@/lib/use-mark-acted";
 import type { SignalReviewTriage } from "@/lib/views";
 import { firstEvidenceMessageId } from "@/lib/evidence-messages";
+import { reportOutcome } from "@/lib/revenue-leak";
 import type {
   Conversation,
   Message,
@@ -112,6 +114,13 @@ export function SignalReviewBody({
           triage={triage}
           conversationId={conversation?.id}
           groundTruth={conversation?.groundTruth}
+        />
+        <RevenueLeakOutcomeButtons
+          signalId={signal.id}
+          backendSignalId={signal.backendSignalId}
+          valueInr={signal.outcome?.valueInr ?? signal.mentionedValueInr ?? null}
+          current={reportOutcome(signal.outcome?.outcome)}
+          listenKeyboard
         />
         {signal.feedback ? <SignalOutcomeControl signal={signal} /> : null}
         <SignalReviewSuggestedAction
