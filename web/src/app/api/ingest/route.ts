@@ -1,4 +1,5 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { requireApiSession } from "@/lib/auth-guard";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetection } from "@/lib/detect-llm";
 import {
@@ -10,10 +11,8 @@ import {
   appendConversationsAsDistinctFile,
   mergeConversationsByExternalId,
 } from "@/lib/merge-conversations";
-import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import {
   mergeSignalsPreservingFeedback,
-  mergeTaxonomyOverrides,
   readStore,
   writeStore,
 } from "@/lib/store";
@@ -52,6 +51,8 @@ function parseReplaceFlag(form: FormData): boolean {
 }
 
 export async function POST(request: Request) {
+  const session = await requireApiSession(request, "mutate");
+  if (session instanceof NextResponse) return session;
   try {
     const form = await request.formData();
     const files = form
@@ -118,7 +119,6 @@ export async function POST(request: Request) {
     }
 
     const first = drafts[0];
-    const isPartnerSamplePackUpload = first.isWeekly;
 
     const priorWeeklyExportCount = store.pilot?.weeklyExportCount;
     const priorExports = priorWeeklyExportCount ?? 0;
@@ -240,12 +240,6 @@ export async function POST(request: Request) {
 
     store.conversations = workingConversations;
     store.messages = workingMessages;
-    if (replaceShowcase && isPartnerSamplePackUpload) {
-      store.taxonomyOverrides = mergeTaxonomyOverrides(
-        store.taxonomyOverrides,
-        PARTNER_EXPORT_ADAPT_OVERRIDES
-      );
-    }
 
     const ingestedConversations = store.conversations.filter((conversation) =>
       ingestedConversationIds.has(conversation.id)
@@ -302,13 +296,16 @@ export async function POST(request: Request) {
     ensureSupervisedActions(store);
     await writeStore(store);
 
-    // Same idea as GET / Insights/Eval: JSON is SoT for first paint.
-    // Neon chats + predictions (and replace prune) run after the response.
+    // JSON is written first so a Neon failure still leaves the file on disk.
+    // The response waits for Neon and reports failures instead of logging them.
     const signalsToSync = store.signals.filter((signal) =>
       ingestedConversationIds.has(signal.conversationId)
     );
-    after(() => {
-      void persistDeferredIngestDualWrite({
+    let dualWrite:
+      | Awaited<ReturnType<typeof persistDeferredIngestDualWrite>>
+      | undefined;
+    try {
+      dualWrite = await persistDeferredIngestDualWrite({
         tenantId: store.tenant.id,
         conversations: ingestedConversations,
         messages: ingestedMessages,
@@ -316,11 +313,22 @@ export async function POST(request: Request) {
         replaceShowcase,
         storeUpdatedAt: store.pilot?.updatedAt,
         lastUploadedFileName: store.pilot?.lastUploadedFileName,
-      }).catch((err) => {
-        const detail = err instanceof Error ? err.message : "unknown error";
-        console.warn(`[defer-ingest-sync] ${detail}`);
       });
-    });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "Neon write failed";
+      return NextResponse.json(
+        { error: `Saved locally, but Neon did not accept the upload. ${detail}` },
+        { status: 502 },
+      );
+    }
+    const predictionSync =
+      dualWrite?.predictionSync ?? emptyPredictionSyncStats();
+    const conversationSync =
+      dualWrite?.conversationSync ?? emptyConversationSyncStats();
+    const syncError =
+      predictionSync.failed > 0 || conversationSync.failed > 0
+        ? "Neon did not store every chat or signal. The file is saved locally — retry the upload."
+        : undefined;
 
     return NextResponse.json({
       format: first.format,
@@ -333,8 +341,9 @@ export async function POST(request: Request) {
       newSignals: newSignals.length,
       hint: newSignals.length === 0 ? ZERO_SIGNAL_HINT : undefined,
       signals: sortSignals(store.signals),
-      predictionSync: emptyPredictionSyncStats(),
-      conversationSync: emptyConversationSyncStats(),
+      predictionSync,
+      conversationSync,
+      ...(syncError ? { syncError } : {}),
       detectLlm: llm,
       replaced: replaceShowcase,
     });

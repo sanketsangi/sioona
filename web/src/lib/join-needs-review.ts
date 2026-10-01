@@ -53,6 +53,30 @@ export function predictionToStubSignal(
     status: "new",
     createdAt: prediction.created_at,
     backendSignalId: prediction.id,
+    ...(outcomeFromRow(prediction)
+      ? { outcome: outcomeFromRow(prediction) }
+      : {}),
+  };
+}
+
+const OUTCOMES = new Set([
+  "retained",
+  "churned",
+  "converted",
+  "no_change",
+  "unknown",
+]);
+
+function outcomeFromRow(
+  row: BackendPrediction,
+): Signal["outcome"] | undefined {
+  if (!row.outcome || !OUTCOMES.has(row.outcome)) return undefined;
+  return {
+    outcome: row.outcome as NonNullable<Signal["outcome"]>["outcome"],
+    ...(typeof row.outcome_value_inr === "number"
+      ? { valueInr: row.outcome_value_inr }
+      : {}),
+    ...(row.outcome_recorded_at ? { recordedAt: row.outcome_recorded_at } : {}),
   };
 }
 
@@ -281,6 +305,7 @@ export function joinTenantSignals(
         backendSignalId: row.id,
         status,
         feedback,
+        ...(outcomeFromRow(row) ? { outcome: outcomeFromRow(row) } : {}),
       });
       continue;
     }
@@ -291,6 +316,7 @@ export function joinTenantSignals(
       ...mapped,
       status,
       feedback,
+      ...(outcomeFromRow(row) ? { outcome: outcomeFromRow(row) } : {}),
     };
     if (seenIds.has(stub.id)) continue;
     const key = reviewedMatchKey(stub);

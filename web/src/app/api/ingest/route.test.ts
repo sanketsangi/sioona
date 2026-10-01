@@ -1,20 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/server", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("next/server")>();
-  return { ...actual, after: vi.fn() };
-});
-
 vi.mock("@/lib/defer-ingest-sync", () => ({
   persistDeferredIngestDualWrite: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { POST } from "./route";
-import { after } from "next/server";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runDetection } from "@/lib/detect";
 import * as detectLlm from "@/lib/detect-llm";
-import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import * as backendClient from "@/lib/backend-client";
 import { BackendClientError } from "@/lib/backend-client";
 import {
@@ -106,7 +99,6 @@ describe("POST /api/ingest", () => {
     vi.mocked(persistDeferredIngestDualWrite)
       .mockReset()
       .mockResolvedValue(undefined);
-    vi.mocked(after).mockClear();
     await resetStore();
   });
 
@@ -164,7 +156,7 @@ describe("POST /api/ingest", () => {
     ).toBe(true);
   });
 
-  it("merges partner-export Adapt into store and changes detect vs base", async () => {
+  it("does not apply sample Adapt packs on a real partner upload", async () => {
     const before = await readStore();
     before.pilot = {
       baselineOpportunities: 0,
@@ -184,12 +176,8 @@ describe("POST /api/ingest", () => {
 
     const after = await readStore();
     expect(after.taxonomyOverrides?.lead?.phrases).toEqual(["demat account"]);
-    expect(after.taxonomyOverrides?.lead?.negativePhrases).toEqual(
-      PARTNER_EXPORT_ADAPT_OVERRIDES.lead?.negativePhrases
-    );
-    expect(after.taxonomyOverrides?.upsell?.phrases).toEqual(
-      PARTNER_EXPORT_ADAPT_OVERRIDES.upsell?.phrases
-    );
+    expect(after.taxonomyOverrides?.lead?.negativePhrases).toBeUndefined();
+    expect(after.taxonomyOverrides?.upsell?.phrases).toBeUndefined();
 
     const conversation = after.conversations.find(
       (row) => row.externalId === "upsell_pr"
@@ -210,8 +198,8 @@ describe("POST /api/ingest", () => {
     const adapted = after.signals.filter(
       (signal) => signal.conversationId === conversation!.id
     );
-    expect(adapted.some((signal) => signal.type === "upsell")).toBe(true);
-    expect(adapted.some((signal) => signal.type === "lead")).toBe(false);
+    expect(adapted.some((signal) => signal.type === "lead")).toBe(true);
+    expect(adapted.some((signal) => signal.type === "upsell")).toBe(false);
   });
 
   it("upserts the same conversation_id instead of appending a duplicate", async () => {
@@ -1004,13 +992,25 @@ describe("POST /api/ingest", () => {
     expect(putBody).not.toHaveProperty("lastUploadedFileName");
   });
 
-  it("responds after writeStore without awaiting Neon dual-write", async () => {
-    let resolvePersist: (() => void) | undefined;
-    vi.mocked(persistDeferredIngestDualWrite).mockReturnValue(
-      new Promise<void>((resolve) => {
-        resolvePersist = resolve;
-      })
-    );
+  it("awaits Neon dual-write and returns its stats", async () => {
+    vi.mocked(persistDeferredIngestDualWrite).mockResolvedValue({
+      predictionSync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+      },
+      conversationSync: {
+        attempted: 1,
+        created: 1,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+        messagesCreated: 1,
+        messagesUpdated: 0,
+      },
+    });
 
     const response = await POST(
       ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
@@ -1020,36 +1020,23 @@ describe("POST /api/ingest", () => {
       importedConversations: number;
       newSignals: number;
       replaced?: boolean;
-      predictionSync?: {
-        attempted: number;
-        created: number;
-        updated: number;
-        failed: number;
-        skipped: number;
-      };
+      syncError?: string;
+      predictionSync?: { attempted: number; created: number; failed: number };
       conversationSync?: { attempted: number; failed: number };
     };
     expect(body.importedConversations).toBe(1);
     expect(body.newSignals).toBeGreaterThan(0);
     expect(body.replaced).toBe(true);
+    expect(body.syncError).toBeUndefined();
     expect(body.predictionSync).toEqual({
-      attempted: 0,
-      created: 0,
+      attempted: 1,
+      created: 1,
       updated: 0,
       failed: 0,
       skipped: 0,
     });
-    expect(body.conversationSync?.attempted).toBe(0);
+    expect(body.conversationSync?.attempted).toBe(1);
     expect(body.conversationSync?.failed).toBe(0);
-
-    const afterWrite = await readStore();
-    expect(afterWrite.conversations).toHaveLength(1);
-    expect(afterWrite.signals.length).toBeGreaterThan(0);
-
-    expect(persistDeferredIngestDualWrite).not.toHaveBeenCalled();
-    expect(after).toHaveBeenCalledTimes(1);
-
-    vi.mocked(after).mock.calls[0]?.[0]?.();
     expect(persistDeferredIngestDualWrite).toHaveBeenCalledTimes(1);
     expect(persistDeferredIngestDualWrite).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1065,7 +1052,47 @@ describe("POST /api/ingest", () => {
         ]),
       })
     );
-    resolvePersist?.();
+  });
+
+  it("returns 502 when the Neon dual-write throws", async () => {
+    vi.mocked(persistDeferredIngestDualWrite).mockRejectedValue(
+      new Error("database_unavailable")
+    );
+    const response = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(response.status).toBe(502);
+    const body = (await response.json()) as { error?: string };
+    expect(body.error).toMatch(/Neon/);
+    const afterWrite = await readStore();
+    expect(afterWrite.conversations.length).toBeGreaterThan(0);
+  });
+
+  it("surfaces a syncError when Neon reports failed rows", async () => {
+    vi.mocked(persistDeferredIngestDualWrite).mockResolvedValue({
+      predictionSync: {
+        attempted: 1,
+        created: 0,
+        updated: 0,
+        failed: 1,
+        skipped: 0,
+      },
+      conversationSync: {
+        attempted: 1,
+        created: 0,
+        updated: 0,
+        failed: 0,
+        skipped: 0,
+        messagesCreated: 0,
+        messagesUpdated: 0,
+      },
+    });
+    const response = await POST(
+      ingestRequest(csvFile("real-partner-export.local.csv", [LEAD_LINE]))
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { syncError?: string };
+    expect(body.syncError).toMatch(/Neon/);
   });
 
   it("records chats the second pass skipped on a dump", async () => {

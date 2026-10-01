@@ -227,6 +227,7 @@ export function UploadForm({
         newSignals?: number;
         hint?: string;
         predictionSync?: unknown;
+        syncError?: string;
         detectLlm?: unknown;
         replaced?: boolean;
       };
@@ -255,6 +256,9 @@ export function UploadForm({
       const sync = parsePredictionSync(data.predictionSync);
       const syncFailed = hasSyncFailures(sync);
 
+      if (typeof data.syncError === "string" && data.syncError) {
+        setSyncWarning(data.syncError);
+      }
       if (syncFailed && sync) {
         setStatus(
           `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — sync incomplete`,

@@ -78,6 +78,9 @@ export interface BackendPrediction {
   created_at: string;
   /** Present after 004; treat missing as false (fail-soft). */
   acted?: boolean;
+  outcome?: string | null;
+  outcome_value_inr?: number | null;
+  outcome_recorded_at?: string | null;
 }
 
 export interface BackendPredictionWithFeedback extends BackendPrediction {
@@ -115,6 +118,8 @@ export interface BackendSignalScore {
   first_reviewed_at?: string | null;
   /** Latest in-slice ``reviewed_at``. Omitted or null when the window is empty. */
   last_reviewed_at?: string | null;
+  revenue_at_risk_found_inr?: number;
+  revenue_saved_inr?: number;
 }
 
 export class BackendClientError extends Error {
@@ -157,14 +162,22 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function backendFetch<T>(
+const COLD_START_STATUSES = new Set([502, 503, 504]);
+
+function serviceTokenHeader(): Record<string, string> {
+  const token = process.env.SIOONA_SERVICE_TOKEN?.trim();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function backendFetchOnce<T>(
   tenantId: string,
   path: string,
-  init?: BackendFetchInit
+  init: BackendFetchInit | undefined,
+  timeoutMs: number,
 ): Promise<T> {
   const url = `${assertBackendUrlConfigured()}${path}`;
-  const { timeoutMs: timeoutOverride, signal: userSignal, ...rest } = init ?? {};
-  const timeoutMs = timeoutOverride ?? BACKEND_FETCH_TIMEOUT_MS;
+  const { timeoutMs: _ignored, signal: userSignal, ...rest } = init ?? {};
   const { signal: timeoutSignal, clear: clearTimeoutSignal } =
     createTimeoutSignal(timeoutMs);
   const signal = userSignal
@@ -179,6 +192,7 @@ async function backendFetch<T>(
       headers: {
         "Content-Type": "application/json",
         "X-Tenant-Id": tenantId,
+        ...serviceTokenHeader(),
         ...(rest.headers ?? {}),
       },
       cache: "no-store",
@@ -211,6 +225,47 @@ async function backendFetch<T>(
     return undefined as T;
   }
   return (await response.json()) as T;
+}
+
+async function backendFetch<T>(
+  tenantId: string,
+  path: string,
+  init?: BackendFetchInit
+): Promise<T> {
+  const timeoutMs = init?.timeoutMs ?? BACKEND_FETCH_TIMEOUT_MS;
+  try {
+    return await backendFetchOnce(tenantId, path, init, timeoutMs);
+  } catch (err) {
+    // One extra wait for Render free-tier wake. Timeouts stay on the caller.
+    if (
+      !(err instanceof BackendClientError) ||
+      err.status == null ||
+      !COLD_START_STATUSES.has(err.status)
+    ) {
+      throw err;
+    }
+    await sleep(1000);
+    try {
+      return await backendFetchOnce(
+        tenantId,
+        path,
+        init,
+        Math.max(timeoutMs, 25_000),
+      );
+    } catch (retryErr) {
+      if (
+        retryErr instanceof BackendClientError &&
+        retryErr.status != null &&
+        COLD_START_STATUSES.has(retryErr.status)
+      ) {
+        throw new BackendClientError(
+          "Signal Score is waking up after a cold start. Retry in a moment.",
+          retryErr.status,
+        );
+      }
+      throw retryErr;
+    }
+  }
 }
 
 export type BackendMessageRole = "customer" | "agent" | "system";
@@ -684,6 +739,8 @@ export interface BackendTenantDataWipeResult {
   predictions: number;
   feedback: number;
   pilot_settings: number;
+  taxonomy_overrides?: number;
+  supervised_actions?: number;
 }
 
 /**
@@ -697,5 +754,69 @@ export async function wipeTenantData(
   return backendFetch<BackendTenantDataWipeResult>(tenantId, path, {
     method: "DELETE",
     timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    headers: { "X-Sioona-Role": "admin" },
   });
+}
+
+export type BackendSignalOutcome =
+  | "retained"
+  | "churned"
+  | "converted"
+  | "no_change"
+  | "unknown";
+
+export async function setPredictionOutcome(
+  tenantId: string,
+  signalId: string,
+  input: {
+    outcome: BackendSignalOutcome;
+    value_inr?: number | null;
+    recorded_on?: string | null;
+  },
+): Promise<BackendPrediction> {
+  return backendFetch<BackendPrediction>(
+    tenantId,
+    `/v1/signals/${encodeURIComponent(signalId)}/outcome`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+      timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    },
+  );
+}
+
+export interface BackendTaxonomyTypeOverride {
+  phrases: string[];
+  keywords: string[];
+  negative_phrases: string[];
+}
+
+export async function getTaxonomyOverrides(
+  tenantId: string,
+): Promise<Record<string, BackendTaxonomyTypeOverride>> {
+  const body = await backendFetch<{
+    overrides: Record<string, BackendTaxonomyTypeOverride>;
+  }>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/taxonomy-overrides`, {
+    timeoutMs: 4_000,
+  });
+  return body.overrides ?? {};
+}
+
+export async function putTaxonomyOverrides(
+  tenantId: string,
+  overrides: Record<string, BackendTaxonomyTypeOverride>,
+): Promise<void> {
+  await backendFetch(
+    tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/taxonomy-overrides`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        lead: overrides.lead ?? null,
+        retention: overrides.retention ?? null,
+        upsell: overrides.upsell ?? null,
+      }),
+      timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    },
+  );
 }

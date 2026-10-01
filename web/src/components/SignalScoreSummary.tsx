@@ -9,7 +9,7 @@ import { SignalTypeChip } from "@/components/SignalTypeChip";
 import { Separator } from "@/components/ui/separator";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import { normalizeSignalScoreCounts, type PilotGoNoGo } from "@/lib/eval";
-import { formatPercent, signalTypeLabel } from "@/lib/format";
+import { formatInr, formatPercent, signalTypeLabel } from "@/lib/format";
 import { PILOT_MIN_REVIEWS } from "@/lib/pilot-cadence";
 import type { SignalType } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,27 @@ function typeScorePercent(row: {
   signal_score: number | null;
 }): string {
   return formatPercent(normalizeSignalScoreCounts(row).reviewPrecision);
+}
+
+function RevenueLeakStrip({ score }: { score: BackendSignalScore }) {
+  const atRisk = score.revenue_at_risk_found_inr ?? 0;
+  const saved = score.revenue_saved_inr ?? 0;
+  return (
+    <dl className="grid min-w-0 grid-cols-2 divide-x divide-sio-border-base border-t border-sio-border-base">
+      <div className="min-w-0 px-3 py-2.5 sm:px-4">
+        <dt className="text-label-12 text-sio-fg-muted">Revenue at risk found</dt>
+        <dd className="tabular mt-0.5 text-copy-14 text-sio-fg-base">
+          {formatInr(atRisk)}
+        </dd>
+      </div>
+      <div className="min-w-0 px-3 py-2.5 sm:px-4">
+        <dt className="text-label-12 text-sio-fg-muted">Revenue saved</dt>
+        <dd className="tabular mt-0.5 text-copy-14 text-sio-fg-base">
+          {formatInr(saved)}
+        </dd>
+      </div>
+    </dl>
+  );
 }
 
 export function goNoGoLabel(value: PilotGoNoGo): string {
@@ -186,6 +207,7 @@ export function SignalScoreSummary({
             <CompactStat key={kpi.label} {...kpi} />
           ))}
         </dl>
+        {score ? <RevenueLeakStrip score={score} /> : null}
 
         {showFoot ? (
           <>
@@ -340,6 +362,7 @@ export function SignalScoreSummary({
           )}
         </div>
       </div>
+      {score ? <RevenueLeakStrip score={score} /> : null}
     </EvalCard>
   );
 }

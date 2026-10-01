@@ -1,7 +1,10 @@
 import { after, NextResponse } from "next/server";
+import { requireApiSession } from "@/lib/auth-guard";
+import { isLivePartnerKeepSet } from "@/lib/vault-file";
 import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-overrides";
 import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "@/data/fixtures/zerodha-batch01-overrides";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
+import { syncTaxonomyOverridesToBackend } from "@/lib/sync-taxonomy";
 import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
@@ -146,7 +149,9 @@ async function redetectWithOverrides(store: StoreData): Promise<{
   return { store: updated, redetectCount: updated.signals.length };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const session = await requireApiSession(request, "read");
+  if (session instanceof NextResponse) return session;
   const store = await readStore();
   return NextResponse.json({
     ...store,
@@ -164,6 +169,13 @@ export async function POST(request: Request) {
     value?: string;
     redetect?: boolean;
   };
+
+  const intent =
+    body.action === "reset" || body.action === "partner_demo"
+      ? "destructive"
+      : "mutate";
+  const session = await requireApiSession(request, intent);
+  if (session instanceof NextResponse) return session;
 
   if (body.action === "warmup_showcase") {
     const warmed = await warmShowcasePacks();
@@ -262,11 +274,24 @@ export async function POST(request: Request) {
   if (body.action === "apply_partner_export_adapt") {
     try {
       let store = await readStore();
+      if (isLivePartnerKeepSet(store.pilot?.lastUploadedFileName)) {
+        return NextResponse.json(
+          {
+            error:
+              "Sample Adapt packs stay off a real partner export. Add a phrase from the review instead.",
+          },
+          { status: 403 },
+        );
+      }
       store.taxonomyOverrides = mergeTaxonomyOverrides(
         store.taxonomyOverrides,
         PARTNER_EXPORT_ADAPT_OVERRIDES
       );
       await writeStore(store);
+      await syncTaxonomyOverridesToBackend(
+        store.tenant.id,
+        store.taxonomyOverrides ?? {},
+      );
       const result = await redetectWithOverrides(store);
       store = result.store;
       return NextResponse.json({
@@ -284,11 +309,24 @@ export async function POST(request: Request) {
   if (body.action === "apply_zerodha_batch01_adapt") {
     try {
       let store = await readStore();
+      if (isLivePartnerKeepSet(store.pilot?.lastUploadedFileName)) {
+        return NextResponse.json(
+          {
+            error:
+              "Sample Adapt packs stay off a real partner export. Add a phrase from the review instead.",
+          },
+          { status: 403 },
+        );
+      }
       store.taxonomyOverrides = mergeTaxonomyOverrides(
         store.taxonomyOverrides,
         ZERODHA_BATCH01_ADAPT_OVERRIDES
       );
       await writeStore(store);
+      await syncTaxonomyOverridesToBackend(
+        store.tenant.id,
+        store.taxonomyOverrides ?? {},
+      );
       const result = await redetectWithOverrides(store);
       store = result.store;
       return NextResponse.json({

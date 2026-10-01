@@ -5,6 +5,14 @@ const percentFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+export function formatInr(value: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 export function formatPercent(value: number | null): string {
   if (value === null || Number.isNaN(value)) return "—";
   return percentFormatter.format(value);
