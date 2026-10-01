@@ -3,7 +3,6 @@ import Link from "next/link";
 
 import { HexCubeIcon } from "@/components/icons/HexCubeIcon";
 import { LoginForm } from "@/components/LoginForm";
-import { SioonaLogotype } from "@/components/SioonaLogotype";
 import { publicDemoEnabled } from "@/lib/auth-token";
 
 export const dynamic = "force-dynamic";
@@ -31,14 +30,11 @@ export default function LoginPage() {
         <div className="flex w-full max-w-md min-w-0 flex-col items-center gap-4">
           <section className="panel flex w-full min-w-0 flex-col gap-6 px-4 py-6 sm:px-5 sm:py-8">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="flex min-w-0 items-center justify-center gap-3">
-                <div
-                  className="flex size-[60px] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base"
-                  aria-hidden
-                >
-                  <HexCubeIcon variant="large" className="size-[58px] shrink-0" />
-                </div>
-                <SioonaLogotype height={32} />
+              <div
+                className="flex size-[60px] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-panel)] border border-sio-border-base bg-sio-bg-base"
+                aria-hidden
+              >
+                <HexCubeIcon variant="large" className="size-[58px] shrink-0" />
               </div>
               <div className="flex flex-col items-center gap-2">
                 <h1 className="text-balance text-center text-heading-20 text-sio-fg-base">
