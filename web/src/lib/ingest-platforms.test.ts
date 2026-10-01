@@ -169,4 +169,22 @@ describe("parseWhatsappTxt", () => {
   it("throws when no timestamped messages are found", () => {
     expect(() => parseWhatsappTxt("hello\nthere")).toThrow(/No WhatsApp messages/);
   });
+
+  it("keeps DD/MM/YYYY dates when the day is greater than 12", () => {
+    const txt = [
+      "[27/09/2026, 6:10:00 PM] Meera Kulkarni: I will close my account.",
+      "[21/09/2026, 11:00:00 AM] Meera Kulkarni: Still waiting.",
+    ].join("\n");
+    const parsed = parseWhatsappTxt(txt, "kuber.txt");
+    const first = new Date(parsed[0].messages[0].timestamp ?? "");
+    const second = new Date(parsed[0].messages[1].timestamp ?? "");
+    expect(first.getFullYear()).toBe(2026);
+    expect(first.getMonth()).toBe(8);
+    expect(first.getDate()).toBe(27);
+    expect(first.getHours()).toBe(18);
+    expect(first.getMinutes()).toBe(10);
+    expect(second.getMonth()).toBe(8);
+    expect(second.getDate()).toBe(21);
+    expect(second.getHours()).toBe(11);
+  });
 });

@@ -1,0 +1,83 @@
+[27/09/2026, 6:10:00 PM] Meera Kulkarni: Messages and calls are end-to-end encrypted. No one outside of this chat can read them.
+[27/09/2026, 6:10:00 PM] Meera Kulkarni: I am angry. Worst experience so far.
+[27/09/2026, 6:15:00 PM] You: I am sorry this dragged on. I have escalated to the desk.
+[27/09/2026, 6:21:00 PM] Meera Kulkarni: If this isn't fixed I will close my account. Call 9811100001. UPI meera.k@oksbi. Email meera.kulkarni@example.com.
+[27/09/2026, 6:28:00 PM] Meera Kulkarni: An ₹8 lakh portfolio should not wait on ₹50,000. Today.
+[26/09/2026, 5:20:00 PM] Arjun Deshmukh: This is unacceptable. Brokerage is too high.
+[26/09/2026, 5:25:00 PM] You: I have the breakup ready if you want it on mail.
+[26/09/2026, 5:31:00 PM] Arjun Deshmukh: I am shifting to another broker. Your competitor is cheaper. ₹12 lakh portfolio. This month. The desk has been useless.
+[22/09/2026, 11:10:00 AM] Asha Patel: Hi. I have been a client for three years.
+[22/09/2026, 11:15:00 AM] You: Good to hear from you.
+[22/09/2026, 11:21:00 AM] Asha Patel: Lately I am thinking of other options. Nothing firm yet.
+[22/09/2026, 11:28:00 AM] You: I can ask your RM to call if you want.
+[22/09/2026, 11:32:00 AM] Asha Patel: Just putting it on record. No action today.
+[24/09/2026, 9:50:00 AM] Bhavna Nair: Wow, nine days for a payout, truly premium service.
+[24/09/2026, 9:55:00 AM] You: Sorry the credit is taking time.
+[24/09/2026, 10:01:00 AM] Bhavna Nair: I am so delighted I could clap. Please keep this standard.
+[24/09/2026, 10:08:00 AM] You: I have shared this with the payouts desk.
+[24/09/2026, 10:12:00 AM] Bhavna Nair: It really helps me decide. Sure, I will definitely stay forever after this comedy.
+[25/09/2026, 10:00:00 AM] Chirag Joshi: Good morning. Please send yesterday's contract note for TCS.
+[25/09/2026, 10:05:00 AM] You: Sharing it here.
+[25/09/2026, 10:11:00 AM] Chirag Joshi: The quantity shows 14 shares.
+[25/09/2026, 10:18:00 AM] You: That matches the fill we see.
+[25/09/2026, 10:22:00 AM] Chirag Joshi: I also need the trade time for that fill.
+[25/09/2026, 10:27:00 AM] You: It was 10:16 exchange time.
+[25/09/2026, 10:33:00 AM] Chirag Joshi: Pls also confirm the exchange order number.
+[25/09/2026, 10:40:00 AM] You: I am pulling the order log.
+[25/09/2026, 10:44:00 AM] Chirag Joshi: Whn you have it, a screenshot is enough.
+[25/09/2026, 10:49:00 AM] You: I will place the screenshot on this thread.
+[25/09/2026, 10:55:00 AM] Chirag Joshi: The quantity matches. Forget the note.
+[25/09/2026, 11:02:00 AM] Chirag Joshi: If this isn't fixed I will close my account.
+[25/09/2026, 11:06:00 AM] You: I hear you. I will ask a senior to call.
+[25/09/2026, 11:11:00 AM] Chirag Joshi: My ₹8 lakh portfolio should not sit in a queue. Today.
+[23/09/2026, 2:25:00 PM] Devika Kapoor: Your desk has ignored me since Monday and this is unacceptable.
+[23/09/2026, 2:30:00 PM] You: I am sorry the wait was long.
+[23/09/2026, 2:36:00 PM] Devika Kapoor: I still want to open a demat account for my father.
+[23/09/2026, 2:43:00 PM] You: I can start that file.
+[23/09/2026, 2:47:00 PM] Devika Kapoor: What are your brokerage charges? About ₹2 lakh. By Friday.
+[26/09/2026, 3:05:00 PM] Pooja Reddy: Brokerage bahut zyada hai and I am not happy, but I already trade equity.
+[26/09/2026, 3:10:00 PM] You: I can explain the delivery lines, and also the segment form.
+[26/09/2026, 3:16:00 PM] Pooja Reddy: Please enable F&O and margin trading facility. MTF ka rate kya hai. ₹4 lakh. Is mahine. UPI poojareddy@paytm.
+[21/09/2026, 11:00:00 AM] Nikhil Bansal: Hi, I want to open a demat account this week. What are your brokerage charges? I can start with ₹2 lakh.
+[21/09/2026, 11:05:00 AM] You: Sharing the fee card and the opening checklist.
+[21/09/2026, 11:11:00 AM] Nikhil Bansal: One issue: email nikhil.bansal@example.com and also desk-test@example.com. Call +91 98450 11013 or 9811100022.
+[21/09/2026, 11:18:00 AM] Nikhil Bansal: PAN is QQQQQ1111B. date of birth: 02/11/1988. pincode: 560001. IFSC SBIN0002222. UCC: ZX100200. The spare code is KB123456.
+[23/09/2026, 10:20:00 AM] Lakshmi Iyer: Hello. I already trade equity. Can you add a family account for my daughter?
+[23/09/2026, 10:25:00 AM] You: Yes. I will send the second-holder form.
+[23/09/2026, 10:31:00 AM] Lakshmi Iyer: Also do you offer loan against shares on my ₹15 lakh portfolio? This month. Map payouts to lakshmi.iyer@okaxis, IFSC ICIC0001111. Thanks.
+[23/09/2026, 5:45:00 PM] Rahul Menon: Withdrawal pending since Monday. Still waiting. No update. Amount not credited. Bhai koi update nahi.
+[23/09/2026, 5:50:00 PM] You: I am chasing the bank file.
+[23/09/2026, 5:56:00 PM] Rahul Menon: Tried UPI rahulmenon@ybl and IFSC HDFC0001234. PAN ZZZZZ0001A. DOB: 14/08/1992.
+[23/09/2026, 6:03:00 PM] Rahul Menon: address: 22 Sample Marg, Banjara Hills, Hyderabad
+[23/09/2026, 6:07:00 PM] Rahul Menon: pin code 500034. client code KU998877. Aadhaar 1111 2222 3333. Account 998877665544332.
+[22/09/2026, 9:05:00 AM] Harpreet Singh: Good morning. Please share the contract note for the INFY delivery from yesterday. There is a small problem reading the PDF.
+[22/09/2026, 9:10:00 AM] Harpreet Singh: Whn you get a minute, the PDF is enough.
+[22/09/2026, 2:10:00 PM] You: Sharing the PDF on this chat.
+[22/09/2026, 2:17:00 PM] Harpreet Singh: Received the file.
+[27/09/2026, 11:45:00 AM] Fatima Qureshi: Bhai bas ho gaya. I am frustrated and thinking of leaving.
+[27/09/2026, 11:50:00 AM] You: I can ask a senior to call you this afternoon.
+[27/09/2026, 11:56:00 AM] Fatima Qureshi: Switch to another app. ₹3 lakh should not sit on a frozen window. This week.
+[21/09/2026, 10:00:00 AM] Aditi Saxena: नमस्ते। मैं खाता बंद करने की सोच रहा हूँ।
+[21/09/2026, 10:05:00 AM] You: मैं कारण नोट कर लेता हूँ।
+[21/09/2026, 10:11:00 AM] Aditi Saxena: ब्रोकरेज बहुत ज्यादा लग रहा है। पोर्टफोलियो यहीं पड़ा है।
+[25/09/2026, 2:28:00 PM] Aditi Dutta: मैं नया डीमैट खाता खोलना चाहता हूँ।
+[25/09/2026, 2:33:00 PM] You: दस्तावेज सूची भेज रहा हूँ।
+[25/09/2026, 2:39:00 PM] Aditi Dutta: I want to open a demat account. ₹2 lakh. इस हफ्ते।
+[21/09/2026, 9:12:00 AM] Aditi Vora: Hello. OTP not received on the registered mobile since morning. Call 9700002211 or +91-9811100023.
+[21/09/2026, 9:17:00 AM] You: I have triggered a fresh OTP.
+[21/09/2026, 9:23:00 AM] Aditi Vora: Pls confirm once it shows as sent.
+[22/09/2026, 9:12:00 AM] Bharat Parekh: Hi. Please reset my password. I forgot password after the update.
+[22/09/2026, 9:17:00 AM] You: The reset mail is queued.
+[22/09/2026, 9:23:00 AM] Bharat Parekh: I will use the link as soon as it arrives.
+[21/09/2026, 4:12:00 PM] Bharat Iyer: Good morning. App keeps crashing on the holdings tab. It started yesterday.
+[21/09/2026, 4:17:00 PM] You: Please update and reopen.
+[21/09/2026, 4:23:00 PM] Bharat Iyer: I will update tommorow morning if the store is slow.
+[22/09/2026, 1:12:00 PM] Bharat Kulkarni: Hello. Unable to complete KYC. Video KYC not working.
+[22/09/2026, 1:17:00 PM] You: Please retry on Wi-Fi and share a screenshot.
+[22/09/2026, 1:23:00 PM] Bharat Kulkarni: I tried on Wi-Fi. The status page stays on pending.
+[21/09/2026, 6:12:00 PM] Bharat Gill: Good morning. Please send the contract note for the TCS delivery yesterday. My client code is KB123456.
+[21/09/2026, 6:17:00 PM] You: I will attach the PDF on this chat.
+[21/09/2026, 6:23:00 PM] Bharat Gill: Pls also include the INFY fill from the same day.
+[22/09/2026, 2:15:00 PM] Neelam Bhatt: I already trade equity. Please enable F&O.
+[22/09/2026, 2:20:00 PM] You: I will check the income-proof flag.
+[22/09/2026, 2:26:00 PM] Neelam Bhatt: Also activate margin trading facility. ₹8 lakh portfolio. This week.

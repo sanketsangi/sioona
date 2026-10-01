@@ -1,0 +1,940 @@
+{
+  "conversations": [
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_meera_04",
+      "created_at": 1790512800,
+      "source": {
+        "type": "conversation",
+        "body": "<p>I am angry. Worst experience so far.</p>",
+        "created_at": 1790512800,
+        "author": {
+          "type": "user",
+          "name": "Meera Kulkarni"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I am sorry this dragged on. I have escalated to the desk.</p>",
+            "created_at": 1790513100,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>If this isn't fixed I will close my account. Call 9811100001. UPI meera.k@oksbi. Email meera.kulkarni@example.com.</p>",
+            "created_at": 1790513460,
+            "author": {
+              "type": "user",
+              "name": "Meera Kulkarni"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>An ₹8 lakh portfolio should not wait on ₹50,000. Today.</p>",
+            "created_at": 1790513880,
+            "author": {
+              "type": "user",
+              "name": "Meera Kulkarni"
+            }
+          },
+          {
+            "part_type": "note",
+            "body": "<p>Internal: Shadow Mode rehearsal. Do not send.</p>",
+            "created_at": 1790513910,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "",
+            "created_at": 1790512890,
+            "author": {
+              "type": "user",
+              "name": "Meera Kulkarni"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_arjun_03",
+      "created_at": 1790423400,
+      "source": {
+        "type": "conversation",
+        "body": "<p>This is unacceptable. Brokerage is too high.</p>",
+        "created_at": 1790423400,
+        "author": {
+          "type": "user",
+          "name": "Arjun Deshmukh"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I have the breakup ready if you want it on mail.</p>",
+            "created_at": 1790423700,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I am shifting to another broker. Your competitor is cheaper. ₹12 lakh portfolio. This month. The desk has been useless.</p>",
+            "created_at": 1790424060,
+            "author": {
+              "type": "user",
+              "name": "Arjun Deshmukh"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_hc_soft",
+      "created_at": 1790055600,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hi. I have been a client for three years.</p>",
+        "created_at": 1790055600,
+        "author": {
+          "type": "user",
+          "name": "Asha Patel"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Good to hear from you.</p>",
+            "created_at": 1790055900,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Lately I am thinking of other options. Nothing firm yet.</p>",
+            "created_at": 1790056260,
+            "author": {
+              "type": "user",
+              "name": "Asha Patel"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I can ask your RM to call if you want.</p>",
+            "created_at": 1790056680,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Just putting it on record. No action today.</p>",
+            "created_at": 1790056920,
+            "author": {
+              "type": "user",
+              "name": "Asha Patel"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_hc_sarcasm",
+      "created_at": 1790223600,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Wow, nine days for a payout, truly premium service.</p>",
+        "created_at": 1790223600,
+        "author": {
+          "type": "user",
+          "name": "Bhavna Nair"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Sorry the credit is taking time.</p>",
+            "created_at": 1790223900,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I am so delighted I could clap. Please keep this standard.</p>",
+            "created_at": 1790224260,
+            "author": {
+              "type": "user",
+              "name": "Bhavna Nair"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I have shared this with the payouts desk.</p>",
+            "created_at": 1790224680,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>It really helps me decide. Sure, I will definitely stay forever after this comedy.</p>",
+            "created_at": 1790224920,
+            "author": {
+              "type": "user",
+              "name": "Bhavna Nair"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_hc_buried",
+      "created_at": 1790310600,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Good morning. Please send yesterday's contract note for TCS.</p>",
+        "created_at": 1790310600,
+        "author": {
+          "type": "user",
+          "name": "Chirag Joshi"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Sharing it here.</p>",
+            "created_at": 1790310900,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>The quantity shows 14 shares.</p>",
+            "created_at": 1790311260,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>That matches the fill we see.</p>",
+            "created_at": 1790311680,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I also need the trade time for that fill.</p>",
+            "created_at": 1790311920,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>It was 10:16 exchange time.</p>",
+            "created_at": 1790312220,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Pls also confirm the exchange order number.</p>",
+            "created_at": 1790312580,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I am pulling the order log.</p>",
+            "created_at": 1790313000,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Whn you have it, a screenshot is enough.</p>",
+            "created_at": 1790313240,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I will place the screenshot on this thread.</p>",
+            "created_at": 1790313540,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>The quantity matches. Forget the note.</p>",
+            "created_at": 1790313900,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>If this isn't fixed I will close my account.</p>",
+            "created_at": 1790314320,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I hear you. I will ask a senior to call.</p>",
+            "created_at": 1790314560,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>My ₹8 lakh portfolio should not sit in a queue. Today.</p>",
+            "created_at": 1790314860,
+            "author": {
+              "type": "user",
+              "name": "Chirag Joshi"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_hc_lead_mix",
+      "created_at": 1790153700,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Your desk has ignored me since Monday and this is unacceptable.</p>",
+        "created_at": 1790153700,
+        "author": {
+          "type": "user",
+          "name": "Devika Kapoor"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I am sorry the wait was long.</p>",
+            "created_at": 1790154000,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I still want to open a demat account for my father.</p>",
+            "created_at": 1790154360,
+            "author": {
+              "type": "user",
+              "name": "Devika Kapoor"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I can start that file.</p>",
+            "created_at": 1790154780,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>What are your brokerage charges? About ₹2 lakh. By Friday.</p>",
+            "created_at": 1790155020,
+            "author": {
+              "type": "user",
+              "name": "Devika Kapoor"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_pooja_03",
+      "created_at": 1790415300,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Brokerage bahut zyada hai and I am not happy, but I already trade equity.</p>",
+        "created_at": 1790415300,
+        "author": {
+          "type": "user",
+          "name": "Pooja Reddy"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I can explain the delivery lines, and also the segment form.</p>",
+            "created_at": 1790415600,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Please enable F&amp;O and margin trading facility. MTF ka rate kya hai. ₹4 lakh. Is mahine. UPI poojareddy@paytm.</p>",
+            "created_at": 1790415960,
+            "author": {
+              "type": "user",
+              "name": "Pooja Reddy"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_nikhil_01",
+      "created_at": 1789968600,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hi, I want to open a demat account this week. What are your brokerage charges? I can start with ₹2 lakh.</p>",
+        "created_at": 1789968600,
+        "author": {
+          "type": "user",
+          "name": "Nikhil Bansal"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Sharing the fee card and the opening checklist.</p>",
+            "created_at": 1789968900,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>One issue: email nikhil.bansal@example.com and also desk-test@example.com. Call +91 98450 11013 or 9811100022.</p>",
+            "created_at": 1789969260,
+            "author": {
+              "type": "user",
+              "name": "Nikhil Bansal"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>PAN is QQQQQ1111B. date of birth: 02/11/1988. pincode: 560001. IFSC SBIN0002222. UCC: ZX100200. The spare code is KB123456.</p>",
+            "created_at": 1789969680,
+            "author": {
+              "type": "user",
+              "name": "Nikhil Bansal"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_lakshmi_01",
+      "created_at": 1790139000,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hello. I already trade equity. Can you add a family account for my daughter?</p>",
+        "created_at": 1790139000,
+        "author": {
+          "type": "user",
+          "name": "Lakshmi Iyer"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Yes. I will send the second-holder form.</p>",
+            "created_at": 1790139300,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Also do you offer loan against shares on my ₹15 lakh portfolio? This month. Map payouts to lakshmi.iyer@okaxis, IFSC ICIC0001111. Thanks.</p>",
+            "created_at": 1790139660,
+            "author": {
+              "type": "user",
+              "name": "Lakshmi Iyer"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_rahul_02",
+      "created_at": 1790165700,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Withdrawal pending since Monday. Still waiting. No update. Amount not credited. Bhai koi update nahi.</p>",
+        "created_at": 1790165700,
+        "author": {
+          "type": "user",
+          "name": "Rahul Menon"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I am chasing the bank file.</p>",
+            "created_at": 1790166000,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Tried UPI rahulmenon@ybl and IFSC HDFC0001234. PAN ZZZZZ0001A. DOB: 14/08/1992.</p>",
+            "created_at": 1790166360,
+            "author": {
+              "type": "user",
+              "name": "Rahul Menon"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>address: 22 Sample Marg, Banjara Hills, Hyderabad</p>",
+            "created_at": 1790166780,
+            "author": {
+              "type": "user",
+              "name": "Rahul Menon"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>pin code 500034. client code KU998877. Aadhaar 1111 2222 3333. Account 998877665544332.</p>",
+            "created_at": 1790167020,
+            "author": {
+              "type": "user",
+              "name": "Rahul Menon"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_harpreet_01",
+      "created_at": 1790048100,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Good morning. Please share the contract note for the INFY delivery from yesterday. There is a small problem reading the PDF.</p>",
+        "created_at": 1790048100,
+        "author": {
+          "type": "user",
+          "name": "Harpreet Singh"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Whn you get a minute, the PDF is enough.</p>",
+            "created_at": 1790048400,
+            "author": {
+              "type": "user",
+              "name": "Harpreet Singh"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Sharing the PDF on this chat.</p>",
+            "created_at": 1790066400,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Received the file.</p>",
+            "created_at": 1790066820,
+            "author": {
+              "type": "user",
+              "name": "Harpreet Singh"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_fatima_03",
+      "created_at": 1790489700,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Bhai bas ho gaya. I am frustrated and thinking of leaving.</p>",
+        "created_at": 1790489700,
+        "author": {
+          "type": "user",
+          "name": "Fatima Qureshi"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I can ask a senior to call you this afternoon.</p>",
+            "created_at": 1790490000,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Switch to another app. ₹3 lakh should not sit on a frozen window. This week.</p>",
+            "created_at": 1790490360,
+            "author": {
+              "type": "user",
+              "name": "Fatima Qureshi"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_ret_hi_01",
+      "created_at": 1789965000,
+      "source": {
+        "type": "conversation",
+        "body": "<p>नमस्ते। मैं खाता बंद करने की सोच रहा हूँ।</p>",
+        "created_at": 1789965000,
+        "author": {
+          "type": "user",
+          "name": "Aditi Saxena"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>मैं कारण नोट कर लेता हूँ।</p>",
+            "created_at": 1789965300,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>ब्रोकरेज बहुत ज्यादा लग रहा है। पोर्टफोलियो यहीं पड़ा है।</p>",
+            "created_at": 1789965660,
+            "author": {
+              "type": "user",
+              "name": "Aditi Saxena"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_lead_hi_01",
+      "created_at": 1790326680,
+      "source": {
+        "type": "conversation",
+        "body": "<p>मैं नया डीमैट खाता खोलना चाहता हूँ।</p>",
+        "created_at": 1790326680,
+        "author": {
+          "type": "user",
+          "name": "Aditi Dutta"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>दस्तावेज सूची भेज रहा हूँ।</p>",
+            "created_at": 1790326980,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I want to open a demat account. ₹2 lakh. इस हफ्ते।</p>",
+            "created_at": 1790327340,
+            "author": {
+              "type": "user",
+              "name": "Aditi Dutta"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_ops_otp_01",
+      "created_at": 1789962120,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hello. OTP not received on the registered mobile since morning. Call 9700002211 or +91-9811100023.</p>",
+        "created_at": 1789962120,
+        "author": {
+          "type": "user",
+          "name": "Aditi Vora"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I have triggered a fresh OTP.</p>",
+            "created_at": 1789962420,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Pls confirm once it shows as sent.</p>",
+            "created_at": 1789962780,
+            "author": {
+              "type": "user",
+              "name": "Aditi Vora"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_ops_password_01",
+      "created_at": 1790048520,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hi. Please reset my password. I forgot password after the update.</p>",
+        "created_at": 1790048520,
+        "author": {
+          "type": "user",
+          "name": "Bharat Parekh"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>The reset mail is queued.</p>",
+            "created_at": 1790048820,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I will use the link as soon as it arrives.</p>",
+            "created_at": 1790049180,
+            "author": {
+              "type": "user",
+              "name": "Bharat Parekh"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_ops_app_01",
+      "created_at": 1789987320,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Good morning. App keeps crashing on the holdings tab. It started yesterday.</p>",
+        "created_at": 1789987320,
+        "author": {
+          "type": "user",
+          "name": "Bharat Iyer"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Please update and reopen.</p>",
+            "created_at": 1789987620,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I will update tommorow morning if the store is slow.</p>",
+            "created_at": 1789987980,
+            "author": {
+              "type": "user",
+              "name": "Bharat Iyer"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_ops_kyc_01",
+      "created_at": 1790062920,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Hello. Unable to complete KYC. Video KYC not working.</p>",
+        "created_at": 1790062920,
+        "author": {
+          "type": "user",
+          "name": "Bharat Kulkarni"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>Please retry on Wi-Fi and share a screenshot.</p>",
+            "created_at": 1790063220,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>I tried on Wi-Fi. The status page stays on pending.</p>",
+            "created_at": 1790063580,
+            "author": {
+              "type": "user",
+              "name": "Bharat Kulkarni"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_ops_contract_01",
+      "created_at": 1789994520,
+      "source": {
+        "type": "conversation",
+        "body": "<p>Good morning. Please send the contract note for the TCS delivery yesterday. My client code is KB123456.</p>",
+        "created_at": 1789994520,
+        "author": {
+          "type": "user",
+          "name": "Bharat Gill"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I will attach the PDF on this chat.</p>",
+            "created_at": 1789994820,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Pls also include the INFY fill from the same day.</p>",
+            "created_at": 1789995180,
+            "author": {
+              "type": "user",
+              "name": "Bharat Gill"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "conversation",
+      "id": "kuber_w1_ic_upsell_fno",
+      "created_at": 1790066700,
+      "source": {
+        "type": "conversation",
+        "body": "<p>I already trade equity. Please enable F&amp;O.</p>",
+        "created_at": 1790066700,
+        "author": {
+          "type": "user",
+          "name": "Neelam Bhatt"
+        }
+      },
+      "conversation_parts": {
+        "conversation_parts": [
+          {
+            "part_type": "comment",
+            "body": "<p>I will check the income-proof flag.</p>",
+            "created_at": 1790067000,
+            "author": {
+              "type": "admin",
+              "name": "Kuber Support"
+            }
+          },
+          {
+            "part_type": "comment",
+            "body": "<p>Also activate margin trading facility. ₹8 lakh portfolio. This week.</p>",
+            "created_at": 1790067360,
+            "author": {
+              "type": "user",
+              "name": "Neelam Bhatt"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
