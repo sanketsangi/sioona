@@ -189,6 +189,7 @@ function VaultNav({
   vaultFile,
   uploadedFileNames = [],
   chatCount,
+  showDemoActions = true,
 }: {
   lastUploadedFileName?: string;
   /** `?file=` — drives Vault active pill when Insights is file-scoped. */
@@ -197,6 +198,8 @@ function VaultNav({
   uploadedFileNames?: string[];
   /** Loaded chats. Zero means a weekly filename is still landing. */
   chatCount?: number;
+  /** Hide Sample (Reset) and Partner Demo when those actions are off. */
+  showDemoActions?: boolean;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const router = useRouter();
@@ -284,9 +287,16 @@ function VaultNav({
       })),
     },
   ];
-  const groups = livePartner
-    ? allGroups.filter((group) => group.icon === "upload")
-    : allGroups;
+  const groups = allGroups.filter((group) => {
+    if (
+      !showDemoActions &&
+      (group.icon === "sample" || group.icon === "partner")
+    ) {
+      return false;
+    }
+    if (livePartner && group.icon !== "upload") return false;
+    return true;
+  });
 
   function VaultGroupIcon({ kind }: { kind: "sample" | "partner" | "upload" }) {
     const className = "size-4 shrink-0 text-sio-fg-base";
@@ -327,6 +337,7 @@ function VaultNav({
   // Warm Insights RSC + pre-detect Sample / Partner Demo packs on the server
   // so vault clicks writeStore instantly and the signal queue feels immediate.
   useEffect(() => {
+    if (!showDemoActions) return;
     router.prefetch(vaultInsightsHref(GROWW_SHOWCASE_SAMPLE_NAME));
     router.prefetch(vaultInsightsHref(ZERODHA_BATCH02_SAMPLE_NAME));
     void fetch("/api/store", {
@@ -334,7 +345,7 @@ function VaultNav({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "warmup_showcase" }),
     }).catch(() => undefined);
-  }, [router]);
+  }, [router, showDemoActions]);
 
   return (
     <SidebarGroup>
@@ -499,6 +510,7 @@ export function AppSidebar({
   uploadedFileNames,
   chatCount,
   account = anonymousDemoAccount(),
+  showDemoActions = true,
   ...props
 }: ComponentProps<typeof Sidebar> & {
   activeView: PlatformView;
@@ -510,6 +522,8 @@ export function AppSidebar({
   chatCount?: number;
   /** Signed-in session, public demo, or null when sign-in is required. */
   account?: AccountSurface | null;
+  /** Hide Sample and Partner Demo when production disables those actions. */
+  showDemoActions?: boolean;
 }) {
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -528,6 +542,7 @@ export function AppSidebar({
           vaultFile={vaultFile}
           uploadedFileNames={uploadedFileNames}
           chatCount={chatCount}
+          showDemoActions={showDemoActions}
         />
       </SidebarContent>
       <SidebarFooter className="shrink-0">

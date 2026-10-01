@@ -7,12 +7,15 @@ export function UploadView({
   hasPartnerExport = false,
   lastUploadedFileName,
   chatCount,
+  showDemoActions = true,
 }: {
   hasPartnerExport?: boolean;
   lastUploadedFileName?: string;
   chatCount?: number;
   cadenceAction: PilotCadenceAction;
   cadencePreviewId?: string | null;
+  /** Hide Reset and Partner Demo when production disables those actions. */
+  showDemoActions?: boolean;
 }) {
   return (
     <ViewFrame>
@@ -22,6 +25,7 @@ export function UploadView({
             hasPartnerExport={hasPartnerExport}
             lastUploadedFileName={lastUploadedFileName}
             chatCount={chatCount}
+            showDemoActions={showDemoActions}
           />
         </section>
         <UploadTips />

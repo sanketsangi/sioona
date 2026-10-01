@@ -38,6 +38,7 @@ import { vaultShowcaseInsightsHref } from "@/lib/vault-showcase";
 function renderSidebar(
   lastUploadedFileName?: string,
   vaultFile?: string | null,
+  showDemoActions = true,
 ) {
   return renderToStaticMarkup(
     createElement(
@@ -47,6 +48,7 @@ function renderSidebar(
         activeView: "insights",
         lastUploadedFileName,
         vaultFile,
+        showDemoActions,
       }),
     ),
   );
@@ -141,6 +143,16 @@ describe("AppSidebar Vault", () => {
     expect(partner).toBeGreaterThan(sample);
     expect(uploadChats).toBeGreaterThan(partner);
     expect(vault.lastIndexOf("Uploaded Chats")).toBe(uploadChats);
+  });
+
+  it("hides Sample and Partner Demo when those actions are off", () => {
+    const html = renderSidebar(undefined, null, false);
+    const vault = vaultSection(html);
+    expect(vault).toContain("Uploaded Chats");
+    expect(vault).not.toContain("Partner Demo");
+    expect(vault).not.toContain(ZERODHA_BATCH02_SAMPLE_NAME);
+    expect(vault).not.toContain(`title="${GROWW_SHOWCASE_SAMPLE_NAME}"`);
+    expect(vault).toContain("No uploads yet");
   });
 
   it("treats a whitespace-only filename as empty catalog state", () => {

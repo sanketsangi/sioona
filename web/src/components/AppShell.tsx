@@ -24,6 +24,7 @@ export function AppShell({
   detailOpen = false,
   notifications = [],
   account = null,
+  showDemoActions = true,
 }: {
   children: React.ReactNode;
   title?: string;
@@ -41,6 +42,8 @@ export function AppShell({
   notifications?: HeaderNotification[];
   /** Sidebar account. Null hides it (sign-in redirect). */
   account?: AccountSurface | null;
+  /** Reset and Partner Demo. Off when production disables those actions. */
+  showDemoActions?: boolean;
 }) {
   useEffect(() => {
     stopCursorRefStrip();
@@ -71,6 +74,7 @@ export function AppShell({
         uploadedFileNames={uploadedFileNames}
         chatCount={chatCount}
         account={account}
+        showDemoActions={showDemoActions}
       />
 
       <SidebarInset

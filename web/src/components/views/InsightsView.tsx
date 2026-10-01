@@ -126,6 +126,7 @@ export function InsightsView({
   precomputedReviewed = null,
   scoreUnavailable = false,
   callToday = false,
+  showDemoActions = true,
 }: {
   store: StoreData;
   demo?: boolean;
@@ -172,6 +173,8 @@ export function InsightsView({
   scoreUnavailable?: boolean;
   /** `?call=today` — first 10 pending signals by urgency × value. */
   callToday?: boolean;
+  /** Hide Reset and Partner Demo when production disables those actions. */
+  showDemoActions?: boolean;
 }) {
   const vaultLoaded = vaultFileIsLoaded(
     vaultFile,
@@ -206,7 +209,10 @@ export function InsightsView({
    * on screen. Do not treat the switch as an upload-mismatch empty state.
    */
   const vaultShowcaseKind =
-    store.tenant.id === "tenant_demo" && !vaultLoaded && vaultFile
+    showDemoActions &&
+    store.tenant.id === "tenant_demo" &&
+    !vaultLoaded &&
+    vaultFile
       ? resolveVaultShowcaseKind(vaultFile)
       : null;
   const vaultMismatch = Boolean(vaultFile && !vaultLoaded && !vaultShowcaseKind);
@@ -690,11 +696,11 @@ export function InsightsView({
                 <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                   Conversation that needs your attention
                 </h2>
-                {livePartner ? null : (
+                {showDemoActions && !livePartner ? (
                   <InsightsPartnerDemoAction
                     lastUploadedFileName={store.pilot?.lastUploadedFileName}
                   />
-                )}
+                ) : null}
               </div>
               <InsightsShadowTip />
             </div>

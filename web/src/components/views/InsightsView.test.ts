@@ -1878,6 +1878,25 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
     expect(html).toContain("Pending signal 1");
   });
+
+  it("hides Run Partner Demo when demo actions are off", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        showDemoActions: false,
+        needsReview: { ok: true, predictions: [] },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+    expect(html).not.toContain("Run Partner Demo");
+    expect(html).toContain("Conversation that needs your attention");
+  });
 });
 
 describe("InsightsView pending review walk", () => {

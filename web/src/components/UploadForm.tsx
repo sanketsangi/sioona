@@ -100,11 +100,14 @@ export function UploadForm({
   hasPartnerExport = false,
   lastUploadedFileName,
   chatCount,
+  showDemoActions = true,
 }: {
   hasPartnerExport?: boolean;
   lastUploadedFileName?: string;
   /** Loaded chats. Zero keeps Reset and Run Partner Demo during a landing. */
   chatCount?: number;
+  /** Hide Reset and Partner Demo when production disables those actions. */
+  showDemoActions?: boolean;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -470,10 +473,11 @@ export function UploadForm({
                 )}
                 Upload & Detect
               </button>
-              {livePartnerVaultChrome({
+              {showDemoActions &&
+              !livePartnerVaultChrome({
                 lastUploadedFileName,
                 chatCount,
-              }) ? null : (
+              }) ? (
                 <>
                   <PartnerDemoButton
                     label="Run Partner Demo"
@@ -486,7 +490,7 @@ export function UploadForm({
                     onErrorChange={onDemoErrorChange}
                   />
                 </>
-              )}
+              ) : null}
             </>
           )}
           <div
@@ -546,12 +550,14 @@ export function UploadForm({
         {hint ? (
           <div className="status-banner status-banner-warning" role="status">
             <p className="text-copy-14 text-sio-fg-base">{hint}</p>
-            <p className="mt-2 text-label-13 text-sio-fg-subtle">
-              <Link href={viewHref("insights")} className="link-accent">
-                Start Partner Demo
-              </Link>{" "}
-              for sample support chats that already score.
-            </p>
+            {showDemoActions ? (
+              <p className="mt-2 text-label-13 text-sio-fg-subtle">
+                <Link href={viewHref("insights")} className="link-accent">
+                  Start Partner Demo
+                </Link>{" "}
+                for sample support chats that already score.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>

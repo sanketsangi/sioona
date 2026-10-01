@@ -64,7 +64,13 @@ import {
 import { normalizeSignalScoreCounts } from "@/lib/eval";
 import { inspectSignalScoreWindow } from "@/lib/signal-score-window";
 import { accountSurface } from "@/lib/account-surface";
-import { authEnforced, publicDemoEnabled, SESSION_COOKIE, verifySessionToken } from "@/lib/auth-token";
+import {
+  authEnforced,
+  demoActionsAllowed,
+  publicDemoEnabled,
+  SESSION_COOKIE,
+  verifySessionToken,
+} from "@/lib/auth-token";
 import { loadStore, persistMissingSupervisedDrafts } from "@/lib/store";
 import { DEMO_TENANT_ID, enterStoreTenant } from "@/lib/tenant-context";
 import { overlaySupervisedActionsFromNeon } from "@/lib/supervised-action-persistence";
@@ -459,6 +465,7 @@ export default async function PlatformPage({
     llmSkipped: store.llmSkippedConversationIds?.length ?? 0,
   });
 
+  const showDemoActions = demoActionsAllowed();
   const title = TITLES[view];
   // Insights landing: omitted status → Shadow All / Action Follow-up.
   // Explicit status (Filters / deep links) always wins. Pending is never implicit.
@@ -507,6 +514,7 @@ export default async function PlatformPage({
         precomputedReviewed={reviewedRaw}
         scoreUnavailable={fetches.windowedScore && backendScore == null}
         callToday={sp.call === "today"}
+        showDemoActions={showDemoActions}
       />
     );
   } else if (view === "upload") {
@@ -518,6 +526,7 @@ export default async function PlatformPage({
         chatCount={store.conversations.length}
         cadenceAction={cadenceAction}
         cadencePreviewId={cadencePreviewId}
+        showDemoActions={showDemoActions}
       />
     );
   } else if (view === "eval") {
@@ -570,6 +579,7 @@ export default async function PlatformPage({
       chatCount={store.conversations.length}
       vaultFile={vaultFile}
       notifications={notifications}
+      showDemoActions={showDemoActions}
       account={accountSurface({
         session,
         authOn: authEnforced(),
