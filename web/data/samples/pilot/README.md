@@ -11,7 +11,7 @@ Week of 21–27 Sep 2026. Upload file: `kuber_week_1_batch_1.csv`.
 | File | Parser | What it is |
 |------|--------|------------|
 | `kuber_week_1_batch_1.csv` | Sioona CSV | Full week. 120 conversations. Columns match `real-partner-export.template.csv`, including `ground_truth`. |
-| `kuber_week_1_intercom.json` | Intercom JSON | The same 20-conversation subset, with `source` + `conversation_parts`. One internal note is included so the note path is exercised. |
+| `kuber_week_1_intercom.json` | Intercom JSON | The same 20-conversation subset, with `source` + `conversation_parts`. Ids are `kuber_w1_ic_*`, so uploading this file after the CSV adds a copy and leaves the CSV chats in place. One internal note is included so the note path is exercised. |
 | `kuber_week_1_whatsapp.txt` | WhatsApp `.txt` | That same subset in export lines (`[dd/mm/yyyy, h:mm:ss AM] Name: ...`, business side as `You`). |
 
 `parseWhatsappTxt` stores one conversation per file, which is how a WhatsApp export is shaped. The `.txt` is here so that parser runs on a real export, including the encryption banner it skips. Review the week on the CSV or the Intercom JSON.

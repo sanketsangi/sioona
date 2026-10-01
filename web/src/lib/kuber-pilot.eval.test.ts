@@ -175,6 +175,12 @@ describe("Kuber Securities synthetic week-1 pilot", () => {
     const intercom = parseIngestDocument(INTERCOM_NAME, intercomText);
     expect(intercom.format).toBe("intercom_json");
     expect(intercom.conversations).toHaveLength(20);
+    const csvIds = new Set(doc.conversations.map((row) => row.externalId));
+    expect(
+      intercom.conversations.every(
+        (row) => row.externalId?.startsWith("kuber_w1_ic_") && !csvIds.has(row.externalId),
+      ),
+    ).toBe(true);
     expect(intercom.conversations.some((row) => row.messages.some((message) => message.role === "system"))).toBe(true);
     const intercomStored = toStoreRecords(intercom.conversations, TENANT_ID, {
       stableIds: true,
@@ -188,6 +194,13 @@ describe("Kuber Securities synthetic week-1 pilot", () => {
     expect(whatsapp.format).toBe("whatsapp_txt");
     expect(whatsapp.conversations.length).toBeGreaterThan(0);
     expect(whatsapp.conversations[0]?.messages.length).toBeGreaterThan(20);
+    for (const message of whatsapp.conversations[0].messages) {
+      const stamp = new Date(message.timestamp ?? "");
+      expect(stamp.getFullYear()).toBe(2026);
+      expect(stamp.getMonth()).toBe(8);
+      expect(stamp.getDate()).toBeGreaterThanOrEqual(21);
+      expect(stamp.getDate()).toBeLessThanOrEqual(27);
+    }
     const whatsappStored = toStoreRecords(whatsapp.conversations, TENANT_ID, {
       stableIds: true,
     }).messages.map((message) => message.content).join("\n");

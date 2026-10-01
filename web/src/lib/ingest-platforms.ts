@@ -197,10 +197,53 @@ export function parseIntercomJson(text: string): IngestConversationInput[] {
 const WHATSAPP_LINE =
   /^\[?(\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AP]M)?)\]?\s*[-–]?\s*([^:]+):\s([\s\S]+)$/i;
 
+/** DD/MM/YYYY (or DD.MM.YYYY) when V8 slash parsing rejects the stamp. */
+function parseDayFirstWhatsappTimestamp(
+  datePart: string,
+  timePart: string,
+): string | undefined {
+  const dateMatch = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/.exec(
+    datePart.trim(),
+  );
+  if (!dateMatch) return undefined;
+  const day = Number(dateMatch[1]);
+  const month = Number(dateMatch[2]);
+  let year = Number(dateMatch[3]);
+  if (year < 100) year += 2000;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return undefined;
+
+  const timeMatch = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s*([AP]M))?$/i.exec(
+    timePart.trim(),
+  );
+  if (!timeMatch) return undefined;
+  let hours = Number(timeMatch[1]);
+  const minutes = Number(timeMatch[2]);
+  const seconds = timeMatch[3] ? Number(timeMatch[3]) : 0;
+  const meridiem = timeMatch[4]?.toUpperCase();
+  if (meridiem === "PM" && hours < 12) hours += 12;
+  if (meridiem === "AM" && hours === 12) hours = 0;
+  if (hours > 23 || minutes > 59 || seconds > 59) return undefined;
+
+  const date = new Date(year, month - 1, day, hours, minutes, seconds);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return undefined;
+  }
+  return date.toISOString();
+}
+
 function parseWhatsappTimestamp(datePart: string, timePart: string): string {
   const parsed = Date.parse(`${datePart} ${timePart}`);
   if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
-  return new Date().toISOString();
+  // V8 reads slash dates as MM/DD/YYYY, so 27/09/2026 is NaN. WhatsApp
+  // exports from this pack are DD/MM/YYYY; do not stamp those with ingest time.
+  return (
+    parseDayFirstWhatsappTimestamp(datePart, timePart) ??
+    new Date().toISOString()
+  );
 }
 
 export function looksLikeWhatsappTxt(content: string): boolean {
