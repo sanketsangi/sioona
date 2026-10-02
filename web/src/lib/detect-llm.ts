@@ -27,6 +27,12 @@ const SIGNAL_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 
 /** Groq shut down `qwen/qwen3.6-27b` on 2026-09-14. Successor is 3.8. */
 export const DEFAULT_DETECT_LLM_MODEL = "qwen/qwen3.8-27b";
+/**
+ * Used for the rest of a run when the primary model hits Groq's daily token cap.
+ * gpt-oss rejects `reasoning_effort: none` (Qwen accepts it); the request body
+ * switches to `low` for every non-Qwen id.
+ */
+export const FALLBACK_DETECT_LLM_MODEL = "openai/gpt-oss-20b";
 export const DETECT_LLM_MAX_CALLS = 8;
 /** Default 2 — Groq Free 429s at 8-wide; keep Hobby detect + Neon sync under 10s. */
 export const DETECT_LLM_CONCURRENCY = 2;
@@ -126,18 +132,39 @@ export type LlmClassifyFn = (input: {
 }) => Promise<LlmClassification | null>;
 
 /** Why a Groq call did not return a classification. */
-export type LlmFailureKind = "key" | "model" | "timeout" | "shape";
+export type LlmFailureKind = "key" | "model" | "timeout" | "shape" | "quota";
 
 export class LlmCallFailed extends Error {
   readonly kind: LlmFailureKind | null;
   readonly retryable: boolean;
+  /** From the Retry-After header, when Groq sent one. */
+  readonly retryAfterMs: number | null;
+  /** Daily token cap (TPD). Retrying the same model will not succeed. */
+  readonly dailyQuota: boolean;
 
-  constructor(kind: LlmFailureKind | null, retryable = false) {
+  constructor(
+    kind: LlmFailureKind | null,
+    retryable = false,
+    extra?: { retryAfterMs?: number | null; dailyQuota?: boolean }
+  ) {
     super(kind ?? "llm_call_failed");
     this.name = "LlmCallFailed";
     this.kind = kind;
     this.retryable = retryable;
+    this.retryAfterMs = extra?.retryAfterMs ?? null;
+    this.dailyQuota = extra?.dailyQuota ?? kind === "quota";
   }
+}
+
+/** One detection run. A daily-quota switch sticks for later chats in the run. */
+export type GroqModelSession = {
+  model: string;
+  /** Raised after a tokens-per-minute 429 so the rest of the run stays under the cap. */
+  minGapMs: number;
+};
+
+export function createGroqModelSession(): GroqModelSession {
+  return { model: detectLlmModel(), minGapMs: 0 };
 }
 
 export type LlmPassStats = {
@@ -191,10 +218,47 @@ export function groqFailureKind(
 function llmFailureKindOf(err: unknown): LlmFailureKind | null {
   if (!err || typeof err !== "object" || !("kind" in err)) return null;
   const kind = (err as { kind?: unknown }).kind;
-  if (kind === "key" || kind === "model" || kind === "timeout" || kind === "shape") {
+  if (
+    kind === "key" ||
+    kind === "model" ||
+    kind === "timeout" ||
+    kind === "shape" ||
+    kind === "quota"
+  ) {
     return kind;
   }
   return null;
+}
+
+/** Groq free-tier daily cap. The body names TPD; a short TPM 429 does not. */
+export function isGroqDailyQuota(status: number, body: string): boolean {
+  if (status !== 429) return false;
+  return /tokens per day|\(tpd\)/i.test(body);
+}
+
+function fallbackDetectLlmModel(current: string): string | null {
+  const raw = process.env.DETECT_LLM_FALLBACK_MODEL;
+  if (raw != null) {
+    const trimmed = raw.trim();
+    if (trimmed === "" || trimmed === "0" || trimmed === "off") return null;
+    if (trimmed === current) return null;
+    return trimmed;
+  }
+  if (FALLBACK_DETECT_LLM_MODEL === current) return null;
+  return FALLBACK_DETECT_LLM_MODEL;
+}
+
+function groqChatBody(model: string, messages: ClassifyChatMessage[]) {
+  const qwen = /(^|\/)qwen/i.test(model);
+  return {
+    model,
+    temperature: 0,
+    ...(qwen
+      ? { reasoning_effort: "none" as const, reasoning_format: "hidden" as const }
+      : { reasoning_effort: "low" as const }),
+    response_format: { type: "json_object" as const },
+    messages,
+  };
 }
 
 function isAbortError(err: unknown): boolean {
@@ -279,12 +343,38 @@ function sleep(ms: number): Promise<void> {
 let nextGroqAt = 0;
 let groqPace: Promise<void> = Promise.resolve();
 
-/** Space Groq calls so a pilot batch does not burst the free-tier limit. */
-export async function paceGroqCall(): Promise<void> {
+function groqBaseGapMs(): number {
   const raw = process.env.DETECT_LLM_MIN_INTERVAL_MS;
-  const parsed = raw == null || raw.trim() === "" ? DETECT_LLM_MIN_INTERVAL_MS : Number(raw);
-  const gap = Number.isFinite(parsed) ? parsed : DETECT_LLM_MIN_INTERVAL_MS;
-  if (gap <= 0) return;
+  const parsed =
+    raw == null || raw.trim() === "" ? DETECT_LLM_MIN_INTERVAL_MS : Number(raw);
+  return Number.isFinite(parsed) ? parsed : DETECT_LLM_MIN_INTERVAL_MS;
+}
+
+/** Test isolation. Production pacing is module-level so concurrent calls share one queue. */
+export function resetGroqPaceForTests(): void {
+  nextGroqAt = 0;
+  groqPace = Promise.resolve();
+}
+
+/**
+ * After a tokens-per-minute 429, wait out Retry-After and keep later calls
+ * in this run about 8s apart. 8000 TPM and a ~1100-token prompt cannot burst.
+ * Vercel Hobby stays on the short gap so detect still fits the function limit.
+ */
+function noteGroqThrottle(session: GroqModelSession, retryAfterMs: number): void {
+  if (process.env.VERCEL) return;
+  if (groqBaseGapMs() <= 0) return;
+  const sustained = Math.min(20_000, Math.max(retryAfterMs, 8_000));
+  session.minGapMs = Math.max(session.minGapMs, sustained);
+  const until = Date.now() + retryAfterMs;
+  if (until > nextGroqAt) nextGroqAt = until;
+}
+
+/** Space Groq calls so a pilot batch does not burst the free-tier limit. */
+export async function paceGroqCall(session?: GroqModelSession): Promise<void> {
+  const base = groqBaseGapMs();
+  if (base <= 0) return;
+  const gap = Math.max(base, session?.minGapMs ?? 0);
   const ticket = groqPace.then(async () => {
     const wait = nextGroqAt - Date.now();
     if (wait > 0) await sleep(wait);
@@ -297,11 +387,26 @@ export async function paceGroqCall(): Promise<void> {
   await ticket;
 }
 
+function responseHeader(response: Response, name: string): string | null {
+  const headers = response.headers;
+  if (!headers || typeof headers.get !== "function") return null;
+  return headers.get(name);
+}
+
+function retryAfterMs(response: Response): number | null {
+  const raw = responseHeader(response, "retry-after");
+  if (!raw) return null;
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  return Math.round(seconds * 1000);
+}
+
 async function requestGroqClassification(
   apiKey: string,
-  messages: ClassifyChatMessage[]
+  messages: ClassifyChatMessage[],
+  session: GroqModelSession
 ): Promise<LlmClassification> {
-  await paceGroqCall();
+  await paceGroqCall(session);
   const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
   let response: Response;
   try {
@@ -312,14 +417,7 @@ async function requestGroqClassification(
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: detectLlmModel(),
-        temperature: 0,
-        reasoning_effort: "none",
-        reasoning_format: "hidden",
-        response_format: { type: "json_object" },
-        messages,
-      }),
+      body: JSON.stringify(groqChatBody(session.model, messages)),
     });
   } catch (err) {
     throw new LlmCallFailed(isAbortError(err) ? "timeout" : null, true);
@@ -334,8 +432,14 @@ async function requestGroqClassification(
     } catch {
       detail = "";
     }
-    const retryable = response.status === 429 || response.status >= 500;
-    throw new LlmCallFailed(groqFailureKind(response.status, detail), retryable);
+    const daily = isGroqDailyQuota(response.status, detail);
+    const hinted = retryAfterMs(response);
+    if (!daily && hinted != null && hinted > 0) noteGroqThrottle(session, hinted);
+    const retryable = !daily && (response.status === 429 || response.status >= 500);
+    throw new LlmCallFailed(daily ? "quota" : groqFailureKind(response.status, detail), retryable, {
+      retryAfterMs: hinted,
+      dailyQuota: daily,
+    });
   }
 
   let payload: {
@@ -613,10 +717,13 @@ export function classifyChatMessages(input: {
   ];
 }
 
-export async function classifyConversationWithGroq(input: {
-  conversation: Conversation;
-  customerMessages: Message[];
-}): Promise<LlmClassification | null> {
+export async function classifyConversationWithGroq(
+  input: {
+    conversation: Conversation;
+    customerMessages: Message[];
+  },
+  session: GroqModelSession = createGroqModelSession()
+): Promise<LlmClassification | null> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
 
@@ -639,11 +746,32 @@ export async function classifyConversationWithGroq(input: {
   let lastError: unknown = new LlmCallFailed("shape");
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      return await requestGroqClassification(apiKey, messages);
+      return await requestGroqClassification(apiKey, messages, session);
     } catch (err) {
       lastError = err;
+      if (err instanceof LlmCallFailed && err.dailyQuota) {
+        const next = fallbackDetectLlmModel(session.model);
+        if (next) {
+          console.warn(
+            `Detect LLM daily token limit on ${session.model}; switching to ${next}.`
+          );
+          session.model = next;
+          attempt -= 1;
+          continue;
+        }
+        throw err;
+      }
       const retryable = err instanceof LlmCallFailed && err.retryable;
       if (!retryable || attempt >= maxAttempts - 1) throw err;
+      const hinted = err instanceof LlmCallFailed ? err.retryAfterMs : null;
+      const cap = process.env.VERCEL ? 1_500 : 20_000;
+      if (hinted != null && hinted > 0) {
+        if (hinted > cap) throw err;
+        if (process.env.VERCEL || groqBaseGapMs() <= 0) {
+          await sleep(Math.min(hinted, cap));
+        }
+        continue;
+      }
       await sleep(200 * 2 ** attempt);
     }
   }
@@ -661,7 +789,8 @@ function signalFromClassification(
   tenantId: string,
   classification: LlmClassification,
   sourceText: string,
-  overrides?: TaxonomyOverrides | null
+  overrides?: TaxonomyOverrides | null,
+  model?: string
 ): Signal | null {
   if (classification.type === "none") return null;
   if (classification.confidence < SCORE_THRESHOLD) return null;
@@ -684,7 +813,7 @@ function signalFromClassification(
 
   const evidence = [
     ...groundedQuotes.slice(0, 2),
-    `llm: ${detectLlmModel()}`,
+    `llm: ${model || detectLlmModel()}`,
   ];
   const score = Number(classification.confidence.toFixed(3));
   const who = pseudonymCustomerName(conversation.customerName) ?? "Customer";
@@ -740,6 +869,18 @@ function prioritizeSkippedCandidates<T extends { conversation: Conversation }>(
   return [...first, ...rest];
 }
 
+function bindGroqClassify(classify: LlmClassifyFn | undefined): {
+  classify: LlmClassifyFn;
+  modelName: () => string;
+} {
+  if (classify) return { classify, modelName: () => detectLlmModel() };
+  const session = createGroqModelSession();
+  return {
+    classify: (input) => classifyConversationWithGroq(input, session),
+    modelName: () => session.model,
+  };
+}
+
 /**
  * Add LLM signals only for conversations heuristics did not fire on.
  * Does not replace or rewrite heuristic signals (precision gate).
@@ -790,7 +931,7 @@ export async function applyLlmSecondPass(
     .slice(selected.length)
     .map((row) => row.conversation.id);
   const skipped = skippedIds.length;
-  const classifyFn = classify ?? classifyConversationWithGroq;
+  const bound = bindGroqClassify(classify);
   const concurrency = Math.max(
     1,
     options?.concurrency ??
@@ -808,7 +949,7 @@ export async function applyLlmSecondPass(
   await mapWithConcurrency(selected, concurrency, async (row) => {
     attempted += 1;
     try {
-      const result = await classifyFn(row);
+      const result = await bound.classify(row);
       if (!result) {
         failed += 1;
         return;
@@ -819,7 +960,8 @@ export async function applyLlmSecondPass(
         tenantId,
         result,
         source,
-        overrides
+        overrides,
+        bound.modelName()
       );
       if (signal) added.push(signal);
     } catch (err) {
@@ -891,7 +1033,7 @@ export async function applyLlmPrimaryPass(
   const ordered = prioritizeSkippedCandidates(candidates, options?.resumeIds);
   const selected = ordered.slice(0, maxCalls);
   const skippedIds = ordered.slice(selected.length).map((row) => row.conversation.id);
-  const classifyFn = classify ?? classifyConversationWithGroq;
+  const bound = bindGroqClassify(classify);
   const concurrency = Math.max(
     1,
     options?.concurrency ??
@@ -910,7 +1052,7 @@ export async function applyLlmPrimaryPass(
   await mapWithConcurrency(selected, concurrency, async (row) => {
     attempted += 1;
     try {
-      const result = await classifyFn(row);
+      const result = await bound.classify(row);
       if (!result) {
         failed += 1;
         return;
@@ -925,7 +1067,8 @@ export async function applyLlmPrimaryPass(
         tenantId,
         result,
         source,
-        overrides
+        overrides,
+        bound.modelName()
       );
       if (signal) accepted.set(row.conversation.id, signal);
     } catch (err) {

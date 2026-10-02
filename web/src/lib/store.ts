@@ -186,13 +186,17 @@ async function resolveStoreDir(): Promise<string | null> {
 
 /** File for the request tenant. Demo keeps the historical store.json path. */
 async function resolveStorePath(): Promise<string | null> {
+  // Capture before the directory await. A tenant bound with enterWith on the
+  // route frame is still visible here; reading it after the await can fall
+  // back to the demo file.
+  const tenantId = currentStoreTenant();
   const dir = await resolveStoreDir();
   if (!dir) return null;
   // Tenant filenames are runtime (`store.json` / `store.<id>.json`). Without
   // this, Turbopack treats the join as an unbounded read and traces the repo.
   return path.join(
     /*turbopackIgnore: true*/ dir,
-    storeFileNameForTenant(currentStoreTenant()),
+    storeFileNameForTenant(tenantId),
   );
 }
 

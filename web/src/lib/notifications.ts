@@ -174,7 +174,7 @@ export function buildHeaderNotifications(input: {
   newSignalCount?: number | null;
   /** From ?llmFailed= after a Groq pass that did not classify. */
   llmFailed?: number;
-  /** From ?llmFailure= — key, model, timeout, or shape. */
+  /** From ?llmFailure= — key, model, timeout, shape, or quota. */
   llmFailure?: LlmFailureKind | null;
   /** Chats the second pass skipped; stays until the next re-detect. */
   llmSkipped?: number;

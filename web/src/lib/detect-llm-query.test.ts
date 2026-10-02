@@ -112,6 +112,20 @@ describe("parse llm URL params", () => {
 });
 
 describe("llmPassFailureNotice", () => {
+  it("names a used-up daily token limit", () => {
+    expect(
+      llmPassFailureNotice({
+        failed: 18,
+        failure: "quota",
+        signalCount: 10,
+      })
+    ).toEqual({
+      title: "Second pass failed",
+      description:
+        "Groq’s daily token limit for this model is used up. 18 second-pass calls failed. 10 signals from the first pass are still in the queue.",
+    });
+  });
+
   it("names the model failure and keeps the first-pass count", () => {
     expect(
       llmPassFailureNotice({

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
+import { enterStoreTenant } from "@/lib/tenant-context";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetection } from "@/lib/detect-llm";
 import {
@@ -53,6 +54,10 @@ function parseReplaceFlag(form: FormData): boolean {
 export async function POST(request: Request) {
   const session = await requireApiSession(request, "mutate");
   if (session instanceof NextResponse) return session;
+  // enterWith inside requireApiSession does not survive this await.
+  // Bind the signed-in tenant on this frame so readStore/writeStore hit
+  // store.<tenant>.json instead of the demo file.
+  enterStoreTenant(session.tenantId);
   try {
     const form = await request.formData();
     const files = form

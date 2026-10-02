@@ -5,14 +5,18 @@ import {
   applyLlmSecondPass,
   classifyChatMessages,
   classifyConversationWithGroq,
+  createGroqModelSession,
   DEFAULT_DETECT_LLM_MODEL,
   DETECT_LLM_CONCURRENCY,
   DETECT_LLM_MAX_CALLS,
+  FALLBACK_DETECT_LLM_MODEL,
   groqFailureKind,
   isDetectLlmEnabled,
+  isGroqDailyQuota,
   LlmCallFailed,
   parseLlmClassificationJson,
   recoverGroundedQuote,
+  resetGroqPaceForTests,
   runHybridDetection,
   SYSTEM_PROMPT,
 } from "./detect-llm";
@@ -21,6 +25,7 @@ import type { Conversation, Message } from "./types";
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  resetGroqPaceForTests();
 });
 
 const conv: Conversation = {
@@ -967,6 +972,102 @@ describe("classifyConversationWithGroq", () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result?.type).toBe("retention");
+  });
+
+  it("switches to the fallback model when the daily token cap is used up", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
+    vi.stubEnv("DETECT_LLM_MAX_ATTEMPTS", "2");
+    expect(
+      isGroqDailyQuota(
+        429,
+        "Rate limit reached on tokens per day (TPD): Limit 200000, Used 199578, Requested 1154."
+      )
+    ).toBe(true);
+    expect(isGroqDailyQuota(429, "tokens per minute (TPM): Limit 8000")).toBe(
+      false
+    );
+
+    const ok = {
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                signal: "retention_risk",
+                confidence: 0.9,
+                evidence: "close my account",
+                reason: "Customer will leave.",
+              }),
+            },
+          },
+        ],
+      }),
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () =>
+          "Rate limit reached on tokens per day (TPD): Limit 200000, Used 199578, Requested 1154.",
+      })
+      .mockResolvedValueOnce(ok)
+      .mockResolvedValueOnce(ok);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const session = createGroqModelSession();
+    const first = await classifyConversationWithGroq(
+      { conversation: conv, customerMessages },
+      session
+    );
+    expect(first?.type).toBe("retention");
+    expect(session.model).toBe(FALLBACK_DETECT_LLM_MODEL);
+
+    const primary = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as {
+      model: string;
+      reasoning_effort: string;
+      reasoning_format?: string;
+    };
+    const fallback = JSON.parse(String(fetchMock.mock.calls[1][1].body)) as {
+      model: string;
+      reasoning_effort: string;
+      reasoning_format?: string;
+    };
+    expect(primary.model).toBe(DEFAULT_DETECT_LLM_MODEL);
+    expect(primary.reasoning_effort).toBe("none");
+    expect(primary.reasoning_format).toBe("hidden");
+    expect(fallback.model).toBe(FALLBACK_DETECT_LLM_MODEL);
+    expect(fallback.reasoning_effort).toBe("low");
+    expect(fallback.reasoning_format).toBeUndefined();
+
+    await classifyConversationWithGroq(
+      { conversation: conv, customerMessages },
+      session
+    );
+    const third = JSON.parse(String(fetchMock.mock.calls[2][1].body)) as {
+      model: string;
+    };
+    expect(third.model).toBe(FALLBACK_DETECT_LLM_MODEL);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports quota when the daily cap is hit and fallback is off", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
+    vi.stubEnv("DETECT_LLM_FALLBACK_MODEL", "0");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: async () => "tokens per day (TPD): Limit 200000, Used 200000",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      classifyConversationWithGroq({ conversation: conv, customerMessages })
+    ).rejects.toMatchObject({ kind: "quota", dailyQuota: true });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

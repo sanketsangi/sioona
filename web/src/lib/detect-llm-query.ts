@@ -16,6 +16,7 @@ const LLM_FAILURE_KINDS = new Set<LlmFailureKind>([
   "model",
   "timeout",
   "shape",
+  "quota",
 ]);
 
 export function parseLlmPassStats(raw: unknown): LlmPassStats | null {
@@ -88,11 +89,13 @@ export function llmPassFailureNotice(input: {
       ? "Groq no longer serves this model."
       : input.failure === "key"
         ? "Groq rejected the key."
-        : input.failure === "timeout"
-          ? "The second pass timed out."
-          : input.failure === "shape"
-            ? "Groq’s reply could not be read."
-            : "The second pass failed.";
+        : input.failure === "quota"
+          ? "Groq’s daily token limit for this model is used up."
+          : input.failure === "timeout"
+            ? "The second pass timed out."
+            : input.failure === "shape"
+              ? "Groq’s reply could not be read."
+              : "The second pass failed.";
   const count =
     input.signalCount != null && input.signalCount > 0
       ? input.signalCount
