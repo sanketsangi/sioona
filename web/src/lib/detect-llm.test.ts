@@ -1053,6 +1053,54 @@ describe("classifyConversationWithGroq", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("retries on the fallback when a concurrent call already switched the session", async () => {
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
+    vi.stubEnv("DETECT_LLM_MAX_ATTEMPTS", "2");
+    const fetchMock = vi.fn().mockImplementation(async (_url, init) => {
+      const { model } = JSON.parse(String(init.body)) as { model: string };
+      if (model === DEFAULT_DETECT_LLM_MODEL) {
+        return {
+          ok: false,
+          status: 429,
+          text: async () =>
+            "Rate limit reached on tokens per day (TPD): Limit 200000, Used 199578.",
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  signal: "retention_risk",
+                  confidence: 0.9,
+                  evidence: "close my account",
+                  reason: "Customer will leave.",
+                }),
+              },
+            },
+          ],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const session = createGroqModelSession();
+    const results = await Promise.all([
+      classifyConversationWithGroq({ conversation: conv, customerMessages }, session),
+      classifyConversationWithGroq({ conversation: conv, customerMessages }, session),
+    ]);
+
+    expect(results.map((row) => row?.type)).toEqual(["retention", "retention"]);
+    expect(session.model).toBe(FALLBACK_DETECT_LLM_MODEL);
+    const models = fetchMock.mock.calls.map(
+      (call) => (JSON.parse(String(call[1].body)) as { model: string }).model,
+    );
+    expect(models.filter((m) => m === FALLBACK_DETECT_LLM_MODEL)).toHaveLength(2);
+  });
+
   it("reports quota when the daily cap is hit and fallback is off", async () => {
     vi.stubEnv("GROQ_API_KEY", "gsk_test");
     vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");

@@ -18,8 +18,8 @@
 /.next/
 /out/
 
-# local runtime store (seeded from fixtures on first run)
-/data/store.json
+# local runtime stores (store.json and per-tenant store.<tenant>.json)
+/data/store*.json
 
 # Day-1 / week-N pilot drop-ins (redacted partner export; never commit real PII)
 /data/samples/real-partner-export.local.csv

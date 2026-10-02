@@ -25,11 +25,10 @@ export function VaultKeepSetRefresh({
   const router = useRouter();
   const [generation, setGeneration] = useState(0);
   const attemptRef = useRef(0);
-  const fileRef = useRef(fileName);
-  if (fileRef.current !== fileName) {
-    fileRef.current = fileName;
+
+  useEffect(() => {
     attemptRef.current = 0;
-  }
+  }, [fileName]);
 
   useEffect(() => {
     if (!active || !fileName) return;

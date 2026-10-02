@@ -214,11 +214,13 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
 
   useEffect(() => {
     if (!hydrated) return;
-    setArrivedAt((prev) => {
-      const next = stampNotificationArrivals(notifications, prev, Date.now());
-      if (sameArrivals(prev, next)) return prev;
-      writeArrivals(next, sessionStore());
-      return next;
+    queueMicrotask(() => {
+      setArrivedAt((prev) => {
+        const next = stampNotificationArrivals(notifications, prev, Date.now());
+        if (sameArrivals(prev, next)) return prev;
+        writeArrivals(next, sessionStore());
+        return next;
+      });
     });
   }, [hydrated, notifications]);
 

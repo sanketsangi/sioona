@@ -803,10 +803,7 @@ export function SignalQueue({
 }: SignalQueueProps) {
   const [landingOpen, setLandingOpen] = useState(Boolean(landingFile));
   useEffect(() => {
-    if (!landingFile) {
-      setLandingOpen(false);
-      return;
-    }
+    if (!landingFile) return;
     const apply = (attempt: number) => {
       setLandingOpen(vaultImportLandingVisible(attempt));
     };

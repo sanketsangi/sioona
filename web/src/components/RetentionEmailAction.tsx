@@ -419,7 +419,8 @@ function RetentionEmailActionView({
   const onStatusChangeRef = useRef(onStatusChange);
   const onDraftBodyChangeRef = useRef(onDraftBodyChange);
   const [container, setContainer] = useState<HTMLElement | null>(null);
-  const [actionsCompact, setActionsCompact] = useState(false);
+  const [measuredCompact, setActionsCompact] = useState(false);
+  const actionsCompact = container ? measuredCompact : false;
 
   useEffect(() => {
     onStatusChangeRef.current = onStatusChange;
@@ -427,10 +428,7 @@ function RetentionEmailActionView({
   }, [onStatusChange, onDraftBodyChange]);
 
   useLayoutEffect(() => {
-    if (!container) {
-      setActionsCompact(false);
-      return;
-    }
+    if (!container) return;
     const publish = (width: number) => {
       setActionsCompact(isReviewActionsCompact(width));
     };

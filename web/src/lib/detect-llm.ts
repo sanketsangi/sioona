@@ -745,11 +745,16 @@ export async function classifyConversationWithGroq(
   );
   let lastError: unknown = new LlmCallFailed("shape");
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const modelUsed = session.model;
     try {
       return await requestGroqClassification(apiKey, messages, session);
     } catch (err) {
       lastError = err;
       if (err instanceof LlmCallFailed && err.dailyQuota) {
+        if (session.model !== modelUsed) {
+          attempt -= 1;
+          continue;
+        }
         const next = fallbackDetectLlmModel(session.model);
         if (next) {
           console.warn(
