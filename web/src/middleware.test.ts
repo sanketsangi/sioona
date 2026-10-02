@@ -1,0 +1,59 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { middleware } from "@/middleware";
+
+function call(path: string, method: string) {
+  return middleware(new Request(`http://localhost${path}`, { method }));
+}
+
+describe("middleware live-ingest exemption", () => {
+  beforeEach(() => {
+    vi.stubEnv("SIOONA_AUTH_ENFORCE", "1");
+    vi.stubEnv("SIOONA_PUBLIC_DEMO", "0");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    "/api/ingest/live/intercom",
+    "/api/ingest/live/intercom/poll",
+    "/api/ingest/live/whatsapp",
+  ])("lets %s POST through without a session when LIVE_INGEST=1", async (path) => {
+    vi.stubEnv("LIVE_INGEST", "1");
+    const response = await call(path, "POST");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("keeps the session gate while LIVE_INGEST is off", async () => {
+    vi.stubEnv("LIVE_INGEST", "");
+    const response = await call("/api/ingest/live/whatsapp", "POST");
+    expect(response.status).toBe(401);
+  });
+
+  it("does not open other methods on a webhook path", async () => {
+    vi.stubEnv("LIVE_INGEST", "1");
+    const response = await call("/api/ingest/live/whatsapp", "GET");
+    expect(response.status).toBe(401);
+  });
+
+  it("keeps OAuth start and callback behind the session", async () => {
+    vi.stubEnv("LIVE_INGEST", "1");
+    const start = await call("/api/ingest/live/intercom/oauth", "GET");
+    const callback = await call("/api/ingest/live/intercom/callback", "GET");
+    expect(start.status).toBe(401);
+    expect(callback.status).toBe(401);
+  });
+
+  it("does not open neighbouring routes", async () => {
+    vi.stubEnv("LIVE_INGEST", "1");
+    const upload = await call("/api/ingest", "POST");
+    const lookalike = await call("/api/ingest/live/whatsapp-extra", "POST");
+    const store = await call("/api/store", "POST");
+    expect(upload.status).toBe(401);
+    expect(lookalike.status).toBe(401);
+    expect(store.status).toBe(401);
+  });
+});

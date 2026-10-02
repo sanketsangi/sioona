@@ -7,6 +7,7 @@ import {
   SESSION_COOKIE,
   verifySessionToken,
 } from "@/lib/auth-token";
+import { isLiveIngestWebhook } from "@/lib/live-ingest-paths";
 
 /**
  * Mutation gate. Route handlers repeat the role check so a missed matcher
@@ -26,6 +27,8 @@ export async function middleware(request: Request) {
   }
 
   const method = request.method.toUpperCase();
+  if (isLiveIngestWebhook(pathname, method)) return NextResponse.next();
+
   const session = await verifySessionToken(
     readCookie(request.headers.get("cookie"), SESSION_COOKIE),
   );

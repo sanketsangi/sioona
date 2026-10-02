@@ -238,4 +238,63 @@ Off unless `LIVE_INGEST=1`. Leave it unset on Vercel until a pilot asks for it. 
 Intercom, WhatsApp, and the Intercom poll also send `X-Sioona-Tenant-Id` (`tenant_partner`). A missing header, a mismatch with `SIOONA_TENANT_ID`, or a missing secret is 401. Chats land in that tenant’s store.
 | `WHATSAPP_PROVIDER` | Server | `gupshup` (default) or `interakt` (`?provider=`). |
 
+When `LIVE_INGEST=1`, the session middleware lets only `POST /api/ingest/live/intercom`, `…/intercom/poll`, and `…/whatsapp` through without a cookie (`src/lib/live-ingest-paths.ts`). Those routes then enforce the secret and tenant header themselves. The Intercom OAuth start and callback still need a signed-in session.
+
 Webhook and poll bodies go through the existing redaction and detection path. The connectors never post a reply. OAuth token exchange is left to the operator: set `INTERCOM_ACCESS_TOKEN` after authorizing, so a token is not written to disk or returned by the callback.
+
+## Alembic `008`–`011` on Neon: check, then dry run
+
+Render runs `alembic upgrade head` on every deploy of `main`, so `010` and `011` may already be applied. Check first. Never point a laptop `alembic upgrade` at production Neon. Every step below is read-only on production or runs on a Neon branch.
+
+**1. Read production state (read-only SQL)**
+
+```sql
+SELECT version_num FROM alembic_version;
+SELECT count(*) AS predictions FROM signal_predictions;
+SELECT count(*) AS orphan_pairs FROM (
+  SELECT DISTINCT p.tenant_id, p.conversation_id
+  FROM signal_predictions p
+  WHERE NOT EXISTS (
+    SELECT 1 FROM conversations c
+    WHERE c.tenant_id = p.tenant_id AND c.conversation_id = p.conversation_id
+  )
+) o;
+```
+
+- `011_signal_urgency_value`: already applied. Skip to step 4 and verify.
+- `007_pilot_upload_name` through `010_outcomes_taxonomy_fk`: continue.
+
+**2. Branch production in Neon.** Create a branch from the production branch. Export the branch connection string as `DATABASE_URL` in your shell only. Do not commit it.
+
+**3. Migrate the branch**
+
+```bash
+cd backend
+.venv/bin/alembic upgrade head
+```
+
+`010` backfills one stub `conversations` row (`channel='unknown'`) for each orphan pair, then adds `ck_signal_predictions_outcome` and `fk_signal_predictions_conversation` (`ON DELETE RESTRICT`, keyed on `uq_conversations_tenant_conversation_id`). `008` and `011` only add an index and nullable columns.
+
+**4. Verify (branch, or production if step 1 showed `011`)**
+
+```sql
+SELECT version_num FROM alembic_version;  -- 011_signal_urgency_value
+SELECT conname FROM pg_constraint
+WHERE conrelid = 'signal_predictions'::regclass
+  AND conname IN ('fk_signal_predictions_conversation', 'ck_signal_predictions_outcome');  -- both rows
+SELECT to_regclass('taxonomy_overrides'), to_regclass('supervised_action_decisions');  -- both non-null
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'signal_predictions'
+  AND column_name IN ('outcome','outcome_value_inr','outcome_recorded_at','urgency','urgency_timeframe','mentioned_value_inr');  -- six rows
+SELECT count(*) FROM conversations WHERE channel = 'unknown';  -- equals orphan_pairs from step 1
+```
+
+**5. Smoke the branch.** Point a local backend at the branch (`DATABASE_URL` as above, `SIOONA_ENV=development`), then:
+
+- `POST /v1/predictions` for a conversation id that does not exist returns 201 (the service creates the stub after the FK violation).
+- `GET /v1/tenants/$TENANT/signals/needs-review` returns a JSON array.
+- Deleting a conversation through `DELETE /v1/tenants/$TENANT/conversations/{id}` succeeds (children are removed first).
+
+**6. Roll back.** On the branch, delete the branch. If production is ever affected, `alembic downgrade 009_supervised_actions` drops the FK, the check constraint, the outcome and urgency columns, and `taxonomy_overrides`. That discards recorded outcomes and taxonomy overrides, so export them first. The stub `conversations` rows from `010` stay.
+
+**7. Clean up.** Delete the Neon branch. Record the verified head in `.cursor/docs/PROJECT_STATE.md` §5.
