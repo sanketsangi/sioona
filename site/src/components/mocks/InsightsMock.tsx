@@ -1,6 +1,6 @@
 "use client";
 
-import { m, useInView, useReducedMotion } from "framer-motion";
+import { m, useInView } from "framer-motion";
 import { Eye, Pause, Play } from "@phosphor-icons/react/ssr";
 import { Fragment, useRef, useState } from "react";
 import {
@@ -93,10 +93,26 @@ function TypedText({ segs, start, count, highlight }: { segs: Seg[]; start: numb
 
 const TABS = ["Pending", "Needs Follow-up", "Done"] as const;
 
+/**
+ * Motion and reduced-motion frames are both in the server HTML.
+ * `motion-safe` picks one before paint, so reduced motion never starts on the idle frame.
+ */
 export function InsightsMock() {
+  return (
+    <>
+      <div className="hidden motion-safe:block">
+        <InsightsDemo reduced={false} />
+      </div>
+      <div className="motion-safe:hidden">
+        <InsightsDemo reduced />
+      </div>
+    </>
+  );
+}
+
+function InsightsDemo({ reduced }: { reduced: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { amount: 0.3 });
-  const reduced = useReducedMotion() ?? false;
   const [userPaused, setUserPaused] = useState(false);
   const [hovering, setHovering] = useState(false);
   const running = inView && !userPaused && !hovering;

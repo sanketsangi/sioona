@@ -703,3 +703,18 @@ html[data-drawer-open="true"] {
     animation: none;
   }
 }
+
+/* Finished frames for scenes that otherwise wait on a client media-query read. */
+@media (prefers-reduced-motion: reduce) {
+  .score-needle {
+    transform: rotate(var(--needle)) !important;
+  }
+
+  .score-bar {
+    transform: none !important;
+  }
+
+  .score-label {
+    opacity: 1 !important;
+  }
+}
