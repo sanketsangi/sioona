@@ -75,6 +75,10 @@ if (!process.env.GROQ_API_KEY?.trim()) {
 
 run(npx, ["tsx", "eval/promptfoo/sync-system-prompt.ts"]);
 
+// ~1k prompt tokens/call. 12s between starts stays under free-tier 7000 ITPM
+// while evaluateOptions.maxConcurrency stays 2.
+process.env.SIOONA_EVAL_GAP_MS ??= "12000";
+
 const extra = process.argv.slice(2);
 const hasConfig = extra.some(
   (arg) => arg === "-c" || arg === "--config" || arg.startsWith("--config=")
