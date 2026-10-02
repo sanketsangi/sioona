@@ -1,0 +1,136 @@
+/*
+ * Token layers — copied from web/src/app/globals.css (primitive -> semantic).
+ *   1. --ds-*   primitives (Geist steps). Raw neutrals / signal chroma.
+ *   2. --sio-*  semantics that alias ONLY to --ds-*. Components bind to these.
+ * This file and src/lib/tokens.ts are the only places literal colors may live.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Neutrals — light product canvas: white page, #e5e7eb hairlines, #f2f1f0 hover */
+  --ds-background-100: #ffffff;
+  --ds-background-200: #ffffff;
+  --ds-gray-100: #f2f1f0;
+  --ds-gray-200: #ebebeb;
+  --ds-gray-400: #e5e7eb;
+  --ds-gray-500: oklch(0.708 0 0);
+  --ds-gray-600: oklch(0.556 0 0);
+  --ds-gray-700: oklch(0.556 0 0);
+  --ds-gray-900: oklch(0.371 0 0);
+  --ds-gray-1000: oklch(0.205 0 0);
+  --ds-gray-1100: oklch(0.145 0 0);
+  --ds-black: #000000;
+  --ds-gray-alpha-300: color-mix(in oklch, var(--ds-gray-1100) 10%, transparent);
+
+  /* Signal / status chroma */
+  --ds-blue-100: #f0f7ff;
+  --ds-blue-700: #0070f3;
+  --ds-blue-900: #0060d1;
+  --ds-blue-1000: #00254d;
+
+  --ds-red-100: #fff0f0;
+  --ds-red-700: #e5484d;
+  --ds-red-900: #cd2b31;
+
+  --ds-amber-100: #fff8e7;
+  --ds-amber-700: #ffb224;
+  --ds-amber-900: #a35200;
+
+  --ds-green-100: #f0faf0;
+  --ds-green-700: #46a758;
+  --ds-green-900: #297c3b;
+
+  --ds-teal-100: #eefcf8;
+  --ds-teal-700: #12a594;
+  --ds-teal-900: #0d7368;
+
+  /* Semantics */
+  --sio-bg-base: var(--ds-background-100);
+  --sio-bg-subtle: var(--ds-background-200);
+  --sio-bg-muted: var(--ds-gray-100);
+  --sio-bg-interactive: var(--ds-gray-100);
+  --sio-bg-interactive-hover: var(--ds-gray-100);
+  --sio-bg-inverse: var(--ds-gray-1000);
+  --sio-bg-inverse-hover: var(--ds-black);
+  --sio-bg-overlay: color-mix(in oklch, var(--ds-gray-1100) 40%, transparent);
+  --sio-bg-nav: color-mix(in oklch, var(--ds-background-100) 92%, transparent);
+  --sio-bg-disabled: var(--ds-gray-200);
+
+  --sio-fg-base: var(--ds-gray-1100);
+  --sio-fg-subtle: var(--ds-gray-900);
+  --sio-fg-muted: var(--ds-gray-700);
+  --sio-fg-faint: var(--ds-gray-600);
+  --sio-fg-on-color: var(--ds-background-100);
+  --sio-fg-link: var(--ds-blue-900);
+  --sio-fg-link-hover: var(--ds-blue-1000);
+
+  --sio-border-base: var(--ds-gray-400);
+  --sio-border-strong: var(--ds-gray-500);
+  --sio-border-subtle: var(--ds-gray-400);
+  --sio-border-muted: var(--ds-gray-alpha-300);
+
+  --sio-focus-accent: var(--ds-gray-500);
+
+  --sio-signal-lead-bg: var(--ds-blue-100);
+  --sio-signal-lead-fg: var(--ds-blue-900);
+  --sio-signal-lead-fg-strong: var(--ds-blue-1000);
+  --sio-signal-retention-bg: var(--ds-amber-100);
+  --sio-signal-retention-fg: var(--ds-amber-900);
+  --sio-signal-retention-accent: var(--ds-amber-700);
+  --sio-signal-upsell-bg: var(--ds-teal-100);
+  --sio-signal-upsell-fg: var(--ds-teal-900);
+  --sio-signal-upsell-accent: var(--ds-teal-700);
+
+  --sio-status-pending-bg: var(--ds-blue-100);
+  --sio-status-pending-fg: var(--ds-blue-900);
+  --sio-status-pending-accent: var(--ds-blue-700);
+  --sio-status-success-bg: var(--ds-green-100);
+  --sio-status-success-fg: var(--ds-green-900);
+  --sio-status-success-accent: var(--ds-green-700);
+  --sio-status-warning-bg: var(--ds-amber-100);
+  --sio-status-warning-fg: var(--ds-amber-900);
+  --sio-status-warning-accent: var(--ds-amber-700);
+  --sio-status-danger-bg: var(--ds-red-100);
+  --sio-status-danger-fg: var(--ds-red-900);
+  --sio-status-danger-accent: var(--ds-red-700);
+
+  /* Depth — crisp edge + quiet ambient/direct layers, never a heavy card shadow */
+  --sio-shadow-btn: 0 1px 2px color-mix(in oklch, var(--ds-gray-1100) 8%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--ds-background-100) 10%, transparent);
+  --sio-shadow-btn-hover: 0 2px 6px color-mix(in oklch, var(--ds-gray-1100) 14%, transparent),
+    inset 0 1px 0 color-mix(in oklch, var(--ds-background-100) 12%, transparent);
+  --sio-shadow-quiet: 0 1px 1px color-mix(in oklch, var(--ds-gray-1100) 3%, transparent);
+  --sio-shadow-mock: 0 1px 1px color-mix(in oklch, var(--ds-gray-1100) 3%, transparent),
+    0 8px 16px -4px color-mix(in oklch, var(--ds-gray-1100) 5%, transparent),
+    0 24px 48px -12px color-mix(in oklch, var(--ds-gray-1100) 8%, transparent);
+  --sio-chip-ring: 0 0 0 1px color-mix(in oklch, var(--ds-gray-1100) 8%, transparent);
+
+  --focus-ring: 0 0 0 2px var(--sio-bg-base), 0 0 0 4px var(--sio-focus-accent);
+
+  /* Spacing rhythm 4 / 8 / 12 / 16 / 24 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  --page-max: 1200px;
+  --page-gutter: 1rem;
+  --nav-height: 3.5rem;
+  --radius-control: 6px;
+  --radius-panel: 8px;
+  --radius-group: 12px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --page-gutter: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --page-gutter: 2rem;
+  }
+}

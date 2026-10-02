@@ -1,0 +1,328 @@
+"use client";
+
+import { m, useInView, useReducedMotion } from "framer-motion";
+import { Eye, Pause, Play } from "@phosphor-icons/react/ssr";
+import { Fragment, useRef, useState } from "react";
+import {
+  SignalScoreChip,
+  SignalStatus,
+  SignalTypeChip,
+  SignalUser,
+  type SignalState,
+  type SignalType,
+} from "@/components/signal/SignalChips";
+import { STEP, useInsightsScript } from "@/components/mocks/useInsightsScript";
+import { duration, ease } from "@/lib/motion";
+
+type Seg = { text: string; quote?: boolean };
+type Message = { from: "customer" | "agent"; segs: Seg[] };
+
+const MESSAGES: Message[] = [
+  {
+    from: "customer",
+    segs: [{ text: "Hi, I’ve been with you for three years. The new fee tiers are higher than I expected." }],
+  },
+  {
+    from: "agent",
+    segs: [{ text: "Thanks for flagging this. Can you tell me what’s behind the question?" }],
+  },
+  {
+    from: "customer",
+    segs: [
+      { text: "Honestly, if I can’t find a better plan this week, " },
+      { text: "I’ll close my account", quote: true },
+      { text: " and move my savings elsewhere." },
+    ],
+  },
+];
+
+const OFFSETS = (() => {
+  let total = 0;
+  return MESSAGES.map((message) => {
+    const start = total;
+    total += message.segs.reduce((sum, seg) => sum + seg.text.length, 0);
+    return start;
+  });
+})();
+const TOTAL_CHARS = MESSAGES.reduce((sum, message) => sum + message.segs.reduce((s, seg) => s + seg.text.length, 0), 0);
+
+const ROW_HEIGHT = 64;
+
+type QueueRow = { name: string; snippet: string; type: SignalType; state: SignalState };
+
+const EXISTING_ROWS: QueueRow[] = [
+  { name: "Sam Taylor", snippet: "Can I get higher limits? I hit the cap every week.", type: "upsell", state: "correct" },
+  { name: "Priya Nair", snippet: "Do you have accounts for a small team?", type: "lead", state: "pending" },
+  { name: "Daniel Okafor", snippet: "Please pause my plan until next quarter.", type: "retention", state: "acted" },
+];
+
+function TypedText({ segs, start, count, highlight }: { segs: Seg[]; start: number; count: number; highlight: boolean }) {
+  const starts = segs.reduce<number[]>((acc, seg, index) => {
+    acc.push(index === 0 ? start : acc[index - 1] + segs[index - 1].text.length);
+    return acc;
+  }, []);
+  return (
+    <>
+      {segs.map((seg, index) => {
+        const typedLen = Math.max(0, Math.min(seg.text.length, count - starts[index]));
+        const typed = seg.text.slice(0, typedLen);
+        const rest = seg.text.slice(typedLen);
+        const body = (
+          <>
+            <span>{typed}</span>
+            <span className="opacity-0">{rest}</span>
+          </>
+        );
+        if (!seg.quote) return <Fragment key={index}>{body}</Fragment>;
+        return (
+          <span key={index} className="relative whitespace-nowrap">
+            <m.span
+              aria-hidden
+              className="absolute -inset-x-1 inset-y-0 origin-left rounded-[3px] bg-sio-signal-retention-bg ring-1 ring-sio-signal-retention-accent"
+              initial={false}
+              animate={{ scaleX: highlight ? 1 : 0, opacity: highlight ? 1 : 0 }}
+              transition={{ duration: duration.slow, ease }}
+            />
+            <span className="relative">{body}</span>
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+const TABS = ["Pending", "Needs Follow-up", "Done"] as const;
+
+export function InsightsMock() {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const inView = useInView(rootRef, { amount: 0.3 });
+  const reduced = useReducedMotion() ?? false;
+  const [userPaused, setUserPaused] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const running = inView && !userPaused && !hovering;
+  const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced });
+
+  const reviewing = step >= STEP.rowIn && step < STEP.reset;
+  const showWhy = step >= STEP.why && step < STEP.reset;
+  const showChips = step >= STEP.chips && step < STEP.reset;
+  const showAction = step >= STEP.correct && step < STEP.reset;
+  const state: SignalState = step >= STEP.acted ? "acted" : step >= STEP.correct ? "correct" : "pending";
+  const activeTab = state === "pending" ? 0 : state === "correct" ? 1 : 2;
+  const counts = [
+    3 + (reviewing && state === "pending" ? 1 : 0),
+    2 + (reviewing && state === "correct" ? 1 : 0),
+    9 + (reviewing && state === "acted" ? 1 : 0),
+  ];
+  const pressed = step === STEP.acted;
+  const t = { duration: duration.base, ease };
+
+  return (
+    <figure className="relative m-0">
+      <div
+        ref={rootRef}
+        className="panel shadow-mock overflow-hidden"
+        onPointerEnter={() => setHovering(true)}
+        onPointerLeave={() => setHovering(false)}
+      >
+        <div className="flex h-11 items-center justify-between gap-3 border-b border-sio-border-base px-3 sm:px-4">
+          <div aria-hidden className="flex min-w-0 items-center gap-3">
+            <span className="text-heading-16 text-sio-fg-base">Insights</span>
+            <span className="inline-flex h-6 items-center gap-1 rounded-full bg-sio-bg-muted px-2 text-[12px]/[24px] font-medium text-sio-fg-subtle">
+              <Eye size={14} weight="regular" aria-hidden />
+              Shadow Mode
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUserPaused((value) => !value)}
+            aria-pressed={userPaused}
+            aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
+            className={`btn-tertiary size-11 !px-0 md:size-8 ${reduced ? "hidden" : ""}`}
+          >
+            {userPaused ? <Play size={16} weight="bold" aria-hidden /> : <Pause size={16} weight="bold" aria-hidden />}
+          </button>
+        </div>
+
+        <div aria-hidden className="grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <div className="border-b border-sio-border-base lg:border-b-0 lg:border-r">
+            <div className="flex h-10 items-stretch gap-4 border-b border-sio-border-base px-3 sm:px-4">
+              {TABS.map((tab, index) => (
+                <span
+                  key={tab}
+                  className={`relative inline-flex items-center gap-1.5 whitespace-nowrap text-label-13 ${
+                    activeTab === index ? "font-medium text-sio-fg-base" : "text-sio-fg-muted"
+                  }`}
+                >
+                  {tab}
+                  <span className="tabular text-label-12 text-sio-fg-muted">{counts[index]}</span>
+                  <m.span
+                    className="absolute inset-x-0 bottom-0 h-px origin-left bg-sio-fg-base"
+                    initial={false}
+                    animate={{ scaleX: activeTab === index ? 1 : 0 }}
+                    transition={{ duration: duration.fast, ease }}
+                  />
+                </span>
+              ))}
+            </div>
+            <div className="relative h-[128px] overflow-hidden lg:h-[256px]">
+              {EXISTING_ROWS.map((row, index) => (
+                <m.div
+                  key={row.name}
+                  className="absolute inset-x-0 border-b border-sio-border-base"
+                  style={{ top: index * ROW_HEIGHT, height: ROW_HEIGHT }}
+                  initial={false}
+                  animate={{ y: reviewing ? ROW_HEIGHT : 0 }}
+                  transition={t}
+                >
+                  <QueueRowView row={row} />
+                </m.div>
+              ))}
+              <m.div
+                className="absolute inset-x-0 top-0 border-b border-sio-border-base bg-sio-bg-interactive"
+                style={{ height: ROW_HEIGHT }}
+                initial={false}
+                animate={{ opacity: reviewing ? 1 : 0, y: reviewing ? 0 : -16 }}
+                transition={t}
+              >
+                <QueueRowView
+                  row={{ name: "Maya Rossi", snippet: "…I’ll close my account and move my savings…", type: "retention", state }}
+                  statusOverride={state}
+                />
+              </m.div>
+            </div>
+          </div>
+
+          <div className="relative min-h-[360px] p-3 sm:p-4 lg:min-h-[0]">
+            <m.div
+              className="absolute inset-0 flex items-center justify-center p-6 text-center text-copy-14 text-sio-fg-muted"
+              initial={false}
+              animate={{ opacity: reviewing ? 0 : 1 }}
+              transition={t}
+            >
+              Select a signal to review.
+            </m.div>
+            <m.div
+              className="flex flex-col gap-3"
+              initial={false}
+              animate={{ opacity: reviewing ? 1 : 0 }}
+              transition={t}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SignalUser name="Maya Rossi" />
+                <div className="flex items-center gap-1.5">
+                  <m.span
+                    initial={false}
+                    animate={{ opacity: showChips ? 1 : 0, scale: showChips ? 1 : 0.85 }}
+                    transition={t}
+                  >
+                    <SignalTypeChip type="retention" />
+                  </m.span>
+                  <m.span
+                    initial={false}
+                    animate={{ opacity: showChips ? 1 : 0, scale: showChips ? 1 : 0.85 }}
+                    transition={{ ...t, delay: showChips ? 0.12 : 0 }}
+                  >
+                    <SignalScoreChip score={0.92} />
+                  </m.span>
+                  <span className="grid">
+                    {(["pending", "correct", "acted"] as const).map((s) => (
+                      <m.span
+                        key={s}
+                        className="col-start-1 row-start-1 justify-self-end"
+                        initial={false}
+                        animate={{ opacity: state === s ? 1 : 0, y: state === s ? 0 : -4 }}
+                        transition={{ duration: duration.fast, ease }}
+                      >
+                        <SignalStatus state={s} variant="chip" />
+                      </m.span>
+                    ))}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {MESSAGES.map((message, index) => {
+                  const started = chars > OFFSETS[index];
+                  return (
+                    <m.div
+                      key={index}
+                      className={`chat-bubble ${message.from === "customer" ? "chat-bubble--customer self-end" : "chat-bubble--agent self-start"}`}
+                      style={{ maxWidth: "88%" }}
+                      initial={false}
+                      animate={{ opacity: started ? 1 : 0, y: started ? 0 : 8 }}
+                      transition={{ duration: duration.fast, ease }}
+                    >
+                      <TypedText segs={message.segs} start={OFFSETS[index]} count={chars} highlight={showWhy} />
+                    </m.div>
+                  );
+                })}
+              </div>
+
+              <m.div
+                className="rounded-panel border border-sio-border-base p-3"
+                initial={false}
+                animate={{ opacity: showWhy ? 1 : 0, y: showWhy ? 0 : 8 }}
+                transition={t}
+              >
+                <p className="eyebrow">Why This Fired</p>
+                <p className="mt-1.5 text-copy-14 text-sio-fg-base">
+                  <span className="rounded-[3px] bg-sio-signal-retention-bg px-1 text-sio-signal-retention-fg">
+                    “I’ll close my account”
+                  </span>
+                </p>
+                <p className="mt-1.5 text-label-13 text-sio-fg-muted">Customer states they plan to leave.</p>
+              </m.div>
+
+              <m.div
+                className="hidden items-center justify-between gap-3 rounded-panel border border-sio-border-base p-3 sm:flex"
+                initial={false}
+                animate={{ opacity: showAction ? 1 : 0, y: showAction ? 0 : 8 }}
+                transition={t}
+              >
+                <div className="min-w-0">
+                  <p className="eyebrow">Suggested Next Action</p>
+                  <p className="mt-1 truncate text-copy-14 text-sio-fg-base">Offer a fee review call. Nothing sends.</p>
+                </div>
+                <m.span
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-control border border-sio-border-subtle px-2.5 text-label-13 font-medium text-sio-fg-base"
+                  initial={false}
+                  animate={{ scale: pressed ? 0.95 : 1 }}
+                  transition={{ duration: duration.fast, ease }}
+                >
+                  Mark Acted
+                  <span className="inline-flex size-5 items-center justify-center rounded-[4px] border border-sio-border-strong font-mono text-[11px] text-sio-fg-subtle">
+                    A
+                  </span>
+                </m.span>
+              </m.div>
+            </m.div>
+          </div>
+        </div>
+      </div>
+      <figcaption className="mt-3 text-label-13 text-sio-fg-muted">
+        Sample conversation and illustrative data. Sioona detects, humans review, and nothing is sent to the customer.
+        <span className="sr-only">
+          {" "}
+          Animated preview: a new retention conversation arrives in the Insights queue, the transcript appears, the
+          phrase “I’ll close my account” is highlighted as the reason the signal fired, the signal gets a type and
+          score, a reviewer marks it Correct, and it moves to Acted.
+        </span>
+      </figcaption>
+    </figure>
+  );
+}
+
+function QueueRowView({ row, statusOverride }: { row: QueueRow; statusOverride?: SignalState }) {
+  return (
+    <div className="flex h-full flex-col justify-center gap-1.5 px-3 sm:px-4">
+      <div className="flex items-center justify-between gap-3">
+        <SignalUser name={row.name} size={20} />
+        <SignalStatus state={statusOverride ?? row.state} />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-label-13 text-sio-fg-muted">{row.snippet}</p>
+        <SignalTypeChip type={row.type} />
+      </div>
+    </div>
+  );
+}

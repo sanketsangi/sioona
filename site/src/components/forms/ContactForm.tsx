@@ -1,0 +1,309 @@
+"use client";
+
+import { CheckCircle, CircleNotch } from "@phosphor-icons/react/ssr";
+import Link from "next/link";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import {
+  chatPlatforms,
+  contactFieldOrder,
+  emptyContact,
+  normalizeContact,
+  validateContact,
+  validateField,
+  type ContactErrors,
+  type ContactField,
+  type ContactValues,
+} from "@/lib/contact";
+import { contactStub } from "@/lib/site";
+
+type Status = "idle" | "submitting" | "success" | "error";
+
+const inputIds: Record<ContactField, string> = {
+  name: "contact-name",
+  email: "contact-email",
+  company: "contact-company",
+  role: "contact-role",
+  platform: "contact-platform",
+  message: "contact-message",
+};
+
+function FieldShell({
+  field,
+  label,
+  hint,
+  error,
+  children,
+}: {
+  field: ContactField;
+  label: string;
+  hint: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={inputIds[field]} className="flex items-baseline justify-between gap-3 text-label-14 font-medium text-sio-fg-base">
+        {label}
+        <span className="text-label-12 font-normal text-sio-fg-muted">{hint}</span>
+      </label>
+      {children}
+      {error ? (
+        <p id={`${inputIds[field]}-error`} className="text-label-13 text-sio-status-danger-fg">
+          <span className="font-medium">Error: </span>
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function ContactForm() {
+  const [values, setValues] = useState<ContactValues>(emptyContact);
+  const [errors, setErrors] = useState<ContactErrors>({});
+  const [touched, setTouched] = useState<Partial<Record<ContactField, boolean>>>({});
+  const [status, setStatus] = useState<Status>("idle");
+  const [announce, setAnnounce] = useState("");
+  const fieldRefs = useRef<Partial<Record<ContactField, HTMLElement | null>>>({});
+
+  const dirty = contactFieldOrder.some((field) => values[field].trim() !== "");
+
+  useEffect(() => {
+    if (!dirty || status === "success") return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty, status]);
+
+  const focusFirstError = (next: ContactErrors) => {
+    const first = contactFieldOrder.find((field) => next[field]);
+    if (first) fieldRefs.current[first]?.focus();
+  };
+
+  const setField = (field: ContactField) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const value = event.target.value;
+    setValues((current) => ({ ...current, [field]: value }));
+    if (touched[field]) {
+      setErrors((current) => ({ ...current, [field]: validateField(field, value) }));
+    }
+  };
+
+  const blurField = (field: ContactField) => () => {
+    setTouched((current) => ({ ...current, [field]: true }));
+    setErrors((current) => ({ ...current, [field]: validateField(field, values[field]) }));
+  };
+
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (status === "submitting") return;
+
+    const clean = normalizeContact(values);
+    const found = validateContact(clean);
+    setValues(clean);
+    setTouched(Object.fromEntries(contactFieldOrder.map((field) => [field, true])));
+    setErrors(found);
+
+    const count = Object.keys(found).length;
+    if (count > 0) {
+      setAnnounce(`${count} ${count === 1 ? "field needs" : "fields need"} attention.`);
+      focusFirstError(found);
+      return;
+    }
+
+    setStatus("submitting");
+    setAnnounce("Sending your request…");
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(clean),
+      });
+      const data = (await response.json().catch(() => null)) as { ok?: boolean; errors?: ContactErrors } | null;
+      if (response.ok && data?.ok) {
+        setStatus("success");
+        setAnnounce("Request received. We’ll be in touch about your pilot.");
+        return;
+      }
+      if (data?.errors) {
+        setErrors(data.errors);
+        setStatus("idle");
+        setAnnounce("Some fields need attention.");
+        focusFirstError(data.errors);
+        return;
+      }
+      throw new Error("Request failed");
+    } catch {
+      setStatus("error");
+      setAnnounce("Something went wrong. Please try again.");
+    }
+  };
+
+  if (status === "success") {
+    return (
+      <div className="panel p-6 lg:p-8" aria-live="polite">
+        <CheckCircle size={24} weight="bold" className="text-sio-status-success-accent" aria-hidden />
+        <h2 className="text-heading-24 mt-4 text-sio-fg-base">Request received</h2>
+        <p className="text-copy-16 mt-2 max-w-md text-sio-fg-subtle">
+          Thanks, {values.name.split(" ")[0] || "there"}. We’ll be in touch about your pilot.
+        </p>
+        {contactStub ? (
+          <p className="mt-4 text-label-13 text-sio-fg-muted">
+            Preview build: this form validates your details but doesn’t store or send them yet.
+          </p>
+        ) : null}
+        <Link href="/" className="btn-secondary mt-6">
+          Back To Home
+        </Link>
+      </div>
+    );
+  }
+
+  const submitting = status === "submitting";
+  const describedBy = (field: ContactField) => (errors[field] ? `${inputIds[field]}-error` : undefined);
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="panel flex flex-col gap-5 p-5 lg:p-6" aria-describedby="contact-status">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FieldShell field="name" label="Name" hint="Required" error={errors.name}>
+          <input
+            ref={(el) => {
+              fieldRefs.current.name = el;
+            }}
+            id={inputIds.name}
+            name="name"
+            type="text"
+            autoComplete="name"
+            placeholder="Alex Morgan…"
+            value={values.name}
+            onChange={setField("name")}
+            onBlur={blurField("name")}
+            aria-required="true"
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={describedBy("name")}
+            className="input-field"
+          />
+        </FieldShell>
+        <FieldShell field="email" label="Work Email" hint="Required" error={errors.email}>
+          <input
+            ref={(el) => {
+              fieldRefs.current.email = el;
+            }}
+            id={inputIds.email}
+            name="email"
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="alex@company.com…"
+            value={values.email}
+            onChange={setField("email")}
+            onBlur={blurField("email")}
+            aria-required="true"
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={describedBy("email")}
+            className="input-field"
+          />
+        </FieldShell>
+        <FieldShell field="company" label="Company" hint="Required" error={errors.company}>
+          <input
+            ref={(el) => {
+              fieldRefs.current.company = el;
+            }}
+            id={inputIds.company}
+            name="company"
+            type="text"
+            autoComplete="organization"
+            placeholder="Company name…"
+            value={values.company}
+            onChange={setField("company")}
+            onBlur={blurField("company")}
+            aria-required="true"
+            aria-invalid={errors.company ? true : undefined}
+            aria-describedby={describedBy("company")}
+            className="input-field"
+          />
+        </FieldShell>
+        <FieldShell field="role" label="Role" hint="Optional" error={errors.role}>
+          <input
+            ref={(el) => {
+              fieldRefs.current.role = el;
+            }}
+            id={inputIds.role}
+            name="role"
+            type="text"
+            autoComplete="organization-title"
+            placeholder="Head of Customer Success…"
+            value={values.role}
+            onChange={setField("role")}
+            onBlur={blurField("role")}
+            aria-invalid={errors.role ? true : undefined}
+            aria-describedby={describedBy("role")}
+            className="input-field"
+          />
+        </FieldShell>
+      </div>
+
+      <FieldShell field="platform" label="Where Do Your Chats Live?" hint="Optional" error={errors.platform}>
+        <select
+          ref={(el) => {
+            fieldRefs.current.platform = el;
+          }}
+          id={inputIds.platform}
+          name="platform"
+          value={values.platform}
+          onChange={setField("platform")}
+          onBlur={blurField("platform")}
+          aria-invalid={errors.platform ? true : undefined}
+          aria-describedby={describedBy("platform")}
+          className="input-field"
+        >
+          <option value="">Choose a platform…</option>
+          {chatPlatforms.map((platform) => (
+            <option key={platform} value={platform}>
+              {platform}
+            </option>
+          ))}
+        </select>
+      </FieldShell>
+
+      <FieldShell field="message" label="Anything We Should Know?" hint="Optional" error={errors.message}>
+        <textarea
+          ref={(el) => {
+            fieldRefs.current.message = el;
+          }}
+          id={inputIds.message}
+          name="message"
+          rows={4}
+          autoComplete="off"
+          placeholder="What would you like to learn from your chats…"
+          value={values.message}
+          onChange={setField("message")}
+          onBlur={blurField("message")}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              event.currentTarget.form?.requestSubmit();
+            }
+          }}
+          aria-invalid={errors.message ? true : undefined}
+          aria-describedby={describedBy("message")}
+          className="input-field"
+        />
+      </FieldShell>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <button type="submit" disabled={submitting} className="btn-primary btn-lg">
+          {submitting ? <CircleNotch size={16} weight="bold" className="animate-spin" aria-hidden /> : null}
+          Request A Pilot
+        </button>
+        <p className="text-label-13 text-sio-fg-muted">We’ll reply about next steps. No chat access needed to start.</p>
+      </div>
+
+      <p id="contact-status" role="status" aria-live="polite" className={announce ? "text-label-13 text-sio-fg-subtle" : "sr-only"}>
+        {announce}
+      </p>
+    </form>
+  );
+}
