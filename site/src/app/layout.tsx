@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
+import localFont from "next/font/local";
 import { Footer } from "@/components/layout/Footer";
 import { SiteNav } from "@/components/layout/SiteNav";
 import { MotionProviders } from "@/components/motion/Providers";
@@ -8,6 +8,14 @@ import { siteConfig } from "@/lib/site";
 import { THEME_COLOR } from "@/lib/tokens";
 import "@/styles/tokens.css";
 import "./globals.css";
+
+const GeistMono = localFont({
+  src: "../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2",
+  variable: "--font-geist-mono",
+  display: "swap",
+  preload: false,
+  weight: "100 900",
+});
 
 export const viewport: Viewport = {
   themeColor: THEME_COLOR,

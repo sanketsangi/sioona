@@ -1,6 +1,6 @@
 "use client";
 
-import { animate, m, useInView, useMotionValue, useReducedMotion, useTransform } from "framer-motion";
+import { animate, m, useInView, useMotionValue, useTransform } from "framer-motion";
 import { Info } from "@phosphor-icons/react/ssr";
 import { useEffect, useRef } from "react";
 import { duration, ease } from "@/lib/motion";
@@ -18,19 +18,15 @@ function arcPoint(fraction: number) {
   return { x: CX - R * Math.cos(angle), y: CY - R * Math.sin(angle) };
 }
 
-function CountUp({ to, started, reduced }: { to: number; started: boolean; reduced: boolean }) {
+function CountUp({ to, started }: { to: number; started: boolean }) {
   const value = useMotionValue(0);
   const rounded = useTransform(value, (v) => Math.round(v).toString());
 
   useEffect(() => {
-    if (reduced) {
-      value.set(to);
-      return;
-    }
     if (!started) return;
     const controls = animate(value, to, { duration: 1.4, ease });
     return () => controls.stop();
-  }, [started, reduced, to, value]);
+  }, [started, to, value]);
 
   return <m.span>{rounded}</m.span>;
 }
@@ -38,7 +34,6 @@ function CountUp({ to, started, reduced }: { to: number; started: boolean; reduc
 export function ScorePanel() {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.35 });
-  const reduced = useReducedMotion() ?? false;
   const started = inView;
 
   const goStart = arcPoint(GO_THRESHOLD / 100);
@@ -60,7 +55,10 @@ export function ScorePanel() {
         aria-label={`Illustrative Signal Score gauge showing ${SCORE} percent against a go threshold of ${GO_THRESHOLD} percent.`}
         className="mx-auto mt-6 w-full max-w-[280px]"
       >
-        <div className="relative mx-auto aspect-[2/1] w-full">
+        <div
+          className="relative mx-auto aspect-[2/1] w-full"
+          style={{ ["--needle" as string]: `${needleAngle}deg` }}
+        >
           <svg viewBox="0 0 240 120" className="absolute inset-0 size-full" aria-hidden>
             <path
               d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`}
@@ -79,7 +77,7 @@ export function ScorePanel() {
           </svg>
           <m.div
             aria-hidden
-            className="absolute bottom-0 left-1/2 h-[82%] w-0.5 -ml-px origin-bottom rounded-full bg-sio-fg-base"
+            className="score-needle absolute bottom-0 left-1/2 h-[82%] w-0.5 -ml-px origin-bottom rounded-full bg-sio-fg-base"
             initial={{ rotate: -90 }}
             animate={{ rotate: started ? needleAngle : -90 }}
             transition={{ duration: 1.4, ease }}
@@ -91,7 +89,10 @@ export function ScorePanel() {
         </div>
         <div className="mt-4 text-center">
           <p className="tabular text-heading-40 text-sio-fg-base">
-            <CountUp to={SCORE} started={started} reduced={reduced} />
+            <span className="motion-safe:hidden">{SCORE}</span>
+            <span className="hidden motion-safe:inline">
+              <CountUp to={SCORE} started={started} />
+            </span>
             <span aria-hidden>%</span>
           </p>
           <p className="mt-1 text-label-13 text-sio-fg-muted">
@@ -117,7 +118,7 @@ export function ScorePanel() {
               return (
                 <div key={index} className="flex h-full flex-1 flex-col justify-end">
                   <m.span
-                    className="tabular mb-1 text-center text-label-12 text-sio-fg-subtle"
+                    className="score-label tabular mb-1 text-center text-label-12 text-sio-fg-subtle"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: started ? 1 : 0 }}
                     transition={{ duration: duration.base, ease, delay: 0.5 + index * 0.08 }}
@@ -125,7 +126,7 @@ export function ScorePanel() {
                     {value}
                   </m.span>
                   <m.div
-                    className={`origin-bottom rounded-t-[3px] ${pass ? "bg-sio-status-success-accent" : "bg-sio-border-strong"}`}
+                    className={`score-bar origin-bottom rounded-t-[3px] ${pass ? "bg-sio-status-success-accent" : "bg-sio-border-strong"}`}
                     style={{ height: `${value * 0.8}%` }}
                     initial={{ scaleY: 0 }}
                     animate={{ scaleY: started ? 1 : 0 }}

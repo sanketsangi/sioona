@@ -45,7 +45,7 @@ export function SignalSnippet({ type, before, quote, after = "", reason, delay =
     >
       <m.div variants={rise} className="chat-bubble chat-bubble--customer self-end" style={{ maxWidth: "92%" }}>
         {before}
-        <span className="relative">
+        <span className="relative inline-block">
           <m.span
             aria-hidden
             variants={sweep}

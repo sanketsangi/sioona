@@ -1,6 +1,6 @@
 "use client";
 
-import { m, useReducedMotion, useScroll, useTransform, type MotionValue } from "framer-motion";
+import { m, useScroll, useTransform, type MotionValue } from "framer-motion";
 import { useRef } from "react";
 
 const TEXT =
@@ -26,7 +26,6 @@ function Word({ word, index, total, progress }: { word: string; index: number; t
 /** Statement section: each word fades and sharpens as the block scrolls through. */
 export function Statement() {
   const ref = useRef<HTMLParagraphElement>(null);
-  const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.85", "end 0.55"] });
 
   return (
@@ -36,11 +35,12 @@ export function Statement() {
           The Problem
         </p>
         <p ref={ref} className="text-heading-40 mt-6 max-w-4xl text-sio-fg-base">
-          {reduced
-            ? TEXT
-            : WORDS.map((word, index) => (
-                <Word key={index} word={word} index={index} total={WORDS.length} progress={scrollYProgress} />
-              ))}
+          <span className="motion-safe:hidden">{TEXT}</span>
+          <span className="hidden motion-safe:inline">
+            {WORDS.map((word, index) => (
+              <Word key={index} word={word} index={index} total={WORDS.length} progress={scrollYProgress} />
+            ))}
+          </span>
         </p>
       </div>
     </section>

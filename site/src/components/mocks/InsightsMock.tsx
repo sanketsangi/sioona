@@ -1,6 +1,6 @@
 "use client";
 
-import { m, useInView, useReducedMotion } from "framer-motion";
+import { m, useInView } from "framer-motion";
 import { Eye, Pause, Play } from "@phosphor-icons/react/ssr";
 import { Fragment, useRef, useState } from "react";
 import {
@@ -93,10 +93,26 @@ function TypedText({ segs, start, count, highlight }: { segs: Seg[]; start: numb
 
 const TABS = ["Pending", "Needs Follow-up", "Done"] as const;
 
+/**
+ * Motion and reduced-motion frames are both in the server HTML.
+ * `motion-safe` picks one before paint, so reduced motion never starts on the idle frame.
+ */
 export function InsightsMock() {
+  return (
+    <>
+      <div className="hidden motion-safe:block">
+        <InsightsDemo reduced={false} />
+      </div>
+      <div className="motion-safe:hidden">
+        <InsightsDemo reduced />
+      </div>
+    </>
+  );
+}
+
+function InsightsDemo({ reduced }: { reduced: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { amount: 0.3 });
-  const reduced = useReducedMotion() ?? false;
   const [userPaused, setUserPaused] = useState(false);
   const [hovering, setHovering] = useState(false);
   const running = inView && !userPaused && !hovering;
@@ -150,11 +166,11 @@ export function InsightsMock() {
                 <span
                   key={tab}
                   className={`relative inline-flex items-center gap-1.5 whitespace-nowrap text-label-13 ${
-                    activeTab === index ? "font-medium text-sio-fg-base" : "text-sio-fg-muted"
+                    activeTab === index ? "font-medium text-sio-fg-base" : "text-sio-fg-subtle"
                   }`}
                 >
                   {tab}
-                  <span className="tabular text-label-12 text-sio-fg-muted">{counts[index]}</span>
+                  <span className="tabular text-label-12 text-sio-fg-subtle">{counts[index]}</span>
                   <m.span
                     className="absolute inset-x-0 bottom-0 h-px origin-left bg-sio-fg-base"
                     initial={false}
@@ -270,7 +286,7 @@ export function InsightsMock() {
                     “I’ll close my account”
                   </span>
                 </p>
-                <p className="mt-1.5 text-label-13 text-sio-fg-muted">Customer states they plan to leave.</p>
+                <p className="mt-1.5 text-label-13 text-sio-fg-subtle">Customer states they plan to leave.</p>
               </m.div>
 
               <m.div
@@ -320,7 +336,7 @@ function QueueRowView({ row, statusOverride }: { row: QueueRow; statusOverride?:
         <SignalStatus state={statusOverride ?? row.state} />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate text-label-13 text-sio-fg-muted">{row.snippet}</p>
+        <p className="min-w-0 truncate text-label-13 text-sio-fg-subtle">{row.snippet}</p>
         <SignalTypeChip type={row.type} />
       </div>
     </div>
