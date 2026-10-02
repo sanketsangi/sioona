@@ -7,7 +7,7 @@ export function Hero() {
     <section aria-labelledby="hero-title" className="pb-16 pt-14 sm:pt-20 lg:pb-24 lg:pt-28">
       <div className="container-page">
         <div className="max-w-3xl">
-          <p className="eyebrow rise" style={{ ["--rise-delay" as string]: "0ms" }}>
+          <p className="eyebrow">
             Conversation Intelligence, In Shadow Mode
           </p>
           <h1 id="hero-title" className="text-heading-56 mt-4 text-sio-fg-base">
@@ -34,7 +34,7 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="rise mt-12 lg:mt-16" style={{ ["--rise-delay" as string]: "240ms" }}>
+        <div className="mt-12 lg:mt-16">
           <InsightsMock />
         </div>
       </div>

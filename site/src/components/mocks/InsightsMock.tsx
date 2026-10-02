@@ -150,11 +150,11 @@ export function InsightsMock() {
                 <span
                   key={tab}
                   className={`relative inline-flex items-center gap-1.5 whitespace-nowrap text-label-13 ${
-                    activeTab === index ? "font-medium text-sio-fg-base" : "text-sio-fg-muted"
+                    activeTab === index ? "font-medium text-sio-fg-base" : "text-sio-fg-subtle"
                   }`}
                 >
                   {tab}
-                  <span className="tabular text-label-12 text-sio-fg-muted">{counts[index]}</span>
+                  <span className="tabular text-label-12 text-sio-fg-subtle">{counts[index]}</span>
                   <m.span
                     className="absolute inset-x-0 bottom-0 h-px origin-left bg-sio-fg-base"
                     initial={false}
@@ -270,7 +270,7 @@ export function InsightsMock() {
                     “I’ll close my account”
                   </span>
                 </p>
-                <p className="mt-1.5 text-label-13 text-sio-fg-muted">Customer states they plan to leave.</p>
+                <p className="mt-1.5 text-label-13 text-sio-fg-subtle">Customer states they plan to leave.</p>
               </m.div>
 
               <m.div
@@ -320,7 +320,7 @@ function QueueRowView({ row, statusOverride }: { row: QueueRow; statusOverride?:
         <SignalStatus state={statusOverride ?? row.state} />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate text-label-13 text-sio-fg-muted">{row.snippet}</p>
+        <p className="min-w-0 truncate text-label-13 text-sio-fg-subtle">{row.snippet}</p>
         <SignalTypeChip type={row.type} />
       </div>
     </div>
