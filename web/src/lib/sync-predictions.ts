@@ -13,6 +13,7 @@ import {
   createPrediction,
   createPredictionsBulk,
 } from "./backend-client";
+import { mapWithConcurrency } from "./concurrency";
 import type { Signal } from "./types";
 
 /** Initial try + this many retries on transient failure. */
@@ -146,30 +147,6 @@ async function createPredictionsBulkWithRetry(
   throw lastError instanceof Error
     ? lastError
     : new Error("createPredictionsBulk failed after retries");
-}
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T, index: number) => Promise<R>
-): Promise<R[]> {
-  if (items.length === 0) return [];
-
-  const results = new Array<R>(items.length);
-  let next = 0;
-
-  async function worker() {
-    while (true) {
-      const index = next;
-      next += 1;
-      if (index >= items.length) return;
-      results[index] = await mapper(items[index], index);
-    }
-  }
-
-  const workerCount = Math.min(Math.max(1, concurrency), items.length);
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
-  return results;
 }
 
 type SyncRow = {

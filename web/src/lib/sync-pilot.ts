@@ -195,7 +195,12 @@ export async function syncPilotSettingsToBackend(
       weekly_export_count: weeklyExportCount,
       last_uploaded_file_name: lastUploadedFileName,
     });
-  } catch {
+  } catch (err) {
+    console.warn(
+      `[sync-pilot] put failed tenant=${tenantId}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
     return null;
   }
 }

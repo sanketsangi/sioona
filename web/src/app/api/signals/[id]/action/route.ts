@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
-import { resolveFeedbackSignal } from "@/app/api/signals/[id]/feedback/route";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
+import {
+  asSignalType,
+  resolveFeedbackSignal,
+} from "@/lib/resolve-feedback-signal";
 import { decideSupervisedAction, persistSupervisedActions, readStore } from "@/lib/store";
 import { syncSupervisedActionDecision } from "@/lib/supervised-action-persistence";
 import {
@@ -13,7 +16,6 @@ import {
 } from "@/lib/supervised-actions";
 import type {
   Signal,
-  SignalType,
   StoreData,
   SupervisedAction,
   SupervisedActionDecision,
@@ -24,8 +26,6 @@ const DECISIONS = new Set<SupervisedActionDecision>([
   "edited",
   "dismissed",
 ]);
-
-const KNOWN_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 
 type ActionBody = {
   decision?: unknown;
@@ -44,11 +44,6 @@ function asDecision(raw: unknown): SupervisedActionDecision | null {
   return DECISIONS.has(raw as SupervisedActionDecision)
     ? (raw as SupervisedActionDecision)
     : null;
-}
-
-function asSignalType(raw: unknown): SignalType | null {
-  if (typeof raw !== "string") return null;
-  return KNOWN_TYPES.has(raw as SignalType) ? (raw as SignalType) : null;
 }
 
 function asEvidence(raw: unknown): string[] {

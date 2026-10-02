@@ -381,12 +381,24 @@ export async function writeStore(data: StoreData): Promise<void> {
     await fs.mkdir(/*turbopackIgnore: true*/ path.dirname(storePath), {
       recursive: true,
     });
-    // Compact JSON — same parse result, less I/O on every feedback/Acted/ingest.
-    await fs.writeFile(
-      /*turbopackIgnore: true*/ storePath,
-      JSON.stringify(normalized),
-      "utf8"
-    );
+    // Write-then-rename so a concurrent read never sees a half-written file
+    // (an unparseable file reads as "missing" and would trigger a cold-start
+    // reseed). Compact JSON — same parse result, less I/O per mutation.
+    const tmpPath = `${storePath}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
+    try {
+      await fs.writeFile(
+        /*turbopackIgnore: true*/ tmpPath,
+        JSON.stringify(normalized),
+        "utf8"
+      );
+      await fs.rename(
+        /*turbopackIgnore: true*/ tmpPath,
+        /*turbopackIgnore: true*/ storePath
+      );
+    } catch (err) {
+      await fs.rm(/*turbopackIgnore: true*/ tmpPath, { force: true });
+      throw err;
+    }
     const stat = await fs.stat(/*turbopackIgnore: true*/ storePath);
     // Snapshot for cache — caller may keep mutating `data` after write.
     cacheStoreSnapshot(storePath, stat, structuredClone(normalized));

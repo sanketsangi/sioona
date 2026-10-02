@@ -8,9 +8,12 @@ import {
   submitFeedback,
 } from "@/lib/backend-client";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
+import {
+  asSignalType,
+  resolveFeedbackSignal,
+} from "@/lib/resolve-feedback-signal";
 import { readStore, setSignalActed, writeStore } from "@/lib/store";
 import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
-import { resolveFeedbackSignal } from "../feedback/route";
 
 const FEEDBACK_LABELS = new Set<FeedbackLabel>([
   "correct",
@@ -32,11 +35,6 @@ function asFeedbackLabel(raw: unknown): FeedbackLabel | undefined {
   return FEEDBACK_LABELS.has(raw as FeedbackLabel)
     ? (raw as FeedbackLabel)
     : undefined;
-}
-
-function asSignalType(raw: unknown): SignalType | null {
-  if (raw === "lead" || raw === "retention" || raw === "upsell") return raw;
-  return null;
 }
 
 const ACTED_TYPE_ERROR = "Signal type must be lead, retention, or upsell";

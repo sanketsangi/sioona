@@ -6,11 +6,14 @@ import {
   submitFeedback,
 } from "@/lib/backend-client";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
+import {
+  asSignalType,
+  resolveFeedbackSignal,
+} from "@/lib/resolve-feedback-signal";
 import { readStore, setSignalFeedback, writeStore } from "@/lib/store";
 import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
 
 const LABELS: FeedbackLabel[] = ["correct", "incorrect", "partially_correct"];
-const KNOWN_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 const DEFAULT_REVIEWER = "shadow_reviewer";
 
 type FeedbackBody = {
@@ -24,40 +27,6 @@ type FeedbackBody = {
   confidence?: number;
   summary?: string;
 };
-
-function asSignalType(raw: unknown): SignalType | null {
-  if (typeof raw !== "string") return null;
-  return KNOWN_TYPES.has(raw as SignalType) ? (raw as SignalType) : null;
-}
-
-/**
- * Resolve JSON signal when URL id is stale (hydrate / ephemeral /tmp drift).
- * Prefer exact id, then Neon UUID, then conversation+type from the client body.
- */
-export function resolveFeedbackSignal(
-  signals: Signal[],
-  id: string,
-  body: Pick<FeedbackBody, "backendSignalId" | "conversationId" | "type">
-): Signal | undefined {
-  const byId = signals.find((s) => s.id === id);
-  if (byId) return byId;
-
-  const backendId = body.backendSignalId?.trim();
-  if (backendId) {
-    const byBackend = signals.find((s) => s.backendSignalId === backendId);
-    if (byBackend) return byBackend;
-  }
-
-  const conversationId = body.conversationId?.trim();
-  const type = asSignalType(body.type);
-  if (conversationId && type) {
-    return signals.find(
-      (s) => s.conversationId === conversationId && s.type === type
-    );
-  }
-
-  return undefined;
-}
 
 function isPredictionMissingError(err: unknown): boolean {
   return err instanceof BackendClientError && err.status === 404;
@@ -155,7 +124,10 @@ export async function POST(
   const session = await requireApiSession(request, "mutate");
   if (session instanceof NextResponse) return session;
   const { id } = await context.params;
-  const body = (await request.json()) as FeedbackBody;
+  const body = (await request.json().catch(() => null)) as FeedbackBody | null;
+  if (!body || typeof body !== "object") {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
 
   if (!body.label || !LABELS.includes(body.label)) {
     return NextResponse.json(

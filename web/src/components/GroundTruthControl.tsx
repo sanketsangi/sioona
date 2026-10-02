@@ -13,7 +13,6 @@ import { UpsellIcon } from "@/components/icons/UpsellIcon";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,

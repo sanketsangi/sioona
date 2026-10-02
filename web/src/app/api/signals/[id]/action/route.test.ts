@@ -549,7 +549,7 @@ describe("POST /api/signals/[id]/action", () => {
     const store = await readStore();
     const lead = store.signals.find((item) => item.type === "lead");
     expect(lead).toBeTruthy();
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => ({
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => ({
       ok: true,
       status: 200,
       json: async () => ({

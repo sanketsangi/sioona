@@ -6,9 +6,9 @@ import {
   setPredictionOutcome,
   type BackendSignalOutcome,
 } from "@/lib/backend-client";
+import { resolveFeedbackSignal } from "@/lib/resolve-feedback-signal";
 import { readStore, writeStore } from "@/lib/store";
 import type { SignalOutcome } from "@/lib/types";
-import { resolveFeedbackSignal } from "../feedback/route";
 
 const OUTCOMES = new Set<SignalOutcome>([
   "retained",

@@ -7,10 +7,11 @@ Shadow Mode conversation intelligence: upload chats, detect revenue signals (lea
 ```bash
 cd web
 npm install
+cp .env.example .env   # BACKEND_URL=http://localhost:8000
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`.
+Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`. The Signal Score API in [`../backend`](../backend/README.md) must be running for feedback, the pending queue, and Eval scores.
 
 ## What's included
 
@@ -33,6 +34,15 @@ Open [http://localhost:3000](http://localhost:3000) → redirects to `/insights`
 - `npm run build` — production build
 - `npm run start` — start production server
 - `npm run lint` — ESLint
-- `npm test` — Vitest (`detect` / `ingest` / `eval`)
+- `npm test` — Vitest (domain logic in `src/lib`, API route handlers, and `eval/` helpers; no network or Neon needed)
+- `npm run test:watch` — Vitest in watch mode
+- `npm run eval` / `eval:signal` / `eval:signal:injection` / `eval:signal:smoke` — promptfoo signal evals (need `GROQ_API_KEY`)
+- `npm run eval:partner-export` — score a partner export against the heuristics
+- `npm run ops:week6-keep-set` — keep-set operations script (`scripts/`)
+- `npm run clean` — remove `.next` and the TypeScript build cache
+
+## Auth
+
+Pilot sign-in uses a signed `sioona_session` cookie (`AUTH_SECRET`). With `AUTH_SECRET` unset, local `next dev` stays open. Production requires it. See `.env.example` and [`DEPLOY.md`](./DEPLOY.md).
 
 Product brief: [`../PRODUCT.md`](../PRODUCT.md).

@@ -44,19 +44,27 @@ alembic upgrade head
 
 `004_prediction_acted` adds `acted` on `signal_predictions` (default false) so Shadow Mode Acted survives cold-start hydrate.
 
+Later migrations (`005`–`011`): `ground_truth`, `pilot_settings`, `last_uploaded_file_name`, a feedback `(tenant_id, reviewed_at)` index, `supervised_action_decisions`, outcome columns + `taxonomy_overrides` + a Postgres-only FK from predictions to conversations, and signal urgency / mentioned value. See [`.cursor/docs/architecture.md`](../.cursor/docs/architecture.md#6-backend-surface) for the full chain and delete-order notes.
+
 ## Run
 
 ```bash
 uvicorn app.main:app --reload --port 8000
 ```
 
-Open docs: http://localhost:8000/docs
+Open docs: http://localhost:8000/docs (disabled when `SIOONA_ENV=production`).
 
-All `/v1/*` endpoints require header `X-Tenant-Id`.
+## Auth
+
+Every `/v1/*` route requires `Authorization: Bearer $SIOONA_SERVICE_TOKEN`; only the Next.js server holds this token. Tenant-scoped routes also require header `X-Tenant-Id` matching the tenant in the path.
+
+- Token unset: open outside production; with `SIOONA_ENV=production` the API returns 503.
+- `DELETE /v1/tenants/{tenant_id}/data` additionally requires `X-Sioona-Role: admin`.
+- `/health` is always open.
 
 ## Hosted deploy (demo)
 
-For Shadow Mode demos against [sioona-demo.vercel.app](https://sioona-demo.vercel.app), FastAPI must be reachable on a **public HTTPS URL**. The Next.js app calls this service **server-side** (`web/src/lib/backend-client.ts`) with header `X-Tenant-Id` — no Auth0.
+For Shadow Mode demos against [sioona-demo.vercel.app](https://sioona-demo.vercel.app), FastAPI must be reachable on a **public HTTPS URL**. The Next.js app calls this service **server-side** (`web/src/lib/backend-client.ts`) with the service token and `X-Tenant-Id` — no Auth0.
 
 Recommended host: **Render** Web Service (Phase 1 hosting). Equivalent platforms work if they expose a public base URL.
 
@@ -65,6 +73,8 @@ Recommended host: **Render** Web Service (Phase 1 hosting). Equivalent platforms
 3. **Start:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 4. **Env (dashboard only — never commit secrets):**
    - `DATABASE_URL` — Neon connection string using `postgresql+psycopg://…?sslmode=require` (reuse the existing Neon project `sioona` for demos).
+   - `SIOONA_SERVICE_TOKEN` — same value as on the web host.
+   - `SIOONA_ENV=production` — requires the token and hides `/docs`.
 5. **Migrate** once (Render release command or a one-shot shell): `alembic upgrade head`
 6. **Verify:**
    ```bash
@@ -81,16 +91,24 @@ Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPL
 |--------|------|---------|
 | `GET` | `/health` | Liveness |
 | `POST` | `/v1/predictions` | Record a prediction |
+| `POST` | `/v1/predictions/bulk` | Bulk upsert predictions |
+| `POST` | `/v1/signals/{signal_id}/outcome` | Record what happened after review (retained / churned / converted / …) |
 | `POST` | `/v1/conversations` | Upsert one conversation + messages |
 | `POST` | `/v1/conversations/bulk` | Bulk upsert conversations + messages |
-| `GET` | `/v1/tenants/{tenant_id}/conversations` | List tenant conversations (API; Insights still JSON) |
+| `GET` | `/v1/tenants/{tenant_id}/conversations` | List tenant conversations (repeat `conversation_id` to overlay specific chats) |
+| `PATCH` | `/v1/tenants/{tenant_id}/conversations/{conversation_id}` | Update `ground_truth` |
 | `DELETE` | `/v1/tenants/{tenant_id}/conversations/{conversation_id}` | Delete one conversation + messages/predictions |
 | `POST` | `/v1/tenants/{tenant_id}/conversations/prune` | Delete conversation_ids not in `keep_conversation_ids` |
 | `POST` | `/v1/signals/{signal_id}/feedback` | Submit/update feedback |
 | `POST` | `/v1/signals/{signal_id}/acted` | Set/clear Acted (reviewed only) |
 | `GET` | `/v1/tenants/{tenant_id}/signal-score` | Overall + per-type SignalScore (optional keep-set) |
+| `POST` | `/v1/tenants/{tenant_id}/signal-score` | Same as GET, with the keep-set in the body for large sets |
 | `GET` | `/v1/tenants/{tenant_id}/signals` | Tenant predictions + optional feedback |
 | `GET` | `/v1/tenants/{tenant_id}/signals/needs-review` | Shadow Mode review queue |
+| `POST` | `/v1/supervised-actions` | Record a human decision on a draft (nothing is sent) |
+| `GET` | `/v1/tenants/{tenant_id}/supervised-actions` | List recorded draft decisions |
+| `GET` | `/v1/tenants/{tenant_id}/taxonomy-overrides` | Adapt phrase overrides |
+| `PUT` | `/v1/tenants/{tenant_id}/taxonomy-overrides` | Replace Adapt phrase overrides |
 | `GET` | `/v1/tenants/{tenant_id}/pilot` | Pilot baseline + weekly export count (404 if never written) |
 | `PUT` | `/v1/tenants/{tenant_id}/pilot` | Upsert pilot settings (one row per tenant) |
 | `DELETE` | `/v1/tenants/{tenant_id}/data` | Wipe tenant Neon chats, messages, predictions, feedback, pilot_settings (`X-Tenant-Id` must match) |

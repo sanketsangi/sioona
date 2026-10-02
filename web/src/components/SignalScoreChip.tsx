@@ -45,7 +45,7 @@ export function SignalScoreChip({
         className="size-3.5 shrink-0"
         color={scoreIconColor(score)}
       />
-      <span className="tabular truncate">{formatScore(score)}</span>
+      <span className="tabular min-w-0 truncate">{formatScore(score)}</span>
     </span>
   );
 }

@@ -33,6 +33,15 @@ Open http://localhost:3000
 
 SignalScore feedback and review precision use the FastAPI backend when it is reachable. Conversations live in the JSON store under `web/data/`; the Shadow Mode pending queue and Signal Score SoT are FastAPI + Neon.
 
+## Tests
+
+```bash
+cd web && npm test          # Vitest — lib, API routes, eval helpers (offline)
+cd web && npm run lint      # ESLint
+cd web && npx tsc --noEmit  # typecheck
+cd backend && pytest        # in-memory SQLite; no Neon needed
+```
+
 **Detect v2 (optional):** keyword heuristics always run. Set `DETECT_LLM=1` and `GROQ_API_KEY` in `web/` to add a Groq Qwen second pass on conversations heuristics miss (cap 8 calls / ingest). Off by default.
 
 **Hosted demo** (https://sioona-demo.vercel.app): deploy FastAPI + Neon, then set Vercel Production `BACKEND_URL` — see [web/DEPLOY.md](./web/DEPLOY.md) and [backend/README.md](./backend/README.md#hosted-deploy-demo).

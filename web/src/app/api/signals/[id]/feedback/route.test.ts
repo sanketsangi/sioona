@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readStore, resetStore, writeStore } from "@/lib/store";
 import type { Signal } from "@/lib/types";
-import { POST, resolveFeedbackSignal } from "./route";
+import { POST } from "./route";
 
 const submitFeedback = vi.fn();
 const createPrediction = vi.fn();
@@ -26,44 +26,6 @@ function feedbackRequest(body: Record<string, unknown>) {
   });
 }
 
-describe("resolveFeedbackSignal", () => {
-  const base: Signal = {
-    id: "sig_conv_a_retention",
-    tenantId: "tenant_demo",
-    conversationId: "conv_a",
-    type: "retention",
-    score: 0.9,
-    confidence: 0.9,
-    summary: "x",
-    suggestedAction: "",
-    evidence: [],
-    status: "new",
-    createdAt: "2026-08-01T00:00:00.000Z",
-    backendSignalId: "pred-uuid-1",
-  };
-
-  it("matches by id first", () => {
-    expect(resolveFeedbackSignal([base], base.id, {})?.id).toBe(base.id);
-  });
-
-  it("falls back to backendSignalId when URL id drifted", () => {
-    expect(
-      resolveFeedbackSignal([base], "sig_conv_a_retention_llm", {
-        backendSignalId: "pred-uuid-1",
-      })?.id
-    ).toBe(base.id);
-  });
-
-  it("falls back to conversationId + type", () => {
-    expect(
-      resolveFeedbackSignal([base], "sig_stale_llm", {
-        conversationId: "conv_a",
-        type: "retention",
-      })?.id
-    ).toBe(base.id);
-  });
-});
-
 describe("POST /api/signals/[id]/feedback", () => {
   beforeEach(async () => {
     submitFeedback.mockReset();
@@ -75,6 +37,22 @@ describe("POST /api/signals/[id]/feedback", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
+
+  it.each(["{not json", "null", '"text"'])(
+    "returns 400 for an unusable body %s",
+    async (raw) => {
+      const res = await POST(
+        new Request("http://localhost/api/signals/x/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: raw,
+        }),
+        { params: Promise.resolve({ id: "sig_any" }) }
+      );
+      expect(res.status).toBe(400);
+      expect(submitFeedback).not.toHaveBeenCalled();
+    }
+  );
 
   it("returns 404 when signal cannot be resolved and no Neon id", async () => {
     const res = await POST(
