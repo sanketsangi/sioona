@@ -15,7 +15,8 @@
     "eval:signal:injection": "node eval/promptfoo/run-eval.mjs -c promptfooconfig.injection.yaml",
     "eval:signal:smoke": "node eval/promptfoo/run-smoke.mjs",
     "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts",
-    "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts"
+    "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts",
+    "agent": "npx tsx scripts/cursor-agent.ts"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
@@ -37,6 +38,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@cursor/sdk": "^1.0.35",
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19",
