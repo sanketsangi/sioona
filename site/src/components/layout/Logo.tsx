@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SioonaMark } from "@/components/layout/SioonaMark";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
@@ -6,9 +7,10 @@ export function Logo({ className = "" }: { className?: string }) {
       href="/"
       aria-label="Sioona, home"
       translate="no"
-      className={`inline-flex min-h-8 items-center rounded-control text-heading-20 text-sio-fg-base ${className}`}
+      className={`inline-flex min-h-8 items-center gap-2 rounded-control text-sio-fg-base ${className}`}
     >
-      Sioona
+      <SioonaMark />
+      <span className="text-heading-20">Sioona</span>
     </Link>
   );
 }
