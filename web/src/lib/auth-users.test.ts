@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { authenticatePilotUser, loadPilotUsers } from "@/lib/auth-users";
+import { authenticatePilotUser, hashPilotPassword, loadPilotUsers, verifyPilotPassword } from "@/lib/auth-users";
 
 const originalUsers = process.env.SIOONA_PILOT_USERS;
 
@@ -10,6 +10,23 @@ afterEach(() => {
 });
 
 describe("loadPilotUsers", () => {
+  it("accepts generated password hashes and rejects a wrong password", () => {
+    const user = { email: "reviewer@example.test", role: "reviewer" as const,
+      tenantId: "tenant_partner", passwordHash: hashPilotPassword("pilot-secret") };
+    expect(verifyPilotPassword("pilot-secret", user)).toBe(true);
+    expect(verifyPilotPassword("wrong", user)).toBe(false);
+  });
+
+  it.each([
+    "scrypt$zz$zz", "scrypt$00$00", "scrypt$" + "00".repeat(16) + "$gg",
+    "scrypt$" + "00".repeat(16) + "$" + "00".repeat(32) + "$extra",
+    "scrypt$" + "00".repeat(16) + "$" + "00".repeat(10000),
+  ])("fails closed for malformed configured hashes (%#)", (passwordHash) => {
+    process.env.SIOONA_PILOT_USERS = JSON.stringify([{ email: "reviewer@example.test",
+      role: "reviewer", tenantId: "tenant_partner", passwordHash }]);
+    expect(authenticatePilotUser("reviewer@example.test", "anything")).toBeNull();
+  });
+
   it("keeps admin and reviewer accounts and drops a demo role", () => {
     process.env.SIOONA_PILOT_USERS = JSON.stringify([
       {

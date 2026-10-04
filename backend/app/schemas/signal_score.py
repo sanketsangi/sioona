@@ -19,6 +19,7 @@ class SignalScoreByType(BaseModel):
 class SignalScoreRequest(BaseModel):
     """POST keep-set body — avoids truncating large ``conversation_id`` query lists."""
 
+    upload_id: str | None = Field(default=None, min_length=1, max_length=64)
     date_from: datetime | None = None
     date_to: datetime | None = None
     signal_type: str | None = None

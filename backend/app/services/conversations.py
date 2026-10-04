@@ -282,6 +282,7 @@ def upsert_conversations(
     *,
     tenant_id: str,
     payloads: list[ConversationUpsert],
+    commit: bool = True,
 ) -> ConversationBulkResult:
     """Bulk upsert in one transaction (Partner Demo / ingest).
 
@@ -350,7 +351,10 @@ def upsert_conversations(
         messages_updated += item.messages_updated
         existing_conversations[payload.conversation_id] = item.conversation
 
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
 
     reloaded_conversations = {
         row.conversation_id: row

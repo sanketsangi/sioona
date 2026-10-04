@@ -8,11 +8,9 @@ export const siteConfig = {
   url:
     process.env.NEXT_PUBLIC_SITE_URL ??
     (vercelHost ? `https://${vercelHost}` : "http://localhost:3000"),
-  appUrl: process.env.NEXT_PUBLIC_APP_URL || "/contact",
+  appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || null,
 } as const;
 
-/** The contact route is a stub: it validates and returns success, nothing is stored or sent. */
-export const contactStub = true;
 
 export const navLinks = [
   { label: "Product", href: "/#product" },

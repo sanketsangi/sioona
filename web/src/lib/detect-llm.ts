@@ -5,6 +5,7 @@
  * heuristic hit. A failed or ungrounded call keeps the heuristic signal.
  */
 
+import { recentCustomerTranscript, type TranscriptContext } from "./recent-transcript";
 import { clipQuote } from "./clip-quote";
 import { mapWithConcurrency } from "./concurrency";
 import { pseudonymCustomerName, redactText } from "./redact";
@@ -34,7 +35,8 @@ export const DEFAULT_DETECT_LLM_MODEL = "qwen/qwen3.8-27b";
  * switches to `low` for every non-Qwen id.
  */
 export const FALLBACK_DETECT_LLM_MODEL = "openai/gpt-oss-20b";
-export const DETECT_LLM_MAX_CALLS = 8;
+import { DETECT_LLM_MAX_CALLS, detectLlmMaxCalls } from "./detect-llm-config";
+export { DETECT_LLM_MAX_CALLS, detectLlmMaxCalls } from "./detect-llm-config";
 /** Default 2 — Groq Free 429s at 8-wide; keep Hobby detect + Neon sync under 10s. */
 export const DETECT_LLM_CONCURRENCY = 2;
 export const DETECT_LLM_TIMEOUT_MS = 6_000;
@@ -42,7 +44,7 @@ export const DETECT_LLM_TIMEOUT_MS = 6_000;
 export const DETECT_LLM_PRIMARY_LOCAL_MAX_CALLS = 120;
 export const DETECT_LLM_MAX_ATTEMPTS = 3;
 export const DETECT_LLM_MIN_INTERVAL_MS = 200;
-const CUSTOMER_TEXT_MAX = 2_400;
+export const DETECT_PROMPT_VERSION = "final-intent-recent-complete-turns-v2";
 
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -125,6 +127,7 @@ export type LlmClassification = {
   confidence: number;
   summary: string;
   quotes: string[];
+  context?: TranscriptContext & { promptVersion: string; model: string };
 };
 
 export type LlmClassifyFn = (input: {
@@ -180,6 +183,10 @@ export type LlmPassStats = {
    * Present when pass 2 ran. The next re-detect classifies these before newer misses.
    */
   skippedIds?: string[];
+  /** Attempted classifications that failed; excludes successful none and skipped work. */
+  failedIds?: string[];
+  /** Successful classifications, including explicit none outputs. */
+  contexts?: Record<string, { model: string; promptVersion: string } & Partial<TranscriptContext>>;
   /** First diagnosed failure when `failed` > 0. Omitted when every call succeeded. */
   llmFailure?: LlmFailureKind;
 };
@@ -301,12 +308,6 @@ function emptyStats(enabled: boolean): LlmPassStats {
   };
 }
 
-export function detectLlmMaxCalls(): number {
-  return positiveEnvNumber(
-    process.env.DETECT_LLM_MAX_CALLS,
-    DETECT_LLM_MAX_CALLS
-  );
-}
 
 /** Primary mode is on unless explicitly set to 0. Second pass stays available. */
 export function isLlmPrimaryEnabled(): boolean {
@@ -475,10 +476,6 @@ function customerText(messages: Message[]): string {
     .join("\n");
 }
 
-function truncate(text: string, max: number): string {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1).trimEnd()}…`;
-}
 
 function stripSpeakerPrefix(quote: string): string {
   return quote.replace(/^(customer|user|client)\s*:\s*/i, "").trim();
@@ -685,10 +682,12 @@ export function classifyChatMessages(input: {
   customerName?: string | null;
   channel?: string;
   customerText: string;
+  omittedTurns?: number;
 }): ClassifyChatMessage[] {
   const who = pseudonymCustomerName(input.customerName) ?? "Customer";
   const channel = input.channel || "chat";
-  const userPrompt = `Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${redactText(input.customerText)}`;
+  const contextNote = input.omittedTurns ? `Earlier ${input.omittedTurns} customer turns were omitted for the context budget. Decide from the complete recent turns below.\n` : "";
+  const userPrompt = `${contextNote}Classify this chat. Return the JSON object only.\n\nCustomer: ${who}\nChannel: ${channel}\n\nCustomer messages:\n${redactText(input.customerText)}`;
   return [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: userPrompt },
@@ -705,13 +704,20 @@ export async function classifyConversationWithGroq(
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
 
-  const text = truncate(customerText(input.customerMessages), CUSTOMER_TEXT_MAX);
+  let transcript: ReturnType<typeof recentCustomerTranscript>;
+  try {
+    transcript = recentCustomerTranscript(input.customerMessages);
+  } catch {
+    throw new LlmCallFailed("shape", false);
+  }
+  const text = transcript.text;
   if (!text) return null;
 
   const messages = classifyChatMessages({
     customerName: input.conversation.customerName,
     channel: input.conversation.channel,
     customerText: text,
+    omittedTurns: transcript.context.omittedTurns,
   });
 
   const maxAttempts = Math.min(
@@ -725,7 +731,8 @@ export async function classifyConversationWithGroq(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const modelUsed = session.model;
     try {
-      return await requestGroqClassification(apiKey, messages, session);
+      const result = await requestGroqClassification(apiKey, messages, session);
+      return { ...result, context: { ...transcript.context, promptVersion: DETECT_PROMPT_VERSION, model: session.model } };
     } catch (err) {
       lastError = err;
       if (err instanceof LlmCallFailed && err.dailyQuota) {
@@ -810,6 +817,7 @@ function signalFromClassification(
       type: classification.type,
       score,
       confidence: score,
+      ...(classification.context ? { detectionContext: classification.context } : {}),
       summary:
         summary ||
         `${who}${via} may be a ${classification.type} signal — review before acting.`,
@@ -927,7 +935,9 @@ export async function applyLlmSecondPass(
   const added: Signal[] = [];
   let attempted = 0;
   let failed = 0;
+  const failedIds = new Set<string>();
   let llmFailure: LlmFailureKind | undefined;
+  const contexts: NonNullable<LlmPassStats["contexts"]> = {};
 
   await mapWithConcurrency(selected, concurrency, async (row) => {
     attempted += 1;
@@ -935,8 +945,10 @@ export async function applyLlmSecondPass(
       const result = await bound.classify(row);
       if (!result) {
         failed += 1;
+        failedIds.add(row.conversation.id);
         return;
       }
+      const context = result.context ?? { model: bound.modelName(), promptVersion: DETECT_PROMPT_VERSION };
       const source = customerText(row.customerMessages);
       const signal = signalFromClassification(
         row.conversation,
@@ -946,9 +958,16 @@ export async function applyLlmSecondPass(
         overrides,
         bound.modelName()
       );
-      if (signal) added.push(signal);
+      if (signal || result.type === "none") {
+        contexts[row.conversation.id] = { ...context };
+        if (signal) added.push(signal);
+      } else {
+        failed += 1;
+        failedIds.add(row.conversation.id);
+      }
     } catch (err) {
       failed += 1;
+      failedIds.add(row.conversation.id);
       const kind = llmFailureKindOf(err);
       if (!llmFailure && kind) llmFailure = kind;
     }
@@ -964,6 +983,8 @@ export async function applyLlmSecondPass(
       failed,
       skipped,
       skippedIds,
+      failedIds: selected.filter((row) => failedIds.has(row.conversation.id)).map((row) => row.conversation.id),
+      contexts,
       ...(llmFailure ? { llmFailure } : {}),
     },
   };
@@ -1030,7 +1051,9 @@ export async function applyLlmPrimaryPass(
   const dropped = new Set<string>();
   let attempted = 0;
   let failed = 0;
+  const failedIds = new Set<string>();
   let llmFailure: LlmFailureKind | undefined;
+  const contexts: NonNullable<LlmPassStats["contexts"]> = {};
 
   await mapWithConcurrency(selected, concurrency, async (row) => {
     attempted += 1;
@@ -1038,12 +1061,16 @@ export async function applyLlmPrimaryPass(
       const result = await bound.classify(row);
       if (!result) {
         failed += 1;
+        failedIds.add(row.conversation.id);
         return;
       }
       if (result.type === "none") {
+        const context = result.context ?? { model: bound.modelName(), promptVersion: DETECT_PROMPT_VERSION };
+        contexts[row.conversation.id] = { ...context };
         dropped.add(row.conversation.id);
         return;
       }
+      const context = result.context ?? { model: bound.modelName(), promptVersion: DETECT_PROMPT_VERSION };
       const source = customerText(row.customerMessages);
       const signal = signalFromClassification(
         row.conversation,
@@ -1053,9 +1080,16 @@ export async function applyLlmPrimaryPass(
         overrides,
         bound.modelName()
       );
-      if (signal) accepted.set(row.conversation.id, signal);
+      if (signal) {
+        contexts[row.conversation.id] = { ...context };
+        accepted.set(row.conversation.id, signal);
+      } else {
+        failed += 1;
+        failedIds.add(row.conversation.id);
+      }
     } catch (err) {
       failed += 1;
+      failedIds.add(row.conversation.id);
       const kind = llmFailureKindOf(err);
       if (!llmFailure && kind) llmFailure = kind;
     }
@@ -1076,6 +1110,8 @@ export async function applyLlmPrimaryPass(
       failed,
       skipped: skippedIds.length,
       skippedIds,
+      failedIds: selected.filter((row) => failedIds.has(row.conversation.id)).map((row) => row.conversation.id),
+      contexts,
       ...(llmFailure ? { llmFailure } : {}),
     },
   };

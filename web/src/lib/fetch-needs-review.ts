@@ -1,8 +1,9 @@
+import { conversationScopes } from "./conversation-scopes";
 /**
  * Fetch Shadow Mode pending queue from FastAPI needs-review.
  * Returns explicit ok/error — never a silent empty list on failure.
  *
- * The route pages at 100. This walks `offset` until a short page so a
+ * The route pages at 100. This follows cursors until the final page so a
  * keep-set larger than 100 still reaches the Insights pager. Pass
  * `conversationIds` when JSON already holds the keep-set so other packs
  * do not fill those pages. Omit them only for wipe recovery.
@@ -10,7 +11,7 @@
 
 import {
   BackendClientError,
-  getNeedsReview,
+  getNeedsReviewPage,
   type BackendPrediction,
 } from "./backend-client";
 
@@ -28,7 +29,6 @@ export type FetchNeedsReviewOptions = {
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 100;
 /** Stop a stuck full-page loop. 100 pages covers a large weekly keep-set. */
-const MAX_PAGES = 100;
 
 function pageLimit(limit: number | undefined): number {
   if (limit === undefined || !Number.isFinite(limit)) return DEFAULT_LIMIT;
@@ -55,15 +55,19 @@ export async function fetchNeedsReview(
   const limit = pageLimit(opts.limit);
   const predictions: BackendPrediction[] = [];
   try {
-    for (let page = 0; page < MAX_PAGES; page += 1) {
-      const offset = page * limit;
-      const batch = await getNeedsReview(tenantId, {
-        limit,
-        offset,
-        conversationIds: opts.conversationIds,
-      });
-      predictions.push(...batch);
-      if (batch.length < limit) break;
+    let pages = 0;
+    for (const scope of conversationScopes(opts.conversationIds)) {
+      let after: string | undefined;
+      const seen = new Set<string>();
+      while (true) {
+        if (pages++ >= 100) throw new Error("Review queue exceed the page budget; narrow the conversation scope.");
+        const batch = await getNeedsReviewPage(tenantId, { limit: limit, after, conversationIds: scope });
+        predictions.push(...batch.predictions);
+        if (!batch.next_cursor) break;
+        if (seen.has(batch.next_cursor)) throw new Error("Review queue returned a repeated cursor.");
+        seen.add(batch.next_cursor);
+        after = batch.next_cursor;
+      }
     }
     return { ok: true, predictions };
   } catch (err) {

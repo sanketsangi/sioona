@@ -47,6 +47,9 @@ export interface SignalOutcomeRecord {
 }
 
 export interface Signal {
+  /** Superseded snapshot prediction: retained for reporting, cannot be edited. */
+  historical?: boolean;
+  detectionContext?: import("./recent-transcript").TranscriptContext & { promptVersion: string; model: string };
   id: string;
   tenantId: string;
   conversationId: string;
@@ -66,6 +69,7 @@ export interface Signal {
   urgencyTimeframe?: string;
   /** Rupee amount or portfolio size stated in the chat. */
   mentionedValueInr?: number;
+  commercialValueEvidence?: { messageId: string; quote: string; amountInr: number; category: "asset" | "revenue_opportunity" | "unconfirmed" }[];
   feedback?: {
     label: FeedbackLabel;
     note?: string;
@@ -197,4 +201,6 @@ export interface StoreData {
    * The next re-detect classifies these before any newer misses.
    */
   llmSkippedConversationIds?: string[];
+  /** Failed attempted classifications, queued ahead of new work on retry. */
+  llmFailedConversationIds?: string[];
 }

@@ -104,6 +104,7 @@ def _revenue_totals(
     date_from: datetime | None,
     date_to: datetime | None,
     conversation_ids: Sequence[str] | None,
+    detection_run_id: str | None = None,
 ) -> tuple[float, float]:
     """Rupee totals for the leak report. ``no_change`` and null values add nothing.
 
@@ -115,6 +116,7 @@ def _revenue_totals(
         SignalPrediction.outcome_value_inr,
     ).where(
         SignalPrediction.tenant_id == tenant_id,
+        (SignalPrediction.detection_run_id == detection_run_id if detection_run_id is not None else SignalPrediction.active.is_(True)),
         SignalPrediction.outcome.is_not(None),
         SignalPrediction.outcome_value_inr.is_not(None),
         SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES),
@@ -206,6 +208,14 @@ def resolve_score_keep_set(
     """
     if conversation_ids is not None:
         return frozenset(cid for cid in conversation_ids if cid)
+    from app.models.upload import Upload, UploadConversation
+    completed = db.scalar(select(Upload.upload_id).where(
+        Upload.tenant_id == tenant_id, Upload.status == "completed", Upload.active.is_(True)).limit(1))
+    if completed is not None:
+        return frozenset(db.scalars(select(UploadConversation.conversation_id).join(Upload,
+            (Upload.tenant_id == UploadConversation.tenant_id) &
+            (Upload.upload_id == UploadConversation.upload_id)).where(
+                Upload.tenant_id == tenant_id, Upload.status == "completed", Upload.active.is_(True))))
     cutoff = _live_partner_score_cutoff(db, tenant_id)
     stmt = select(Conversation.conversation_id).where(
         Conversation.tenant_id == tenant_id
@@ -226,6 +236,7 @@ def _reviewed_tally_query(
     date_from: datetime | None,
     date_to: datetime | None,
     conversation_ids: frozenset[str] | None,
+    detection_run_id: str | None = None,
 ) -> Select:
     """Group reviewed predictions by type × canonical feedback label.
 
@@ -243,7 +254,8 @@ def _reviewed_tally_query(
             func.max(SignalFeedback.reviewed_at).label("last_reviewed_at"),
         )
         .join(SignalFeedback, SignalFeedback.signal_id == SignalPrediction.id)
-        .where(SignalPrediction.tenant_id == tenant_id)
+        .where(SignalPrediction.tenant_id == tenant_id).where(
+            SignalPrediction.detection_run_id == detection_run_id if detection_run_id is not None else SignalPrediction.active.is_(True))
         .where(SignalFeedback.tenant_id == tenant_id)
         .where(SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES))
         .where(SignalFeedback.feedback.in_(FEEDBACK_LABELS))
@@ -266,6 +278,7 @@ def calculate_signal_score(
     date_to: datetime | None = None,
     signal_type: str | None = None,
     conversation_ids: Sequence[str] | None = None,
+    upload_id: str | None = None,
 ) -> SignalScoreResult:
     """Compute SignalScore from human-reviewed signals only.
 
@@ -285,6 +298,16 @@ def calculate_signal_score(
     (e.g. Partner Demo) may remain in Neon; they are not deleted and are
     excluded from the score.
     """
+    detection_run_id = None
+    if upload_id is not None:
+        from app.models.upload import Upload
+        upload = db.get(Upload, (tenant_id, upload_id))
+        if upload is not None and upload.status == "completed" and upload.payload is not None:
+            from app.services.upload_snapshot import load_upload_snapshot
+            _, detection_run_id = load_upload_snapshot(db, upload)
+        from app.services.uploads import upload_conversation_ids
+        membership = upload_conversation_ids(db, tenant_id, upload_id)
+        conversation_ids = membership if conversation_ids is None else membership.intersection(conversation_ids)
     keep_set = resolve_score_keep_set(db, tenant_id, conversation_ids)
     aware_from = _aware_utc(date_from)
     aware_to = _aware_utc(date_to)
@@ -297,6 +320,7 @@ def calculate_signal_score(
             date_from=aware_from,
             date_to=aware_to,
             conversation_ids=keep_set,
+            detection_run_id=detection_run_id,
         )
     ).all()
 
@@ -331,6 +355,7 @@ def calculate_signal_score(
         date_from=aware_from,
         date_to=aware_to,
         conversation_ids=keep_set,
+        detection_run_id=detection_run_id,
     )
 
     return SignalScoreResult(

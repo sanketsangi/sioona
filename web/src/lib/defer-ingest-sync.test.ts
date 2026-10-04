@@ -6,6 +6,8 @@ import {
 } from "./defer-ingest-sync";
 import type { Conversation, Message, Signal, StoreData } from "./types";
 
+vi.mock("./publish-ingest-upload", () => ({ publishIngestUpload: vi.fn().mockResolvedValue({ status: "completed" }) }));
+
 vi.mock("./store", () => ({
   readStore: vi.fn(),
   readPersistedStore: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock("./sync-conversations", () => ({
   pruneConversationsNotInBackend: vi.fn(),
 }));
 
+import { publishIngestUpload } from "./publish-ingest-upload";
 import { getPilotSettings } from "./backend-client";
 import { readPersistedStore, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
@@ -129,6 +132,34 @@ describe("persistDeferredIngestDualWrite", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+
+  it.each(["failed", "skipped"] as const)("never prunes when a conversation sync is %s", async (state) => {
+    vi.mocked(readPersistedStore).mockResolvedValue(store([signal()]));
+    vi.mocked(syncConversationsToBackend).mockResolvedValue({
+      attempted: 1, created: 0, updated: 0, failed: state === "failed" ? 1 : 0,
+      skipped: state === "skipped" ? 1 : 0, messagesCreated: 0, messagesUpdated: 0,
+    });
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: input.signals,
+      sync: { attempted: 1, created: 1, updated: 0, failed: 0, skipped: 0 },
+    });
+    await persistDeferredIngestDualWrite({ ...input, publishUpload: true });
+    expect(publishIngestUpload).not.toHaveBeenCalled();
+    expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
+  });
+
+
+  it("publishes a complete weekly upload without pruning historical conversations", async () => {
+    vi.mocked(readPersistedStore).mockResolvedValue(store([signal()]));
+    vi.mocked(syncPredictionsToBackend).mockResolvedValue({
+      signals: input.signals,
+      sync: { attempted: 1, created: 1, updated: 0, failed: 0, skipped: 0 },
+    });
+    await persistDeferredIngestDualWrite({ ...input, replaceShowcase: false, publishUpload: true });
+    expect(publishIngestUpload).toHaveBeenCalledWith(expect.objectContaining({ replace: false, tenantId: "tenant_demo" }));
+    expect(pruneConversationsNotInBackend).not.toHaveBeenCalled();
   });
 
   it("dual-writes chats + predictions then heals backendSignalId", async () => {

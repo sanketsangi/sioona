@@ -134,7 +134,7 @@ describe("Kuber Securities synthetic week-1 pilot", () => {
     const signals = runDetection(conversations, messages, TENANT_ID);
     const opsIds = new Set(
       conversations
-        .filter((row) => row.externalId?.startsWith("kuber_w1_ops_"))
+        .filter((_, index) => doc.conversations[index].externalId?.startsWith("kuber_w1_ops_"))
         .map((row) => row.id)
     );
     expect(opsIds.size).toBe(20);

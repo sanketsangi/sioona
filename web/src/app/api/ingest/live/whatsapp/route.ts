@@ -1,3 +1,5 @@
+import { readWebhookJson, WebhookBodyTooLarge } from "@/lib/bounded-webhook-json";
+import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
 import { acceptLiveChats } from "@/lib/live-ingest/accept";
 import {
@@ -21,12 +23,25 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  if (!bindLiveIngestTenant(request)) {
+  const tenantId = bindLiveIngestTenant(request);
+  if (!tenantId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  return runWithTenant(tenantId, async () => {
   const provider = new URL(request.url).searchParams.get("provider") || "gupshup";
-  const body = (await request.json().catch(() => null)) as unknown;
+  let body: unknown;
+  try { body = await readWebhookJson(request); }
+  catch (error) {
+    return NextResponse.json({ error: error instanceof WebhookBodyTooLarge ? "webhook_body_too_large" : "invalid_webhook_json" },
+      { status: error instanceof WebhookBodyTooLarge ? 413 : 400 });
+  }
   const chats = parseWhatsAppWebhook(provider, body);
-  const result = await acceptLiveChats(chats);
-  return NextResponse.json({ accepted: result.accepted, sent: false });
+  try {
+    const result = await acceptLiveChats(chats);
+    return NextResponse.json({ accepted: result.accepted, sent: false });
+  } catch {
+    return NextResponse.json({ error: "live_ingest_not_published", sent: false },
+      { status: 503, headers: { "Retry-After": "30" } });
+  }
+  });
 }

@@ -13,7 +13,7 @@ describe("fetchTenantSignals", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => [
+        json: async () => ({ predictions: [
           {
             id: "pred-1",
             tenant_id: "tenant_demo",
@@ -33,7 +33,7 @@ describe("fetchTenantSignals", () => {
               reviewed_at: "2026-08-02T00:00:00.000Z",
             },
           },
-        ],
+        ], next_cursor: null }),
       })
     );
 
@@ -56,7 +56,7 @@ describe("fetchTenantSignals", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => [],
+        json: async () => ({ predictions: [], next_cursor: null }),
       })
     );
 
@@ -65,7 +65,7 @@ describe("fetchTenantSignals", () => {
     });
     expect(result).toEqual({ ok: true, rows: [] });
     const url = String(vi.mocked(fetch).mock.calls[0]?.[0]);
-    expect(url).toContain("/v1/tenants/tenant_demo/signals?");
+    expect(url).toContain("/v1/tenants/tenant_demo/signals/page?");
     expect(url).toContain("conversation_id=conv_keep");
     expect(url).not.toContain("needs-review");
     expect(url).not.toContain("other_pack");
@@ -94,4 +94,30 @@ describe("fetchTenantSignals", () => {
       expect(result.error).toMatch(/unreachable|ECONNREFUSED/i);
     }
   });
+});
+
+it("follows cursors while preserving the active conversation scope", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ predictions: [{ id: "one" }], next_cursor: "next" }) })
+    .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ predictions: [{ id: "two" }], next_cursor: null }) });
+  vi.stubGlobal("fetch", fetchMock);
+  const result = await fetchTenantSignals("a", { conversationIds: ["keep"] });
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.rows.map((row) => row.id)).toEqual(["one", "two"]);
+  expect(String(fetchMock.mock.calls[1][0])).toContain("after=next");
+  expect(fetchMock.mock.calls.every((call) => String(call[0]).includes("conversation_id=keep"))).toBe(true);
+});
+it("does not report success for a repeated cursor", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200,
+    json: async () => ({ predictions: [], next_cursor: "same" }) }));
+  expect((await fetchTenantSignals("a")).ok).toBe(false);
+});
+
+it("splits large conversation scopes into bounded requests", async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200,
+    json: async () => ({ predictions: [], next_cursor: null }) });
+  vi.stubGlobal("fetch", fetchMock);
+  const ids = Array.from({ length: 121 }, (_, i) => `c${i}`);
+  expect((await fetchTenantSignals("a", { conversationIds: ids })).ok).toBe(true);
+  expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).searchParams.getAll("conversation_id").length)).toEqual([50, 50, 21]);
 });

@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { ReportUploadForm } from "@/components/ReportUploadForm";
+import { reportUploadOptions, type ReportUploadOption } from "@/lib/report-upload-options";
+import { ReportRangeForm } from "@/components/ReportRangeForm";
+import { queryRevenueReport } from "@/lib/revenue-report-query";
 import { RevenueLeakOutcomeButtons } from "@/components/RevenueLeakOutcomeButtons";
 import { ViewFrame } from "@/components/ViewFrame";
 import type { BackendSignalScore } from "@/lib/backend-client";
 import {
-  buildRevenueLeakReport,
   formatInr,
   precisionLabel,
   type RevenueLeakReport,
@@ -13,30 +16,31 @@ import { viewHref } from "@/lib/views";
 
 export async function RevenueLeakReportView({
   store,
-  backendScore,
-  windowLabel,
   anonymised,
+  scoreFrom,
+  scoreTo,
+  uploadId,
+  file,
 }: {
   store: StoreData;
   backendScore: BackendSignalScore | null;
   windowLabel: string;
   anonymised: boolean;
+  scoreFrom?: string;
+  scoreTo?: string;
+  uploadId?: string;
+  file?: string;
 }) {
-  const report = buildRevenueLeakReport({
-    signals: store.signals ?? [],
-    conversations: store.conversations ?? [],
-    messages: store.messages ?? [],
-    windowLabel,
-    fileLabel: store.pilot?.lastUploadedFileName ?? null,
-    anonymised,
-    reviewed: backendScore?.reviewed_count ?? 0,
-    correct: backendScore?.correct_count ?? 0,
-    incorrect: backendScore?.incorrect_count ?? 0,
-  });
+  const { report, query, rangeError, rangeErrorField, scopeError } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
+
+  let uploadOptions: ReportUploadOption[] = [];
+  let uploadsUnavailable = false;
+  try { uploadOptions = await reportUploadOptions(store.tenant.id); }
+  catch { uploadsUnavailable = true; }
 
   return (
     <ViewFrame className="overflow-y-auto">
-      <ReportDocument report={report} anonymised={anonymised} />
+      <ReportDocument report={report} anonymised={anonymised} query={query.toString()} rangeError={rangeError} rangeErrorField={rangeErrorField} scopeError={scopeError} uploadOptions={uploadOptions} uploadsUnavailable={uploadsUnavailable} />
     </ViewFrame>
   );
 }
@@ -44,16 +48,28 @@ export async function RevenueLeakReportView({
 function ReportDocument({
   report,
   anonymised,
+  query,
+  rangeError,
+  rangeErrorField,
+  scopeError,
+  uploadOptions,
+  uploadsUnavailable,
 }: {
   report: RevenueLeakReport;
   anonymised: boolean;
+  query: string;
+  rangeError?: string;
+  rangeErrorField?: "scoreFrom" | "scoreTo";
+  scopeError?: string;
+  uploadOptions: ReportUploadOption[];
+  uploadsUnavailable: boolean;
 }) {
-  const pdfHref = anonymised
-    ? "/api/revenue-report/pdf"
-    : "/api/revenue-report/pdf?reveal=1";
-  const nameToggle = anonymised
-    ? viewHref("report", { reveal: "1" })
-    : viewHref("report");
+  const pdfHref = `/api/revenue-report/pdf?${query}`;
+  const toggleParams = new URLSearchParams(query);
+  if (anonymised) toggleParams.set("reveal", "1");
+  else toggleParams.delete("reveal");
+  toggleParams.set("view", "report");
+  const nameToggle = `/?${toggleParams}`;
 
   return (
     <article className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-1 pb-10">
@@ -74,11 +90,17 @@ function ReportDocument({
           <Link href={nameToggle} className="btn-secondary">
             {anonymised ? "Show names" : "Anonymise"}
           </Link>
-          <a href={pdfHref} className="btn-primary">
+          {!scopeError && !rangeError ? <a href={pdfHref} className="btn-primary">
             Download PDF
-          </a>
+          </a> : <span className="text-copy-14 text-sio-fg-subtle self-center">PDF unavailable until report errors are resolved</span>}
         </div>
       </header>
+
+      {scopeError ? <p role="status" className="text-copy-14 text-sio-fg-base">{scopeError} <Link href="/?view=report" className="underline">Open current report</Link>{" · "}<Link href="/upload" className="underline">Open uploads</Link></p> : null}
+      <ReportUploadForm query={query} options={uploadOptions} unavailable={uploadsUnavailable} />
+      <ReportRangeForm query={query} error={rangeError} errorField={rangeErrorField} />
+
+      <p className="text-copy-14 text-sio-fg-subtle">Exposure categories cover retention conversations and are estimates, not confirmed revenue. Signal counts cover the selected corpus. Reviews and recorded outcomes use the UTC date range.</p>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Totals">
         <Metric label="Retention" value={String(report.counts.retention)} />
@@ -88,8 +110,11 @@ function ReportDocument({
           label="Precision"
           value={precisionLabel(report.precision.score, report.precision.reviewed)}
         />
-        <Metric label="At risk" value={formatInr(report.inrAtRisk)} />
-        <Metric label="Saved" value={formatInr(report.inrSaved)} />
+        <Metric label="Asset exposure estimate" value={formatInr(report.exposure.assetInr)} />
+        <Metric label="Revenue opportunity estimate" value={formatInr(report.exposure.revenueOpportunityInr)} />
+        <Metric label="Unconfirmed value" value={formatInr(report.exposure.unconfirmedInr)} />
+        <Metric label="Reviewer-recorded value" value={formatInr(report.exposure.reviewerRecordedInr)} />
+        <Metric label="Confirmed saved" value={report.revenueVerified === false ? "Unavailable" : formatInr(report.inrSaved)} />
         <Metric
           label="Outcomes"
           value={`${report.outcomes.saved} saved · ${report.outcomes.lost} lost · ${report.outcomes.converted} converted`}
@@ -120,18 +145,21 @@ function ReportDocument({
                     {row.timeframe ? ` · ${row.timeframe}` : ""}
                     {" · "}
                     {row.valueInr == null ? "Value not stated" : formatInr(row.valueInr)}
+                    {row.valueProvenance ? ` · ${row.valueProvenance}` : ""}
                   </p>
                 </div>
-                <blockquote className="mt-2 border-l border-sio-border-base pl-3 text-copy-14 text-pretty text-sio-fg-base">
+                {row.quote ? <blockquote className="mt-2 border-l border-sio-border-base pl-3 text-copy-14 text-pretty text-sio-fg-base">
                   “{row.quote}”
-                </blockquote>
+                </blockquote> : <p className="mt-2 text-copy-14 text-sio-fg-subtle">Customer quote unavailable</p>}
                 <div className="mt-3">
-                  <RevenueLeakOutcomeButtons
+                  {row.historical ? <p className="text-copy-14 text-sio-fg-subtle">
+                    Historical prediction · outcome editing unavailable. <a href="/?view=report" className="underline focus-visible:outline-2 focus-visible:outline-offset-2">Open current report</a>
+                  </p> : <RevenueLeakOutcomeButtons
                     signalId={row.signalId}
                     backendSignalId={row.backendSignalId}
                     valueInr={row.valueInr}
                     current={row.outcome}
-                  />
+                  />}
                 </div>
               </li>
             ))}

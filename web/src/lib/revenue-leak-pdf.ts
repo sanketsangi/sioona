@@ -20,13 +20,16 @@ function wrap(text: string, width: number): string[] {
   const lines: string[] = [];
   let current = "";
   for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length > width && current) {
+    if (current && current.length + 1 + word.length > width) {
       lines.push(current);
-      current = word;
-    } else {
-      current = next;
+      current = "";
     }
+    let remainder = word;
+    while (remainder.length > width) {
+      lines.push(remainder.slice(0, width));
+      remainder = remainder.slice(width);
+    }
+    current = current ? `${current} ${remainder}` : remainder;
   }
   if (current) lines.push(current);
   return lines;
@@ -43,9 +46,15 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
   if (report.fileLabel) lines.push(`Pilot file: ${report.fileLabel}`);
   lines.push(
     "",
+    "Signal counts: selected corpus. Reviews and outcomes: UTC date range.",
     `Retention ${report.counts.retention}   Lead ${report.counts.lead}   Upsell ${report.counts.upsell}`,
     `Outcomes  Saved ${report.outcomes.saved}   Lost ${report.outcomes.lost}   Converted ${report.outcomes.converted}`,
-    `INR at risk ${formatInrAscii(report.inrAtRisk).replace(/^INR /, "")}   INR saved ${formatInrAscii(report.inrSaved).replace(/^INR /, "")}`,
+    "Exposure categories: retention conversations; estimates, not confirmed revenue.",
+    `Asset exposure estimate ${formatInrAscii(report.exposure.assetInr)}`,
+    `Revenue opportunity estimate ${formatInrAscii(report.exposure.revenueOpportunityInr)}`,
+    `Unconfirmed value ${formatInrAscii(report.exposure.unconfirmedInr)}`,
+    `Reviewer-recorded value ${formatInrAscii(report.exposure.reviewerRecordedInr)}`,
+    `Confirmed saved ${report.revenueVerified === false ? "unavailable" : formatInrAscii(report.inrSaved)}`,
     `SignalScore precision ${precisionLabel(report.precision.score, report.precision.reviewed)}`,
     "",
     "Customers at risk",
@@ -58,8 +67,8 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
     const when = row.timeframe ? ` (${row.timeframe})` : "";
     const outcome = row.outcome ? `  Outcome: ${row.outcome}` : "";
     lines.push(
-      `${row.customerLabel}  ${row.urgency}${when}  ${value}${outcome}`,
-      `"${row.quote}"`,
+      `${row.customerLabel}  ${row.urgency}${when}  ${value}${row.valueProvenance ? ` (${row.valueProvenance})` : ""}${outcome}`,
+      row.quote ? `"${row.quote}"` : "Customer quote unavailable",
       ""
     );
   }
@@ -69,7 +78,7 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
 
 /** Build a PDF. Short pilots fit on one sheet; longer ones continue. */
 export function buildRevenueLeakPdf(report: RevenueLeakReport): Uint8Array {
-  const wrapped = revenueLeakPdfLines(report).flatMap((line) => wrap(line, 92));
+  const wrapped = revenueLeakPdfLines(report).flatMap((line) => wrap(line, 48));
   const pageSize = 42;
   const pages: string[][] = [];
   for (let i = 0; i < wrapped.length; i += pageSize) {

@@ -11,10 +11,23 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.detection_run import DetectionRun
+from app.services.tenant_lock import lock_tenant_corpus
 from app.models.conversation import Conversation
 from app.models.signal_feedback import FEEDBACK_CORRECT
 from app.models.signal_prediction import SignalPrediction
 from app.services.feedback import SignalNotFoundError
+
+
+class VersionedPredictionConflict(ValueError):
+    """Legacy writes cannot change a conversation with durable detection history."""
+
+
+def reject_versioned_legacy_write(db: Session, tenant_id: str, conversation_ids: list[str]):
+    lock_tenant_corpus(db, tenant_id)
+    if db.scalar(select(DetectionRun.run_id).where(DetectionRun.tenant_id == tenant_id,
+            DetectionRun.conversation_id.in_(conversation_ids)).limit(1)) is not None:
+        raise VersionedPredictionConflict("Use complete detection publication for versioned conversations")
 
 
 def _looks_like_fk_violation(exc: IntegrityError) -> bool:
@@ -109,9 +122,11 @@ def record_prediction(
 
     Re-detect / Partner Demo reuse the same Neon row so feedback stays attached.
     """
+    reject_versioned_legacy_write(db, tenant_id, [conversation_id])
     existing = db.scalar(
         select(SignalPrediction).where(
             SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
             SignalPrediction.conversation_id == conversation_id,
             SignalPrediction.signal_type == signal_type,
         )
@@ -157,9 +172,11 @@ def record_prediction(
                 mentioned_value_inr=mentioned_value_inr,
                 _fk_retried=True,
             )
+        reject_versioned_legacy_write(db, tenant_id, [conversation_id])
         raced = db.scalar(
             select(SignalPrediction).where(
                 SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
                 SignalPrediction.conversation_id == conversation_id,
                 SignalPrediction.signal_type == signal_type,
             )
@@ -212,10 +229,12 @@ def record_predictions_bulk(
         }
 
     conversation_ids = list({key[0] for key in ordered_keys})
+    reject_versioned_legacy_write(db, tenant_id, conversation_ids)
     existing_rows = list(
         db.scalars(
             select(SignalPrediction).where(
                 SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
                 SignalPrediction.conversation_id.in_(conversation_ids),
             )
         ).all()
@@ -265,6 +284,7 @@ def record_predictions_bulk(
             db.scalars(
                 select(SignalPrediction).where(
                     SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
                     SignalPrediction.conversation_id.in_(conversation_ids),
                 )
             ).all()
@@ -306,6 +326,7 @@ def record_predictions_bulk(
         for row in db.scalars(
             select(SignalPrediction).where(
                 SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
                 SignalPrediction.conversation_id.in_(conversation_ids),
             )
         ).all()
@@ -325,6 +346,7 @@ def list_tenant_predictions(
     db: Session,
     tenant_id: str,
     conversation_ids: Sequence[str] | None = None,
+    *, limit: int | None = None, after: UUID | None = None,
 ) -> list[SignalPrediction]:
     """Return this tenant's predictions with feedback loaded. Newest first.
 
@@ -334,14 +356,22 @@ def list_tenant_predictions(
     stmt = (
         select(SignalPrediction)
         .options(joinedload(SignalPrediction.feedback))
-        .where(SignalPrediction.tenant_id == tenant_id)
-        .order_by(SignalPrediction.created_at.desc())
+        .where(SignalPrediction.tenant_id == tenant_id).where(SignalPrediction.active.is_(True))
+
     )
     if conversation_ids is not None:
         keep = [cid for cid in conversation_ids if cid]
         if not keep:
             return []
         stmt = stmt.where(SignalPrediction.conversation_id.in_(keep))
+    if limit is not None:
+        if not 1 <= limit <= 101:
+            raise ValueError("Prediction page limit must be 1..101")
+        stmt = stmt.order_by(SignalPrediction.id).limit(limit)
+        if after is not None:
+            stmt = stmt.where(SignalPrediction.id > after)
+    else:
+        stmt = stmt.order_by(SignalPrediction.created_at.desc())
     return list(db.scalars(stmt).unique().all())
 
 
@@ -359,6 +389,7 @@ def set_prediction_acted(
         .where(
             SignalPrediction.id == signal_id,
             SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
         )
     )
     if prediction is None:
@@ -390,6 +421,7 @@ def set_prediction_outcome(
         select(SignalPrediction).where(
             SignalPrediction.id == signal_id,
             SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
         )
     )
     if prediction is None:

@@ -14,7 +14,6 @@ import {
   type ContactField,
   type ContactValues,
 } from "@/lib/contact";
-import { contactStub } from "@/lib/site";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -63,6 +62,8 @@ export function ContactForm() {
   const [touched, setTouched] = useState<Partial<Record<ContactField, boolean>>>({});
   const [status, setStatus] = useState<Status>("idle");
   const [announce, setAnnounce] = useState("");
+  const [receipt, setReceipt] = useState("");
+  const requestIdentity = useRef<{ payload: string; key: string } | null>(null);
   const fieldRefs = useRef<Partial<Record<ContactField, HTMLElement | null>>>({});
 
   const dirty = contactFieldOrder.some((field) => values[field].trim() !== "");
@@ -111,18 +112,21 @@ export function ContactForm() {
       return;
     }
 
+    const payload = JSON.stringify(clean);
+    if (requestIdentity.current?.payload !== payload) requestIdentity.current = { payload, key: crypto.randomUUID() };
     setStatus("submitting");
     setAnnounce("Sending your request…");
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(clean),
+        headers: { "Content-Type": "application/json", "Idempotency-Key": requestIdentity.current.key },
+        body: payload,
       });
-      const data = (await response.json().catch(() => null)) as { ok?: boolean; errors?: ContactErrors } | null;
-      if (response.ok && data?.ok) {
+      const data = (await response.json().catch(() => null)) as { ok?: boolean; receipt?: string; error?: string; errors?: ContactErrors } | null;
+      if (response.ok && data?.ok && data.receipt) {
+        setReceipt(data.receipt);
         setStatus("success");
-        setAnnounce("Request received. We’ll be in touch about your pilot.");
+        setAnnounce("Your pilot request was stored. Keep your receipt for reference.");
         return;
       }
       if (data?.errors) {
@@ -132,7 +136,8 @@ export function ContactForm() {
         focusFirstError(data.errors);
         return;
       }
-      throw new Error("Request failed");
+      setStatus("error");
+      setAnnounce(data?.error || "We could not store your request. Please retry.");
     } catch {
       setStatus("error");
       setAnnounce("Something went wrong. Please try again.");
@@ -145,13 +150,9 @@ export function ContactForm() {
         <CheckCircle size={24} weight="bold" className="text-sio-status-success-accent" aria-hidden />
         <h2 className="text-heading-24 mt-4 text-sio-fg-base">Request received</h2>
         <p className="text-copy-16 mt-2 max-w-md text-sio-fg-subtle">
-          Thanks, {values.name.split(" ")[0] || "there"}. We’ll be in touch about your pilot.
+          Thanks, {values.name.split(" ")[0] || "there"}. Your pilot request has been stored for review.
         </p>
-        {contactStub ? (
-          <p className="mt-4 text-label-13 text-sio-fg-muted">
-            Preview build: this form validates your details but doesn’t store or send them yet.
-          </p>
-        ) : null}
+        <p className="mt-4 text-label-13 text-sio-fg-muted break-words">Receipt: <span translate="no">{receipt}</span></p>
         <Link href="/" className="btn-secondary mt-6">
           Back To Home
         </Link>

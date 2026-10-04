@@ -1,3 +1,4 @@
+import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
 import { authEnforced } from "@/lib/auth-token";
 import { requireApiSession } from "@/lib/auth-guard";
@@ -39,37 +40,39 @@ function toPayload(result: PartnerExportEvalResult): PartnerExportEvalApiOk {
 export async function GET(request: Request) {
   const session = await requireApiSession(request, "read");
   if (session instanceof NextResponse) return session;
-  if (authEnforced() && session.role !== "admin") {
-    return NextResponse.json({ error: "Admin role required." }, { status: 403 });
-  }
-  const url = new URL(request.url);
-  const preferWeek2 =
-    url.searchParams.get("week2") === "1" ||
-    url.searchParams.get("week2") === "true" ||
-    url.searchParams.get("source") === "week2";
-
-  try {
-    const result = await loadPartnerExportEval({
-      preferWeek2,
-      skipHybrid: true,
-    });
-    return NextResponse.json(toPayload(result));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Eval failed";
-    const missing =
-      /missing week-2|missing.*week2|enoent|no such file/i.test(message) ||
-      message.toLowerCase().includes("week2.local.csv");
-    const userMessage = missing
-      ? "Week-2 export isn’t ready yet."
-      : "Export eval is unavailable right now.";
-    const payload: PartnerExportEvalApiErr = {
-      ok: false,
-      code: missing ? "missing_file" : "error",
-      message: userMessage,
-    };
-    if (process.env.NODE_ENV === "development") {
-      payload.debugMessage = message;
+  return runWithTenant(session.tenantId, async () => {
+    if (authEnforced() && session.role !== "admin") {
+      return NextResponse.json({ error: "Admin role required." }, { status: 403 });
     }
-    return NextResponse.json(payload, { status: missing ? 404 : 500 });
-  }
+    const url = new URL(request.url);
+    const preferWeek2 =
+      url.searchParams.get("week2") === "1" ||
+      url.searchParams.get("week2") === "true" ||
+      url.searchParams.get("source") === "week2";
+
+    try {
+      const result = await loadPartnerExportEval({
+        preferWeek2,
+        skipHybrid: true,
+      });
+      return NextResponse.json(toPayload(result));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Eval failed";
+      const missing =
+        /missing week-2|missing.*week2|enoent|no such file/i.test(message) ||
+        message.toLowerCase().includes("week2.local.csv");
+      const userMessage = missing
+        ? "Week-2 export isn’t ready yet."
+        : "Export eval is unavailable right now.";
+      const payload: PartnerExportEvalApiErr = {
+        ok: false,
+        code: missing ? "missing_file" : "error",
+        message: userMessage,
+      };
+      if (process.env.NODE_ENV === "development") {
+        payload.debugMessage = message;
+      }
+      return NextResponse.json(payload, { status: missing ? 404 : 500 });
+    }
+  });
 }

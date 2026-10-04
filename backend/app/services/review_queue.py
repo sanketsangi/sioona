@@ -68,7 +68,7 @@ def list_signals_needing_review(
     )
     stmt = (
         select(SignalPrediction)
-        .where(SignalPrediction.tenant_id == tenant_id)
+        .where(SignalPrediction.tenant_id == tenant_id).where(SignalPrediction.active.is_(True))
         .where(SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES))
         .where(unreviewed)
     )
@@ -80,3 +80,24 @@ def list_signals_needing_review(
         ).limit(_SHUFFLE_WINDOW)
     shuffled = shuffle_predictions(list(db.scalars(stmt).all()))
     return shuffled[offset : offset + limit]
+
+
+def page_signals_needing_review(db: Session, tenant_id: str, *, limit: int = 20,
+                                after: str | None = None,
+                                conversation_ids: Sequence[str] | None = None):
+    """Keyset pagination: database loads at most limit+1 rows, including keep-sets."""
+    from uuid import UUID
+    if not 1 <= limit <= 100:
+        raise ValueError("Page limit must be 1..100")
+    cursor = UUID(after) if after else None
+    unreviewed = ~exists(select(SignalFeedback.id).where(
+        SignalFeedback.signal_id == SignalPrediction.id,
+        SignalFeedback.tenant_id == tenant_id, SignalFeedback.feedback.in_(FEEDBACK_LABELS)))
+    stmt = select(SignalPrediction).where(SignalPrediction.tenant_id == tenant_id,
+        SignalPrediction.active.is_(True), SignalPrediction.signal_type.in_(CANONICAL_SIGNAL_TYPES), unreviewed)
+    if conversation_ids is not None:
+        stmt = stmt.where(SignalPrediction.conversation_id.in_(conversation_ids))
+    if cursor is not None:
+        stmt = stmt.where(SignalPrediction.id > cursor)
+    rows = list(db.scalars(stmt.order_by(SignalPrediction.id).limit(limit + 1)).all())
+    return rows[:limit], str(rows[limit - 1].id) if len(rows) > limit else None

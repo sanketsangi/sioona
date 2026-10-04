@@ -63,6 +63,7 @@ class PredictionResponse(BaseModel):
     urgency: str | None = None
     urgency_timeframe: str | None = None
     mentioned_value_inr: int | None = None
+    commercial_value_evidence: list[dict] | None = None
     acted: bool = False
     outcome: str | None = None
     outcome_value_inr: float | None = None
@@ -82,3 +83,8 @@ class PredictionWithFeedbackResponse(PredictionResponse):
     """Prediction plus optional human feedback (hydrate / reviewed list)."""
 
     feedback: FeedbackResponse | None = None
+
+
+class SnapshotPredictionResponse(PredictionWithFeedbackResponse):
+    """Historical report rows expose whether mutation is still permitted."""
+    active: bool

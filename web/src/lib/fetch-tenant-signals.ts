@@ -1,3 +1,4 @@
+import { conversationScopes } from "./conversation-scopes";
 /**
  * Fetch tenant predictions (feedback + Acted) from FastAPI.
  * Returns explicit ok/error — never a silent empty list on failure.
@@ -5,7 +6,7 @@
 
 import {
   BackendClientError,
-  getTenantSignals,
+  getTenantSignalsPage,
   type BackendPredictionWithFeedback,
 } from "./backend-client";
 
@@ -27,9 +28,21 @@ export async function fetchTenantSignals(
     return { ok: true, rows: [] };
   }
   try {
-    const rows = await getTenantSignals(tenantId, {
-      conversationIds: opts?.conversationIds,
-    });
+    const rows: BackendPredictionWithFeedback[] = [];
+    let pages = 0;
+    for (const scope of conversationScopes(opts?.conversationIds)) {
+      let after: string | undefined;
+      const seen = new Set<string>();
+      while (true) {
+        if (pages++ >= 100) throw new Error("Tenant signals exceed the page budget; narrow the conversation scope.");
+        const batch = await getTenantSignalsPage(tenantId, { limit: 100, after, conversationIds: scope });
+        rows.push(...batch.predictions);
+        if (!batch.next_cursor) break;
+        if (seen.has(batch.next_cursor)) throw new Error("Tenant signals returned a repeated cursor.");
+        seen.add(batch.next_cursor);
+        after = batch.next_cursor;
+      }
+    }
     return { ok: true, rows };
   } catch (err) {
     const message =

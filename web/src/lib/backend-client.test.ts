@@ -10,6 +10,7 @@ import {
   BACKEND_HEALTH_TIMEOUT_MS,
   getBackendHealth,
   getConversations,
+  getPublishedConversationIds,
   getSignalScore,
   getPilotSettings,
   getTenantSignals,
@@ -782,5 +783,26 @@ describe("setPredictionActed / pilot settings client", () => {
       weekly_export_count: 0,
       last_uploaded_file_name: null,
     });
+  });
+});
+
+describe("durable live deduplication lookup", () => {
+  it("does not send empty or oversized scopes", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await getPublishedConversationIds("tenant_partner", [])).toEqual([]);
+    await expect(getPublishedConversationIds("tenant_partner", [""])).rejects.toThrow("scope");
+    await expect(getPublishedConversationIds("tenant_partner", Array(51).fill("c1"))).rejects.toThrow("scope");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each([null, {}, { conversation_ids: ["other"] }, { conversation_ids: ["c1", "c1"] },
+    { conversation_ids: [42] }])("rejects malformed or out-of-scope results (%#)", async (result) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => result }));
+    await expect(getPublishedConversationIds("tenant_partner", ["c1"])).rejects.toThrow("Invalid published conversation lookup");
+  });
+  it("accepts an exact published subset", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200,
+      json: async () => ({ conversation_ids: ["c1"] }) }));
+    expect(await getPublishedConversationIds("tenant_partner", ["c1", "c2"])).toEqual(["c1"]);
   });
 });

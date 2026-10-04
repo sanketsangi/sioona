@@ -1,0 +1,60 @@
+from pydantic import BaseModel, Field, model_serializer, model_validator
+from app.schemas.conversation import ConversationUpsert, MessageUpsert
+from app.schemas.detection_run import ConversationDetection
+
+
+class IngestionMessage(MessageUpsert):
+    message_id: str = Field(min_length=1, max_length=256)
+    content: str = Field(min_length=1, max_length=262144)
+
+
+class IngestionConversation(ConversationUpsert):
+    conversation_id: str = Field(min_length=1, max_length=256)
+    channel: str = Field(min_length=1, max_length=64)
+    customer_name: str | None = Field(default=None, max_length=512)
+    external_id: str | None = Field(default=None, max_length=512)
+    messages: list[IngestionMessage] = Field(default_factory=list, max_length=10000)
+
+
+class IngestionFile(BaseModel):
+    source: str = Field(min_length=1, max_length=512)
+    conversation_ids: list[str] = Field(min_length=1, max_length=1000)
+
+
+class Ingestion(BaseModel):
+    source: str = Field(min_length=1, max_length=512)
+    replace: bool = False
+    append_only: bool = False
+    conversations: list[IngestionConversation] = Field(min_length=1, max_length=1000)
+    detections: list[ConversationDetection] = Field(min_length=1, max_length=1000)
+
+
+    files: list[IngestionFile] | None = Field(default=None, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def bounded_transcripts(self):
+        if self.append_only and self.replace:
+            raise ValueError("Append-only ingestion cannot replace the corpus")
+        total_messages = 0
+        total_bytes = 0
+        for chat in self.conversations:
+            total_messages += len(chat.messages)
+            if total_messages > 100000:
+                raise ValueError("Upload exceeds 100000 messages")
+            for message in chat.messages:
+                size = len(message.content.encode("utf-8"))
+                if size > 262144:
+                    raise ValueError("Message exceeds 256 KiB of UTF-8 text")
+                total_bytes += size
+                if total_bytes > 16 * 1024 * 1024:
+                    raise ValueError("Upload exceeds 16 MiB of transcript text")
+        return self
+
+    @model_serializer(mode="wrap")
+    def serialize_request(self, handler):
+        result = handler(self)
+        if not result.get("append_only"):
+            result.pop("append_only", None)
+        if result.get("files") is None:
+            result.pop("files", None)
+        return result

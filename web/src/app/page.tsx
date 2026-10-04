@@ -72,7 +72,7 @@ import {
   verifySessionToken,
 } from "@/lib/auth-token";
 import { loadStore, persistMissingSupervisedDrafts } from "@/lib/store";
-import { DEMO_TENANT_ID, enterStoreTenant } from "@/lib/tenant-context";
+import { DEMO_TENANT_ID, runWithTenant } from "@/lib/tenant-context";
 import { overlaySupervisedActionsFromNeon } from "@/lib/supervised-action-persistence";
 import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import {
@@ -150,6 +150,8 @@ export default async function PlatformPage({
     llmFailure?: string;
     preview?: string;
     scoreFrom?: string;
+    scoreTo?: string;
+    uploadId?: string;
     wipeFailed?: string;
     mode?: string;
     replaced?: string;
@@ -169,7 +171,7 @@ export default async function PlatformPage({
   if (authEnforced() && !session && !publicDemoEnabled()) {
     redirect("/login");
   }
-  enterStoreTenant(session?.tenantId ?? DEMO_TENANT_ID);
+  return runWithTenant(session?.tenantId ?? DEMO_TENANT_ID, async () => {
   const view = parseView(sp.view);
   const signalId = sp.signal ?? null;
   const unlocked = isActionModeUnlocked();
@@ -248,22 +250,22 @@ export default async function PlatformPage({
   const storeRaw = storeAdopted;
   const coldStart = loaded.coldStart && storeAdopted === loaded.store;
   if (shouldDeferHomepagePredictionSync(fetches.predictionSync, coldStart)) {
-    after(() => {
-      void persistDeferredPredictionSync(storeRaw.tenant.id).catch((err) => {
+    after(() => runWithTenant(storeRaw.tenant.id, async () => {
+      await persistDeferredPredictionSync(storeRaw.tenant.id).catch((err) => {
         const detail = err instanceof Error ? err.message : "unknown error";
         console.warn(`[defer-prediction-sync] ${detail}`);
       });
-    });
+    }));
   }
   // Insights/Eval first paint uses needs-review / signals, not /pilot.
   // Header filename + cadence helper read JSON; heal Neon after the response.
   if (shouldDeferHomepagePilotRefresh(fetches.pilotRefresh)) {
-    after(() => {
-      void persistDeferredPilotRefresh(storeRaw.tenant.id).catch((err) => {
+    after(() => runWithTenant(storeRaw.tenant.id, async () => {
+      await persistDeferredPilotRefresh(storeRaw.tenant.id).catch((err) => {
         const detail = err instanceof Error ? err.message : "unknown error";
         console.warn(`[defer-pilot-refresh] ${detail}`);
       });
-    });
+    }));
   }
 
   // Upload awaits live /pilot for cadence chrome. Insights/Eval/Taxonomy
@@ -555,6 +557,10 @@ export default async function PlatformPage({
         store={store}
         backendScore={backendScore}
         windowLabel={scoreWindow.label}
+        scoreFrom={sp.scoreFrom}
+        scoreTo={sp.scoreTo}
+        uploadId={sp.uploadId}
+        file={sp.file}
         anonymised={sp.reveal !== "1"}
       />
     );
@@ -589,4 +595,5 @@ export default async function PlatformPage({
       {viewNode}
     </AppShell>
   );
+  });
 }

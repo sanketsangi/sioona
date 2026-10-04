@@ -14,6 +14,7 @@ export async function fetchSignalScoreSafe(
   dateRange?: {
     dateFrom?: string;
     dateTo?: string;
+    uploadId?: string;
   }
 ): Promise<BackendSignalScore | null> {
   try {
@@ -21,10 +22,12 @@ export async function fetchSignalScoreSafe(
       conversationIds?: string[];
       date_from?: string;
       date_to?: string;
+      upload_id?: string;
     } = {};
     if (conversationIds !== undefined) {
       opts.conversationIds = conversationIds;
     }
+    if (dateRange?.uploadId) opts.upload_id = dateRange.uploadId;
     if (dateRange?.dateFrom) opts.date_from = dateRange.dateFrom;
     if (dateRange?.dateTo) opts.date_to = dateRange.dateTo;
     return await getSignalScore(

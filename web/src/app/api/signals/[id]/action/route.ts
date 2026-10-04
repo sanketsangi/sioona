@@ -1,3 +1,4 @@
+import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
 import { neonPredictionIdFromStubSignalId } from "@/lib/prediction-sync";
@@ -170,7 +171,7 @@ function findStoredAction(
  * Resolve a JSON signal, or synthesize one for Neon-only stubs when the
  * JSON row is missing (same hosted drift as feedback / Mark Acted).
  */
-export function resolveActionSignal(
+function resolveActionSignal(
   store: StoreData,
   id: string,
   body: ActionBody,
@@ -231,84 +232,86 @@ export async function POST(
 ) {
   const session = await requireApiSession(request, "mutate");
   if (session instanceof NextResponse) return session;
-  const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as ActionBody;
+  return runWithTenant(session.tenantId, async () => {
+    const { id } = await context.params;
+    const body = (await request.json().catch(() => ({}))) as ActionBody;
 
-  try {
-    const store = await readStore();
-    const signal = resolveActionSignal(store, id, body);
+    try {
+      const store = await readStore();
+      const signal = resolveActionSignal(store, id, body);
 
-    if (!signal) {
-      const hits = storedHitsForRequest(store, id, body);
-      if (
-        bothRetentionDrafts(hits) &&
-        requestConfidence(body.confidence) == null
-      ) {
+      if (!signal) {
+        const hits = storedHitsForRequest(store, id, body);
+        if (
+          bothRetentionDrafts(hits) &&
+          requestConfidence(body.confidence) == null
+        ) {
+          return NextResponse.json(
+            { error: RETENTION_CONFIDENCE_ERROR },
+            { status: 400 },
+          );
+        }
+        return NextResponse.json({ error: "Signal not found" }, { status: 404 });
+      }
+
+      const liveConfidence =
+        requestConfidence(body.confidence) ?? signal.confidence;
+      const liveSignal = {
+        ...signal,
+        confidence: liveConfidence,
+        score: liveConfidence,
+      };
+
+      if (shouldGenerateSupervisedDraft(liveSignal)) {
+        await persistSupervisedActions([liveSignal], store.conversations);
+      }
+
+      const afterEnsure = await readStore();
+      const action = findSupervisedAction(
+        afterEnsure.supervisedActions,
+        liveSignal,
+      );
+      if (!action) {
         return NextResponse.json(
-          { error: RETENTION_CONFIDENCE_ERROR },
-          { status: 400 },
+          { error: "No supervised draft for this signal." },
+          { status: 404 }
         );
       }
-      return NextResponse.json({ error: "Signal not found" }, { status: 404 });
-    }
 
-    const liveConfidence =
-      requestConfidence(body.confidence) ?? signal.confidence;
-    const liveSignal = {
-      ...signal,
-      confidence: liveConfidence,
-      score: liveConfidence,
-    };
-
-    if (shouldGenerateSupervisedDraft(liveSignal)) {
-      await persistSupervisedActions([liveSignal], store.conversations);
-    }
-
-    const afterEnsure = await readStore();
-    const action = findSupervisedAction(
-      afterEnsure.supervisedActions,
-      liveSignal,
-    );
-    if (!action) {
-      return NextResponse.json(
-        { error: "No supervised draft for this signal." },
-        { status: 404 }
-      );
-    }
-
-    const decision = asDecision(body.decision);
-    if (!decision) {
-      return NextResponse.json({ action });
-    }
-
-    const subject =
-      typeof body.subject === "string" ? body.subject : undefined;
-    const draftBody = typeof body.body === "string" ? body.body : undefined;
-    const result = await decideSupervisedAction(action.id, decision, {
-      subject,
-      body: draftBody,
-    });
-
-    if (!result.ok) {
-      if (result.reason === "not_found") {
-        return NextResponse.json({ error: "Action not found" }, { status: 404 });
+      const decision = asDecision(body.decision);
+      if (!decision) {
+        return NextResponse.json({ action });
       }
-      return NextResponse.json(
-        { error: "Subject and body are required." },
-        { status: 400 }
-      );
+
+      const subject =
+        typeof body.subject === "string" ? body.subject : undefined;
+      const draftBody = typeof body.body === "string" ? body.body : undefined;
+      const result = await decideSupervisedAction(action.id, decision, {
+        subject,
+        body: draftBody,
+      });
+
+      if (!result.ok) {
+        if (result.reason === "not_found") {
+          return NextResponse.json({ error: "Action not found" }, { status: 404 });
+        }
+        return NextResponse.json(
+          { error: "Subject and body are required." },
+          { status: 400 }
+        );
+      }
+
+      await syncSupervisedActionDecision(result.action);
+
+      return NextResponse.json({
+        action: result.action,
+        sent: false,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to save action decision";
+      console.error("[supervised-action] decision failed", message);
+      return NextResponse.json({ error: message }, { status: 500 });
     }
-
-    await syncSupervisedActionDecision(result.action);
-
-    return NextResponse.json({
-      action: result.action,
-      sent: false,
-    });
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Failed to save action decision";
-    console.error("[supervised-action] decision failed", message);
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  });
 }

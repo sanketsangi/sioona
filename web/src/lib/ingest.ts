@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { opaqueExternalIdentity } from "./opaque-identity";
 import {
   looksLikeIntercomJson,
   looksLikeWhatsappTxt,
@@ -171,8 +172,7 @@ function normalizeGroundTruth(
 }
 
 /** Shown when import succeeds but detection finds nothing. */
-export const ZERO_SIGNAL_HINT =
-  "No lead/retention/upsell matches. Detection looks for support phrases (open account, switch, upgrade)—forum-style posts often score zero. Try Upload or a real support export.";
+export { ZERO_SIGNAL_HINT } from "./ingest-copy";
 
 function asTrimmedString(value: unknown): string {
   if (typeof value === "string") return value.trim();
@@ -329,6 +329,8 @@ export type ToStoreRecordsOptions = {
    * ids (measurement only, no store write).
    */
   stableIds?: boolean;
+  /** Provider namespace for partner identity; must remain stable across reimports. */
+  provider?: string;
 };
 
 /** Slug used when `stableIds` is on — `priya_sharma_22` → `conv_priya_sharma_22`. */
@@ -364,9 +366,18 @@ export function toStoreRecords(
 
   for (const input of inputs) {
     if (!input.messages?.length) continue;
-    const conversationId = options?.stableIds
+    const partnerIdentity = tenantId !== "tenant_demo"
+      ? opaqueExternalIdentity(tenantId, options?.provider ?? input.channel ?? "upload", input.externalId)
+      : undefined;
+    const conversationId = partnerIdentity && options?.stableIds
+      ? `conv_${partnerIdentity}`
+      : options?.stableIds
       ? stableConversationId(input.externalId, usedIds)
       : `conv_${randomUUID().slice(0, 8)}`;
+    if (partnerIdentity && options?.stableIds) {
+      if (usedIds.has(conversationId)) throw new Error("Duplicate provider conversation identity in upload.");
+      usedIds.add(conversationId);
+    }
     const messageIds: string[] = [];
     const startedAt =
       input.startedAt ||
@@ -389,7 +400,7 @@ export function toStoreRecords(
     conversations.push({
       id: conversationId,
       tenantId,
-      externalId: safeExternalId(input.externalId, input.customerName),
+      externalId: partnerIdentity ? `ext_${partnerIdentity}` : safeExternalId(input.externalId, input.customerName),
       channel: input.channel || "upload",
       customerName: pseudonymCustomerName(input.customerName),
       startedAt,

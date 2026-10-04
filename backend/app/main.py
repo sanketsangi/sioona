@@ -14,8 +14,13 @@ from app.api.routes import (
     supervised_actions,
     taxonomy,
     tenant_data,
+    uploads,
+    pilot_requests,
+    detection_runs,
+    ingestion,
 )
 from app.config import get_settings
+from app.ingestion_body_limit import IngestionBodyLimit
 
 settings = get_settings()
 _production = settings.sioona_env.strip().lower() == "production"
@@ -43,7 +48,13 @@ api.include_router(pilot.router)
 api.include_router(supervised_actions.router)
 api.include_router(taxonomy.router)
 api.include_router(tenant_data.router)
+api.include_router(uploads.router)
+api.include_router(pilot_requests.router)
+api.include_router(detection_runs.router)
+api.include_router(ingestion.router)
 app.include_router(api)
+
+app.add_middleware(IngestionBodyLimit)
 
 
 @app.middleware("http")

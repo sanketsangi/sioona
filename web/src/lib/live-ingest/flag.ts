@@ -5,7 +5,7 @@
 
 import { timingSafeEqual } from "crypto";
 import { isTenantId } from "@/lib/auth-token";
-import { DEMO_TENANT_ID, enterStoreTenant } from "@/lib/tenant-context";
+import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 
 export const LIVE_INGEST_TENANT_HEADER = "x-sioona-tenant-id";
 
@@ -29,13 +29,12 @@ export function resolveLiveIngestTenant(header: string | null): string | null {
   return provided;
 }
 
-/** Bind the JSON store to the webhook tenant. Null when the header is unusable. */
+/** Resolve the authorized webhook tenant. Caller must wrap all work in runWithTenant. */
 export function bindLiveIngestTenant(request: Request): string | null {
   const tenantId = resolveLiveIngestTenant(
     request.headers.get(LIVE_INGEST_TENANT_HEADER),
   );
   if (!tenantId) return null;
-  enterStoreTenant(tenantId);
   return tenantId;
 }
 

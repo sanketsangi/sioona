@@ -9,6 +9,9 @@ must not delete reviews.
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+from app.services.tenant_lock import lock_tenant_corpus
+from app.models.detection_run import DetectionRun
+from app.models.upload import Upload, UploadConversation
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.pilot_settings import PilotSettings
@@ -24,6 +27,7 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     Order: feedback → predictions → decisions → messages → conversations →
     pilot_settings (feedback FK to predictions).
     """
+    lock_tenant_corpus(db, tenant_id)
     feedback_deleted = db.execute(
         delete(SignalFeedback).where(SignalFeedback.tenant_id == tenant_id)
     ).rowcount
@@ -38,6 +42,9 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     messages_deleted = db.execute(
         delete(Message).where(Message.tenant_id == tenant_id)
     ).rowcount
+    detections_deleted = db.execute(delete(DetectionRun).where(DetectionRun.tenant_id == tenant_id)).rowcount
+    memberships_deleted = db.execute(delete(UploadConversation).where(UploadConversation.tenant_id == tenant_id)).rowcount
+    uploads_deleted = db.execute(delete(Upload).where(Upload.tenant_id == tenant_id)).rowcount
     conversations_deleted = db.execute(
         delete(Conversation).where(Conversation.tenant_id == tenant_id)
     ).rowcount
@@ -50,6 +57,9 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     db.commit()
 
     return {
+        "uploads": int(uploads_deleted or 0),
+        "upload_memberships": int(memberships_deleted or 0),
+        "detection_runs": int(detections_deleted or 0),
         "conversations": int(conversations_deleted or 0),
         "messages": int(messages_deleted or 0),
         "predictions": int(predictions_deleted or 0),

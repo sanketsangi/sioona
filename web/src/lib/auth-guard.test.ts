@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { guardApi } from "./auth-guard";
 import { sessionCookie, signSession } from "./auth-token";
-import { DEMO_TENANT_ID, currentStoreTenant } from "./tenant-context";
+import { DEMO_TENANT_ID, currentStoreTenant, runWithTenant } from "./tenant-context";
 
 const SECRET = "test-auth-secret";
 
@@ -41,7 +41,7 @@ describe("guardApi", () => {
     if (!result.ok) expect(result.response.status).toBe(401);
   });
 
-  it("binds a signed-in reviewer to their tenant", async () => {
+  it("authorizes a signed-in reviewer without leaking tenant context", async () => {
     const token = await signSession({
       email: "reviewer@partner.example",
       role: "reviewer",
@@ -53,7 +53,7 @@ describe("guardApi", () => {
     const result = await guardApi(request, "read");
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.session.tenantId).toBe("tenant_partner");
-    expect(currentStoreTenant()).toBe("tenant_partner");
+    expect(() => currentStoreTenant()).toThrow("Tenant scope required");
   });
 
   it("keeps anonymous reads on the demo tenant only", async () => {
@@ -95,4 +95,24 @@ describe("guardApi", () => {
     expect(allowed.ok).toBe(true);
     if (allowed.ok) expect(allowed.session.tenantId).toBe(DEMO_TENANT_ID);
   });
+  it("isolates concurrent callbacks and restores an existing outer tenant", async () => {
+    const requests = await Promise.all(["tenant_alpha", "tenant_beta"].map(async (tenantId) => {
+      const token = await signSession({ email: `${tenantId}@example.test`, role: "reviewer", tenantId });
+      return new Request("http://localhost/api/store", { headers: { cookie: sessionCookie(token).split(";")[0] } });
+    }));
+    await runWithTenant("tenant_outer", async () => {
+      await Promise.all(requests.map(async (request, index) => {
+        const result = await guardApi(request, "read");
+        if (!result.ok) throw new Error("Expected signed session");
+        expect(currentStoreTenant()).toBe("tenant_outer");
+        await runWithTenant(result.session.tenantId, async () => {
+          await new Promise((resolve) => setTimeout(resolve, index === 0 ? 10 : 1));
+          expect(currentStoreTenant()).toBe(index === 0 ? "tenant_alpha" : "tenant_beta");
+          await Promise.resolve().then(() => expect(currentStoreTenant()).toBe(result.session.tenantId));
+        });
+        expect(currentStoreTenant()).toBe("tenant_outer");
+      }));
+    });
+  });
+
 });

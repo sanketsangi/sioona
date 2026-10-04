@@ -9,7 +9,7 @@ import {
   verifySessionToken,
   type SessionClaims,
 } from "@/lib/auth-token";
-import { DEMO_TENANT_ID, enterStoreTenant } from "@/lib/tenant-context";
+import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 
 export type AuthIntent = "read" | "mutate" | "destructive";
 
@@ -40,7 +40,7 @@ export async function sessionFromRequest(
 }
 
 /**
- * Authorize one API call and bind the JSON store to that tenant.
+ * Authorize one API call. The caller must scope its complete work with runWithTenant.
  * Destructive demo actions always bind to tenant_demo, never the partner tenant.
  */
 export async function guardApi(
@@ -52,7 +52,6 @@ export async function guardApi(
       intent === "destructive"
         ? { ...DEV_SESSION, tenantId: DEMO_TENANT_ID }
         : DEV_SESSION;
-    enterStoreTenant(session.tenantId);
     return { ok: true, session };
   }
 
@@ -60,7 +59,6 @@ export async function guardApi(
 
   if (intent === "read") {
     if (signedIn) {
-      enterStoreTenant(signedIn.tenantId);
       return { ok: true, session: signedIn };
     }
     if (!publicDemoEnabled()) {
@@ -73,7 +71,6 @@ export async function guardApi(
       };
     }
     const session = demoSession();
-    enterStoreTenant(session.tenantId);
     return { ok: true, session };
   }
 
@@ -110,11 +107,8 @@ export async function guardApi(
       };
     }
     const session = { ...signedIn, tenantId: DEMO_TENANT_ID };
-    enterStoreTenant(DEMO_TENANT_ID);
     return { ok: true, session };
   }
-
-  enterStoreTenant(signedIn.tenantId);
   return { ok: true, session: signedIn };
 }
 

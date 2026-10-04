@@ -1141,3 +1141,13 @@ describe("missingConversationIds / chat evidence", () => {
     expect(filled[0].suggestedAction).toBe("Keep this");
   });
 });
+
+it("rejects malformed or mismatched durable amount evidence", async () => {
+  const { commercialMetadataFromPrediction } = await import("./join-needs-review");
+  const base = prediction({ mentioned_value_inr: 1000 });
+  for (const evidence of [ [{ message_id: "m1", quote: "INR 9000", amount_inr: 9000, category: "asset" }],
+    [{ message_id: "", quote: "INR 1000", amount_inr: 1000, category: "asset" }],
+    [{ message_id: "m1", quote: "INR 1000", amount_inr: 1000, category: "invalid" }] ]) {
+    expect(commercialMetadataFromPrediction({ ...base, commercial_value_evidence: evidence as never }).commercialValueEvidence).toBeUndefined();
+  }
+});

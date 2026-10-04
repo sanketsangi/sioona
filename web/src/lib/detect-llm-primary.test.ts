@@ -149,6 +149,7 @@ describe("Hinglish detection before and after LLM-first", () => {
       }
     );
     expect(llm.failed).toBe(CASES.length);
+    expect(new Set(llm.failedIds)).toEqual(new Set(conversations.map((chat) => chat.id)));
     expect(signals).toEqual(heuristic);
   });
 

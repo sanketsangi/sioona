@@ -1,3 +1,4 @@
+import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
 import {
@@ -68,7 +69,7 @@ function clampConfidence(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-export function actedMissingPredictionMessage(): string {
+function actedMissingPredictionMessage(): string {
   return "Could not save Mark Acted. Try again.";
 }
 
@@ -119,7 +120,7 @@ function actedErrorResponse(err: unknown): NextResponse {
       ? err.message
       : "Failed to save acted status to Signal Score backend";
   const status =
-    err instanceof BackendClientError && err.status === 400 ? 400 : 503;
+    err instanceof BackendClientError && [400, 409].includes(err.status ?? 0) ? err.status : 503;
   return NextResponse.json({ error: message }, { status });
 }
 
@@ -127,7 +128,7 @@ function actedErrorResponse(err: unknown): NextResponse {
  * Mark Acted; if stored Neon UUIDs 404 (wipe / JSON drift), try the live
  * card id, then upsert by conversation+type (same as feedback recovery).
  */
-export async function setActedRecoveringStaleId(opts: {
+async function setActedRecoveringStaleId(opts: {
   tenantId: string;
   candidateIds: string[];
   conversationId: string;
@@ -151,6 +152,8 @@ export async function setActedRecoveringStaleId(opts: {
       lastMissing = err;
     }
   }
+
+  if (opts.tenantId !== "tenant_demo") throw new BackendClientError("This signal was superseded. Refresh before marking it acted.", 409);
 
   const signalType = asSignalType(opts.signalType);
   if (!signalType) {
@@ -211,124 +214,127 @@ export async function POST(
 ) {
   const session = await requireApiSession(request, "mutate");
   if (session instanceof NextResponse) return session;
-  const { id } = await context.params;
-  const body = (await request.json().catch(() => ({}))) as ActedBody;
+  return runWithTenant(session.tenantId, async () => {
+    const { id } = await context.params;
+    const body = (await request.json().catch(() => ({}))) as ActedBody;
 
-  if (typeof body.acted !== "boolean") {
-    return NextResponse.json(
-      { error: "acted must be true or false" },
-      { status: 400 }
-    );
-  }
-
-  const store = await readStore();
-  const existing = resolveFeedbackSignal(store.signals, id, body);
-  if (
-    body.acted &&
-    existing?.feedback &&
-    existing.feedback.label !== "correct"
-  ) {
-    return NextResponse.json(
-      { error: "Signal must be reviewed before marking acted" },
-      { status: 400 }
-    );
-  }
-  const neonStubId = neonPredictionIdFromStubSignalId(id);
-  const bodyBackendId = body.backendSignalId?.trim() || undefined;
-  const bodyConversationId = body.conversationId?.trim() || undefined;
-
-  if (existing?.feedback) {
-    const candidateIds = uniqueIds(
-      bodyBackendId,
-      existing.backendSignalId,
-      neonStubId
-    );
-    if (candidateIds.length > 0) {
-      try {
-        const { liveId } = await setActedRecoveringStaleId({
-          tenantId: existing.tenantId,
-          candidateIds,
-          conversationId: existing.conversationId || bodyConversationId || "",
-          signalType: existing.type,
-          confidence: existing.confidence,
-          summary: existing.summary,
-          acted: body.acted,
-          feedbackLabel: existing.feedback.label,
-        });
-        if (existing.backendSignalId !== liveId) {
-          existing.backendSignalId = liveId;
-          await writeStore(store);
-        }
-      } catch (err) {
-        return actedErrorResponse(err);
-      }
+    if (typeof body.acted !== "boolean") {
+      return NextResponse.json(
+        { error: "acted must be true or false" },
+        { status: 400 }
+      );
     }
-    const result = await setSignalActed(existing.id, body.acted);
-    if (result.ok) {
-      return NextResponse.json({ signal: result.signal });
-    }
-    if (result.reason === "not_found") {
-      return NextResponse.json({ error: "Signal not found" }, { status: 404 });
-    }
-    // Local feedback vanished between reads — fall through to Neon.
-  }
 
-  const candidateIds = uniqueIds(
-    bodyBackendId,
-    neonStubId,
-    existing?.backendSignalId
-  );
-  if (candidateIds.length === 0) {
-    if (existing) {
+    const store = await readStore();
+    const existing = resolveFeedbackSignal(store.signals, id, body);
+    if (
+      body.acted &&
+      existing?.feedback &&
+      existing.feedback.label !== "correct"
+    ) {
       return NextResponse.json(
         { error: "Signal must be reviewed before marking acted" },
         { status: 400 }
       );
     }
-    return NextResponse.json({ error: "Signal not found" }, { status: 404 });
-  }
+    const neonStubId = neonPredictionIdFromStubSignalId(id);
+    const bodyBackendId = body.backendSignalId?.trim() || undefined;
+    const bodyConversationId = body.conversationId?.trim() || undefined;
 
-  try {
-    const { liveId, row } = await setActedRecoveringStaleId({
-      tenantId: store.tenant.id,
-      candidateIds,
-      conversationId:
-        bodyConversationId || existing?.conversationId || "",
-      signalType: asSignalType(body.type ?? existing?.type),
-      confidence:
-        typeof existing?.confidence === "number" ? existing.confidence : 0,
-      summary: existing?.summary ?? "",
-      acted: body.acted,
-      feedbackLabel: existing?.feedback?.label,
-    });
-    const mirror = store.signals.find(
-      (s) =>
-        (s.backendSignalId === liveId || s.backendSignalId === row.id) &&
-        s.feedback
-    );
-    if (mirror) {
-      if (mirror.backendSignalId !== liveId) {
-        mirror.backendSignalId = liveId;
-        await writeStore(store);
+    if (existing?.feedback) {
+      const candidateIds = uniqueIds(
+        bodyBackendId,
+        existing.backendSignalId,
+        neonStubId
+      );
+      if (candidateIds.length === 0 && store.tenant.id !== "tenant_demo") return NextResponse.json({ error: "Refresh the current published signal before marking it acted." }, { status: 409 });
+      if (candidateIds.length > 0) {
+        try {
+          const { liveId } = await setActedRecoveringStaleId({
+            tenantId: existing.tenantId,
+            candidateIds,
+            conversationId: existing.conversationId || bodyConversationId || "",
+            signalType: existing.type,
+            confidence: existing.confidence,
+            summary: existing.summary,
+            acted: body.acted,
+            feedbackLabel: existing.feedback.label,
+          });
+          if (existing.backendSignalId !== liveId) {
+            existing.backendSignalId = liveId;
+            await writeStore(store);
+          }
+        } catch (err) {
+          return actedErrorResponse(err);
+        }
       }
-      const mirrored = await setSignalActed(mirror.id, body.acted);
-      if (mirrored.ok) {
-        return NextResponse.json({ signal: mirrored.signal, neonOnly: false });
+      const result = await setSignalActed(existing.id, body.acted);
+      if (result.ok) {
+        return NextResponse.json({ signal: result.signal });
       }
+      if (result.reason === "not_found") {
+        return NextResponse.json({ error: "Signal not found" }, { status: 404 });
+      }
+      // Local feedback vanished between reads — fall through to Neon.
     }
-    const neonSignal = neonOnlyActedSignal(
-      id,
-      { ...row, id: liveId },
-      body.acted
+
+    const candidateIds = uniqueIds(
+      bodyBackendId,
+      neonStubId,
+      existing?.backendSignalId
     );
-    if (!neonSignal) {
-      return NextResponse.json({ error: ACTED_TYPE_ERROR }, { status: 400 });
+    if (candidateIds.length === 0) {
+      if (existing) {
+        return NextResponse.json(
+          { error: "Signal must be reviewed before marking acted" },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ error: "Signal not found" }, { status: 404 });
     }
-    return NextResponse.json({
-      signal: neonSignal,
-      neonOnly: true,
-    });
-  } catch (err) {
-    return actedErrorResponse(err);
-  }
+
+    try {
+      const { liveId, row } = await setActedRecoveringStaleId({
+        tenantId: store.tenant.id,
+        candidateIds,
+        conversationId:
+          bodyConversationId || existing?.conversationId || "",
+        signalType: asSignalType(body.type ?? existing?.type),
+        confidence:
+          typeof existing?.confidence === "number" ? existing.confidence : 0,
+        summary: existing?.summary ?? "",
+        acted: body.acted,
+        feedbackLabel: existing?.feedback?.label,
+      });
+      const mirror = store.signals.find(
+        (s) =>
+          (s.backendSignalId === liveId || s.backendSignalId === row.id) &&
+          s.feedback
+      );
+      if (mirror) {
+        if (mirror.backendSignalId !== liveId) {
+          mirror.backendSignalId = liveId;
+          await writeStore(store);
+        }
+        const mirrored = await setSignalActed(mirror.id, body.acted);
+        if (mirrored.ok) {
+          return NextResponse.json({ signal: mirrored.signal, neonOnly: false });
+        }
+      }
+      const neonSignal = neonOnlyActedSignal(
+        id,
+        { ...row, id: liveId },
+        body.acted
+      );
+      if (!neonSignal) {
+        return NextResponse.json({ error: ACTED_TYPE_ERROR }, { status: 400 });
+      }
+      return NextResponse.json({
+        signal: neonSignal,
+        neonOnly: true,
+      });
+    } catch (err) {
+      return actedErrorResponse(err);
+    }
+  });
 }

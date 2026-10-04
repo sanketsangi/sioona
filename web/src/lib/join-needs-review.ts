@@ -35,6 +35,19 @@ function asSignalType(raw: string): SignalType | null {
   return null;
 }
 
+/** Canonical amount metadata replaces cached fields, including explicit absence. */
+export function commercialMetadataFromPrediction(row: BackendPrediction): Pick<Signal, "mentionedValueInr" | "commercialValueEvidence"> {
+  const evidence = row.commercial_value_evidence;
+  const valid = Array.isArray(evidence) && evidence.length > 0 && evidence.length <= 10 && evidence.every((item) =>
+    item && typeof item.message_id === "string" && item.message_id.length > 0 &&
+    typeof item.quote === "string" && item.quote.length > 0 && item.quote.length <= 128 &&
+    Number.isSafeInteger(item.amount_inr) && item.amount_inr >= 0 && item.amount_inr === row.mentioned_value_inr &&
+    ["asset", "revenue_opportunity", "unconfirmed"].includes(item.category));
+  return { mentionedValueInr: row.mentioned_value_inr ?? undefined,
+    commercialValueEvidence: valid ? evidence!.map((item) => ({ messageId: item.message_id,
+      quote: item.quote, amountInr: item.amount_inr, category: item.category })) : undefined };
+}
+
 /** Minimal card when Neon has a prediction the JSON store has not mirrored yet. */
 export function predictionToStubSignal(
   prediction: BackendPrediction
@@ -61,9 +74,7 @@ export function predictionToStubSignal(
     ...(prediction.urgency_timeframe
       ? { urgencyTimeframe: prediction.urgency_timeframe }
       : {}),
-    ...(prediction.mentioned_value_inr != null
-      ? { mentionedValueInr: prediction.mentioned_value_inr }
-      : {}),
+    ...commercialMetadataFromPrediction(prediction),
   };
 }
 
@@ -171,12 +182,7 @@ export function joinNeedsReviewPredictions(
               prediction.urgency_timeframe || matched.urgencyTimeframe,
           }
         : {}),
-      ...((prediction.mentioned_value_inr ?? matched.mentionedValueInr) != null
-        ? {
-            mentionedValueInr:
-              prediction.mentioned_value_inr ?? matched.mentionedValueInr,
-          }
-        : {}),
+      ...commercialMetadataFromPrediction(prediction),
     });
   }
 
@@ -333,9 +339,7 @@ export function joinTenantSignals(
         ...(row.urgency_timeframe
           ? { urgencyTimeframe: row.urgency_timeframe }
           : {}),
-        ...(row.mentioned_value_inr != null
-          ? { mentionedValueInr: row.mentioned_value_inr }
-          : {}),
+        ...commercialMetadataFromPrediction(row),
       });
       continue;
     }

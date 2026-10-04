@@ -128,3 +128,29 @@ Live flow check (server must be running):
 ```bash
 python scripts/verify_signal_score_flow.py
 ```
+
+## Interrupted import recovery
+
+Partner imports retain their validated, redacted request before publication. Chats,
+complete detection outputs, and upload membership commit together. Failed imports
+preserve the prior published corpus. An older unfinished import cannot replace a
+newer completed upload.
+
+Run a bounded recovery pass from `backend/` using the same database configuration
+as the API:
+
+```bash
+python -m app.recover_ingestions --limit 20 --grace-seconds 300
+```
+
+Configure the deployment scheduler to run this command every five minutes after
+applying migrations through `015_ingestion_payload`. This repository does not yet
+configure a hosting scheduler. The runner processes only staged operations older
+than the grace period, logs aggregate counts, and exits nonzero on failed recovery.
+Tenant locks make overlapping passes safe. Failed operations require investigation
+and an explicit tenant-authorized `POST /v1/tenants/{tenant_id}/ingestions/{upload_id}/resume`.
+The matching GET endpoint exposes status without returning the retained payload.
+Historical uploads created before migration 015 have no recovery payload and cannot
+be resumed through this endpoint.
+
+Atomic ingestion transcript limits: up to 10,000 messages per conversation, 100,000 messages per upload, 256 KiB of UTF-8 text per message, and 16 MiB of transcript text per upload. Conversation/message IDs are limited to 256 characters. Exceeding these limits returns validation error 422 before staging; content is never truncated. Atomic ingestion PUT requests also enforce a 32 MiB HTTP body limit before JSON parsing, using the actual streamed byte count (413 when exceeded). Infrastructure should retain its own connection and request limits. General conversation metadata endpoints retain their existing contract.
