@@ -37,8 +37,12 @@ export function hashPilotPassword(password: string): string {
 }
 
 function verifyScrypt(password: string, stored: string): boolean {
-  const [scheme, saltHex, hashHex] = stored.split("$");
-  if (scheme !== "scrypt" || !saltHex || !hashHex) return false;
+  // Only accept the fixed salt/key sizes emitted by hashPilotPassword.
+  // Buffer's permissive hex decoding must not turn malformed configuration
+  // into an empty key or an unbounded scrypt allocation during login.
+  const match = /^scrypt\$([a-fA-F0-9]{32})\$([a-fA-F0-9]{64})$/.exec(stored);
+  if (!match) return false;
+  const [, saltHex, hashHex] = match;
   const salt = Buffer.from(saltHex, "hex");
   const expected = Buffer.from(hashHex, "hex");
   const actual = scryptSync(password, salt, expected.length);

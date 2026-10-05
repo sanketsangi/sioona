@@ -84,6 +84,7 @@ describe("intercom connector", () => {
 
     const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
       expect(init?.method).toBe("GET");
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
       return new Response(
         JSON.stringify({
           conversations: [
@@ -119,7 +120,8 @@ describe("acceptLiveChats", () => {
       signals: [],
     };
     const detect = vi.fn(async () => ({ signals: [], llm: { enabled: false, added: 0, failed: 0, failure: null, skipped: 0 } }));
-    const write = vi.fn(async () => undefined);
+    const write = vi.fn(async (_store: StoreData) => undefined);
+    const publish = vi.fn(async () => ({ uploadId: "live-upload", signals: [] }));
     const dualWrite = vi.fn(async () => undefined);
     const result = await acceptLiveChats(
       [
@@ -139,13 +141,57 @@ describe("acceptLiveChats", () => {
         read: async () => store,
         write,
         dualWrite,
+        publish,
+        publishedIds: async () => [],
         detect: detect as never,
       },
     );
     expect(result.accepted).toBe(1);
-    expect(store.messages[0]?.content).toContain(REDACTION_TOKENS.phone);
-    expect(store.messages[0]?.content).not.toContain("9876543210");
+    expect(write.mock.calls[0][0].messages[0]?.content).toContain(REDACTION_TOKENS.phone);
+    expect(write.mock.calls[0][0].messages[0]?.content).not.toContain("9876543210");
     expect(detect).toHaveBeenCalledOnce();
     expect(write).toHaveBeenCalledOnce();
+    expect(publish).toHaveBeenCalledOnce();
+    expect(dualWrite).not.toHaveBeenCalled();
+    expect(store.messages).toEqual([]);
+    expect(publish.mock.invocationCallOrder[0]).toBeLessThan(write.mock.invocationCallOrder[0]);
   });
+});
+
+it("keeps a failed live publication out of the cache so the webhook can retry", async () => {
+  const store = { tenant: { id: "tenant_partner" }, conversations: [], messages: [], signals: [] } as unknown as StoreData;
+  const write = vi.fn();
+  const publish = vi.fn().mockRejectedValue(new Error("publication unavailable"));
+  const detect = vi.fn().mockResolvedValue({ signals: [], llm: { failed: 0, skipped: 0 } });
+  await expect(acceptLiveChats([{ externalId: "gupshup:retry", channel: "whatsapp",
+    messages: [{ role: "customer", content: "Hello", timestamp: "2026-10-01T00:00:00Z" }] }],
+    { read: async () => store, write, publish, detect, publishedIds: async () => [] })).rejects.toThrow("publication unavailable");
+  expect(write).not.toHaveBeenCalled();
+  expect(store.conversations).toEqual([]);
+  expect(store.messages).toEqual([]);
+});
+it("skips durably published live events with an empty local cache", async () => {
+  const store = { tenant: { id: "tenant_partner" }, conversations: [], messages: [], signals: [] } as unknown as StoreData;
+  const detect = vi.fn();
+  const write = vi.fn();
+  const publish = vi.fn();
+  const result = await acceptLiveChats([{ externalId: "gupshup:seen", channel: "whatsapp",
+    messages: [{ role: "customer", content: "Hello", timestamp: "2026-10-01T00:00:00Z" }] }],
+    { read: async () => store, write, publish, detect, publishedIds: async (_tenant, ids) => ids });
+  expect(result.accepted).toBe(0);
+  expect(detect).not.toHaveBeenCalled();
+  expect(write).not.toHaveBeenCalled();
+  expect(publish).not.toHaveBeenCalled();
+});
+
+it("does not classify or publish when durable deduplication is unavailable", async () => {
+  const store = { tenant: { id: "tenant_partner" }, conversations: [], messages: [], signals: [] } as unknown as StoreData;
+  const detect = vi.fn(), write = vi.fn(), publish = vi.fn();
+  await expect(acceptLiveChats([{ externalId: "gupshup:lookup-failure", channel: "whatsapp",
+    messages: [{ role: "customer", content: "Hello", timestamp: "2026-10-01T00:00:00Z" }] }],
+    { read: async () => store, write, publish, detect,
+      publishedIds: async () => { throw new Error("lookup unavailable"); } })).rejects.toThrow("lookup unavailable");
+  expect(detect).not.toHaveBeenCalled();
+  expect(write).not.toHaveBeenCalled();
+  expect(publish).not.toHaveBeenCalled();
 });

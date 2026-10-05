@@ -1,3 +1,4 @@
+import { readWebhookJson } from "../bounded-webhook-json";
 /**
  * Intercom read-only connector: OAuth start URL, webhook body, and a GET poll.
  * The access token stays in the environment. This module never posts a reply.
@@ -66,6 +67,7 @@ export async function pollIntercomConversations(
 ): Promise<IngestConversationInput[]> {
   const response = await fetchImpl(INTERCOM_CONVERSATIONS_URL, {
     method: "GET",
+    signal: AbortSignal.timeout(15000),
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",
@@ -75,6 +77,6 @@ export async function pollIntercomConversations(
   if (!response.ok) {
     throw new Error(`intercom_poll_${response.status}`);
   }
-  const body = (await response.json()) as unknown;
+  const body = await readWebhookJson(response);
   return intercomWebhookToChats(body);
 }

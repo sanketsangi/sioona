@@ -107,9 +107,9 @@ export function SiteNav() {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Link href={siteConfig.appUrl} className="btn-tertiary hidden md:inline-flex">
+          {siteConfig.appUrl ? <Link href={siteConfig.appUrl} className="btn-tertiary hidden md:inline-flex">
             Sign In
-          </Link>
+          </Link> : null}
           <Link href="/contact" className="btn-primary hidden sm:inline-flex">
             Request A Pilot
           </Link>
@@ -165,9 +165,9 @@ export function SiteNav() {
             <Link href="/contact" onClick={closeDrawer} className="btn-primary btn-lg">
               Request A Pilot
             </Link>
-            <Link href={siteConfig.appUrl} onClick={closeDrawer} className="btn-secondary btn-lg">
+            {siteConfig.appUrl ? <Link href={siteConfig.appUrl} onClick={closeDrawer} className="btn-secondary btn-lg">
               Sign In
-            </Link>
+            </Link> : null}
           </div>
         </div>
       </dialog>

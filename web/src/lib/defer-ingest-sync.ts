@@ -4,6 +4,9 @@
  * surfaces failed counts instead of swallowing them.
  */
 
+import type { LlmPassStats } from "./detect-llm";
+import { syncDetectionRun } from "./sync-detection-run";
+import { publishIngestUpload } from "./publish-ingest-upload";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import { getPilotSettings, type BackendPilotSettings } from "./backend-client";
 import { mergeSyncedBackendIds } from "./defer-prediction-sync";
@@ -25,6 +28,12 @@ import { stampUnstampedSourceFile, vaultFileMatchesKeepSet } from "./vault-file"
 
 export type DeferredIngestDualWriteInput = {
   tenantId: string;
+  publishUpload?: boolean;
+  versionDetection?: boolean;
+  classificationFailed?: boolean;
+  skippedIds?: string[];
+  contexts?: LlmPassStats["contexts"];
+  priorSignals?: Signal[];
   conversations: Conversation[];
   messages: Message[];
   signals: Signal[];
@@ -167,6 +176,7 @@ async function writeMissingInstanceSnapshot(
   }
   const store: StoreData = {
     ...structuredClone(emptyShowcaseStore),
+    tenant: { ...emptyShowcaseStore.tenant, id: input.tenantId },
     conversations: stampUnstampedSourceFile(
       input.conversations,
       input.lastUploadedFileName,
@@ -192,6 +202,8 @@ export async function persistDeferredIngestDualWrite(
     return emptyDeferredSync();
   }
 
+  if (input.versionDetection && input.classificationFailed) throw new Error("Classification failed; no detection revision published.");
+
   // Conversations first so a Postgres FK from predictions can resolve.
   const conversationSync = await syncConversationsToBackend(
     conversations,
@@ -199,24 +211,40 @@ export async function persistDeferredIngestDualWrite(
     tenantId,
     { clearUnlabeledGroundTruth: replaceShowcase },
   );
+  if (input.versionDetection && (conversationSync.failed > 0 || conversationSync.skipped > 0)) throw new Error("Conversation sync incomplete; no detection revision published.");
   const { signals: synced, sync: predictionSync } =
-    await syncPredictionsToBackend(signals, tenantId);
+    input.versionDetection && conversationSync.failed === 0 && conversationSync.skipped === 0
+      ? await syncDetectionRun({ tenantId, conversations, messages, signals, contexts: input.contexts, skippedIds: input.skippedIds, priorSignals: input.priorSignals })
+      : await syncPredictionsToBackend(signals, tenantId);
 
   const latest = await readPersistedStore();
   if (latest && !ingestDualWriteStillCurrent(latest, input)) {
     return { predictionSync, conversationSync };
   }
 
-  const merged = mergeSyncedBackendIds(
-    latest ? latest.signals : signals,
-    synced,
-  );
+  const ingestedIds = new Set(conversations.map((conversation) => conversation.id));
+  const merged = input.versionDetection
+    ? [...(latest ? latest.signals : signals).filter((signal) => !ingestedIds.has(signal.conversationId)), ...synced]
+    : mergeSyncedBackendIds(latest ? latest.signals : signals, synced);
   if (!latest) {
     if (replaceShowcase) await writeMissingInstanceSnapshot(input, merged);
   } else if (merged !== latest.signals) {
     await writeStore({ ...latest, signals: merged });
   }
   await replayAbsentFeedback(tenantId, merged);
+
+  // A partial sync cannot authorize deletion of the previously durable corpus.
+  if (
+    conversationSync.failed > 0 || conversationSync.skipped > 0 ||
+    predictionSync.failed > 0 || predictionSync.skipped > 0
+  ) return { predictionSync, conversationSync };
+
+  if (input.publishUpload) {
+    await publishIngestUpload({ tenantId, conversations, messages,
+      source: input.lastUploadedFileName ?? "upload", replace: replaceShowcase });
+    // Historical corpus and feedback remain available through immutable uploads.
+    return { predictionSync, conversationSync };
+  }
 
   if (!replaceShowcase) return { predictionSync, conversationSync };
 

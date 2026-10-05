@@ -35,7 +35,10 @@ export function storedOutcome(outcome: ReportOutcome): SignalOutcome {
   return "converted";
 }
 
+export type CommercialValueCategory = "asset" | "revenue_opportunity" | "unconfirmed" | "reviewer_recorded";
+
 export interface AtRiskCustomer {
+  historical?: boolean;
   signalId: string;
   backendSignalId?: string;
   conversationId: string;
@@ -46,9 +49,13 @@ export interface AtRiskCustomer {
   timeframe: string | null;
   valueInr: number | null;
   outcome: ReportOutcome | null;
+  valueProvenance?: string;
+  valueCategory?: CommercialValueCategory;
+  valueMessageIds?: string[];
 }
 
 export interface RevenueLeakReport {
+  revenueVerified?: boolean;
   windowLabel: string;
   fileLabel: string | null;
   anonymised: boolean;
@@ -56,13 +63,14 @@ export interface RevenueLeakReport {
   customersAtRisk: AtRiskCustomer[];
   outcomes: { saved: number; lost: number; converted: number };
   inrAtRisk: number;
+  exposure: { assetInr: number; revenueOpportunityInr: number; unconfirmedInr: number; reviewerRecordedInr: number };
   inrSaved: number;
   precision: {
     reviewed: number;
     correct: number;
     /**
-     * `correct / (correct + incorrect)`. Null when that denominator is 0
-     * (no Correct or Incorrect, including a partial-only window).
+     * `correct / reviewed`, including partially correct reviews in the denominator.
+     * Null only when there are no reviews.
      */
     score: number | null;
   };
@@ -123,6 +131,20 @@ export function extractMentionedInr(text: string): number | null {
   return Math.max(...amounts);
 }
 
+export function commercialValueCategory(text: string, recorded: boolean): CommercialValueCategory {
+  if (recorded) return "reviewer_recorded";
+  const asset = /\b(portfolio|holdings|assets?|aum|corpus|account balance)\b/i.test(text);
+  const revenue = /\b(fees?|brokerage|commission|revenue|subscription|premium)\b/i.test(text);
+  if (asset && !revenue) return "asset";
+  if (revenue && !asset) return "revenue_opportunity";
+  return "unconfirmed";
+}
+
+export function commercialValueProvenance(text: string, recorded: boolean): string {
+  return { asset: "Text-derived asset value", revenue_opportunity: "Text-derived revenue opportunity",
+    unconfirmed: "Text-derived value; category unconfirmed", reviewer_recorded: "Reviewer-recorded value" }[commercialValueCategory(text, recorded)];
+}
+
 export function inferCommercial(text: string): InferredCommercial {
   const timeframe =
     TIMEFRAME_RULES.find((rule) => rule.re.test(text))?.label ?? null;
@@ -161,15 +183,24 @@ function clipQuote(text: string): string {
   return `${clean.slice(0, 219).trimEnd()}…`;
 }
 
+function groundedCustomerQuote(conversationId: string, messages: Message[], evidence: string[]): string {
+  const turns = messages.filter((message) => message.conversationId === conversationId && message.role === "customer");
+  for (const entry of evidence) {
+    const quote = entry.match(/^quote: "([\s\S]*)"$/)?.[1] ?? entry;
+    const normalized = collapse(quote);
+    if (normalized && turns.some((turn) => collapse(turn.content).includes(normalized))) return clipQuote(quote);
+  }
+  return turns[0] ? clipQuote(turns[0].content) : "";
+}
+
 function customerBlob(
   conversationId: string,
   messages: Message[],
-  evidence: string[]
 ): string {
   const said = messages
     .filter((m) => m.conversationId === conversationId && m.role === "customer")
     .map((m) => m.content);
-  return [...evidence, ...said].join("\n");
+  return said.join("\n");
 }
 
 function urgencyWeight(level: UrgencyLevel): number {
@@ -225,23 +256,40 @@ export function buildRevenueLeakReport(input: {
     const conversation = conversations.get(signal.conversationId);
     const blob = customerBlob(
       signal.conversationId,
-      input.messages,
-      signal.evidence
+      input.messages
     );
     const commercial = inferCommercial(`${signal.summary}\n${blob}`);
     const recorded = signal.outcome?.valueInr;
-    const valueInr = recorded ?? commercial.valueInr;
+    const stated = input.messages.filter((message) => message.conversationId === signal.conversationId && message.role === "customer")
+      .map((message) => ({ message, amount: extractMentionedInr(message.content) }))
+      .filter((row) => row.amount != null);
+    const amount = stated.length ? Math.max(...stated.map((row) => row.amount!)) : null;
+    const durable = (signal.commercialValueEvidence ?? []).filter((entry) =>
+      entry.amountInr === signal.mentionedValueInr && Number.isSafeInteger(entry.amountInr) && entry.amountInr >= 0 && entry.quote && entry.messageId);
+    const valueInr = recorded ?? (durable.length ? signal.mentionedValueInr ?? null : amount);
+    const durableCategories = new Set(durable.map((entry) => entry.category));
+    const valueCategory: CommercialValueCategory = recorded != null ? "reviewer_recorded" : durable.length
+      ? durableCategories.size === 1 ? durable[0].category : "unconfirmed"
+      : commercialValueCategory(stated.filter((row) => row.amount === amount).map((row) => row.message.content).join("\n"), false);
+    const amountTurns = stated.filter((row) => row.amount === amount);
+    const amountText = amountTurns.map((row) => row.message.content).join("\n");
     const name = conversation?.customerName?.trim();
     customersAtRisk.push({
       signalId: signal.id,
+      historical: signal.historical,
       ...(signal.backendSignalId ? { backendSignalId: signal.backendSignalId } : {}),
       conversationId: signal.conversationId,
       customerLabel:
         anonymised || !name ? pseudonymFor(signal.conversationId) : name,
-      quote: clipQuote(signal.evidence[0] || signal.summary),
+      quote: groundedCustomerQuote(signal.conversationId, input.messages, signal.evidence),
       urgency: commercial.urgency,
       timeframe: commercial.timeframe,
       valueInr,
+      valueMessageIds: recorded == null ? durable.length ? durable.map((entry) => entry.messageId) : amountTurns.map((row) => row.message.id) : undefined,
+      valueCategory: valueInr == null ? undefined : valueCategory,
+      valueProvenance: valueInr == null ? undefined : durable.length && recorded == null
+        ? { asset: "Customer-grounded asset value", revenue_opportunity: "Customer-grounded revenue opportunity", unconfirmed: "Customer-grounded value; category unconfirmed", reviewer_recorded: "Reviewer-recorded value" }[valueCategory]
+        : commercialValueProvenance(amountText, recorded != null),
       outcome: reportOutcome(signal.outcome?.outcome),
     });
   }
@@ -252,27 +300,23 @@ export function buildRevenueLeakReport(input: {
       rankUrgencyValue(a.urgency, a.valueInr)
   );
 
+  const exposure = { assetInr: 0, revenueOpportunityInr: 0, unconfirmedInr: 0, reviewerRecordedInr: 0 };
   let inrAtRisk = 0;
   let inrSaved = 0;
-  for (const signal of retentionByConversation.values()) {
-    const recorded = signal.outcome;
-    const blob = customerBlob(signal.conversationId, input.messages, signal.evidence);
-    const estimate = inferCommercial(`${signal.summary}\n${blob}`).valueInr;
-    const value = recorded?.valueInr ?? estimate;
-    if (value == null) continue;
-    const kind = recorded?.outcome;
-    // Same buckets as Eval: retention retained / churned / unknown are at risk.
-    // Unrecorded estimates stay at risk until a reviewer marks them.
-    if (kind == null || kind === "retained" || kind === "churned" || kind === "unknown") {
-      inrAtRisk += value;
-    }
-    if (kind === "retained" || kind === "converted") inrSaved += value;
+  for (const row of customersAtRisk) {
+    if (row.valueInr == null || row.outcome === "converted") continue;
+    inrAtRisk += row.valueInr;
+    const key = { asset: "assetInr", revenue_opportunity: "revenueOpportunityInr",
+      unconfirmed: "unconfirmedInr", reviewer_recorded: "reviewerRecordedInr" }[row.valueCategory ?? "unconfirmed"] as keyof typeof exposure;
+    exposure[key] += row.valueInr;
+  }
+
+  for (const signal of input.signals) {
+    if (["retained", "converted"].includes(signal.outcome?.outcome ?? "")) inrSaved += signal.outcome?.valueInr ?? 0;
   }
 
   const reviewed = input.reviewed ?? 0;
   const correct = input.correct ?? 0;
-  const incorrect = input.incorrect ?? 0;
-  const decided = correct + incorrect;
   return {
     windowLabel: input.windowLabel,
     fileLabel: input.fileLabel ?? null,
@@ -281,11 +325,12 @@ export function buildRevenueLeakReport(input: {
     customersAtRisk,
     outcomes: outcomeCounts,
     inrAtRisk,
+    exposure,
     inrSaved,
     precision: {
       reviewed,
       correct,
-      score: decided > 0 ? correct / decided : null,
+      score: reviewed > 0 ? correct / reviewed : null,
     },
   };
 }

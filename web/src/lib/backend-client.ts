@@ -69,6 +69,7 @@ export type BackendFeedbackLabel =
   | "partially_correct";
 
 export interface BackendPrediction {
+  active?: boolean;
   id: string;
   tenant_id: string;
   conversation_id: string;
@@ -78,6 +79,7 @@ export interface BackendPrediction {
   urgency?: "high" | "medium" | "low" | null;
   urgency_timeframe?: string | null;
   mentioned_value_inr?: number | null;
+  commercial_value_evidence?: { message_id: string; quote: string; amount_inr: number; category: "asset" | "revenue_opportunity" | "unconfirmed" }[] | null;
   created_at: string;
   /** Present after 004; treat missing as false (fail-soft). */
   acted?: boolean;
@@ -482,6 +484,7 @@ export async function getSignalScore(
     date_from?: string;
     date_to?: string;
     signal_type?: string;
+    upload_id?: string;
     /** JSON store conversation ids. Empty array is an explicit keep-set (0 reviewed). */
     conversationIds?: string[];
   }
@@ -493,9 +496,11 @@ export async function getSignalScore(
       date_from?: string;
       date_to?: string;
       signal_type?: string;
+      upload_id?: string;
     } = { conversation_ids: opts.conversationIds };
     if (opts.date_from) body.date_from = opts.date_from;
     if (opts.date_to) body.date_to = opts.date_to;
+    if (opts.upload_id) body.upload_id = opts.upload_id;
     if (opts.signal_type) body.signal_type = opts.signal_type;
     return backendFetch<BackendSignalScore>(tenantId, path, {
       method: "POST",
@@ -506,6 +511,7 @@ export async function getSignalScore(
   if (opts?.date_from) params.set("date_from", opts.date_from);
   if (opts?.date_to) params.set("date_to", opts.date_to);
   if (opts?.signal_type) params.set("signal_type", opts.signal_type);
+  if (opts?.upload_id) params.set("upload_id", opts.upload_id);
   const qs = params.toString();
   return backendFetch<BackendSignalScore>(
     tenantId,
@@ -828,4 +834,131 @@ export async function putTaxonomyOverrides(
       timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
     },
   );
+}
+
+export interface BackendUpload {
+  tenant_id: string;
+  upload_id: string;
+  source: string;
+  content_sha256: string;
+  status: "staged" | "completed" | "failed";
+  imported_at: string;
+}
+
+export async function publishUpload(
+  tenantId: string,
+  uploadId: string,
+  input: { source: string; content_sha256: string; conversation_ids: string[]; replace: boolean },
+): Promise<BackendUpload> {
+  return backendFetch<BackendUpload>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/uploads/${encodeURIComponent(uploadId)}`, {
+      method: "PUT", body: JSON.stringify(input), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    });
+}
+
+export interface BackendUploadMembership {
+  upload: BackendUpload;
+  conversation_ids: string[];
+}
+
+export async function getUploadMembership(tenantId: string, uploadId: string): Promise<BackendUploadMembership> {
+  return backendFetch<BackendUploadMembership>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/uploads/${encodeURIComponent(uploadId)}`, { method: "GET" });
+}
+
+export interface BackendUploadSnapshot {
+  upload: BackendUpload;
+  run_id: string;
+  conversations: BackendConversationInput[];
+  detections: BackendDetectionInput[];
+  predictions: BackendPredictionWithFeedback[];
+}
+
+export async function getUploadSnapshot(tenantId: string, uploadId: string): Promise<BackendUploadSnapshot> {
+  return backendFetch<BackendUploadSnapshot>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/uploads/${encodeURIComponent(uploadId)}/snapshot`, { method: "GET" });
+}
+
+export async function getActiveUploads(tenantId: string): Promise<BackendUploadMembership[]> {
+  return backendFetch<BackendUploadMembership[]>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/uploads`, { method: "GET" });
+}
+
+export interface BackendDetectionInput {
+  conversation_id: string; content_hash: string; model_version: string; prompt_version: string;
+  coverage?: { included_turns: number; omitted_turns: number; truncated: boolean; token_upper_bound: number; token_budget: number };
+  output: { signal_type: string; confidence: number; summary: string; evidence: string[]; urgency?: "high" | "medium" | "low"; urgency_timeframe?: string; mentioned_value_inr?: number }[];
+}
+export async function publishDetectionRun(tenantId: string, runId: string, conversations: BackendDetectionInput[]) {
+  return backendFetch<{ run_id: string; predictions: { id: string; conversation_id: string; signal_type: string; active: boolean }[] }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/detection-runs/${encodeURIComponent(runId)}`, {
+      method: "POST", body: JSON.stringify({ conversations }), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    });
+}
+
+export async function publishIngestion(tenantId: string, uploadId: string, input: {
+  source: string; replace: boolean; conversations: BackendConversationInput[]; detections: BackendDetectionInput[];
+  files?: { source: string; conversation_ids: string[] }[];
+}) {
+  return backendFetch<{ upload_id: string; status: string; active: boolean; predictions: { id: string; conversation_id: string; signal_type: string; active: boolean }[] }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/ingestions/${encodeURIComponent(uploadId)}`, {
+      method: "PUT", body: JSON.stringify(input), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+    });
+}
+
+export interface BackendIngestionStatus {
+  upload_id: string; status: "staged" | "completed" | "failed";
+  source: string; content_sha256: string; active: boolean; imported_at: string;
+}
+export async function getIngestionStatus(tenantId: string, uploadId: string) {
+  return backendFetch<BackendIngestionStatus>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/ingestions/${encodeURIComponent(uploadId)}`, { method: "GET" });
+}
+
+export async function getNeedsReviewPage(tenantId: string, opts: {
+  limit: number; after?: string; conversationIds?: string[];
+}): Promise<{ predictions: BackendPrediction[]; next_cursor: string | null }> {
+  const params = new URLSearchParams({ limit: String(opts.limit) });
+  if (opts.after) params.set("after", opts.after);
+  appendKeepSetConversationIds(params, opts.conversationIds);
+  const page = await backendFetch<{ predictions: BackendPrediction[]; next_cursor: string | null }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/signals/needs-review/page?${params}`);
+  if (!page || !Array.isArray(page.predictions) || page.predictions.length > opts.limit ||
+      (page.next_cursor !== null && (typeof page.next_cursor !== "string" || !page.next_cursor))) {
+    throw new Error("Review queue returned an invalid page.");
+  }
+  return page;
+}
+
+export async function getTenantSignalsPage(tenantId: string, opts: {
+  limit: number; after?: string; conversationIds?: string[];
+}): Promise<{ predictions: BackendPredictionWithFeedback[]; next_cursor: string | null }> {
+  const params = new URLSearchParams({ limit: String(opts.limit) });
+  if (opts.after) params.set("after", opts.after);
+  appendKeepSetConversationIds(params, opts.conversationIds);
+  const page = await backendFetch<{ predictions: BackendPredictionWithFeedback[]; next_cursor: string | null }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/signals/page?${params}`);
+  if (!page || !Array.isArray(page.predictions) || page.predictions.length > opts.limit ||
+      (page.next_cursor !== null && (typeof page.next_cursor !== "string" || !page.next_cursor))) {
+    throw new Error("Tenant signals returned an invalid page.");
+  }
+  return page;
+}
+
+
+export async function getPublishedConversationIds(tenantId: string, conversationIds: string[]): Promise<string[]> {
+  if (conversationIds.length === 0) return [];
+  if (conversationIds.length > 50 || conversationIds.some((id) => typeof id !== "string" || !id || id.length > 256)) {
+    throw new Error("Invalid published conversation scope");
+  }
+  const result = await backendFetch<{ conversation_ids: string[] }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/uploads/published-conversations`, {
+      method: "POST", body: JSON.stringify({ conversation_ids: conversationIds }),
+    });
+  if (!result || !Array.isArray(result.conversation_ids) || result.conversation_ids.length > conversationIds.length ||
+      new Set(result.conversation_ids).size !== result.conversation_ids.length ||
+      result.conversation_ids.some((id) => typeof id !== "string" || !conversationIds.includes(id))) {
+    throw new Error("Invalid published conversation lookup");
+  }
+  return result.conversation_ids;
 }

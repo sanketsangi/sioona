@@ -71,3 +71,16 @@ describe("inspectSignalScoreWindow", () => {
     expect(window.resolvedFrom).toBe("2026-08-07T12:00:00.000Z");
   });
 });
+
+it("labels an environment override with its actual date", () => {
+  const window = inspectSignalScoreWindow({ envFrom: "2026-01-01", now: new Date("2026-10-04") });
+  expect(window.label).toBe("From 1 Jan 2026");
+  expect(window.status).toBe("custom");
+});
+
+it("validates inclusive end dates and reversed windows", async () => {
+  const { inspectSignalScoreEnd } = await import("./signal-score-window");
+  expect(inspectSignalScoreEnd("2026-10-04", "2026-10-01T00:00:00Z")).toEqual({ dateTo: "2026-10-04T23:59:59.999Z" });
+  expect(inspectSignalScoreEnd("2026-02-30", "2026-01-01").error).toBeTruthy();
+  expect(inspectSignalScoreEnd("2026-09-30", "2026-10-01").error).toBeTruthy();
+});

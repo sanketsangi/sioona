@@ -111,6 +111,9 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
 
     counts = wipe_tenant_data(db, tenant_id="tenant_a")
     assert counts == {
+        "uploads": 0,
+        "upload_memberships": 0,
+        "detection_runs": 0,
         "conversations": 1,
         "messages": 1,
         "predictions": 1,
@@ -170,6 +173,9 @@ def test_wipe_tenant_data_is_tenant_safe(db: Session) -> None:
 def test_wipe_tenant_data_empty_tenant_is_noop(db: Session) -> None:
     counts = wipe_tenant_data(db, tenant_id="tenant_missing")
     assert counts == {
+        "uploads": 0,
+        "upload_memberships": 0,
+        "detection_runs": 0,
         "conversations": 0,
         "messages": 0,
         "predictions": 0,

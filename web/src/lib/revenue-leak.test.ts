@@ -126,7 +126,7 @@ describe("buildRevenueLeakReport", () => {
     expect(report.outcomes.saved).toBe(1);
   });
 
-  it("excludes partials from SignalScore precision", () => {
+  it("includes partials in the canonical SignalScore denominator", () => {
     const report = buildRevenueLeakReport({
       signals: [],
       conversations: [],
@@ -136,13 +136,13 @@ describe("buildRevenueLeakReport", () => {
       correct: 3,
       incorrect: 0,
     });
-    expect(report.precision.score).toBe(1);
+    expect(report.precision.score).toBe(0.5);
     expect(precisionLabel(report.precision.score, report.precision.reviewed)).toBe(
-      "100% (6 reviewed)",
+      "50% (6 reviewed)",
     );
   });
 
-  it("returns null precision when the window is partial-only", () => {
+  it("returns zero precision when the window is partial-only", () => {
     const report = buildRevenueLeakReport({
       signals: [],
       conversations: [],
@@ -152,9 +152,81 @@ describe("buildRevenueLeakReport", () => {
       correct: 0,
       incorrect: 0,
     });
-    expect(report.precision.score).toBeNull();
+    expect(report.precision.score).toBe(0);
     expect(precisionLabel(report.precision.score, report.precision.reviewed)).toBe(
-      "Insufficient data",
+      "0% (3 reviewed)",
     );
   });
+});
+
+it("distinguishes asset context, revenue context and reviewer values", async () => {
+  const { commercialValueProvenance } = await import("./revenue-leak");
+  expect(commercialValueProvenance("portfolio ₹500000", false)).toBe("Text-derived asset value");
+  expect(commercialValueProvenance("brokerage ₹1000", false)).toBe("Text-derived revenue opportunity");
+  expect(commercialValueProvenance("portfolio and brokerage ₹500000", false)).toContain("unconfirmed");
+  expect(commercialValueProvenance("portfolio ₹500000", true)).toBe("Reviewer-recorded value");
+});
+
+it("separates retention asset exposure, revenue opportunity and unconfirmed amounts", () => {
+  const signals = [
+    signal({ id: "asset", type: "retention", conversationId: "asset", summary: "Portfolio INR 50000" }),
+    signal({ id: "duplicate", type: "retention", conversationId: "asset", confidence: .5, summary: "Portfolio INR 50000" }),
+    signal({ id: "revenue", type: "retention", conversationId: "revenue", summary: "Subscription INR 1000" }),
+    signal({ id: "mixed", type: "retention", conversationId: "mixed", summary: "Portfolio INR 20000 and fees INR 500" }),
+    signal({ id: "unspecified", type: "retention", conversationId: "unspecified", summary: "INR 3000" }),
+    signal({ id: "recorded", type: "retention", conversationId: "recorded", summary: "Portfolio INR 100000",
+      outcome: { outcome: "retained", valueInr: 2000, recordedAt: "2026-10-02" } }),
+  ];
+  const report = buildRevenueLeakReport({ signals, conversations: [], messages: signals.filter((row) => row.id !== "duplicate").map((row) => ({ id: `m${row.id}`, conversationId: row.conversationId, role: "customer", content: row.summary, timestamp: "2026-10-01" })), windowLabel: "Pilot" });
+  expect(report.exposure).toEqual({ assetInr: 50000, revenueOpportunityInr: 1000,
+    unconfirmedInr: 23000, reviewerRecordedInr: 2000 });
+  expect(report.inrAtRisk).toBe(76000);
+  expect(report.inrSaved).toBe(2000);
+  expect(report.customersAtRisk.find((row) => row.conversationId === "mixed")?.valueCategory).toBe("unconfirmed");
+});
+
+it("never turns generated summaries, agent text or ungrounded evidence into money", () => {
+  const row = signal({ id: "s1", type: "retention", summary: "Portfolio INR 1000000, fees INR 5000",
+    evidence: ['quote: "portfolio INR 900000"'], mentionedValueInr: 800000 });
+  const messages: Message[] = [
+    { id: "customer", conversationId: row.conversationId, role: "customer", content: "Subscription INR 1000", timestamp: "2026-10-01" },
+    { id: "agent", conversationId: row.conversationId, role: "agent", content: "Portfolio INR 700000", timestamp: "2026-10-01" },
+    { id: "other", conversationId: "other", role: "customer", content: "Portfolio INR 600000", timestamp: "2026-10-01" },
+  ];
+  const report = buildRevenueLeakReport({ signals: [row], conversations: [], messages, windowLabel: "Pilot" });
+  expect(report.customersAtRisk[0].valueInr).toBe(1000);
+  expect(report.exposure.revenueOpportunityInr).toBe(1000);
+  expect(report.exposure.assetInr).toBe(0);
+  const missing = buildRevenueLeakReport({ signals: [row], conversations: [], messages: [], windowLabel: "Pilot" });
+  expect(missing.customersAtRisk[0].valueInr).toBeNull();
+  expect(missing.inrAtRisk).toBe(0);
+});
+
+it("binds the amount/category to its customer turn and never joins amount fragments", () => {
+  const row = signal({ id: "s1", type: "retention" });
+  const message = (id: string, content: string): Message => ({ id, conversationId: row.conversationId,
+    role: "customer", content, timestamp: "2026-10-01" });
+  const report = buildRevenueLeakReport({ signals: [row], conversations: [], windowLabel: "Pilot",
+    messages: [message("asset", "Portfolio INR 50000"), message("fee", "Subscription INR 1000")] });
+  expect(report.customersAtRisk[0]).toMatchObject({ valueInr: 50000, valueCategory: "asset", valueMessageIds: ["asset"] });
+  const fragments = buildRevenueLeakReport({ signals: [row], conversations: [], windowLabel: "Pilot",
+    messages: [message("currency", "Portfolio INR"), message("number", "50000")] });
+  expect(fragments.customersAtRisk[0].valueInr).toBeNull();
+});
+
+it("uses durable customer amount proof without inventing a missing transcript", () => {
+  const row = signal({ id: "s1", type: "retention", mentionedValueInr: 1000,
+    commercialValueEvidence: [{ messageId: "source", quote: "INR 1000", amountInr: 1000, category: "asset" }] });
+  const report = buildRevenueLeakReport({ signals: [row], conversations: [], messages: [], windowLabel: "Pilot" });
+  expect(report.customersAtRisk[0]).toMatchObject({ valueInr: 1000, valueCategory: "asset", valueMessageIds: ["source"], valueProvenance: "Customer-grounded asset value" });
+  expect(report.exposure.assetInr).toBe(1000);
+});
+
+it("never quotes generated summaries or unsupported evidence as customer speech", () => {
+  const row = signal({ id: "s1", type: "retention", summary: "Generated interpretation",
+    evidence: ['quote: "Invented customer claim"'] });
+  const report = buildRevenueLeakReport({ signals: [row], conversations: [], windowLabel: "Pilot",
+    messages: [{ id: "m1", conversationId: row.conversationId, role: "customer", content: "Please close my account", timestamp: "2026-10-01" }] });
+  expect(report.customersAtRisk[0].quote).toBe("Please close my account");
+  expect(buildRevenueLeakReport({ signals: [row], conversations: [], messages: [], windowLabel: "Pilot" }).customersAtRisk[0].quote).toBe("");
 });

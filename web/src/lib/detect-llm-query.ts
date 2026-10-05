@@ -2,12 +2,8 @@
  * URL + API helpers for Detect v2 pass-2 stats (`detectLlm` on detect/ingest/demo).
  */
 
-import {
-  DETECT_LLM_MAX_CALLS,
-  detectLlmMaxCalls,
-  type LlmFailureKind,
-  type LlmPassStats,
-} from "./detect-llm";
+import { DETECT_LLM_MAX_CALLS, detectLlmMaxCalls } from "./detect-llm-config";
+import type { LlmFailureKind, LlmPassStats } from "./detect-llm";
 
 export type { LlmFailureKind, LlmPassStats };
 

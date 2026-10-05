@@ -1,3 +1,5 @@
+import { fetchTenantSignals } from "./fetch-tenant-signals";
+import { fetchScopedConversations } from "./fetch-scoped-conversations";
 /**
  * Cold-start hydrate: pull conversations + messages from Neon when the JSON
  * store file is missing. Fail-soft — empty/down/404/500 → null (caller seeds
@@ -16,8 +18,8 @@ import {
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   getConversations,
+  getActiveUploads,
   getPilotSettings,
-  getTenantSignals,
   HYDRATE_CONVERSATIONS_TIMEOUT_MS,
   type BackendConversation,
   type BackendGroundTruth,
@@ -25,6 +27,7 @@ import {
   type BackendFeedbackLabel,
   type BackendPredictionWithFeedback,
 } from "./backend-client";
+import { predictionToStubSignal, commercialMetadataFromPrediction } from "./join-needs-review";
 import { runHybridDetection } from "./detect-llm";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
@@ -182,6 +185,10 @@ export function applyNeonFeedbackToSignals(
       ...signal,
       // Neon row id is SoT — a stale JSON UUID 404s Mark Acted.
       backendSignalId: row.id,
+      status: row.acted ? "acted" : "new",
+      feedback: undefined,
+      outcome: predictionToStubSignal(row)?.outcome,
+      ...commercialMetadataFromPrediction(row),
     };
     const neonFeedback = row.feedback;
     const label = neonFeedback
@@ -264,9 +271,7 @@ export async function fetchOverlayConversations(
 ): Promise<HydratedChats | null> {
   if (keepConversationIds.length === 0) return null;
   try {
-    const rows = await getConversations(tenantId, {
-      conversationIds: keepConversationIds,
-    });
+    const rows = await fetchScopedConversations(tenantId, keepConversationIds);
     if (!Array.isArray(rows) || rows.length === 0) return null;
     const chats = mapBackendConversationsToStore(rows, tenantId);
     const filtered = filterHydratedChats(chats, keepConversationIds);
@@ -354,6 +359,7 @@ export async function pendingLivePartnerStore(): Promise<StoreData | null> {
     const name = remote?.last_uploaded_file_name?.trim();
     if (!remote || !isLivePartnerKeepSet(name)) return null;
     const store = structuredClone(emptyShowcaseStore);
+    store.tenant.id = tenantId;
     store.pilot = pilotSettingsFromRemote(remote);
     return store;
   } catch {
@@ -376,6 +382,16 @@ export async function tryHydrateStoreFromNeon(
   } catch {
     remotePilot = null;
   }
+  let memberships: Awaited<ReturnType<typeof getActiveUploads>> = [];
+  try {
+    memberships = await getActiveUploads(tenantId);
+  } catch {
+    // Legacy deployments can still hydrate; durable-corpus failures must not
+    // publish a reconstruction selected by an editable pilot timestamp.
+    return null;
+  }
+  const durable = Array.isArray(memberships) && memberships.length > 0;
+  const memberIds = new Set(memberships.flatMap((entry) => entry.conversation_ids));
   let rows: BackendConversation[] = [];
   const liveName = remotePilot?.last_uploaded_file_name?.trim() ?? "";
   const cutoffMs = remotePilot?.updated_at
@@ -383,14 +399,17 @@ export async function tryHydrateStoreFromNeon(
     : NaN;
   const dayOneReplace = remotePilot?.weekly_export_count === 1;
   const freshOnlyFetch = Boolean(
-    isLivePartnerKeepSet(liveName) &&
+    !durable && isLivePartnerKeepSet(liveName) &&
       Number.isFinite(cutoffMs) &&
       remotePilot?.updated_at &&
       (options?.freshOnly || dayOneReplace),
   );
   try {
-    const fetched = await getConversations(tenantId, {
+    const fetched = durable
+      ? await fetchScopedConversations(tenantId, [...memberIds], { timeoutMs: HYDRATE_CONVERSATIONS_TIMEOUT_MS })
+      : await getConversations(tenantId, {
       timeoutMs: HYDRATE_CONVERSATIONS_TIMEOUT_MS,
+      ...(durable ? { conversationIds: [...memberIds] } : {}),
       ...(freshOnlyFetch && remotePilot?.updated_at
         ? { updatedSince: remotePilot.updated_at }
         : {}),
@@ -402,17 +421,19 @@ export async function tryHydrateStoreFromNeon(
   }
   // Drop Sample / Partner Demo before this hydrate is written and painted.
   // A replace that seeded testing.json leaves those ids in Neon beside the file.
-  if (isLivePartnerKeepSet(remotePilot?.last_uploaded_file_name)) {
+  if (!durable && isLivePartnerKeepSet(remotePilot?.last_uploaded_file_name)) {
     const showcaseIds = await bundledShowcaseConversationIds();
     if (showcaseIds.size > 0) {
       rows = rows.filter((row) => !showcaseIds.has(row.conversation_id));
     }
   }
   if (rows.length === 0) return null;
-  const filtered = filterConversationsForLivePartner(rows, remotePilot);
+  const filtered = durable
+    ? { apply: false, rows: rows.filter((row) => memberIds.has(row.conversation_id)) }
+    : filterConversationsForLivePartner(rows, remotePilot);
   // Filename is already the weekly upload, but Neon still has the previous pack.
   if (filtered.apply && filtered.rows.length === 0) return null;
-  const sourceRows =
+  const sourceRows = durable ? filtered.rows :
     filtered.apply && (options?.freshOnly || dayOneReplace)
       ? filtered.rows
       : rows;
@@ -428,6 +449,11 @@ export async function tryHydrateStoreFromNeon(
         ? { ...conversation, sourceFile: conversation.sourceFile ?? fileName }
         : conversation,
     );
+  }
+  if (durable) {
+    const sourceById = new Map<string, string>();
+    for (const entry of memberships) for (const id of entry.conversation_ids) sourceById.set(id, entry.upload.source);
+    chats.conversations = chats.conversations.map((chat) => ({ ...chat, sourceFile: sourceById.get(chat.id) }));
   }
   if (chats.conversations.length === 0) return null;
 
@@ -445,6 +471,15 @@ export async function tryHydrateStoreFromNeon(
   const awaitPredictions = options?.syncPredictions !== false;
 
   try {
+    if (durable) {
+      // Hydration restores stored predictions; it never runs classification.
+      const restored = await fetchTenantSignals(tenantId, { conversationIds: [...memberIds] });
+      if (!restored.ok) throw new Error(restored.error);
+      const persisted = restored.rows;
+      signals = persisted.filter((row) => memberIds.has(row.conversation_id))
+        .map(predictionToStubSignal).filter((signal): signal is Signal => signal !== null);
+      signals = applyNeonFeedbackToSignals(signals, persisted);
+    } else {
     const detected = await runHybridDetection(
       chats.conversations,
       chats.messages,
@@ -464,18 +499,22 @@ export async function tryHydrateStoreFromNeon(
       signals = synced.signals;
     }
     try {
-      const rows = await getTenantSignals(tenantId);
+      const restored = await fetchTenantSignals(tenantId, { conversationIds: chats.conversations.map((chat) => chat.id) });
+      if (!restored.ok) throw new Error(restored.error);
+      const rows = restored.rows;
       if (Array.isArray(rows) && rows.length > 0) {
         signals = applyNeonFeedbackToSignals(signals, rows);
       }
     } catch {
       // Fail-soft: chats + signals still persist; chips stay Pending.
     }
+    }
     signals = applyConversationGroundTruthToSignals(
       signals,
       chats.conversations
     );
   } catch {
+    if (durable) return null;
     // Keep chats (+ any signals assigned before the throw). Do not seed testing.json.
   }
 

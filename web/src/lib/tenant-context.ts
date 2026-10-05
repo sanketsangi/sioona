@@ -1,3 +1,4 @@
+import { authEnforced } from "./auth-token";
 import { AsyncLocalStorage } from "node:async_hooks";
 
 /** Public showcase tenant. Real partner sessions must use a different id. */
@@ -7,7 +8,10 @@ const storeTenant = new AsyncLocalStorage<string>();
 
 /** Tenant whose JSON file and Neon calls this request should use. */
 export function currentStoreTenant(): string {
-  return storeTenant.getStore() ?? DEMO_TENANT_ID;
+  const tenant = storeTenant.getStore();
+  if (tenant) return tenant;
+  if (authEnforced()) throw new Error("Tenant scope required for authenticated store operations.");
+  return DEMO_TENANT_ID;
 }
 
 /**

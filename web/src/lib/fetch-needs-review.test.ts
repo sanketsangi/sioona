@@ -13,7 +13,7 @@ describe("fetchNeedsReview", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => [
+        json: async () => ({ predictions: [
           {
             id: "pred-1",
             tenant_id: "tenant_demo",
@@ -23,7 +23,7 @@ describe("fetchNeedsReview", () => {
             summary: "Intent",
             created_at: "2026-08-01T00:00:00.000Z",
           },
-        ],
+        ], next_cursor: null }),
       })
     );
 
@@ -35,7 +35,7 @@ describe("fetchNeedsReview", () => {
     }
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       expect.stringContaining(
-        "/v1/tenants/tenant_demo/signals/needs-review?limit=20"
+        "/v1/tenants/tenant_demo/signals/needs-review/page?limit=20"
       ),
       expect.anything()
     );
@@ -47,7 +47,7 @@ describe("fetchNeedsReview", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => [],
+        json: async () => ({ predictions: [], next_cursor: null }),
       })
     );
 
@@ -55,7 +55,7 @@ describe("fetchNeedsReview", () => {
     expect(result.ok).toBe(true);
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       expect.stringContaining(
-        "/v1/tenants/tenant_demo/signals/needs-review?limit=100"
+        "/v1/tenants/tenant_demo/signals/needs-review/page?limit=100"
       ),
       expect.anything()
     );
@@ -77,12 +77,12 @@ describe("fetchNeedsReview", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => page(100, 0),
+        json: async () => ({ predictions: page(100, 0), next_cursor: "cursor-100" }),
       })
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => page(5, 100),
+        json: async () => ({ predictions: page(5, 100), next_cursor: null }),
       });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -97,14 +97,14 @@ describe("fetchNeedsReview", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0]?.[0]).toEqual(
       expect.stringContaining(
-        "/v1/tenants/tenant_demo/signals/needs-review?limit=100&conversation_id=conv_keep"
+        "/v1/tenants/tenant_demo/signals/needs-review/page?limit=100&conversation_id=conv_keep"
       )
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("offset=");
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("other_pack");
     expect(fetchMock.mock.calls[1]?.[0]).toEqual(
       expect.stringContaining(
-        "/v1/tenants/tenant_demo/signals/needs-review?limit=100&offset=100&conversation_id=conv_keep"
+        "/v1/tenants/tenant_demo/signals/needs-review/page?limit=100&after=cursor-100&conversation_id=conv_keep"
       )
     );
   });
@@ -132,4 +132,21 @@ describe("fetchNeedsReview", () => {
       expect(result.error).toMatch(/unreachable|ECONNREFUSED/i);
     }
   });
+});
+
+it("reports a repeated cursor as an error rather than returning incomplete success", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200,
+    json: async () => ({ predictions: [], next_cursor: "same" }) }));
+  const result = await fetchNeedsReview("tenant_demo");
+  expect(result.ok).toBe(false);
+  if (!result.ok) expect(result.error).toContain("repeated cursor");
+});
+
+it("rejects malformed or oversized pages without presenting partial success", async () => {
+  for (const page of [{ predictions: [], next_cursor: {} }, { predictions: [{}, {}], next_cursor: null }]) {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => page }));
+    const result = await fetchNeedsReview("tenant_demo", 1);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("invalid page");
+  }
 });

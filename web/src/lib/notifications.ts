@@ -4,7 +4,7 @@ import {
 } from "@/lib/detect-llm-query";
 import type { LlmFailureKind } from "@/lib/detect-llm";
 import { viewHref } from "@/lib/views";
-import { ZERO_SIGNAL_HINT } from "@/lib/ingest";
+import { ZERO_SIGNAL_HINT } from "@/lib/ingest-copy";
 
 export type HeaderNotificationTone = "warning" | "info" | "accent";
 

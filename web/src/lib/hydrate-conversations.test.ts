@@ -305,7 +305,32 @@ describe("applyConversationGroundTruthToSignals", () => {
 
 describe("tryHydrateStoreFromNeon", () => {
   beforeEach(() => {
+    vi.spyOn(backendClient, "getActiveUploads").mockResolvedValue([]);
     vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(null);
+  });
+
+  it("recovers durable file membership without timestamp cutoff or classification", async () => {
+    vi.spyOn(backendClient, "getActiveUploads").mockResolvedValue([{
+      upload: { tenant_id: "tenant_demo", upload_id: "u1", source: "week1.csv", content_sha256: "a".repeat(64), status: "completed", imported_at: "2026-10-01T00:00:00Z" },
+      conversation_ids: ["conv_partner_upload_1"],
+    }]);
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([partnerRow()]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [neonReviewed], next_cursor: null });
+    const detect = vi.spyOn(detectLlm, "runHybridDetection");
+    const write = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+    const result = await tryHydrateStoreFromNeon();
+    expect(result?.conversations[0].sourceFile).toBe("week1.csv");
+    expect(result?.signals[0].backendSignalId).toBe(neonReviewed.id);
+    expect(detect).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalled();
+    expect(backendClient.getConversations).toHaveBeenCalledWith("tenant_demo", expect.objectContaining({ conversationIds: ["conv_partner_upload_1"] }));
+  });
+
+  it("does not replace the cache when durable membership is unavailable", async () => {
+    vi.spyOn(backendClient, "getActiveUploads").mockRejectedValue(new Error("database unavailable"));
+    const write = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
+    expect(await tryHydrateStoreFromNeon()).toBeNull();
+    expect(write).not.toHaveBeenCalled();
   });
 
   it("skips POST /v1/predictions when syncPredictions is false and still attaches Neon ids", async () => {
@@ -324,9 +349,9 @@ describe("tryHydrateStoreFromNeon", () => {
       },
     });
     const syncSpy = vi.spyOn(syncPredictions, "syncPredictionsToBackend");
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [
       { ...neonReviewed, feedback: null },
-    ]);
+    ], next_cursor: null });
     vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon({ syncPredictions: false });
@@ -367,7 +392,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon();
@@ -415,7 +440,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
       id: "pilot-uuid-1",
       tenant_id: "tenant_demo",
@@ -473,7 +498,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue({
       id: "pilot-uuid-1",
       tenant_id: "tenant_demo",
@@ -519,7 +544,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(backendClient, "getPilotSettings").mockRejectedValue(
       new BackendClientError("database_unavailable", 500)
     );
@@ -556,9 +581,9 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [
       { ...neonReviewed, acted: true },
-    ]);
+    ], next_cursor: null });
     const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon();
@@ -599,7 +624,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon();
@@ -633,7 +658,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockRejectedValue(
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockRejectedValue(
       new BackendClientError("timed out after 10000ms")
     );
     const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
@@ -704,7 +729,7 @@ describe("tryHydrateStoreFromNeon", () => {
         },
       })
     );
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const mapped = mapBackendConversationsToStore([row], "tenant_demo");
@@ -785,7 +810,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon({ freshOnly: true });
@@ -852,7 +877,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon();
@@ -907,7 +932,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon();
@@ -934,7 +959,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await runWithTenant("tenant_partner", () =>
@@ -992,7 +1017,7 @@ describe("tryHydrateStoreFromNeon", () => {
         skipped: 0,
       },
     });
-    vi.spyOn(backendClient, "getTenantSignals").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
     const writeSpy = vi.spyOn(store, "writeStore").mockResolvedValue(undefined);
 
     const result = await tryHydrateStoreFromNeon();
@@ -1154,4 +1179,31 @@ describe("overlay chats (request-scoped)", () => {
       "conv_partner_upload_1",
     ]);
   });
+});
+
+it("clears obsolete feedback and outcome when hydration remaps a prediction revision", () => {
+  const cached: Signal = { ...detectedSignal, backendSignalId: "superseded", status: "reviewed",
+    feedback: { label: "correct", reviewedAt: "2026-09-01" },
+    outcome: { outcome: "retained", valueInr: 9000, recordedAt: "2026-09-02" } };
+  const restored = applyNeonFeedbackToSignals([cached], [{ ...neonReviewed, feedback: null }])[0];
+  expect(restored.backendSignalId).toBe(neonReviewed.id);
+  expect(restored.status).toBe("new");
+  expect(restored.feedback).toBeUndefined();
+  expect(restored.outcome).toBeUndefined();
+});
+it("restores outcome recording time from canonical backend state", () => {
+  const restored = applyNeonFeedbackToSignals([detectedSignal], [{ ...neonReviewed,
+    outcome: "retained", outcome_value_inr: 1200, outcome_recorded_at: "2026-10-02T12:00:00Z" }])[0];
+  expect(restored.outcome).toEqual({ outcome: "retained", valueInr: 1200, recordedAt: "2026-10-02T12:00:00Z" });
+});
+
+it("restores durable commercial proof and clears it on a newer empty revision", () => {
+  const proof = [{ message_id: "customer-value", quote: "INR 1000", amount_inr: 1000, category: "asset" as const }];
+  const restored = applyNeonFeedbackToSignals([detectedSignal], [{ ...neonReviewed,
+    mentioned_value_inr: 1000, commercial_value_evidence: proof }])[0];
+  expect(restored.commercialValueEvidence).toEqual([{ messageId: "customer-value", quote: "INR 1000", amountInr: 1000, category: "asset" }]);
+  const changed = applyNeonFeedbackToSignals([restored], [{ ...neonReviewed,
+    id: "new-revision", mentioned_value_inr: null, commercial_value_evidence: null }])[0];
+  expect(changed.mentionedValueInr).toBeUndefined();
+  expect(changed.commercialValueEvidence).toBeUndefined();
 });

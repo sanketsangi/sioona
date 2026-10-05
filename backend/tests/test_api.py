@@ -1230,6 +1230,9 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
     )
     assert wiped.status_code == 200
     assert wiped.json() == {
+        "uploads": 0,
+        "upload_memberships": 0,
+        "detection_runs": 0,
         "conversations": 1,
         "messages": 1,
         "predictions": 1,
@@ -1273,6 +1276,9 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
     )
     assert empty.status_code == 200
     assert empty.json() == {
+        "uploads": 0,
+        "upload_memberships": 0,
+        "detection_runs": 0,
         "conversations": 0,
         "messages": 0,
         "predictions": 0,

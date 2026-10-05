@@ -69,6 +69,7 @@ def record_feedback(
         select(SignalPrediction).where(
             SignalPrediction.id == signal_id,
             SignalPrediction.tenant_id == tenant_id,
+            SignalPrediction.active.is_(True),
         )
     )
     if prediction is None:

@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field
 class TenantDataWipeResponse(BaseModel):
     """Counts of rows deleted for one tenant. Never includes other tenants."""
 
+    uploads: int = Field(ge=0)
+    upload_memberships: int = Field(ge=0)
+    detection_runs: int = Field(ge=0)
     conversations: int = Field(ge=0)
     messages: int = Field(ge=0)
     predictions: int = Field(ge=0)

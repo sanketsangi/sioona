@@ -836,7 +836,7 @@ describe("classifyConversationWithGroq", () => {
       customerMessages,
     });
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       type: "retention",
       confidence: 1,
       summary: "Asha is leaving",
@@ -894,7 +894,7 @@ describe("classifyConversationWithGroq", () => {
       conversation: conv,
       customerMessages,
     });
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       type: "none",
       confidence: 0.55,
       summary: "Ops chat",
@@ -928,7 +928,7 @@ describe("classifyConversationWithGroq", () => {
 
     await expect(
       classifyConversationWithGroq({ conversation: conv, customerMessages })
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       type: "retention",
       confidence: 0.81,
       summary: "Leaving the broker.",
@@ -1172,4 +1172,35 @@ describe("testing.json hybrid vs heuristic", () => {
       expect(hybrid.labeledRecall ?? 0).toBe(heuristicRecall);
     }
   });
+});
+
+it("retains classifier provenance for none in both detection passes", async () => {
+  const { applyLlmPrimaryPass } = await import("./detect-llm");
+  const message: Message = { id: "provenance-message", conversationId: conv.id,
+    role: "customer", content: "Thanks, that is all.", timestamp: "2026-10-01" };
+  const classify = async () => ({ type: "none" as const, confidence: .95,
+    summary: "No commercial intent", quotes: [],
+    context: { model: "fallback-model", promptVersion: "prompt-v7", includedTurns: 1,
+      omittedTurns: 0, truncated: false, tokenUpperBound: 20, tokenBudget: 2400 } });
+  for (const pass of [applyLlmSecondPass, applyLlmPrimaryPass]) {
+    const result = await pass([conv], [message], conv.tenantId, [], undefined, { classify });
+    expect(result.signals).toEqual([]);
+    expect(result.llm.contexts?.[conv.id]).toEqual({ model: "fallback-model", promptVersion: "prompt-v7", includedTurns: 1, omittedTurns: 0, truncated: false, tokenUpperBound: 20, tokenBudget: 2400 });
+    expect(result.llm.failed).toBe(0);
+    expect(result.llm.failedIds).toEqual([]);
+  }
+});
+
+it("does not publish an ungrounded positive classification as successful none", async () => {
+  const { applyLlmPrimaryPass } = await import("./detect-llm");
+  const message: Message = { id: "grounding-message", conversationId: conv.id,
+    role: "customer", content: "Thanks, that is all.", timestamp: "2026-10-01" };
+  const classify = async () => ({ type: "retention" as const, confidence: .95,
+    summary: "Leaving", quotes: ["I am closing my account immediately"] });
+  for (const pass of [applyLlmSecondPass, applyLlmPrimaryPass]) {
+    const result = await pass([conv], [message], conv.tenantId, [], undefined, { classify });
+    expect(result.llm.failed).toBe(1);
+    expect(result.llm.failedIds).toEqual([conv.id]);
+    expect(result.llm.contexts?.[conv.id]).toBeUndefined();
+  }
 });

@@ -31,11 +31,51 @@ jobs:
           npm ci
           # npm/cli#4828: lockfile from macOS omits the Linux Rollup optional binary.
           npm install --no-save "@rollup/rollup-linux-x64-gnu@$(node -p "require('rollup/package.json').version")"
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npx tsc --noEmit
       - name: Test
         run: npm test
+      - name: Production build
+        run: npm run build
+
+  site:
+    name: Marketing site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
 
   backend:
     name: Backend
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sioona
+          POSTGRES_PASSWORD: ci_only
+          POSTGRES_DB: sioona_migration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sioona -d sioona_migration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -52,3 +92,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: Test
         run: python -m pytest
+      - name: PostgreSQL migration and constraint checks
+        env:
+          PG_TEST_DATABASE_URL: postgresql+psycopg://sioona:ci_only@localhost:5432/sioona_migration_test
+        run: python -m pytest tests/test_postgres_migrations.py -q

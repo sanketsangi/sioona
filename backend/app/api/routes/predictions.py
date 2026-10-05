@@ -17,6 +17,7 @@ from app.schemas.prediction import (
 )
 from app.services.feedback import SignalNotFoundError
 from app.services.predictions import (
+    VersionedPredictionConflict,
     record_prediction,
     record_predictions_bulk,
     set_prediction_outcome,
@@ -45,6 +46,9 @@ def create_prediction(
             mentioned_value_inr=body.mentioned_value_inr,
         )
         return PredictionResponse.model_validate(prediction)
+    except VersionedPredictionConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
 
@@ -85,6 +89,9 @@ def create_or_update_predictions_bulk(
             created=result.created,
             updated=result.updated,
         )
+    except VersionedPredictionConflict as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
 

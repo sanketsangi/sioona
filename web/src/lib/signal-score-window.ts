@@ -67,10 +67,10 @@ export function inspectSignalScoreWindow(opts?: {
     if (parsed) {
       const iso = parsed.toISOString();
       return {
-        status: "default",
+        status: "custom",
         resolvedFrom: iso,
         dateInput: iso.slice(0, 10),
-        label: `Last ${SIGNAL_SCORE_WINDOW_DAYS} days`,
+        label: `From ${UTC_DAY.format(parsed)}`,
       };
     }
   }
@@ -90,15 +90,27 @@ function defaultWindowStart(now: Date): string {
 }
 
 /** Accept full ISO datetime or date-only (`YYYY-MM-DD` → UTC midnight). */
-function parseScoreFromInstant(raw: string): Date | null {
+export function parseScoreFromInstant(raw: string): Date | null {
   const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (dateOnly) {
     const y = Number(dateOnly[1]);
     const m = Number(dateOnly[2]);
     const d = Number(dateOnly[3]);
     const dt = new Date(Date.UTC(y, m - 1, d));
-    return Number.isNaN(dt.getTime()) ? null : dt;
+    return Number.isNaN(dt.getTime()) || dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d ? null : dt;
   }
   const dt = new Date(raw);
   return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+/** Inclusive upper bound; date-only means the complete UTC day. */
+export function inspectSignalScoreEnd(raw: string | null | undefined, from: string): {
+  dateTo?: string; error?: string;
+} {
+  if (!raw?.trim()) return {};
+  const parsed = parseScoreFromInstant(raw.trim());
+  if (!parsed) return { error: "Invalid report end date" };
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) parsed.setUTCHours(23, 59, 59, 999);
+  if (parsed.getTime() < Date.parse(from)) return { error: "Report end date precedes its start" };
+  return { dateTo: parsed.toISOString() };
 }

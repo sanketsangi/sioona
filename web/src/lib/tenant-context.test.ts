@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   currentStoreTenant,
@@ -7,7 +7,14 @@ import {
   runWithTenant,
 } from "./tenant-context";
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("tenant-context", () => {
+  it("fails closed without context when authentication is enforced", () => {
+    vi.stubEnv("SIOONA_AUTH_ENFORCE", "1");
+    expect(() => currentStoreTenant()).toThrow("Tenant scope required");
+    expect(runWithTenant("tenant_partner", () => currentStoreTenant())).toBe("tenant_partner");
+  });
   it("defaults to the demo tenant outside any scope", () => {
     expect(currentStoreTenant()).toBe(DEMO_TENANT_ID);
   });

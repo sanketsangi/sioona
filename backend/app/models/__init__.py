@@ -1,5 +1,8 @@
 """ORM models."""
 
+from app.models.upload import Upload, UploadConversation
+from app.models.pilot_request import PilotRequest
+from app.models.detection_run import DetectionRun
 from app.models.base import Base
 from app.models.conversation import Conversation
 from app.models.message import (
@@ -34,6 +37,8 @@ from app.models.taxonomy_override import TaxonomyOverride
 
 __all__ = [
     "Base",
+    "Upload",
+    "UploadConversation",
     "Conversation",
     "FEEDBACK_CORRECT",
     "FEEDBACK_INCORRECT",

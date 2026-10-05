@@ -53,6 +53,7 @@ def _score_or_500(
     date_to: datetime | None,
     signal_type: str | None,
     conversation_ids: list[str] | None,
+    upload_id: str | None = None,
 ) -> SignalScoreResponse:
     try:
         result = calculate_signal_score(
@@ -62,7 +63,10 @@ def _score_or_500(
             date_to=date_to,
             signal_type=signal_type,
             conversation_ids=conversation_ids,
+            upload_id=upload_id,
         )
+    except ValueError as exc:
+        raise HTTPException(409, "upload_snapshot_unavailable") from exc
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
     return _to_response(result)
@@ -80,6 +84,7 @@ def get_signal_score(
     date_to: Annotated[datetime | None, Query()] = None,
     signal_type: Annotated[str | None, Query()] = None,
     conversation_id: Annotated[list[str] | None, Query()] = None,
+    upload_id: Annotated[str | None, Query(min_length=1, max_length=64)] = None,
 ) -> SignalScoreResponse:
     """Return overall and per-type SignalScore for a tenant.
 
@@ -97,6 +102,7 @@ def get_signal_score(
         date_to=date_to,
         signal_type=signal_type,
         conversation_ids=conversation_id,
+        upload_id=upload_id,
     )
 
 
@@ -119,4 +125,5 @@ def post_signal_score(
         date_to=body.date_to,
         signal_type=body.signal_type,
         conversation_ids=body.conversation_ids,
+        upload_id=body.upload_id,
     )

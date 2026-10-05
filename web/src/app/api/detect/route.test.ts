@@ -65,6 +65,7 @@ describe("POST /api/detect", () => {
   it("classifies the stored skip list and keeps the chats still waiting", async () => {
     const before = await readStore();
     before.llmSkippedConversationIds = ["conv_skip_a", "conv_skip_b"];
+    before.llmFailedConversationIds = ["conv_failed", "conv_skip_a"];
     await writeStore(before);
 
     const detectSpy = vi
@@ -89,7 +90,7 @@ describe("POST /api/detect", () => {
       before.messages,
       before.tenant.id,
       before.taxonomyOverrides,
-      { resumeIds: ["conv_skip_a", "conv_skip_b"] }
+      { resumeIds: ["conv_failed", "conv_skip_a", "conv_skip_b"] }
     );
 
     const after = await readStore();

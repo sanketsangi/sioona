@@ -13,12 +13,13 @@ from sqlalchemy import (
     Float,
     Index,
     Integer,
+    JSON,
     String,
     Text,
-    UniqueConstraint,
     Uuid,
     false,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -57,13 +58,10 @@ class SignalPrediction(Base):
 
     __tablename__ = "signal_predictions"
     __table_args__ = (
-        UniqueConstraint(
-            "tenant_id",
-            "conversation_id",
-            "signal_type",
-            name="uq_signal_predictions_tenant_conv_type",
-        ),
+        Index("uq_signal_predictions_active_tenant_conv_type", "tenant_id", "conversation_id", "signal_type",
+              unique=True, postgresql_where=text("active = true"), sqlite_where=text("active = 1")),
         Index("ix_signal_predictions_tenant_id", "tenant_id"),
+        Index("ix_prediction_tenant_active_id", "tenant_id", "active", "id"),
         Index("ix_signal_predictions_conversation_id", "conversation_id"),
         Index("ix_signal_predictions_signal_type", "signal_type"),
         Index("ix_signal_predictions_tenant_created", "tenant_id", "created_at"),
@@ -79,6 +77,8 @@ class SignalPrediction(Base):
         primary_key=True,
         default=uuid.uuid4,
     )
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    detection_run_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tenant_id: Mapped[str] = mapped_column(String, nullable=False)
     conversation_id: Mapped[str] = mapped_column(String, nullable=False)
     signal_type: Mapped[str] = mapped_column(String, nullable=False)
@@ -87,6 +87,7 @@ class SignalPrediction(Base):
     urgency: Mapped[str | None] = mapped_column(String, nullable=True)
     urgency_timeframe: Mapped[str | None] = mapped_column(String, nullable=True)
     mentioned_value_inr: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    commercial_value_evidence: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     acted: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
