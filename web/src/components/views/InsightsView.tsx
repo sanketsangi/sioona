@@ -19,7 +19,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { InsightsPartnerDemoAction } from "@/components/InsightsPartnerDemoAction";
+import { ArrowCircleUpIcon } from "@/components/icons/ArrowCircleUpIcon";
 import { VaultKeepSetRefresh } from "@/components/VaultKeepSetRefresh";
 import { InsightsQueueMetrics } from "@/components/InsightsQueueMetrics";
 // SignalScoreSummary stays off Insights — quiet footer trust line only.
@@ -71,7 +71,6 @@ import {
 import {
   isLivePartnerKeepSet,
   livePartnerVaultChrome,
-  resolveVaultActiveFile,
   scopeChatsToUploadedFile,
   vaultFileEmptyNext,
   vaultFileIsLoaded,
@@ -179,15 +178,6 @@ export function InsightsView({
     uploadedFileNames,
     store.conversations.length,
   );
-  const livePartner = livePartnerVaultChrome({
-    activeFile: resolveVaultActiveFile({
-      vaultFile,
-      lastUploadedFileName: store.pilot?.lastUploadedFileName,
-    }),
-    lastUploadedFileName: store.pilot?.lastUploadedFileName,
-    uploadedFileNames,
-    chatCount: store.conversations.length,
-  });
   const landingChats =
     !resolveVaultShowcaseKind(vaultFile) &&
     importedCount != null &&
@@ -672,11 +662,13 @@ export function InsightsView({
               <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                 Conversation that needs your attention
               </h2>
-              {showDemoActions && !livePartner ? (
-                <InsightsPartnerDemoAction
-                  lastUploadedFileName={store.pilot?.lastUploadedFileName}
-                />
-              ) : null}
+              <Link
+                href={viewHref("upload")}
+                className="btn-secondary shrink-0 rounded-[var(--radius-panel)] !h-9 !px-3.5"
+              >
+                <ArrowCircleUpIcon className="size-3.5 shrink-0" />
+                Upload & Detect
+              </Link>
             </div>
             {vaultShowcaseKind && vaultFile ? (
               <VaultShowcaseLoader

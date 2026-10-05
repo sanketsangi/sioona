@@ -294,7 +294,10 @@ function VaultNav({
     ) {
       return false;
     }
-    if (livePartner && group.icon !== "upload") return false;
+    // No user files yet: Partner Demo only. Sample and Uploaded Chats stay off.
+    if (catalogNames.length === 0 && group.icon !== "partner") return false;
+    // A loaded live export keeps Sample hidden. Partner Demo stays.
+    if (livePartner && group.icon === "sample") return false;
     return true;
   });
 
@@ -351,27 +354,31 @@ function VaultNav({
     <SidebarGroup>
       <SidebarGroupLabel>Vault</SidebarGroupLabel>
       <SidebarMenu>
-        {groups.map((group) => (
-          <Collapsible
-            key={group.title}
-            asChild
-            defaultOpen
-            className="group/collapsible"
-          >
-            <SidebarMenuItem>
-              <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={group.title}>
-                  <VaultGroupIcon kind={group.icon} />
-                  <span>{group.title}</span>
-                  <CaretRight
-                    weight="regular"
-                    aria-hidden
-                    className="ml-auto transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/collapsible:rotate-90"
-                  />
-                </SidebarMenuButton>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                {group.files.length > 0 ? (
+        {groups.map((group) => {
+          // Partner Demo stays expanded, including on Insights.
+          const forcedOpen = group.icon === "partner";
+          return (
+            <Collapsible
+              key={group.title}
+              asChild
+              className="group/collapsible"
+              {...(forcedOpen
+                ? { open: true, onOpenChange: () => undefined }
+                : { defaultOpen: true })}
+            >
+              <SidebarMenuItem>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton tooltip={group.title}>
+                    <VaultGroupIcon kind={group.icon} />
+                    <span>{group.title}</span>
+                    <CaretRight
+                      weight="regular"
+                      aria-hidden
+                      className="ml-auto transition-transform duration-200 motion-reduce:transition-none group-data-[state=open]/collapsible:rotate-90"
+                    />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
                   <SidebarMenuSub>
                     {group.files.map((file) => (
                       <SidebarMenuSubItem key={file.name}>
@@ -405,19 +412,11 @@ function VaultNav({
                       </SidebarMenuSubItem>
                     ))}
                   </SidebarMenuSub>
-                ) : (
-                  <SidebarMenuSub>
-                    <SidebarMenuSubItem>
-                      <span className="flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-xs text-sio-fg-muted">
-                        No uploads yet
-                      </span>
-                    </SidebarMenuSubItem>
-                  </SidebarMenuSub>
-                )}
-              </CollapsibleContent>
-            </SidebarMenuItem>
-          </Collapsible>
-        ))}
+                </CollapsibleContent>
+              </SidebarMenuItem>
+            </Collapsible>
+          );
+        })}
       </SidebarMenu>
     </SidebarGroup>
   );

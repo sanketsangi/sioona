@@ -90,6 +90,18 @@ const ARROW_CIRCLE_UP_MASK = "M7\\.25%2010\\.75V11\\.5H8\\.75V10\\.75V6\\.56066"
 const FOLDER_MASK = "M13\\.5%204V6H2\\.5V2\\.5H6L7\\.33333%203\\.5";
 const FILE_MASK = "M14\\.5%2013\\.5V6\\.5V5\\.41421";
 
+/** Partner Demo folder is expanded and Zerodha_batch_02 is inside it. */
+function partnerDemoFolderOpen(vault: string) {
+  const fileAt = vault.indexOf(`title="${ZERODHA_BATCH02_SAMPLE_NAME}"`);
+  if (fileAt < 0) return false;
+  const before = vault.slice(0, fileAt);
+  const openAt = before.lastIndexOf('data-state="open"');
+  const closedAt = before.lastIndexOf('data-state="closed"');
+  return (
+    before.lastIndexOf("Partner Demo") > -1 && openAt > closedAt && openAt > -1
+  );
+}
+
 function vaultSubButtonActive(html: string, filename: string) {
   return new RegExp(
     `data-sidebar="menu-sub-button"[^>]*data-active="true"[^>]*title="${filename}"|title="${filename}"[^>]*data-sidebar="menu-sub-button"[^>]*data-active="true"`,
@@ -112,82 +124,81 @@ describe("AppSidebar Vault", () => {
     expect(vault).toBeGreaterThan(separator);
   });
 
-  it("always lists Sample, Partner Demo, and Uploaded Chats", () => {
+  it("defaults to Partner Demo and Zerodha_batch_02 only", () => {
     const html = renderSidebar();
     const vault = vaultSection(html);
-    expect(vault).toContain("Sample");
+    expect(vault).not.toContain("Sample");
     expect(vault).toContain("Partner Demo");
-    expect(vault).toContain("Uploaded Chats");
-    expect(vault).not.toContain("Uploads");
-    expect(vault).toContain("No uploads yet");
-    expect(vault).toMatch(
-      /data-sidebar="menu-sub"[^>]*>[\s\S]*No uploads yet/,
-    );
-    expect(vault).toContain(GROWW_SHOWCASE_SAMPLE_NAME);
+    expect(vault).not.toContain("Uploaded Chats");
+    expect(vault).not.toContain("No files uploaded");
+    expect(vault).not.toContain("No uploads yet");
     expect(vault).toContain(ZERODHA_BATCH02_SAMPLE_NAME);
-    expect(vault).toContain(`title="${GROWW_SHOWCASE_SAMPLE_NAME}"`);
+    expect(vault).not.toContain(GROWW_SHOWCASE_SAMPLE_NAME);
+    expect(vault).not.toContain(`title="${GROWW_SHOWCASE_SAMPLE_NAME}"`);
     expect(vault).toContain(`title="${ZERODHA_BATCH02_SAMPLE_NAME}"`);
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
     expect(vault).toContain('translate="no"');
-    expect(maskPathCount(vault, FILE_MASK)).toBe(2);
-    expect(maskPathCount(vault, FOLDER_MASK)).toBe(1);
+    expect(maskPathCount(vault, FILE_MASK)).toBe(1);
+    expect(maskPathCount(vault, FOLDER_MASK)).toBe(0);
     expect(maskPathCount(vault, PLAY_CIRCLE_MASK)).toBe(1);
-    expect(maskPathCount(vault, ARROW_CIRCLE_UP_MASK)).toBe(1);
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(3);
+    expect(maskPathCount(vault, ARROW_CIRCLE_UP_MASK)).toBe(0);
+    // Brand + Workspace Insights still open Sample. The vault row does not.
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
     expect(vault).not.toContain('href="/?view=upload"');
-    expect(html).not.toContain("No file");
-    expect(html).not.toContain("No files");
-    const sample = vault.indexOf("Sample");
-    const partner = vault.indexOf("Partner Demo");
-    const uploadChats = vault.indexOf("Uploaded Chats");
-    expect(partner).toBeGreaterThan(sample);
-    expect(uploadChats).toBeGreaterThan(partner);
-    expect(vault.lastIndexOf("Uploaded Chats")).toBe(uploadChats);
   });
 
   it("hides Sample and Partner Demo when those actions are off", () => {
     const html = renderSidebar(undefined, null, false);
     const vault = vaultSection(html);
-    expect(vault).toContain("Uploaded Chats");
+    expect(vault).not.toContain("Uploaded Chats");
     expect(vault).not.toContain("Partner Demo");
     expect(vault).not.toContain(ZERODHA_BATCH02_SAMPLE_NAME);
     expect(vault).not.toContain(`title="${GROWW_SHOWCASE_SAMPLE_NAME}"`);
-    expect(vault).toContain("No uploads yet");
+    expect(vault).not.toContain("No files uploaded");
   });
 
   it("treats a whitespace-only filename as empty catalog state", () => {
     const html = renderSidebar("   ");
     const vault = vaultSection(html);
     expect(vault).toContain("Vault");
-    expect(vault).toContain(GROWW_SHOWCASE_SAMPLE_NAME);
+    expect(vault).not.toContain(GROWW_SHOWCASE_SAMPLE_NAME);
     expect(vault).toContain(ZERODHA_BATCH02_SAMPLE_NAME);
-    expect(vault).toContain("Uploaded Chats");
-    expect(vault).not.toContain("Uploads");
-    expect(vault).toContain("No uploads yet");
-    // Brand + Workspace Insights + Vault Sample share the Sample href.
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(3);
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
+    expect(vault).not.toContain("Uploaded Chats");
+    expect(vault).not.toContain("No files uploaded");
+    // Brand + Workspace Insights still open Sample. The vault row does not.
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
-    // App-start default: Sample active when keep-set is empty.
-    expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(true);
+    expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
+    expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
   });
 
   it("links Workspace Insights and brand to Sample by default", () => {
     const html = renderSidebar();
     const sampleHref = defaultInsightsHref().replace(/&/g, "&amp;");
     expect(html).toContain(`href="${sampleHref}"`);
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(3);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
   });
 
   it("marks Groww active when that pack is the last upload, including .csv", () => {
     const html = renderSidebar("Groww_batch_02.csv");
-    expect(html).toContain('data-sidebar="menu-sub-button"');
-    expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(true);
+    const vault = vaultSection(html);
+    expect(vault).not.toContain("Sample");
+    expect(vault).not.toContain("Uploaded Chats");
+    expect(vault).toContain("Partner Demo");
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
+    expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
     expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(3);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
   });
 
   it("marks Zerodha active when Partner Demo is the last upload", () => {
     const html = renderSidebar(ZERODHA_BATCH02_SAMPLE_NAME);
+    const vault = vaultSection(html);
+    expect(vault).not.toContain("Sample");
+    expect(vault).not.toContain("Uploaded Chats");
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
     expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(true);
     expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
@@ -213,7 +224,12 @@ describe("AppSidebar Vault", () => {
     expect(html).not.toContain("uploadedFileNames");
     expect(html).not.toContain("uploadedfilenames");
     expect(vault).not.toContain("Sample");
-    expect(vault).not.toContain("Partner Demo");
+    expect(vault).toContain("Partner Demo");
+    expect(vault).toContain(`title="${ZERODHA_BATCH02_SAMPLE_NAME}"`);
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
+    expect(vault.indexOf(`title="${ZERODHA_BATCH02_SAMPLE_NAME}"`)).toBeLessThan(
+      vault.indexOf("Uploaded Chats"),
+    );
     expect(vault).toContain('title="week-a.csv"');
     expect(vault).toContain(`title="${longName}"`);
     expect(vault).toContain('title="week-b.csv"');
@@ -226,6 +242,8 @@ describe("AppSidebar Vault", () => {
     );
     expect(vaultSubButtonActive(html, "week-b.csv")).toBe(true);
     expect(vaultSubButtonActive(html, "week-a.csv")).toBe(false);
+    expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
+    expect(vault).not.toContain("No files uploaded");
     expect(vault).not.toContain("No uploads yet");
   });
 
@@ -255,21 +273,35 @@ describe("AppSidebar Vault", () => {
     expect(vault).toContain("user-upload.csv");
     expect(vault).toContain('title="user-upload.csv"');
     expect(vault).not.toContain("Sample");
-    expect(vault).not.toContain("Partner Demo");
-    expect(maskPathCount(vault, FILE_MASK)).toBe(1);
+    expect(vault).toContain("Partner Demo");
+    expect(vault).toContain(`title="${ZERODHA_BATCH02_SAMPLE_NAME}"`);
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
+    expect(maskPathCount(vault, FILE_MASK)).toBe(2);
+    expect(maskPathCount(vault, FOLDER_MASK)).toBe(0);
+    expect(maskPathCount(vault, PLAY_CIRCLE_MASK)).toBe(1);
     expect(vaultSubButtonActive(html, "user-upload.csv")).toBe(true);
+    expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
+    expect(vault.indexOf(`title="${ZERODHA_BATCH02_SAMPLE_NAME}"`)).toBeLessThan(
+      vault.indexOf("Uploaded Chats"),
+    );
     expect(vault.indexOf("user-upload.csv")).toBeGreaterThan(
       vault.indexOf("Uploaded Chats"),
     );
+    expect(vault).not.toContain("No files uploaded");
     expect(vault).not.toContain("No uploads yet");
     expect(vaultFileHrefCount(html, "user-upload.csv")).toBe(3);
+    expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(0);
   });
 
-  it("keeps Sample and Partner Demo when the weekly ?file= is not the loaded store", () => {
+  it("keeps Partner Demo only when a weekly ?file= is not an uploaded file", () => {
     const html = renderSidebar("Groww_batch_02", "Zerodha_week_7_batch_01.json");
     const vault = vaultSection(html);
-    expect(vault).toContain("Sample");
+    expect(vault).not.toContain("Sample");
+    expect(vault).not.toContain("Uploaded Chats");
     expect(vault).toContain("Partner Demo");
+    expect(partnerDemoFolderOpen(vault)).toBe(true);
+    expect(vault).toContain(ZERODHA_BATCH02_SAMPLE_NAME);
   });
 
   it("prefers ?file= over last upload for the active pill", () => {

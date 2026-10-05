@@ -328,17 +328,19 @@ describe("InsightsView pending landing empty Follow-up", () => {
     expect(html).toContain("Conversation that needs your attention");
     expect(html).not.toContain("Shadow Mode — Confirm or correct detections");
     expect(html).not.toContain('aria-label="Dismiss Shadow Mode tip"');
-    expect(html).toContain("Run Partner Demo");
-    expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
+    expect(html).toContain("Upload &amp; Detect");
+    expect(html).toContain("btn-secondary shrink-0 rounded-[var(--radius-panel)]");
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain("Run Partner Demo");
     expect(html).toContain("Queue metrics");
     const titleAt = html.indexOf("Conversation that needs your attention");
-    const demoAt = html.indexOf("Run Partner Demo");
+    const uploadAt = html.indexOf("Upload &amp; Detect");
     const metricsAt = html.indexOf('aria-label="Queue metrics"');
     const filtersAt = html.indexOf("Add Filter");
     const tableAt = html.indexOf("Pending signal 1");
     expect(titleAt).toBeGreaterThan(-1);
-    expect(demoAt).toBeGreaterThan(titleAt);
-    expect(metricsAt).toBeGreaterThan(demoAt);
+    expect(uploadAt).toBeGreaterThan(titleAt);
+    expect(metricsAt).toBeGreaterThan(uploadAt);
     expect(filtersAt).toBeGreaterThan(metricsAt);
     expect(tableAt).toBeGreaterThan(filtersAt);
     expect(html).toContain("Pending signal 1");
@@ -1361,6 +1363,8 @@ describe("InsightsView Neon pending overlay", () => {
       "",
     );
     expect(html).not.toContain("Pending signal 1");
+    expect(html).toContain('aria-label="Queue metrics"');
+    expect(html).toContain("Conversations");
     expect(html).toContain("No Signals Yet");
     expect(html).toContain("Conversation that needs your attention");
     expect(visible).not.toContain("Finding signals…");
@@ -1369,6 +1373,89 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).not.toContain("taking longer than expected");
     expect(html).not.toContain("animate-spin");
     expect(html).not.toMatch(/href="\/\?view=upload"[^>]*>Cancel/);
+  });
+
+  it("keeps queue metrics open when the Partner Demo pack is loaded", () => {
+    const pending = makePendingSignals(2);
+    const store = storeFromSignals(pending);
+    for (const conversation of store.conversations) {
+      conversation.sourceFile = "Zerodha_batch_02";
+    }
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "Zerodha_batch_02",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_batch_02",
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(html).toContain('aria-label="Queue metrics"');
+    expect(html).toContain("Conversations");
+    expect(html).toContain("Pending signal 1");
+    expect(html).toContain("Pending signal 2");
+    expect(html).not.toContain("Partner Demo is not loaded");
+    expect(store.conversations).toHaveLength(2);
+    expect(store.conversations[0]?.sourceFile).toBe("Zerodha_batch_02");
+  });
+
+  it("keeps uploaded chats when Partner Demo is selected on Insights", () => {
+    const pending = makePendingSignals(1);
+    const store = storeFromSignals(pending);
+    store.conversations[0].sourceFile = "week.csv";
+    store.pilot = {
+      baselineOpportunities: 12,
+      lastUploadedFileName: "week.csv",
+    };
+    const html = renderToStaticMarkup(
+      createElement(InsightsView, {
+        store,
+        statusFilter: "new",
+        typeFilter: "all",
+        page: 1,
+        vaultFile: "Zerodha_batch_02",
+        uploadedFileNames: ["week.csv"],
+        needsReview: {
+          ok: true,
+          predictions: pending.map((s) => ({
+            id: s.backendSignalId!,
+            tenant_id: "tenant_demo",
+            conversation_id: s.conversationId,
+            signal_type: s.type,
+            confidence: s.score,
+            summary: s.summary,
+            created_at: s.createdAt,
+          })),
+        },
+        tenantSignals: { ok: true, rows: [] },
+        cadenceAction: cadenceReviews,
+      }),
+    );
+
+    expect(store.conversations).toHaveLength(1);
+    expect(store.conversations[0]?.sourceFile).toBe("week.csv");
+    expect(html).toContain('aria-label="Queue metrics"');
+    expect(html).toContain("Conversations");
+    expect(html).not.toContain("Pending signal 1");
   });
 
   it("keeps the normal empty queue while Sample seeds an empty keep-set", () => {
@@ -1587,7 +1674,9 @@ describe("InsightsView Neon pending overlay", () => {
     expect(html).toContain("Upload this week’s export");
     expect(html).not.toContain("keep-set");
     expect(html).not.toContain("Loading this week’s export");
-    expect(html).toContain("Run Partner Demo");
+    expect(html).toContain("Upload &amp; Detect");
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain("Run Partner Demo");
     expect(html).not.toContain("Second pass has more chats");
   });
 
@@ -1840,7 +1929,7 @@ describe("InsightsView Neon pending overlay", () => {
     expect(doneHtml).not.toContain("Other done only");
   });
 
-  it("keeps Run Partner Demo when keep-set is Groww (pack is not last upload)", () => {
+  it("shows Upload & Detect beside the heading when keep-set is Groww", () => {
     const pending = makePendingSignals(2);
     const store = storeFromSignals(pending);
     store.pilot = {
@@ -1870,8 +1959,12 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
 
-    expect(html).toContain("Run Partner Demo");
-    expect(html).toContain("btn-secondary rounded-[var(--radius-panel)]");
+    expect(html).toContain("Upload &amp; Detect");
+    expect(html).toContain("btn-secondary shrink-0 rounded-[var(--radius-panel)]");
+    expect(html).toContain('href="/?view=upload"');
+    expect(html).not.toContain("Run Partner Demo");
+    const titleAt = html.indexOf("Conversation that needs your attention");
+    expect(html.indexOf("Upload &amp; Detect")).toBeGreaterThan(titleAt);
     expect(html).toContain("Pending signal 1");
   });
 
@@ -1891,6 +1984,8 @@ describe("InsightsView Neon pending overlay", () => {
       }),
     );
     expect(html).not.toContain("Run Partner Demo");
+    expect(html).toContain("Upload &amp; Detect");
+    expect(html).toContain('href="/?view=upload"');
     expect(html).toContain("Conversation that needs your attention");
   });
 });

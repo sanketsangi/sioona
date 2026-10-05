@@ -86,7 +86,8 @@ export function defaultInsightsHref(
 
 /**
  * True when the loaded file is a partner export, not Sample or Partner Demo.
- * Serving Insights hides demo chrome on this path.
+ * Serving Insights hides Sample, Reset, and Run Partner Demo on this path.
+ * The Partner Demo vault row stays.
  */
 export function isLivePartnerKeepSet(
   lastUploadedFileName?: string | null,
@@ -225,10 +226,10 @@ export function vaultFileIsLoaded(
 }
 
 /**
- * Hide Sample / Partner Demo only when a non-showcase upload is loaded
- * (`chatCount > 0`). A weekly `?file=` that is not the loaded store, and a
- * filename with zero chats, leave those rows up. `activeFile` does not hide
- * them by itself.
+ * True when a non-showcase upload is loaded (`chatCount > 0`). Callers hide
+ * Sample, Reset, and Run Partner Demo. The Partner Demo vault row stays.
+ * A weekly `?file=` that is not the loaded store, and a filename with zero
+ * chats, leave Sample up. `activeFile` does not hide Sample by itself.
  */
 export function livePartnerVaultChrome(opts: {
   activeFile?: string | null;
