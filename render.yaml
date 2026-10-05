@@ -1,0 +1,17 @@
+# Defines only the ingestion recovery cron. The existing sioona-api web service
+# is managed in the Render dashboard and is intentionally not declared here.
+services:
+  - type: cron
+    name: sioona-ingestion-recovery
+    runtime: python
+    rootDir: backend
+    # UTC. Uploads staged longer than --grace-seconds are retried in bounded batches;
+    # a non-zero exit marks the run failed when any recovery fails.
+    schedule: "*/10 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.recover_ingestions --limit 20 --grace-seconds 300
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        sync: false
