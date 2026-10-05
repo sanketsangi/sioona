@@ -153,7 +153,7 @@ function ReportDocument({
                 </blockquote> : <p className="mt-2 text-copy-14 text-sio-fg-subtle">Customer quote unavailable</p>}
                 <div className="mt-3">
                   {row.historical ? <p className="text-copy-14 text-sio-fg-subtle">
-                    Historical prediction · outcome editing unavailable. <a href="/?view=report" className="underline focus-visible:outline-2 focus-visible:outline-offset-2">Open current report</a>
+                    Historical prediction · outcome editing unavailable. <Link href="/?view=report" className="underline focus-visible:outline-2 focus-visible:outline-offset-2">Open current report</Link>
                   </p> : <RevenueLeakOutcomeButtons
                     signalId={row.signalId}
                     backendSignalId={row.backendSignalId}
