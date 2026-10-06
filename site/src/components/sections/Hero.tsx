@@ -8,7 +8,7 @@ export function Hero() {
       <div className="container-page">
         <div className="max-w-3xl">
           <p className="eyebrow">
-            Conversation Intelligence, In Shadow Mode
+            Conversation Intelligence
           </p>
           <h1 id="hero-title" className="text-heading-56 mt-4 text-sio-fg-base">
             See every revenue signal hiding in your customer chats.
@@ -21,14 +21,14 @@ export function Hero() {
             one first.
           </p>
           <div
-            className="rise mt-8 flex flex-col gap-3 sm:flex-row"
+            className="rise mt-8 flex flex-wrap items-center gap-3"
             style={{ ["--rise-delay" as string]: "160ms" }}
           >
-            <ButtonLink href="/contact" large>
+            <ButtonLink href="/contact" large className="w-fit rounded-full">
               Request A Pilot
               <ArrowRight size={16} weight="bold" aria-hidden />
             </ButtonLink>
-            <ButtonLink href="/how-it-works" variant="secondary" large>
+            <ButtonLink href="/how-it-works" variant="secondary" large className="w-fit rounded-full">
               See How It Works
             </ButtonLink>
           </div>

@@ -315,15 +315,6 @@ function InsightsDemo({ reduced }: { reduced: boolean }) {
           </div>
         </div>
       </div>
-      <figcaption className="mt-3 text-label-13 text-sio-fg-muted">
-        Sample conversation and illustrative data. Sioona detects, humans review, and nothing is sent to the customer.
-        <span className="sr-only">
-          {" "}
-          Animated preview: a new retention conversation arrives in the Insights queue, the transcript appears, the
-          phrase “I’ll close my account” is highlighted as the reason the signal fired, the signal gets a type and
-          score, a reviewer marks it Correct, and it moves to Acted.
-        </span>
-      </figcaption>
     </figure>
   );
 }

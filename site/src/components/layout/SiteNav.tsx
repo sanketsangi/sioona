@@ -90,27 +90,28 @@ export function SiteNav() {
         className="pointer-events-none absolute inset-0 border-b border-sio-border-base bg-sio-bg-nav opacity-0 transition-opacity duration-200 ease-sio data-[scrolled=true]:opacity-100"
       />
       <div className="container-page relative flex h-full items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-6">
-          <Logo />
-          <nav aria-label="Primary" className="hidden items-center gap-0.5 md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="nav-link"
-                aria-current={pathname === link.href ? "page" : undefined}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+        <Logo />
+        <nav
+          aria-label="Primary"
+          className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 md:flex"
+        >
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="nav-link"
+              aria-current={pathname === link.href ? "page" : undefined}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
         <div className="flex shrink-0 items-center gap-2">
           {siteConfig.appUrl ? <Link href={siteConfig.appUrl} className="btn-tertiary hidden md:inline-flex">
             Sign In
           </Link> : null}
-          <Link href="/contact" className="btn-primary hidden sm:inline-flex">
+          <Link href="/contact" className="btn-primary hidden rounded-full sm:inline-flex">
             Request A Pilot
           </Link>
           <button
@@ -162,7 +163,7 @@ export function SiteNav() {
             ))}
           </nav>
           <div className="mt-auto flex flex-col gap-2 pt-6">
-            <Link href="/contact" onClick={closeDrawer} className="btn-primary btn-lg">
+            <Link href="/contact" onClick={closeDrawer} className="btn-primary btn-lg rounded-full">
               Request A Pilot
             </Link>
             {siteConfig.appUrl ? <Link href={siteConfig.appUrl} onClick={closeDrawer} className="btn-secondary btn-lg">

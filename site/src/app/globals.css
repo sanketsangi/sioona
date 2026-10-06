@@ -659,15 +659,15 @@ html[data-drawer-open="true"] {
   animation: sio-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) var(--rise-delay, 0ms) both;
 }
 
-/* Bento hover: raise border contrast (inset ring), inner elements shift via utilities */
+/* Bento hover: #f2f1f0 fill (sio-bg-interactive-hover). Inner elements shift via utilities. */
 .bento-card {
-  transition-property: box-shadow;
+  transition-property: background-color;
   transition-duration: 150ms;
   transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 .bento-card:hover {
-  box-shadow: inset 0 0 0 1px var(--sio-border-strong);
+  background-color: var(--sio-bg-interactive-hover);
 }
 
 /* Keyboard hint: an inverse keycap fades in over the neutral one, then releases */

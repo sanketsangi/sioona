@@ -1,12 +1,8 @@
-import {
-  Anchor,
-  CheckCircle,
-  UserPlus,
-  TrendUp,
-  Warning,
-  XCircle,
-} from "@phosphor-icons/react/ssr";
+import { CheckCircle, Warning, XCircle } from "@phosphor-icons/react/ssr";
 import type { ComponentType } from "react";
+import { LeadIcon } from "@/components/icons/LeadIcon";
+import { RetentionIcon } from "@/components/icons/RetentionIcon";
+import { UpsellIcon } from "@/components/icons/UpsellIcon";
 
 export type SignalType = "lead" | "retention" | "upsell";
 export type SignalState = "pending" | "correct" | "incorrect" | "partial" | "acted";
@@ -17,10 +13,10 @@ export const signalTypeLabel: Record<SignalType, string> = {
   upsell: "Upsell",
 };
 
-const TYPE_ICON: Record<SignalType, ComponentType<{ size?: number; weight?: "regular" | "bold"; className?: string; "aria-hidden"?: boolean }>> = {
-  lead: UserPlus,
-  retention: Anchor,
-  upsell: TrendUp,
+const TYPE_ICON: Record<SignalType, ComponentType<{ className?: string }>> = {
+  lead: LeadIcon,
+  retention: RetentionIcon,
+  upsell: UpsellIcon,
 };
 
 /* Literal class names so the Tailwind scanner finds them. */
@@ -38,7 +34,7 @@ export function SignalTypeChip({ type, className = "" }: { type: SignalType; cla
   const Icon = TYPE_ICON[type];
   return (
     <span className={`${CHIP_SHELL} py-0.5 pl-1.5 pr-2.5 ${TYPE_CLASS[type]} ${className}`}>
-      <Icon size={14} weight="regular" aria-hidden />
+      <Icon className="size-3.5 shrink-0" />
       <span>{signalTypeLabel[type]}</span>
     </span>
   );
