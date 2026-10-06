@@ -21,12 +21,12 @@ export function FinalCta() {
               to go.
             </p>
           </RevealItem>
-          <RevealItem className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <ButtonLink href="/contact" large>
+          <RevealItem className="mt-8 flex flex-wrap items-center gap-3">
+            <ButtonLink href="/contact" large className="w-fit rounded-full">
               Request A Pilot
               <ArrowRight size={16} weight="bold" aria-hidden />
             </ButtonLink>
-            <ButtonLink href="/how-it-works" variant="secondary" large>
+            <ButtonLink href="/how-it-works" variant="secondary" large className="w-fit rounded-full">
               See How It Works
             </ButtonLink>
           </RevealItem>
