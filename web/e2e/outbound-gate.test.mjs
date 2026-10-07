@@ -14,6 +14,7 @@ for (const [runtime, command, source] of [
     assert.match(result.stdout, /"sent":\s*false/);
     assert.equal(result.status, 1, result.stderr);
     assert.match(result.stderr, /Outbound attempts blocked: 1/);
+    if (runtime === 'Node') assert.match(result.stderr, /192\.0\.2\.1:443/);
   });
 }
 

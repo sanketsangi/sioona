@@ -9,6 +9,15 @@ function deny() {
   fs.appendFileSync(audit, 'denied node\n');
   throw new Error('CB-02 outbound connection blocked');
 }
+function denyTcp(host, port) {
+  // Host and port are safe diagnostic metadata; never include paths or payloads.
+  fs.appendFileSync(audit, 'denied node\n');
+  const safeHost = typeof host === 'string' && /^[a-z0-9.:[\]-]+$/i.test(host)
+    ? host
+    : 'non-loopback-host';
+  const safePort = Number.isInteger(Number(port)) ? String(port) : 'unknown-port';
+  throw new Error(`CB-02 outbound connection blocked (${safeHost}:${safePort})`);
+}
 function local(host) {
   return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(host);
 }
@@ -22,7 +31,7 @@ net.Socket.prototype.connect = function (...args) {
   if (options.path || !options.port) return deny();
   // Resolve the approved name ourselves; do not trust DNS or a custom lookup.
   if (!options.host || options.host === 'localhost') options.host = '127.0.0.1';
-  if (!local(options.host)) return deny();
+  if (!local(options.host)) return denyTcp(options.host, options.port);
   options.lookup = (_name, _options, callback) => callback(new Error('CB-02 DNS disabled'));
   return connect.call(this, options, ...values.slice(1).filter(value => typeof value === 'function'));
 };
