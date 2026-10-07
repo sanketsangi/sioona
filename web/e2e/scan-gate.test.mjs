@@ -32,9 +32,9 @@ test("Gitleaks CI scans the repository and the canary fixture", () => {
   const workflow = fs.readFileSync(path.join(root, ".github/workflows/test.yml"), "utf8");
   const job = jobBlock(workflow, "gitleaks");
   assert.match(job, /name: Gitleaks/);
-  assert.match(job, /gitleaks\/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e/);
-  assert.match(job, /pull-requests: read/);
-  assert.match(job, /GITLEAKS_ENABLE_COMMENTS: false/);
+  assert.match(job, /gitleaks_8\.28\.0_linux_x64\.tar\.gz/);
+  assert.match(job, /gitleaks detect --source \. --config \.gitleaks\.toml --redact --no-banner/);
+  assert.doesNotMatch(job, /gitleaks-action/);
   assert.match(job, /secret-scan-fixture/);
   const allow = fs.readFileSync(path.join(root, ".gitleaks.toml"), "utf8");
   assert.match(allow, /secret-scan-fixture/);
