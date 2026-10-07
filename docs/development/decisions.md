@@ -121,6 +121,19 @@ After (approved and applied 2026-10-07):
 
 Line 77 stays: "Do not treat labeled P/R as the pilot go/no-go".
 
+## D1 — Identity approach
+
+Status: **approved**
+Date: 2026-10-08
+Approver: Sanket
+Choice: **Staged identity.** Postgres users and memberships are the role authority. Next.js mints a short-lived signed actor assertion for FastAPI. Password checks stay in web. A managed IdP can come later behind the same membership model. Do not start Auth0 in this decision.
+
+- Assertion: HS256, header `X-Sioona-Actor`, claims `iss=sioona-web`, `aud=sioona-api`, `sub`, `tid`, `iat`, `exp`, `jti`. Lifetime: 60 seconds. Stop sending `X-Sioona-Role`. Keep the service token.
+- Demo membership may read. It may not review or administer.
+- Recovery cron and live ingest each get a named service principal with an allowed-operation list, not an admin role.
+- Rollout: `SIOONA_ACTOR_AUTH=off|shadow|enforce`. Production enforce waits for a clean shadow window.
+- Key rotation procedure — **Proposed:** one current HMAC key plus one previous key accepted only during rotation, changed by a human environment update.
+
 ## D7 — Python lock tool
 
 Status: **approved**
