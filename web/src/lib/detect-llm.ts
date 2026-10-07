@@ -149,7 +149,13 @@ export type LlmClassifyFn = (input: {
 }) => Promise<LlmClassification | null>;
 
 /** Why a Groq call did not return a classification. */
-export type LlmFailureKind = "key" | "model" | "timeout" | "shape" | "quota";
+export type LlmFailureKind =
+  | "key"
+  | "model"
+  | "timeout"
+  | "shape"
+  | "quota"
+  | "ledger";
 
 export class LlmCallFailed extends Error {
   readonly kind: LlmFailureKind | null;
@@ -259,8 +265,13 @@ export type HybridDetectOptions = {
    * before any other zero-signal miss.
    */
   resumeIds?: readonly string[];
-  /** One event per provider fetch. Production uses the no-op sink. */
+  /** One event per provider fetch. Production uses the buffered ledger sink. */
   attemptSink?: AttemptSink;
+  /**
+   * When set, skip the LLM pass after heuristics (ledger preflight failed).
+   * Records `llmFailure` without making provider calls.
+   */
+  skipLlmReason?: Extract<LlmFailureKind, "ledger">;
 };
 
 function emptyStats(enabled: boolean): LlmPassStats {
@@ -924,6 +935,12 @@ export async function applyLlmSecondPass(
   if (!enabled) {
     return { signals: heuristicSignals, llm: emptyStats(false) };
   }
+  if (options?.skipLlmReason === "ledger" && !classify) {
+    return {
+      signals: heuristicSignals,
+      llm: { ...emptyStats(true), llmFailure: "ledger" },
+    };
+  }
 
   const byConversation = new Map<string, Message[]>();
   for (const message of messages) {
@@ -1040,6 +1057,12 @@ export async function applyLlmPrimaryPass(
   const enabled = Boolean(classify) || isDetectLlmEnabled();
   if (!enabled) {
     return { signals: heuristicSignals, llm: emptyStats(false) };
+  }
+  if (options?.skipLlmReason === "ledger" && !classify) {
+    return {
+      signals: heuristicSignals,
+      llm: { ...emptyStats(true), llmFailure: "ledger" },
+    };
   }
 
   const byConversation = new Map<string, Message[]>();

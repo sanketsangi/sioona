@@ -40,6 +40,7 @@ def test_postgres_fresh_and_existing_schema_upgrade(prior, monkeypatch):
         assert "ix_upload_recovery_scan" in {index["name"] for index in schema.get_indexes("uploads")}
         assert "ix_prediction_tenant_active_id" in {index["name"] for index in schema.get_indexes("signal_predictions")}
         assert_membership_schema(schema)
+        assert_inference_schema(schema)
         with Session(engine) as db:
             db.add(Conversation(tenant_id="a", conversation_id="c1", channel="upload", started_at=datetime.now(timezone.utc)))
             db.commit()
@@ -73,6 +74,7 @@ def test_membership_upgrade_from_empty_and_prior_head(prior, monkeypatch):
             assert "memberships" not in set(inspect(engine).get_table_names())
         command.upgrade(cfg, "head")
         assert_membership_schema(inspect(engine))
+        assert_inference_schema(inspect(engine))
         with engine.begin() as conn:
             conn.execute(text(
                 "INSERT INTO workspaces (tenant_id, name) VALUES ('tenant_a', 'A')"
@@ -89,6 +91,29 @@ def test_membership_upgrade_from_empty_and_prior_head(prior, monkeypatch):
                     "INSERT INTO memberships (tenant_id, user_id, role) "
                     "VALUES ('tenant_a', '4f79ac56-3a83-5f2a-b143-dafc406b7c28', 'admin')"
                 ))
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+@pytest.mark.parametrize("prior", [None, "020_workspaces_memberships"])
+def test_inference_upgrade_from_empty_and_prior_head(prior, monkeypatch):
+    """021 is additive. Empty and 020 both reach the ledger constraints."""
+    assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"
+    engine = create_engine(URL)
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    monkeypatch.setenv("DATABASE_URL", URL)
+    from app.config import get_settings
+    get_settings.cache_clear()
+    try:
+        cfg = Config("alembic.ini")
+        if prior:
+            command.upgrade(cfg, prior)
+            assert "inference_attempts" not in set(inspect(engine).get_table_names())
+        command.upgrade(cfg, "head")
+        assert_inference_schema(inspect(engine))
     finally:
         get_settings.cache_clear()
         engine.dispose()
@@ -184,6 +209,39 @@ def test_postgres_actor_read_mutate_and_revoke(monkeypatch):
         app.dependency_overrides.clear()
         get_settings.cache_clear()
         engine.dispose()
+
+
+def assert_inference_schema(schema):
+    assert "inference_attempts" in set(schema.get_table_names())
+    columns = {column["name"] for column in schema.get_columns("inference_attempts")}
+    assert {
+        "tenant_id",
+        "attempt_id",
+        "usage_status",
+        "cost_status",
+        "input_tokens",
+        "detection_run_id",
+    } <= columns
+    forbidden = {"prompt", "transcript", "content", "quote", "message", "body", "evidence", "summary"}
+    assert columns.isdisjoint(forbidden)
+    uniques = schema.get_unique_constraints("inference_attempts")
+    assert any(
+        item["name"] == "uq_inference_attempts_tenant_attempt"
+        or set(item["column_names"]) == {"tenant_id", "attempt_id"}
+        for item in uniques
+    )
+    checks = {item["name"] for item in schema.get_check_constraints("inference_attempts")}
+    assert {
+        "ck_inference_attempts_status",
+        "ck_inference_attempts_usage_status",
+        "ck_inference_attempts_cost_status",
+        "ck_inference_attempts_tokens_nonnegative",
+    } <= checks
+    indexes = {index["name"] for index in schema.get_indexes("inference_attempts")}
+    assert {
+        "ix_inference_attempts_tenant_started",
+        "ix_inference_attempts_tenant_run",
+    } <= indexes
 
 
 def assert_membership_schema(schema):

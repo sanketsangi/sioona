@@ -1,9 +1,7 @@
 import { promises as fs } from "fs";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
-import {
-  runHybridDetection,
-  type LlmPassStats,
-} from "./detect-llm";
+import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
+import type { LlmPassStats } from "./detect-llm";
 import { toStoreRecords } from "./ingest";
 import {
   DEMO_BASELINE_NOTE,
@@ -80,7 +78,7 @@ async function loadShowcaseJsonIntoStore(
     stableIds: true,
   });
   const report = options.onProgress;
-  const { signals, llm } = await runHybridDetection(
+  const { signals, llm } = await runHybridDetectionWithLedger(
     conversations,
     messages,
     tenantId,

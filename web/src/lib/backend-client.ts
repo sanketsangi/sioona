@@ -858,6 +858,7 @@ export interface BackendTenantDataWipeResult {
   pilot_settings: number;
   taxonomy_overrides?: number;
   supervised_actions?: number;
+  inference_attempts?: number;
 }
 
 /**
@@ -996,6 +997,143 @@ export async function publishDetectionRun(tenantId: string, runId: string, conve
     `/v1/tenants/${encodeURIComponent(tenantId)}/detection-runs/${encodeURIComponent(runId)}`, {
       method: "POST", body: JSON.stringify({ conversations }), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
     });
+}
+
+export async function preflightInferenceLedger(
+  tenantId: string
+): Promise<{ ok: boolean }> {
+  return backendFetch<{ ok: boolean }>(
+    tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/inference-attempts/preflight`,
+    { method: "GET", timeoutMs: BACKEND_FETCH_TIMEOUT_MS }
+  );
+}
+
+export type BackendInferenceAttemptIn = {
+  attempt_id: string;
+  logical_operation_id: string;
+  attempt_ordinal: number;
+  tenant_id: string;
+  conversation_id?: string;
+  detection_run_id?: string;
+  job_id?: string;
+  stage: string;
+  route_version: string;
+  provider: string;
+  model: string;
+  prompt_version: string;
+  status: string;
+  error_category?: string;
+  http_status?: number;
+  provider_request_id?: string;
+  usage_status: string;
+  input_tokens?: number | null;
+  cached_input_tokens?: number | null;
+  output_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  latency_ms?: number | null;
+  started_at: string;
+  finished_at?: string | null;
+};
+
+export async function flushInferenceAttempts(
+  tenantId: string,
+  attempts: import("./ai/types").InferenceAttempt[]
+): Promise<{ accepted: number; inserted: number; unchanged: number }> {
+  const body: { attempts: BackendInferenceAttemptIn[] } = {
+    attempts: attempts.map((row) => ({
+      attempt_id: row.attemptId,
+      logical_operation_id: row.logicalOperationId,
+      attempt_ordinal: row.attemptOrdinal,
+      tenant_id: row.tenantId,
+      ...(row.conversationId ? { conversation_id: row.conversationId } : {}),
+      ...(row.detectionRunId ? { detection_run_id: row.detectionRunId } : {}),
+      stage: row.stage,
+      route_version: row.routeVersion,
+      provider: row.provider,
+      model: row.model,
+      prompt_version: row.promptVersion,
+      status: row.status,
+      ...(row.errorCategory ? { error_category: row.errorCategory } : {}),
+      ...(row.httpStatus != null ? { http_status: row.httpStatus } : {}),
+      ...(row.providerRequestId
+        ? { provider_request_id: row.providerRequestId }
+        : {}),
+      usage_status: row.usage.status,
+      ...(row.usage.status === "reported"
+        ? {
+            input_tokens: row.usage.inputTokens,
+            cached_input_tokens: row.usage.cachedInputTokens,
+            output_tokens: row.usage.outputTokens,
+            reasoning_tokens: row.usage.reasoningTokens,
+          }
+        : {}),
+      latency_ms: row.latencyMs,
+      started_at: row.startedAt,
+      finished_at: row.finishedAt,
+    })),
+  };
+  return backendFetch<{
+    accepted: number;
+    inserted: number;
+    unchanged: number;
+  }>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/inference-attempts`, {
+    method: "POST",
+    body: JSON.stringify(body),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
+}
+
+export async function getInferenceUsage(
+  tenantId: string,
+  opts: {
+    from: string;
+    to: string;
+    groupBy?: "day" | "model" | "stage" | "run";
+  }
+) {
+  const params = new URLSearchParams({
+    from: opts.from,
+    to: opts.to,
+    group_by: opts.groupBy ?? "day",
+  });
+  return backendFetch<{
+    tenant_id: string;
+    group_by: string;
+    buckets: Array<{
+      key: string;
+      attempts: number;
+      reported_input_tokens: number | null;
+      reported_output_tokens: number | null;
+      unknown_usage_count: number;
+      estimated_cost_usd: string | null;
+      unknown_cost_count: number;
+    }>;
+  }>(
+    tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/inference-usage?${params}`,
+    { method: "GET" }
+  );
+}
+
+export async function getDetectionRunInference(
+  tenantId: string,
+  runId: string
+) {
+  return backendFetch<{
+    tenant_id: string;
+    detection_run_id: string;
+    attempts: number;
+    reported_input_tokens: number | null;
+    reported_output_tokens: number | null;
+    unknown_usage_count: number;
+    estimated_cost_usd: string | null;
+    unknown_cost_count: number;
+  }>(
+    tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/detection-runs/${encodeURIComponent(runId)}/inference`,
+    { method: "GET" }
+  );
 }
 
 export async function publishIngestion(tenantId: string, uploadId: string, input: {

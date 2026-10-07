@@ -13,6 +13,7 @@ const LLM_FAILURE_KINDS = new Set<LlmFailureKind>([
   "timeout",
   "shape",
   "quota",
+  "ledger",
 ]);
 
 export function parseLlmPassStats(raw: unknown): LlmPassStats | null {
@@ -44,7 +45,10 @@ export function parseLlmPassStats(raw: unknown): LlmPassStats | null {
     added: Math.max(0, Math.floor(added)),
     failed: Math.max(0, Math.floor(failed)),
     skipped: Math.max(0, Math.floor(skipped)),
-    ...(llmFailure && Math.floor(failed) > 0 ? { llmFailure } : {}),
+    ...(llmFailure &&
+    (Math.floor(failed) > 0 || llmFailure === "ledger")
+      ? { llmFailure }
+      : {}),
   };
 }
 
@@ -91,7 +95,9 @@ export function llmPassFailureNotice(input: {
             ? "The second pass timed out."
             : input.failure === "shape"
               ? "Groq’s reply could not be read."
-              : "The second pass failed.";
+              : input.failure === "ledger"
+                ? "The inference ledger was unreachable, so the model pass was skipped."
+                : "The second pass failed.";
   const count =
     input.signalCount != null && input.signalCount > 0
       ? input.signalCount
@@ -137,13 +143,18 @@ export function llmSkipResumeNotice(
 export function llmQueryExtras(
   stats: LlmPassStats | null | undefined
 ): Record<string, string | null> {
-  if (!stats?.enabled || stats.attempted <= 0) {
+  if (!stats?.enabled) {
+    return { llmAdded: null, llmFailed: null, llmFailure: null };
+  }
+  if (stats.attempted <= 0 && stats.llmFailure !== "ledger") {
     return { llmAdded: null, llmFailed: null, llmFailure: null };
   }
   return {
     llmAdded: stats.added > 0 ? String(stats.added) : null,
     llmFailed: stats.failed > 0 ? String(stats.failed) : null,
     llmFailure:
-      stats.failed > 0 && stats.llmFailure ? stats.llmFailure : null,
+      stats.llmFailure === "ledger" || (stats.failed > 0 && stats.llmFailure)
+        ? stats.llmFailure ?? null
+        : null,
   };
 }

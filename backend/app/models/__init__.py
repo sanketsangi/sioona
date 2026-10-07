@@ -3,6 +3,14 @@
 from app.models.upload import Upload, UploadConversation
 from app.models.pilot_request import PilotRequest
 from app.models.detection_run import DetectionRun
+from app.models.inference_attempt import (
+    COST_STATUSES,
+    FINALIZED_INFERENCE_STATUSES,
+    INFERENCE_STAGES,
+    INFERENCE_STATUSES,
+    USAGE_STATUSES,
+    InferenceAttempt,
+)
 from app.models.base import Base
 from app.models.conversation import Conversation
 from app.models.message import (
@@ -82,4 +90,10 @@ __all__ = [
     "SupervisedActionDecision",
     "SignalPrediction",
     "TaxonomyOverride",
+    "COST_STATUSES",
+    "FINALIZED_INFERENCE_STATUSES",
+    "INFERENCE_STAGES",
+    "INFERENCE_STATUSES",
+    "USAGE_STATUSES",
+    "InferenceAttempt",
 ]

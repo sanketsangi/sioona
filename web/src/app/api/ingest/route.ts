@@ -4,7 +4,7 @@ import { runWithTenant } from "@/lib/tenant-context";
 import { finalizePublishedUpload } from "@/lib/finalize-published-upload";
 import { publishAtomicIngest } from "@/lib/publish-atomic-ingest";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
-import { runHybridDetection } from "@/lib/detect-llm";
+import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import {
   parseIngestDocument,
   toStoreRecords,
@@ -275,7 +275,7 @@ export async function POST(request: Request) {
 
       const partner = store.tenant.id !== "tenant_demo";
       const [{ signals: newSignals, llm }] = await Promise.all([
-        runHybridDetection(
+        runHybridDetectionWithLedger(
           ingestedConversations,
           ingestedMessages,
           store.tenant.id,
