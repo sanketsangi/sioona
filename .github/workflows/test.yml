@@ -141,8 +141,10 @@ jobs:
         working-directory: web
         run: |
           npm ci
-          # npm/cli#4828: lockfile from macOS omits the Linux Rollup optional binary.
+          # npm/cli#4828: a macOS lockfile omits some Linux optional binaries.
+          # Next otherwise downloads the missing SWC package from registry.npmjs.org.
           npm install --no-save "@rollup/rollup-linux-x64-gnu@$(node -p "require('rollup/package.json').version")"
+          npm install --no-save "@next/swc-linux-x64-gnu@$(node -p "require('next/package.json').version")"
           npx playwright install --with-deps chromium
       - name: Outbound guard regression tests
         working-directory: web

@@ -24,6 +24,7 @@ test("E2E CI job uses CI Postgres, migrations, and heuristics-only mode", () => 
   assert.match(e2e, /DETECT_LLM: "0"/);
   assert.doesNotMatch(e2e, /GROQ_API_KEY/);
   assert.match(e2e, /npm run e2e/);
+  assert.match(e2e, /@next\/swc-linux-x64-gnu/);
 
   const config = fs.readFileSync(path.join(root, "web/playwright.config.ts"), "utf8");
   assert.match(config, /sioona_migration_test/);
