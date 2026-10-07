@@ -150,7 +150,7 @@ jobs:
         working-directory: web
         env:
           CB02_TEST_OS_GUARD: "1"
-        run: node --test e2e/ci-gate.test.mjs e2e/outbound-gate.test.mjs
+        run: node --test e2e/ci-gate.test.mjs e2e/outbound-gate.test.mjs e2e/publish-gate.test.mjs
       - name: Upload, review, persisted decision
         working-directory: web
         env:
@@ -169,10 +169,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Install gitleaks
+      - name: Install gitleaks 8.28.0
         run: |
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz" \
-            | tar -xz -C /usr/local/bin gitleaks
+          version=8.28.0
+          archive="gitleaks_${version}_linux_x64.tar.gz"
+          curl -sSfL -o "$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${version}/${archive}"
+          echo "a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb  ${archive}" | sha256sum -c
+          tar -xzf "$archive" -C /usr/local/bin gitleaks
+          gitleaks version
       - uses: actions/setup-node@v7
         with:
           node-version: "22"

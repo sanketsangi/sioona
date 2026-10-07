@@ -41,6 +41,10 @@ test("upload review spec persists Correct and approval with no provider or outbo
   assert.match(spec, /route\.abort\(\)/);
   assert.match(spec, /expect\(blocked, blocked\.join\("\\n"\)\)\.toEqual\(\[\]\)/);
   assert.match(spec, /enabled: false, attempted: 0/);
+  assert.match(spec, /ingestPublicationError\(/);
+  const publication = spec.indexOf("ingestPublicationError(");
+  const firstDismissCall = spec.indexOf("await dismissNotifications(");
+  assert.ok(publication > -1 && firstDismissCall > publication, "publication check must precede dismiss");
   assert.match(spec, /\/v1\/tenants\/\$\{E2E_TENANT\}\/supervised-actions/);
   assert.match(spec, /status: "approved"/);
   const correctAt = spec.indexOf('name: "Correct"');

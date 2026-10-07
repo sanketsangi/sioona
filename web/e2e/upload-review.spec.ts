@@ -2,6 +2,8 @@ import path from "node:path";
 
 import { expect, test, type Page, type Response } from "@playwright/test";
 
+import { ingestPublicationError } from "./ingest-publication.mjs";
+
 /** Keep in sync with playwright.config.ts. Not a production credential. */
 const E2E_EMAIL = "e2e@example.com";
 const E2E_PASSWORD = "e2e-only-password";
@@ -101,7 +103,11 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
   const uploaded = JSON.parse(raw) as {
     newSignals?: number;
     detectLlm?: { enabled?: boolean; attempted?: number };
+    predictionSync?: { failed?: number };
+    conversationSync?: { failed?: number };
+    syncError?: string;
   };
+  expect(ingestPublicationError(response.status(), uploaded), raw).toBeNull();
   expect(uploaded.detectLlm).toEqual(
     expect.objectContaining({ enabled: false, attempted: 0 }),
   );
