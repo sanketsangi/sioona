@@ -268,7 +268,8 @@ function callerHeaders(
   } else if (headers) {
     Object.assign(extra, headers);
   }
-  if (actorAuthMode() !== "off") delete extra["X-Sioona-Role"];
+  // Shadow observes actor authorization but still uses the legacy admin gate.
+  if (actorAuthMode() === "enforce") delete extra["X-Sioona-Role"];
   return extra;
 }
 

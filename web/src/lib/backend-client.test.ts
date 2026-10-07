@@ -871,8 +871,8 @@ describe("actor assertion caller", () => {
     expect(claims.exp - claims.iat).toBe(60);
   });
 
-  it("signs the backendFetch tenant id even when the session tenant differs", async () => {
-    vi.stubEnv("SIOONA_ACTOR_AUTH", "enforce");
+  it.each(["shadow", "enforce"])("signs the target tenant and preserves the admin header only before enforcement (%s)", async (mode) => {
+    vi.stubEnv("SIOONA_ACTOR_AUTH", mode);
     vi.stubEnv("SIOONA_ACTOR_KEY", "test-actor-key-at-least-32-bytes!");
     vi.stubEnv("AUTH_SECRET", "test-auth-secret");
     const { signSession } = await import("./auth-token");
@@ -906,6 +906,7 @@ describe("actor assertion caller", () => {
     const claims = readActorClaims(init.headers["X-Sioona-Actor"]);
     expect(claims.tid).toBe("tenant_demo");
     expect(claims.sub).toBe(actorUserId("admin@partner.example"));
+    expect(init.headers["X-Sioona-Role"]).toBe(mode === "shadow" ? "admin" : undefined);
     vi.doUnmock("next/headers");
     vi.resetModules();
   });

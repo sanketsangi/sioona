@@ -294,7 +294,9 @@ def _observe(
     if reason is None:
         return
     route = _route_template(request)
-    logger.info(
+    # Uvicorn's default configuration does not enable application INFO logs.
+    # Mismatches must remain observable before a clean shadow window is trusted.
+    logger.warning(
         "actor_auth_mismatch tenant=%s route=%s reason=%s",
         tenant_id,
         route,
