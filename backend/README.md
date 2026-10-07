@@ -22,15 +22,36 @@ Legacy Next.js mapping (not used by these APIs):
 
 ## Setup
 
+Use Python 3.12 (`backend/.python-version`).
+
 ```bash
 cd backend
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Prefer Neon: postgresql+psycopg://…?sslmode=require
-# Local fallback (default in .env.example): sqlite+pysqlite:///./sioona_local.db
 ```
+
+`requirements.txt` is a generated lock with hashes. Do not hand-edit it. Change `requirements.in`, then recompile:
+
+```bash
+uv pip compile requirements.in --universal --python-version 3.12 --generate-hashes -o requirements.txt
+```
+
+`pip install -r requirements.txt` checks those hashes. CI and Render keep that same install command.
+
+## Environment
+
+Names and purpose only. Set values in the host dashboard or a local `.env` that is not committed.
+
+- `DATABASE_URL` — SQLAlchemy URL for the API and Alembic. Postgres uses the `postgresql+psycopg` scheme. A local SQLite URL is the dev fallback documented in `.env.example`.
+- `APP_NAME` — OpenAPI title. Defaults to the service name when unset.
+- `APP_VERSION` — OpenAPI version. Defaults to `0.1.0` when unset.
+- `SIOONA_ENV` — when `production`, the service token is required and `/docs` is hidden. Any other value is non-production.
+- `SIOONA_SERVICE_TOKEN` — bearer token for `/v1/*`. Empty outside production leaves the API open.
+- `PG_TEST_DATABASE_URL` — test-only. `tests/test_postgres_migrations.py` refuses any database whose name is not `sioona_migration_test`.
+- `BACKEND_URL` — base URL used only by `scripts/verify_signal_score_flow.py`.
+- `TENANT_ID` — tenant id used only by `scripts/verify_signal_score_flow.py`.
 
 ## Migrate
 
