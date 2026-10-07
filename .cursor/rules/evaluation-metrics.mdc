@@ -75,7 +75,7 @@ We also track:
 - Do not invent signal types (`retention_risk`, `churn_risk`, `fraud`, etc.)
 - Do not use legacy feedback names (`accept` / `reject` / `wrong_reason`)
 - Do not treat labeled P/R as the pilot go/no-go
-- Do not implement full Precision/Recall pipelines unless explicitly asked
+- Labeled precision/recall is never the pilot go/no-go. D0 is the explicit ask for the CB-09 offline eval gate only. Do not add a general ML evaluation framework beyond that card
 - Do not add complex ML evaluation frameworks
 - Do not weaken multi-tenancy
 

@@ -43,7 +43,7 @@ Prefer the next step from `.cursor/docs/PROJECT_STATE.md` when the user says “
 - FastAPI + Neon is the source of truth for Signal Score; Next.js is the frontend
 - Shadow Mode + Insights first; heading = **2-week Shadow Mode pilot** (see `.cursor/docs/PROJECT_STATE.md`)
 - Pilot win = human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** Adapt phrase tuning / taxonomy expansion
-- Tenancy today = `X-Tenant-Id` (`tenant_demo`); do **not** start Auth0 / real multi-tenant isolation
+- Tenancy today = asserted `X-Tenant-Id` plus a shared service token. D0 allows CB-03 and CB-04 (staged Postgres users/memberships, then RLS). Do not start Auth0 unless D1 is revised. Do not treat a tenant header as authority
 - Prefer small focused steps
 - Signal chrome is locked: reuse `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`; do not reinvent status/score/type/avatar in prompts or diffs
 - Update `.cursor/docs/PROJECT_STATE.md` when milestones or blockers change; update `.cursor/docs/architecture.md` when stack topology / SoT / seams change

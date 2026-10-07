@@ -13,9 +13,9 @@ Next.js app in `web/` + FastAPI Signal Score service in `backend/`. No `packages
 
 | Layer | Current (code) | Do not assume until asked |
 |-------|----------------|---------------------------|
-| App | Next.js 15 App Router, React 19, Tailwind, Geist (`web/`) | — |
+| App | Next.js 16 (`next` ^16.3.0) App Router, React 19.2 (`react` ^19.2.8), Tailwind, Geist (`web/`) | — |
 | API | FastAPI Signal Score (`backend/`) | Auth0-gated multi-tenant API |
-| Detect | Heuristics (`detect.ts`) + optional Groq pass 2 (`detect-llm.ts`; **Detect v2 closed / hosted**) | vLLM / LangGraph / QLoRA |
+| Detect | Heuristics (`detect.ts`) + optional Groq (`detect-llm.ts`). Off unless `DETECT_LLM=1` and `GROQ_API_KEY`. Primary is the default (`DETECT_LLM_PRIMARY` not `0`): Groq classifies every chat and heuristics are the fallback. `DETECT_LLM_PRIMARY=0` is miss-only. **Detect v2 closed / hosted** | vLLM / LangGraph / QLoRA |
 | Data | JSON `store.ts` for chats/taxonomy (UI SoT when file exists) + **Neon** for SignalScore, needs-review queue, dual-written conversations/messages, `ground_truth`, Acted, pilot settings + hydrate | Full Neon chat SoT + taxonomy + pgvector |
 | Auth | Signed session cookie + `SIOONA_SERVICE_TOKEN` (not Auth0) | Auth0 |
 
@@ -37,7 +37,7 @@ Path alias: `@/*` → `./src/*` (web).
 - Types: `web/src/lib/types.ts`
 - Taxonomy SoT: `web/src/lib/taxonomy.ts` (not `taxonomy.json`)
 - Detect / ingest / eval / format / store / hydrate / sync: matching files in `web/src/lib/`
-- Detect v2 (hybrid): `web/src/lib/detect-llm.ts` — heuristics first; Groq only on misses; off without `DETECT_LLM=1` + `GROQ_API_KEY`
+- Detect v2 (hybrid): `web/src/lib/detect-llm.ts` — off unless `DETECT_LLM=1` + `GROQ_API_KEY`. Primary by default (`DETECT_LLM_PRIMARY` not `0`): Groq on every chat, heuristics as fallback. `DETECT_LLM_PRIMARY=0`: Groq only on heuristic misses. Per-run candidate-chat cap (selected conversations, not provider requests): `DETECT_LLM_MAX_CALLS` if set, else 8 on Vercel, else 120 locally in primary mode (miss-only default cap 8). Retries and daily-quota fallback add provider attempts; `DETECT_LLM_MAX_ATTEMPTS` bounds the retry loop rather than total requests (default 3, capped at 4); daily-quota fallback does not consume the retry counter.
 - Signal Score client: `web/src/lib/backend-client.ts`
 - Backend models/services: `backend/app/`
 - Tokens + utilities: `web/src/app/globals.css`

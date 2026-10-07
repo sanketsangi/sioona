@@ -13,9 +13,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **GTM now:** Offer = single-tenant Insights + Shadow Mode + human-gated suggestions (no autonomy, no Auth0 sell). Approve Draft / Correct / Mark Acted = human gate only — Approve is decision-only (never sends); Acted is display-only (no outbound). Win = human keep-set SignalScore ≥80% on Eval (week window). Primary job = next unused weekly dump after Week-6 (Batch-02 still held-out). Residual gap = Week-7+ real partner export (Batch-02 held-out).
 
-**Heading: 2-week Shadow Mode pilot.** Pilot win = human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** more Adapt phrase tuning / `taxonomy.ts` expansion.
+**Heading: foundation sprint, then the Shadow Mode pilot.** Pilot win is unchanged: human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** more Adapt phrase tuning / `taxonomy.ts` expansion. Net-new product features wait. Approved cards may add tenant membership, a model gateway, inference metering, evidence anchors, an eval gate, and canonical Postgres state. Nothing auto-sends.
 
-**Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 / vLLM / Action Mode outbound. Taxonomy still JSON.
+**Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 as the identity vendor / vLLM / Action Mode outbound. Taxonomy base is still `taxonomy.ts`.
 
 **Hosted now (2026-09-06):** Real weekly partner export **Week-6 keep-set closed** (localhost) — Synthetic-Data `Zerodha_week_6_batch_01.json` mid-week upsert `replaced=false` (20 new signals; pack not copied; Batch-02 held-out). Neon/local count **1→2** after Week-5 Day-1 precondition (Sample wipe had left count **null**). **11** Correct (GT-matched human SoT; not all-correct smoke) + **Acted 11/11** (display-only). Eval `?scoreFrom=2026-09-06T19:46:39.000Z` → localhost keep-set **n=11 / correct=11 / incorrect=0 / 1.00 → go**; baseline **55**; lift **0**. Ops via `npm run ops:week6-keep-set -- --review=human`. Not Batch-02 / not Adapt / not Partner Demo wipe / not Auth0 / not outbound. Prior Week-5 go (2026-09-04) stays historical.
 
@@ -279,9 +279,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 ## 3. Detect v2 — **closed / hosted verified** 2026-08-14
 
-Heuristics always → optional Groq Qwen on zero-signal misses (`DETECT_LLM=1` + `GROQ_API_KEY`; concurrency **2**; at most 8 calls per run; skipped ids resume on the next re-detect before newer misses; fail-soft; LLM must not override heuristic hits) → prediction upsert. File: `web/src/lib/detect-llm.ts`. Off by default → $0. See `web/.env.example`, `web/DEPLOY.md`.
+Off unless `DETECT_LLM=1` and `GROQ_API_KEY` (otherwise heuristics only, $0). When on, primary is the default (`DETECT_LLM_PRIMARY` not `0`): Groq classifies every chat and a grounded label replaces the heuristic hit; failure keeps the heuristic signal. `DETECT_LLM_PRIMARY=0` restores zero-signal miss-only and does not override a heuristic hit. Concurrency **2**. Per-run candidate-chat cap (selected conversations, not provider requests): `DETECT_LLM_MAX_CALLS` when set; otherwise 8 on Vercel and 120 locally in primary mode; miss-only default cap is 8. Retries and daily-quota fallback add provider attempts; `DETECT_LLM_MAX_ATTEMPTS` bounds the retry loop rather than total requests (default 3, capped at 4); daily-quota fallback does not consume the retry counter. Skipped ids resume on the next re-detect before newer misses. Fail-soft. File: `web/src/lib/detect-llm.ts`. Hosted flag values were not re-read on 2026-10-07. See `web/.env.example`, `web/DEPLOY.md`.
 
-Template hybrid (historical): heuristic P 0.92 / R 0.41 → hybrid P 0.93 / R 0.48. Do **not** move classify to FastAPI / add 429 retries / Create Groq project limits.
+Template hybrid (historical): heuristic P 0.92 / R 0.41 → hybrid P 0.93 / R 0.48. Moving classification onto a worker is CB-11. Further Groq retry and budget work is CB-07. Do not start either outside those cards. Do not create Groq project limits from an agent session.
 
 ---
 
@@ -368,15 +368,17 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 ## 7. Later / do not start
 
-*(Unchanged 2026-09-04 — review-friction pass did not start any of these.)*
+*(D0, once approved, allows the foundation cards below. Everything else in this list stays blocked.)*
 
-- Auth0 / real tenant isolation
+- Auth0 as a vendor (identity work is CB-03: Postgres users and memberships, not a new IdP, until D1 says otherwise)
+- Real tenant isolation is in scope for CB-03 and CB-04 only
 - vLLM, QLoRA, LangGraph, pgvector
-- Live Intercom / WhatsApp webhooks
-- Action Mode outbound send (unlocked Action Mode = Insights Act queue only; prod locked)
+- Live Intercom / WhatsApp: CB-16 only, after D10, still off unless `LIVE_INGEST=1`
+- Action Mode outbound send (unlocked Action Mode = Insights Act queue only; prod locked). External send is CB-17 only, after D10
 - Export / Create Campaign (unshipped — hidden, not overflow)
 - Outcome billing, computer-use, GPU
-- Taxonomy expansion / more Adapt phrase chasing / classify-on-FastAPI / 429 retries / Groq project limits / taxonomy-on-Neon
+- Taxonomy expansion / more Adapt phrase chasing / Groq project limits
+- Classify-on-a-worker is CB-11. Budgets and 429 policy are CB-07. Taxonomy-on-Neon as source of truth stays blocked (overrides already persist in Neon)
 
 ---
 
