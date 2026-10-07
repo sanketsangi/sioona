@@ -19,7 +19,10 @@ net.Socket.prototype.connect = function (...args) {
   const options = typeof values[0] === 'object' ? { ...values[0] } : {
     port: values[0], host: typeof values[1] === 'string' ? values[1] : undefined,
   };
-  if (options.path || !options.port) return deny();
+  // Unix-domain sockets are local IPC, not network egress. Next and native
+  // integrations may use them on Linux, so preserve those connections.
+  if (options.path) return connect.apply(this, args);
+  if (!options.port) return deny();
   // Resolve the approved name ourselves; do not trust DNS or a custom lookup.
   if (!options.host || options.host === 'localhost') options.host = '127.0.0.1';
   if (!local(options.host)) return deny();

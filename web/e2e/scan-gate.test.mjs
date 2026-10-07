@@ -38,6 +38,11 @@ test("Gitleaks CI scans the repository and the canary fixture", () => {
   assert.match(job, /secret-scan-fixture/);
   const allow = fs.readFileSync(path.join(root, ".gitleaks.toml"), "utf8");
   assert.match(allow, /secret-scan-fixture/);
+  const ignored = fs.readFileSync(path.join(root, ".gitleaksignore"), "utf8");
+  assert.match(
+    ignored,
+    /^93f22b7879dd42fc885bea7ba514065b5bfedb74:\.github\/secret-scan-fixture\/canary\.txt:aws-access-token:4$/m,
+  );
 });
 
 test("the scanner flags the harmless canary fixture", () => {

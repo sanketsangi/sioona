@@ -3,3 +3,4 @@
 93f22b7879dd42fc885bea7ba514065b5bfedb74:web/e2e/scan-gate.test.mjs:aws-access-token:46
 93f22b7879dd42fc885bea7ba514065b5bfedb74:docs/development/tasks/CB-02.md:aws-access-token:32
 93f22b7879dd42fc885bea7ba514065b5bfedb74:docs/development/tasks/CB-02.md:aws-access-token:49
+93f22b7879dd42fc885bea7ba514065b5bfedb74:.github/secret-scan-fixture/canary.txt:aws-access-token:4
