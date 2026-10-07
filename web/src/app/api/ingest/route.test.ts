@@ -1120,11 +1120,13 @@ describe("POST /api/ingest", () => {
       "conv_c",
       "conv_d",
     ]);
+    // Ledger wrapper always forwards options (undefined when ingest passes none).
     expect(detectLlm.runHybridDetection).toHaveBeenCalledWith(
       expect.any(Array),
       expect.any(Array),
       "tenant_demo",
-      expect.anything()
+      expect.anything(),
+      undefined
     );
   });
 });
