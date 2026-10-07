@@ -1238,6 +1238,7 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "predictions": 1,
         "feedback": 1,
         "supervised_actions": 0,
+        "inference_attempts": 0,
         "pilot_settings": 1,
         "taxonomy_overrides": 0,
     }
@@ -1284,6 +1285,7 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         "predictions": 0,
         "feedback": 0,
         "supervised_actions": 0,
+        "inference_attempts": 0,
         "pilot_settings": 0,
         "taxonomy_overrides": 0,
     }

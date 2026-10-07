@@ -1,6 +1,6 @@
 import type { AttemptSink } from "./types";
 
-/** Production default until CB-06 persists attempts. */
+/** Default when no ledger is attached (tests / offline eval). */
 export const noopAttemptSink: AttemptSink = () => {};
 
 /** UUID for a logical classification or a single provider fetch. */

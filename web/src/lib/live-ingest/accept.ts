@@ -8,16 +8,25 @@ import { opaqueExternalIdentity } from "../opaque-identity";
 
 import { persistDeferredIngestDualWrite } from "../defer-ingest-sync";
 import type { DeferredIngestDualWriteInput } from "../defer-ingest-sync";
-import { runHybridDetection } from "../detect-llm";
+import { runHybridDetectionWithLedger } from "../ai/run-with-ledger";
+import type { HybridDetectOptions, HybridDetectResult } from "../detect-llm";
 import { toStoreRecords } from "../ingest";
 import type { IngestConversationInput } from "../ingest-platforms";
 import { readStore, writeStore } from "../store";
-import type { StoreData } from "../types";
+import type { Conversation, Message, StoreData, TaxonomyOverrides } from "../types";
+
+type DetectFn = (
+  conversations: Conversation[],
+  messages: Message[],
+  tenantId: string,
+  overrides?: TaxonomyOverrides | null,
+  options?: HybridDetectOptions
+) => Promise<HybridDetectResult>;
 
 type LiveIngestDeps = {
   read?: () => Promise<StoreData>;
   write?: (store: StoreData) => Promise<void>;
-  detect?: typeof runHybridDetection;
+  detect?: DetectFn;
   publish?: typeof publishAtomicIngest;
   publishedIds?: typeof getPublishedConversationIds;
   dualWrite?: (input: DeferredIngestDualWriteInput) => Promise<void>;
@@ -41,7 +50,7 @@ async function acceptLiveChatsBody(
 ): Promise<{ accepted: number }> {
   const read = deps.read ?? readStore;
   const write = deps.write ?? writeStore;
-  const detect = deps.detect ?? runHybridDetection;
+  const detect = deps.detect ?? runHybridDetectionWithLedger;
   const dualWrite = deps.dualWrite ?? persistDeferredIngestDualWrite;
   const priorStore = await read();
   const store = { ...priorStore, conversations: [...priorStore.conversations],

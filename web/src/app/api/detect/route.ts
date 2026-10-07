@@ -2,7 +2,7 @@ import { syncDetectionRun } from "@/lib/sync-detection-run";
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
 import { runWithTenant } from "@/lib/tenant-context";
-import { runHybridDetection } from "@/lib/detect-llm";
+import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import { sortSignals } from "@/lib/eval";
 import {
   readStore,
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (session instanceof NextResponse) return session;
   return runWithTenant(session.tenantId, async () => {
     const store = await readStore();
-    const { signals: detected, llm } = await runHybridDetection(
+    const { signals: detected, llm } = await runHybridDetectionWithLedger(
       store.conversations,
       store.messages,
       store.tenant.id,

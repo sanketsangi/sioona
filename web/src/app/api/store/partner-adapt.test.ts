@@ -3,7 +3,22 @@ vi.mock("@/lib/auth-guard", () => ({ requireApiSession: vi.fn().mockResolvedValu
 vi.mock("@/lib/store", () => ({ readStore: vi.fn(), addTaxonomyOverride: vi.fn(), writeStore: vi.fn(),
   replaceSignalsPreservingFeedback: vi.fn() }));
 vi.mock("@/lib/detect-llm", () => ({ runHybridDetection: vi.fn() }));
-vi.mock("@/lib/sync-detection-run", () => ({ syncDetectionRun: vi.fn() }));
+vi.mock("@/lib/sync-detection-run", () => ({
+  syncDetectionRun: vi.fn(),
+  computeDetectionRunId: vi.fn().mockReturnValue(undefined),
+}));
+vi.mock("@/lib/backend-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/backend-client")>();
+  return {
+    ...actual,
+    preflightInferenceLedger: vi.fn().mockResolvedValue({ ok: true }),
+    flushInferenceAttempts: vi.fn().mockResolvedValue({
+      accepted: 0,
+      inserted: 0,
+      unchanged: 0,
+    }),
+  };
+});
 vi.mock("@/lib/sync-predictions", () => ({ syncPredictionsToBackend: vi.fn() }));
 import { addTaxonomyOverride, writeStore, replaceSignalsPreservingFeedback } from "@/lib/store";
 import { runHybridDetection } from "@/lib/detect-llm";

@@ -28,7 +28,7 @@ import {
   type BackendPredictionWithFeedback,
 } from "./backend-client";
 import { predictionToStubSignal, commercialMetadataFromPrediction } from "./join-needs-review";
-import { runHybridDetection } from "./detect-llm";
+import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
 import { writeStore } from "./store";
@@ -480,7 +480,7 @@ export async function tryHydrateStoreFromNeon(
         .map(predictionToStubSignal).filter((signal): signal is Signal => signal !== null);
       signals = applyNeonFeedbackToSignals(signals, persisted);
     } else {
-    const detected = await runHybridDetection(
+    const detected = await runHybridDetectionWithLedger(
       chats.conversations,
       chats.messages,
       tenantId,

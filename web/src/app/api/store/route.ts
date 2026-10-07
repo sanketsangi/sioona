@@ -6,7 +6,7 @@ import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-o
 import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "@/data/fixtures/zerodha-batch01-overrides";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { syncTaxonomyOverridesToBackend } from "@/lib/sync-taxonomy";
-import { runHybridDetection } from "@/lib/detect-llm";
+import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import { sortSignals } from "@/lib/eval";
 import {
   addTaxonomyOverride,
@@ -131,7 +131,7 @@ async function redetectWithOverrides(store: StoreData): Promise<{
   store: StoreData;
   redetectCount: number;
 }> {
-  const { signals: detected, llm } = await runHybridDetection(
+  const { signals: detected, llm } = await runHybridDetectionWithLedger(
     store.conversations,
     store.messages,
     store.tenant.id,
