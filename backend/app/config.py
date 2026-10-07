@@ -3,6 +3,9 @@
 from functools import lru_cache
 from pathlib import Path
 
+from typing import Literal
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Always resolve .env relative to the backend/ package root (not process cwd).
@@ -24,6 +27,11 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     sioona_env: str = "development"
     sioona_service_token: str = ""
+    sioona_actor_key: str = ""
+    sioona_actor_auth_mode: Literal["off", "shadow", "enforce"] = Field(
+        default="off",
+        validation_alias="SIOONA_ACTOR_AUTH",
+    )
 
 
 @lru_cache

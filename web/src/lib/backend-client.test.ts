@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  DEMO_ACTOR_EMAIL,
+  LIVE_INGEST_PRINCIPAL,
+  actorUserId,
+  readActorClaims,
+} from "./actor-assertion";
+import {
   BACKEND_FETCH_TIMEOUT_MS,
   BACKEND_MUTATION_TIMEOUT_MS,
   BackendClientError,
@@ -19,6 +25,7 @@ import {
   putPilotSettings,
   setPredictionActed,
   submitFeedback,
+  runWithServicePrincipal,
   upsertConversation,
   upsertConversations,
   wipeTenantData,
@@ -804,5 +811,115 @@ describe("durable live deduplication lookup", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200,
       json: async () => ({ conversation_ids: ["c1"] }) }));
     expect(await getPublishedConversationIds("tenant_partner", ["c1", "c2"])).toEqual(["c1"]);
+  });
+});
+
+describe("actor assertion caller", () => {
+  function okFetch() {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        conversations: 0,
+        messages: 0,
+        predictions: 0,
+        feedback: 0,
+        pilot_settings: 0,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("keeps the alias path and role header while actor auth is off", async () => {
+    vi.stubEnv("SIOONA_ACTOR_AUTH", "off");
+    vi.stubEnv("SIOONA_SERVICE_TOKEN", "svc-token");
+    const fetchMock = okFetch();
+    await wipeTenantData("tenant_demo");
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(url).toContain("/v1/tenants/tenant_demo/data");
+    expect(init.headers["X-Sioona-Role"]).toBe("admin");
+    expect(init.headers.Authorization).toBe("Bearer svc-token");
+    expect(init.headers["X-Sioona-Actor"]).toBeUndefined();
+  });
+
+  it("mints a demo assertion and uses the canonical prediction path in shadow", async () => {
+    vi.stubEnv("SIOONA_ACTOR_AUTH", "shadow");
+    vi.stubEnv("SIOONA_ACTOR_KEY", "test-actor-key-at-least-32-bytes!");
+    vi.stubEnv("SIOONA_SERVICE_TOKEN", "svc-token");
+    vi.stubEnv("SIOONA_PUBLIC_DEMO", "1");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ id: "sig" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await createPrediction("tenant_demo", {
+      conversation_id: "c1",
+      signal_type: "lead",
+      confidence: 0.4,
+      summary: "hello",
+    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(url).toContain("/v1/tenants/tenant_demo/predictions");
+    expect(url).not.toContain("/v1/predictions");
+    expect(init.headers.Authorization).toBe("Bearer svc-token");
+    expect(init.headers["X-Sioona-Role"]).toBeUndefined();
+    const claims = readActorClaims(init.headers["X-Sioona-Actor"]);
+    expect(claims.sub).toBe(actorUserId(DEMO_ACTOR_EMAIL));
+    expect(claims.tid).toBe("tenant_demo");
+    expect(claims.exp - claims.iat).toBe(60);
+  });
+
+  it("signs the backendFetch tenant id even when the session tenant differs", async () => {
+    vi.stubEnv("SIOONA_ACTOR_AUTH", "enforce");
+    vi.stubEnv("SIOONA_ACTOR_KEY", "test-actor-key-at-least-32-bytes!");
+    vi.stubEnv("AUTH_SECRET", "test-auth-secret");
+    const { signSession } = await import("./auth-token");
+    const token = await signSession({
+      email: "admin@partner.example",
+      role: "admin",
+      tenantId: "tenant_partner",
+    });
+    vi.doMock("next/headers", () => ({
+      cookies: async () => ({
+        get: (name: string) =>
+          name === "sioona_session" ? { value: token } : undefined,
+      }),
+    }));
+    vi.resetModules();
+    const { wipeTenantData: wipeScoped } = await import("./backend-client");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        conversations: 0,
+        messages: 0,
+        predictions: 0,
+        feedback: 0,
+        pilot_settings: 0,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await wipeScoped("tenant_demo");
+    const init = fetchMock.mock.calls[0][1] as { headers: Record<string, string> };
+    const claims = readActorClaims(init.headers["X-Sioona-Actor"]);
+    expect(claims.tid).toBe("tenant_demo");
+    expect(claims.sub).toBe(actorUserId("admin@partner.example"));
+    vi.doUnmock("next/headers");
+    vi.resetModules();
+  });
+
+  it("omits the role header and sends the live-ingest principal in enforce", async () => {
+    vi.stubEnv("SIOONA_ACTOR_AUTH", "enforce");
+    vi.stubEnv("SIOONA_ACTOR_KEY", "test-actor-key-at-least-32-bytes!");
+    const fetchMock = okFetch();
+    await runWithServicePrincipal(LIVE_INGEST_PRINCIPAL, "tenant_partner", () =>
+      wipeTenantData("tenant_partner"),
+    );
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(url).toContain("/v1/tenants/tenant_partner/data");
+    expect(init.headers["X-Sioona-Role"]).toBeUndefined();
+    expect(readActorClaims(init.headers["X-Sioona-Actor"]).sub).toBe(LIVE_INGEST_PRINCIPAL);
   });
 });

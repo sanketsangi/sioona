@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 
 import {
   authEnforced,
+  inspectSessionToken,
   publicDemoEnabled,
   readCookie,
   SESSION_COOKIE,
-  verifySessionToken,
 } from "@/lib/auth-token";
 import { isLiveIngestWebhook } from "@/lib/live-ingest-paths";
 
@@ -29,9 +29,24 @@ export async function middleware(request: Request) {
   const method = request.method.toUpperCase();
   if (isLiveIngestWebhook(pathname, method)) return NextResponse.next();
 
-  const session = await verifySessionToken(
+  const inspected = await inspectSessionToken(
     readCookie(request.headers.get("cookie"), SESSION_COOKIE),
   );
+  if (
+    !inspected.ok &&
+    (inspected.reason === "expired" || inspected.reason === "invalid")
+  ) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Sign in required.", loginPath: "/login" },
+        { status: 401 },
+      );
+    }
+    if (method === "GET" || method === "HEAD") {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+  const session = inspected.ok ? inspected.claims : null;
 
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
     if (session || publicDemoEnabled() || !pathname.startsWith("/api/")) {

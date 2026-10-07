@@ -2,16 +2,17 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.pilot import PilotSettingsResponse, PilotSettingsUpsert
 from app.services.pilot import get_pilot_settings, upsert_pilot_settings
 
-router = APIRouter(tags=["pilot"])
+router = guarded_router(tags=["pilot"])
 
 
 @router.get(
@@ -24,7 +25,7 @@ def get_tenant_pilot(
     db: Annotated[Session, Depends(get_db)],
 ) -> PilotSettingsResponse:
     """Return pilot settings for a tenant. 404 if never written."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         row = get_pilot_settings(db, tenant_id)
     except SQLAlchemyError as exc:
@@ -51,7 +52,7 @@ def put_tenant_pilot(
     db: Annotated[Session, Depends(get_db)],
 ) -> PilotSettingsResponse:
     """Upsert pilot settings for a tenant (full replace of pilot fields)."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         row = upsert_pilot_settings(
             db,

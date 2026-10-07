@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.api.actor import guarded_router, keep_header_gate
 from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.prediction import (
@@ -23,7 +24,7 @@ from app.services.predictions import (
     set_prediction_outcome,
 )
 
-router = APIRouter(tags=["predictions"])
+router = guarded_router(tags=["predictions"])
 
 
 @router.post("/v1/predictions", response_model=PredictionResponse, status_code=201)
@@ -133,3 +134,48 @@ def record_signal_outcome(
         ) from exc
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
+
+
+@router.post(
+    "/v1/tenants/{tenant_id}/predictions",
+    response_model=PredictionResponse,
+    status_code=201,
+)
+def create_prediction_for_tenant(
+    tenant_id: str,
+    body: PredictionCreate,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PredictionResponse:
+    keep_header_gate(tenant_id, header_tenant_id)
+    return create_prediction(body, tenant_id, db)
+
+
+@router.post(
+    "/v1/tenants/{tenant_id}/predictions/bulk",
+    response_model=PredictionBulkResponse,
+    status_code=201,
+)
+def create_or_update_predictions_bulk_for_tenant(
+    tenant_id: str,
+    body: PredictionBulkUpsert,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PredictionBulkResponse:
+    keep_header_gate(tenant_id, header_tenant_id)
+    return create_or_update_predictions_bulk(body, tenant_id, db)
+
+
+@router.post(
+    "/v1/tenants/{tenant_id}/signals/{signal_id}/outcome",
+    response_model=PredictionResponse,
+)
+def record_signal_outcome_for_tenant(
+    tenant_id: str,
+    signal_id: str,
+    body: PredictionOutcomeUpdate,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> PredictionResponse:
+    keep_header_gate(tenant_id, header_tenant_id)
+    return record_signal_outcome(signal_id, body, tenant_id, db)

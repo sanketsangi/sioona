@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { middleware } from "@/middleware";
+import { signSession } from "@/lib/auth-token";
 
 function call(path: string, method: string) {
   return middleware(new Request(`http://localhost${path}`, { method }));
@@ -45,6 +46,42 @@ describe("middleware live-ingest exemption", () => {
     const callback = await call("/api/ingest/live/intercom/callback", "GET");
     expect(start.status).toBe(401);
     expect(callback.status).toBe(401);
+  });
+
+  it("redirects an invalid document session even when the public demo is on", async () => {
+    vi.stubEnv("SIOONA_PUBLIC_DEMO", "1");
+    vi.stubEnv("AUTH_SECRET", "test-auth-secret");
+    const response = await middleware(
+      new Request("http://localhost/insights", {
+        headers: { cookie: "sioona_session=not.a.valid.token" },
+      }),
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/login");
+  });
+
+  it("redirects an expired document session even when the public demo is on", async () => {
+    vi.stubEnv("SIOONA_PUBLIC_DEMO", "1");
+    vi.stubEnv("AUTH_SECRET", "test-auth-secret");
+    const token = await signSession({
+      email: "reviewer@partner.example",
+      role: "reviewer",
+      tenantId: "tenant_partner",
+      exp: Math.floor(Date.now() / 1000) - 30,
+    });
+    const response = await middleware(
+      new Request("http://localhost/insights", {
+        headers: { cookie: `sioona_session=${token}` },
+      }),
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/login");
+  });
+
+  it("keeps a missing cookie on the public demo", async () => {
+    vi.stubEnv("SIOONA_PUBLIC_DEMO", "1");
+    const response = await call("/insights", "GET");
+    expect(response.headers.get("x-middleware-next")).toBe("1");
   });
 
   it("does not open neighbouring routes", async () => {

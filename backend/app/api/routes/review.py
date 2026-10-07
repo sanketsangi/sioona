@@ -2,17 +2,18 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.prediction import PredictionResponse, PredictionWithFeedbackResponse
 from app.services.predictions import list_tenant_predictions
 from app.services.review_queue import list_signals_needing_review
 
-router = APIRouter(tags=["review-queue"])
+router = guarded_router(tags=["review-queue"])
 
 
 @router.get(
@@ -30,7 +31,7 @@ def get_tenant_signals(
     Repeat ``conversation_id`` to scope Follow-up / Done to the active
     keep-set. Omitted → full tenant list.
     """
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows = list_tenant_predictions(
             db, tenant_id, conversation_ids=conversation_id
@@ -57,7 +58,7 @@ def get_signals_needing_review(
     ``limit`` is at most 100. Pass ``offset`` to continue, and repeat
     ``conversation_id`` so other packs do not fill the page.
     """
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows = list_signals_needing_review(
             db,
@@ -78,7 +79,7 @@ def get_review_page(tenant_id: str,
                     after: Annotated[str | None, Query(max_length=36)] = None,
                     conversation_id: Annotated[list[str] | None, Query()] = None):
     from app.services.review_queue import page_signals_needing_review
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows, cursor = page_signals_needing_review(db, tenant_id, limit=limit,
             after=after, conversation_ids=conversation_id)
@@ -97,7 +98,7 @@ def get_tenant_signal_page(tenant_id: str,
                           after: Annotated[str | None, Query(max_length=36)] = None,
                           conversation_id: Annotated[list[str] | None, Query()] = None):
     from uuid import UUID
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows = list_tenant_predictions(db, tenant_id, conversation_ids=conversation_id,
             limit=limit + 1, after=UUID(after) if after else None)

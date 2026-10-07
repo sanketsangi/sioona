@@ -128,35 +128,51 @@ export async function signSession(
   return `${payload}.${sig}`;
 }
 
-export async function verifySessionToken(
+export type SessionInspection =
+  | { ok: true; claims: SessionClaims }
+  | { ok: false; reason: "missing" | "expired" | "invalid" };
+
+export async function inspectSessionToken(
   token: string | undefined | null,
-): Promise<SessionClaims | null> {
+): Promise<SessionInspection> {
+  if (!token) return { ok: false, reason: "missing" };
   const secret = authSecret();
-  if (!token || !secret) return null;
+  if (!secret) return { ok: false, reason: "invalid" };
   const dot = token.indexOf(".");
-  if (dot <= 0) return null;
+  if (dot <= 0) return { ok: false, reason: "invalid" };
   const payload = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  if (!payload || !sig) return null;
+  if (!payload || !sig) return { ok: false, reason: "invalid" };
   const expected = await hmacSha256(payload, secret);
-  if (!signaturesMatch(expected, sig)) return null;
+  if (!signaturesMatch(expected, sig)) return { ok: false, reason: "invalid" };
   try {
     const claims = JSON.parse(
       new TextDecoder().decode(base64UrlToBytes(payload)),
     ) as SessionClaims;
-    if (!claims.exp || claims.exp < Math.floor(Date.now() / 1000)) return null;
     if (
       claims.role !== "admin" &&
       claims.role !== "reviewer" &&
       claims.role !== "demo"
     ) {
-      return null;
+      return { ok: false, reason: "invalid" };
     }
-    if (!isTenantId(claims.tenantId) || !claims.email) return null;
-    return claims;
+    if (!isTenantId(claims.tenantId) || !claims.email || !claims.exp) {
+      return { ok: false, reason: "invalid" };
+    }
+    if (claims.exp < Math.floor(Date.now() / 1000)) {
+      return { ok: false, reason: "expired" };
+    }
+    return { ok: true, claims };
   } catch {
-    return null;
+    return { ok: false, reason: "invalid" };
   }
+}
+
+export async function verifySessionToken(
+  token: string | undefined | null,
+): Promise<SessionClaims | null> {
+  const inspected = await inspectSessionToken(token);
+  return inspected.ok ? inspected.claims : null;
 }
 
 export function sessionCookie(token: string, maxAge = SESSION_MAX_AGE_SEC): string {

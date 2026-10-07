@@ -1,15 +1,16 @@
 """Publish durable membership only after corpus persistence succeeds."""
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import Depends, HTTPException, Path
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session, defer
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.models.upload import Upload, UploadConversation
 from app.schemas.upload import UploadMembership, UploadPublish, UploadResponse, PublishedConversationLookup
 from app.services.uploads import publish_upload, upload_conversation_ids
 
-router = APIRouter(tags=["uploads"])
+router = guarded_router(tags=["uploads"])
 
 
 @router.get("/v1/tenants/{tenant_id}/uploads/{upload_id}/snapshot")
@@ -17,7 +18,7 @@ def get_upload_snapshot(tenant_id: str, upload_id: str,
                         header_tenant_id: Annotated[str, Depends(require_tenant_id)],
                         db: Annotated[Session, Depends(get_db)]):
     """Return original corpus/output even after replacement of current chats."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     row = db.get(Upload, (tenant_id, upload_id))
     if row is None or row.status != "completed":
         raise HTTPException(404, "upload_not_found")
@@ -50,7 +51,7 @@ def get_upload_snapshot(tenant_id: str, upload_id: str,
 def put_upload(tenant_id: str, upload_id: Annotated[str, Path(pattern=r"^[A-Za-z0-9_-]{1,64}$")],
                body: UploadPublish, header_tenant_id: Annotated[str, Depends(require_tenant_id)],
                db: Annotated[Session, Depends(get_db)]):
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         row = publish_upload(db, tenant_id=tenant_id, upload_id=upload_id,
                              source=body.source, content_sha256=body.content_sha256,
@@ -70,7 +71,7 @@ def put_upload(tenant_id: str, upload_id: Annotated[str, Path(pattern=r"^[A-Za-z
 def get_upload(tenant_id: str, upload_id: str,
                header_tenant_id: Annotated[str, Depends(require_tenant_id)],
                db: Annotated[Session, Depends(get_db)]):
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     row = db.get(Upload, (tenant_id, upload_id))
     if row is None or row.status != "completed":
         raise HTTPException(404, "upload_not_found")
@@ -84,7 +85,7 @@ def get_active_uploads(tenant_id: str,
                        db: Annotated[Session, Depends(get_db)]):
     """Recover the published corpus independently of mutable pilot settings."""
     from sqlalchemy import select
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     rows = db.scalars(select(Upload).where(Upload.tenant_id == tenant_id,
         Upload.status == "completed", Upload.active.is_(True),
         Upload.payload["files"].as_string().is_(None))
@@ -108,7 +109,7 @@ def published_conversations(tenant_id: str,
                             header_tenant_id: Annotated[str, Depends(require_tenant_id)],
                             db: Annotated[Session, Depends(get_db)]):
     from sqlalchemy import select
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     ids = db.scalars(select(UploadConversation.conversation_id).join(Upload,
         (Upload.tenant_id == UploadConversation.tenant_id) & (Upload.upload_id == UploadConversation.upload_id))
         .where(Upload.tenant_id == tenant_id, Upload.status == "completed",
