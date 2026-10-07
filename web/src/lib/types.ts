@@ -49,7 +49,12 @@ export interface SignalOutcomeRecord {
 export interface Signal {
   /** Superseded snapshot prediction: retained for reporting, cannot be edited. */
   historical?: boolean;
-  detectionContext?: import("./recent-transcript").TranscriptContext & { promptVersion: string; model: string };
+  detectionContext?: import("./recent-transcript").TranscriptContext & {
+    promptVersion: string;
+    model: string;
+    stage?: "detect";
+    routeVersion?: string;
+  };
   id: string;
   tenantId: string;
   conversationId: string;
