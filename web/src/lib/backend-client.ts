@@ -998,6 +998,49 @@ export async function publishDetectionRun(tenantId: string, runId: string, conve
     });
 }
 
+export interface BackendInferenceAttempt {
+  attempt_id: string;
+  logical_operation_id: string;
+  attempt_ordinal: number;
+  conversation_id?: string;
+  detection_run_id?: string;
+  job_id?: string;
+  stage: "screen" | "detect" | "verify" | "action_draft" | "report";
+  route_version: string;
+  provider: "groq";
+  model: string;
+  prompt_version: string;
+  status: "succeeded" | "failed" | "timeout" | "cancelled";
+  error_category?: string;
+  http_status?: number;
+  provider_request_id?: string;
+  usage_status: "reported" | "estimated" | "unknown";
+  input_tokens?: number;
+  cached_input_tokens?: number;
+  output_tokens?: number;
+  reasoning_tokens?: number;
+  latency_ms?: number;
+  started_at: string;
+  finished_at?: string;
+}
+
+export async function postInferenceAttempts(tenantId: string, attempts: BackendInferenceAttempt[]) {
+  return backendFetch<{ inserted: number; replayed: number }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/inference-attempts`, {
+      method: "POST", body: JSON.stringify({ attempts }),
+    });
+}
+
+export async function getInferenceUsage(tenantId: string, query?: { from?: string; to?: string; groupBy?: "day" | "model" | "stage" | "run" }) {
+  const params = new URLSearchParams();
+  if (query?.from) params.set("from", query.from);
+  if (query?.to) params.set("to", query.to);
+  if (query?.groupBy) params.set("group_by", query.groupBy);
+  const suffix = params.size ? `?${params.toString()}` : "";
+  return backendFetch<{ tenant_id: string; groups: unknown[] }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/inference-usage${suffix}`);
+}
+
 export async function publishIngestion(tenantId: string, uploadId: string, input: {
   source: string; replace: boolean; conversations: BackendConversationInput[]; detections: BackendDetectionInput[];
   files?: { source: string; conversation_ids: string[] }[];

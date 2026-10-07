@@ -18,6 +18,7 @@ from app.api.routes import (
     pilot_requests,
     detection_runs,
     ingestion,
+    inference,
 )
 from app.config import get_settings
 from app.ingestion_body_limit import IngestionBodyLimit
@@ -52,6 +53,7 @@ api.include_router(uploads.router)
 api.include_router(pilot_requests.router)
 api.include_router(detection_runs.router)
 api.include_router(ingestion.router)
+api.include_router(inference.router)
 app.include_router(api)
 
 app.add_middleware(IngestionBodyLimit)

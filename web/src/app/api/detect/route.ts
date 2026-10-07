@@ -2,6 +2,7 @@ import { syncDetectionRun } from "@/lib/sync-detection-run";
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
 import { runWithTenant } from "@/lib/tenant-context";
+import { withDetectionLedger } from "@/lib/ai/ledger";
 import { runHybridDetection } from "@/lib/detect-llm";
 import { sortSignals } from "@/lib/eval";
 import {
@@ -16,12 +17,14 @@ export async function POST(request: Request) {
   if (session instanceof NextResponse) return session;
   return runWithTenant(session.tenantId, async () => {
     const store = await readStore();
+    return withDetectionLedger(store.tenant.id, async (ledger) => {
     const { signals: detected, llm } = await runHybridDetection(
       store.conversations,
       store.messages,
       store.tenant.id,
       store.taxonomyOverrides,
-      { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
+      { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])],
+        ...ledger.detectOptions }
     );
     const updated = store.tenant.id === "tenant_demo"
       ? await replaceSignalsPreservingFeedback(detected)
@@ -38,7 +41,8 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "Classification failed. Previous published results remain active." }, { status: 503 });
         }
         result = await syncDetectionRun({ tenantId: store.tenant.id, conversations: store.conversations,
-          messages: store.messages, signals: detected, contexts: llm.contexts, skippedIds: llm.skippedIds, priorSignals: store.signals });
+          messages: store.messages, signals: detected, contexts: llm.contexts, skippedIds: llm.skippedIds, priorSignals: store.signals,
+          onDetectionRunId: ledger.setDetectionRunId });
       } else result = await syncPredictionsToBackend(updated.signals, store.tenant.id);
     } catch {
       return NextResponse.json({ error: "Detection publication failed. Please retry." }, { status: 503 });
@@ -51,6 +55,7 @@ export async function POST(request: Request) {
       signals: sortSignals(updated.signals),
       predictionSync: sync,
       detectLlm: llm,
+    });
     });
   });
 }

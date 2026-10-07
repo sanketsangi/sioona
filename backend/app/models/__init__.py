@@ -43,6 +43,7 @@ from app.models.user import (
     User,
     actor_user_id,
 )
+from app.models.inference_attempt import InferenceAttempt, LEDGER_COLUMNS
 from app.models.workspace import Workspace
 
 __all__ = [
@@ -54,6 +55,8 @@ __all__ = [
     "Base",
     "Membership",
     "User",
+    "InferenceAttempt",
+    "LEDGER_COLUMNS",
     "Workspace",
     "actor_user_id",
     "Upload",

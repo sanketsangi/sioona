@@ -4,6 +4,7 @@ import {
   runHybridDetection,
   type LlmPassStats,
 } from "./detect-llm";
+import { withDetectionLedger } from "./ai/ledger";
 import { toStoreRecords } from "./ingest";
 import {
   DEMO_BASELINE_NOTE,
@@ -80,7 +81,7 @@ async function loadShowcaseJsonIntoStore(
     stableIds: true,
   });
   const report = options.onProgress;
-  const { signals, llm } = await runHybridDetection(
+  const { signals, llm } = await withDetectionLedger(tenantId, (ledger) => runHybridDetection(
     conversations,
     messages,
     tenantId,
@@ -89,9 +90,10 @@ async function loadShowcaseJsonIntoStore(
       ? {
           onProgress: (done, total) =>
             report({ step: "detect", done, total }),
+          ...ledger.detectOptions,
         }
-      : undefined
-  );
+      : ledger.detectOptions
+  ));
 
   const store: StoreData = {
     ...structuredClone(emptyShowcaseStore),

@@ -9,6 +9,7 @@ import {
   runHybridDetection,
   type LlmPassStats,
 } from "@/lib/detect-llm";
+import { withDetectionLedger } from "@/lib/ai/ledger";
 import { toStoreRecords } from "@/lib/ingest";
 import {
   DEMO_BASELINE_NOTE,
@@ -63,12 +64,13 @@ async function buildShowcasePack(
   const { conversations, messages } = toStoreRecords(inputs, tenantId, {
     stableIds: true,
   });
-  const { signals, llm: detectLlm } = await runHybridDetection(
+  const { signals, llm: detectLlm } = await withDetectionLedger(tenantId, (ledger) => runHybridDetection(
     conversations,
     messages,
     tenantId,
     emptyShowcaseStore.taxonomyOverrides,
-  );
+    ledger.detectOptions,
+  ));
 
   return {
     kind,

@@ -5,6 +5,7 @@ import { finalizePublishedUpload } from "@/lib/finalize-published-upload";
 import { publishAtomicIngest } from "@/lib/publish-atomic-ingest";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetection } from "@/lib/detect-llm";
+import { withDetectionLedger } from "@/lib/ai/ledger";
 import {
   parseIngestDocument,
   toStoreRecords,
@@ -260,7 +261,7 @@ export async function POST(request: Request) {
       const lastBasename = [...prepared]
         .reverse()
         .find((entry) => entry.basename)?.basename;
-      store.pilot = {
+      const pilot = store.pilot = {
         baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
         updatedAt: new Date().toISOString(),
         weeklyExportCount:
@@ -274,14 +275,16 @@ export async function POST(request: Request) {
       };
 
       const partner = store.tenant.id !== "tenant_demo";
+      return await withDetectionLedger(store.tenant.id, async (ledger) => {
       const [{ signals: newSignals, llm }] = await Promise.all([
         runHybridDetection(
           ingestedConversations,
           ingestedMessages,
           store.tenant.id,
-          store.taxonomyOverrides
+          store.taxonomyOverrides,
+          ledger.detectOptions,
         ),
-        partner ? Promise.resolve() : syncPilotSettingsToBackend(store.tenant.id, store.pilot),
+        partner ? Promise.resolve() : syncPilotSettingsToBackend(store.tenant.id, pilot),
       ]);
 
       if (replaceShowcase) {
@@ -316,7 +319,8 @@ export async function POST(request: Request) {
           const published = await publishAtomicIngest({ tenantId: store.tenant.id,
             source: store.pilot?.lastUploadedFileName ?? "upload", replace: replaceShowcase,
             conversations: ingestedConversations, messages: ingestedMessages, signals: signalsToSync,
-            classificationFailed: llm.failed > 0, contexts: llm.contexts, skippedIds: llm.skippedIds });
+            classificationFailed: llm.failed > 0, contexts: llm.contexts, skippedIds: llm.skippedIds,
+            onDetectionRunId: ledger.setDetectionRunId });
           store.signals = [...store.signals.filter((signal) => !ingestedConversationIds.has(signal.conversationId)), ...published.signals];
           ensureSupervisedActions(store);
           publicationWarnings = await finalizePublishedUpload({
@@ -342,6 +346,7 @@ export async function POST(request: Request) {
           replaceShowcase,
           storeUpdatedAt: store.pilot?.updatedAt,
           lastUploadedFileName: store.pilot?.lastUploadedFileName,
+          onDetectionRunId: ledger.setDetectionRunId,
         });
       } catch (err) {
         const detail = err instanceof Error ? err.message : "Neon write failed";
@@ -376,6 +381,7 @@ export async function POST(request: Request) {
         ...(syncError ? { syncError } : {}),
         detectLlm: llm,
         replaced: replaceShowcase,
+      });
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Ingest failed";

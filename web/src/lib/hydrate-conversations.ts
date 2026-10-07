@@ -29,6 +29,7 @@ import {
 } from "./backend-client";
 import { predictionToStubSignal, commercialMetadataFromPrediction } from "./join-needs-review";
 import { runHybridDetection } from "./detect-llm";
+import { withDetectionLedger } from "./ai/ledger";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
 import { writeStore } from "./store";
@@ -480,12 +481,13 @@ export async function tryHydrateStoreFromNeon(
         .map(predictionToStubSignal).filter((signal): signal is Signal => signal !== null);
       signals = applyNeonFeedbackToSignals(signals, persisted);
     } else {
-    const detected = await runHybridDetection(
+    const detected = await withDetectionLedger(tenantId, (ledger) => runHybridDetection(
       chats.conversations,
       chats.messages,
       tenantId,
-      taxonomyOverrides
-    );
+      taxonomyOverrides,
+      ledger.detectOptions,
+    ));
     signals = detected.signals;
     if (detected.llm.enabled) {
       llmSkippedConversationIds = detected.llm.skippedIds ?? [];

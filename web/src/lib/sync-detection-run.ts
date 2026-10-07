@@ -44,11 +44,13 @@ export async function syncDetectionRun(input: {
   skippedIds?: string[];
   contexts?: LlmPassStats["contexts"];
   priorSignals?: Signal[];
+  onDetectionRunId?: (runId: string) => void;
 }): Promise<PredictionSyncResult> {
   const skipped = new Set(input.skippedIds ?? []);
   const conversations = detectionPayload(input);
   if (!conversations.length) return { signals: (input.priorSignals ?? []).filter((signal) => skipped.has(signal.conversationId)), sync: { attempted: 0, created: 0, updated: 0, failed: 0, skipped: skipped.size } };
   const runId = createHash("sha256").update(JSON.stringify(conversations)).digest("hex");
+  input.onDetectionRunId?.(runId);
   const result = await publishDetectionRun(input.tenantId, runId, conversations);
   if (result.predictions.some((row) => !row.active)) throw new Error("This detection result was superseded. Run detection again.");
   const ids = new Map(result.predictions.map((row) => [`${row.conversation_id}:${row.signal_type}`, row.id]));

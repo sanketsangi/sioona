@@ -210,6 +210,8 @@ export type LlmPassStats = {
   >;
   /** First diagnosed failure when `failed` > 0. Omitted when every call succeeded. */
   llmFailure?: LlmFailureKind;
+  /** Set when the inference ledger could not be reached and the LLM pass did not run. */
+  ledgerSkip?: "unreachable";
 };
 
 function llmFailureKindOf(err: unknown): LlmFailureKind | null {
@@ -259,8 +261,10 @@ export type HybridDetectOptions = {
    * before any other zero-signal miss.
    */
   resumeIds?: readonly string[];
-  /** One event per provider fetch. Production uses the no-op sink. */
+  /** One event per provider fetch. Production passes the ledger sink when the preflight succeeds. */
   attemptSink?: AttemptSink;
+  /** Ledger preflight failed. Heuristics still publish; no provider call runs. */
+  skipLlm?: boolean;
 };
 
 function emptyStats(enabled: boolean): LlmPassStats {
@@ -1166,6 +1170,12 @@ export async function runHybridDetection(
         options.onProgress
       )
     : runDetection(conversations, messages, tenantId, overrides);
+  if (options?.skipLlm) {
+    return {
+      signals: heuristic,
+      llm: { ...emptyStats(false), ledgerSkip: "unreachable" },
+    };
+  }
   if (!isLlmPrimaryEnabled()) {
     return applyLlmSecondPass(
       conversations,

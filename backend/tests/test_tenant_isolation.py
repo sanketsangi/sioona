@@ -121,6 +121,20 @@ def _body(method: str, path: str):
         }
     if "/detection-runs/" in path and method == "POST":
         return {"conversations": []}
+    if path.endswith("/inference-attempts"):
+        return {"attempts": [{
+            "attempt_id": "attempt-1",
+            "logical_operation_id": "operation-1",
+            "attempt_ordinal": 1,
+            "stage": "detect",
+            "route_version": "detect:test",
+            "provider": "groq",
+            "model": "m",
+            "prompt_version": "p",
+            "status": "timeout",
+            "usage_status": "unknown",
+            "started_at": "2026-10-08T00:00:00Z",
+        }]}
     return {}
 
 

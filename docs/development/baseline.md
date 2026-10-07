@@ -226,11 +226,15 @@ A human with read-only access to hosted Neon runs, from `backend/` against that 
 alembic current
 ```
 
-Record the revision id in this file under a dated "Hosted" line. Do not paste connection strings. Until that line exists, hosted schema is **unknown**. PROJECT_STATE §5 last records hosted verification at `007_pilot_upload_name`; that statement was not re-checked here.
+Record the revision id in this file under a dated "Hosted" line. Do not paste connection strings. Until that line exists, hosted schema is **unknown**.
+
+## Hosted
+
+2026-10-08: `021_inference_attempts` on the Neon project `sioona` default branch (`alembic_version.version_num` only). The `inference_attempts` table is already present, including `ck_inference_attempts_ordinal_positive` (`attempt_ordinal >= 1`), which the cookbook scaffold omitted. No connection string recorded. This session did not run `alembic upgrade` against hosted Neon.
 
 ## Unknowns
 
-- Hosted Alembic revision.
+- Hosted Alembic revision was read on 2026-10-08 (see Hosted). It is not re-checked automatically.
 - Hosted values of `DETECT_LLM`, `DETECT_LLM_PRIMARY`, and `DETECT_LLM_MAX_CALLS`.
 - Whether the Render recovery cron is actually scheduled.
 - GitHub branch protection (not queried).

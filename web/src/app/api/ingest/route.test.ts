@@ -1124,7 +1124,8 @@ describe("POST /api/ingest", () => {
       expect.any(Array),
       expect.any(Array),
       "tenant_demo",
-      expect.anything()
+      expect.anything(),
+      expect.any(Object),
     );
   });
 });
