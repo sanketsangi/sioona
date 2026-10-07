@@ -3,6 +3,9 @@ import path from "node:path";
 
 import { defineConfig } from "@playwright/test";
 
+if (!process.env.CB02_OUTBOUND_AUDIT) {
+  throw new Error("Run CB-02 through npm run e2e so server outbound attempts fail the gate");
+}
 const webRoot = process.cwd();
 const repoRoot = path.resolve(webRoot, "..");
 const venvPython = path.join(repoRoot, "backend/.venv/bin/python");
@@ -51,6 +54,8 @@ function childEnv(overrides: Record<string, string>): Record<string, string> {
   return {
     ...env,
     ...overrides,
+    NEXT_TELEMETRY_DISABLED: "1",
+    SIOONA_IDENTITY_KEY: "cb02-synthetic-identity-key-not-for-production",
     DETECT_LLM: "0",
     GROQ_API_KEY: "",
     SENTRY_DSN: "",
@@ -71,7 +76,7 @@ function childEnv(overrides: Record<string, string>): Record<string, string> {
  * Next writes store.json into cwd/data. Copy the app so this run does not
  * replace web/data/store*.json. Turbopack rejects a symlinked project root.
  */
-const isolateAndDev = [
+const isolateAndStart = [
   "set -euo pipefail",
   'ROOT="$(pwd)"',
   'WORK="$(mktemp -d "${TMPDIR:-/tmp}/sioona-e2e-web.XXXXXX")"',
@@ -82,7 +87,8 @@ const isolateAndDev = [
   'ln -s "$ROOT/data/samples" "$WORK/data/samples"',
   'ln -s "$ROOT/node_modules" "$WORK/node_modules"',
   'cd "$WORK"',
-  "./node_modules/.bin/next dev --webpack --hostname 127.0.0.1 --port 3000",
+  "./node_modules/.bin/next build --webpack",
+  "./node_modules/.bin/next start --hostname 127.0.0.1 --port 3000",
 ].join("\n");
 
 const databaseUrl = e2eDatabaseUrl();
@@ -105,7 +111,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `"${python}" -m uvicorn app.main:app --host 127.0.0.1 --port 8000`,
+      command: `"${python}" -c "import sitecustomize; sitecustomize.require_guard(); import runpy; runpy.run_module('uvicorn', run_name='__main__')" app.main:app --host 127.0.0.1 --port 8000`,
       cwd: path.join(repoRoot, "backend"),
       url: "http://127.0.0.1:8000/health",
       timeout: 60_000,
@@ -117,7 +123,7 @@ export default defineConfig({
       }),
     },
     {
-      command: `bash -s <<'E2E'\n${isolateAndDev}\nE2E`,
+      command: `bash -s <<'E2E'\n${isolateAndStart}\nE2E`,
       cwd: webRoot,
       url: "http://127.0.0.1:3000/login",
       timeout: 300_000,

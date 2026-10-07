@@ -43,7 +43,7 @@ test("Gitleaks CI scans the repository and the canary fixture", () => {
 test("the scanner flags the harmless canary fixture", () => {
   const fixture = path.join(root, ".github/secret-scan-fixture/canary.txt");
   const source = fs.readFileSync(fixture, "utf8");
-  assert.match(source, /AKIA234567BCDEFGHIJK/);
+  assert.ok(source.includes(["AKIA", "234567BCDEFGHIJK"].join("")));
   assert.match(source, /not a credential/);
   const gitleaks = process.env.GITLEAKS_BIN || "gitleaks";
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cb02-scan-"));
@@ -53,6 +53,41 @@ test("the scanner flags the harmless canary fixture", () => {
       encoding: "utf8",
     });
     assert.equal(run.status, 1, run.stderr || run.stdout);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("only the exact canary finding is exempt, never other secrets", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cb02-scan-scope-"));
+  const dir = path.join(tmp, ".github/secret-scan-fixture");
+  const fixture = path.join(dir, "canary.txt");
+  const original = fs.readFileSync(path.join(root, ".github/secret-scan-fixture/canary.txt"), "utf8");
+  const extra = "aws_access_key_id=" + ["AKIA", "BCDEFGHIJK234567"].join("") + "\n";
+  const scan = () => {
+    const added = spawnSync("git", ["-C", tmp, "add", "."], { encoding: "utf8" });
+    assert.equal(added.status, 0, added.stderr);
+    return spawnSync(process.env.GITLEAKS_BIN || "gitleaks", [
+      "protect", "--staged", "--source", tmp, "--config", path.join(root, ".gitleaks.toml"), "--no-banner", "--redact",
+    ], { encoding: "utf8" });
+  };
+  try {
+    const initialized = spawnSync("git", ["init", tmp], { encoding: "utf8" });
+    assert.equal(initialized.status, 0, initialized.stderr);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(fixture, original);
+    let result = scan();
+    assert.equal(result.status, 0, result.stderr);
+    fs.appendFileSync(fixture, extra);
+    result = scan();
+    assert.equal(result.status, 1, "extra secret in canary file must fail: " + result.stderr);
+    fs.writeFileSync(fixture, original);
+    fs.writeFileSync(path.join(dir, "other.env"), extra);
+    result = scan();
+    assert.equal(result.status, 1, "sibling secret must fail: " + result.stderr);
+    fs.writeFileSync(path.join(dir, "other.env"), original);
+    result = scan();
+    assert.equal(result.status, 1, "canary value outside the exact path must fail: " + result.stderr);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
