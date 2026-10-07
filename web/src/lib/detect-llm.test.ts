@@ -278,10 +278,13 @@ describe("ledger preflight skip", () => {
     vi.stubEnv("GROQ_API_KEY", "test-key");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    const { signals, llm } = await runHybridDetection([conv], messages, "tenant_demo", null, { skipLlm: true });
+    const { signals, llm } = await runHybridDetection([conv], messages, "tenant_demo", null, {
+      skipLlmReason: "ledger",
+    });
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(llm.ledgerSkip).toBe("unreachable");
-    expect(llm.enabled).toBe(false);
+    expect(llm.llmFailure).toBe("ledger");
+    expect(llm.enabled).toBe(true);
+    expect(llm.attempted).toBe(0);
     expect(signals.length).toBeGreaterThan(0);
   });
 });
