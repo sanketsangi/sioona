@@ -272,6 +272,23 @@ async function inFlightUnderHold(input: {
   return inFlight;
 }
 
+describe("ledger preflight skip", () => {
+  it("publishes heuristics and does not call the provider", async () => {
+    vi.stubEnv("DETECT_LLM", "1");
+    vi.stubEnv("GROQ_API_KEY", "test-key");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { signals, llm } = await runHybridDetection([conv], messages, "tenant_demo", null, {
+      skipLlmReason: "ledger",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(llm.llmFailure).toBe("ledger");
+    expect(llm.enabled).toBe(true);
+    expect(llm.attempted).toBe(0);
+    expect(signals.length).toBeGreaterThan(0);
+  });
+});
+
 describe("applyLlmSecondPass", () => {
   it("does not call classifier when heuristics already fired", async () => {
     const classify = vi.fn();

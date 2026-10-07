@@ -11,6 +11,7 @@ export async function publishAtomicIngest(input: {
   conversations: Conversation[]; messages: Message[]; signals: Signal[];
   contexts?: LlmPassStats["contexts"];
   classificationFailed?: boolean; skippedIds?: string[];
+  onDetectionRunId?: (runId: string) => void;
 }) {
   if (input.classificationFailed || input.skippedIds?.length) {
     throw new Error("Every conversation must finish classification before this upload can publish.");
@@ -30,6 +31,7 @@ export async function publishAtomicIngest(input: {
     detections: detectionPayload(input),
   };
   const uploadId = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  input.onDetectionRunId?.(uploadId);
   const result = await publishIngestion(input.tenantId, uploadId, payload);
   if (result.status !== "completed" || !result.active || result.predictions.some((row) => !row.active)) {
     throw new Error("This upload is incomplete or superseded; refresh before importing again.");

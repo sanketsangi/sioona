@@ -5,10 +5,10 @@ import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "../data/fixtures/zerodha-batch0
 import { runDetection } from "./detect";
 import {
   isDetectLlmEnabled,
-  runHybridDetection,
   type LlmClassifyFn,
   type LlmPassStats,
 } from "./detect-llm";
+import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import { computeEvalMetrics, type EvalMetrics } from "./eval";
 import { parseIngestDocument, toStoreRecords } from "./ingest";
 import {
@@ -308,7 +308,7 @@ export async function loadPartnerExportEval(options?: {
     };
   }
 
-  const { signals: hybridSignals, llm } = await runHybridDetection(
+  const { signals: hybridSignals, llm } = await runHybridDetectionWithLedger(
     conversations,
     messages,
     tenantId,

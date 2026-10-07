@@ -41,6 +41,7 @@ export type DeferredIngestDualWriteInput = {
   /** `store.pilot.updatedAt` written by this ingest — abort if the store moved on. */
   storeUpdatedAt?: string;
   lastUploadedFileName?: string;
+  onDetectionRunId?: (runId: string) => void;
 };
 
 export type DeferredIngestSyncResult = {
@@ -214,7 +215,7 @@ export async function persistDeferredIngestDualWrite(
   if (input.versionDetection && (conversationSync.failed > 0 || conversationSync.skipped > 0)) throw new Error("Conversation sync incomplete; no detection revision published.");
   const { signals: synced, sync: predictionSync } =
     input.versionDetection && conversationSync.failed === 0 && conversationSync.skipped === 0
-      ? await syncDetectionRun({ tenantId, conversations, messages, signals, contexts: input.contexts, skippedIds: input.skippedIds, priorSignals: input.priorSignals })
+      ? await syncDetectionRun({ tenantId, conversations, messages, signals, contexts: input.contexts, skippedIds: input.skippedIds, priorSignals: input.priorSignals, onDetectionRunId: input.onDetectionRunId })
       : await syncPredictionsToBackend(signals, tenantId);
 
   const latest = await readPersistedStore();
