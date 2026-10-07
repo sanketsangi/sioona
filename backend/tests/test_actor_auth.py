@@ -1,6 +1,9 @@
 """Enforce, shadow, and off behavior for the actor gate."""
 
 import logging
+import os
+import subprocess
+import sys
 import time
 from datetime import datetime, timezone
 from uuid import UUID
@@ -61,6 +64,45 @@ def test_shadow_logs_tenant_route_and_reason_without_pii(api, monkeypatch, caplo
     assert "reason=missing_actor" in caplog.text
     assert planted not in caplog.text
     assert "X-Sioona-Actor" not in caplog.text
+
+
+def test_shadow_mismatch_is_visible_with_default_uvicorn_logging() -> None:
+    # A fresh interpreter avoids pytest's logging capture/level overrides.
+    result = subprocess.run(
+        [sys.executable, "-c", """
+import uvicorn
+from types import SimpleNamespace
+from app.api.actor import _observe
+uvicorn.Config('app.main:app')
+request = SimpleNamespace(scope={'route': SimpleNamespace(path='/v1/tenants/{tenant_id}/signal-score')})
+_observe(request, 'tenant_shadow_test', None, None, 'read', None)
+"""],
+        env={**os.environ, "DATABASE_URL": "sqlite+pysqlite:///:memory:",
+             "SIOONA_ACTOR_AUTH": "shadow", "SIOONA_ACTOR_KEY": "synthetic-test-key"},
+        capture_output=True, text=True, check=True, timeout=15,
+    )
+    assert result.stdout == ""
+    assert result.stderr.strip() == (
+        "actor_auth_mismatch tenant=tenant_shadow_test "
+        "route=/v1/tenants/{tenant_id}/signal-score reason=missing_actor"
+    )
+
+
+def test_shadow_admin_retains_legacy_gate_with_production_settings(api, monkeypatch) -> None:
+    monkeypatch.setenv("SIOONA_ENV", "production")
+    monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "synthetic-service-token")
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", "shadow")
+    get_settings.cache_clear()
+    client, factory = api
+    sub = add_member(factory, "admin@example.test", "tenant_a", "admin")
+    headers = {**actor_headers(sub, "tenant_a"), "Authorization": "Bearer synthetic-service-token"}
+    denied = client.delete("/v1/tenants/tenant_a/data", headers=headers)
+    assert denied.status_code == 403
+    assert denied.json()["detail"] == "admin_role_required"
+    allowed = client.delete(
+        "/v1/tenants/tenant_a/data", headers={**headers, "X-Sioona-Role": "admin"},
+    )
+    assert allowed.status_code == 200
 
 
 def test_enforce_rejects_missing_expired_and_wrong_token(api) -> None:
