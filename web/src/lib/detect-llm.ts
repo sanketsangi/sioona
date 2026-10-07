@@ -24,6 +24,16 @@ import type {
   SignalType,
   TaxonomyOverrides,
 } from "./types";
+import { createInferenceId, noopAttemptSink } from "./ai/attempts";
+import {
+  postGroqChatCompletion,
+  groqFailureKind,
+  isGroqDailyQuota,
+} from "./ai/providers/groq";
+import type { AttemptSink, InferenceAttempt } from "./ai/types";
+import { UNKNOWN_USAGE } from "./ai/usage";
+
+export { groqFailureKind, isGroqDailyQuota };
 
 const SIGNAL_TYPES = new Set<SignalType>(["lead", "retention", "upsell"]);
 
@@ -45,8 +55,6 @@ export const DETECT_LLM_PRIMARY_LOCAL_MAX_CALLS = 120;
 export const DETECT_LLM_MAX_ATTEMPTS = 3;
 export const DETECT_LLM_MIN_INTERVAL_MS = 200;
 export const DETECT_PROMPT_VERSION = "final-intent-recent-complete-turns-v2";
-
-const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 /**
  * Compact classifier prompt for small Qwen models (json_object mode).
@@ -127,7 +135,12 @@ export type LlmClassification = {
   confidence: number;
   summary: string;
   quotes: string[];
-  context?: TranscriptContext & { promptVersion: string; model: string };
+  context?: TranscriptContext & {
+    promptVersion: string;
+    model: string;
+    stage?: "detect";
+    routeVersion?: string;
+  };
 };
 
 export type LlmClassifyFn = (input: {
@@ -186,42 +199,18 @@ export type LlmPassStats = {
   /** Attempted classifications that failed; excludes successful none and skipped work. */
   failedIds?: string[];
   /** Successful classifications, including explicit none outputs. */
-  contexts?: Record<string, { model: string; promptVersion: string } & Partial<TranscriptContext>>;
+  contexts?: Record<
+    string,
+    {
+      model: string;
+      promptVersion: string;
+      stage?: "detect";
+      routeVersion?: string;
+    } & Partial<TranscriptContext>
+  >;
   /** First diagnosed failure when `failed` > 0. Omitted when every call succeeded. */
   llmFailure?: LlmFailureKind;
 };
-
-/**
- * Map a Groq HTTP error onto key / model. Other statuses stay undiagnosed
- * so a 429 is not labeled as a bad response body.
- */
-export function groqFailureKind(
-  status: number,
-  body: string
-): LlmFailureKind | null {
-  const text = body.toLowerCase();
-  if (
-    status === 401 ||
-    status === 403 ||
-    text.includes("invalid api key") ||
-    text.includes("invalid_api_key") ||
-    text.includes("expired_api_key")
-  ) {
-    return "key";
-  }
-  const modelGone =
-    text.includes("does not exist") ||
-    text.includes("decommission") ||
-    text.includes("not found") ||
-    text.includes("no longer") ||
-    text.includes("deprecated") ||
-    text.includes("model_not_found");
-  if ((status === 400 || status === 404) && text.includes("model") && modelGone) {
-    return "model";
-  }
-  if (status === 404 && text.includes("model")) return "model";
-  return null;
-}
 
 function llmFailureKindOf(err: unknown): LlmFailureKind | null {
   if (!err || typeof err !== "object" || !("kind" in err)) return null;
@@ -238,12 +227,6 @@ function llmFailureKindOf(err: unknown): LlmFailureKind | null {
   return null;
 }
 
-/** Groq free-tier daily cap. The body names TPD; a short TPM 429 does not. */
-export function isGroqDailyQuota(status: number, body: string): boolean {
-  if (status !== 429) return false;
-  return /tokens per day|\(tpd\)/i.test(body);
-}
-
 function fallbackDetectLlmModel(current: string): string | null {
   const raw = process.env.DETECT_LLM_FALLBACK_MODEL;
   if (raw != null) {
@@ -256,34 +239,16 @@ function fallbackDetectLlmModel(current: string): string | null {
   return FALLBACK_DETECT_LLM_MODEL;
 }
 
-function groqChatBody(model: string, messages: ClassifyChatMessage[]) {
-  const qwen = /(^|\/)qwen/i.test(model);
-  return {
-    model,
-    temperature: 0,
-    ...(qwen
-      ? { reasoning_effort: "none" as const, reasoning_format: "hidden" as const }
-      : { reasoning_effort: "low" as const }),
-    response_format: { type: "json_object" as const },
-    messages,
-  };
-}
-
-function isAbortError(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const name = "name" in err ? String(err.name) : "";
-  if (name === "AbortError" || name === "TimeoutError") return true;
-  const message = "message" in err ? String(err.message) : "";
-  return /abort|timeout/i.test(message);
-}
-
 export type HybridDetectResult = {
   signals: Signal[];
   llm: LlmPassStats;
 };
 
 export type HybridDetectOptions = {
-  /** Injectable classifier (tests). When set, skip Groq even if env is off. */
+  /**
+   * Injectable classifier (tests and offline eval). When set, skip Groq even if env is off.
+   * Provider attempt events are not emitted on this path; production routes must not pass it.
+   */
   classify?: LlmClassifyFn;
   maxCalls?: number;
   concurrency?: number;
@@ -294,6 +259,8 @@ export type HybridDetectOptions = {
    * before any other zero-signal miss.
    */
   resumeIds?: readonly string[];
+  /** One event per provider fetch. Production uses the no-op sink. */
+  attemptSink?: AttemptSink;
 };
 
 function emptyStats(enabled: boolean): LlmPassStats {
@@ -312,6 +279,26 @@ function emptyStats(enabled: boolean): LlmPassStats {
 /** Primary mode is on unless explicitly set to 0. Second pass stays available. */
 export function isLlmPrimaryEnabled(): boolean {
   return process.env.DETECT_LLM_PRIMARY !== "0";
+}
+
+/** Configured fallback id, or `off` when the operator disables the switch. */
+function configuredFallbackModel(): string {
+  const raw = process.env.DETECT_LLM_FALLBACK_MODEL;
+  if (raw != null) {
+    const trimmed = raw.trim();
+    if (trimmed === "" || trimmed === "0" || trimmed === "off") return "off";
+    return trimmed;
+  }
+  return FALLBACK_DETECT_LLM_MODEL;
+}
+
+/**
+ * Primary vs miss-only, plus the configured primary|fallback model pair.
+ * This is the route that was selected, not the model a single attempt called.
+ */
+export function detectRouteVersion(): string {
+  const mode = isLlmPrimaryEnabled() ? "primary" : "miss-only";
+  return `detect:${mode}:${detectLlmModel()}|${configuredFallbackModel()}`;
 }
 
 /**
@@ -389,79 +376,104 @@ export async function paceGroqCall(session?: GroqModelSession): Promise<void> {
   await ticket;
 }
 
-function responseHeader(response: Response, name: string): string | null {
-  const headers = response.headers;
-  if (!headers || typeof headers.get !== "function") return null;
-  return headers.get(name);
-}
-
-function retryAfterMs(response: Response): number | null {
-  const raw = responseHeader(response, "retry-after");
-  if (!raw) return null;
-  const seconds = Number(raw);
-  if (!Number.isFinite(seconds) || seconds < 0) return null;
-  return Math.round(seconds * 1000);
-}
+type GroqAttemptScope = {
+  sink: AttemptSink;
+  logicalOperationId: string;
+  ordinals: { next: number };
+  tenantId: string;
+  conversationId?: string;
+  routeVersion: string;
+  promptVersion: string;
+};
 
 async function requestGroqClassification(
   apiKey: string,
   messages: ClassifyChatMessage[],
-  session: GroqModelSession
+  session: GroqModelSession,
+  scope: GroqAttemptScope
 ): Promise<LlmClassification> {
   await paceGroqCall(session);
-  const { signal, clear } = timeoutSignal(DETECT_LLM_TIMEOUT_MS);
-  let response: Response;
+  const model = session.model;
+  scope.ordinals.next += 1;
+  const attemptOrdinal = scope.ordinals.next;
+  const startedMs = Date.now();
+  let status: InferenceAttempt["status"] = "failed";
+  let errorCategory: InferenceAttempt["errorCategory"];
+  let httpStatus: number | undefined;
+  let providerRequestId: string | undefined;
+  let usage = UNKNOWN_USAGE;
+  let attemptId: string | undefined;
   try {
-    response = await fetch(GROQ_CHAT_URL, {
-      method: "POST",
-      signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(groqChatBody(session.model, messages)),
+    const transport = await postGroqChatCompletion({
+      apiKey,
+      model,
+      messages,
+      timeoutMs: DETECT_LLM_TIMEOUT_MS,
     });
-  } catch (err) {
-    throw new LlmCallFailed(isAbortError(err) ? "timeout" : null, true);
-  } finally {
-    clear();
-  }
-
-  if (!response.ok) {
-    let detail = "";
-    try {
-      detail = typeof response.text === "function" ? await response.text() : "";
-    } catch {
-      detail = "";
+    attemptId = transport.attemptId;
+    providerRequestId = transport.providerRequestId;
+    usage = transport.usage;
+    httpStatus = transport.httpStatus;
+    if (!transport.ok) {
+      if (transport.reason === "timeout") status = "timeout";
+      if (transport.failureKind) errorCategory = transport.failureKind;
+      else if (transport.reason === "network") errorCategory = "network";
+      if (
+        transport.reason === "http" &&
+        !transport.dailyQuota &&
+        transport.retryAfterMs != null &&
+        transport.retryAfterMs > 0
+      ) {
+        noteGroqThrottle(session, transport.retryAfterMs);
+      }
+      throw new LlmCallFailed(transport.failureKind, transport.retryable, {
+        retryAfterMs: transport.retryAfterMs,
+        dailyQuota: transport.dailyQuota,
+      });
     }
-    const daily = isGroqDailyQuota(response.status, detail);
-    const hinted = retryAfterMs(response);
-    if (!daily && hinted != null && hinted > 0) noteGroqThrottle(session, hinted);
-    const retryable = !daily && (response.status === 429 || response.status >= 500);
-    throw new LlmCallFailed(daily ? "quota" : groqFailureKind(response.status, detail), retryable, {
-      retryAfterMs: hinted,
-      dailyQuota: daily,
-    });
+    const parsed =
+      (transport.content ? parseLlmClassificationJson(transport.content) : null) ??
+      (transport.reasoning ? parseLlmClassificationJson(transport.reasoning) : null);
+    if (!parsed) {
+      errorCategory = "shape";
+      throw new LlmCallFailed("shape");
+    }
+    status = "succeeded";
+    return parsed;
+  } catch (err) {
+    if (!(err instanceof LlmCallFailed) && !errorCategory) errorCategory = "network";
+    throw err;
+  } finally {
+    if (attemptId) {
+      const finishedMs = Date.now();
+      try {
+        scope.sink({
+          attemptId,
+          logicalOperationId: scope.logicalOperationId,
+          attemptOrdinal,
+          tenantId: scope.tenantId,
+          ...(scope.conversationId ? { conversationId: scope.conversationId } : {}),
+          stage: "detect",
+          routeVersion: scope.routeVersion,
+          provider: "groq",
+          model,
+          promptVersion: scope.promptVersion,
+          startedAt: new Date(startedMs).toISOString(),
+          finishedAt: new Date(finishedMs).toISOString(),
+          latencyMs: finishedMs - startedMs,
+          status,
+          ...(errorCategory ? { errorCategory } : {}),
+          ...(httpStatus != null ? { httpStatus } : {}),
+          ...(providerRequestId ? { providerRequestId } : {}),
+          usage,
+        });
+      } catch {
+        console.warn(
+          `Detect LLM attempt sink failed for attempt ${attemptId} (status=${status}, http=${httpStatus ?? "n/a"}).`
+        );
+      }
+    }
   }
-
-  let payload: {
-    choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
-  };
-  try {
-    payload = (await response.json()) as typeof payload;
-  } catch {
-    throw new LlmCallFailed("shape");
-  }
-
-  const message = payload.choices?.[0]?.message;
-  const content = typeof message?.content === "string" ? message.content : "";
-  const reasoning =
-    typeof message?.reasoning === "string" ? message.reasoning : "";
-  const parsed =
-    (content ? parseLlmClassificationJson(content) : null) ??
-    (reasoning ? parseLlmClassificationJson(reasoning) : null);
-  if (!parsed) throw new LlmCallFailed("shape");
-  return parsed;
 }
 
 function collapseWs(text: string): string {
@@ -699,7 +711,8 @@ export async function classifyConversationWithGroq(
     conversation: Conversation;
     customerMessages: Message[];
   },
-  session: GroqModelSession = createGroqModelSession()
+  session: GroqModelSession = createGroqModelSession(),
+  telemetry?: { attemptSink?: AttemptSink; tenantId?: string }
 ): Promise<LlmClassification | null> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
@@ -727,12 +740,30 @@ export async function classifyConversationWithGroq(
       DETECT_LLM_MAX_ATTEMPTS
     )))
   );
+  const scope: GroqAttemptScope = {
+    sink: telemetry?.attemptSink ?? noopAttemptSink,
+    logicalOperationId: createInferenceId(),
+    ordinals: { next: 0 },
+    tenantId: telemetry?.tenantId ?? input.conversation.tenantId,
+    conversationId: input.conversation.id,
+    routeVersion: detectRouteVersion(),
+    promptVersion: DETECT_PROMPT_VERSION,
+  };
   let lastError: unknown = new LlmCallFailed("shape");
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const modelUsed = session.model;
     try {
-      const result = await requestGroqClassification(apiKey, messages, session);
-      return { ...result, context: { ...transcript.context, promptVersion: DETECT_PROMPT_VERSION, model: session.model } };
+      const result = await requestGroqClassification(apiKey, messages, session, scope);
+      return {
+        ...result,
+        context: {
+          ...transcript.context,
+          promptVersion: DETECT_PROMPT_VERSION,
+          model: session.model,
+          stage: "detect",
+          routeVersion: scope.routeVersion,
+        },
+      };
     } catch (err) {
       lastError = err;
       if (err instanceof LlmCallFailed && err.dailyQuota) {
@@ -766,12 +797,6 @@ export async function classifyConversationWithGroq(
     }
   }
   throw lastError;
-}
-
-function timeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
-  return { signal: controller.signal, clear: () => clearTimeout(timer) };
 }
 
 function signalFromClassification(
@@ -860,14 +885,22 @@ function prioritizeSkippedCandidates<T extends { conversation: Conversation }>(
   return [...first, ...rest];
 }
 
-function bindGroqClassify(classify: LlmClassifyFn | undefined): {
+function bindGroqClassify(
+  classify: LlmClassifyFn | undefined,
+  options: HybridDetectOptions | undefined,
+  tenantId: string
+): {
   classify: LlmClassifyFn;
   modelName: () => string;
 } {
   if (classify) return { classify, modelName: () => detectLlmModel() };
   const session = createGroqModelSession();
   return {
-    classify: (input) => classifyConversationWithGroq(input, session),
+    classify: (input) =>
+      classifyConversationWithGroq(input, session, {
+        attemptSink: options?.attemptSink,
+        tenantId,
+      }),
     modelName: () => session.model,
   };
 }
@@ -922,7 +955,7 @@ export async function applyLlmSecondPass(
     .slice(selected.length)
     .map((row) => row.conversation.id);
   const skipped = skippedIds.length;
-  const bound = bindGroqClassify(classify);
+  const bound = bindGroqClassify(classify, options, tenantId);
   const concurrency = Math.max(
     1,
     options?.concurrency ??
@@ -1037,7 +1070,7 @@ export async function applyLlmPrimaryPass(
   const ordered = prioritizeSkippedCandidates(candidates, options?.resumeIds);
   const selected = ordered.slice(0, maxCalls);
   const skippedIds = ordered.slice(selected.length).map((row) => row.conversation.id);
-  const bound = bindGroqClassify(classify);
+  const bound = bindGroqClassify(classify, options, tenantId);
   const concurrency = Math.max(
     1,
     options?.concurrency ??

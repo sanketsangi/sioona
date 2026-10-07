@@ -34,6 +34,7 @@ describe("POST /api/detect", () => {
   });
 
   it("re-detects, keeps SignalScore feedback, and reports sync stats", async () => {
+    const detectSpy = vi.spyOn(detectLlm, "runHybridDetection");
     const before = await readStore();
     const target = before.signals[0];
     expect(target).toBeTruthy();
@@ -60,6 +61,10 @@ describe("POST /api/detect", () => {
     );
     expect(persisted?.feedback?.label).toBe("correct");
     expect(persisted?.feedback?.note).toBe("keep me");
+    expect(detectSpy).toHaveBeenCalled();
+    const options = detectSpy.mock.calls[0]?.[4];
+    expect(options?.classify).toBeUndefined();
+    expect(options?.attemptSink).toBeUndefined();
   });
 
   it("classifies the stored skip list and keeps the chats still waiting", async () => {
