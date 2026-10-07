@@ -1,0 +1,8 @@
+title = "Sioona"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public documentation canary. The Gitleaks job scans this file on its own and expects a finding."
+paths = ['''(^|/)\.github/secret-scan-fixture/''']

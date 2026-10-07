@@ -13,6 +13,10 @@
 # testing
 /coverage
 /eval/promptfoo/system-prompt.txt
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
