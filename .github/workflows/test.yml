@@ -98,3 +98,98 @@ jobs:
         env:
           PG_TEST_DATABASE_URL: postgresql+psycopg://sioona:ci_only@localhost:5432/sioona_migration_test
         run: python -m pytest tests/test_postgres_migrations.py -q
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: sioona
+          POSTGRES_PASSWORD: ci_only
+          POSTGRES_DB: sioona_migration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sioona -d sioona_migration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend
+        working-directory: backend
+        run: pip install -r requirements.txt
+      - name: Migrate CI Postgres
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+psycopg://sioona:ci_only@127.0.0.1:5432/sioona_migration_test
+        run: alembic upgrade head
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install web
+        working-directory: web
+        run: |
+          npm ci
+          # npm/cli#4828: a macOS lockfile omits some Linux optional binaries.
+          # Next otherwise downloads the missing SWC package from registry.npmjs.org.
+          npm install --no-save "@rollup/rollup-linux-x64-gnu@$(node -p "require('rollup/package.json').version")"
+          npm install --no-save "@next/swc-linux-x64-gnu@$(node -p "require('next/package.json').version")"
+          npx playwright install --with-deps chromium
+      - name: Outbound guard regression tests
+        working-directory: web
+        env:
+          CB02_TEST_OS_GUARD: "1"
+        run: node --test e2e/ci-gate.test.mjs e2e/outbound-gate.test.mjs
+      - name: Upload, review, persisted decision
+        working-directory: web
+        env:
+          DATABASE_URL: postgresql+psycopg://sioona:ci_only@127.0.0.1:5432/sioona_migration_test
+          DETECT_LLM: "0"
+          CI: "true"
+        run: bash e2e/guard-linux.sh npm run e2e
+
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+      - name: Scanner exemption regression tests
+        run: node --test web/e2e/scan-gate.test.mjs
+      - name: Scanner flags the canary fixture
+        run: |
+          work="$(mktemp -d)"
+          cp .github/secret-scan-fixture/canary.txt "$work/canary.txt"
+          set +e
+          gitleaks detect --no-git --source "$work" --no-banner --redact
+          code=$?
+          set -e
+          test "$code" -eq 1
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false

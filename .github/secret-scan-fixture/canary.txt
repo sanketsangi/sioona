@@ -1,0 +1,4 @@
+# Harmless scanner canary. This synthetic value is not a credential
+# and cannot access any account. Gitleaks 8.28 allowlists the public
+# AWS documentation example, so this fixture uses a different shape.
+aws_access_key_id=AKIA234567BCDEFGHIJK
