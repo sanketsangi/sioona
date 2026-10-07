@@ -1,3 +1,12 @@
+## Engineering invariants (all packages)
+
+- Humans approve consequential actions. Nothing auto-sends customer communication or writes external systems without an explicit approved action.
+- Tenant identity is resolved server-side; never trust a tenant/role value because it arrived in a request.
+- Evidence shown to operators must reconstruct from persisted source text.
+- Every model call is metered; model/prompt changes need an eval comparison.
+- Never log raw transcripts; never commit secrets, customer exports, or `web/data/store*.json`.
+- Package rules: `web/AGENTS.md`, `site/AGENTS.md`, `backend/AGENTS.md`. Roadmap: `docs/DEVELOPMENT_COOKBOOK.md`.
+
 Concise rules for building accessible, fast, delightful UIs. Use MUST/SHOULD/NEVER to guide decisions.
 
 ## Interactions

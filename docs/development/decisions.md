@@ -120,3 +120,10 @@ After (approved and applied 2026-10-07):
 ```
 
 Line 77 stays: "Do not treat labeled P/R as the pilot go/no-go".
+
+## D7 — Python lock tool
+
+Status: **approved**
+Date: 2026-10-07
+Approver: Sanket
+Choice: `uv pip compile --universal --python-version 3.12 --generate-hashes`, writing `requirements.txt` from `requirements.in`. CI and Render stay `pip install -r requirements.txt`. pip-tools was the acceptable alternative and was not chosen.
