@@ -659,7 +659,7 @@ html[data-drawer-open="true"] {
   animation: sio-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) var(--rise-delay, 0ms) both;
 }
 
-/* Bento hover: #f2f1f0 fill (sio-bg-interactive-hover). Inner elements shift via utilities. */
+/* Bento hover uses sio-bg-interactive-hover. Inner elements shift via utilities. */
 .bento-card {
   transition-property: background-color;
   transition-duration: 150ms;
