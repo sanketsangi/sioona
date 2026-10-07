@@ -1,3 +1,5 @@
+import { LIVE_INGEST_PRINCIPAL } from "@/lib/actor-assertion";
+import { runWithServicePrincipal } from "@/lib/backend-client";
 import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
 import { acceptLiveChats } from "@/lib/live-ingest/accept";
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
   if (!tenantId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return runWithTenant(tenantId, async () => {
+  return runWithServicePrincipal(LIVE_INGEST_PRINCIPAL, tenantId, () => runWithTenant(tenantId, async () => {
   const token = process.env.INTERCOM_ACCESS_TOKEN?.trim();
   if (!token) {
     return NextResponse.json({ error: "intercom_access_token_missing" }, { status: 503 });
@@ -43,5 +45,5 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "intercom_poll_failed" }, { status: 502 });
   }
-  });
+  }));
 }

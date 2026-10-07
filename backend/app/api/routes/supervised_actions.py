@@ -2,11 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.supervised_action import (
     SupervisedActionDecisionResponse,
@@ -18,7 +19,7 @@ from app.services.supervised_actions import (
     upsert_supervised_action_decision,
 )
 
-router = APIRouter(tags=["supervised-actions"])
+router = guarded_router(tags=["supervised-actions"])
 
 
 @router.post(
@@ -53,6 +54,20 @@ def submit_supervised_action_decision(
     return SupervisedActionDecisionResponse.model_validate(row)
 
 
+@router.post(
+    "/v1/tenants/{tenant_id}/supervised-actions",
+    response_model=SupervisedActionDecisionResponse,
+)
+def submit_supervised_action_decision_for_tenant(
+    tenant_id: str,
+    body: SupervisedActionDecisionUpsert,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SupervisedActionDecisionResponse:
+    keep_header_gate(tenant_id, header_tenant_id)
+    return submit_supervised_action_decision(body, tenant_id, db)
+
+
 @router.get(
     "/v1/tenants/{tenant_id}/supervised-actions",
     response_model=list[SupervisedActionDecisionResponse],
@@ -67,7 +82,7 @@ def get_supervised_action_decisions(
 
     Repeat ``conversation_id`` so other packs stay out. Omitted → full tenant.
     """
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows = list_supervised_action_decisions(
             db, tenant_id, conversation_ids=conversation_id

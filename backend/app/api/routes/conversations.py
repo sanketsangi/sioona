@@ -3,11 +3,12 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.models.conversation import Conversation
 from app.models.message import Message
@@ -34,7 +35,7 @@ from app.services.conversations import (
     upsert_conversations,
 )
 
-router = APIRouter(tags=["conversations"])
+router = guarded_router(tags=["conversations"])
 
 
 def _to_response(
@@ -137,7 +138,7 @@ def get_tenant_conversations(
     overlay). Omitted → full tenant list (cold-start hydrate).
     ``updated_since`` keeps rows written at or after that instant.
     """
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows = list_conversations(
             db,
@@ -161,7 +162,7 @@ def delete_tenant_conversation(
     db: Annotated[Session, Depends(get_db)],
 ) -> ConversationDeleteResponse:
     """Delete one conversation (and messages/predictions) for this tenant."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         deleted = delete_conversation(
             db, tenant_id=tenant_id, conversation_id=conversation_id
@@ -187,7 +188,7 @@ def prune_tenant_conversations(
     db: Annotated[Session, Depends(get_db)],
 ) -> ConversationPruneResponse:
     """Delete this tenant's conversations whose ids are not in keep_conversation_ids."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     keep = {cid for cid in body.keep_conversation_ids if cid}
     try:
         deleted, kept = prune_conversations_not_in(
@@ -196,6 +197,37 @@ def prune_tenant_conversations(
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
     return ConversationPruneResponse(deleted=deleted, kept=kept)
+
+
+@router.post(
+    "/v1/tenants/{tenant_id}/conversations",
+    response_model=ConversationResponse,
+    status_code=201,
+)
+def create_or_update_conversation_for_tenant(
+    tenant_id: str,
+    body: ConversationUpsert,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ConversationResponse:
+    """Canonical upsert. The header-only path stays as a shadow alias."""
+    keep_header_gate(tenant_id, header_tenant_id)
+    return create_or_update_conversation(body, tenant_id, db)
+
+
+@router.post(
+    "/v1/tenants/{tenant_id}/conversations/bulk",
+    response_model=ConversationBulkResponse,
+    status_code=201,
+)
+def create_or_update_conversations_bulk_for_tenant(
+    tenant_id: str,
+    body: ConversationBulkUpsert,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> ConversationBulkResponse:
+    keep_header_gate(tenant_id, header_tenant_id)
+    return create_or_update_conversations_bulk(body, tenant_id, db)
 
 
 @router.patch(
@@ -210,7 +242,7 @@ def patch_tenant_conversation_ground_truth(
     db: Annotated[Session, Depends(get_db)],
 ) -> ConversationResponse:
     """Set or clear ground_truth. ``null`` is the explicit Unset clear."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         patched = patch_conversation_ground_truth(
             db,

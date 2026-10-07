@@ -3,11 +3,12 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.signal_score import (
     SignalScoreByType,
@@ -16,7 +17,7 @@ from app.schemas.signal_score import (
 )
 from app.services.signal_score import SignalScoreResult, calculate_signal_score
 
-router = APIRouter(tags=["signal-score"])
+router = guarded_router(tags=["signal-score"])
 
 
 def _to_response(result: SignalScoreResult) -> SignalScoreResponse:
@@ -94,7 +95,7 @@ def get_signal_score(
     Present but empty (``conversation_id=``) → 0 reviewed, not tenant-wide.
     ``signal_type`` filters ``by_signal_type`` only — overall stays pack/window.
     """
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     return _score_or_500(
         db,
         tenant_id,
@@ -117,7 +118,7 @@ def post_signal_score(
     body: SignalScoreRequest,
 ) -> SignalScoreResponse:
     """Same score as GET; keep-set in the body so a 100-chat pack is not truncated."""
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     return _score_or_500(
         db,
         tenant_id,

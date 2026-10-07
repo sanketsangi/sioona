@@ -1,4 +1,6 @@
+import { LIVE_INGEST_PRINCIPAL } from "@/lib/actor-assertion";
 import { readWebhookJson, WebhookBodyTooLarge } from "@/lib/bounded-webhook-json";
+import { runWithServicePrincipal } from "@/lib/backend-client";
 import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
 import { acceptLiveChats } from "@/lib/live-ingest/accept";
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
   if (!tenantId) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return runWithTenant(tenantId, async () => {
+  return runWithServicePrincipal(LIVE_INGEST_PRINCIPAL, tenantId, () => runWithTenant(tenantId, async () => {
   const provider = new URL(request.url).searchParams.get("provider") || "gupshup";
   let body: unknown;
   try { body = await readWebhookJson(request); }
@@ -43,5 +45,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "live_ingest_not_published", sent: false },
       { status: 503, headers: { "Retry-After": "30" } });
   }
-  });
+  }));
 }

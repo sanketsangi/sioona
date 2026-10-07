@@ -3,15 +3,18 @@ import hashlib
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-from fastapi import APIRouter, Depends, Header, HTTPException
+
+from fastapi import Depends, Header, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
+
+from app.api.actor import guarded_router
 from app.db import get_db
 from app.models.pilot_request import PilotRequest
 
-router = APIRouter(tags=["pilot-intake"])
+router = guarded_router(tags=["pilot-intake"])
 
 
 class Intake(BaseModel):

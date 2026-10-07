@@ -2,11 +2,12 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.api.deps import assert_tenant_match, require_tenant_id
+from app.api.actor import guarded_router, keep_header_gate
+from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.taxonomy import (
     TaxonomyOverridesBody,
@@ -15,7 +16,7 @@ from app.schemas.taxonomy import (
 )
 from app.services.taxonomy import list_taxonomy_overrides, replace_taxonomy_overrides
 
-router = APIRouter(tags=["taxonomy"])
+router = guarded_router(tags=["taxonomy"])
 
 
 def _response(tenant_id: str, raw: dict[str, dict[str, list[str]]]) -> TaxonomyOverridesResponse:
@@ -36,7 +37,7 @@ def get_taxonomy_overrides(
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
 ) -> TaxonomyOverridesResponse:
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         return _response(tenant_id, list_taxonomy_overrides(db, tenant_id))
     except SQLAlchemyError as exc:
@@ -53,7 +54,7 @@ def put_taxonomy_overrides(
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
 ) -> TaxonomyOverridesResponse:
-    assert_tenant_match(tenant_id, header_tenant_id)
+    keep_header_gate(tenant_id, header_tenant_id)
     try:
         saved = replace_taxonomy_overrides(
             db,

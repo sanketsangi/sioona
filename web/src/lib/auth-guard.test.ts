@@ -56,6 +56,44 @@ describe("guardApi", () => {
     expect(() => currentStoreTenant()).toThrow("Tenant scope required");
   });
 
+  it("returns a login path for an invalid API session cookie", async () => {
+    process.env.SIOONA_PUBLIC_DEMO = "1";
+    const request = new Request("http://localhost/api/store", {
+      headers: { cookie: "sioona_session=not.a.valid.token" },
+    });
+    const result = await guardApi(request, "read");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      await expect(result.response.json()).resolves.toEqual({
+        error: "Sign in required.",
+        loginPath: "/login",
+      });
+    }
+  });
+
+  it("returns a login path for an expired API session", async () => {
+    process.env.SIOONA_PUBLIC_DEMO = "1";
+    const token = await signSession({
+      email: "reviewer@partner.example",
+      role: "reviewer",
+      tenantId: "tenant_partner",
+      exp: Math.floor(Date.now() / 1000) - 30,
+    });
+    const request = new Request("http://localhost/api/store", {
+      headers: { cookie: `sioona_session=${token}` },
+    });
+    const result = await guardApi(request, "read");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(401);
+      await expect(result.response.json()).resolves.toEqual({
+        error: "Sign in required.",
+        loginPath: "/login",
+      });
+    }
+  });
+
   it("keeps anonymous reads on the demo tenant only", async () => {
     process.env.SIOONA_PUBLIC_DEMO = "1";
     const result = await guardApi(new Request("http://localhost/api/store"), "read");

@@ -3,6 +3,20 @@
  * Signal Score source of truth is Neon via this API; JSON store is a local mirror.
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
+import {
+  actorUserId,
+  DEMO_ACTOR_EMAIL,
+  signActorAssertion,
+} from "./actor-assertion";
+import {
+  publicDemoEnabled,
+  SESSION_COOKIE,
+  verifySessionToken,
+} from "./auth-token";
+import { DEMO_TENANT_ID } from "./tenant-context";
+
 const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
 /**
@@ -175,6 +189,89 @@ function serviceTokenHeader(): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }
 
+type ActorAuthMode = "off" | "shadow" | "enforce";
+
+type ActorIdentity = { sub: string; tid: string };
+
+const actorIdentity = new AsyncLocalStorage<ActorIdentity>();
+
+/** Bind a named service principal for the FastAPI calls inside `fn`. */
+export function runWithServicePrincipal<T>(
+  principal: string,
+  tenantId: string,
+  fn: () => T,
+): T {
+  return actorIdentity.run({ sub: principal, tid: tenantId }, fn);
+}
+
+function actorAuthMode(): ActorAuthMode {
+  const mode = process.env.SIOONA_ACTOR_AUTH;
+  if (mode === "shadow" || mode === "enforce") return mode;
+  return "off";
+}
+
+function actorScopedPath(tenantId: string, path: string): string {
+  if (actorAuthMode() === "off") return path;
+  const queryAt = path.indexOf("?");
+  const pathname = queryAt === -1 ? path : path.slice(0, queryAt);
+  const query = queryAt === -1 ? "" : path.slice(queryAt);
+  const alias =
+    pathname === "/v1/conversations" ||
+    pathname === "/v1/conversations/bulk" ||
+    pathname === "/v1/predictions" ||
+    pathname === "/v1/predictions/bulk" ||
+    pathname === "/v1/supervised-actions" ||
+    /^\/v1\/signals\/[^/]+\/(?:feedback|acted|outcome)$/.test(pathname);
+  if (!alias) return path;
+  return `/v1/tenants/${encodeURIComponent(tenantId)}${pathname.slice(3)}${query}`;
+}
+
+async function resolveActor(tenantId: string): Promise<ActorIdentity | null> {
+  const bound = actorIdentity.getStore();
+  if (bound) return bound;
+  try {
+    const { cookies } = await import("next/headers");
+    const jar = await cookies();
+    const session = await verifySessionToken(jar.get(SESSION_COOKIE)?.value);
+    if (session) {
+      return { sub: actorUserId(session.email), tid: tenantId };
+    }
+  } catch {
+    // Tests and non-request calls have no cookie store.
+  }
+  if (tenantId === DEMO_TENANT_ID && publicDemoEnabled()) {
+    return { sub: actorUserId(DEMO_ACTOR_EMAIL), tid: DEMO_TENANT_ID };
+  }
+  return null;
+}
+
+async function actorRequestHeaders(
+  tenantId: string,
+): Promise<Record<string, string>> {
+  if (actorAuthMode() === "off") return {};
+  const key = process.env.SIOONA_ACTOR_KEY?.trim() ?? "";
+  const actor = await resolveActor(tenantId);
+  if (!key || !actor) return {};
+  return { "X-Sioona-Actor": signActorAssertion(actor.sub, actor.tid, key) };
+}
+
+function callerHeaders(
+  headers: HeadersInit | undefined,
+): Record<string, string> {
+  const extra: Record<string, string> = {};
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      extra[key] = value;
+    });
+  } else if (Array.isArray(headers)) {
+    for (const [key, value] of headers) extra[key] = value;
+  } else if (headers) {
+    Object.assign(extra, headers);
+  }
+  if (actorAuthMode() !== "off") delete extra["X-Sioona-Role"];
+  return extra;
+}
+
 async function backendFetchOnce<T>(
   tenantId: string,
   path: string,
@@ -190,6 +287,8 @@ async function backendFetchOnce<T>(
     : timeoutSignal;
 
   let response: Response;
+  const minted =
+    actorAuthMode() === "off" ? {} : await actorRequestHeaders(tenantId);
   try {
     response = await fetch(url, {
       ...rest,
@@ -198,7 +297,8 @@ async function backendFetchOnce<T>(
         "Content-Type": "application/json",
         "X-Tenant-Id": tenantId,
         ...serviceTokenHeader(),
-        ...(rest.headers ?? {}),
+        ...minted,
+        ...callerHeaders(rest.headers),
       },
       cache: "no-store",
     });
@@ -237,9 +337,10 @@ async function backendFetch<T>(
   path: string,
   init?: BackendFetchInit
 ): Promise<T> {
+  const scopedPath = actorScopedPath(tenantId, path);
   const timeoutMs = init?.timeoutMs ?? BACKEND_FETCH_TIMEOUT_MS;
   try {
-    return await backendFetchOnce(tenantId, path, init, timeoutMs);
+    return await backendFetchOnce(tenantId, scopedPath, init, timeoutMs);
   } catch (err) {
     // One extra wait for Render free-tier wake. Timeouts stay on the caller.
     if (
@@ -253,7 +354,7 @@ async function backendFetch<T>(
     try {
       return await backendFetchOnce(
         tenantId,
-        path,
+        scopedPath,
         init,
         Math.max(timeoutMs, 25_000),
       );

@@ -34,9 +34,28 @@ from app.models.signal_feedback import (
 )
 from app.models.signal_prediction import SignalPrediction
 from app.models.taxonomy_override import TaxonomyOverride
+from app.models.membership import MEMBERSHIP_ROLES, Membership
+from app.models.user import (
+    ACTOR_NAMESPACE,
+    ACTOR_USER_ID_VECTOR,
+    ACTOR_USER_ID_VECTOR_EMAIL,
+    DEMO_ACTOR_EMAIL,
+    User,
+    actor_user_id,
+)
+from app.models.workspace import Workspace
 
 __all__ = [
+    "ACTOR_NAMESPACE",
+    "ACTOR_USER_ID_VECTOR",
+    "ACTOR_USER_ID_VECTOR_EMAIL",
+    "DEMO_ACTOR_EMAIL",
+    "MEMBERSHIP_ROLES",
     "Base",
+    "Membership",
+    "User",
+    "Workspace",
+    "actor_user_id",
     "Upload",
     "UploadConversation",
     "Conversation",

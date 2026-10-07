@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 import {
   authEnforced,
   demoActionsAllowed,
+  inspectSessionToken,
   publicDemoEnabled,
   readCookie,
   SESSION_COOKIE,
-  verifySessionToken,
   type SessionClaims,
 } from "@/lib/auth-token";
 import { DEMO_TENANT_ID } from "@/lib/tenant-context";
@@ -35,8 +35,17 @@ function demoSession(): SessionClaims {
 export async function sessionFromRequest(
   request: Request,
 ): Promise<SessionClaims | null> {
-  const token = readCookie(request.headers.get("cookie"), SESSION_COOKIE);
-  return verifySessionToken(token);
+  const inspected = await inspectSessionToken(
+    readCookie(request.headers.get("cookie"), SESSION_COOKIE),
+  );
+  return inspected.ok ? inspected.claims : null;
+}
+
+function expiredSessionResponse(): NextResponse {
+  return NextResponse.json(
+    { error: "Sign in required.", loginPath: "/login" },
+    { status: 401 },
+  );
 }
 
 /**
@@ -55,7 +64,16 @@ export async function guardApi(
     return { ok: true, session };
   }
 
-  const signedIn = await sessionFromRequest(request);
+  const inspected = await inspectSessionToken(
+    readCookie(request.headers.get("cookie"), SESSION_COOKIE),
+  );
+  if (
+    !inspected.ok &&
+    (inspected.reason === "expired" || inspected.reason === "invalid")
+  ) {
+    return { ok: false, response: expiredSessionResponse() };
+  }
+  const signedIn = inspected.ok ? inspected.claims : null;
 
   if (intent === "read") {
     if (signedIn) {
