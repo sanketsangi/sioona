@@ -4,9 +4,8 @@ Revision ID: 021_inference_attempts
 Revises: 020_workspaces_memberships
 Create Date: 2026-10-08
 
-Hosted Neon was already stamped at this revision on 2026-10-08, including
-ck_inference_attempts_ordinal_positive. This file matches that table.
-Do not upgrade hosted Neon from an agent session.
+Additive metering table for CB-06. Cost rates stay empty until a human enters
+official pricing. Unknown usage and cost remain explicit, never zero-filled.
 """
 
 from typing import Sequence, Union
@@ -51,9 +50,18 @@ def upgrade() -> None:
         sa.Column("rate_version", sa.String(64), nullable=True),
         sa.Column("estimated_cost_usd", sa.Numeric(14, 8), nullable=True),
         sa.Column("cost_status", sa.String(16), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("tenant_id", "attempt_id", name="uq_inference_attempts_tenant_attempt"),
+        sa.UniqueConstraint(
+            "tenant_id",
+            "attempt_id",
+            name="uq_inference_attempts_tenant_attempt",
+        ),
         sa.CheckConstraint(
             "status IN ('pending', 'succeeded', 'failed', 'timeout', 'cancelled')",
             name="ck_inference_attempts_status",
@@ -67,20 +75,34 @@ def upgrade() -> None:
             name="ck_inference_attempts_cost_status",
         ),
         sa.CheckConstraint(
-            "attempt_ordinal >= 1",
-            name="ck_inference_attempts_ordinal_positive",
-        ),
-        sa.CheckConstraint(
             "COALESCE(input_tokens, 0) >= 0 AND COALESCE(cached_input_tokens, 0) >= 0"
             " AND COALESCE(output_tokens, 0) >= 0 AND COALESCE(reasoning_tokens, 0) >= 0",
             name="ck_inference_attempts_tokens_nonnegative",
         ),
+        sa.CheckConstraint(
+            "attempt_ordinal >= 1",
+            name="ck_inference_attempts_ordinal_positive",
+        ),
     )
-    op.create_index("ix_inference_attempts_tenant_started", "inference_attempts", ["tenant_id", "started_at"])
-    op.create_index("ix_inference_attempts_tenant_run", "inference_attempts", ["tenant_id", "detection_run_id"])
+    op.create_index(
+        "ix_inference_attempts_tenant_started",
+        "inference_attempts",
+        ["tenant_id", "started_at"],
+    )
+    op.create_index(
+        "ix_inference_attempts_tenant_run",
+        "inference_attempts",
+        ["tenant_id", "detection_run_id"],
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_inference_attempts_tenant_run", table_name="inference_attempts")
-    op.drop_index("ix_inference_attempts_tenant_started", table_name="inference_attempts")
+    op.drop_index(
+        "ix_inference_attempts_tenant_run",
+        table_name="inference_attempts",
+    )
+    op.drop_index(
+        "ix_inference_attempts_tenant_started",
+        table_name="inference_attempts",
+    )
     op.drop_table("inference_attempts")

@@ -1,10 +1,7 @@
 import { promises as fs } from "fs";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
-import {
-  runHybridDetection,
-  type LlmPassStats,
-} from "./detect-llm";
-import { withDetectionLedger } from "./ai/ledger";
+import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
+import type { LlmPassStats } from "./detect-llm";
 import { toStoreRecords } from "./ingest";
 import {
   DEMO_BASELINE_NOTE,
@@ -81,7 +78,7 @@ async function loadShowcaseJsonIntoStore(
     stableIds: true,
   });
   const report = options.onProgress;
-  const { signals, llm } = await withDetectionLedger(tenantId, (ledger) => runHybridDetection(
+  const { signals, llm } = await runHybridDetectionWithLedger(
     conversations,
     messages,
     tenantId,
@@ -90,10 +87,9 @@ async function loadShowcaseJsonIntoStore(
       ? {
           onProgress: (done, total) =>
             report({ step: "detect", done, total }),
-          ...ledger.detectOptions,
         }
-      : ledger.detectOptions
-  ));
+      : undefined
+  );
 
   const store: StoreData = {
     ...structuredClone(emptyShowcaseStore),

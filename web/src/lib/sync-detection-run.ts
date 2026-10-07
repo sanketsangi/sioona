@@ -38,6 +38,17 @@ export function detectionPayload(input: {
   return conversations;
 }
 
+/** Deterministic publication id shared with the inference ledger. */
+export function computeDetectionRunId(input: {
+  conversations: Conversation[]; messages: Message[]; signals: Signal[];
+  skippedIds?: string[];
+  contexts?: LlmPassStats["contexts"];
+}): string | undefined {
+  const conversations = detectionPayload(input);
+  if (!conversations.length) return undefined;
+  return createHash("sha256").update(JSON.stringify(conversations)).digest("hex");
+}
+
 /** Publish complete outputs including none; never carry review state to a new revision. */
 export async function syncDetectionRun(input: {
   tenantId: string; conversations: Conversation[]; messages: Message[]; signals: Signal[];

@@ -74,6 +74,7 @@ def test_membership_upgrade_from_empty_and_prior_head(prior, monkeypatch):
             assert "memberships" not in set(inspect(engine).get_table_names())
         command.upgrade(cfg, "head")
         assert_membership_schema(inspect(engine))
+        assert_inference_schema(inspect(engine))
         with engine.begin() as conn:
             conn.execute(text(
                 "INSERT INTO workspaces (tenant_id, name) VALUES ('tenant_a', 'A')"
@@ -90,6 +91,29 @@ def test_membership_upgrade_from_empty_and_prior_head(prior, monkeypatch):
                     "INSERT INTO memberships (tenant_id, user_id, role) "
                     "VALUES ('tenant_a', '4f79ac56-3a83-5f2a-b143-dafc406b7c28', 'admin')"
                 ))
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+@pytest.mark.parametrize("prior", [None, "020_workspaces_memberships"])
+def test_inference_upgrade_from_empty_and_prior_head(prior, monkeypatch):
+    """021 is additive. Empty and 020 both reach the ledger constraints."""
+    assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"
+    engine = create_engine(URL)
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    monkeypatch.setenv("DATABASE_URL", URL)
+    from app.config import get_settings
+    get_settings.cache_clear()
+    try:
+        cfg = Config("alembic.ini")
+        if prior:
+            command.upgrade(cfg, prior)
+            assert "inference_attempts" not in set(inspect(engine).get_table_names())
+        command.upgrade(cfg, "head")
+        assert_inference_schema(inspect(engine))
     finally:
         get_settings.cache_clear()
         engine.dispose()
@@ -187,74 +211,37 @@ def test_postgres_actor_read_mutate_and_revoke(monkeypatch):
         engine.dispose()
 
 
-def test_inference_ledger_upgrade_from_workspaces(monkeypatch):
-    """021 is additive on 020. The §13.3 rollup matches inserted rows."""
-    assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"
-    engine = create_engine(URL)
-    with engine.begin() as conn:
-        conn.execute(text("DROP SCHEMA public CASCADE"))
-        conn.execute(text("CREATE SCHEMA public"))
-    monkeypatch.setenv("DATABASE_URL", URL)
-    from app.config import get_settings
-    get_settings.cache_clear()
-    try:
-        cfg = Config("alembic.ini")
-        command.upgrade(cfg, "020_workspaces_memberships")
-        assert "inference_attempts" not in set(inspect(engine).get_table_names())
-        command.upgrade(cfg, "head")
-        assert_inference_schema(inspect(engine))
-        from app.schemas.inference_attempt import InferenceAttemptIn
-        from app.services.inference_ledger import RUN_ROLLUP_SQL, record_attempts
-        started = datetime(2026, 10, 8, 1, 0, tzinfo=timezone.utc)
-        finished = datetime(2026, 10, 8, 1, 0, 1, tzinfo=timezone.utc)
-        run_id = "ab" * 32
-
-        def row(attempt_id: str, ordinal: int, usage: str, tokens: int | None):
-            return InferenceAttemptIn(
-                attempt_id=attempt_id, logical_operation_id="op", attempt_ordinal=ordinal,
-                conversation_id="conv", detection_run_id=run_id, stage="detect",
-                route_version="detect:test", provider="groq", model="m", prompt_version="p",
-                status="timeout" if usage == "unknown" else "succeeded", usage_status=usage,
-                input_tokens=tokens, output_tokens=tokens, latency_ms=10, started_at=started, finished_at=finished,
-            )
-
-        with Session(engine) as db:
-            record_attempts(db, "tenant_a", [
-                row("1", 1, "reported", 10),
-                row("2", 2, "reported", 5),
-                row("3", 3, "unknown", None),
-            ])
-            db.commit()
-        with engine.connect() as conn:
-            rolled = conn.execute(text(RUN_ROLLUP_SQL), {"tenant_id": "tenant_a", "run_id": run_id}).mappings().one()
-        assert rolled["attempts"] == 3
-        assert rolled["retries_or_fallbacks"] == 2
-        assert rolled["input_tokens"] == 15
-        assert rolled["output_tokens"] == 15
-        assert rolled["unknown_usage"] == 1
-        assert rolled["unknown_cost"] == 3
-        assert rolled["estimated_cost_usd"] is None
-    finally:
-        get_settings.cache_clear()
-        engine.dispose()
-
-
 def assert_inference_schema(schema):
     assert "inference_attempts" in set(schema.get_table_names())
     columns = {column["name"] for column in schema.get_columns("inference_attempts")}
-    banned = {"content", "transcript", "quote", "evidence", "summary", "message", "text", "prompt", "body"}
-    assert columns.isdisjoint(banned)
-    assert "prompt_version" in columns
+    assert {
+        "tenant_id",
+        "attempt_id",
+        "usage_status",
+        "cost_status",
+        "input_tokens",
+        "detection_run_id",
+    } <= columns
+    forbidden = {"prompt", "transcript", "content", "quote", "message", "body", "evidence", "summary"}
+    assert columns.isdisjoint(forbidden)
+    uniques = schema.get_unique_constraints("inference_attempts")
+    assert any(
+        item["name"] == "uq_inference_attempts_tenant_attempt"
+        or set(item["column_names"]) == {"tenant_id", "attempt_id"}
+        for item in uniques
+    )
     checks = {item["name"] for item in schema.get_check_constraints("inference_attempts")}
     assert {
         "ck_inference_attempts_status",
         "ck_inference_attempts_usage_status",
         "ck_inference_attempts_cost_status",
-        "ck_inference_attempts_ordinal_positive",
         "ck_inference_attempts_tokens_nonnegative",
     } <= checks
-    indexes = {item["name"] for item in schema.get_indexes("inference_attempts")}
-    assert {"ix_inference_attempts_tenant_started", "ix_inference_attempts_tenant_run"} <= indexes
+    indexes = {index["name"] for index in schema.get_indexes("inference_attempts")}
+    assert {
+        "ix_inference_attempts_tenant_started",
+        "ix_inference_attempts_tenant_run",
+    } <= indexes
 
 
 def assert_membership_schema(schema):

@@ -8,17 +8,25 @@ import { opaqueExternalIdentity } from "../opaque-identity";
 
 import { persistDeferredIngestDualWrite } from "../defer-ingest-sync";
 import type { DeferredIngestDualWriteInput } from "../defer-ingest-sync";
-import { runHybridDetection } from "../detect-llm";
-import { withDetectionLedger } from "../ai/ledger";
+import { runHybridDetectionWithLedger } from "../ai/run-with-ledger";
+import type { HybridDetectOptions, HybridDetectResult } from "../detect-llm";
 import { toStoreRecords } from "../ingest";
 import type { IngestConversationInput } from "../ingest-platforms";
 import { readStore, writeStore } from "../store";
-import type { StoreData } from "../types";
+import type { Conversation, Message, StoreData, TaxonomyOverrides } from "../types";
+
+type DetectFn = (
+  conversations: Conversation[],
+  messages: Message[],
+  tenantId: string,
+  overrides?: TaxonomyOverrides | null,
+  options?: HybridDetectOptions
+) => Promise<HybridDetectResult>;
 
 type LiveIngestDeps = {
   read?: () => Promise<StoreData>;
   write?: (store: StoreData) => Promise<void>;
-  detect?: typeof runHybridDetection;
+  detect?: DetectFn;
   publish?: typeof publishAtomicIngest;
   publishedIds?: typeof getPublishedConversationIds;
   dualWrite?: (input: DeferredIngestDualWriteInput) => Promise<void>;
@@ -42,7 +50,7 @@ async function acceptLiveChatsBody(
 ): Promise<{ accepted: number }> {
   const read = deps.read ?? readStore;
   const write = deps.write ?? writeStore;
-  const detect = deps.detect ?? runHybridDetection;
+  const detect = deps.detect ?? runHybridDetectionWithLedger;
   const dualWrite = deps.dualWrite ?? persistDeferredIngestDualWrite;
   const priorStore = await read();
   const store = { ...priorStore, conversations: [...priorStore.conversations],
@@ -75,27 +83,19 @@ async function acceptLiveChatsBody(
   }
   store.conversations.push(...ingested.conversations);
   store.messages.push(...ingested.messages);
-  const { signals, llm, partnerPublished } = await withDetectionLedger(store.tenant.id, async (ledger) => {
-    const detected = await detect(
-      ingested.conversations,
-      ingested.messages,
-      store.tenant.id,
-      store.taxonomyOverrides,
-      { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])],
-        ...ledger.detectOptions },
-    );
-    if (store.tenant.id !== "tenant_demo") {
-      const publishedRows = await (deps.publish ?? publishAtomicIngest)({ tenantId: store.tenant.id,
-        source: "live-ingest", replace: false, appendOnly: true, conversations: ingested.conversations,
-        messages: ingested.messages, signals: detected.signals, contexts: detected.llm.contexts,
-        classificationFailed: detected.llm.failed > 0, skippedIds: detected.llm.skippedIds,
-        onDetectionRunId: ledger.setDetectionRunId });
-      return { signals: publishedRows.signals, llm: detected.llm, partnerPublished: true };
-    }
-    return { signals: detected.signals, llm: detected.llm, partnerPublished: false };
-  });
-  if (partnerPublished) {
-    store.signals.push(...signals);
+  const { signals, llm } = await detect(
+    ingested.conversations,
+    ingested.messages,
+    store.tenant.id,
+    store.taxonomyOverrides,
+    { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] },
+  );
+  if (store.tenant.id !== "tenant_demo") {
+    const published = await (deps.publish ?? publishAtomicIngest)({ tenantId: store.tenant.id,
+      source: "live-ingest", replace: false, appendOnly: true, conversations: ingested.conversations,
+      messages: ingested.messages, signals, contexts: llm.contexts,
+      classificationFailed: llm.failed > 0, skippedIds: llm.skippedIds });
+    store.signals.push(...published.signals);
     try { await write(store); }
     catch { console.warn("[live-ingest] batch stored; local cache refresh failed"); }
     return { accepted: ingested.conversations.length };

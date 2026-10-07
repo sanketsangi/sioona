@@ -149,7 +149,13 @@ export type LlmClassifyFn = (input: {
 }) => Promise<LlmClassification | null>;
 
 /** Why a Groq call did not return a classification. */
-export type LlmFailureKind = "key" | "model" | "timeout" | "shape" | "quota";
+export type LlmFailureKind =
+  | "key"
+  | "model"
+  | "timeout"
+  | "shape"
+  | "quota"
+  | "ledger";
 
 export class LlmCallFailed extends Error {
   readonly kind: LlmFailureKind | null;
@@ -210,8 +216,6 @@ export type LlmPassStats = {
   >;
   /** First diagnosed failure when `failed` > 0. Omitted when every call succeeded. */
   llmFailure?: LlmFailureKind;
-  /** Set when the inference ledger could not be reached and the LLM pass did not run. */
-  ledgerSkip?: "unreachable";
 };
 
 function llmFailureKindOf(err: unknown): LlmFailureKind | null {
@@ -261,10 +265,13 @@ export type HybridDetectOptions = {
    * before any other zero-signal miss.
    */
   resumeIds?: readonly string[];
-  /** One event per provider fetch. Production passes the ledger sink when the preflight succeeds. */
+  /** One event per provider fetch. Production uses the buffered ledger sink. */
   attemptSink?: AttemptSink;
-  /** Ledger preflight failed. Heuristics still publish; no provider call runs. */
-  skipLlm?: boolean;
+  /**
+   * When set, skip the LLM pass after heuristics (ledger preflight failed).
+   * Records `llmFailure` without making provider calls.
+   */
+  skipLlmReason?: Extract<LlmFailureKind, "ledger">;
 };
 
 function emptyStats(enabled: boolean): LlmPassStats {
@@ -928,6 +935,12 @@ export async function applyLlmSecondPass(
   if (!enabled) {
     return { signals: heuristicSignals, llm: emptyStats(false) };
   }
+  if (options?.skipLlmReason === "ledger" && !classify) {
+    return {
+      signals: heuristicSignals,
+      llm: { ...emptyStats(true), llmFailure: "ledger" },
+    };
+  }
 
   const byConversation = new Map<string, Message[]>();
   for (const message of messages) {
@@ -1044,6 +1057,12 @@ export async function applyLlmPrimaryPass(
   const enabled = Boolean(classify) || isDetectLlmEnabled();
   if (!enabled) {
     return { signals: heuristicSignals, llm: emptyStats(false) };
+  }
+  if (options?.skipLlmReason === "ledger" && !classify) {
+    return {
+      signals: heuristicSignals,
+      llm: { ...emptyStats(true), llmFailure: "ledger" },
+    };
   }
 
   const byConversation = new Map<string, Message[]>();
@@ -1170,12 +1189,6 @@ export async function runHybridDetection(
         options.onProgress
       )
     : runDetection(conversations, messages, tenantId, overrides);
-  if (options?.skipLlm) {
-    return {
-      signals: heuristic,
-      llm: { ...emptyStats(false), ledgerSkip: "unreachable" },
-    };
-  }
   if (!isLlmPrimaryEnabled()) {
     return applyLlmSecondPass(
       conversations,

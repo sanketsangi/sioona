@@ -1,9 +1,11 @@
-"""Tenant inference ledger. Aggregates only; never returns prompt or transcript text."""
+"""Inference attempt ledger routes. Aggregates and metadata only — never text."""
+
+from __future__ import annotations
 
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Path, Query
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -11,67 +13,108 @@ from app.api.actor import guarded_router, keep_header_gate
 from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.inference_attempt import (
+    DetectionRunInferenceResponse,
     InferenceAttemptBatch,
-    InferenceAttemptWriteResult,
+    InferenceAttemptBatchResult,
     InferenceUsageResponse,
 )
-from app.services.inference_ledger import InferenceLedgerError, record_attempts, run_usage_groups, usage_groups
+from app.services.inference_ledger import (
+    CrossTenantAttemptError,
+    FinalizedRevertError,
+    ledger_is_reachable,
+    query_detection_run_inference,
+    query_inference_usage,
+    upsert_inference_attempts,
+)
 
 router = guarded_router(tags=["inference"])
 
-_ERRORS = {
-    "cross_tenant": 403,
-    "finalized_pending_demotion": 409,
-    "duplicate_attempt_ids": 422,
-}
+
+@router.get("/v1/tenants/{tenant_id}/inference-attempts/preflight")
+def preflight_inference_ledger(
+    tenant_id: str,
+    header_tenant_id: Annotated[str, Depends(require_tenant_id)],
+    db: Annotated[Session, Depends(get_db)],
+) -> dict[str, bool]:
+    keep_header_gate(tenant_id, header_tenant_id)
+    try:
+        ledger_is_reachable(db)
+    except SQLAlchemyError as exc:
+        raise HTTPException(503, "ledger_unavailable") from exc
+    return {"ok": True}
 
 
-@router.post("/v1/tenants/{tenant_id}/inference-attempts", response_model=InferenceAttemptWriteResult)
+@router.post(
+    "/v1/tenants/{tenant_id}/inference-attempts",
+    response_model=InferenceAttemptBatchResult,
+)
 def post_inference_attempts(
     tenant_id: str,
     body: InferenceAttemptBatch,
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
-):
+) -> InferenceAttemptBatchResult:
     keep_header_gate(tenant_id, header_tenant_id)
     try:
-        result = record_attempts(db, tenant_id, body.attempts)
+        result = upsert_inference_attempts(
+            db, tenant_id=tenant_id, attempts=body.attempts
+        )
         db.commit()
         return result
-    except InferenceLedgerError as exc:
+    except CrossTenantAttemptError as exc:
         db.rollback()
-        raise HTTPException(_ERRORS[exc.code], exc.code) from exc
+        raise HTTPException(422, "cross_tenant_attempt") from exc
+    except FinalizedRevertError as exc:
+        db.rollback()
+        raise HTTPException(409, "finalized_cannot_revert_to_pending") from exc
     except SQLAlchemyError as exc:
         db.rollback()
         raise HTTPException(503, "database_unavailable") from exc
 
 
-@router.get("/v1/tenants/{tenant_id}/inference-usage", response_model=InferenceUsageResponse)
+@router.get(
+    "/v1/tenants/{tenant_id}/inference-usage",
+    response_model=InferenceUsageResponse,
+)
 def get_inference_usage(
     tenant_id: str,
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
-    group_by: Annotated[Literal["day", "model", "stage", "run"], Query()] = "day",
-    started_from: Annotated[datetime | None, Query(alias="from")] = None,
-    started_to: Annotated[datetime | None, Query(alias="to")] = None,
-):
+    from_ts: Annotated[datetime, Query(alias="from")],
+    to_ts: Annotated[datetime, Query(alias="to")],
+    group_by: Annotated[
+        Literal["day", "model", "stage", "run"], Query()
+    ] = "day",
+) -> InferenceUsageResponse:
     keep_header_gate(tenant_id, header_tenant_id)
+    if to_ts <= from_ts:
+        raise HTTPException(422, "invalid_time_range")
     try:
-        groups = usage_groups(db, tenant_id, group_by=group_by, started_from=started_from, started_to=started_to)
-        return {"tenant_id": tenant_id, "groups": groups}
+        return query_inference_usage(
+            db,
+            tenant_id=tenant_id,
+            from_ts=from_ts,
+            to_ts=to_ts,
+            group_by=group_by,
+        )
     except SQLAlchemyError as exc:
         raise HTTPException(503, "database_unavailable") from exc
 
 
-@router.get("/v1/tenants/{tenant_id}/detection-runs/{run_id}/inference", response_model=InferenceUsageResponse)
+@router.get(
+    "/v1/tenants/{tenant_id}/detection-runs/{run_id}/inference",
+    response_model=DetectionRunInferenceResponse,
+)
 def get_detection_run_inference(
     tenant_id: str,
-    run_id: str,
+    run_id: Annotated[str, Path(pattern=r"^[A-Za-z0-9_-]{1,64}$")],
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
-):
+) -> DetectionRunInferenceResponse:
     keep_header_gate(tenant_id, header_tenant_id)
     try:
-        return {"tenant_id": tenant_id, "groups": run_usage_groups(db, tenant_id, run_id)}
+        return query_detection_run_inference(
+            db, tenant_id=tenant_id, detection_run_id=run_id
+        )
     except SQLAlchemyError as exc:
         raise HTTPException(503, "database_unavailable") from exc

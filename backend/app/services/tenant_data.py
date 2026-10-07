@@ -1,9 +1,9 @@
 """Tenant-scoped Neon wipe (Reset Demo / Partner Demo / partner deletion).
 
 Deletes conversations, messages, predictions, feedback, supervised action
-decisions, and pilot_settings for one tenant only. Explicit wipe is the
-only path that hard-deletes feedback — live SignalScore keep-set scoring
-must not delete reviews.
+decisions, inference attempts, and pilot_settings for one tenant only.
+Explicit wipe is the only path that hard-deletes feedback or ledger rows —
+live SignalScore keep-set scoring must not delete reviews.
 """
 
 from sqlalchemy import delete, func, select
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.services.tenant_lock import lock_tenant_corpus
 from app.models.detection_run import DetectionRun
+from app.models.inference_attempt import InferenceAttempt
 from app.models.upload import Upload, UploadConversation
 from app.models.conversation import Conversation
 from app.models.message import Message
@@ -24,8 +25,8 @@ from app.models.taxonomy_override import TaxonomyOverride
 def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     """Delete all Neon rows for ``tenant_id``. Never touches other tenants.
 
-    Order: feedback → predictions → decisions → messages → conversations →
-    pilot_settings (feedback FK to predictions).
+    Order: feedback → predictions → decisions → ledger → messages →
+    conversations → pilot_settings (feedback FK to predictions).
     """
     lock_tenant_corpus(db, tenant_id)
     feedback_deleted = db.execute(
@@ -38,6 +39,9 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     ).rowcount
     predictions_deleted = db.execute(
         delete(SignalPrediction).where(SignalPrediction.tenant_id == tenant_id)
+    ).rowcount
+    inference_deleted = db.execute(
+        delete(InferenceAttempt).where(InferenceAttempt.tenant_id == tenant_id)
     ).rowcount
     messages_deleted = db.execute(
         delete(Message).where(Message.tenant_id == tenant_id)
@@ -65,6 +69,7 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
         "predictions": int(predictions_deleted or 0),
         "feedback": int(feedback_deleted or 0),
         "supervised_actions": int(decisions_deleted or 0),
+        "inference_attempts": int(inference_deleted or 0),
         "pilot_settings": int(pilot_deleted or 0),
         "taxonomy_overrides": int(taxonomy_deleted or 0),
     }

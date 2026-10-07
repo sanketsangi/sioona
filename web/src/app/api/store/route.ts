@@ -6,8 +6,7 @@ import { PARTNER_EXPORT_ADAPT_OVERRIDES } from "@/data/fixtures/partner-export-o
 import { ZERODHA_BATCH01_ADAPT_OVERRIDES } from "@/data/fixtures/zerodha-batch01-overrides";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { syncTaxonomyOverridesToBackend } from "@/lib/sync-taxonomy";
-import { runHybridDetection } from "@/lib/detect-llm";
-import { withDetectionLedger } from "@/lib/ai/ledger";
+import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import { sortSignals } from "@/lib/eval";
 import {
   addTaxonomyOverride,
@@ -132,14 +131,12 @@ async function redetectWithOverrides(store: StoreData): Promise<{
   store: StoreData;
   redetectCount: number;
 }> {
-  return withDetectionLedger(store.tenant.id, async (ledger) => {
-  const { signals: detected, llm } = await runHybridDetection(
+  const { signals: detected, llm } = await runHybridDetectionWithLedger(
     store.conversations,
     store.messages,
     store.tenant.id,
     store.taxonomyOverrides,
-    { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])],
-      ...ledger.detectOptions }
+    { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
   );
   if (store.tenant.id !== "tenant_demo" && llm.failed > 0) {
     await writeStore({ ...store, llmFailedConversationIds: llm.failedIds ?? [],
@@ -157,11 +154,10 @@ async function redetectWithOverrides(store: StoreData): Promise<{
     ? await syncPredictionsToBackend(updated.signals, store.tenant.id)
     : await syncDetectionRun({ tenantId: store.tenant.id, conversations: store.conversations,
       messages: store.messages, signals: detected, contexts: llm.contexts,
-      skippedIds: llm.skippedIds, priorSignals: store.signals, onDetectionRunId: ledger.setDetectionRunId });
+      skippedIds: llm.skippedIds, priorSignals: store.signals });
   updated.signals = synced.signals;
   await writeStore(updated);
   return { store: updated, redetectCount: updated.signals.length };
-  });
 }
 
 export async function GET(request: Request) {

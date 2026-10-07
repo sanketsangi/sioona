@@ -5,11 +5,8 @@
  */
 import { promises as fs } from "fs";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
-import {
-  runHybridDetection,
-  type LlmPassStats,
-} from "@/lib/detect-llm";
-import { withDetectionLedger } from "@/lib/ai/ledger";
+import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
+import type { LlmPassStats } from "@/lib/detect-llm";
 import { toStoreRecords } from "@/lib/ingest";
 import {
   DEMO_BASELINE_NOTE,
@@ -64,13 +61,12 @@ async function buildShowcasePack(
   const { conversations, messages } = toStoreRecords(inputs, tenantId, {
     stableIds: true,
   });
-  const { signals, llm: detectLlm } = await withDetectionLedger(tenantId, (ledger) => runHybridDetection(
+  const { signals, llm: detectLlm } = await runHybridDetectionWithLedger(
     conversations,
     messages,
     tenantId,
     emptyShowcaseStore.taxonomyOverrides,
-    ledger.detectOptions,
-  ));
+  );
 
   return {
     kind,

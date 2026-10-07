@@ -1,152 +1,243 @@
-"""Ledger idempotency, fail-closed batches, and aggregate-only reads."""
+"""CB-06 inference attempt ledger: idempotency, privacy, and aggregates."""
+
+from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.models.inference_attempt import LEDGER_COLUMNS
-from app.services.inference_ledger import RUN_ROLLUP_SQL, assert_no_text_columns
+import pytest
+from sqlalchemy import inspect
 
-HEADERS = {"X-Tenant-Id": "tenant_a"}
-STARTED = "2026-10-08T01:00:00Z"
+from app.models.inference_attempt import InferenceAttempt
+
+pytest_plugins = ["tests.actor_support"]
 
 
-def _attempt(attempt_id: str, **overrides):
+def _attempt(
+    *,
+    attempt_id: str,
+    tenant_id: str = "tenant_a",
+    status: str = "succeeded",
+    usage_status: str = "reported",
+    input_tokens: int | None = 10,
+    output_tokens: int | None = 4,
+    detection_run_id: str | None = "run_abc",
+    ordinal: int = 1,
+    started_at: str = "2026-10-08T10:00:00Z",
+    finished_at: str | None = "2026-10-08T10:00:01Z",
+) -> dict:
     body = {
         "attempt_id": attempt_id,
-        "logical_operation_id": "operation-1",
-        "attempt_ordinal": 1,
+        "logical_operation_id": "op_1",
+        "attempt_ordinal": ordinal,
+        "tenant_id": tenant_id,
         "conversation_id": "conv_1",
-        "detection_run_id": "run-1",
+        "detection_run_id": detection_run_id,
         "stage": "detect",
-        "route_version": "detect:primary:test|off",
+        "route_version": "detect:primary:qwen|off",
         "provider": "groq",
         "model": "qwen/qwen3.8-27b",
-        "prompt_version": "taxonomy-v1",
-        "status": "succeeded",
-        "usage_status": "reported",
-        "input_tokens": 10,
-        "output_tokens": 4,
-        "latency_ms": 20,
-        "started_at": STARTED,
-        "finished_at": "2026-10-08T01:00:01Z",
+        "prompt_version": "final-intent-v2",
+        "status": status,
+        "usage_status": usage_status,
+        "started_at": started_at,
+        "latency_ms": 1000,
     }
-    body.update(overrides)
+    if finished_at is not None:
+        body["finished_at"] = finished_at
+    if usage_status == "reported":
+        body["input_tokens"] = input_tokens
+        body["cached_input_tokens"] = 0
+        body["output_tokens"] = output_tokens
+        body["reasoning_tokens"] = 0
+    elif usage_status == "unknown":
+        pass
     return body
 
 
-def _post(client, attempts, tenant="tenant_a"):
-    return client.post(
-        f"/v1/tenants/{tenant}/inference-attempts",
-        headers={"X-Tenant-Id": tenant},
+def test_batch_is_idempotent_and_rejects_finalized_to_pending(api) -> None:
+    client, factory = api
+    from tests.actor_support import actor_headers, add_member
+
+    sub = add_member(factory, "reviewer@example.test", "tenant_a", "reviewer")
+    headers = actor_headers(sub, "tenant_a")
+    path = "/v1/tenants/tenant_a/inference-attempts"
+    first = client.post(path, headers=headers, json={"attempts": [_attempt(attempt_id="att_1")]})
+    assert first.status_code == 200, first.text
+    assert first.json()["inserted"] == 1
+    assert first.json()["unchanged"] == 0
+
+    replay = client.post(path, headers=headers, json={"attempts": [_attempt(attempt_id="att_1")]})
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["inserted"] == 0
+    assert replay.json()["unchanged"] == 1
+
+    pending = client.post(
+        path,
+        headers=headers,
+        json={
+            "attempts": [
+                _attempt(
+                    attempt_id="att_1",
+                    status="pending",
+                    usage_status="unknown",
+                    finished_at=None,
+                )
+            ]
+        },
+    )
+    assert pending.status_code == 409
+    assert pending.json()["detail"] == "finalized_cannot_revert_to_pending"
+
+
+def test_three_billable_attempts_persist_and_aggregate(api) -> None:
+    client, factory = api
+    from tests.actor_support import actor_headers, add_member
+
+    sub = add_member(factory, "reviewer@example.test", "tenant_a", "reviewer")
+    headers = actor_headers(sub, "tenant_a")
+    attempts = [
+        _attempt(attempt_id="att_a", ordinal=1, input_tokens=10, output_tokens=2),
+        _attempt(attempt_id="att_b", ordinal=2, input_tokens=20, output_tokens=3),
+        _attempt(
+            attempt_id="att_c",
+            ordinal=3,
+            status="timeout",
+            usage_status="unknown",
+            finished_at="2026-10-08T10:00:05Z",
+        ),
+    ]
+    posted = client.post(
+        "/v1/tenants/tenant_a/inference-attempts",
+        headers=headers,
         json={"attempts": attempts},
     )
+    assert posted.status_code == 200, posted.text
+    assert posted.json()["accepted"] == 3
+    assert posted.json()["inserted"] == 3
 
-
-def test_ledger_columns_store_no_prompt_or_transcript() -> None:
-    assert_no_text_columns()
-    assert LEDGER_COLUMNS == {
-        "id", "tenant_id", "attempt_id", "logical_operation_id", "attempt_ordinal",
-        "conversation_id", "detection_run_id", "job_id", "stage", "route_version",
-        "provider", "model", "prompt_version", "status", "error_category", "http_status",
-        "provider_request_id", "usage_status", "input_tokens", "cached_input_tokens",
-        "output_tokens", "reasoning_tokens", "latency_ms", "started_at", "finished_at",
-        "rate_version", "estimated_cost_usd", "cost_status", "created_at",
-    }
-    assert "FILTER" in RUN_ROLLUP_SQL
-    assert "detection_run_id = :run_id" in RUN_ROLLUP_SQL
-
-
-def test_replay_is_idempotent_and_finalized_pending_is_rejected(client) -> None:
-    first = _post(client, [_attempt("a1", input_tokens=10)])
-    assert first.status_code == 200, first.text
-    assert first.json() == {"inserted": 1, "replayed": 0}
-    replay = _post(client, [_attempt("a1", input_tokens=99)])
-    assert replay.status_code == 200, replay.text
-    assert replay.json() == {"inserted": 0, "replayed": 1}
-    listed = client.get(
-        "/v1/tenants/tenant_a/detection-runs/run-1/inference",
-        headers=HEADERS,
-    )
-    assert listed.status_code == 200, listed.text
-    group = listed.json()["groups"][0]
-    assert group["attempts"] == 1
-    assert group["input_tokens"] == 10
-    demote = _post(client, [_attempt("a1", status="pending", usage_status="unknown", input_tokens=None, output_tokens=None)])
-    assert demote.status_code == 409
-    assert demote.json()["detail"] == "finalized_pending_demotion"
-    again = client.get("/v1/tenants/tenant_a/detection-runs/run-1/inference", headers=HEADERS)
-    assert again.json()["groups"][0]["input_tokens"] == 10
-
-
-def test_three_billable_attempts_stay_three_rows_and_unknown_is_not_zero(client) -> None:
-    body = [
-        _attempt("a1", attempt_ordinal=1),
-        _attempt("a2", attempt_ordinal=2, input_tokens=5, output_tokens=1, latency_ms=30),
-        _attempt("a3", attempt_ordinal=3, status="timeout", usage_status="unknown",
-                 input_tokens=0, output_tokens=0, latency_ms=None, error_category="timeout"),
-    ]
-    created = _post(client, body)
-    assert created.status_code == 200, created.text
-    assert created.json() == {"inserted": 3, "replayed": 0}
-    listed = client.get("/v1/tenants/tenant_a/detection-runs/run-1/inference", headers=HEADERS)
-    assert listed.status_code == 200, listed.text
-    payload = listed.json()
-    assert payload["tenant_id"] == "tenant_a"
-    assert "quote" not in listed.text
-    assert "transcript" not in listed.text
-    group = payload["groups"][0]
-    assert group["attempts"] == 3
-    assert group["retries_or_fallbacks"] == 2
-    assert group["input_tokens"] == 15
-    assert group["output_tokens"] == 5
-    assert group["unknown_usage"] == 1
-    assert group["unknown_cost"] == 3
-    assert group["estimated_cost_usd"] is None
-    assert group["total_latency_ms"] == 50
     usage = client.get(
         "/v1/tenants/tenant_a/inference-usage",
-        headers=HEADERS,
-        params={"group_by": "model", "from": "2026-10-08T00:00:00Z", "to": "2026-10-09T00:00:00Z"},
+        headers=headers,
+        params={
+            "from": "2026-10-08T00:00:00Z",
+            "to": "2026-10-09T00:00:00Z",
+            "group_by": "run",
+        },
     )
     assert usage.status_code == 200, usage.text
-    assert usage.json()["groups"][0]["attempts"] == 3
-    assert usage.json()["groups"][0]["input_tokens"] == 15
+    buckets = usage.json()["buckets"]
+    assert len(buckets) == 1
+    bucket = buckets[0]
+    assert bucket["key"] == "run_abc"
+    assert bucket["attempts"] == 3
+    assert bucket["succeeded"] == 2
+    assert bucket["timeout"] == 1
+    assert bucket["reported_input_tokens"] == 30
+    assert bucket["reported_output_tokens"] == 5
+    assert bucket["unknown_usage_count"] == 1
+    # Empty RATES table → every cost unknown, never zero-filled.
+    assert bucket["estimated_cost_usd"] is None
+    assert bucket["unknown_cost_count"] == 3
+
+    run = client.get(
+        "/v1/tenants/tenant_a/detection-runs/run_abc/inference",
+        headers=headers,
+    )
+    assert run.status_code == 200, run.text
+    body = run.json()
+    assert body["attempts"] == 3
+    assert body["reported_input_tokens"] == 30
+    assert {row["attempt_id"] for row in body["rows"]} == {"att_a", "att_b", "att_c"}
+    # Privacy: response never includes prompt/transcript fields.
+    for row in body["rows"]:
+        assert "prompt" not in row
+        assert "transcript" not in row
+        assert "content" not in row
+        assert "quote" not in row
 
 
-def test_cross_tenant_row_rejects_the_whole_batch(client) -> None:
-    mixed = _post(client, [
-        _attempt("keep-me"),
-        _attempt("other", tenant_id="tenant_b"),
-    ])
-    assert mixed.status_code == 403
-    assert mixed.json()["detail"] == "cross_tenant"
-    listed = client.get("/v1/tenants/tenant_a/detection-runs/run-1/inference", headers=HEADERS)
-    assert listed.json()["groups"] == []
-    assert _post(client, [_attempt("same")], tenant="tenant_b").status_code == 200
-    hidden = client.get("/v1/tenants/tenant_a/detection-runs/run-1/inference", headers=HEADERS)
-    assert hidden.json()["groups"] == []
+def test_cross_tenant_row_rejects_whole_batch(api) -> None:
+    client, factory = api
+    from tests.actor_support import actor_headers, add_member
 
-
-def test_duplicate_attempt_ids_in_one_batch_do_not_insert(client) -> None:
-    response = _post(client, [_attempt("dup"), _attempt("dup", attempt_ordinal=2)])
+    sub = add_member(factory, "reviewer@example.test", "tenant_a", "reviewer")
+    headers = actor_headers(sub, "tenant_a")
+    response = client.post(
+        "/v1/tenants/tenant_a/inference-attempts",
+        headers=headers,
+        json={
+            "attempts": [
+                _attempt(attempt_id="att_ok"),
+                _attempt(attempt_id="att_bad", tenant_id="tenant_b"),
+            ]
+        },
+    )
     assert response.status_code == 422
-    assert response.json()["detail"] == "duplicate_attempt_ids"
-    listed = client.get("/v1/tenants/tenant_a/inference-usage", headers=HEADERS, params={"group_by": "stage"})
-    assert listed.json()["groups"] == []
+    assert response.json()["detail"] == "cross_tenant_attempt"
+
+    usage = client.get(
+        "/v1/tenants/tenant_a/inference-usage",
+        headers=headers,
+        params={
+            "from": "2026-10-08T00:00:00Z",
+            "to": "2026-10-09T00:00:00Z",
+            "group_by": "day",
+        },
+    )
+    assert usage.status_code == 200
+    assert usage.json()["buckets"] == []
 
 
-def test_usage_bounds_are_half_open(client) -> None:
-    assert _post(client, [_attempt("late", started_at="2026-10-08T12:00:00Z")]).status_code == 200
-    inside = client.get(
-        "/v1/tenants/tenant_a/inference-usage",
-        headers=HEADERS,
-        params={"group_by": "day", "from": "2026-10-08T00:00:00Z", "to": "2026-10-08T12:00:00Z"},
+def test_preflight_ok_and_wipe_clears_ledger(api) -> None:
+    client, factory = api
+    from tests.actor_support import actor_headers, add_member
+
+    sub = add_member(factory, "admin@example.test", "tenant_a", "admin")
+    headers = {**actor_headers(sub, "tenant_a"), "X-Sioona-Role": "admin"}
+    ready = client.get(
+        "/v1/tenants/tenant_a/inference-attempts/preflight",
+        headers=headers,
     )
-    assert inside.json()["groups"] == []
-    day = client.get(
-        "/v1/tenants/tenant_a/inference-usage",
-        headers=HEADERS,
-        params={"group_by": "day", "from": "2026-10-08T00:00:00Z", "to": "2026-10-09T00:00:00Z"},
+    assert ready.status_code == 200
+    assert ready.json() == {"ok": True}
+
+    posted = client.post(
+        "/v1/tenants/tenant_a/inference-attempts",
+        headers=headers,
+        json={"attempts": [_attempt(attempt_id="att_wipe")]},
     )
-    assert day.json()["groups"][0]["day"] == "2026-10-08"
-    assert day.json()["groups"][0]["attempts"] == 1
-    assert datetime.now(timezone.utc)
+    assert posted.status_code == 200
+
+    wiped = client.delete("/v1/tenants/tenant_a/data", headers=headers)
+    assert wiped.status_code == 200
+    assert wiped.json()["inference_attempts"] == 1
+
+    usage = client.get(
+        "/v1/tenants/tenant_a/inference-usage",
+        headers=headers,
+        params={
+            "from": "2026-10-08T00:00:00Z",
+            "to": "2026-10-09T00:00:00Z",
+            "group_by": "day",
+        },
+    )
+    assert usage.status_code == 200
+    assert usage.json()["buckets"] == []
+
+
+def test_ledger_model_has_no_text_columns() -> None:
+    columns = {column.name for column in inspect(InferenceAttempt).columns}
+    forbidden = {
+        "prompt",
+        "transcript",
+        "content",
+        "quote",
+        "message",
+        "body",
+        "evidence",
+        "summary",
+    }
+    assert columns.isdisjoint(forbidden)
+    assert "attempt_id" in columns
+    assert "usage_status" in columns
+    assert "cost_status" in columns
