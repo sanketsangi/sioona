@@ -36,6 +36,10 @@ try {
   const attempts = fs.readFileSync(audit, 'utf8').split('\n').filter(Boolean);
   if (attempts.length) {
     console.error(`Outbound attempts blocked: ${attempts.length}`);
+    const destinations = [...new Set(attempts
+      .map(attempt => attempt.match(/^denied node ([a-z0-9.:[\]-]+:\d+)$/i)?.[1])
+      .filter(Boolean))];
+    if (destinations.length) console.error(`Blocked destinations: ${destinations.join(', ')}`);
     status = 1;
   }
 } finally {

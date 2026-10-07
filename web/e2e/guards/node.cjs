@@ -11,11 +11,11 @@ function deny() {
 }
 function denyTcp(host, port) {
   // Host and port are safe diagnostic metadata; never include paths or payloads.
-  fs.appendFileSync(audit, 'denied node\n');
   const safeHost = typeof host === 'string' && /^[a-z0-9.:[\]-]+$/i.test(host)
     ? host
     : 'non-loopback-host';
   const safePort = Number.isInteger(Number(port)) ? String(port) : 'unknown-port';
+  fs.appendFileSync(audit, `denied node ${safeHost}:${safePort}\n`);
   throw new Error(`CB-02 outbound connection blocked (${safeHost}:${safePort})`);
 }
 function local(host) {
