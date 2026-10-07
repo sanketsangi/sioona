@@ -29,6 +29,9 @@ test("E2E CI job uses CI Postgres, migrations, and heuristics-only mode", () => 
   assert.match(config, /sioona_migration_test/);
   assert.match(config, /DETECT_LLM: "0"/);
   assert.match(config, /GROQ_API_KEY: ""/);
+
+  const nextConfig = fs.readFileSync(path.join(root, "web/next.config.ts"), "utf8");
+  assert.match(nextConfig, /telemetry: !process\.env\.CB02_OUTBOUND_AUDIT/);
 });
 
 test("upload review spec persists Correct and approval with no provider or outbound calls", () => {

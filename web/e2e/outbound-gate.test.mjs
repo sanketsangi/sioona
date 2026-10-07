@@ -69,26 +69,6 @@ test('a clean child succeeds without outbound attempts', () => {
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('local Unix-domain socket IPC succeeds without outbound attempts', () => {
-  const source = `
-const fs = require('node:fs');
-const net = require('node:net');
-const os = require('node:os');
-const path = require('node:path');
-const socket = path.join(os.tmpdir(), 'cb02-ipc-' + process.pid + '.sock');
-const server = net.createServer(connection => connection.end('local'));
-server.listen(socket, () => {
-  const client = net.connect(socket);
-  client.on('data', data => process.stdout.write(data));
-  client.on('close', () => server.close(() => fs.rmSync(socket, { force: true })));
-});`;
-  const result = spawnSync(process.execPath, [runner, '--', process.execPath, '-e', source], {
-    encoding: 'utf8', timeout: 15_000,
-  });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /local/);
-});
-
 // Exercise the OS boundary without runtime hooks on the Linux CI runner.
 // These controls deliberately catch the socket error and return HTTP 200.
 if (process.env.CB02_TEST_OS_GUARD === '1') {

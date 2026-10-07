@@ -31,6 +31,8 @@ export default withSentryConfig(nextConfig, {
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
   silent: !process.env.CI,
+  // The guarded E2E build must not emit Sentry's bundler-plugin telemetry.
+  telemetry: !process.env.CB02_OUTBOUND_AUDIT,
   // Local / CI builds without SENTRY_AUTH_TOKEN should still succeed.
   errorHandler: (err) => {
     console.warn("[sentry] source map upload skipped:", err.message);
