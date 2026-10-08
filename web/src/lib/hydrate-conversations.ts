@@ -28,6 +28,7 @@ import {
   type BackendPredictionWithFeedback,
 } from "./backend-client";
 import { predictionToStubSignal, commercialMetadataFromPrediction } from "./join-needs-review";
+import { withServerEvidence } from "./server-evidence";
 import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
@@ -181,7 +182,7 @@ export function applyNeonFeedbackToSignals(
       byConvType.get(signalMatchKey(signal.conversationId, signal.type));
     if (!row) return signal;
 
-    const withId: Signal = {
+    const withId: Signal = withServerEvidence({
       ...signal,
       // Neon row id is SoT — a stale JSON UUID 404s Mark Acted.
       backendSignalId: row.id,
@@ -189,7 +190,7 @@ export function applyNeonFeedbackToSignals(
       feedback: undefined,
       outcome: predictionToStubSignal(row)?.outcome,
       ...commercialMetadataFromPrediction(row),
-    };
+    }, row);
     const neonFeedback = row.feedback;
     const label = neonFeedback
       ? asFeedbackLabel(neonFeedback.feedback)

@@ -26,6 +26,7 @@ import type { SignalScoreWindow } from "@/lib/signal-score-window";
 import { parseEvalPanel, viewHref, cadenceActionHref, type EvalPanel } from "@/lib/views";
 import { evalSyncWarningWhenReviewsDisagree } from "@/lib/prediction-sync";
 import { isLivePartnerKeepSet } from "@/lib/vault-file";
+import { quarantineDisplayEvidence } from "@/lib/server-evidence";
 import type { StoreData } from "@/lib/types";
 import {
   cadenceActionCta,
@@ -133,7 +134,7 @@ export function EvalView({
           ) : null}
           {panel === "adapt" ? (
             <AdaptationPanel
-              signals={store.signals}
+              signals={store.signals.map(quarantineDisplayEvidence)}
               taxonomyOverrides={store.taxonomyOverrides ?? {}}
               compact
               adaptPageRaw={adaptPageRaw}

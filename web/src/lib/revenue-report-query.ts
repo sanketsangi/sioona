@@ -5,6 +5,7 @@ import { selectReportCorpus } from "./report-corpus";
 import { fetchSignalScoreSafe } from "./fetch-signal-score";
 import { buildRevenueLeakReport } from "./revenue-leak";
 import { inspectSignalScoreEnd, inspectSignalScoreWindow } from "./signal-score-window";
+import { quarantineDisplayEvidence } from "./server-evidence";
 import type { StoreData } from "./types";
 
 export async function queryRevenueReport(store: StoreData, options: {
@@ -27,7 +28,11 @@ export async function queryRevenueReport(store: StoreData, options: {
   const scoped = selectReportCorpus(corpus, file);
   const conversations = scoped.conversations;
   const ids = new Set(conversations.map((chat) => chat.id));
-  const signals = scopeReportEvents(scoped.signals, rangeError ? "" : window.resolvedFrom, end.dateTo);
+  const signals = scopeReportEvents(
+    scoped.signals,
+    rangeError ? "" : window.resolvedFrom,
+    end.dateTo,
+  ).map(quarantineDisplayEvidence);
   const score = rangeError || scopeError ? null : await fetchSignalScoreSafe(store.tenant.id, [...ids], { ...(uploadId ? { uploadId } : {}), dateFrom: window.resolvedFrom, ...(end.dateTo ? { dateTo: end.dateTo } : {}) });
   const report = buildRevenueLeakReport({ signals, conversations,
     messages: scoped.messages,

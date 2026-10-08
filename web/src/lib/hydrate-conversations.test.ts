@@ -1197,6 +1197,21 @@ it("restores outcome recording time from canonical backend state", () => {
   expect(restored.outcome).toEqual({ outcome: "retained", valueInr: 1200, recordedAt: "2026-10-02T12:00:00Z" });
 });
 
+it("replaces cached quotes with reconstructed evidence and drops unresolved ones", () => {
+  const restored = applyNeonFeedbackToSignals([detectedSignal], [{ ...neonReviewed,
+    evidence_status: "valid",
+    evidence_spans: [{ message_id: "customer-1", start: 0, end: 11, quote: "Reconstructed" }],
+  }])[0];
+  expect(restored.evidence).toEqual(['quote: "Reconstructed"']);
+  expect(restored.evidenceSpans?.[0]?.messageId).toBe("customer-1");
+  expect(restored.feedback?.label).toBe("correct");
+  const unavailable = applyNeonFeedbackToSignals([detectedSignal], [{ ...neonReviewed,
+    evidence_status: "unresolved", evidence_spans: [],
+  }])[0];
+  expect(unavailable.evidence).toEqual([]);
+  expect(unavailable.evidenceStatus).toBe("unresolved");
+  expect(unavailable.status).toBe("reviewed");
+});
 it("restores durable commercial proof and clears it on a newer empty revision", () => {
   const proof = [{ message_id: "customer-value", quote: "INR 1000", amount_inr: 1000, category: "asset" as const }];
   const restored = applyNeonFeedbackToSignals([detectedSignal], [{ ...neonReviewed,

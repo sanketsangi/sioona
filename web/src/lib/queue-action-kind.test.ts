@@ -67,6 +67,30 @@ describe("resolveRetentionEmailAction", () => {
     expect(action?.evidenceQuote.trim()).not.toBe("");
   });
 
+  it("keeps an approved draft when source evidence is stale", () => {
+    const approved = stored({ status: "approved", body: "Kept body" });
+    const action = resolveRetentionEmailAction(
+      signal({ evidenceStatus: "stale", evidence: ['quote: "old source"'] }),
+      "Priya",
+      approved,
+    );
+    expect(action).toBe(approved);
+    expect(action?.status).toBe("approved");
+    expect(action?.body).toBe("Kept body");
+  });
+
+  it("does not fill an empty quote from a stale signal", () => {
+    const empty = stored({ evidenceQuote: "", status: "approved", body: "Kept body" });
+    const action = resolveRetentionEmailAction(
+      signal({ evidenceStatus: "stale", evidence: ['quote: "old source"'] }),
+      "Priya",
+      empty,
+    );
+    expect(action).toBe(empty);
+    expect(action?.status).toBe("approved");
+    expect(action?.body).toBe("Kept body");
+  });
+
   it("leaves an empty quote alone when the signal has no evidence", () => {
     const empty = stored({ evidenceQuote: "" });
     expect(

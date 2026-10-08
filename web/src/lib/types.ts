@@ -64,6 +64,14 @@ export interface Signal {
   summary: string;
   suggestedAction: string;
   evidence: string[];
+  /** Reconstructed server anchors. Absent on local-only signals. */
+  evidenceStatus?: "valid" | "unresolved" | "stale";
+  evidenceSpans?: {
+    messageId: string;
+    start: number;
+    end: number;
+    quote?: string | null;
+  }[];
   status: SignalStatus;
   createdAt: string;
   /** UUID from FastAPI `signal_predictions` when dual-written */

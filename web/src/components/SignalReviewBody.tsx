@@ -12,7 +12,7 @@ import { SignalReviewConversation } from "@/components/SignalReviewConversation"
 import { SignalReviewSuggestedAction } from "@/components/SignalReviewSuggestedAction";
 import type { MarkActedWalk } from "@/lib/use-mark-acted";
 import type { SignalReviewTriage } from "@/lib/views";
-import { firstEvidenceMessageId } from "@/lib/evidence-messages";
+import { focusEvidenceMessageId } from "@/lib/evidence-messages";
 import type {
   Conversation,
   Message,
@@ -60,7 +60,7 @@ export function SignalReviewBody({
     setLocalDrawerOpen,
   );
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(() =>
-    firstEvidenceMessageId(signal.evidence, messages),
+    focusEvidenceMessageId(signal, messages),
   );
 
   useLayoutEffect(() => {

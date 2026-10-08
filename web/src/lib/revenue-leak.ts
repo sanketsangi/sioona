@@ -190,7 +190,7 @@ function groundedCustomerQuote(conversationId: string, messages: Message[], evid
     const normalized = collapse(quote);
     if (normalized && turns.some((turn) => collapse(turn.content).includes(normalized))) return clipQuote(quote);
   }
-  return turns[0] ? clipQuote(turns[0].content) : "";
+  return "";
 }
 
 function customerBlob(

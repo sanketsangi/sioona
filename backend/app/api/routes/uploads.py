@@ -13,6 +13,18 @@ from app.services.uploads import publish_upload, upload_conversation_ids
 router = guarded_router(tags=["uploads"])
 
 
+def _public_snapshot_detections(detections) -> list[dict]:
+    """Strip classification quotes; reconstructed spans live on predictions only."""
+    rows = []
+    for item in detections:
+        row = item.model_dump(mode="json")
+        row["output"] = [
+            {**output, "evidence": []} for output in row.get("output", [])
+        ]
+        rows.append(row)
+    return rows
+
+
 @router.get("/v1/tenants/{tenant_id}/uploads/{upload_id}/snapshot")
 def get_upload_snapshot(tenant_id: str, upload_id: str,
                         header_tenant_id: Annotated[str, Depends(require_tenant_id)],
@@ -41,10 +53,11 @@ def get_upload_snapshot(tenant_id: str, upload_id: str,
     expected = {(item.conversation_id, output.signal_type) for item in body.detections for output in item.output}
     if {(item.conversation_id, item.signal_type) for item in predictions} != expected:
         raise HTTPException(409, "upload_snapshot_predictions_unavailable")
+    from app.services.evidence_anchors import present_predictions
     return {"upload": UploadResponse.model_validate(row), "run_id": run_id,
-            "predictions": [SnapshotPredictionResponse.model_validate(item) for item in predictions],
+            "predictions": present_predictions(SnapshotPredictionResponse, db, tenant_id, list(predictions)),
             "conversations": [chat.model_dump(mode="json") for chat in body.conversations],
-            "detections": [item.model_dump(mode="json") for item in body.detections]}
+            "detections": _public_snapshot_detections(body.detections)}
 
 
 @router.put("/v1/tenants/{tenant_id}/uploads/{upload_id}", response_model=UploadResponse)

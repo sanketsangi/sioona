@@ -17,6 +17,7 @@ from app.schemas.prediction import (
     PredictionResponse,
 )
 from app.services.feedback import SignalNotFoundError
+from app.services.evidence_anchors import present_predictions
 from app.services.predictions import (
     VersionedPredictionConflict,
     record_prediction,
@@ -46,7 +47,7 @@ def create_prediction(
             urgency_timeframe=body.urgency_timeframe,
             mentioned_value_inr=body.mentioned_value_inr,
         )
-        return PredictionResponse.model_validate(prediction)
+        return present_predictions(PredictionResponse, db, tenant_id, prediction)
     except VersionedPredictionConflict as exc:
         db.rollback()
         raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -83,10 +84,9 @@ def create_or_update_predictions_bulk(
             ],
         )
         return PredictionBulkResponse(
-            predictions=[
-                PredictionResponse.model_validate(item.prediction)
-                for item in result.items
-            ],
+            predictions=present_predictions(
+                PredictionResponse, db, tenant_id, [item.prediction for item in result.items]
+            ),
             created=result.created,
             updated=result.updated,
         )
@@ -126,7 +126,7 @@ def record_signal_outcome(
             value_inr=body.value_inr,
             recorded_on=body.recorded_on,
         )
-        return PredictionResponse.model_validate(prediction)
+        return present_predictions(PredictionResponse, db, tenant_id, prediction)
     except SignalNotFoundError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

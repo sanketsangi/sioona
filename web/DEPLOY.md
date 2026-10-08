@@ -298,3 +298,7 @@ SELECT count(*) FROM conversations WHERE channel = 'unknown';  -- equals orphan_
 **6. Roll back.** On the branch, delete the branch. If production is ever affected, `alembic downgrade 009_supervised_actions` drops the FK, the check constraint, the outcome and urgency columns, and `taxonomy_overrides`. That discards recorded outcomes and taxonomy overrides, so export them first. The stub `conversations` rows from `010` stay.
 
 **7. Clean up.** Delete the Neon branch. Record the verified head in `.cursor/docs/PROJECT_STATE.md` §5.
+
+## Alembic `022_evidence_anchors`
+
+Render must apply `022` **before** the FastAPI revision that SELECTs `messages.content_sha256` and `signal_predictions.evidence_status`. A database still on `021_inference_attempts` 500s prediction list, review, acted, and snapshot reads. Confirm `alembic current` is `022_evidence_anchors`, then deploy the API. Then run `backend/scripts/backfill_signal_evidence.py --tenant …` (dry-run, then `--apply`). Never point a laptop `alembic upgrade` at production Neon. Existing rows stay `unresolved` until that backfill.

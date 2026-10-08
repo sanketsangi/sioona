@@ -68,6 +68,18 @@ describe("shouldGenerateRetentionEmail", () => {
   });
 });
 
+it("does not copy a stale quote into a new draft", () => {
+  const row = signal({
+    evidenceStatus: "stale",
+    evidence: ['quote: "LEFTOVER_QUOTE_SHOULD_NOT_RENDER"'],
+  });
+  const { created } = ensureSupervisedActions(emptyStore([row]));
+  expect(created).toHaveLength(1);
+  expect(created[0]?.status).toBe("pending");
+  expect(created[0]?.body).not.toContain("LEFTOVER_QUOTE_SHOULD_NOT_RENDER");
+  expect(created[0]?.evidenceQuote).toBe("");
+});
+
 describe("isQueueApproveSignal", () => {
   it("is true only for a pending high-confidence retention email", () => {
     expect(isQueueApproveSignal(signal())).toBe(true);
@@ -204,6 +216,18 @@ describe("createFirstMissingSupervisedDraft", () => {
       ...store,
       supervisedActions: draft ? [draft] : [],
     })).toBeNull();
+  });
+
+  it("does not seed drafts from raw JSON quotes when anchors are unavailable", () => {
+    const store = emptyStore([
+      signal({
+        evidence: ['quote: "RAW_JSON_QUOTE_FOR_DRAFT"'],
+        evidenceStatus: "stale",
+      }),
+    ]);
+    const draft = createFirstMissingSupervisedDraft(store);
+    expect(draft?.evidenceQuote).toBe("");
+    expect(draft?.body ?? "").not.toContain("RAW_JSON_QUOTE_FOR_DRAFT");
   });
 });
 
@@ -377,6 +401,7 @@ describe("ensureSupervisedActions", () => {
     store.signals = [
       signal({
         evidence: ['quote: "Please close my account"'],
+        evidenceStatus: "valid",
       }),
     ];
     const { created: again, changed } = ensureSupervisedActions(store);
@@ -385,6 +410,20 @@ describe("ensureSupervisedActions", () => {
     const draft = store.supervisedActions?.[0];
     expect(draft?.evidenceQuote).toBe("Please close my account");
     expect(draft?.body).toContain("Please close my account");
+  });
+
+  it("does not backfill a pending draft from stale JSON quotes", () => {
+    const store = emptyStore([signal({ evidence: [] })]);
+    ensureSupervisedActions(store);
+    store.signals = [
+      signal({
+        evidence: ['quote: "Please close my account"'],
+        evidenceStatus: "stale",
+      }),
+    ];
+    const { changed } = ensureSupervisedActions(store);
+    expect(changed).toBe(false);
+    expect(store.supervisedActions?.[0].evidenceQuote).toBe("");
   });
 });
 

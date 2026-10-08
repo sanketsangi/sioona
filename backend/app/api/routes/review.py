@@ -10,6 +10,7 @@ from app.api.actor import guarded_router, keep_header_gate
 from app.api.deps import require_tenant_id
 from app.db import get_db
 from app.schemas.prediction import PredictionResponse, PredictionWithFeedbackResponse
+from app.services.evidence_anchors import present_predictions
 from app.services.predictions import list_tenant_predictions
 from app.services.review_queue import list_signals_needing_review
 
@@ -38,7 +39,7 @@ def get_tenant_signals(
         )
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
-    return [PredictionWithFeedbackResponse.model_validate(row) for row in rows]
+    return present_predictions(PredictionWithFeedbackResponse, db, tenant_id, rows)
 
 
 @router.get(
@@ -69,7 +70,7 @@ def get_signals_needing_review(
         )
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=500, detail="database_unavailable") from exc
-    return [PredictionResponse.model_validate(row) for row in rows]
+    return present_predictions(PredictionResponse, db, tenant_id, rows)
 
 @router.get("/v1/tenants/{tenant_id}/signals/needs-review/page")
 def get_review_page(tenant_id: str,
@@ -87,7 +88,7 @@ def get_review_page(tenant_id: str,
         raise HTTPException(400, "invalid_review_cursor") from exc
     except SQLAlchemyError as exc:
         raise HTTPException(503, "database_unavailable") from exc
-    return {"predictions": [PredictionResponse.model_validate(row) for row in rows], "next_cursor": cursor}
+    return {"predictions": present_predictions(PredictionResponse, db, tenant_id, rows), "next_cursor": cursor}
 
 
 @router.get("/v1/tenants/{tenant_id}/signals/page")
@@ -107,5 +108,5 @@ def get_tenant_signal_page(tenant_id: str,
     except SQLAlchemyError as exc:
         raise HTTPException(503, "database_unavailable") from exc
     cursor = str(rows[limit - 1].id) if len(rows) > limit else None
-    return {"predictions": [PredictionWithFeedbackResponse.model_validate(row) for row in rows[:limit]],
+    return {"predictions": present_predictions(PredictionWithFeedbackResponse, db, tenant_id, rows[:limit]),
             "next_cursor": cursor}
