@@ -211,6 +211,157 @@ def test_postgres_actor_read_mutate_and_revoke(monkeypatch):
         engine.dispose()
 
 
+def test_evidence_upgrade_preserves_populated_021(monkeypatch):
+    """022 is additive. A populated 021 database keeps business rows and gains one head."""
+    from alembic.script import ScriptDirectory
+
+    assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"
+    engine = create_engine(URL)
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    monkeypatch.setenv("DATABASE_URL", URL)
+    from app.config import get_settings
+    get_settings.cache_clear()
+    prediction_id = "6b0c1a2e-7d44-4a1b-9c3e-11a0b7c8d9e0"
+    feedback_id = "7c1d2b3f-8e55-4b2c-ad4f-22b1c8d9e0f1"
+    try:
+        cfg = Config("alembic.ini")
+        command.upgrade(cfg, "021_inference_attempts")
+        schema = inspect(engine)
+        assert "content_sha256" not in {column["name"] for column in schema.get_columns("messages")}
+        assert "evidence_status" not in {column["name"] for column in schema.get_columns("signal_predictions")}
+        assert "signal_evidence" not in set(schema.get_table_names())
+        with pytest.raises(Exception):
+            with engine.connect() as conn:
+                conn.execute(text("SELECT evidence_status FROM signal_predictions LIMIT 1"))
+        with engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO conversations (id, tenant_id, conversation_id, channel, started_at) "
+                "VALUES ('11111111-1111-4111-8111-111111111111', 'tenant_a', 'c1', 'upload', now())"
+            ))
+            conn.execute(text(
+                "INSERT INTO messages (id, tenant_id, conversation_id, message_id, role, content, timestamp) "
+                "VALUES ('22222222-2222-4222-8222-222222222222', 'tenant_a', 'c1', 'm1', 'customer', "
+                "'Please pause my SIP', now())"
+            ))
+            conn.execute(text(
+                "INSERT INTO signal_predictions (id, tenant_id, conversation_id, signal_type, confidence, summary, "
+                "acted, outcome, outcome_value_inr) "
+                "VALUES (:id, 'tenant_a', 'c1', 'retention', 0.9, 'Leaving', true, 'retained', 500000)"
+            ), {"id": prediction_id})
+            conn.execute(text(
+                "INSERT INTO signal_feedback (id, tenant_id, signal_id, feedback, note, reviewed_by) "
+                "VALUES (:id, 'tenant_a', :signal_id, 'correct', 'kept', 'reviewer')"
+            ), {"id": feedback_id, "signal_id": prediction_id})
+        command.upgrade(cfg, "head")
+        schema = inspect(engine)
+        message_columns = {column["name"]: column for column in schema.get_columns("messages")}
+        prediction_columns = {column["name"]: column for column in schema.get_columns("signal_predictions")}
+        assert message_columns["content_sha256"]["nullable"] is True
+        assert prediction_columns["evidence_status"]["nullable"] is True
+        assert "ck_messages_content_sha256" in {item["name"] for item in schema.get_check_constraints("messages")}
+        assert "ck_signal_predictions_evidence_status" in {
+            item["name"] for item in schema.get_check_constraints("signal_predictions")
+        }
+        assert_evidence_schema(schema)
+        heads = ScriptDirectory.from_config(cfg).get_heads()
+        assert heads == ["022_evidence_anchors"]
+        with engine.begin() as conn:
+            version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+            assert version == ["022_evidence_anchors"]
+            kept = conn.execute(text(
+                "SELECT p.acted, p.outcome, p.outcome_value_inr, p.evidence_status, f.feedback, f.note, "
+                "m.content, m.content_sha256 "
+                "FROM signal_predictions p "
+                "JOIN signal_feedback f ON f.signal_id = p.id "
+                "JOIN messages m ON m.tenant_id = p.tenant_id AND m.conversation_id = p.conversation_id "
+                "WHERE p.id = :id"
+            ), {"id": prediction_id}).one()
+            assert kept.acted is True
+            assert kept.outcome == "retained"
+            assert kept.outcome_value_inr == 500000
+            assert kept.evidence_status is None
+            assert kept.feedback == "correct"
+            assert kept.note == "kept"
+            assert kept.content == "Please pause my SIP"
+            assert kept.content_sha256 is None
+        with pytest.raises(IntegrityError):
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "UPDATE signal_predictions SET evidence_status = 'invented' WHERE id = :id"
+                ), {"id": prediction_id})
+        with engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO signal_evidence (id, tenant_id, prediction_id, message_id, start_cp, end_cp, "
+                "text_sha256, candidate_turns) VALUES ("
+                "'33333333-3333-4333-8333-333333333333', 'tenant_a', :prediction_id, 'm1', 0, 4, :digest, 1)"
+            ), {"prediction_id": prediction_id, "digest": "ab" * 32})
+        with pytest.raises(IntegrityError):
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "INSERT INTO signal_evidence (id, tenant_id, prediction_id, message_id, start_cp, end_cp, "
+                    "text_sha256, candidate_turns) VALUES ("
+                    "'44444444-4444-4444-8444-444444444444', 'tenant_a', :prediction_id, 'm1', 0, 4, :digest, 2)"
+                ), {"prediction_id": prediction_id, "digest": "cd" * 32})
+        with pytest.raises(IntegrityError):
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "INSERT INTO signal_evidence (id, tenant_id, prediction_id, message_id, start_cp, end_cp, "
+                    "text_sha256, candidate_turns) VALUES ("
+                    "'55555555-5555-4555-8555-555555555555', 'tenant_a', "
+                    "'66666666-6666-4666-8666-666666666666', 'm1', 0, 4, :digest, 1)"
+                ), {"digest": "ef" * 32})
+        with engine.begin() as conn:
+            deleted = conn.execute(text(
+                "DELETE FROM messages WHERE tenant_id = 'tenant_a' AND message_id = 'm1' RETURNING message_id"
+            )).scalar_one()
+            assert deleted == "m1"
+            still_there = conn.execute(text(
+                "SELECT message_id FROM signal_evidence WHERE prediction_id = :id"
+            ), {"id": prediction_id}).scalar_one()
+            assert still_there == "m1"
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+def assert_evidence_schema(schema):
+    assert "signal_evidence" in set(schema.get_table_names())
+    columns = {column["name"] for column in schema.get_columns("signal_evidence")}
+    assert {
+        "id",
+        "tenant_id",
+        "prediction_id",
+        "message_id",
+        "start_cp",
+        "end_cp",
+        "text_sha256",
+        "candidate_turns",
+        "created_at",
+    } <= columns
+    uniques = schema.get_unique_constraints("signal_evidence")
+    assert any(
+        item["name"] == "uq_signal_evidence_span"
+        or set(item["column_names"]) == {"prediction_id", "message_id", "start_cp", "end_cp"}
+        for item in uniques
+    )
+    checks = {item["name"] for item in schema.get_check_constraints("signal_evidence")}
+    assert {
+        "ck_signal_evidence_span",
+        "ck_signal_evidence_candidate_turns",
+        "ck_signal_evidence_text_sha256",
+    } <= checks
+    fks = schema.get_foreign_keys("signal_evidence")
+    assert any(item["name"] == "fk_signal_evidence_prediction" and item["referred_table"] == "signal_predictions" for item in fks)
+    assert all("messages" not in (item["referred_table"] or "") for item in fks)
+    indexes = {index["name"] for index in schema.get_indexes("signal_evidence")}
+    assert {
+        "ix_signal_evidence_tenant_prediction",
+        "ix_signal_evidence_tenant_message",
+    } <= indexes
+
+
 def assert_inference_schema(schema):
     assert "inference_attempts" in set(schema.get_table_names())
     columns = {column["name"] for column in schema.get_columns("inference_attempts")}

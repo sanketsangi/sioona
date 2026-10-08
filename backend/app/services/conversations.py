@@ -10,10 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.conversation import GROUND_TRUTH_VALUES, Conversation
-from app.models.message import MESSAGE_ROLES, Message
+from app.models.message import MESSAGE_ROLE_CUSTOMER, MESSAGE_ROLES, Message
 from app.models.signal_feedback import SignalFeedback
 from app.models.signal_prediction import SignalPrediction
 from app.schemas.conversation import ConversationUpsert, MessageUpsert
+from app.services.evidence_anchors import mark_anchored_predictions_stale, text_sha256
 
 
 class InvalidMessageRoleError(ValueError):
@@ -100,11 +101,18 @@ def _apply_message_fields(
     *,
     conversation_id: str,
     payload: MessageUpsert,
-) -> None:
+) -> bool:
+    """Write exact content and its hash. Return whether anchors must go stale."""
+    role = _validate_role(payload.role)
+    content_changed = row.content != payload.content
+    ownership_changed = row.conversation_id != conversation_id
+    left_customer = row.role == MESSAGE_ROLE_CUSTOMER and role != MESSAGE_ROLE_CUSTOMER
     row.conversation_id = conversation_id
-    row.role = _validate_role(payload.role)
+    row.role = role
     row.content = payload.content
+    row.content_sha256 = text_sha256(payload.content)
     row.timestamp = payload.timestamp
+    return content_changed or ownership_changed or left_customer
 
 
 def _upsert_one_message(
@@ -129,9 +137,13 @@ def _upsert_one_message(
         )
     )
     if existing is not None:
-        _apply_message_fields(
+        stale = _apply_message_fields(
             existing, conversation_id=conversation_id, payload=payload
         )
+        if stale:
+            mark_anchored_predictions_stale(
+                db, tenant_id=tenant_id, message_ids=[payload.message_id]
+            )
         if existing_by_id is not None:
             existing_by_id[payload.message_id] = existing
         return existing, False
@@ -142,17 +154,21 @@ def _upsert_one_message(
         message_id=payload.message_id,
         role=payload.role,
         content=payload.content,
+        content_sha256=text_sha256(payload.content),
         timestamp=payload.timestamp,
     )
-    db.add(row)
     if not flush_each:
         # Bulk ingest flushes the chunk once. Per-row savepoints are for the
         # single-conversation path, where a raced message id must not abort it.
+        db.add(row)
         if existing_by_id is not None:
             existing_by_id[payload.message_id] = row
         return row, True
     try:
+        # Savepoint before add. Autoflush on entry would otherwise insert the
+        # new row outside the savepoint and abort the whole transaction.
         with db.begin_nested():
+            db.add(row)
             db.flush()
     except IntegrityError:
         raced = db.scalar(
@@ -163,9 +179,12 @@ def _upsert_one_message(
         )
         if raced is None:
             raise
-        _apply_message_fields(
+        if _apply_message_fields(
             raced, conversation_id=conversation_id, payload=payload
-        )
+        ):
+            mark_anchored_predictions_stale(
+                db, tenant_id=tenant_id, message_ids=[payload.message_id]
+            )
         if existing_by_id is not None:
             existing_by_id[payload.message_id] = raced
         return raced, False
@@ -254,13 +273,26 @@ def upsert_conversation(
     # Drop Neon leftovers so overlay/hydrate cannot replay stale turns.
     if payload.messages:
         keep_ids = {msg.message_id for msg in payload.messages}
-        db.execute(
-            delete(Message).where(
-                Message.tenant_id == tenant_id,
-                Message.conversation_id == payload.conversation_id,
-                Message.message_id.not_in(keep_ids),
-            )
+        removed_ids = list(
+            db.scalars(
+                select(Message.message_id).where(
+                    Message.tenant_id == tenant_id,
+                    Message.conversation_id == payload.conversation_id,
+                    Message.message_id.not_in(keep_ids),
+                )
+            ).all()
         )
+        if removed_ids:
+            mark_anchored_predictions_stale(
+                db, tenant_id=tenant_id, message_ids=removed_ids
+            )
+            db.execute(
+                delete(Message).where(
+                    Message.tenant_id == tenant_id,
+                    Message.conversation_id == payload.conversation_id,
+                    Message.message_id.in_(removed_ids),
+                )
+            )
 
     if commit:
         db.commit()

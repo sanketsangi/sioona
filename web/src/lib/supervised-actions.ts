@@ -1,4 +1,5 @@
 import { pickAction } from "./detect";
+import { evidenceQuotesForDisplay } from "./server-evidence";
 import { primaryQuote } from "./format";
 import { composeCustomerReplyDraft } from "./suggested-action-display";
 import type {
@@ -244,7 +245,13 @@ export function createRetentionEmailAction(opts: {
 export function createSupervisedDraftAction(opts: {
   signal: Pick<
     Signal,
-    "id" | "conversationId" | "tenantId" | "type" | "confidence" | "score"
+    | "id"
+    | "conversationId"
+    | "tenantId"
+    | "type"
+    | "confidence"
+    | "score"
+    | "evidenceStatus"
   >;
   customerName?: string | null;
   evidence?: string[];
@@ -254,6 +261,11 @@ export function createSupervisedDraftAction(opts: {
 }): SupervisedAction | null {
   const type = supervisedActionTypeForSignal(opts.signal);
   if (!type) return null;
+  const evidence = evidenceQuotesForDisplay({
+    evidence: opts.evidence ?? [],
+    evidenceStatus: opts.signal.evidenceStatus,
+  });
+  opts = { ...opts, evidence };
   if (type === "retention_email_draft") {
     return createRetentionEmailAction({
       signal: opts.signal,
@@ -384,7 +396,7 @@ export function createFirstMissingSupervisedDraft(
         conversationsById,
         signal.conversationId,
       ),
-      evidence: signal.evidence,
+      evidence: evidenceQuotesForDisplay(signal),
       overrides: store.taxonomyOverrides,
     });
     if (action) return action;
@@ -394,21 +406,22 @@ export function createFirstMissingSupervisedDraft(
 
 function draftForAction(
   action: SupervisedAction,
-  signal: Pick<Signal, "score" | "evidence">,
+  signal: Pick<Signal, "score" | "evidence" | "evidenceStatus">,
   customerName: string | null | undefined,
   overrides?: TaxonomyOverrides | null,
 ): RetentionEmailDraft {
+  const evidence = evidenceQuotesForDisplay(signal);
   if (action.type === "retention_email_draft") {
     return composeRetentionEmailDraft({
       customerName,
-      evidence: signal.evidence,
+      evidence,
     });
   }
   return composePlaybookDraft({
     type: signalTypeForSupervisedAction(action.type),
     score: signal.score,
     customerName,
-    evidence: signal.evidence,
+    evidence,
     overrides,
   });
 }
@@ -419,12 +432,18 @@ function draftForAction(
  */
 function backfillPendingEvidence(
   action: SupervisedAction,
-  signal: Pick<Signal, "score" | "evidence">,
+  signal: Pick<Signal, "score" | "evidence" | "evidenceStatus">,
   customerName: string | null | undefined,
   overrides?: TaxonomyOverrides | null,
 ): boolean {
   if (action.status !== "pending") return false;
   if (action.evidenceQuote.trim()) return false;
+  if (
+    signal.evidenceStatus === "stale" ||
+    signal.evidenceStatus === "unresolved"
+  ) {
+    return false;
+  }
   const draft = draftForAction(action, signal, customerName, overrides);
   if (!draft.evidenceQuote) return false;
 
@@ -495,7 +514,7 @@ export function ensureSupervisedActions(
     const action = createSupervisedDraftAction({
       signal,
       customerName: name,
-      evidence: signal.evidence,
+      evidence: evidenceQuotesForDisplay(signal),
       overrides: store.taxonomyOverrides,
     });
     if (!action) continue;

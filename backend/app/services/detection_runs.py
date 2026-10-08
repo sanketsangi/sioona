@@ -50,13 +50,21 @@ def reconcile_detection(db: Session, *, tenant_id: str, run_id: str, conversatio
         content_hash=content_hash, model_version=model_version, prompt_version=prompt_version,
         status="active", output=output, coverage=coverage)
     db.add(run)
+    pending = []
     for item in output:
-        db.add(SignalPrediction(tenant_id=tenant_id, conversation_id=conversation_id,
+        row = SignalPrediction(tenant_id=tenant_id, conversation_id=conversation_id,
             detection_run_id=run_id, active=True, signal_type=item["signal_type"],
             confidence=item["confidence"], summary=item["summary"],
             urgency=item.get("urgency"), urgency_timeframe=item.get("urgency_timeframe"),
             mentioned_value_inr=item.get("mentioned_value_inr"),
-            commercial_value_evidence=commercial_evidence.get(item["signal_type"])))
+            commercial_value_evidence=commercial_evidence.get(item["signal_type"]))
+        db.add(row)
+        pending.append((row, item))
+    db.flush()
+    from app.services.evidence_anchors import attach_anchors
+    for row, item in pending:
+        attach_anchors(db, tenant_id=tenant_id, conversation_id=conversation_id,
+            prediction=row, evidence=item.get("evidence") or [])
     db.flush()
     return run
 

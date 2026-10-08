@@ -1,3 +1,4 @@
+import { evidenceQuotesForDisplay } from "./server-evidence";
 import {
   createSupervisedDraftAction,
   supervisedActionTypeForSignal,
@@ -23,11 +24,14 @@ export function resolveRetentionEmailAction(
   if (matched) {
     // Neon stubs may have locked an empty quote before chat evidence joined.
     // Prefer live signal evidence for display without rewriting decided drafts.
-    if (!matched.evidenceQuote.trim() && signal.evidence.length > 0) {
+    if (
+      !matched.evidenceQuote.trim() &&
+      evidenceQuotesForDisplay(signal).length > 0
+    ) {
       const filled = createSupervisedDraftAction({
         signal,
         customerName,
-        evidence: signal.evidence,
+        evidence: evidenceQuotesForDisplay(signal),
         id: matched.id,
         createdAt: matched.createdAt,
       });
@@ -37,10 +41,11 @@ export function resolveRetentionEmailAction(
     }
     return matched;
   }
+  const evidence = evidenceQuotesForDisplay(signal);
   return createSupervisedDraftAction({
     signal,
     customerName,
-    evidence: signal.evidence,
+    evidence,
   });
 }
 

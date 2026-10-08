@@ -1,6 +1,6 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-08
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
 **Branch:** `main` tip `8d9b00c` (Groq daily-cap fallback); product improvements merged in #114
@@ -20,6 +20,8 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 **Hosted now (2026-09-06):** Real weekly partner export **Week-6 keep-set closed** (localhost) — Synthetic-Data `Zerodha_week_6_batch_01.json` mid-week upsert `replaced=false` (20 new signals; pack not copied; Batch-02 held-out). Neon/local count **1→2** after Week-5 Day-1 precondition (Sample wipe had left count **null**). **11** Correct (GT-matched human SoT; not all-correct smoke) + **Acted 11/11** (display-only). Eval `?scoreFrom=2026-09-06T19:46:39.000Z` → localhost keep-set **n=11 / correct=11 / incorrect=0 / 1.00 → go**; baseline **55**; lift **0**. Ops via `npm run ops:week6-keep-set -- --review=human`. Not Batch-02 / not Adapt / not Partner Demo wipe / not Auth0 / not outbound. Prior Week-5 go (2026-09-04) stays historical.
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
+
+**This pass (code, 2026-10-08, CB-08, uncommitted):** Displayed quotes come from reconstructed `signal_evidence` anchors. Alembic `022_evidence_anchors` adds nullable `messages.content_sha256`, `signal_predictions.evidence_status` (`valid` / `unresolved` / `stale`), and `signal_evidence` (string `message_id`, no cascade from messages). A changed, deleted, reowned, or non-customer turn marks the prediction `stale` and keeps the anchor plus feedback, Acted, and outcomes. Reads never re-anchor. Stale copy is “Source changed — re-run detection”; unresolved includes “Re-run detection”. Backfill is `backend/scripts/backfill_signal_evidence.py` (tenant required, dry-run unless `--apply`). Not hosted, not a 100-signal sample, not a keep-set go.
 
 **This pass (verify + hygiene, 2026-10-02):** Pilot-ready tree check, committed locally, not pushed or deployed. Web, backend, `tsc` and lint green (counts in §8). Cleared six pre-existing lint errors (ref writes during render; synchronous `setState` in effects). Fixed one Groq fallback race: two concurrent calls that both hit the daily cap no longer drop the second chat once the first has switched the model. Sidebar: one icon-only Sign out (no duplicate control), `currentColor` icons, `sio-*` tokens, Vitest coverage. `/data/store*.json` is ignored so per-tenant runtime stores cannot be committed. Docs now match migrations `001`–`011`, the Postgres-only prediction→conversation FK, and cookie + service-token auth. With `LIVE_INGEST=1`, middleware now lets only the three live-ingest webhook/poll `POST` routes skip the session cookie (the routes still check their own secret and tenant); OAuth start/callback stay behind the session. `web/DEPLOY.md` has a Neon `008`–`011` check-then-dry-run checklist (Render may already have applied them on deploy). Not Auth0 / not outbound / not Batch-02 / not a keep-set go.
 

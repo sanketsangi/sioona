@@ -87,6 +87,11 @@ def publish_ingestion(db: Session, *, tenant_id: str, upload_id: str, body: Inge
             # the general metadata-only conversation update API.
             empty_ids = [chat.conversation_id for chat in body.conversations if not chat.messages]
             if empty_ids:
+                from app.services.evidence_anchors import mark_anchored_predictions_stale
+                removed_ids = list(db.scalars(select(Message.message_id).where(
+                    Message.tenant_id == tenant_id,
+                    Message.conversation_id.in_(empty_ids))).all())
+                mark_anchored_predictions_stale(db, tenant_id=tenant_id, message_ids=removed_ids)
                 db.execute(delete(Message).where(Message.tenant_id == tenant_id,
                     Message.conversation_id.in_(empty_ids)))
             for item in sorted(body.detections, key=lambda row: row.conversation_id):

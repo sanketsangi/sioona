@@ -331,6 +331,61 @@ describe("EvalView metrics containers", () => {
     expect(html).not.toContain("not synced");
   });
 
+  it("Adapt does not show a JSON quote the server could not reconstruct", () => {
+    const html = renderToStaticMarkup(
+      createElement(EvalView, {
+        store: {
+          ...store,
+          signals: [
+            {
+              ...signal("c1"),
+              evidence: ['quote: "Please pause my SIP this month"'],
+              feedback: {
+                label: "incorrect",
+                reviewedAt: "2026-08-24T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        panelRaw: "adapt",
+        scoreWindow,
+        cadenceAction: cadenceReviews,
+        backendScore: emptyScore,
+      }),
+    );
+
+    expect(html).not.toContain("Please pause my SIP this month");
+    expect(html).toContain("No evidence");
+  });
+
+  it("Adapt still shows a reconstructed quote marked valid", () => {
+    const html = renderToStaticMarkup(
+      createElement(EvalView, {
+        store: {
+          ...store,
+          signals: [
+            {
+              ...signal("c1"),
+              evidence: ['quote: "Please pause my SIP"'],
+              evidenceStatus: "valid",
+              feedback: {
+                label: "incorrect",
+                reviewedAt: "2026-08-24T00:00:00.000Z",
+              },
+            },
+          ],
+        },
+        panelRaw: "adapt",
+        scoreWindow,
+        cadenceAction: cadenceReviews,
+        backendScore: emptyScore,
+      }),
+    );
+
+    expect(html).toContain("Please pause my SIP");
+    expect(html).not.toContain("No evidence");
+  });
+
   it("labeled panel owns P/R, not Metrics", () => {
     const html = renderToStaticMarkup(
       createElement(EvalView, {

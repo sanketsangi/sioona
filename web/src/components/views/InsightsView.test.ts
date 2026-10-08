@@ -2,7 +2,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StoreData, Signal } from "@/lib/types";
-import type { BackendSignalScore } from "@/lib/backend-client";
+import type {
+  BackendPrediction,
+  BackendSignalScore,
+} from "@/lib/backend-client";
 
 vi.mock("next/link", () => ({
   default: (props: {
@@ -52,6 +55,23 @@ function makePendingSignals(count: number): Signal[] {
     createdAt: "2026-08-01T00:00:00.000Z",
     backendSignalId: `pred-${i + 1}`,
   }));
+}
+
+function anchoredPrediction(
+  signal: Signal,
+  span: { message_id: string; start: number; end: number; quote: string },
+): BackendPrediction {
+  return {
+    id: signal.backendSignalId!,
+    tenant_id: signal.tenantId,
+    conversation_id: signal.conversationId,
+    signal_type: signal.type,
+    confidence: signal.score,
+    summary: signal.summary,
+    created_at: signal.createdAt,
+    evidence_status: "valid",
+    evidence_spans: [span],
+  };
 }
 
 function storeFromSignals(signals: Signal[]): StoreData {
@@ -2280,15 +2300,14 @@ describe("InsightsView review conversation + action", () => {
         previewId: pending[0].id,
         needsReview: {
           ok: true,
-          predictions: pending.map((s) => ({
-            id: s.backendSignalId!,
-            tenant_id: "tenant_demo",
-            conversation_id: s.conversationId,
-            signal_type: s.type,
-            confidence: s.score,
-            summary: s.summary,
-            created_at: s.createdAt,
-          })),
+          predictions: pending.map((s) =>
+            anchoredPrediction(s, {
+              message_id: "msg_1",
+              start: 0,
+              end: "Please pause my SIP this month".length,
+              quote: "Please pause my SIP this month",
+            }),
+          ),
         },
         tenantSignals: { ok: true, rows: [] },
         cadenceAction: cadenceReviews,
@@ -2373,13 +2392,12 @@ describe("InsightsView review conversation + action", () => {
           ok: true,
           rows: [
             {
-              id: "pred-follow",
-              tenant_id: "tenant_demo",
-              conversation_id: "conv_follow",
-              signal_type: "retention",
-              confidence: 0.9,
-              summary: "Pause SIP",
-              created_at: "2026-08-01T00:00:00.000Z",
+              ...anchoredPrediction(follow, {
+                message_id: "msg_1",
+                start: 0,
+                end: "Please pause my SIP".length,
+                quote: "Please pause my SIP",
+              }),
               acted: false,
               feedback: {
                 id: "fb-1",
@@ -2544,15 +2562,14 @@ describe("InsightsView evidence-grounded review", () => {
         previewId: pending[0].id,
         needsReview: {
           ok: true,
-          predictions: pending.map((s) => ({
-            id: s.backendSignalId!,
-            tenant_id: "tenant_demo",
-            conversation_id: s.conversationId,
-            signal_type: s.type,
-            confidence: s.score,
-            summary: s.summary,
-            created_at: s.createdAt,
-          })),
+          predictions: pending.map((s) =>
+            anchoredPrediction(s, {
+              message_id: "msg_2",
+              start: 0,
+              end: "I want to close my account".length,
+              quote: "I want to close my account",
+            }),
+          ),
         },
         tenantSignals: { ok: true, rows: [] },
         cadenceAction: cadenceReviews,

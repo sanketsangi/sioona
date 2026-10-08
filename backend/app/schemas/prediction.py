@@ -49,6 +49,15 @@ class PredictionOutcomeUpdate(BaseModel):
     recorded_on: date | None = None
 
 
+class EvidenceSpanResponse(BaseModel):
+    """One reconstructed span. ``quote`` is absent when the anchor cannot be shown."""
+
+    message_id: str
+    start: int
+    end: int
+    quote: str | None = None
+
+
 class PredictionResponse(BaseModel):
     """Stored prediction returned to clients."""
 
@@ -64,6 +73,9 @@ class PredictionResponse(BaseModel):
     urgency_timeframe: str | None = None
     mentioned_value_inr: int | None = None
     commercial_value_evidence: list[dict] | None = None
+    evidence_status: Literal["valid", "unresolved", "stale"] | None = None
+    evidence_reason: str | None = None
+    evidence_spans: list[EvidenceSpanResponse] = Field(default_factory=list)
     acted: bool = False
     outcome: str | None = None
     outcome_value_inr: float | None = None

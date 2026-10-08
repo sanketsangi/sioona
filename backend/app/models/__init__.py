@@ -40,7 +40,14 @@ from app.models.signal_feedback import (
     FEEDBACK_PARTIALLY_CORRECT,
     SignalFeedback,
 )
-from app.models.signal_prediction import SignalPrediction
+from app.models.signal_evidence import SignalEvidence
+from app.models.signal_prediction import (
+    EVIDENCE_STALE,
+    EVIDENCE_STATUSES,
+    EVIDENCE_UNRESOLVED,
+    EVIDENCE_VALID,
+    SignalPrediction,
+)
 from app.models.taxonomy_override import TaxonomyOverride
 from app.models.membership import MEMBERSHIP_ROLES, Membership
 from app.models.user import (
@@ -86,6 +93,11 @@ __all__ = [
     "PilotSettings",
     "SUPERVISED_ACTION_STATUSES",
     "SUPERVISED_ACTION_TYPES",
+    "EVIDENCE_STALE",
+    "EVIDENCE_STATUSES",
+    "EVIDENCE_UNRESOLVED",
+    "EVIDENCE_VALID",
+    "SignalEvidence",
     "SignalFeedback",
     "SupervisedActionDecision",
     "SignalPrediction",

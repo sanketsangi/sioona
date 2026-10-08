@@ -100,6 +100,16 @@ export interface BackendPrediction {
   outcome?: string | null;
   outcome_value_inr?: number | null;
   outcome_recorded_at?: string | null;
+  evidence_status?: "valid" | "unresolved" | "stale" | null;
+  evidence_reason?: string | null;
+  evidence_spans?:
+    | {
+        message_id: string;
+        start: number;
+        end: number;
+        quote?: string | null;
+      }[]
+    | null;
 }
 
 export interface BackendPredictionWithFeedback extends BackendPrediction {

@@ -10,6 +10,11 @@ import type {
   BackendPrediction,
   BackendPredictionWithFeedback,
 } from "./backend-client";
+import {
+  evidenceQuotesForDisplay,
+  quarantineDisplayEvidence,
+  withServerEvidence,
+} from "./server-evidence";
 import { clipQuote } from "./clip-quote";
 import { pickAction } from "./detect";
 import { groupMessagesByConversation } from "./group-messages";
@@ -54,7 +59,7 @@ export function predictionToStubSignal(
 ): Signal | null {
   const type = asSignalType(prediction.signal_type);
   if (!type) return null;
-  return {
+  return withServerEvidence({
     id: `sig_neon_${prediction.id}`,
     tenantId: prediction.tenant_id,
     conversationId: prediction.conversation_id,
@@ -75,7 +80,7 @@ export function predictionToStubSignal(
       ? { urgencyTimeframe: prediction.urgency_timeframe }
       : {}),
     ...commercialMetadataFromPrediction(prediction),
-  };
+  }, prediction);
 }
 
 const OUTCOMES = new Set([
@@ -166,7 +171,7 @@ export function joinNeedsReviewPredictions(
       continue;
     }
     seenJsonIds.add(matched.id);
-    joined.push({
+    joined.push(withServerEvidence({
       ...matched,
       // Neon row id is SoT — stale JSON UUIDs 404 Mark Acted / feedback.
       backendSignalId: prediction.id,
@@ -183,7 +188,7 @@ export function joinNeedsReviewPredictions(
           }
         : {}),
       ...commercialMetadataFromPrediction(prediction),
-    });
+    }, prediction));
   }
 
   return joined;
@@ -285,7 +290,7 @@ export function pendingQueueSignals(
     if (seen.has(signal.id)) continue;
     if (isNeonReviewedLocal(signal, reviewed)) continue;
     seen.add(signal.id);
-    localOnly.push(signal);
+    localOnly.push(quarantineDisplayEvidence(signal));
   }
   return [...fromNeon, ...localOnly];
 }
@@ -328,7 +333,7 @@ export function joinTenantSignals(
       if (seenKeys.has(key)) continue;
       seenIds.add(matched.id);
       seenKeys.add(key);
-      joined.push({
+      joined.push(withServerEvidence({
         ...matched,
         // Live Neon id wins over a stale JSON UUID (wipe / instance drift).
         backendSignalId: row.id,
@@ -340,7 +345,7 @@ export function joinTenantSignals(
           ? { urgencyTimeframe: row.urgency_timeframe }
           : {}),
         ...commercialMetadataFromPrediction(row),
-      });
+      }, row));
       continue;
     }
 
@@ -389,7 +394,7 @@ export function reviewedQueueSignals(
     if (seenKeys.has(key)) continue;
     seenIds.add(signal.id);
     seenKeys.add(key);
-    localOnly.push(signal);
+    localOnly.push(quarantineDisplayEvidence(signal));
   }
   return [...fromNeon, ...localOnly];
 }
@@ -627,28 +632,28 @@ export function applyChatEvidenceToSignals(
   );
 
   return signals.map((signal) => {
-    const needsEvidence = signal.evidence.length === 0;
-    const needsAction = !signal.suggestedAction;
-    if (!needsEvidence && !needsAction) return signal;
-    const msgs = messagesByConv.get(signal.conversationId) ?? [];
-    const evidence = needsEvidence
-      ? quotesFromCustomerMessages(msgs)
-      : signal.evidence;
+    const safe = quarantineDisplayEvidence(signal);
+    const needsAction = !safe.suggestedAction;
+    const displayEvidence = evidenceQuotesForDisplay(safe);
+    if (!needsAction) {
+      return displayEvidence.length === safe.evidence.length
+        ? safe
+        : { ...safe, evidence: displayEvidence };
+    }
+    const msgs = messagesByConv.get(safe.conversationId) ?? [];
     const hasJoin = msgs.length > 0;
     return {
-      ...signal,
-      suggestedAction: needsAction
-        ? resolveSuggestedAction({
-            type: signal.type,
-            customerName:
-              conversationsById.get(signal.conversationId)?.customerName,
-            evidence,
-            fallback: hasJoin
-              ? pickAction(signal.type, signal.score, overrides)
-              : "",
-          })
-        : signal.suggestedAction,
-      evidence,
+      ...safe,
+      evidence: displayEvidence,
+      suggestedAction: resolveSuggestedAction({
+        type: safe.type,
+        customerName:
+          conversationsById.get(safe.conversationId)?.customerName,
+        evidence: displayEvidence,
+        fallback: hasJoin
+          ? pickAction(safe.type, safe.score, overrides)
+          : "",
+      }),
     };
   });
 }

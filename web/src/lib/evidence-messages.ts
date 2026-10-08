@@ -1,5 +1,5 @@
 import { textIncludesTerm } from "./detect";
-import type { Message } from "./types";
+import type { Message, Signal } from "./types";
 
 function normalize(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
@@ -62,4 +62,21 @@ export function firstEvidenceMessageId(
     if (id) return id;
   }
   return null;
+}
+
+/**
+ * Default highlight. A server anchor uses its message id.
+ * Stale or unresolved evidence does not search the transcript.
+ */
+export function focusEvidenceMessageId(
+  signal: Pick<Signal, "evidence" | "evidenceStatus" | "evidenceSpans">,
+  messages: Message[],
+): string | null {
+  if (signal.evidenceStatus === "valid") {
+    return signal.evidenceSpans?.find((item) => item.messageId)?.messageId ?? null;
+  }
+  if (signal.evidenceStatus === "stale" || signal.evidenceStatus === "unresolved") {
+    return null;
+  }
+  return firstEvidenceMessageId(signal.evidence, messages);
 }

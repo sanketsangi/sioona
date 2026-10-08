@@ -141,6 +141,13 @@ Date: 2026-10-08
 Approver: Sanket
 Choice: **Buffered per-run flush.** The web process buffers one `AttemptSink` per detection run and flushes it in `finally`. Rows are idempotent on `(tenant_id, attempt_id)`. A finalized row never reverts to `pending`. Before the LLM pass, preflight the ledger. If it is unreachable, skip the LLM and run heuristics only, and record `ledgerSkip=unreachable` on the pass stats. The crash window between a provider call and a successful flush is a known gap until CB-11 writes `pending` before the call. Alerting for a failed flush is a counts-only log (`sioona.inference_ledger.flush_failed`) until CB-15.
 
+## D3 — Evidence offsets and message mutability
+
+Status: **approved**
+Date: 2026-10-08
+Approver: Sanket
+Choice: Unicode **code-point** offsets, half-open `[start, end)`, over exact persisted `messages.content`. Add `messages.content_sha256`. A content change makes anchors **stale**: show "source changed" and re-detect, never re-anchor silently.
+
 ## D7 — Python lock tool
 
 Status: **approved**

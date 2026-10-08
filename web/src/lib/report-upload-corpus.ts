@@ -53,7 +53,7 @@ export async function selectUploadCorpus(store: StoreData, uploadId: string): Pr
     if (!signal) invalid();
     predictionIds.add(prediction.id);
     outputs.delete(key);
-    signals.push({ ...signal!, evidence: output!.evidence, historical: prediction.active !== true,
+    signals.push({ ...signal!, historical: prediction.active !== true,
       status: prediction.feedback ? "reviewed" : "new",
       feedback: prediction.feedback ? { label: prediction.feedback.feedback,
         note: prediction.feedback.note ?? undefined, reviewedAt: prediction.feedback.reviewed_at } : undefined });

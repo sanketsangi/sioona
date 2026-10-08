@@ -86,7 +86,8 @@ describe("joinNeedsReviewPredictions", () => {
 
     const joined = joinNeedsReviewPredictions(preds, json);
     expect(joined.map((s) => s.id)).toEqual(["sig_b", "sig_a"]);
-    expect(joined[0].evidence).toEqual(["upsell quote"]);
+    expect(joined[0].evidence).toEqual([]);
+    expect(joined[0].evidenceStatus).toBe("unresolved");
     expect(joined[0].backendSignalId).toBe("bbb");
   });
 
@@ -97,7 +98,8 @@ describe("joinNeedsReviewPredictions", () => {
     const [joined] = joinNeedsReviewPredictions(preds, json);
     expect(joined.id).toBe("sig_match");
     expect(joined.backendSignalId).toBe("neon-1");
-    expect(joined.evidence).toEqual(["quote"]);
+    expect(joined.evidence).toEqual([]);
+    expect(joined.evidenceStatus).toBe("unresolved");
   });
 
   it("replaces a stale JSON backendSignalId with the live Neon id", () => {
@@ -109,7 +111,8 @@ describe("joinNeedsReviewPredictions", () => {
     const [joined] = joinNeedsReviewPredictions(preds, json);
     expect(joined.id).toBe("sig_match");
     expect(joined.backendSignalId).toBe("live-neon-id");
-    expect(joined.evidence).toEqual(["quote"]);
+    expect(joined.evidence).toEqual([]);
+    expect(joined.evidenceStatus).toBe("unresolved");
   });
 
   it("keeps unmatched Neon predictions as stubs", () => {
@@ -254,6 +257,19 @@ describe("pendingQueueSignals", () => {
     ];
     const pending = pendingQueueSignals([], json);
     expect(pending.map((s) => s.id)).toEqual(["sig_just_ingested"]);
+  });
+
+  it("does not surface JSON detect quotes without server-valid anchors", () => {
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        id: "sig_just_ingested",
+        evidence: ['quote: "Please close my account"'],
+      },
+    ];
+    const [pending] = pendingQueueSignals([], json);
+    expect(pending.evidence).toEqual([]);
+    expect(pending.evidenceStatus).toBe("unresolved");
   });
 });
 
@@ -450,8 +466,16 @@ describe("joinTenantSignals", () => {
     expect(joined[0].evidence).toEqual([]);
   });
 
-  it("prefers JSON evidence when ids match", () => {
-    const rows = [tenantRow({ id: "aaa" })];
+  it("prefers reconstructed server evidence over JSON when ids match", () => {
+    const rows = [
+      tenantRow({
+        id: "aaa",
+        evidence_status: "valid",
+        evidence_spans: [
+          { message_id: "m1", start: 0, end: 7, quote: "Rebuilt" },
+        ],
+      }),
+    ];
     const json: Signal[] = [
       {
         ...baseSignal,
@@ -467,9 +491,41 @@ describe("joinTenantSignals", () => {
     ];
     const [joined] = joinTenantSignals(rows, json);
     expect(joined.id).toBe("sig_local_1");
-    expect(joined.evidence).toEqual(["quote: \"local\""]);
+    expect(joined.evidence).toEqual(['quote: "Rebuilt"']);
     expect(joined.suggestedAction).toBe("Call back");
     expect(joined.backendSignalId).toBe("aaa");
+  });
+
+  it("keeps heuristic phrase chips after a valid reconstructed quote join", () => {
+    const rows = [
+      tenantRow({
+        id: "aaa",
+        evidence_status: "valid",
+        evidence_spans: [
+          { message_id: "m1", start: 0, end: 18, quote: "pause my SIP" },
+        ],
+      }),
+    ];
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        backendSignalId: "aaa",
+        evidence: [
+          'quote: "local"',
+          'phrase: "pause my SIP"',
+        ],
+        feedback: {
+          label: "correct",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+        status: "reviewed",
+      },
+    ];
+    const [joined] = joinTenantSignals(rows, json);
+    expect(joined.evidence).toEqual([
+      'quote: "pause my SIP"',
+      'phrase: "pause my SIP"',
+    ]);
   });
 
   it("replaces a stale JSON backendSignalId with the live Neon id", () => {
@@ -478,6 +534,15 @@ describe("joinTenantSignals", () => {
         id: "83a80e70-live-neon",
         conversation_id: "conv_1",
         signal_type: "lead",
+        evidence_status: "valid",
+        evidence_spans: [
+          {
+            message_id: "m1",
+            start: 0,
+            end: 38,
+            quote: "I fired two. Stopping. Not happy.",
+          },
+        ],
       }),
     ];
     const json: Signal[] = [
@@ -498,6 +563,7 @@ describe("joinTenantSignals", () => {
     expect(joined.backendSignalId).toBe("83a80e70-live-neon");
     expect(joined.feedback?.label).toBe("correct");
     expect(joined.evidence[0]).toContain("Not happy");
+    expect(joined.evidence[0]).not.toContain("local");
   });
 
   it("skips unreviewed Neon rows", () => {
@@ -632,6 +698,29 @@ describe("reviewedQueueSignals", () => {
       "sig_local_1",
       "sig_local_reviewed",
     ]);
+  });
+
+  it("quarantines JSON-only reviewed rows Neon missed", () => {
+    const rows = [tenantRow({ id: "aaa" })];
+    const json: Signal[] = [
+      { ...baseSignal, backendSignalId: "aaa" },
+      {
+        ...baseSignal,
+        id: "sig_local_reviewed",
+        conversationId: "conv_local",
+        evidence: ['quote: "JSON_ONLY_REVIEWED_QUOTE"'],
+        feedback: {
+          label: "incorrect",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+        status: "reviewed",
+      },
+    ];
+    const local = reviewedQueueSignals(rows, json).find(
+      (s) => s.id === "sig_local_reviewed",
+    );
+    expect(local?.evidence).toEqual([]);
+    expect(local?.evidenceStatus).toBe("unresolved");
   });
 });
 
@@ -1063,7 +1152,7 @@ describe("missingConversationIds / chat evidence", () => {
     expect(joined[0]?.type).toBe("retention");
   });
 
-  it("fills empty stub evidence and action from overlay chats", () => {
+  it("fills suggestedAction from overlay chats without synthesizing quotes", () => {
     const mapped = predictionToStubSignal(
       prediction({ id: "orphan", conversation_id: "conv_x" })
     );
@@ -1098,11 +1187,9 @@ describe("missingConversationIds / chat evidence", () => {
         ],
       }
     );
-    expect(filled[0].evidence).toEqual([
-      'quote: "I want to close my account"',
-    ]);
-    expect(filled[0].suggestedAction).toContain("Priya");
-    expect(filled[0].suggestedAction).toContain("I want to close my account");
+    expect(filled[0].evidence).toEqual([]);
+    expect(filled[0].suggestedAction).toContain("Route to sales");
+    expect(filled[0].suggestedAction).not.toContain("I want to close my account");
   });
 
   it("leaves stub action empty when overlay join is missing", () => {
@@ -1119,7 +1206,7 @@ describe("missingConversationIds / chat evidence", () => {
     expect(filled[0].evidence).toEqual([]);
   });
 
-  it("does not overwrite JSON evidence", () => {
+  it("quarantines JSON evidence without server-valid anchors", () => {
     const local: Signal = {
       ...baseSignal,
       evidence: ['quote: "keep me"'],
@@ -1137,8 +1224,67 @@ describe("missingConversationIds / chat evidence", () => {
         },
       ],
     });
-    expect(filled[0].evidence).toEqual(['quote: "keep me"']);
+    expect(filled[0].evidence).toEqual([]);
+    expect(filled[0].evidenceStatus).toBe("unresolved");
     expect(filled[0].suggestedAction).toBe("Keep this");
+  });
+
+  it("replaces JSON quotes with reconstructed server spans", () => {
+    const rows = [
+      tenantRow({
+        id: "aaa",
+        evidence_status: "valid",
+        evidence_spans: [
+          { message_id: "late", start: 0, end: 7, quote: "Rebuilt" },
+        ],
+      }),
+    ];
+    const json: Signal[] = [
+      {
+        ...baseSignal,
+        backendSignalId: "aaa",
+        evidence: ['quote: "local stale quote"'],
+        status: "reviewed",
+        feedback: {
+          label: "correct",
+          reviewedAt: "2026-08-02T00:00:00.000Z",
+        },
+      },
+    ];
+    const [joined] = joinTenantSignals(rows, json);
+    expect(joined.evidence).toEqual(['quote: "Rebuilt"']);
+    expect(joined.evidenceSpans?.[0]?.messageId).toBe("late");
+    expect(joined.feedback?.label).toBe("correct");
+  });
+
+  it("does not restore a stale quote from overlay chats", () => {
+    const stub = predictionToStubSignal(
+      prediction({
+        id: "orphan",
+        conversation_id: "conv_x",
+        evidence_status: "stale",
+        evidence_spans: [
+          { message_id: "m2", start: 0, end: 4, quote: null },
+        ],
+      }),
+    );
+    expect(stub).not.toBeNull();
+    if (!stub) return;
+    const filled = applyChatEvidenceToSignals([stub], {
+      conversations: [{ ...conv, id: "conv_x", customerName: "Priya" }],
+      messages: [
+        {
+          id: "m2",
+          conversationId: "conv_x",
+          role: "customer",
+          content: "I want to close my account",
+          timestamp: "2026-08-01T00:01:00.000Z",
+        },
+      ],
+    });
+    expect(filled[0].evidence).toEqual([]);
+    expect(filled[0].evidenceStatus).toBe("stale");
+    expect(filled[0].suggestedAction).not.toContain("I want to close my account");
   });
 });
 

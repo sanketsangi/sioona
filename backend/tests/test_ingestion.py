@@ -16,6 +16,15 @@ def test_failed_publication_preserves_previous_corpus(client):
     assert response.status_code == 409, response.text
     response = client.get("/v1/tenants/a/conversations", headers=headers)
     assert response.json()[0]["messages"][0]["content"] == "Original"
+    from app.db import get_db
+    from app.models.message import Message
+    from app.services.evidence_anchors import text_sha256
+    from sqlalchemy import select
+    session_source = client.app.dependency_overrides[get_db]()
+    db = next(session_source)
+    stored = db.scalar(select(Message).where(Message.tenant_id == "a", Message.message_id == "m1"))
+    assert stored.content_sha256 == text_sha256("Original")
+    session_source.close()
     assert client.get("/v1/tenants/a/uploads/failed", headers=headers).status_code == 404
     assert client.put(url, headers=headers, json=payload()).status_code == 409
 
@@ -263,6 +272,51 @@ def test_empty_atomic_transcript_replaces_prior_messages_and_retains_snapshot(cl
     assert client.get("/v1/tenants/a/conversations", headers=headers).json()[0]["messages"] == []
     assert client.get("/v1/tenants/a/uploads/empty/snapshot", headers=headers).json()["conversations"][0]["messages"] == []
     assert client.get("/v1/tenants/a/uploads/full/snapshot", headers=headers).json()["conversations"][0]["messages"][0]["content"] == "Original"
+
+
+def test_empty_transcript_keeps_review_and_marks_anchors_stale(client):
+    from app.db import get_db
+    from app.models.message import Message
+    from app.models.signal_evidence import SignalEvidence
+    from app.models.signal_feedback import SignalFeedback
+    from app.models.signal_prediction import SignalPrediction
+    from sqlalchemy import select
+
+    headers = {"X-Tenant-Id": "a"}
+    body = payload("Please pause my SIP")
+    body["detections"][0]["output"] = [{
+        "signal_type": "retention", "confidence": 0.9, "summary": "Leaving",
+        "evidence": ['quote: "Please pause my SIP"'],
+    }]
+    assert client.put("/v1/tenants/a/ingestions/full", headers=headers, json=body).status_code == 200
+    session_source = client.app.dependency_overrides[get_db]()
+    db = next(session_source)
+    prediction = db.scalar(select(SignalPrediction).where(SignalPrediction.tenant_id == "a", SignalPrediction.active.is_(True)))
+    prediction.acted = True
+    prediction.outcome = "retained"
+    prediction.outcome_value_inr = 2500
+    assert prediction.evidence_status == "valid"
+    db.add(SignalFeedback(tenant_id="a", signal_id=prediction.id, feedback="correct", note="kept", reviewed_by="reviewer"))
+    published = db.scalar(select(SignalEvidence).where(SignalEvidence.prediction_id == prediction.id))
+    assert published is not None and published.message_id == "m1"
+    db.commit()
+    prediction_id = prediction.id
+    session_source.close()
+
+    empty = payload()
+    empty["conversations"][0]["messages"] = []
+    empty["detections"][0]["content_hash"] = hashlib.sha256(b"[]").hexdigest()
+    empty["detections"][0]["output"] = []
+    assert client.put("/v1/tenants/a/ingestions/empty", headers=headers, json=empty).status_code == 200
+    session_source = client.app.dependency_overrides[get_db]()
+    db = next(session_source)
+    assert db.scalar(select(Message).where(Message.tenant_id == "a", Message.message_id == "m1")) is None
+    kept = db.get(SignalPrediction, prediction_id)
+    assert kept.evidence_status == "stale"
+    assert kept.acted is True and kept.outcome == "retained" and kept.outcome_value_inr == 2500
+    assert db.scalar(select(SignalFeedback).where(SignalFeedback.signal_id == prediction_id)).feedback == "correct"
+    assert db.scalar(select(SignalEvidence).where(SignalEvidence.prediction_id == prediction_id)).message_id == "m1"
+    session_source.close()
 
 
 def test_atomic_ingestion_cannot_move_an_existing_message_to_another_conversation(client):

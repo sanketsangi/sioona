@@ -45,6 +45,10 @@ class Message(Base):
             "role IN ('customer', 'agent', 'system')",
             name="ck_messages_role",
         ),
+        CheckConstraint(
+            "content_sha256 IS NULL OR length(content_sha256) = 64",
+            name="ck_messages_content_sha256",
+        ),
         Index("ix_messages_tenant_id", "tenant_id"),
         Index("ix_messages_conversation_id", "conversation_id"),
         Index("ix_messages_message_id", "message_id"),
@@ -61,6 +65,7 @@ class Message(Base):
     message_id: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

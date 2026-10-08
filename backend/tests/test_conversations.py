@@ -672,3 +672,239 @@ def test_ground_truth_is_tenant_safe(db: Session) -> None:
 
     listed_a_again = list_conversations(db, "tenant_a")
     assert listed_a_again[0][0].ground_truth == "retention"
+
+
+def _anchor(db: Session, *, tenant_id: str, conversation_id: str, message_id: str, content: str) -> SignalPrediction:
+    from app.models.signal_evidence import SignalEvidence
+    from app.services.evidence_anchors import text_sha256
+
+    prediction = record_prediction(
+        db,
+        tenant_id=tenant_id,
+        conversation_id=conversation_id,
+        signal_type="retention",
+        confidence=0.9,
+        summary="Leaving",
+    )
+    prediction.acted = True
+    prediction.outcome = "retained"
+    prediction.outcome_value_inr = 1000
+    prediction.evidence_status = "valid"
+    db.add(
+        SignalEvidence(
+            tenant_id=tenant_id,
+            prediction_id=prediction.id,
+            message_id=message_id,
+            start_cp=0,
+            end_cp=len(content),
+            text_sha256=text_sha256(content),
+            candidate_turns=1,
+        )
+    )
+    db.commit()
+    record_feedback(
+        db,
+        tenant_id=tenant_id,
+        signal_id=prediction.id,
+        feedback="correct",
+        reviewed_by="reviewer",
+        note="kept",
+    )
+    return prediction
+
+
+def _assert_review_kept(db: Session, prediction_id) -> None:
+    from app.models.signal_evidence import SignalEvidence
+
+    prediction = db.get(SignalPrediction, prediction_id)
+    feedback = db.scalar(select(SignalFeedback).where(SignalFeedback.signal_id == prediction_id))
+    anchor = db.scalar(select(SignalEvidence).where(SignalEvidence.prediction_id == prediction_id))
+    assert prediction.acted is True
+    assert prediction.outcome == "retained"
+    assert prediction.outcome_value_inr == 1000
+    assert feedback.feedback == "correct"
+    assert feedback.note == "kept"
+    assert anchor is not None
+
+
+def test_message_writes_hash_exact_content_and_stay_stable(db: Session) -> None:
+    from app.services.evidence_anchors import text_sha256
+
+    created = upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    customer = next(row for row in created.messages if row.role == "customer")
+    assert customer.content_sha256 == text_sha256(customer.content)
+    again = upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    again_customer = next(row for row in again.messages if row.role == "customer")
+    assert again_customer.content_sha256 == customer.content_sha256
+    bulk = upsert_conversations(db, tenant_id="tenant_b", payloads=[_payload()])
+    assert bulk.messages_created == 2
+    for row in db.scalars(select(Message).where(Message.tenant_id == "tenant_b")).all():
+        assert row.content_sha256 == text_sha256(row.content)
+
+
+def test_changed_removed_and_reowned_messages_go_stale_without_deleting_reviews(db: Session) -> None:
+    from app.services.conversations import _upsert_one_message
+    from app.services.evidence_anchors import text_sha256
+
+    upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    prediction = _anchor(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_1",
+        message_id="msg_conv_1_0",
+        content="I want to close my account",
+    )
+    changed = _payload(
+        messages=[
+            MessageUpsert(
+                message_id="msg_conv_1_0",
+                role="customer",
+                content="I changed my mind about the wording",
+                timestamp=_ts(10),
+            ),
+            MessageUpsert(
+                message_id="msg_conv_1_1",
+                role="agent",
+                content="I can help with that",
+                timestamp=_ts(11),
+            ),
+        ]
+    )
+    upsert_conversation(db, tenant_id="tenant_a", payload=changed)
+    refreshed = db.get(Message, next(row.id for row in list_conversations(db, "tenant_a")[0][1] if row.message_id == "msg_conv_1_0"))
+    assert refreshed.content_sha256 == text_sha256("I changed my mind about the wording")
+    assert db.get(SignalPrediction, prediction.id).evidence_status == "stale"
+    _assert_review_kept(db, prediction.id)
+
+    raced, created = _upsert_one_message(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_1",
+        payload=MessageUpsert(
+            message_id="msg_conv_1_0",
+            role="agent",
+            content="I changed my mind about the wording",
+            timestamp=_ts(12),
+        ),
+        existing_by_id={},
+    )
+    assert created is False
+    assert raced.role == "agent"
+    assert raced.content_sha256 == text_sha256("I changed my mind about the wording")
+    db.commit()
+    assert db.get(SignalPrediction, prediction.id).evidence_status == "stale"
+    _assert_review_kept(db, prediction.id)
+
+    other = _anchor(
+        db,
+        tenant_id="tenant_b",
+        conversation_id="conv_1",
+        message_id="msg_conv_1_0",
+        content="I want to close my account",
+    )
+    upsert_conversation(db, tenant_id="tenant_b", payload=_payload())
+    assert db.get(SignalPrediction, other.id).evidence_status == "valid"
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            conversation_id="conv_2",
+            messages=[
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="agent",
+                    content="I changed my mind about the wording",
+                    timestamp=_ts(10),
+                )
+            ],
+        ),
+    )
+    moved = db.scalar(select(Message).where(Message.tenant_id == "tenant_a", Message.message_id == "msg_conv_1_0"))
+    assert moved.conversation_id == "conv_2"
+    assert db.get(SignalPrediction, prediction.id).evidence_status == "stale"
+    assert db.get(SignalPrediction, other.id).evidence_status == "valid"
+
+    dropped = _anchor(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_2",
+        message_id="msg_drop",
+        content="Drop me",
+    )
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            conversation_id="conv_2",
+            messages=[
+                MessageUpsert(message_id="msg_drop", role="customer", content="Drop me", timestamp=_ts(9)),
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="agent",
+                    content="I changed my mind about the wording",
+                    timestamp=_ts(10),
+                ),
+            ],
+        ),
+    )
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        payload=_payload(
+            conversation_id="conv_2",
+            messages=[
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="agent",
+                    content="I changed my mind about the wording",
+                    timestamp=_ts(10),
+                )
+            ],
+        ),
+    )
+    assert db.scalar(select(Message).where(Message.tenant_id == "tenant_a", Message.message_id == "msg_drop")) is None
+    assert db.get(SignalPrediction, dropped.id).evidence_status == "stale"
+    _assert_review_kept(db, dropped.id)
+    _assert_review_kept(db, prediction.id)
+
+
+def test_message_hash_and_stale_mark_roll_back_together(db: Session) -> None:
+    from app.services.evidence_anchors import text_sha256
+
+    upsert_conversation(db, tenant_id="tenant_a", payload=_payload())
+    prediction = _anchor(
+        db,
+        tenant_id="tenant_a",
+        conversation_id="conv_1",
+        message_id="msg_conv_1_0",
+        content="I want to close my account",
+    )
+    original = text_sha256("I want to close my account")
+    upsert_conversation(
+        db,
+        tenant_id="tenant_a",
+        commit=False,
+        payload=_payload(
+            messages=[
+                MessageUpsert(
+                    message_id="msg_conv_1_0",
+                    role="customer",
+                    content="Not committed",
+                    timestamp=_ts(10),
+                ),
+                MessageUpsert(
+                    message_id="msg_conv_1_1",
+                    role="agent",
+                    content="I can help with that",
+                    timestamp=_ts(11),
+                ),
+            ]
+        ),
+    )
+    db.rollback()
+    db.expire_all()
+    message = db.scalar(select(Message).where(Message.tenant_id == "tenant_a", Message.message_id == "msg_conv_1_0"))
+    assert message.content == "I want to close my account"
+    assert message.content_sha256 == original
+    assert db.get(SignalPrediction, prediction.id).evidence_status == "valid"
+    _assert_review_kept(db, prediction.id)

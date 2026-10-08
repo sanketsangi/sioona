@@ -12,7 +12,9 @@ const snapshot = {
     messages: [{ message_id: "m1", role: "customer", content: "Close my account", timestamp: "2026-10-01T00:00:00Z" }] }],
   detections: [{ conversation_id: "c2", output: [{ signal_type: "retention", evidence: ['quote: "Close my account"'] }] }],
   predictions: [{ id: "old-prediction", tenant_id: "a", conversation_id: "c2", signal_type: "retention",
-    confidence: .9, summary: "Leaving", created_at: "2026-10-01T00:00:00Z", feedback: null }],
+    confidence: .9, summary: "Leaving", created_at: "2026-10-01T00:00:00Z", feedback: null,
+    evidence_status: "valid",
+    evidence_spans: [{ message_id: "m1", start: 0, end: 16, quote: "Close my account" }] }],
 };
 beforeEach(() => vi.mocked(getUploadSnapshot).mockReset().mockResolvedValue(snapshot as never));
 it("uses original transcripts and prediction identity instead of mutable cache", async () => {
@@ -52,6 +54,15 @@ it("uses the original prediction's reviews and outcomes", async () => {
   expect(result.signals[0].outcome?.valueInr).toBe(1000);
 });
 
+it("does not display a detection quote when reconstruction is unresolved", async () => {
+  vi.mocked(getUploadSnapshot).mockResolvedValue({ ...snapshot, predictions: [{
+    ...snapshot.predictions[0], evidence_status: "unresolved", evidence_spans: [],
+  }] } as never);
+  const result = await selectUploadCorpus(store, "u1");
+  expect(result.signals[0].evidence).toEqual([]);
+  expect(result.signals[0].evidenceStatus).toBe("unresolved");
+  expect(JSON.stringify(result.signals)).not.toContain("Close my account");
+});
 it("permits outcome controls only for explicitly active snapshot predictions", async () => {
   vi.mocked(getUploadSnapshot).mockResolvedValue({ ...snapshot,
     predictions: [{ ...snapshot.predictions[0], active: true }] } as never);

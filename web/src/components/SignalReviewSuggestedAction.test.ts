@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({
 import {
   SignalReviewSuggestedAction,
   copyReplyClipboardText,
+  NO_RECOMMENDED_REPLY,
 } from "@/components/SignalReviewSuggestedAction";
 import { createRetentionEmailAction, createSupervisedDraftAction } from "@/lib/supervised-actions";
 import { resolveSuggestedAction } from "@/lib/suggested-action-display";
@@ -912,5 +913,78 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain(
       "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90",
     );
+  });
+
+  it("jumps a reconstructed quote to the server message id", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          evidence: ['quote: "Please pause my SIP"'],
+          evidenceStatus: "valid",
+          evidenceSpans: [
+            {
+              messageId: "server-turn",
+              start: 0,
+              end: 20,
+              quote: "Please pause my SIP",
+            },
+          ],
+        }),
+        messages: [
+          message({ id: "other-turn", content: "Please pause my SIP this month" }),
+          message({ id: "server-turn", content: "later text" }),
+        ],
+        onFocusMessage: () => undefined,
+      }),
+    );
+    expect(html).toContain('aria-controls="conversation-message-server-turn"');
+    expect(html).not.toContain('aria-controls="conversation-message-other-turn"');
+  });
+
+  it("shows source-changed and unresolved copy without a leftover quote", () => {
+    const stale = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          type: "lead",
+          evidence: ['quote: "LEFTOVER_QUOTE_SHOULD_NOT_RENDER"'],
+          evidenceStatus: "stale",
+          suggestedAction: "Review the changed source.",
+        }),
+        messages: [message()],
+        customerName: "Demo Customer",
+      }),
+    );
+    expect(stale).toContain("Source changed — re-run detection");
+    expect(stale).toContain(NO_RECOMMENDED_REPLY);
+    expect(stale).not.toContain("Show in conversation:");
+    expect(stale).not.toContain("LEFTOVER_QUOTE_SHOULD_NOT_RENDER");
+    expect(stale).not.toContain('data-retention-email-panel="evidence"');
+
+    const unresolved = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({ evidence: [], evidenceStatus: "unresolved" }),
+        messages: [message()],
+      }),
+    );
+    expect(unresolved).toContain("Re-run detection");
+    expect(unresolved).not.toContain("Please pause my SIP");
+  });
+
+  it("does not show stale suggestedAction prose that embeds a customer quote", () => {
+    const html = renderToStaticMarkup(
+      createElement(SignalReviewSuggestedAction, {
+        signal: signal({
+          type: "lead",
+          evidenceStatus: "stale",
+          suggestedAction:
+            'Hi Priya, thanks for asking about "UNVERIFIED_QUOTE_IN_ACTION".',
+        }),
+        messages: [message()],
+        customerName: "Priya",
+      }),
+    );
+    expect(html).toContain("Source changed — re-run detection");
+    expect(html).not.toContain("UNVERIFIED_QUOTE_IN_ACTION");
+    expect(html).toContain(NO_RECOMMENDED_REPLY);
   });
 });

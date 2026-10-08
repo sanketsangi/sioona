@@ -87,7 +87,8 @@ def submit_acted(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
-    return PredictionWithFeedbackResponse.model_validate(row)
+    from app.services.evidence_anchors import present_predictions
+    return present_predictions(PredictionWithFeedbackResponse, db, tenant_id, row)
 
 
 @router.post(

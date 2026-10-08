@@ -227,6 +227,50 @@ it("never quotes generated summaries or unsupported evidence as customer speech"
     evidence: ['quote: "Invented customer claim"'] });
   const report = buildRevenueLeakReport({ signals: [row], conversations: [], windowLabel: "Pilot",
     messages: [{ id: "m1", conversationId: row.conversationId, role: "customer", content: "Please close my account", timestamp: "2026-10-01" }] });
-  expect(report.customersAtRisk[0].quote).toBe("Please close my account");
+  expect(report.customersAtRisk[0].quote).toBe("");
   expect(buildRevenueLeakReport({ signals: [row], conversations: [], messages: [], windowLabel: "Pilot" }).customersAtRisk[0].quote).toBe("");
+});
+
+it("does not invent a report quote from the first customer turn", () => {
+  const row = signal({
+    id: "s1",
+    type: "retention",
+    evidence: [],
+    evidenceStatus: "unresolved",
+  });
+  const report = buildRevenueLeakReport({
+    signals: [row],
+    conversations: [],
+    windowLabel: "Pilot",
+    messages: [{
+      id: "m1",
+      conversationId: row.conversationId,
+      role: "customer",
+      content: "Close my account",
+      timestamp: "2026-10-01",
+    }],
+  });
+  expect(report.customersAtRisk[0].quote).toBe("");
+});
+
+it("uses a reconstructed quote that still matches persisted customer text", () => {
+  const row = signal({
+    id: "s1",
+    type: "retention",
+    evidence: ['quote: "Please pause my SIP"'],
+    evidenceStatus: "valid",
+  });
+  const report = buildRevenueLeakReport({
+    signals: [row],
+    conversations: [],
+    windowLabel: "Pilot",
+    messages: [{
+      id: "m1",
+      conversationId: row.conversationId,
+      role: "customer",
+      content: "Please pause my SIP this month",
+      timestamp: "2026-10-01",
+    }],
+  });
+  expect(report.customersAtRisk[0].quote).toBe("Please pause my SIP");
 });

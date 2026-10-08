@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   evidenceQuery,
   firstEvidenceMessageId,
+  focusEvidenceMessageId,
   messageIdForEvidence,
 } from "./evidence-messages";
 import type { Message } from "./types";
@@ -105,5 +106,33 @@ describe("firstEvidenceMessageId", () => {
         messages,
       ),
     ).toBe("msg_1");
+  });
+});
+
+describe("focusEvidenceMessageId", () => {
+  it("uses the server message id and does not search a stale quote", () => {
+    const messages = [msg("early", "Please pause my SIP"), msg("late", "other")];
+    expect(
+      focusEvidenceMessageId(
+        {
+          evidence: ['quote: "Please pause my SIP"'],
+          evidenceStatus: "valid",
+          evidenceSpans: [
+            { messageId: "late", start: 0, end: 4, quote: "Please pause my SIP" },
+          ],
+        },
+        messages,
+      ),
+    ).toBe("late");
+    expect(
+      focusEvidenceMessageId(
+        {
+          evidence: ['quote: "Please pause my SIP"'],
+          evidenceStatus: "stale",
+          evidenceSpans: [],
+        },
+        messages,
+      ),
+    ).toBeNull();
   });
 });

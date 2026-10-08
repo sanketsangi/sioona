@@ -26,7 +26,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import Base
 
 if TYPE_CHECKING:
+    from app.models.signal_evidence import SignalEvidence
     from app.models.signal_feedback import SignalFeedback
+
+EVIDENCE_VALID = "valid"
+EVIDENCE_UNRESOLVED = "unresolved"
+EVIDENCE_STALE = "stale"
+EVIDENCE_STATUSES = frozenset(
+    {EVIDENCE_VALID, EVIDENCE_UNRESOLVED, EVIDENCE_STALE}
+)
 
 # Pilot SignalScore types only — junk / legacy names must not enter the tally.
 CANONICAL_SIGNAL_TYPES = frozenset({"lead", "retention", "upsell"})
@@ -70,6 +78,10 @@ class SignalPrediction(Base):
             "('retained', 'churned', 'converted', 'no_change', 'unknown')",
             name="ck_signal_predictions_outcome",
         ),
+        CheckConstraint(
+            "evidence_status IS NULL OR evidence_status IN ('valid', 'unresolved', 'stale')",
+            name="ck_signal_predictions_evidence_status",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -88,6 +100,7 @@ class SignalPrediction(Base):
     urgency_timeframe: Mapped[str | None] = mapped_column(String, nullable=True)
     mentioned_value_inr: Mapped[int | None] = mapped_column(Integer, nullable=True)
     commercial_value_evidence: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    evidence_status: Mapped[str | None] = mapped_column(String, nullable=True)
     acted: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
@@ -110,4 +123,10 @@ class SignalPrediction(Base):
         "SignalFeedback",
         back_populates="prediction",
         uselist=False,
+    )
+    evidence_anchors: Mapped[list[SignalEvidence]] = relationship(
+        "SignalEvidence",
+        back_populates="prediction",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )

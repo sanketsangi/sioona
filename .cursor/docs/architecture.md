@@ -75,7 +75,9 @@ Single dynamic page (`web/src/app/page.tsx`); pretty paths redirect.
 | Eval     | `/?view=eval`     | Keep-set Signal Score, baseline, Adapt / labeled / export panels |
 | Taxonomy | `/?view=taxonomy` | Read-only base taxonomy                                          |
 
-**Locked chrome (do not reinvent):** `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`.  
+**Locked chrome (do not reinvent):** `SignalStatus`, `SignalScoreChip`, `SignalTypeChip`, `SignalUser`.
+
+**Displayed quotes:** Why This Fired, Eval Adapt, revenue-leak reports, and hydration show only spans reconstructed from `signal_evidence` (`message_id`, code-point `[start, end)`, `messages.content_sha256`). `valid` quotes jump to the returned message id. `stale` shows “Source changed — re-run detection”. `unresolved` shows “Re-run detection”. Overlay chats, JSON evidence, and saved drafts do not refill a quote the server could not reconstruct. Feedback, Acted, and draft decisions stay.  
 **Dead / locked product chrome:** Action Mode outbound send (unlocked Action Mode is display-only Act queue only); Export / Create Campaign are unshipped and hidden (not overflow). **Shipped chrome:** Help / Guidance are local sidebar dialogs (Shadow Mode FAQ / pilot cadence — not Auth0, not a new route). `NavUser` shows the signed-in identity with one icon-only Sign out (a Sign in link on the public demo); no Account / Billing / Notifications.
 
 ### BFF routes (high level)

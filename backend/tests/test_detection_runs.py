@@ -234,6 +234,64 @@ def test_missing_evidence_rolls_back_whole_detection_batch(client):
     assert all(row["status"] == "active" for row in client.get(url, headers=headers).json()["conversations"])
 
 
+def test_every_validator_accepted_quote_resolves_and_replay_does_not_duplicate(db):
+    from app.models.signal_evidence import SignalEvidence
+
+    now = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+    early = "I want to close my account"
+    late = "I want to close my account and I want to close my account again"
+    db.add(Conversation(tenant_id="a", conversation_id="c1", channel="upload", started_at=now))
+    db.flush()
+    db.add(Message(tenant_id="a", conversation_id="c1", message_id="early", role="customer",
+                   content=early, timestamp=now))
+    db.add(Message(tenant_id="a", conversation_id="c1", message_id="late", role="customer",
+                   content=late, timestamp=datetime(2026, 10, 8, 12, 1, tzinfo=timezone.utc)))
+    db.commit()
+    output = [{"signal_type": "retention", "confidence": .9, "summary": "Leaving",
+               "evidence": ['quote: "I want to close my account"', "llm: model",
+                            'quote: "I want to close my account"']}]
+    first = reconcile_detection(db, tenant_id="a", run_id="anchored", conversation_id="c1",
+        content_hash=conversation_content_hash(db, "a", "c1"), model_version="m1", prompt_version="p1",
+        output=output)
+    db.commit()
+    row = db.scalar(select(SignalPrediction).where(SignalPrediction.active.is_(True)))
+    anchors = list(db.scalars(select(SignalEvidence).where(SignalEvidence.prediction_id == row.id)).all())
+    assert row.evidence_status == "valid"
+    assert len(anchors) == 1
+    assert anchors[0].message_id == "late"
+    assert anchors[0].candidate_turns == 2
+    assert late[anchors[0].start_cp:anchors[0].end_cp] == "I want to close my account"
+    replay = reconcile_detection(db, tenant_id="a", run_id="anchored", conversation_id="c1",
+        content_hash=first.content_hash, model_version="m1", prompt_version="p1", output=output)
+    db.commit()
+    assert replay.run_id == first.run_id
+    assert len(list(db.scalars(select(SignalEvidence).where(SignalEvidence.tenant_id == "a")).all())) == 1
+
+
+def test_anchor_publication_failure_rolls_back(db, monkeypatch):
+    import pytest
+    from app.models.detection_run import DetectionRun
+    from app.models.signal_evidence import SignalEvidence
+    from app.services import evidence_anchors
+
+    now = datetime.now(timezone.utc)
+    db.add(Conversation(tenant_id="a", conversation_id="c1", channel="upload", started_at=now))
+    db.flush()
+    db.add(Message(tenant_id="a", conversation_id="c1", message_id="m1", role="customer",
+                   content="Close my account", timestamp=now))
+    db.commit()
+    monkeypatch.setattr(evidence_anchors, "resolve_anchor", lambda quote, turns: None)
+    with pytest.raises(ValueError, match="not grounded"):
+        reconcile_detection(db, tenant_id="a", run_id="broken", conversation_id="c1",
+            content_hash=conversation_content_hash(db, "a", "c1"), model_version="m1", prompt_version="p1",
+            output=[{"signal_type": "retention", "confidence": .9, "summary": "Leaving",
+                     "evidence": ['quote: "Close my account"']}])
+    db.rollback()
+    assert db.get(DetectionRun, ("a", "broken", "c1")) is None
+    assert db.scalar(select(SignalPrediction).where(SignalPrediction.tenant_id == "a")) is None
+    assert db.scalar(select(SignalEvidence).where(SignalEvidence.tenant_id == "a")) is None
+
+
 def test_existing_unsupported_immutable_run_remains_replayable(db):
     from app.models.detection_run import DetectionRun
     db.add(Conversation(tenant_id="a", conversation_id="legacy", channel="upload",

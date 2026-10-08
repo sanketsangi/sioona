@@ -33,6 +33,10 @@ import {
 import { Skiper45MorphConfirmation } from "@/components/v1/skiper45";
 import { messageIdForEvidence } from "@/lib/evidence-messages";
 import {
+  evidenceQuotesForDisplay,
+  suggestedActionFallback,
+} from "@/lib/server-evidence";
+import {
   evidenceMatchText,
   firedRuleKind,
   firedRuleSentence,
@@ -281,8 +285,8 @@ export function SignalReviewSuggestedAction({
     : resolveSuggestedAction({
         type: signal.type,
         customerName,
-        evidence: signal.evidence,
-        fallback: signal.suggestedAction,
+        evidence: evidenceQuotesForDisplay(signal),
+        fallback: suggestedActionFallback(signal),
       });
   const missingAction = !draftLoading && !actionText;
   const draftReady = !draftLoading && Boolean(actionText);
@@ -409,21 +413,50 @@ export function SignalReviewSuggestedAction({
     }
   }
 
-  const formatted = signal.evidence.map((item) => ({
-    item,
-    messageId: messageIdForEvidence(item, messages),
-    kind: formatEvidenceItem(item).kind,
-    text: evidenceMatchText(item, signal.type),
-  }));
-  const ruleKind = firedRuleKind(signal.evidence, signal.type);
-  const quotes = formatted
-    .filter((entry) => entry.kind === "quote")
-    .slice(0, MAX_WHY_QUOTES);
-  const matches = formatted.filter(
-    (entry) => entry.kind === "match" || entry.kind === "suppressed",
+  const serverAnchored =
+    signal.evidenceStatus === "valid" ||
+    signal.evidenceStatus === "stale" ||
+    signal.evidenceStatus === "unresolved";
+  let quoteIndex = 0;
+  const formatted = signal.evidence.map((item) => {
+    const kind = formatEvidenceItem(item).kind;
+    const span =
+      kind === "quote" && signal.evidenceStatus === "valid"
+        ? signal.evidenceSpans?.[quoteIndex++]
+        : undefined;
+    return {
+      item,
+      messageId:
+        span?.messageId ??
+        (serverAnchored ? null : messageIdForEvidence(item, messages)),
+      kind,
+      text: evidenceMatchText(item, signal.type),
+    };
+  });
+  const ruleKind = firedRuleKind(
+    signal.evidenceStatus === "stale" || signal.evidenceStatus === "unresolved"
+      ? []
+      : signal.evidence,
+    signal.type,
   );
+  const unavailableCopy =
+    signal.evidenceStatus === "stale"
+      ? "Source changed — re-run detection"
+      : signal.evidenceStatus === "unresolved"
+        ? "Re-run detection"
+        : null;
+  const quotes = unavailableCopy
+    ? []
+    : formatted
+        .filter((entry) => entry.kind === "quote")
+        .slice(0, MAX_WHY_QUOTES);
+  const matches = unavailableCopy
+    ? []
+    : formatted.filter(
+        (entry) => entry.kind === "match" || entry.kind === "suppressed",
+      );
 
-  const showWhy = quotes.length > 0 || matches.length === 0;
+  const showWhy = quotes.length > 0 || matches.length === 0 || unavailableCopy !== null;
   const showMatched = matches.length > 0;
   const showSupport = showWhy || showMatched;
 
@@ -693,7 +726,7 @@ export function SignalReviewSuggestedAction({
           <RetentionEmailAction
             embedded
             // Why This Fired already owns quote evidence — avoid a second copy.
-            omitEvidence={showWhy && quotes.length > 0}
+            omitEvidence={unavailableCopy !== null || (showWhy && quotes.length > 0)}
             signal={signal}
             customerName={customerName}
             action={supervisedAction}
@@ -785,7 +818,14 @@ export function SignalReviewSuggestedAction({
                   aria-labelledby={whyId}
                   className="flex min-w-0 flex-col gap-2"
                 >
-                  {quotes.length > 0 ? (
+                  {unavailableCopy ? (
+                    <p
+                      data-evidence-status={signal.evidenceStatus}
+                      className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted"
+                    >
+                      {unavailableCopy}
+                    </p>
+                  ) : quotes.length > 0 ? (
                     <ul className="flex flex-col gap-3">
                       {quotes.map(({ item, text, messageId }) => {
                         const canJump = Boolean(messageId && onFocusMessage);
