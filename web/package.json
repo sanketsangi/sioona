@@ -15,6 +15,8 @@
     "eval:signal:injection": "node eval/promptfoo/run-eval.mjs -c promptfooconfig.injection.yaml",
     "eval:signal:smoke": "node eval/promptfoo/run-smoke.mjs",
     "eval:partner-export": "npx tsx src/lib/eval-partner-export.ts",
+    "eval:gate": "npx tsx eval/gate/run-gate.ts",
+    "eval:gate:record": "npx tsx eval/gate/run-gate.ts --record",
     "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts",
     "agent": "npx tsx scripts/cursor-agent.ts",
     "e2e": "node e2e/run-guarded.mjs"

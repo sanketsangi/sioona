@@ -1,0 +1,21 @@
+{
+  "id": "gold-v1",
+  "version": 1,
+  "splits": {
+    "dev": {
+      "path": "dev/items.jsonl",
+      "sha256": "5194fd05f4a3ce581be554313a4e96fd7cc9d0b2c338d76c7862b65c26ca7b40",
+      "n": 8
+    },
+    "validation": {
+      "path": "validation/items.jsonl",
+      "sha256": "d279d07166d6afcd253ebbc8c51c22213bc8d17c5ce89725003d669b07cd6a8f",
+      "n": 120
+    }
+  },
+  "holdout": {
+    "id": "partner",
+    "sha256": null,
+    "n": null
+  }
+}

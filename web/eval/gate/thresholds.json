@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "max_per_type_precision_drop_pp": 2,
+  "max_per_type_recall_drop_pp": 2,
+  "min_surfaced_evidence_validity": 1.0,
+  "max_injection_critical_failures": 0,
+  "max_tenant_failures": 0,
+  "require_holdout": true,
+  "min_items_per_type": 30
+}
