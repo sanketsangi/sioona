@@ -15,7 +15,7 @@
   },
   "holdout": {
     "id": "partner",
-    "sha256": null,
-    "n": null
+    "sha256": "0bcd1ee6cba18bf4ae9c30cb7f20b6dcbdbc6304f0f8cfe7423c72f413591d52",
+    "n": 100
   }
 }

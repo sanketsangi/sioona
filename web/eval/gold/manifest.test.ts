@@ -46,11 +46,13 @@ describe("gold manifest", () => {
     expect(dev.length).toBeLessThan(validation.length);
   });
 
-  it("keeps the partner holdout unset", () => {
+  it("records the Week-4 Batch-02 holdout checksum and n", () => {
     expect(manifest.holdout.id).toBe("partner");
-    expect(manifest.holdout.sha256).toBeNull();
-    expect(manifest.holdout.n).toBeNull();
-    expect(holdoutReady(manifest)).toBe(false);
+    expect(manifest.holdout.sha256).toBe(
+      "0bcd1ee6cba18bf4ae9c30cb7f20b6dcbdbc6304f0f8cfe7423c72f413591d52"
+    );
+    expect(manifest.holdout.n).toBe(100);
+    expect(holdoutReady(manifest)).toBe(true);
   });
 
   it("rejects a split path that leaves the corpus", () => {

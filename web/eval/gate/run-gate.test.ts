@@ -235,11 +235,11 @@ describe("eval:gate replay", () => {
     expect(result.failures.map((failure) => failure.code)).not.toContain("missing_replay");
   });
 
-  it("fails the real validation gate while the holdout checksum is unset", async () => {
+  it("fails the real validation gate until replay and a baseline exist", async () => {
     const result = await runGate({ git: { sha: "test", dirty: false } });
     expect(result.code).toBe(1);
     const codes = result.failures.map((failure) => failure.code);
-    expect(codes).toContain("holdout_missing");
+    expect(codes).not.toContain("holdout_missing");
     expect(codes).toContain("baseline_missing");
     expect(codes).toContain("missing_replay");
     expect(codes).not.toContain("skip");
