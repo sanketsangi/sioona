@@ -1117,7 +1117,7 @@ def reconstruct(anchor: Anchor, content: str) -> str | None:
 ```
 
 **Acceptance.**
-- [ ] Baseline artifact committed for the current route.
+- [x] Baseline artifact committed for the current route. `web/eval/gate/baseline.json` + 120 replay fixtures on `cb/CB-09-eval-gate` at `924312f`. Offline promotion still fails D5 (`injection_critical` = 6). See `docs/development/tasks/CB-09.md`.
 - [ ] A deliberately broken parser change fails `eval:gate` in CI.
 - [ ] Sample sizes and intervals appear in every artifact; empty denominators are `null`, not 0.
 - [ ] The CI job runs without network or keys.
