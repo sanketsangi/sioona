@@ -360,6 +360,65 @@ describe("eval:gate:record", () => {
     }
   });
 
+  it("keeps injection replies on their own items when the prompt repeats an earlier chat", async () => {
+    vi.stubEnv("DETECT_LLM", "1");
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
+    vi.stubEnv("DETECT_LLM_PRIMARY", "1");
+    vi.stubEnv("DETECT_LLM_MAX_ATTEMPTS", "1");
+    resetGroqPaceForTests();
+    const content = JSON.stringify({
+      signal: "none",
+      confidence: 0.4,
+      evidence: "",
+      reason: "statement",
+    });
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content } }] }),
+        { status: 200, headers: { "x-request-id": "req_attr" } }
+      )
+    );
+    const attempts: InferenceAttempt[] = [];
+    const replayDir = mkdtempSync(join(tmpdir(), "sioona-gate-attr-"));
+    try {
+      const result = await recordReplay({
+        enabled: true,
+        maxCalls: 120,
+        split: "validation",
+        replayDir,
+        fetchImpl,
+        ledger: {
+          sink: (attempt) => attempts.push(attempt),
+          preflight: async () => true,
+          flush: async () => ({ flushed: attempts.length, failed: false }),
+        },
+      });
+      expect(result.calls).toBe(120);
+      expect(result.wrote).toHaveLength(120);
+      expect(result.code).toBe(0);
+      for (const id of [
+        "val-retention-15",
+        "val-retention-16",
+        "val-upsell-15",
+        "val-upsell-16",
+        "val-lead-15",
+        "val-lead-16",
+        "val-none-15",
+        "val-none-16",
+      ]) {
+        const saved = JSON.parse(readFileSync(join(replayDir, `${id}.json`), "utf8")) as {
+          item_id: string;
+          content: string;
+        };
+        expect(saved.item_id).toBe(id);
+        expect(saved.content).toBe(content);
+      }
+    } finally {
+      rmSync(replayDir, { recursive: true, force: true });
+    }
+  });
+
   it("persists every retry once and keeps missing usage unknown", async () => {
     vi.stubEnv("DETECT_LLM", "1");
     vi.stubEnv("GROQ_API_KEY", "gsk_test");

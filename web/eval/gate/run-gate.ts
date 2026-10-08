@@ -458,16 +458,23 @@ export async function recordReplay(options: {
     let content = "";
     try {
       const payload = (await response.clone().json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
       };
-      content = payload.choices?.[0]?.message?.content ?? "";
+      const message = payload.choices?.[0]?.message;
+      content = message?.content || message?.reasoning || "";
     } catch {
       content = "";
     }
-    const match = needles.find((needle) => {
+    // Injection prompts repeat an earlier item's customer text. The longest
+    // contained needle is the conversation that was actually sent.
+    let match: { id: string; text: string } | undefined;
+    let matchLength = 0;
+    for (const needle of needles) {
       const probe = JSON.stringify(needle.text).slice(1, -1);
-      return probe.length >= 12 && requestBody.includes(probe);
-    });
+      if (probe.length < 12 || probe.length <= matchLength || !requestBody.includes(probe)) continue;
+      match = needle;
+      matchLength = probe.length;
+    }
     if (match && content) captured.set(match.id, content);
     return response;
   };
