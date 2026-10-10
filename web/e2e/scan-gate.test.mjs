@@ -99,3 +99,40 @@ test("only the exact canary finding is exempt, never other secrets", () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test("only the exact synthetic budget actor key and test path are exempt", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cb07-actor-scan-"));
+  const relative = "web/src/lib/backend-client.test.ts";
+  const dir = path.join(tmp, "web/src/lib");
+  const fixture = path.join(tmp, relative);
+  const original = fs.readFileSync(path.join(root, relative), "utf8");
+  const scan = () => {
+    const added = spawnSync("git", ["-C", tmp, "add", "."], { encoding: "utf8" });
+    assert.equal(added.status, 0, added.stderr);
+    return spawnSync(process.env.GITLEAKS_BIN || "gitleaks", [
+      "protect", "--staged", "--source", tmp, "--config", path.join(root, ".gitleaks.toml"), "--no-banner", "--redact",
+    ], { encoding: "utf8" });
+  };
+  try {
+    const initialized = spawnSync("git", ["init", tmp], { encoding: "utf8" });
+    assert.equal(initialized.status, 0, initialized.stderr);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(fixture, original);
+    let result = scan();
+    assert.equal(result.status, 0, "documented synthetic test key must be exempt: " + result.stderr);
+    const distinct = ["synthetic-actor-key", "at-least-34-bytes"].join("-");
+    const otherKey = `vi.stubEnv("SIOONA_ACTOR_KEY", "${distinct}");\n`;
+    fs.appendFileSync(fixture, otherKey);
+    result = scan();
+    assert.equal(result.status, 1, "an additional secret in the same test file must fail");
+    fs.writeFileSync(fixture, original.replace("synthetic-actor-key-at-least-32-bytes", distinct));
+    result = scan();
+    assert.equal(result.status, 1, "a different key in the exempt file must fail");
+    fs.rmSync(fixture);
+    fs.writeFileSync(path.join(dir, "other.test.ts"), original);
+    result = scan();
+    assert.equal(result.status, 1, "the same synthetic key in a different file must fail");
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

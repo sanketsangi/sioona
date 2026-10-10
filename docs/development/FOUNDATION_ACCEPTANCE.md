@@ -60,3 +60,9 @@ Local verification does not replace exact-revision CI, Linux outbound-fence proo
 4. Replay identity/provider boundary/atomic publication and exact-head CI/cookbook dependency/status reconciliation.
 
 Sanket authorized commit and push of these locally verified groups on 2026-10-10 to trigger exact-head CI. A draft PR is necessary because the Tests workflow runs on PRs to main, not feature-branch pushes. This authorization does not permit merge, starting CB-10, CB-13 promotion, provider calls or hosted Migration 023. Review paths and acceptance evidence by group; publication alone does not establish acceptance.
+
+## PR #147 CI follow-up — 2026-10-10
+
+On exact head `e0124e51a633b3fb02456f8774cc1be65ba08ef1`, [run 38046918070](https://github.com/sanketsangi/sioona/actions/runs/38046918070) passed Web, Backend, Eval gate, Marketing and guarded E2E, including Linux/Postgres checks. Gitleaks 8.28.0 failed reproducibly on the explicitly synthetic actor-signing key in `web/src/lib/backend-client.test.ts:933`; the rerun had the same failure. Bugbot remains neutral/error due to its usage limit.
+
+Remediation adds an AND allowlist for only that exact dummy value and exact test path, including its existing history. It does not ignore the file, commit or rule. A failing-then-passing scanner regression proves an additional secret in the same file, a changed key and the original value relocated to another file still fail. All five scanner tests and full reachable-history scan with the CI-pinned 8.28.0 binary pass locally. New-head hosted CI is pending publication/observation; prior-head results do not prove it. CB-10/CB-13 remain blocked, n=100 is not exempted from the minimum 120, and Migration 023 stays unapplied on hosts.
