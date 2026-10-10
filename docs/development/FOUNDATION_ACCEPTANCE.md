@@ -1,6 +1,6 @@
 # Foundation acceptance — authoritative current closeout
 
-Updated 2026-10-10. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. Worktree: `/Users/sanket/.codex/worktrees/94a3/Sioona`, detached base `db5254d2b851167c70e2be38536607f8052beaa9`. Publication is authorized on 2026-10-10 to `codex/foundation-cb09-remediation` for exact-head CI. This record does not claim green remediation CI.
+Updated 2026-10-10. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. **`main` tip `5e93be5`** merges foundation remediation plus admission pipeline fixes (`12458d1`). Branch `codex/foundation-cb09-remediation` is merged and deleted; Antigravity verified the four structural fixes (ordinals, global lock removal, admission metering, injection handling). Hosted CB-07 rollout and exact-head CI on this merge remain operator/CI follow-ups — not open code defects on that set.
 
 | Card | Implementation | CI | Hosted rollout | Acceptance |
 | --- | --- | --- | --- | --- |
@@ -8,7 +8,7 @@ Updated 2026-10-10. This table supersedes stale present-tense task closeouts; da
 | CB-03 | Merged actor authorization; scoped inference principal additions local | PR #141 head green; new enforcement tests local | Isolated staging not provisioned | Blocked: exact target/cost approval, schema/memberships, deployment and observed 30-minute window |
 | CB-04 | Separate RLS card | Not demonstrated here | Not demonstrated here | Required before broader multi-tenant production rollout |
 | CB-05/06 | Merged gateway/ledger; universal preflight and pending admission ledger local | #146 head passes affected historical checks; new revision unverified | No new rollout | Local fix validation and independent review complete; CI pending |
-| CB-07 | Attempt mode implemented locally; D4 recorded | Local tests; exact revision unverified | 023 not applied hosted | Pending human schema-first rollout and acceptance |
+| CB-07 | Attempt mode on `main`; admission remediation complete (`12458d1`) | Local + Antigravity green; exact head `5e93be5` CI observation optional | 023 not applied hosted | Pending human schema-first rollout and acceptance |
 | CB-08 | Merged evidence anchors; Unicode conformance remediation local | Local shared Python/TS fixtures; new revision unverified | Historical hosted closeout preserved | Remediation independent review complete; CI pending |
 | CB-09 | Synthetic replay, external runner, split promotion and identity checks implemented | #146 historical synthetic gate passes; new revision unverified | No external evaluation performed | Synthetic D5 metrics pass in clean-state test; external promotion blocked |
 | CB-10 | Not started | — | — | Waits for foundation acceptance |

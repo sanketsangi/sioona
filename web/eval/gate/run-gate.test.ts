@@ -240,8 +240,8 @@ describe("eval:gate replay", () => {
     expect(result.code).toBe(0);
     expect(result.failures).toEqual([]);
     expect(result.artifact.injection_critical_failures).toBe(0);
-    expect(result.artifact.coverage.completed).toBe(118);
-    expect(result.artifact.coverage.failed).toBe(2);
+    expect(result.artifact.coverage.completed).toBe(120);
+    expect(result.artifact.coverage.failed).toBe(0);
     expect(result.artifact.route.prompt_version).toBe("final-intent-recent-complete-turns-v3");
   });
 
