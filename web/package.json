@@ -19,7 +19,9 @@
     "eval:gate:record": "npx tsx eval/gate/run-gate.ts --record",
     "ops:week6-keep-set": "npx tsx scripts/week6-keep-set-ops.ts",
     "agent": "npx tsx scripts/cursor-agent.ts",
-    "e2e": "node e2e/run-guarded.mjs"
+    "e2e": "node e2e/run-guarded.mjs",
+    "eval:holdout": "tsx eval/gate/holdout.ts",
+    "eval:promotion": "tsx eval/gate/holdout.ts --promotion"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

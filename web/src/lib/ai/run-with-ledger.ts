@@ -1,7 +1,7 @@
+import { createAttemptGuard } from "./budget";
 /**
  * Production wrapper: preflight ledger → hybrid detect → attach run id → flush.
- * Demo tenant may run without FastAPI (showcase warm); partner tenants fail soft
- * to heuristics-only when the ledger preflight fails (D2).
+ * Every tenant uses heuristics-only when the ledger preflight fails (D2).
  */
 
 import {
@@ -9,7 +9,6 @@ import {
   type HybridDetectOptions,
   type HybridDetectResult,
 } from "@/lib/detect-llm";
-import { DEMO_TENANT_ID } from "@/lib/tenant-context";
 import { computeDetectionRunId } from "@/lib/sync-detection-run";
 import type { Conversation, Message, TaxonomyOverrides } from "@/lib/types";
 import { createRunLedger } from "./ledger";
@@ -35,15 +34,6 @@ export async function runHybridDetectionWithLedger(
   const ledger = createRunLedger(tenantId);
   const ready = await ledger.preflight();
   if (!ready) {
-    if (tenantId === DEMO_TENANT_ID) {
-      return runHybridDetection(
-        conversations,
-        messages,
-        tenantId,
-        overrides,
-        options
-      );
-    }
     return runHybridDetection(conversations, messages, tenantId, overrides, {
       ...options,
       skipLlmReason: "ledger",
@@ -59,6 +49,7 @@ export async function runHybridDetectionWithLedger(
       {
         ...options,
         attemptSink: ledger.sink,
+        attemptGuard: createAttemptGuard(tenantId),
       }
     );
     const runId = computeDetectionRunId({

@@ -13,6 +13,7 @@ PATH_PARAMS = {
     "{signal_id}": "00000000-0000-4000-8000-000000000099",
     "{upload_id}": "missing",
     "{run_id}": "missing",
+    "{attempt_id}": "missing",
     "{conversation_id}": "shared",
 }
 

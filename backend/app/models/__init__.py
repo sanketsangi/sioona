@@ -60,6 +60,8 @@ from app.models.user import (
 )
 from app.models.workspace import Workspace
 
+from app.models.inference_budget import InferenceControl, InferenceBudget, InferenceRunBudget, InferenceReservation
+
 __all__ = [
     "ACTOR_NAMESPACE",
     "ACTOR_USER_ID_VECTOR",
@@ -108,4 +110,8 @@ __all__ = [
     "INFERENCE_STATUSES",
     "USAGE_STATUSES",
     "InferenceAttempt",
+    "InferenceControl",
+    "InferenceBudget",
+    "InferenceRunBudget",
+    "InferenceReservation",
 ]

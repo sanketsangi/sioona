@@ -1,3 +1,4 @@
+import type { AttemptGuard } from "./ai/budget";
 /**
  * Detect: heuristics are a cheap pre-filter and a fallback.
  * When `DETECT_LLM=1` and `DETECT_LLM_PRIMARY` is not `0`, Groq classifies
@@ -185,7 +186,7 @@ export type LlmFailureKind =
   | "timeout"
   | "shape"
   | "quota"
-  | "ledger";
+  | "ledger" | "budget";
 
 export class LlmCallFailed extends Error {
   readonly kind: LlmFailureKind | null;
@@ -256,6 +257,7 @@ function llmFailureKindOf(err: unknown): LlmFailureKind | null {
     kind === "model" ||
     kind === "timeout" ||
     kind === "shape" ||
+    kind === "budget" ||
     kind === "quota"
   ) {
     return kind;
@@ -297,6 +299,9 @@ export type HybridDetectOptions = {
   resumeIds?: readonly string[];
   /** One event per provider fetch. Production uses the buffered ledger sink. */
   attemptSink?: AttemptSink;
+  attemptGuard?: AttemptGuard;
+  providerFetch?: typeof fetch;
+  onProviderOutput?: (conversationId: string, content: string) => void;
   /**
    * When set, skip the LLM pass after heuristics (ledger preflight failed).
    * Records `llmFailure` without making provider calls.
@@ -386,6 +391,13 @@ export function resetGroqPaceForTests(): void {
   groqPace = Promise.resolve();
 }
 
+/** Canonical effective dispatch controls; shared with evaluation identity. */
+export function detectProviderExecutionConfig() {
+  return { maxAttempts: Math.min(4, Math.max(1, Math.floor(positiveEnvNumber(process.env.DETECT_LLM_MAX_ATTEMPTS, DETECT_LLM_MAX_ATTEMPTS)))),
+    timeoutMs: DETECT_LLM_TIMEOUT_MS, minIntervalMs: groqBaseGapMs(),
+    retryWaitCapMs: process.env.VERCEL ? 1_500 : 20_000, hostedRetryPacing: Boolean(process.env.VERCEL) };
+}
+
 /**
  * After a tokens-per-minute 429, wait out Retry-After and keep later calls
  * in this run about 8s apart. 8000 TPM and a ~1100-token prompt cannot burst.
@@ -419,6 +431,9 @@ export async function paceGroqCall(session?: GroqModelSession): Promise<void> {
 
 type GroqAttemptScope = {
   sink: AttemptSink;
+  guard?: AttemptGuard;
+  providerFetch?: typeof fetch;
+  onProviderOutput?: (conversationId: string, content: string) => void;
   logicalOperationId: string;
   ordinals: { next: number };
   tenantId: string;
@@ -444,12 +459,18 @@ async function requestGroqClassification(
   let providerRequestId: string | undefined;
   let usage = UNKNOWN_USAGE;
   let attemptId: string | undefined;
+  const admissionId = createInferenceId();
+  await scope.guard?.authorize({ attemptId: admissionId, model, inputBytes: new TextEncoder().encode(JSON.stringify(messages)).length,
+    logicalOperationId: scope.logicalOperationId, attemptOrdinal, conversationId: scope.conversationId,
+    routeVersion: scope.routeVersion, promptVersion: scope.promptVersion });
   try {
     const transport = await postGroqChatCompletion({
       apiKey,
       model,
       messages,
       timeoutMs: DETECT_LLM_TIMEOUT_MS,
+      attemptId: admissionId,
+      fetchImpl: scope.providerFetch,
     });
     attemptId = transport.attemptId;
     providerRequestId = transport.providerRequestId;
@@ -472,6 +493,7 @@ async function requestGroqClassification(
         dailyQuota: transport.dailyQuota,
       });
     }
+    if (scope.conversationId) scope.onProviderOutput?.(scope.conversationId, transport.content || transport.reasoning);
     const parsed =
       (transport.content ? parseLlmClassificationJson(transport.content) : null) ??
       (transport.reasoning ? parseLlmClassificationJson(transport.reasoning) : null);
@@ -485,6 +507,7 @@ async function requestGroqClassification(
     if (!(err instanceof LlmCallFailed) && !errorCategory) errorCategory = "network";
     throw err;
   } finally {
+    await scope.guard?.settle(admissionId);
     if (attemptId) {
       const finishedMs = Date.now();
       try {
@@ -753,7 +776,7 @@ export async function classifyConversationWithGroq(
     customerMessages: Message[];
   },
   session: GroqModelSession = createGroqModelSession(),
-  telemetry?: { attemptSink?: AttemptSink; tenantId?: string }
+  telemetry?: { attemptSink?: AttemptSink; tenantId?: string; attemptGuard?: AttemptGuard; providerFetch?: typeof fetch; onProviderOutput?: (conversationId: string, content: string) => void }
 ): Promise<LlmClassification | null> {
   const apiKey = process.env.GROQ_API_KEY?.trim();
   if (!apiKey) return null;
@@ -774,15 +797,12 @@ export async function classifyConversationWithGroq(
     omittedTurns: transcript.context.omittedTurns,
   });
 
-  const maxAttempts = Math.min(
-    4,
-    Math.max(1, Math.floor(positiveEnvNumber(
-      process.env.DETECT_LLM_MAX_ATTEMPTS,
-      DETECT_LLM_MAX_ATTEMPTS
-    )))
-  );
+  const maxAttempts = detectProviderExecutionConfig().maxAttempts;
   const scope: GroqAttemptScope = {
     sink: telemetry?.attemptSink ?? noopAttemptSink,
+    guard: telemetry?.attemptGuard,
+    providerFetch: telemetry?.providerFetch,
+    onProviderOutput: telemetry?.onProviderOutput,
     logicalOperationId: createInferenceId(),
     ordinals: { next: 0 },
     tenantId: telemetry?.tenantId ?? input.conversation.tenantId,
@@ -826,7 +846,7 @@ export async function classifyConversationWithGroq(
       const retryable = err instanceof LlmCallFailed && err.retryable;
       if (!retryable || attempt >= maxAttempts - 1) throw err;
       const hinted = err instanceof LlmCallFailed ? err.retryAfterMs : null;
-      const cap = process.env.VERCEL ? 1_500 : 20_000;
+      const cap = detectProviderExecutionConfig().retryWaitCapMs;
       if (hinted != null && hinted > 0) {
         if (hinted > cap) throw err;
         if (process.env.VERCEL || groqBaseGapMs() <= 0) {
@@ -940,6 +960,9 @@ function bindGroqClassify(
     classify: (input) =>
       classifyConversationWithGroq(input, session, {
         attemptSink: options?.attemptSink,
+        attemptGuard: options?.attemptGuard,
+        providerFetch: options?.providerFetch,
+        onProviderOutput: options?.onProviderOutput,
         tenantId,
       }),
     modelName: () => session.model,

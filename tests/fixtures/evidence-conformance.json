@@ -1,0 +1,31 @@
+[
+  {
+    "content": "\ud83d\ude00 I want to close my account",
+    "quote": "I want to close my account",
+    "start": 2,
+    "end": 28
+  },
+  {
+    "content": "I want \ud83d\ude00 help now",
+    "quote": "want \ud83d\ude00 help",
+    "start": 2,
+    "end": 13
+  },
+  {
+    "content": "  close\n\t my account  ",
+    "quote": "close my account",
+    "start": 2,
+    "end": 20
+  },
+  {
+    "content": "close\u0085my account",
+    "quote": "close my account",
+    "start": 0,
+    "end": 16
+  },
+  {
+    "content": "close\ufeffmy account",
+    "quote": "close my account",
+    "match": false
+  }
+]

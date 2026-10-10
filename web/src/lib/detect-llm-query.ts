@@ -14,6 +14,7 @@ const LLM_FAILURE_KINDS = new Set<LlmFailureKind>([
   "shape",
   "quota",
   "ledger",
+  "budget",
 ]);
 
 export function parseLlmPassStats(raw: unknown): LlmPassStats | null {
@@ -83,6 +84,7 @@ export function llmPassFailureNotice(input: {
   /** False while the uploaded file is not on screen yet. */
   inQueue?: boolean;
 }): { title: string; description: string } {
+  if (input.failure === "budget") return { title: "AI paused", description: "AI is paused or its attempt budget is unavailable or exhausted. Existing signals remain available. Ask an admin to check the limits, then re-run detection." };
   const calls = `${input.failed} second-pass call${input.failed === 1 ? "" : "s"} failed`;
   const cause =
     input.failure === "model"

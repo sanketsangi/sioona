@@ -26,6 +26,7 @@ export type TypeMetrics = {
 
 export type GateArtifact = {
   artifact_version: 1;
+  identity?: { source_sha: string; prompt_sha256: string; config_sha256: string; request_config_sha256: string };
   git_sha: string;
   git_dirty: boolean;
   corpus: { id: string; split: string; manifest_sha256: string; n: number };
@@ -301,6 +302,7 @@ export function compareToBaseline(input: {
   baseline: GateArtifact | null;
   thresholds: Thresholds;
   holdout: { sha256: string | null; n: number | null };
+  syntheticOnly?: boolean;
 }): { ok: boolean; failures: GateFailure[] } {
   const failures: GateFailure[] = [];
   const { current, baseline, thresholds, holdout } = input;
@@ -309,7 +311,7 @@ export function compareToBaseline(input: {
     failures.push({ code: "git_dirty", detail: "promotion artifact was built from a dirty tree" });
   }
   if (
-    thresholds.require_holdout &&
+    thresholds.require_holdout && !input.syntheticOnly &&
     (typeof holdout.sha256 !== "string" ||
       holdout.sha256.length !== 64 ||
       typeof holdout.n !== "number" ||

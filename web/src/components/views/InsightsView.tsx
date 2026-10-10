@@ -641,6 +641,11 @@ export function InsightsView({
 
   return (
     <ViewFrame className="gap-4">
+      {llmFailure === "budget" && (
+        <p role="status" aria-live="polite" className="break-words text-body-14 text-sio-fg-base">
+          AI paused — ask an admin to check the limits, then re-run detection. Existing signals remain available.
+        </p>
+      )}
       <VaultKeepSetRefresh
         active={Boolean(vaultEmpty) || landingChats}
         fileName={vaultFile ?? store.pilot?.lastUploadedFileName ?? ""}

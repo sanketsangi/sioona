@@ -317,3 +317,13 @@ def test_production_empty_actor_key_fails_closed(api, monkeypatch) -> None:
     )
     assert response.status_code == 503
     assert response.json()["detail"] == "actor_key_unconfigured"
+
+
+def test_live_ingest_principal_scoped_ledger_access(api):
+    client, _ = api
+    headers = actor_headers("principal:live-ingest", "tenant_a")
+    assert client.get("/v1/tenants/tenant_a/inference-attempts/preflight", headers=headers).status_code == 200
+    # Empty validated batch reaches the write handler, not the actor rejection.
+    assert client.post("/v1/tenants/tenant_a/inference-attempts", headers=headers, json={"attempts": []}).status_code != 403
+    assert client.get("/v1/tenants/tenant_b/inference-attempts/preflight", headers=headers).status_code == 404
+    assert client.get("/v1/tenants/tenant_a/inference-usage", headers=headers).status_code == 403

@@ -1212,3 +1212,24 @@ export async function getPublishedConversationIds(tenantId: string, conversation
   }
   return result.conversation_ids;
 }
+
+/** CB-07 admission always uses a verified actor, including off/shadow callers. */
+async function budgetHeaders(tenantId: string): Promise<Record<string, string>> {
+  const actor = await resolveActor(tenantId);
+  const key = process.env.SIOONA_ACTOR_KEY?.trim();
+  if (!actor || !key) throw new Error("budget_actor_unavailable");
+  if (actor.tid !== tenantId) throw new Error("budget_actor_scope");
+  return { "X-Sioona-Actor": signActorAssertion(actor.sub, actor.tid, key) };
+}
+export async function reserveInferenceAttempt(tenantId: string, body: {
+  attempt_id: string; run_id: string; provider: string; model: string; input_bytes: number;
+  logical_operation_id: string; attempt_ordinal: number; conversation_id?: string; route_version: string; prompt_version: string;
+}): Promise<{ authorized: boolean; attempt_id: string; mode: string }> {
+  // No retry: a lost admission response must never authorize a second dispatch.
+  return backendFetchOnce(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/inference-reservations`,
+    { method: "POST", headers: await budgetHeaders(tenantId), body: JSON.stringify(body) }, 5_000);
+}
+export async function settleInferenceReservation(tenantId: string, attemptId: string): Promise<{ok: boolean}> {
+  return backendFetchOnce(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/inference-reservations/${encodeURIComponent(attemptId)}/settle`,
+    { method: "POST", headers: await budgetHeaders(tenantId) }, 5_000);
+}
