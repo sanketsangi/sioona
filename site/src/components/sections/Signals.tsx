@@ -49,7 +49,7 @@ export function Signals() {
         <SectionHeader
           id="signals-title"
           eyebrow="Three Signals"
-          title="Three kinds of revenue signal, found in every conversation."
+          title="Three signals. One clearer view of revenue."
           description="Sioona looks for the moments that matter to revenue and shows you the exact words that triggered each one."
         />
         <RevealGroup

@@ -37,8 +37,8 @@ type Options = {
 };
 
 export function useInsightsScript({ totalChars, running, reduced }: Options) {
-  const [step, setStep] = useState<number>(STEP.idle);
-  const [chars, setChars] = useState(0);
+  const [step, setStep] = useState<number>(FINAL_STEP);
+  const [chars, setChars] = useState(totalChars);
 
   useEffect(() => {
     if (reduced || !running) return;

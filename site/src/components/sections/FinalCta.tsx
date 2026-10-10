@@ -4,7 +4,7 @@ import { ButtonLink } from "@/components/ui/Button";
 
 export function FinalCta() {
   return (
-    <section aria-labelledby="cta-title" className="section">
+    <section aria-labelledby="cta-title" className="section final-cta">
       <div className="container-page">
         <RevealGroup className="max-w-3xl" gap={0.08}>
           <RevealItem>
