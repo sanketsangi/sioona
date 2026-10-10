@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sioona eval gate artifact",
+  "type": "object",
+  "required": [
+    "artifact_version",
+    "git_sha",
+    "git_dirty",
+    "corpus",
+    "route",
+    "per_type",
+    "fp_per_100",
+    "evidence_validity",
+    "abstention_rate",
+    "coverage",
+    "latency_ms",
+    "cost",
+    "injection_critical_failures",
+    "tenant_failures"
+  ],
+  "properties": {
+    "artifact_version": { "type": "integer" },
+    "git_sha": { "type": "string" },
+    "git_dirty": { "type": "boolean" },
+    "corpus": {
+      "type": "object",
+      "required": ["id", "split", "manifest_sha256", "n"],
+      "properties": {
+        "id": { "type": "string" },
+        "split": { "type": "string" },
+        "manifest_sha256": { "type": "string" },
+        "n": { "type": "integer" }
+      }
+    },
+    "route": {
+      "type": "object",
+      "required": ["route_version", "models", "prompt_version", "mode"],
+      "properties": {
+        "route_version": { "type": "string" },
+        "models": { "type": "array", "items": { "type": "string" } },
+        "prompt_version": { "type": "string" },
+        "mode": { "enum": ["replay", "live"] }
+      }
+    },
+    "per_type": {
+      "type": "object",
+      "required": ["retention", "upsell", "lead", "none"],
+      "properties": {
+        "retention": { "$ref": "#/$defs/typeMetrics" },
+        "upsell": { "$ref": "#/$defs/typeMetrics" },
+        "lead": { "$ref": "#/$defs/typeMetrics" },
+        "none": { "$ref": "#/$defs/typeMetrics" }
+      }
+    },
+    "fp_per_100": { "type": ["number", "null"] },
+    "evidence_validity": {
+      "type": "object",
+      "required": ["valid", "surfaced", "rate"],
+      "properties": {
+        "valid": { "type": "integer" },
+        "surfaced": { "type": "integer" },
+        "rate": { "type": ["number", "null"] }
+      }
+    },
+    "abstention_rate": { "type": ["number", "null"] },
+    "coverage": {
+      "type": "object",
+      "required": ["completed", "eligible", "rate", "screened_out", "failed"],
+      "properties": {
+        "completed": { "type": "integer" },
+        "eligible": { "type": "integer" },
+        "rate": { "type": ["number", "null"] },
+        "screened_out": { "type": "integer" },
+        "failed": { "type": "integer" }
+      }
+    },
+    "latency_ms": {
+      "type": "object",
+      "required": ["p50", "p95"],
+      "properties": {
+        "p50": { "type": ["number", "null"] },
+        "p95": { "type": ["number", "null"] }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "required": ["attempts", "unknown_cost_attempts", "estimated_usd", "unknown_cost_fraction"],
+      "properties": {
+        "attempts": { "type": "integer" },
+        "unknown_cost_attempts": { "type": "integer" },
+        "estimated_usd": { "type": ["number", "null"] },
+        "unknown_cost_fraction": { "type": ["number", "null"] }
+      }
+    },
+    "injection_critical_failures": { "type": "integer" },
+    "tenant_failures": { "type": "integer" }
+  },
+  "$defs": {
+    "typeMetrics": {
+      "type": "object",
+      "required": [
+        "tp",
+        "fp",
+        "fn",
+        "n_precision",
+        "n_recall",
+        "precision",
+        "recall",
+        "f1",
+        "precision_ci95",
+        "recall_ci95"
+      ],
+      "properties": {
+        "tp": { "type": "integer" },
+        "fp": { "type": "integer" },
+        "fn": { "type": "integer" },
+        "n_precision": { "type": "integer" },
+        "n_recall": { "type": "integer" },
+        "precision": { "type": ["number", "null"] },
+        "recall": { "type": ["number", "null"] },
+        "f1": { "type": ["number", "null"] },
+        "precision_ci95": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": ["number", "null"] }
+        },
+        "recall_ci95": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": ["number", "null"] }
+        }
+      }
+    }
+  }
+}

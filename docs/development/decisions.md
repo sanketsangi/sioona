@@ -148,6 +148,13 @@ Date: 2026-10-08
 Approver: Sanket
 Choice: Unicode **code-point** offsets, half-open `[start, end)`, over exact persisted `messages.content`. Add `messages.content_sha256`. A content change makes anchors **stale**: show "source changed" and re-detect, never re-anchor silently.
 
+## D5 — Eval corpus and thresholds
+
+Status: **approved**
+Date: 2026-10-09
+Approver: Sanket
+Choice: **Synthetic corpus in the repo. Partner-derived holdout outside the repo, with only its checksum and n in the manifest.** Thresholds are the CB-09 scaffold: at most a 2 percentage-point precision drop and a 2 percentage-point recall drop per type, surfaced evidence validity 1.0, zero injection critical failures, zero tenant failures, `require_holdout: true`, and at least 30 items per type. A missing required holdout fails the gate. Do not invent a partner checksum or n. Labeled precision/recall stays the engineering gate; human keep-set SignalScore stays the customer claim.
+
 ## D7 — Python lock tool
 
 Status: **approved**

@@ -159,6 +159,32 @@ jobs:
           CI: "true"
         run: bash e2e/guard-linux.sh npm run e2e
 
+  eval-gate:
+    name: Eval gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Offline promotion gate
+        run: npm run eval:gate
+      - name: Retain promotion artifact
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: cb-09-eval-gate
+          path: web/eval/gate/artifact.json
+          if-no-files-found: error
+
   gitleaks:
     name: Gitleaks
     runs-on: ubuntu-latest

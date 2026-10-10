@@ -1,0 +1,120 @@
+{
+  "artifact_version": 1,
+  "git_sha": "1f021df69ab13f79471dd0b9407d06780b8b09ff",
+  "git_dirty": false,
+  "corpus": {
+    "id": "gold-v1",
+    "split": "validation",
+    "manifest_sha256": "d279d07166d6afcd253ebbc8c51c22213bc8d17c5ce89725003d669b07cd6a8f",
+    "n": 120
+  },
+  "route": {
+    "route_version": "detect:primary:qwen/qwen3.8-27b|openai/gpt-oss-20b",
+    "models": [
+      "qwen/qwen3.8-27b",
+      "openai/gpt-oss-20b"
+    ],
+    "prompt_version": "final-intent-recent-complete-turns-v2",
+    "mode": "replay"
+  },
+  "per_type": {
+    "retention": {
+      "tp": 28,
+      "fp": 1,
+      "fn": 2,
+      "n_precision": 29,
+      "n_recall": 30,
+      "precision": 0.9655172413793104,
+      "recall": 0.9333333333333333,
+      "f1": 0.9491525423728815,
+      "precision_ci95": [
+        0.8282410893529976,
+        0.9938869433859677
+      ],
+      "recall_ci95": [
+        0.7867618227892791,
+        0.9815233646723066
+      ]
+    },
+    "upsell": {
+      "tp": 26,
+      "fp": 1,
+      "fn": 4,
+      "n_precision": 27,
+      "n_recall": 30,
+      "precision": 0.9629629629629629,
+      "recall": 0.8666666666666667,
+      "f1": 0.912280701754386,
+      "precision_ci95": [
+        0.8171614606584348,
+        0.9934320234669025
+      ],
+      "recall_ci95": [
+        0.7031831605558306,
+        0.9469043057578189
+      ]
+    },
+    "lead": {
+      "tp": 28,
+      "fp": 4,
+      "fn": 2,
+      "n_precision": 32,
+      "n_recall": 30,
+      "precision": 0.875,
+      "recall": 0.9333333333333333,
+      "f1": 0.9032258064516129,
+      "precision_ci95": [
+        0.7193135021517204,
+        0.950299461555257
+      ],
+      "recall_ci95": [
+        0.7867618227892791,
+        0.9815233646723066
+      ]
+    },
+    "none": {
+      "tp": 28,
+      "fp": 2,
+      "fn": 2,
+      "n_precision": 30,
+      "n_recall": 30,
+      "precision": 0.9333333333333333,
+      "recall": 0.9333333333333333,
+      "f1": 0.9333333333333333,
+      "precision_ci95": [
+        0.7867618227892791,
+        0.9815233646723066
+      ],
+      "recall_ci95": [
+        0.7867618227892791,
+        0.9815233646723066
+      ]
+    }
+  },
+  "fp_per_100": 5,
+  "evidence_validity": {
+    "valid": 88,
+    "surfaced": 88,
+    "rate": 1
+  },
+  "abstention_rate": 0.26666666666666666,
+  "coverage": {
+    "completed": 120,
+    "eligible": 120,
+    "rate": 1,
+    "screened_out": 0,
+    "failed": 0
+  },
+  "latency_ms": {
+    "p50": null,
+    "p95": null
+  },
+  "cost": {
+    "attempts": 0,
+    "unknown_cost_attempts": 0,
+    "estimated_usd": null,
+    "unknown_cost_fraction": null
+  },
+  "injection_critical_failures": 6,
+  "tenant_failures": 0
+}
