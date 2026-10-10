@@ -95,7 +95,7 @@ describe("POST /api/detect", () => {
       before.messages,
       before.tenant.id,
       before.taxonomyOverrides,
-      { resumeIds: ["conv_failed", "conv_skip_a", "conv_skip_b"] }
+      { resumeIds: ["conv_failed", "conv_skip_a", "conv_skip_b"], skipLlmReason: "ledger" }
     );
 
     const after = await readStore();

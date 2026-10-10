@@ -32,7 +32,11 @@ PERMISSIONS = {
 }
 
 SERVICE_PRINCIPALS = {
+    "principal:eval": frozenset({"inference:preflight", "inference:write", "inference:reserve"}),
     "principal:live-ingest": frozenset({
+        "inference:preflight",
+        "inference:write",
+        "inference:reserve",
         "ingestion:write",
         "detection:write",
         "conversation:write",
@@ -126,12 +130,17 @@ ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
     ("POST", "/v1/tenants/{tenant_id}/detection-runs/{run_id}"): ("review", "detection:write", "path"),
     ("GET", "/v1/tenants/{tenant_id}/detection-runs/{run_id}"): ("read", None, "path"),
     ("GET", "/v1/tenants/{tenant_id}/detection-runs/{run_id}/inference"): ("read", None, "path"),
-    ("GET", "/v1/tenants/{tenant_id}/inference-attempts/preflight"): ("read", None, "path"),
+    ("GET", "/v1/tenants/{tenant_id}/inference-attempts/preflight"): ("read", "inference:preflight", "path"),
     ("POST", "/v1/tenants/{tenant_id}/inference-attempts"): ("review", "inference:write", "path"),
     ("GET", "/v1/tenants/{tenant_id}/inference-usage"): ("read", None, "path"),
     ("PUT", "/v1/tenants/{tenant_id}/ingestions/{upload_id}"): ("review", "ingestion:write", "path"),
     ("GET", "/v1/tenants/{tenant_id}/ingestions/{upload_id}"): ("read", "ingestion:read", "path"),
     ("POST", "/v1/tenants/{tenant_id}/ingestions/{upload_id}/resume"): ("review", "ingestion:resume", "path"),
+    ("GET", "/v1/tenants/{tenant_id}/inference-controls"): ("read", "inference:preflight", "path"),
+    ("PUT", "/v1/tenants/{tenant_id}/inference-controls"): ("admin", None, "path"),
+    ("PUT", "/v1/tenants/{tenant_id}/inference-controls/global"): ("admin", None, "path"),
+    ("POST", "/v1/tenants/{tenant_id}/inference-reservations"): ("review", "inference:reserve", "path"),
+    ("POST", "/v1/tenants/{tenant_id}/inference-reservations/{attempt_id}/settle"): ("review", "inference:reserve", "path"),
     ("POST", "/v1/pilot-requests"): ("read", None, "open"),
 }
 

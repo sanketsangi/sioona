@@ -161,3 +161,11 @@ Status: **approved**
 Date: 2026-10-07
 Approver: Sanket
 Choice: `uv pip compile --universal --python-version 3.12 --generate-hashes`, writing `requirements.txt` from `requirements.in`. CI and Render stay `pip install -r requirements.txt`. pip-tools was the acceptable alternative and was not chosen.
+
+## D4 — Fail-closed budgets and kill switch
+
+Status: **approved**. Date: 2026-10-10. Approver and switch owner: Sanket.
+
+Initial enforcement is per-tenant daily and per-run **attempt** limits, with the budget day in `Asia/Kolkata`. Tenant inference remains disabled until an admin configures positive limits. Check controls before every provider attempt; cache at most 30 seconds (initial implementation has no cache), propagation bound 60 seconds. Atomically reserve each retry/fallback and persist the matching pending ledger row before dispatch; ambiguous calls never refund allowance. USD mode remains unavailable until official rates and an eval-validated output ceiling are approved. Schema-first human deployment, scoped runtime admission and admin-only controls are required. See [CB-07](tasks/CB-07.md).
+
+D2 implementation addendum (2026-10-10): CB-07 admission now writes `pending` before dispatch, closing the buffered-only crash window without waiting for CB-11. Finalized attempts still flush idempotently in `finally`.

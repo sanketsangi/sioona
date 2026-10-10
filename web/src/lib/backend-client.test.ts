@@ -26,6 +26,8 @@ import {
   setPredictionActed,
   submitFeedback,
   runWithServicePrincipal,
+  reserveInferenceAttempt,
+  settleInferenceReservation,
   upsertConversation,
   upsertConversations,
   wipeTenantData,
@@ -922,5 +924,19 @@ describe("actor assertion caller", () => {
     expect(url).toContain("/v1/tenants/tenant_partner/data");
     expect(init.headers["X-Sioona-Role"]).toBeUndefined();
     expect(readActorClaims(init.headers["X-Sioona-Actor"]).sub).toBe(LIVE_INGEST_PRINCIPAL);
+  });
+});
+
+
+describe("budget actor scope", () => {
+  it("rejects principal rebinding before reserve or settle fetch", async () => {
+    vi.stubEnv("SIOONA_ACTOR_KEY", "synthetic-actor-key-at-least-32-bytes");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await runWithServicePrincipal(LIVE_INGEST_PRINCIPAL, "tenant_a", async () => {
+      await expect(reserveInferenceAttempt("tenant_b", {attempt_id:"a",run_id:"r",provider:"groq",model:"qwen",input_bytes:10,logical_operation_id:"op",attempt_ordinal:1,route_version:"r",prompt_version:"p"})).rejects.toThrow("budget_actor_scope");
+      await expect(settleInferenceReservation("tenant_b", "a")).rejects.toThrow("budget_actor_scope");
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

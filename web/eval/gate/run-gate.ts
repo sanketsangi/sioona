@@ -1,6 +1,9 @@
+import { runWithServicePrincipal } from "../../src/lib/backend-client";
+import { candidateIdentity, verifyCaptureIdentity, type CandidateIdentity } from "./identity";
+import { createAttemptGuard } from "../../src/lib/ai/budget";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,6 +54,8 @@ export type ReplayCapture = {
   route_version: string;
   prompt_version: string;
   corpus_sha256: string;
+  identity?: CandidateIdentity;
+  capture_sha256?: string;
 };
 
 export type EvalEvidenceAnchor = {
@@ -89,6 +94,8 @@ export function loadReplayDir(dir: string): Map<string, ReplayCapture> {
         route_version: typeof parsed.route_version === "string" ? parsed.route_version : "",
         prompt_version: typeof parsed.prompt_version === "string" ? parsed.prompt_version : "",
         corpus_sha256: typeof parsed.corpus_sha256 === "string" ? parsed.corpus_sha256 : "",
+        identity: parsed.identity,
+        capture_sha256: createHash("sha256").update(readFileSync(join(dir, name))).digest("hex"),
       });
     }
   }
@@ -125,14 +132,6 @@ function detectionBundle(items: GoldItem[]): { conversations: Conversation[]; me
   return { conversations, messages };
 }
 
-function customerSource(messages: Message[], conversationId: string): string {
-  return messages
-    .filter((message) => message.conversationId === conversationId && message.role === "customer")
-    .map((message) => message.content.trim())
-    .filter(Boolean)
-    .join("\n");
-}
-
 function evidenceQuotes(evidence: string[]): string[] {
   const quotes: string[] = [];
   for (const item of evidence) {
@@ -146,6 +145,11 @@ function textSha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
+// Canonical D3 normalization matches Python str.isspace(), including NEL and
+// excluding BOM. JS \s differs on both; keep this set covered by shared fixtures.
+const evidenceWhitespace = /[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/u;
+const evidenceWhitespaceRun = /[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/u;
+const normalizeEvidenceWhitespace = (value: string) => value.split(evidenceWhitespaceRun).filter(Boolean).join(" ");
 function collapsedCodePoints(text: string): { text: string; indexes: number[] } {
   const points = Array.from(text);
   const output: string[] = [];
@@ -153,7 +157,7 @@ function collapsedCodePoints(text: string): { text: string; indexes: number[] } 
   let gapAt: number | null = null;
   for (let index = 0; index < points.length; index += 1) {
     const point = points[index];
-    if (/\s/u.test(point)) {
+    if (evidenceWhitespace.test(point)) {
       if (output.length > 0 && gapAt === null) gapAt = index;
       continue;
     }
@@ -174,14 +178,15 @@ export function resolveEvidenceAnchor(
   tenantId: string,
   conversationId: string
 ): EvalEvidenceAnchor | null {
-  const needle = quote.split(/\s+/u).filter(Boolean).join(" ");
+  const needle = normalizeEvidenceWhitespace(quote);
   if (!needle) return null;
   let match: EvalEvidenceAnchor | null = null;
   for (const message of messages) {
     if (message.role !== "customer" || message.conversationId !== conversationId) continue;
     const collapsed = collapsedCodePoints(message.content);
-    const at = collapsed.text.indexOf(needle);
-    if (at < 0) continue;
+    const utf16At = collapsed.text.indexOf(needle);
+    if (utf16At < 0) continue;
+    const at = Array.from(collapsed.text.slice(0, utf16At)).length;
     const length = Array.from(needle).length;
     const start = collapsed.indexes[at];
     const endPoint = collapsed.indexes[at + length - 1];
@@ -202,7 +207,8 @@ export function validateEvidenceAnchor(
   anchor: EvalEvidenceAnchor,
   messages: Message[],
   tenantId: string,
-  conversationId: string
+  conversationId: string,
+  expectedQuote?: string
 ): boolean {
   if (anchor.tenantId !== tenantId || anchor.conversationId !== conversationId) return false;
   const message = messages.find(
@@ -212,7 +218,9 @@ export function validateEvidenceAnchor(
   if (!Number.isInteger(anchor.start) || !Number.isInteger(anchor.end)) return false;
   const points = Array.from(message.content);
   if (!(0 <= anchor.start && anchor.start < anchor.end && anchor.end <= points.length)) return false;
-  return points.slice(anchor.start, anchor.end).join("").length > 0;
+  const reconstructed = points.slice(anchor.start, anchor.end).join("");
+  return reconstructed.length > 0 && (expectedQuote === undefined ||
+    normalizeEvidenceWhitespace(reconstructed) === normalizeEvidenceWhitespace(expectedQuote));
 }
 
 export async function runGate(options: {
@@ -244,8 +252,13 @@ export async function runGate(options: {
   const corpusSha256 = manifest.splits[split].sha256;
   const outcomes = new Map<string, "none" | "signal" | "unparsed" | "missing" | "provenance">();
   const classify: LlmClassifyFn =
-    options.classifyOverride ??
-    (async (input) => {
+    options.classifyOverride ? async input => {
+      try {
+        const parsed = await options.classifyOverride!(input);
+        outcomes.set(input.conversation.id, !parsed ? "unparsed" : parsed.type === "none" ? "none" : "signal");
+        return parsed;
+      } catch (error) { outcomes.set(input.conversation.id, "unparsed"); throw error; }
+    } : (async (input) => {
       const fixture = fixtures.get(input.conversation.id);
       if (fixture === undefined) {
         outcomes.set(input.conversation.id, "missing");
@@ -254,7 +267,8 @@ export async function runGate(options: {
       if (
         fixture.route_version !== routeVersion ||
         fixture.prompt_version !== promptVersion ||
-        fixture.corpus_sha256 !== corpusSha256
+        fixture.corpus_sha256 !== corpusSha256 ||
+        (!options.replay && !verifyCaptureIdentity(fixture))
       ) {
         outcomes.set(input.conversation.id, "provenance");
         return null;
@@ -275,6 +289,7 @@ export async function runGate(options: {
     ...(options.maxCalls !== undefined ? { maxCalls: options.maxCalls } : {}),
   });
   const skipped = new Set(detected.llm.skippedIds ?? []);
+  const rejected = new Set(detected.llm.failedIds ?? []);
   const signalsByConversation = new Map<string, Signal[]>();
   for (const signal of detected.signals) {
     const list = signalsByConversation.get(signal.conversationId) ?? [];
@@ -294,7 +309,7 @@ export async function runGate(options: {
       text,
       valid: (() => {
         const anchor = resolveEvidenceAnchor(text, itemMessages, item.tenantId, item.id);
-        return anchor !== null && validateEvidenceAnchor(anchor, itemMessages, item.tenantId, item.id);
+        return anchor !== null && validateEvidenceAnchor(anchor, itemMessages, item.tenantId, item.id, text);
       })(),
     }));
     const tenantFailure = signals.some(
@@ -303,7 +318,7 @@ export async function runGate(options: {
         signal.conversationId !== item.id ||
         evidenceQuotes(signal.evidence).some((quote) => {
           const anchor = resolveEvidenceAnchor(quote, itemMessages, item.tenantId, item.id);
-          return anchor === null || !validateEvidenceAnchor(anchor, itemMessages, item.tenantId, item.id);
+          return anchor === null || !validateEvidenceAnchor(anchor, itemMessages, item.tenantId, item.id, quote);
         })
     );
     if (!options.classifyOverride && !screenedOut && outcome === "missing") missingIds.push(item.id);
@@ -317,8 +332,8 @@ export async function runGate(options: {
       surfaced,
       explicitNone: outcome === "none" && !screenedOut,
       screenedOut,
-      completed: screenedOut || outcome === "none" || outcome === "signal" || outcome === "unparsed" || Boolean(options.classifyOverride),
-      failed: outcome === "unparsed" || outcome === "missing" || outcome === "provenance",
+      completed: screenedOut || (!rejected.has(item.id) && (outcome === "none" || outcome === "signal")),
+      failed: rejected.has(item.id) || outcome === "unparsed" || outcome === "missing" || outcome === "provenance",
       quotes: quoteRows,
       injectionAttack: item.injection?.attackLabel ?? null,
       tenantFailure,
@@ -342,11 +357,13 @@ export async function runGate(options: {
     },
   });
 
+  artifact.identity = { ...candidateIdentity(), source_sha: git.sha };
   const compared = compareToBaseline({
     current: artifact,
     baseline,
     thresholds,
     holdout: manifest.holdout,
+    syntheticOnly: true,
   });
   const failures = [...compared.failures];
   const shape = missingSchemaKeys(artifact, loadArtifactSchema());
@@ -441,6 +458,9 @@ export async function recordReplay(options: {
       ...emptyMetrics,
     };
   }
+  if (!(options.fetchImpl && options.ledger) && readGitState().dirty) {
+    return { code: 1, failures: [{ code: "git_dirty", detail: "live captures require a clean source revision" }], wrote: [], calls: 0, ...emptyMetrics };
+  }
   const manifest = loadManifest(directory);
   const ledger = options.ledger ?? createRunLedger(items[0]?.tenantId ?? "tenant_gold");
   if (!(await ledger.preflight())) {
@@ -453,47 +473,13 @@ export async function recordReplay(options: {
     };
   }
   const { conversations, messages } = detectionBundle(items);
-  const needles = items.map((item) => ({
-    id: item.id,
-    text: customerSource(
-      messages.filter((message) => message.conversationId === item.id),
-      item.id
-    ),
-  }));
   const captured = new Map<string, string>();
   let calls = 0;
   const cap = options.maxCalls;
-  const previous = globalThis.fetch;
-  const baseFetch = options.fetchImpl ?? previous;
-  globalThis.fetch = async (input, init) => {
+  const fetchImpl: typeof fetch = async (input, init) => {
+    if (calls >= cap) throw new Error("record call cap exceeded");
     calls += 1;
-    if (calls > cap) {
-      throw new Error("record call cap exceeded");
-    }
-    const response = await baseFetch(input, init);
-    const requestBody = typeof init?.body === "string" ? init.body : "";
-    let content = "";
-    try {
-      const payload = (await response.clone().json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning?: string } }>;
-      };
-      const message = payload.choices?.[0]?.message;
-      content = message?.content || message?.reasoning || "";
-    } catch {
-      content = "";
-    }
-    // Injection prompts repeat an earlier item's customer text. The longest
-    // contained needle is the conversation that was actually sent.
-    let match: { id: string; text: string } | undefined;
-    let matchLength = 0;
-    for (const needle of needles) {
-      const probe = JSON.stringify(needle.text).slice(1, -1);
-      if (probe.length < 12 || probe.length <= matchLength || !requestBody.includes(probe)) continue;
-      match = needle;
-      matchLength = probe.length;
-    }
-    if (match && content) captured.set(match.id, content);
-    return response;
+    return (options.fetchImpl ?? fetch)(input, init);
   };
 
   const attempts: InferenceAttempt[] = [];
@@ -502,41 +488,45 @@ export async function recordReplay(options: {
     ledger.sink(attempt);
   };
 
+  let runFailed = false;
+  let flushed = { flushed: 0, failed: true };
   try {
     await runHybridDetection(conversations, messages, items[0]?.tenantId ?? "tenant_gold", null, {
-      maxCalls: cap,
-      concurrency: 1,
-      attemptSink,
+      maxCalls: cap, concurrency: 1, attemptSink, providerFetch: fetchImpl,
+      attemptGuard: options.fetchImpl && options.ledger ? undefined : createAttemptGuard(items[0]?.tenantId ?? "tenant_gold", cap),
+      onProviderOutput: (itemId, content) => { if (content && parseLlmClassificationJson(content)) captured.set(itemId, content); },
     });
-  } finally {
-    globalThis.fetch = previous;
-  }
-
-  const flushed = await ledger.flush();
+  } catch { runFailed = true; }
+  finally { flushed = await ledger.flush(); }
 
   const replayDir = options.replayDir ?? defaultReplayDir();
-  mkdirSync(replayDir, { recursive: true });
   const wrote: string[] = [];
-  for (const [itemId, content] of captured) {
-    const file = join(replayDir, `${itemId}.json`);
-    writeFileSync(file, `${JSON.stringify({
-      item_id: itemId,
-      content,
-      route_version: detectRouteVersion(),
-      prompt_version: DETECT_PROMPT_VERSION,
-      corpus_sha256: manifest.splits[split].sha256,
-    })}\n`);
-    wrote.push(file);
-  }
   const failures: GateFailure[] = [];
-  if (wrote.length < items.length) {
+  if (runFailed || captured.size < items.length) {
     failures.push({
       code: "record_incomplete",
-      detail: `recorded ${wrote.length} of ${items.length} items in ${attempts.length} attempts`,
+      detail: `recorded ${captured.size} of ${items.length} items in ${attempts.length} attempts`,
     });
   }
   if (flushed.failed || flushed.flushed !== attempts.length) {
     failures.push({ code: "ledger_flush", detail: `persisted ${flushed.flushed} of ${attempts.length} attempts` });
+  }
+  if (failures.length === 0) {
+    mkdirSync(dirname(replayDir), { recursive: true });
+    const staging = mkdtempSync(join(dirname(replayDir), ".record-"));
+    try {
+      const identity = candidateIdentity();
+      for (const [itemId, content] of captured) {
+        writeFileSync(join(staging, `${itemId}.json`), JSON.stringify({ item_id: itemId, content,
+          route_version: detectRouteVersion(), prompt_version: DETECT_PROMPT_VERSION,
+          corpus_sha256: manifest.splits[split].sha256, identity }) + "\n");
+      }
+      if (existsSync(replayDir) && readdirSync(replayDir).length > 0) throw new Error("capture_target_exists");
+      if (existsSync(replayDir)) rmSync(replayDir, { recursive: true });
+      renameSync(staging, replayDir);
+      for (const id of captured.keys()) wrote.push(join(replayDir, `${id}.json`));
+    } catch { failures.push({ code: "record_publish", detail: "capture target must be new and complete" }); }
+    finally { if (existsSync(staging)) rmSync(staging, { recursive: true }); }
   }
   const latencies = attempts.map((attempt) => attempt.latencyMs).sort((a, b) => a - b);
   const percentile = (fraction: number): number | null =>
@@ -561,11 +551,11 @@ async function main(): Promise<void> {
   if (process.argv.includes("--record")) {
     const cap = Number(process.env.EVAL_GATE_RECORD_MAX_CALLS);
     const itemIds = process.env.EVAL_GATE_RECORD_IDS?.split(",").map((id) => id.trim()).filter(Boolean);
-    const result = await recordReplay({
+    const result = await runWithServicePrincipal("principal:eval", "tenant_gold", () => recordReplay({
       enabled: process.env.EVAL_GATE_RECORD === "1",
       maxCalls: Number.isInteger(cap) && cap > 0 ? cap : undefined,
       ...(itemIds && itemIds.length > 0 ? { itemIds } : {}),
-    });
+    }));
     console.log(JSON.stringify({ code: result.code, failures: result.failures, calls: result.calls, wrote: result.wrote.length }));
     process.exit(result.code);
   }

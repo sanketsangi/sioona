@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -266,10 +266,10 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["022_evidence_anchors"]
+        assert heads == ["023_inference_budgets"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
-            assert version == ["022_evidence_anchors"]
+            assert version == heads
             kept = conn.execute(text(
                 "SELECT p.acted, p.outcome, p.outcome_value_inr, p.evidence_status, f.feedback, f.note, "
                 "m.content, m.content_sha256 "
@@ -456,3 +456,74 @@ def assert_native_ingestion(db):
     assert db.get(DetectionRun, ("a", "native", "c2")).coverage["included_turns"] == 1
     assert calculate_signal_score(db, "a").reviewed_count == 0
     assert wipe_tenant_data(db, tenant_id="a")["conversations"] == 2
+
+
+def test_budget_upgrade_and_concurrent_last_allowance(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.services.inference_budget import configure, reserve, settle, BudgetDenied
+    from app.models.inference_budget import InferenceBudget, InferenceReservation
+    assert URL and make_url(URL).database == "sioona_migration_test", "Refusing a non-test database"
+    engine = create_engine(URL)
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    monkeypatch.setenv("DATABASE_URL", URL)
+    from app.config import get_settings
+    get_settings.cache_clear()
+    try:
+        cfg = Config("alembic.ini")
+        command.upgrade(cfg, "022_evidence_anchors")
+        with engine.begin() as conn:
+            conn.execute(text("INSERT INTO workspaces (tenant_id, name) VALUES ('budget_test', 'Synthetic')"))
+        command.upgrade(cfg, "head")
+        assert {"inference_controls", "inference_budgets", "inference_run_budgets", "inference_reservations"} <= set(inspect(engine).get_table_names())
+        with Session(engine) as db:
+            configure(db, "budget_test", 1, 1, True, "", "synthetic-admin")
+            db.commit()
+        barrier = Barrier(2)
+        def attempt(index):
+            with Session(engine) as db:
+                barrier.wait(timeout=10)
+                try:
+                    reserve(db, "budget_test", f"attempt_{index}", f"run_{index}", "groq", "model")
+                    db.commit()
+                    return "authorized"
+                except BudgetDenied as error:
+                    db.rollback()
+                    return str(error)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(attempt, [1, 2]))
+        assert sorted(results) == ["authorized", "daily_limit"]
+        with Session(engine) as db:
+            reservation = db.scalar(select(InferenceReservation))
+            settle(db, "budget_test", reservation.attempt_id)
+            settle(db, "budget_test", reservation.attempt_id)
+            db.commit()
+            assert db.scalar(select(InferenceBudget.attempts)) == 1
+            assert db.scalar(text("SELECT count(*) FROM workspaces WHERE tenant_id='budget_test'")) == 1
+            # Fresh runs do not bypass daily allowance; ambiguous authorization
+            # remains consumed after a new connection (simulated caller crash).
+            with pytest.raises(BudgetDenied, match="daily_limit"):
+                reserve(db, "budget_test", "crash_retry", "new_run", "groq", "fallback")
+            db.rollback()
+            configure(db, "midnight_test", 3, 2, True, "", "admin")
+            from datetime import datetime, timezone
+            reserve(db, "midnight_test", "before", "r", "groq", "primary", now=datetime(2026, 10, 9, 18, 29, tzinfo=timezone.utc))
+            reserve(db, "midnight_test", "after", "r", "groq", "fallback", now=datetime(2026, 10, 9, 18, 30, tzinfo=timezone.utc))
+            db.commit()
+        with Session(engine) as db:
+            assert db.get(InferenceReservation, ("midnight_test", "before")).status == "authorized"
+            assert db.get(InferenceReservation, ("midnight_test", "after")).status == "authorized"
+            with pytest.raises(BudgetDenied, match="run_limit"):
+                reserve(db, "midnight_test", "retry", "r", "groq", "fallback", now=datetime(2026, 10, 9, 18, 30, tzinfo=timezone.utc))
+            db.rollback()
+            configure(db, "global", 1, 1, False, "synthetic pause", "admin")
+            db.commit()
+        with Session(engine) as db:
+            with pytest.raises(BudgetDenied, match="paused"):
+                reserve(db, "midnight_test", "paused", "new_run", "groq", "primary")
+
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()

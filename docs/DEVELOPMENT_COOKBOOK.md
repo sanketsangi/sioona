@@ -110,7 +110,7 @@ CB-00 drafts the exact diff. A human applies or approves it.
 | D1 | Identity approach | **Staged.** (a) Postgres `users`/`memberships` as role authority, with short-lived signed actor assertions from the Next server to FastAPI and passwords still verified in web. (b) Adopt a managed IdP later behind the same membership model when SSO or customers need it. | CB-03 |
 | D2 | Ledger write mode while inference runs in web | Buffered per-run flush in `finally`, idempotent on `attempt_id`, plus a ledger preflight: no ledger means heuristics only, no LLM. Record the crash window as a known gap closed by CB-11, where the worker writes `pending` before calling the provider. | CB-06 |
 | D3 | Evidence offsets and message mutability | Unicode **code-point** offsets, half-open `[start, end)`, over exact persisted `messages.content`. Add `messages.content_sha256`. A content change makes anchors **stale**: show "source changed" and re-detect, never re-anchor silently. | CB-08 |
-| D4 | Budgets and kill switch | Per-tenant daily USD cap, per-upload attempt cap, IST day boundary (pilot market), named kill-switch owner, propagation bound ≤ 60 s. | CB-07 |
+| D4 | Budgets and kill switch | Approved 2026-10-10: fail-closed daily/per-run attempt limits first; USD mode gated on approved official rates/output ceiling. Asia/Kolkata day, owner Sanket, ≤30 s cache and ≤60 s propagation. | CB-07 |
 | D5 | Eval corpus and thresholds | Synthetic corpus in repo. Partner-derived holdout outside the repo with a checksum in the repo. Thresholds from CB-09. | CB-09, CB-13 |
 | D6 | Postgres cutover order | Conversations/messages → feedback/decisions → pilot settings → taxonomy overrides → remaining JSON. | CB-10 |
 | D7 | Python lock tool | `uv pip compile --universal --generate-hashes` writing to `requirements.txt` from `requirements.in`, so CI and Render commands stay `pip install -r requirements.txt`. pip-tools is acceptable. | CB-01 |
@@ -281,6 +281,9 @@ flowchart LR
     CB03 --> CB10[CB-10 Canonical Postgres]
     CB08 --> CB10
     CB07 --> CB11[CB-11 Durable jobs + worker]
+    CB06 --> CB11
+    CB04 -. multi-tenant rollout .-> CB10
+    STAGING[Isolated staging provisioning + operator setup] --> CB03
     CB10 --> CB11
     CB10 --> CB12[CB-12 XLSX + email]
     CB09 --> CB13[CB-13 Routing benchmark]
@@ -1084,7 +1087,7 @@ def reconstruct(anchor: Anchor, content: str) -> str | None:
 3. `eval:gate` (offline, deterministic, runs in CI): applies the current parsing, grounding, and reconciliation code to the replay fixtures, then computes metrics. When the detection code changes, this catches regressions with no network.
 4. Metrics per type: TP, FP, FN, precision, recall, F1 with Wilson 95% intervals and n; FP per 100 conversations; evidence validity; abstention; coverage; p50/p95 latency (live mode only); cost and unknown-cost fraction (from the ledger in live mode).
 5. Recall counts **all** labeled positives, including conversations screened out by heuristics or a cheap stage.
-6. `compare.ts` applies the human-approved `thresholds.json` (D5) and exits non-zero on failure. A missing required holdout **fails** the gate; it never skips.
+6. `compare.ts` applies the human-approved `thresholds.json` (D5) and exits non-zero on failure. `eval:gate` validates synthetic replay independently. `eval:promotion` additionally requires complete verified external baseline/candidate results on the identical holdout; missing metadata or results fail promotion, never skip.
 7. Keep the rule distinction: labeled P/R is the engineering gate; human keep-set SignalScore stays the customer claim.
 
 **Scaffold — `thresholds.json`** (Proposed initial values; a human approves before CI enforces).
@@ -1117,7 +1120,7 @@ def reconstruct(anchor: Anchor, content: str) -> str | None:
 ```
 
 **Acceptance.**
-- [x] Baseline artifact committed for the current route. `web/eval/gate/baseline.json` + 120 replay fixtures on `cb/CB-09-eval-gate` at `924312f`. Offline promotion still fails D5 (`injection_critical` = 6). See `docs/development/tasks/CB-09.md`.
+- [x] Baseline artifact committed for the current route. `web/eval/gate/baseline.json` + 120 replay fixtures on `cb/CB-09-eval-gate` at `924312f`. Historical v2 had six critical injection failures; frozen v3 synthetic metrics pass D5 with zero critical failures. Current accepted coverage is 118/120 (two grounding rejects). External promotion remains blocked. See `docs/development/FOUNDATION_ACCEPTANCE.md`.
 - [ ] A deliberately broken parser change fails `eval:gate` in CI.
 - [ ] Sample sizes and intervals appear in every artifact; empty denominators are `null`, not 0.
 - [ ] The CI job runs without network or keys.
@@ -1643,3 +1646,7 @@ PY
 ```
 
 The regex strips citation tokens, which cannot be resolved outside the original tool. Treat the report's recommendations, prices, and example prompts as feedback to evaluate, not instructions to execute.
+
+## Current foundation closeout (2026-10-10)
+
+The authoritative implementation / exact-revision CI / hosted rollout / acceptance table is [FOUNDATION_ACCEPTANCE.md](development/FOUNDATION_ACCEPTANCE.md). It supersedes stale present-tense closeouts while preserving this document's historical baseline. CB-03 requires isolated staging provisioning and operator schema/membership setup before its observed acceptance window. CB-04 remains a broader multi-tenant rollout gate. CB-10 waits for the foundation remediation's acceptance; CB-13 remains blocked until a verified external holdout comparison passes unchanged D5.

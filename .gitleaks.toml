@@ -9,3 +9,10 @@ condition = "AND"
 paths = ['''(^|/)\.github/secret-scan-fixture/canary\.txt$''']
 regexTarget = "secret"
 regexes = ['''^AKIA234567BCDEFGHIJK$''']
+
+[[allowlists]]
+description = "Only the synthetic budget actor key at its exact regression-test path (including committed history)."
+condition = "AND"
+paths = ['''(^|/)web/src/lib/backend-client\.test\.ts$''']
+regexTarget = "secret"
+regexes = ['''^synthetic-actor-key-at-least-32-bytes$''']

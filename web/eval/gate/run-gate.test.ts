@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -240,7 +240,8 @@ describe("eval:gate replay", () => {
     expect(result.code).toBe(0);
     expect(result.failures).toEqual([]);
     expect(result.artifact.injection_critical_failures).toBe(0);
-    expect(result.artifact.coverage.completed).toBe(120);
+    expect(result.artifact.coverage.completed).toBe(118);
+    expect(result.artifact.coverage.failed).toBe(2);
     expect(result.artifact.route.prompt_version).toBe("final-intent-recent-complete-turns-v3");
   });
 
@@ -367,7 +368,7 @@ describe("eval:gate:record", () => {
     }
   });
 
-  it("stops at the call cap and stores model JSON without the prompt", async () => {
+  it("stops at the call cap and publishes no partial captures", async () => {
     vi.stubEnv("DETECT_LLM", "1");
     vi.stubEnv("GROQ_API_KEY", "gsk_test");
     vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
@@ -406,17 +407,10 @@ describe("eval:gate:record", () => {
         },
       });
       expect(result.calls).toBe(1);
-      expect(result.wrote).toHaveLength(1);
+      expect(result.wrote).toEqual([]);
       expect(result.code).toBe(1);
       expect(result.failures.map((failure) => failure.code)).toContain("record_incomplete");
-      const saved = JSON.parse(readFileSync(result.wrote[0], "utf8")) as {
-        item_id: string;
-        content: string;
-      };
-      expect(saved.item_id).toBe("dev-none-08");
-      expect(saved.content).toBe(content);
-      expect(saved.content).not.toContain("Classify one Indian finance");
-      expect(saved.content).not.toContain("Return ONE JSON object");
+      expect(readdirSync(replayDir)).toEqual([]);
       expect(fetchImpl).toHaveBeenCalledTimes(1);
     } finally {
       rmSync(replayDir, { recursive: true, force: true });

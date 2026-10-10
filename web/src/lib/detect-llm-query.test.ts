@@ -169,3 +169,8 @@ describe("llmSkipResumeNotice", () => {
     expect(llmSkipResumeNotice(0, 8)).toBeNull();
   });
 });
+
+it("shows an actionable pause reason rather than a provider failure", () => {
+  expect(parseLlmFailureParam("budget")).toBe("budget");
+  expect(llmPassFailureNotice({ failed: 1, failure: "budget", signalCount: 1 })).toMatchObject({ title: "AI paused" });
+});

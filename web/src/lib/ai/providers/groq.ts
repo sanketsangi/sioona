@@ -133,13 +133,15 @@ export async function postGroqChatCompletion(input: {
   model: string;
   messages: GroqChatMessage[];
   timeoutMs: number;
+  attemptId?: string;
+  fetchImpl?: typeof fetch;
 }): Promise<GroqChatResult> {
   const { signal, clear } = timeoutSignal(input.timeoutMs);
   const model = input.model;
-  const attemptId = createInferenceId();
+  const attemptId = input.attemptId ?? createInferenceId();
   let response: Response;
   try {
-    response = await fetch(GROQ_CHAT_URL, {
+    response = await (input.fetchImpl ?? fetch)(GROQ_CHAT_URL, {
       method: "POST",
       signal,
       headers: {
