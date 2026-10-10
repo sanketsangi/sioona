@@ -450,19 +450,19 @@ async function requestGroqClassification(
 ): Promise<LlmClassification> {
   await paceGroqCall(session);
   const model = session.model;
-  scope.ordinals.next += 1;
   const attemptOrdinal = scope.ordinals.next;
+  scope.ordinals.next += 1;
   const startedMs = Date.now();
   let status: InferenceAttempt["status"] = "failed";
   let errorCategory: InferenceAttempt["errorCategory"];
   let httpStatus: number | undefined;
   let providerRequestId: string | undefined;
   let usage = UNKNOWN_USAGE;
-  let attemptId: string | undefined;
   const admissionId = createInferenceId();
   await scope.guard?.authorize({ attemptId: admissionId, model, inputBytes: new TextEncoder().encode(JSON.stringify(messages)).length,
     logicalOperationId: scope.logicalOperationId, attemptOrdinal, conversationId: scope.conversationId,
     routeVersion: scope.routeVersion, promptVersion: scope.promptVersion });
+  let attemptId: string | undefined = admissionId;
   try {
     const transport = await postGroqChatCompletion({
       apiKey,
@@ -804,7 +804,7 @@ export async function classifyConversationWithGroq(
     providerFetch: telemetry?.providerFetch,
     onProviderOutput: telemetry?.onProviderOutput,
     logicalOperationId: createInferenceId(),
-    ordinals: { next: 0 },
+    ordinals: { next: 1 },
     tenantId: telemetry?.tenantId ?? input.conversation.tenantId,
     conversationId: input.conversation.id,
     routeVersion: detectRouteVersion(),
@@ -1052,8 +1052,6 @@ export async function applyLlmSecondPass(
         return;
       }
       if (instructionDemandsLabel(row.customerMessages, result.type)) {
-        failed += 1;
-        failedIds.add(row.conversation.id);
         return;
       }
       const context = result.context ?? { model: bound.modelName(), promptVersion: DETECT_PROMPT_VERSION };
@@ -1179,8 +1177,6 @@ export async function applyLlmPrimaryPass(
         return;
       }
       if (instructionDemandsLabel(row.customerMessages, result.type)) {
-        failed += 1;
-        failedIds.add(row.conversation.id);
         return;
       }
       if (result.type === "none") {
