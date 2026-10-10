@@ -235,14 +235,13 @@ describe("eval:gate replay", () => {
     expect(result.failures.map((failure) => failure.code)).not.toContain("missing_replay");
   });
 
-  it("fails the real validation gate until replay and a baseline exist", async () => {
+  it("passes the real validation gate on the frozen v3 replay", async () => {
     const result = await runGate({ git: { sha: "test", dirty: false } });
-    expect(result.code).toBe(1);
-    const codes = result.failures.map((failure) => failure.code);
-    expect(codes).not.toContain("holdout_missing");
-    expect(codes).toContain("baseline_missing");
-    expect(codes).toContain("missing_replay");
-    expect(codes).not.toContain("skip");
+    expect(result.code).toBe(0);
+    expect(result.failures).toEqual([]);
+    expect(result.artifact.injection_critical_failures).toBe(0);
+    expect(result.artifact.coverage.completed).toBe(120);
+    expect(result.artifact.route.prompt_version).toBe("final-intent-recent-complete-turns-v3");
   });
 
   it("runs in CI with no provider key and no record step", () => {
@@ -302,6 +301,66 @@ describe("eval:gate:record", () => {
     expect(holdout.failures.map((failure) => failure.code)).toContain("record_refused");
     expect(holdout.calls).toBe(0);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("records only the requested ids and treats that subset as complete", async () => {
+    vi.stubEnv("DETECT_LLM", "1");
+    vi.stubEnv("GROQ_API_KEY", "gsk_test");
+    vi.stubEnv("DETECT_LLM_MIN_INTERVAL_MS", "0");
+    vi.stubEnv("DETECT_LLM_PRIMARY", "1");
+    resetGroqPaceForTests();
+    const content = JSON.stringify({
+      signal: "none",
+      confidence: 0.4,
+      evidence: "",
+      reason: "statement",
+    });
+    const fetchImpl = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content } }] }),
+        { status: 200, headers: { "x-request-id": "req_subset" } }
+      )
+    );
+    const replayDir = mkdtempSync(join(tmpdir(), "sioona-gate-subset-"));
+    try {
+      const missing = await recordReplay({
+        enabled: true,
+        maxCalls: 1,
+        split: "dev",
+        itemIds: ["missing-gold-id"],
+        replayDir,
+        fetchImpl,
+        ledger: {
+          sink: () => undefined,
+          preflight: async () => true,
+          flush: async () => ({ flushed: 0, failed: false }),
+        },
+      });
+      expect(missing.calls).toBe(0);
+      expect(missing.failures.map((failure) => failure.code)).toContain("record_refused");
+
+      const result = await recordReplay({
+        enabled: true,
+        maxCalls: 1,
+        split: "dev",
+        itemIds: ["dev-none-08"],
+        replayDir,
+        fetchImpl,
+        ledger: {
+          sink: () => undefined,
+          preflight: async () => true,
+          flush: async () => ({ flushed: 1, failed: false }),
+        },
+      });
+      expect(result.calls).toBe(1);
+      expect(result.wrote).toHaveLength(1);
+      expect(result.code).toBe(0);
+      expect(result.failures).toEqual([]);
+      const saved = JSON.parse(readFileSync(result.wrote[0], "utf8")) as { item_id: string };
+      expect(saved.item_id).toBe("dev-none-08");
+    } finally {
+      rmSync(replayDir, { recursive: true, force: true });
+    }
   });
 
   it("stops at the call cap and stores model JSON without the prompt", async () => {

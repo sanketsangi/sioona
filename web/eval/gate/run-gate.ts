@@ -380,6 +380,8 @@ function syntheticDir(dir: string, split: GoldSplitName): void {
 export async function recordReplay(options: {
   enabled: boolean;
   maxCalls?: number;
+  /** When set, classify only these gold ids. Missing ids refuse the run. */
+  itemIds?: readonly string[];
   split?: GoldSplitName;
   goldDirectory?: string;
   replayDir?: string;
@@ -423,7 +425,22 @@ export async function recordReplay(options: {
     };
   }
 
-  const items = loadSplit(split, directory);
+  const loaded = loadSplit(split, directory);
+  const requested = options.itemIds?.map((id) => id.trim()).filter(Boolean);
+  const wanted = requested ? [...new Set(requested)] : undefined;
+  const items = wanted ? loaded.filter((item) => wanted.includes(item.id)) : loaded;
+  if (wanted && (wanted.length === 0 || items.length !== wanted.length)) {
+    return {
+      code: 1,
+      failures: [{
+        code: "record_refused",
+        detail: "EVAL_GATE_RECORD_IDS must be ids in this synthetic split",
+      }],
+      wrote: [],
+      calls: 0,
+      ...emptyMetrics,
+    };
+  }
   const manifest = loadManifest(directory);
   const ledger = options.ledger ?? createRunLedger(items[0]?.tenantId ?? "tenant_gold");
   if (!(await ledger.preflight())) {
@@ -543,9 +560,11 @@ export async function recordReplay(options: {
 async function main(): Promise<void> {
   if (process.argv.includes("--record")) {
     const cap = Number(process.env.EVAL_GATE_RECORD_MAX_CALLS);
+    const itemIds = process.env.EVAL_GATE_RECORD_IDS?.split(",").map((id) => id.trim()).filter(Boolean);
     const result = await recordReplay({
       enabled: process.env.EVAL_GATE_RECORD === "1",
       maxCalls: Number.isInteger(cap) && cap > 0 ? cap : undefined,
+      ...(itemIds && itemIds.length > 0 ? { itemIds } : {}),
     });
     console.log(JSON.stringify({ code: result.code, failures: result.failures, calls: result.calls, wrote: result.wrote.length }));
     process.exit(result.code);
