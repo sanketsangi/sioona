@@ -257,7 +257,7 @@ describe("eval:gate replay", () => {
     expect(job).toContain("web/eval/gate/artifact.json");
   });
 
-  it("emits and saves the full artifact even when the CLI gate fails", () => {
+  it("emits and saves the full artifact from the CLI", () => {
     const dir = mkdtempSync(join(tmpdir(), "sioona-gate-cli-"));
     const artifactPath = join(dir, "artifact.json");
     try {
@@ -266,14 +266,18 @@ describe("eval:gate replay", () => {
         encoding: "utf8",
         env: { ...process.env, EVAL_GATE_ARTIFACT_PATH: artifactPath },
       });
-      expect(result.status).toBe(1);
-      const output = JSON.parse(result.stdout.trim()) as { artifact: unknown };
+      const output = JSON.parse(result.stdout.trim()) as {
+        artifact: { git_dirty: boolean };
+        failures: { code: string }[];
+      };
       expect(output.artifact).toEqual(JSON.parse(readFileSync(artifactPath, "utf8")));
       expect(output.artifact).toMatchObject({
         artifact_version: 1,
         per_type: { retention: { precision_ci95: expect.any(Array) } },
         route: { prompt_version: expect.any(String) },
       });
+      expect(output.failures.filter((failure) => failure.code !== "git_dirty")).toEqual([]);
+      expect(result.status).toBe(output.artifact.git_dirty ? 1 : 0);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
