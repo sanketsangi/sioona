@@ -1,9 +1,9 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-10-09
+**Last updated:** 2026-10-10
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` tip `0264b4e` (CB-08 evidence anchors, #144)
+**Branch:** `main` tip `5e93be5` (foundation remediation merge + admission pipeline fixes `12458d1`)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -21,7 +21,9 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
 
-**This pass (code, 2026-10-10, detect injection harden):** Prompt `final-intent-recent-complete-turns-v3` treats customer name, channel, and messages as data. Later turns win only for a real request; an instruction-shaped turn cannot set the label (`instructionDemandsLabel` drops that classification and keeps the heuristic). The 38 fixtures left on v2 after the 2026-10-09 quota stop were re-recorded (`EVAL_GATE_RECORD_IDS`, 45 provider calls, ledger flush OK). All 120 validation replays are v3. Offline `eval:gate` on that tree fails only `git_dirty` before commit: `injection_critical_failures` 0, evidence 88/88, coverage 120/120, and per-type precision/recall stay inside the D5 2-point band. `thresholds.json` and `baseline.json` are unchanged (`924312f` / prompt v2 remains the CB-13 delta base). Not a threshold change, not CB-07, not a keep-set go.
+**This pass (code, 2026-10-10, CB-07 admission remediation — complete):** Merged `12458d1` on `main`: 1-based attempt ordinals (ledger preflight ≥1), **global pause read without global row lock** (tenant policy still locked — do not re-add global `FOR UPDATE` in `reserve()`), `admissionId` metering when the provider throws, prompt-injection early return without LLM failure stats. Why captured in `docs/development/tasks/CB-07.md` internal changelog. Antigravity verified; tests green. Not hosted migration 023 / not CB-10.
+
+**Prior pass (code, 2026-10-10, detect injection harden):** Prompt `final-intent-recent-complete-turns-v3` treats customer name, channel, and messages as data. Later turns win only for a real request; an instruction-shaped turn cannot set the label (`instructionDemandsLabel` drops that classification and keeps the heuristic). The 38 fixtures left on v2 after the 2026-10-09 quota stop were re-recorded (`EVAL_GATE_RECORD_IDS`, 45 provider calls, ledger flush OK). All 120 validation replays are v3. Offline `eval:gate` on that tree fails only `git_dirty` before commit: `injection_critical_failures` 0, evidence 88/88, coverage 120/120, and per-type precision/recall stay inside the D5 2-point band. `thresholds.json` and `baseline.json` are unchanged (`924312f` / prompt v2 remains the CB-13 delta base). Not a threshold change, not CB-07, not a keep-set go.
 
 **Prior pass (code, 2026-10-08, CB-08, merged #144 as `0264b4e`):** Displayed quotes come from reconstructed `signal_evidence` anchors. Alembic `022_evidence_anchors` adds nullable `messages.content_sha256`, `signal_predictions.evidence_status` (`valid` / `unresolved` / `stale`), and `signal_evidence` (string `message_id`, no cascade from messages). A changed, deleted, reowned, or non-customer turn marks the prediction `stale` and keeps the anchor plus feedback, Acted, and outcomes. Reads never re-anchor. Stale copy is “Source changed — re-run detection”; unresolved includes “Re-run detection”. Operator confirmed hosted deploy (`022` before API), pilot backfill `--apply`, and the 100-signal reconstruction sample. Not a keep-set go.
 
