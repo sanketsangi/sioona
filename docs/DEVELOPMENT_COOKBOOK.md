@@ -1120,7 +1120,7 @@ def reconstruct(anchor: Anchor, content: str) -> str | None:
 ```
 
 **Acceptance.**
-- [x] Baseline artifact committed for the current route. `web/eval/gate/baseline.json` + 120 replay fixtures on `cb/CB-09-eval-gate` at `924312f`. Historical v2 had six critical injection failures; frozen v3 synthetic metrics pass D5 with zero critical failures. Current accepted coverage is 118/120 (two grounding rejects). External promotion remains blocked. See `docs/development/FOUNDATION_ACCEPTANCE.md`.
+- [x] Baseline artifact committed for the current route. `web/eval/gate/baseline.json` + 120 replay fixtures on `cb/CB-09-eval-gate` at `924312f`. Historical v2 had six critical injection failures; frozen v3 synthetic metrics pass D5 with zero critical failures. Current accepted coverage is 120/0. External promotion remains blocked. See `docs/development/FOUNDATION_ACCEPTANCE.md`.
 - [ ] A deliberately broken parser change fails `eval:gate` in CI.
 - [ ] Sample sizes and intervals appear in every artifact; empty denominators are `null`, not 0.
 - [ ] The CI job runs without network or keys.
