@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session
 from app.models import Base
+from app.models.inference_budget import InferenceReservation
 from app.services.inference_budget import configure, reserve, settle, BudgetDenied, budget_day
 
 @pytest.fixture
@@ -64,6 +65,36 @@ def test_verified_admin_config_and_principal_pending_accounting(api):
     assert client.put(path, headers=admin, json={**config, "enabled": False}).status_code == 200
     assert client.post(reserve_path, headers=principal, json={**payload, "attempt_id": "b", "run_id": "r2"}).status_code == 409
 
+
+def test_pause_after_unlocked_global_read_denies_reservation(db):
+    """A pause that lands before the tenant lock must not authorize."""
+    configure(db, "t", 2, 1, True, "", "admin")
+    configure(db, "global", 1, 1, True, "", "admin")
+    db.flush()
+    state = {"reads": 0, "writing": False}
+
+    def pause_on_second_global_read(conn, cursor, statement, parameters, context, executemany):
+        if state["writing"] or "inference_controls" not in statement.lower():
+            return
+        values = parameters.values() if isinstance(parameters, dict) else parameters
+        if not isinstance(values, (tuple, list)) or "global" not in values:
+            return
+        state["reads"] += 1
+        if state["reads"] != 2:
+            return
+        state["writing"] = True
+        cursor.execute("UPDATE inference_controls SET enabled = 0 WHERE scope = 'global'")
+        state["writing"] = False
+
+    engine = db.get_bind()
+    event.listen(engine, "before_cursor_execute", pause_on_second_global_read)
+    try:
+        with pytest.raises(BudgetDenied, match="paused"):
+            reserve(db, "t", "a", "r", "groq", "model")
+    finally:
+        event.remove(engine, "before_cursor_execute", pause_on_second_global_read)
+    assert state["reads"] >= 2
+    assert db.scalar(select(InferenceReservation)) is None
 
 def test_global_pause_and_usd_readiness(db):
     from app.services.inference_budget import estimate_reservation

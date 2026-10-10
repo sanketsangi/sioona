@@ -31,12 +31,16 @@ def configure(db: Session, tenant: str, daily: int, run: int, enabled: bool, rea
     db.flush()
     return row
 
+def _globally_paused(db: Session) -> bool:
+    # Column select, not the mapped row: a second read must see a pause that
+    # committed after the first, instead of the identity-map copy.
+    enabled = db.scalar(select(InferenceControl.enabled).where(InferenceControl.scope == "global"))
+    return enabled is not None and not enabled
+
 def reserve(db: Session, tenant: str, attempt: str, run: str, provider: str, model: str,
             *, input_bytes: int = 0, now: datetime | None = None):
-    # The global row is locked when configured. Both config mutation and admission
-    # use global then tenant lock order so a pause is authoritative at admission.
-    global_control = db.scalar(select(InferenceControl).where(InferenceControl.scope == "global").with_for_update())
-    if global_control is not None and not global_control.enabled:
+    # The global pause is a read. Locking it serialized every admission behind one row.
+    if _globally_paused(db):
         raise BudgetDenied("paused")
     policy = db.scalar(select(InferenceControl).where(InferenceControl.scope == tenant, InferenceControl.tenant_id == tenant).with_for_update())
     if policy is None:
@@ -63,6 +67,9 @@ def reserve(db: Session, tenant: str, attempt: str, run: str, provider: str, mod
         # Dollar mode is deliberately unavailable until rates AND an approved,
         # eval-validated output ceiling are recorded. No inferred dollar limits.
         raise BudgetDenied("usd_not_ready")
+    # The unlocked read above can be stale by the time this lock is held.
+    if _globally_paused(db):
+        raise BudgetDenied("paused")
     daily.attempts += 1
     daily.reserved_usd += estimate
     run_row.attempts += 1

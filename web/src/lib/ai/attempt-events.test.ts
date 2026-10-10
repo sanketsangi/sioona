@@ -8,6 +8,7 @@ import {
   FALLBACK_DETECT_LLM_MODEL,
   resetGroqPaceForTests,
 } from "@/lib/detect-llm";
+import * as groq from "@/lib/ai/providers/groq";
 import type { InferenceAttempt } from "./types";
 import type { Conversation, Message } from "@/lib/types";
 
@@ -129,6 +130,36 @@ describe("provider attempt events", () => {
       promptVersion: DETECT_PROMPT_VERSION,
       stage: "detect",
       routeVersion: events[0].routeVersion,
+    });
+  });
+
+  it("meters the admission id when the provider throws before returning", async () => {
+    enableGroq();
+    vi.stubEnv("DETECT_LLM_MAX_ATTEMPTS", "1");
+    const events: InferenceAttempt[] = [];
+    let admitted: string | undefined;
+    vi.spyOn(groq, "postGroqChatCompletion").mockImplementation(async (input) => {
+      admitted = input.attemptId;
+      throw new Error("provider exploded");
+    });
+    await expect(
+      classifyConversationWithGroq(
+        {
+          conversation: conversation("conv_provider_throw"),
+          customerMessages: customerMessages("conv_provider_throw"),
+        },
+        undefined,
+        { attemptSink: (event) => events.push(event), tenantId: "tenant_demo" }
+      )
+    ).rejects.toThrow("provider exploded");
+    expect(admitted).toBeTruthy();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      attemptId: admitted,
+      attemptOrdinal: 1,
+      status: "failed",
+      errorCategory: "network",
+      logicalOperationId: expect.any(String),
     });
   });
 
