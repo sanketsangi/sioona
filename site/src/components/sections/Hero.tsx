@@ -1,6 +1,6 @@
 import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react/ssr";
+import Link from "next/link";
 import { InsightsMock } from "@/components/mocks/InsightsMock";
-import { SioonaMark } from "@/components/layout/SioonaMark";
 import { ButtonLink } from "@/components/ui/Button";
 
 export function Hero() {
@@ -8,11 +8,11 @@ export function Hero() {
     <section aria-labelledby="hero-title" className="marketing-hero">
       <div className="container-page">
         <div className="hero-copy">
-          <a className="hero-badge" href="/how-it-works" aria-label="Conversation intelligence, human judgment">
-            <SioonaMark className="hero-badge-logo" />
+          <Link className="hero-badge" href="/how-it-works">
+            <span className="hero-badge-label">Sioona</span>
             <span className="hero-badge-copy"><strong>Conversation intelligence</strong><span aria-hidden> · </span>Human judgment</span>
             <span className="hero-badge-arrow"><ArrowUpRight size={12} weight="bold" aria-hidden /></span>
-          </a>
+          </Link>
           <h1 id="hero-title" className="hero-heading">Your next opportunity<br className="hidden sm:block" /> is already <span>in the conversation.</span></h1>
           <p className="text-copy-18 hero-description">Find buying intent, churn risk and expansion opportunities in your customer chats. Give your team the evidence to make the next move.</p>
           <div className="hero-actions">

@@ -23,6 +23,8 @@
   --ds-black: #000000;
   --ds-gray-alpha-300: color-mix(in oklch, var(--ds-gray-1100) 10%, transparent);
 
+  --ds-orange-700: #ff6308;
+
   /* Signal / status chroma */
   --ds-blue-100: #f0f7ff;
   --ds-blue-700: #0070f3;
@@ -46,6 +48,7 @@
   --ds-teal-900: #0d7368;
 
   /* Semantics */
+  --sio-brand-accent: var(--ds-orange-700);
   --sio-bg-base: var(--ds-background-100);
   --sio-bg-subtle: var(--ds-background-200);
   --sio-bg-muted: var(--ds-gray-100);
