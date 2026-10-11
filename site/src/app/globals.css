@@ -725,7 +725,7 @@ html[data-drawer-open="true"] {
 .hero-badge { display: inline-flex; align-items: center; gap: .6rem; border: 1px solid color-mix(in srgb, var(--sio-border-strong) 55%, transparent); border-radius: 999px; padding: .35rem .4rem .35rem .65rem; font-size: 13px; line-height: 20px; color: var(--sio-fg-subtle); background: color-mix(in srgb, var(--sio-bg-subtle) 60%, transparent); transition: border-color .2s ease, background-color .2s ease; }
 .hero-badge:hover { border-color: var(--sio-border-strong); background: var(--sio-bg-subtle); }
 .hero-badge:focus-visible { outline: 2px solid var(--sio-signal-upsell-fg); outline-offset: 3px; }
-.hero-badge-logo { width: 16px; height: 16px; filter: brightness(0) saturate(100%) invert(35%) sepia(44%) saturate(700%) hue-rotate(125deg) brightness(88%) contrast(92%); }
+.hero-badge-label { border-radius: 999px; padding: .15rem .5rem; font-size: 11px; line-height: 16px; font-weight: 600; color: #ff6308; background: color-mix(in srgb, #ff6308 10%, transparent); }
 .hero-badge-copy strong { color: var(--sio-fg-base); font-weight: 600; }
 .hero-badge-arrow { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; color: var(--sio-fg-subtle); background: color-mix(in srgb, var(--sio-fg-base) 4%, transparent); transition: color .2s ease, background-color .2s ease; }
 .hero-badge:hover .hero-badge-arrow { color: var(--sio-fg-base); background: color-mix(in srgb, var(--sio-fg-base) 8%, transparent); }

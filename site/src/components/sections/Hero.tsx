@@ -1,7 +1,6 @@
 import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react/ssr";
 import Link from "next/link";
 import { InsightsMock } from "@/components/mocks/InsightsMock";
-import { SioonaMark } from "@/components/layout/SioonaMark";
 import { ButtonLink } from "@/components/ui/Button";
 
 export function Hero() {
@@ -10,7 +9,7 @@ export function Hero() {
       <div className="container-page">
         <div className="hero-copy">
           <Link className="hero-badge" href="/how-it-works">
-            <SioonaMark className="hero-badge-logo" />
+            <span className="hero-badge-label">Sioona</span>
             <span className="hero-badge-copy"><strong>Conversation intelligence</strong><span aria-hidden> · </span>Human judgment</span>
             <span className="hero-badge-arrow"><ArrowUpRight size={12} weight="bold" aria-hidden /></span>
           </Link>
