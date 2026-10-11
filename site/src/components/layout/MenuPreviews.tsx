@@ -23,7 +23,7 @@ export function OutputPreview() {
       <SignalUser name="Maya Rossi" size={28} />
       <div className="menu-output-user-status"><span className="menu-output-score" data-visible={detected}><SignalScoreChip score={0.92} /></span><SignalStatus state={acted ? "acted" : action ? "correct" : "pending"} variant="chip" /></div>
     </div>
-    <div className="menu-output-conversation" aria-label="Customer and support agent conversation">
+    <div className="menu-output-conversation" role="group" aria-label="Customer and support agent conversation">
     <div className="menu-output-chat"><p>{CHAT_PARTS.map((part, index) => {
       const start = CHAT_PARTS.slice(0, index).join("").length;
       const visible = Math.max(0, Math.min(part.length, chars - start));
@@ -75,7 +75,7 @@ export function FeaturePreview() {
       </div>)}
     </div>
     <div className="menu-feature-controls">
-      <div aria-label="Feature previews">{featureNames.map((name, index) => <button key={name} type="button" aria-label={`Show ${name}`} aria-pressed={active === index} onClick={() => { setActive(index); setPaused(true); }}><span aria-hidden /></button>)}</div>
+      <div role="group" aria-label="Feature previews">{featureNames.map((name, index) => <button key={name} type="button" aria-label={`Show ${name}`} aria-pressed={active === index} onClick={() => { setActive(index); setPaused(true); }}><span aria-hidden /></button>)}</div>
       {!reduced && <button type="button" onClick={() => setPaused(!paused)} aria-label={paused ? "Play feature animation" : "Pause feature animation"}>{paused ? "Play" : "Pause"}</button>}
     </div>
   </div>;
