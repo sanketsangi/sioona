@@ -97,20 +97,20 @@ const TABS = ["Pending", "Needs Follow-up", "Done"] as const;
  * Motion and reduced-motion frames are both in the server HTML.
  * `motion-safe` picks one before paint, so reduced motion never starts on the idle frame.
  */
-export function InsightsMock() {
+export function InsightsMock({ previewHeader = false }: { previewHeader?: boolean }) {
   return (
     <>
       <div className="hidden motion-safe:block">
-        <InsightsDemo reduced={false} />
+        <InsightsDemo reduced={false} previewHeader={previewHeader} />
       </div>
       <div className="motion-safe:hidden">
-        <InsightsDemo reduced />
+        <InsightsDemo reduced previewHeader={previewHeader} />
       </div>
     </>
   );
 }
 
-function InsightsDemo({ reduced }: { reduced: boolean }) {
+function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
   const [userPaused, setUserPaused] = useState(false);
   const running = !userPaused;
   const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced });
@@ -129,8 +129,36 @@ function InsightsDemo({ reduced }: { reduced: boolean }) {
   const pressed = step === STEP.acted;
   const t = { duration: duration.base, ease };
 
+  const playbackControl = (
+          <button
+            type="button"
+            onClick={() => setUserPaused((value) => !value)}
+            aria-pressed={userPaused}
+            aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
+            className={`btn-tertiary size-11 !px-0 md:size-8 ${previewHeader ? "preview-chrome-action" : ""} ${reduced ? "hidden" : ""}`}
+          >
+            <img
+              src={userPaused ? "/play-circle.svg" : "/pause-circle.svg"}
+              alt=""
+              aria-hidden="true"
+              width={20}
+              height={20}
+            />
+          </button>
+  );
+
   return (
     <figure className="relative m-0">
+      {previewHeader ? (
+        <div className="preview-chrome-header">
+          <div className="preview-chrome-header-lead">
+            <div className="preview-traffic-lights-spacer" aria-hidden="true">
+              <span className="preview-window-dots"><span /><span /><span /></span>
+            </div>
+          </div>
+          <div className="preview-chrome-header-actions">{playbackControl}</div>
+        </div>
+      ) : null}
       <figcaption className="sr-only">Illustrative review workspace: a customer says “I’ll close my account”. Sioona highlights the source text as a retention signal. A human reviewer confirms it and marks it acted on. Suggested follow-ups are display-only; no message is sent.</figcaption>
       <div
         className="panel shadow-mock overflow-hidden"
@@ -143,21 +171,7 @@ function InsightsDemo({ reduced }: { reduced: boolean }) {
               Shadow Mode
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setUserPaused((value) => !value)}
-            aria-pressed={userPaused}
-            aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
-            className={`btn-tertiary size-11 !px-0 md:size-8 ${reduced ? "hidden" : ""}`}
-          >
-            <img
-              src={userPaused ? "/play-circle.svg" : "/pause-circle.svg"}
-              alt=""
-              aria-hidden="true"
-              width={20}
-              height={20}
-            />
-          </button>
+          {previewHeader ? null : playbackControl}
         </div>
 
         <div aria-hidden className="grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">

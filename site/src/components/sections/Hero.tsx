@@ -10,7 +10,7 @@ export function Hero() {
         <div className="hero-copy">
           <Link className="hero-badge" href="/how-it-works">
             <span className="hero-badge-label">Sioona</span>
-            <span className="hero-badge-copy"><strong>Conversation intelligence</strong><span aria-hidden> · </span>Human judgment</span>
+            <span className="hero-badge-copy"><strong className="hero-badge-lead">Conversation intelligence</strong><span className="hero-badge-sep" aria-hidden> · </span><span className="hero-badge-tail">Human judgment</span></span>
             <span className="hero-badge-arrow"><ArrowUpRight size={12} weight="bold" aria-hidden /></span>
           </Link>
           <h1 id="hero-title" className="hero-heading">Your next opportunity<br className="hidden sm:block" /> is already <span>in the conversation.</span></h1>
@@ -24,8 +24,7 @@ export function Hero() {
           </ul>
         </div>
         <div className="hero-preview">
-          <div className="preview-label"><span>THE REVIEW WORKSPACE</span><span>Illustrative demo</span></div>
-          <InsightsMock />
+          <InsightsMock previewHeader />
         </div>
       </div>
     </section>
