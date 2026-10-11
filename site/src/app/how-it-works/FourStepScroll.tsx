@@ -306,7 +306,7 @@ function ScrollStory() {
 /** Route-local copy of the home story, kept isolated to preserve the reference. */
 export function FourStepScroll() {
   return (
-    <section id="steps" aria-labelledby="loop-title" className="section">
+    <section id="section" aria-labelledby="loop-title" className="section">
       <h2 id="loop-title" className="sr-only">The four steps</h2>
       <noscript><style>{`.${styles.animated}{display:none!important}.${styles.fallback}{display:block!important}`}</style></noscript>
       <div className={styles.animated}><ScrollStory /></div>

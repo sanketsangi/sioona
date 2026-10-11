@@ -1,8 +1,8 @@
 "use client";
 
-import { m, useInView } from "framer-motion";
-import { Eye, PauseCircle, PlayCircle } from "@phosphor-icons/react/ssr";
-import { Fragment, useRef, useState } from "react";
+import { m } from "framer-motion";
+import { Eye } from "@phosphor-icons/react/ssr";
+import { Fragment, useState } from "react";
 import {
   SignalScoreChip,
   SignalStatus,
@@ -111,11 +111,8 @@ export function InsightsMock() {
 }
 
 function InsightsDemo({ reduced }: { reduced: boolean }) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const inView = useInView(rootRef, { amount: 0.3 });
-  const [userPaused, setUserPaused] = useState(true);
-  const [hovering, setHovering] = useState(false);
-  const running = inView && !userPaused && !hovering;
+  const [userPaused, setUserPaused] = useState(false);
+  const running = !userPaused;
   const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced });
 
   const reviewing = step >= STEP.rowIn && step < STEP.reset;
@@ -136,10 +133,7 @@ function InsightsDemo({ reduced }: { reduced: boolean }) {
     <figure className="relative m-0">
       <figcaption className="sr-only">Illustrative review workspace: a customer says “I’ll close my account”. Sioona highlights the source text as a retention signal. A human reviewer confirms it and marks it acted on. Suggested follow-ups are display-only; no message is sent.</figcaption>
       <div
-        ref={rootRef}
         className="panel shadow-mock overflow-hidden"
-        onPointerEnter={() => setHovering(true)}
-        onPointerLeave={() => setHovering(false)}
       >
         <div className="flex h-11 items-center justify-between gap-3 border-b border-sio-border-base px-3 sm:px-4">
           <div aria-hidden className="flex min-w-0 items-center gap-3">
@@ -156,7 +150,13 @@ function InsightsDemo({ reduced }: { reduced: boolean }) {
             aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
             className={`btn-tertiary size-11 !px-0 md:size-8 ${reduced ? "hidden" : ""}`}
           >
-            {userPaused ? <PlayCircle size={20} weight="regular" aria-hidden /> : <PauseCircle size={20} weight="regular" aria-hidden />}
+            <img
+              src={userPaused ? "/play-circle.svg" : "/pause-circle.svg"}
+              alt=""
+              aria-hidden="true"
+              width={20}
+              height={20}
+            />
           </button>
         </div>
 
