@@ -660,10 +660,10 @@ CREATE POLICY tenant_isolation ON messages
 ```
 
 **Acceptance.**
-- [ ] On Postgres as the runtime role, an unscoped `SELECT` returns only the current tenant's rows.
-- [ ] Missing context returns zero rows, and an insert for another tenant fails.
-- [ ] Pooled connections never leak context between requests (test two sequential transactions on one connection).
-- [ ] If RLS is deferred, the decision is recorded with compensating controls and residual risk.
+- [x] On Postgres as the runtime role, an unscoped `SELECT` returns only the current tenant's rows. Disposable Postgres, `024_tenant_rls`. See [CB-04](development/tasks/CB-04.md).
+- [x] Missing context returns zero rows, and an insert for another tenant fails.
+- [x] Pooled connections never leak context between requests (test two sequential transactions on one connection).
+- [ ] If RLS is deferred, the decision is recorded with compensating controls and residual risk. Not used: RLS is adopted, not deferred. Hosted `DATABASE_URL` is still the owner until an operator switches it, so production does not yet run as `sioona_runtime`.
 
 **Rollback.** Drop policies per table via a reviewed migration. Never use an undocumented global disable.
 
@@ -1649,4 +1649,4 @@ The regex strips citation tokens, which cannot be resolved outside the original 
 
 ## Current foundation closeout (2026-10-10)
 
-The authoritative implementation / exact-revision CI / hosted rollout / acceptance table is [FOUNDATION_ACCEPTANCE.md](development/FOUNDATION_ACCEPTANCE.md). It supersedes stale present-tense closeouts while preserving this document's historical baseline. CB-03 requires isolated staging provisioning and operator schema/membership setup before its observed acceptance window. CB-04 remains a broader multi-tenant rollout gate. CB-10 waits for the foundation remediation's acceptance; CB-13 remains blocked until a verified external holdout comparison passes unchanged D5.
+The authoritative implementation / exact-revision CI / hosted rollout / acceptance table is [FOUNDATION_ACCEPTANCE.md](development/FOUNDATION_ACCEPTANCE.md). It supersedes stale present-tense closeouts while preserving this document's historical baseline. CB-03 requires isolated staging provisioning and operator schema/membership setup before its observed acceptance window. CB-04's runtime-role proof is on disposable Postgres only; hosted enforcement waits for the operator URL switch, and it remains the multi-tenant rollout gate. CB-10 waits for foundation acceptance; CB-13 remains blocked until a verified external holdout comparison passes unchanged D5.

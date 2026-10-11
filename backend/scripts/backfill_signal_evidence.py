@@ -230,8 +230,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-chunks", type=int)
     args = parser.parse_args(argv)
     phase, after = _load_checkpoint(args.checkpoint) if args.checkpoint else ("messages", None)
-    from app.db import SessionLocal
+    from app.db import SessionLocal, bind_tenant, clear_tenant
     db = SessionLocal()
+    bind_tenant(db, args.tenant)
     totals = {"dry_run": not args.apply, "hashed": 0, "anchored": 0, "unresolved": 0, "unchanged": 0, "done": False}
     try:
         chunks = 0
@@ -259,6 +260,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"error": "backfill_failed"}))
         return 1
     finally:
+        clear_tenant()
         db.close()
     return 0
 

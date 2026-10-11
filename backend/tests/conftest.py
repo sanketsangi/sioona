@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db import get_db
+from app.db import clear_tenant, get_db
 from app.main import app
 from app.models import Base
 
@@ -28,6 +28,14 @@ def _sqlite_engine():
 
     Base.metadata.create_all(bind=engine)
     return engine
+
+
+@pytest.fixture(autouse=True)
+def _reset_tenant_context() -> Generator[None, None, None]:
+    """Request tenant context must not leak into the next test."""
+    clear_tenant()
+    yield
+    clear_tenant()
 
 
 @pytest.fixture()

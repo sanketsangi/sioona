@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import assert_tenant_match, require_admin_role
 from app.config import get_settings
-from app.db import get_db
+from app.db import bind_tenant, get_db
 from app.models.membership import Membership
 
 logger = logging.getLogger("sioona.actor")
@@ -63,6 +63,12 @@ class Actor:
 
 def actor_mode() -> str:
     return get_settings().sioona_actor_auth_mode
+
+
+def _bind_tenant(db: Session, tenant_id: str) -> None:
+    """Set RLS context once the request tenant is known. Never bind a placeholder."""
+    if tenant_id.strip():
+        bind_tenant(db, tenant_id)
 
 
 def keep_header_gate(path_tenant_id: str, header_tenant_id: str) -> None:
@@ -174,9 +180,11 @@ def guard_request(
     if kind == "alias":
         if mode == "enforce":
             raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
+        header = (x_tenant_id or "").strip()
+        if header:
+            _bind_tenant(db, header)
         if mode == "shadow":
-            tenant = (x_tenant_id or "").strip() or "unknown"
-            _observe(request, tenant, assertion, db, permission, operation)
+            _observe(request, header or "unknown", assertion, db, permission, operation)
         return
     tenant_id = request.path_params.get("tenant_id")
     if not isinstance(tenant_id, str) or not tenant_id:
@@ -193,11 +201,13 @@ def guard_request(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="X-Tenant-Id does not match path tenant_id",
             )
+        _bind_tenant(db, tenant_id)
         if mode == "shadow":
             _observe(request, tenant_id, assertion, db, permission, operation)
         if permission == "admin":
             require_admin_role(x_sioona_role)
         return
+    _bind_tenant(db, tenant_id)
     _enforce(tenant_id, assertion, db, permission, operation)
 
 
@@ -213,9 +223,11 @@ def legacy_alias(permission: str, operation: str | None = None):
         mode = actor_mode()
         if mode == "enforce":
             raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
+        header = (x_tenant_id or "").strip()
+        if header:
+            _bind_tenant(db, header)
         if mode == "shadow":
-            tenant = (x_tenant_id or "").strip() or "unknown"
-            _observe(request, tenant, assertion, db, permission, operation)
+            _observe(request, header or "unknown", assertion, db, permission, operation)
 
     return dependency
 
@@ -246,11 +258,13 @@ def authorize(permission: str, operation: str | None = None):
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="X-Tenant-Id does not match path tenant_id",
                 )
+            _bind_tenant(db, tenant_id)
             if mode == "shadow":
                 _observe(request, tenant_id, assertion, db, permission, operation)
             if permission == "admin":
                 require_admin_role(x_sioona_role)
             return tenant_id
+        _bind_tenant(db, tenant_id)
         actor = _enforce(tenant_id, assertion, db, permission, operation)
         return actor.tenant_id
 
