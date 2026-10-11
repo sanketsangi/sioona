@@ -108,7 +108,7 @@ export function SiteNav() {
   }, [closeDrawer]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
+    const mq = window.matchMedia("(min-width: 768px)");
     const onChange = () => {
       if (mq.matches && dialogRef.current?.open) dialogRef.current.close();
     };
@@ -160,7 +160,7 @@ export function SiteNav() {
                   </Link>)}
                 </div>
               </div>
-              <div className="product-preview" aria-label="Product preview">
+              <div className="product-preview" role="group" aria-label="Product preview">
                 {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
                   <span className="eyebrow">{link.eyebrow}</span>
                   {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-open`}>
