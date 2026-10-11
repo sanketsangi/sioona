@@ -12,7 +12,7 @@ import { OutputPreview, WorkflowPreview, ScorePreview, FeaturePreview } from "@/
 const DRAWER_EXIT_MS = 200;
 const productLinks = [
   { href: "/#product", label: "Product", description: "Find signals and choose your next action", eyebrow: "Conversation intelligence" },
-  { href: "/how-it-works#shadow-mode", label: "Shadow Mode", description: "A simple loop. Humans in control.", eyebrow: "From chat to action" },
+  { href: "/#how", label: "Shadow Mode", description: "A simple loop. Humans in control.", eyebrow: "From chat to action" },
   { href: "/#score", label: "Signal Score", description: "Measure precision before you commit", eyebrow: "Signal Score" },
   { href: "/#features", label: "Product Feature", description: "Insights, uploads and your review toolkit", eyebrow: "Product Feature" },
 ];
@@ -131,7 +131,7 @@ export function SiteNav() {
         <Logo />
         <nav
           aria-label="Primary"
-          className="site-nav-links hidden items-center gap-1 lg:flex"
+          className="site-nav-links hidden items-center gap-1 md:flex"
         >
           <div ref={productRef} className="product-navigation" onBlur={(event) => {
             if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setProductOpen(false);
@@ -183,7 +183,7 @@ export function SiteNav() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center justify-end gap-2">
+        <div className="site-nav-actions flex shrink-0 items-center justify-end gap-2">
           {siteConfig.appUrl ? <Link href={siteConfig.appUrl} className="btn-tertiary hidden lg:inline-flex">
             Sign In
           </Link> : null}
@@ -197,7 +197,7 @@ export function SiteNav() {
             aria-haspopup="dialog"
             aria-expanded={open}
             aria-controls="mobile-menu"
-            className="btn-secondary size-11 !px-0 lg:hidden"
+            className="btn-secondary size-11 !px-0 md:hidden"
           >
             <List size={18} weight="bold" aria-hidden />
           </button>

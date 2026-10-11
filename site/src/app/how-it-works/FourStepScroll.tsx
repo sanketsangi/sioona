@@ -53,7 +53,7 @@ function RailSegment({ index, progress }: { index: number; progress: MotionValue
 }
 function SourceRow({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-control border border-sio-border-base bg-sio-bg-base px-2.5 text-label-13 text-sio-fg-base lg:flex-none">
+    <div className="workflow-source-row flex h-9 min-w-0 flex-1 items-center gap-2 rounded-control border border-sio-border-base bg-sio-bg-base px-2.5 text-label-13 text-sio-fg-base lg:flex-none">
       <span className="shrink-0 text-sio-fg-subtle">{icon}</span>
       <span className="truncate">{label}</span>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { Stage } from "@/app/how-it-works/FourStepScroll";
 import { STEP, useInsightsScript } from "@/components/mocks/useInsightsScript";
 import { SignalTypeChip, SignalUser, SignalScoreChip, SignalStatus } from "@/components/signal/SignalChips";
@@ -23,16 +23,15 @@ export function OutputPreview() {
       <SignalUser name="Maya Rossi" size={28} />
       <div className="menu-output-user-status"><span className="menu-output-score" data-visible={detected}><SignalScoreChip score={0.92} /></span><SignalStatus state={acted ? "acted" : action ? "correct" : "pending"} variant="chip" /></div>
     </div>
-    <div className="menu-output-conversation" aria-label="Customer and support agent conversation">
+    <div className="menu-output-conversation" aria-label="Customer message">
     <div className="menu-output-chat"><p>{CHAT_PARTS.map((part, index) => {
       const start = CHAT_PARTS.slice(0, index).join("").length;
       const visible = Math.max(0, Math.min(part.length, chars - start));
       const text = <>{part.slice(0, visible)}<span className="opacity-0">{part.slice(visible)}</span></>;
       return index === 1 ? <mark key={index} className="menu-output-highlight" data-detected={detected} aria-label={detected ? "Evidence: customer states they plan to leave" : undefined}>{text}</mark> : <span key={index}>{text}</span>;
     })}</p></div>
-    <div className="menu-output-agent"><p>What would make a better plan for you?</p></div>
     </div>
-    <div className="menu-output-evidence" data-visible={detected}><h3 className="eyebrow menu-evidence-heading">Why This Fired</h3><div className="menu-output-evidence-detail"><SignalTypeChip type="retention" /><span>“I’ll close my account”</span></div><small>Customer states they plan to leave.</small></div>
+    <div className="menu-output-evidence" data-visible={detected}><h3 className="eyebrow menu-evidence-heading">Why This Fired</h3><div className="menu-output-evidence-detail"><SignalTypeChip type="retention" /><span>“I’ll close my account”</span></div><p className="menu-output-reason">Customer may close their account if they can’t find a better plan.</p></div>
     <div className="menu-output-action" data-visible={action}><div className="menu-action-copy"><span className="eyebrow">Suggested next action</span><p>Offer a fee review call. Nothing sends.</p></div><span className="menu-acted-indicator" data-acted={acted}>{acted ? "✓ Acted" : "Mark Acted"}<kbd aria-hidden>A</kbd></span></div>
   </div>;
 }
@@ -61,22 +60,23 @@ const featureDescriptions = ["Evidence, review, and your next move.", "Bring you
 export function FeaturePreview() {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
   useEffect(() => {
-    if (reduced || paused) return;
+    if (reduced) return;
     const timer = window.setInterval(() => setActive((value) => (value + 1) % featureNames.length), 3200);
     return () => window.clearInterval(timer);
-  }, [reduced, paused]);
+  }, [reduced]);
   return <div className="menu-feature-sequence">
     <div className="menu-feature-stage">
-      {featureNames.map((name, index) => <div key={name} className="menu-feature-scene" data-active={active === index} aria-hidden={active !== index} inert={active !== index}>
+      <AnimatePresence initial={false}>
+      {featureNames.map((name, index) => active === index ? <m.div key={name} className="menu-feature-scene" data-active="true"
+        initial={{ x: reduced ? 0 : "110%", opacity: reduced ? 1 : 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: reduced ? 0 : "-110%", opacity: 0 }}
+        transition={{ duration: reduced ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] }}>
         <h3>{name}</h3><p>{featureDescriptions[index]}</p>
-        <div className="menu-feature-visual">{active === index ? <BentoFeatureVisual index={index} /> : null}</div>
-      </div>)}
-    </div>
-    <div className="menu-feature-controls">
-      <div aria-label="Feature previews">{featureNames.map((name, index) => <button key={name} type="button" aria-label={`Show ${name}`} aria-pressed={active === index} onClick={() => { setActive(index); setPaused(true); }}><span aria-hidden /></button>)}</div>
-      {!reduced && <button type="button" onClick={() => setPaused(!paused)} aria-label={paused ? "Play feature animation" : "Pause feature animation"}>{paused ? "Play" : "Pause"}</button>}
+        <div className="menu-feature-visual"><BentoFeatureVisual index={index} /></div>
+      </m.div> : null)}
+      </AnimatePresence>
     </div>
   </div>;
 }
