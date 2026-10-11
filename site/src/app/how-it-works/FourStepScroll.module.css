@@ -1,0 +1,33 @@
+.animated {
+  display: none;
+}
+
+.track {
+  position: relative;
+  height: 400svh;
+}
+
+.sticky {
+  position: sticky;
+  top: var(--nav-height);
+  display: flex;
+  height: calc(100svh - var(--nav-height));
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .track {
+    height: 340svh;
+  }
+}
+
+/* Keep the complete server-rendered list when motion or viewport space is limited. */
+@media (prefers-reduced-motion: no-preference) and (min-height: 760px) and (min-width: 360px) {
+  .animated {
+    display: block;
+  }
+
+  .fallback {
+    display: none;
+  }
+}
