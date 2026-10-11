@@ -7,7 +7,7 @@ export const siteConfig = {
     "Sioona overlays conversation intelligence on your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
   url:
     process.env.NEXT_PUBLIC_SITE_URL ??
-    (vercelHost ? `https://${vercelHost}` : "http://localhost:3000"),
+    (vercelHost ? `https://${vercelHost}` : "https://sioona-site.vercel.app"),
   appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || null,
 } as const;
 

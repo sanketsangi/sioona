@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description: siteConfig.description,
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Sioona | See Every Revenue Signal In Your Customer Chats",
     description: siteConfig.description,
   },

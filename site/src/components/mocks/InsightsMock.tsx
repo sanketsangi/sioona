@@ -113,7 +113,7 @@ export function InsightsMock() {
 function InsightsDemo({ reduced }: { reduced: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const inView = useInView(rootRef, { amount: 0.3 });
-  const [userPaused, setUserPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(true);
   const [hovering, setHovering] = useState(false);
   const running = inView && !userPaused && !hovering;
   const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced });
@@ -134,6 +134,7 @@ function InsightsDemo({ reduced }: { reduced: boolean }) {
 
   return (
     <figure className="relative m-0">
+      <figcaption className="sr-only">Illustrative review workspace: a customer says “I’ll close my account”. Sioona highlights the source text as a retention signal. A human reviewer confirms it and marks it acted on. Suggested follow-ups are display-only; no message is sent.</figcaption>
       <div
         ref={rootRef}
         className="panel shadow-mock overflow-hidden"
