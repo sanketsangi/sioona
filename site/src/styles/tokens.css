@@ -137,3 +137,9 @@
     --page-gutter: 2rem;
   }
 }
+
+:root {
+  --sio-window-close: #ff5f57;
+  --sio-window-minimize: #febc2e;
+  --sio-window-maximize: #28c840;
+}

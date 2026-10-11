@@ -24,8 +24,7 @@ export function Hero() {
           </ul>
         </div>
         <div className="hero-preview">
-          <div className="preview-label"><span>THE REVIEW WORKSPACE</span><span>Illustrative demo</span></div>
-          <InsightsMock />
+          <InsightsMock previewHeader />
         </div>
       </div>
     </section>

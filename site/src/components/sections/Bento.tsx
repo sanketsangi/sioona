@@ -35,7 +35,7 @@ function Card({
           {icon}
           <span className="eyebrow">{label}</span>
         </p>
-        <h3 className="text-heading-20 mt-3 text-sio-fg-base">{nb(title)}</h3>
+        <h3 id={`feature-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} className="text-heading-20 mt-3 text-sio-fg-base">{nb(title)}</h3>
         <p className="text-copy-14 mt-1.5 max-w-md text-sio-fg-subtle">{nb(body)}</p>
       </div>
       <div className="mt-auto">{children}</div>
@@ -88,7 +88,7 @@ export function Bento() {
       <div className="container-page">
         <SectionHeader
           id="features-title"
-          eyebrow="Product"
+          eyebrow="Product Feature"
           title="Everything a review team needs, and nothing it doesn’t."
           description="Four surfaces and a keyboard-first workflow: ingest chats, review signals, measure precision, and tune what counts."
         />
@@ -103,7 +103,63 @@ export function Bento() {
             title="One queue for every signal"
             body="Pending, needs follow-up and done. Open a conversation to read the transcript, see the words that fired the signal, and record your verdict."
           >
-            <ul className="divide-y divide-sio-border-base rounded-panel border border-sio-border-base">
+            <BentoFeatureVisual index={0} />
+          </Card>
+
+          <Card
+            icon={<UploadSimple size={16} weight="regular" aria-hidden />}
+            label="Upload"
+            title="Start from an export"
+            body="Drop in Intercom, WhatsApp or CSV and JSON exports. No live integration needed."
+          >
+            <BentoFeatureVisual index={1} />
+          </Card>
+
+          <Card
+            icon={<ChartLineUp size={16} weight="regular" aria-hidden />}
+            label="Eval"
+            title="Signal Score, always visible"
+            body="Precision against human review, tracked as your team works through the queue."
+          >
+            <BentoFeatureVisual index={2} />
+          </Card>
+
+          <Card
+            icon={<Tag size={16} weight="regular" aria-hidden />}
+            label="Taxonomy"
+            title="You define what counts"
+            body="Phrases and keywords for each signal, plus negative phrases that rule out noise."
+          >
+            <BentoFeatureVisual index={3} />
+          </Card>
+
+          <Card
+            icon={<Sparkle size={16} weight="regular" aria-hidden />}
+            label="Suggested Next Action"
+            title="A concrete follow-up for every confirmed signal"
+            body="Your team sees what to do next. Sioona never sends it for you."
+          >
+            <BentoFeatureVisual index={4} />
+          </Card>
+
+          <Card
+            className="md:col-span-2 lg:col-span-3"
+            icon={<Keyboard size={16} weight="regular" aria-hidden />}
+            label="Keyboard-first review"
+            title="Review a signal without leaving the keyboard"
+            body="Mark a verdict with C, I or P, step through the queue with J and K, and act with A or Enter."
+          >
+            <BentoFeatureVisual index={5} />
+          </Card>
+        </RevealGroup>
+      </div>
+    </section>
+  );
+}
+
+export function BentoFeatureVisual({ index }: { index: number }) {
+  return [
+<div key="0" data-feature="0"><ul className="divide-y divide-sio-border-base rounded-panel border border-sio-border-base">
               {queue.map((row) => (
                 <li
                   key={row.name}
@@ -119,34 +175,10 @@ export function Bento() {
                   </div>
                 </li>
               ))}
-            </ul>
-          </Card>
-
-          <Card
-            icon={<UploadSimple size={16} weight="regular" aria-hidden />}
-            label="Upload"
-            title="Start from an export"
-            body="Drop in Intercom, WhatsApp or CSV and JSON exports. No live integration needed."
-          >
-            <UploadVisual />
-          </Card>
-
-          <Card
-            icon={<ChartLineUp size={16} weight="regular" aria-hidden />}
-            label="Eval"
-            title="Signal Score, always visible"
-            body="Precision against human review, tracked as your team works through the queue."
-          >
-            <ScoreMeter value={84} threshold={80} />
-          </Card>
-
-          <Card
-            icon={<Tag size={16} weight="regular" aria-hidden />}
-            label="Taxonomy"
-            title="You define what counts"
-            body="Phrases and keywords for each signal, plus negative phrases that rule out noise."
-          >
-            <ul className="flex flex-col gap-2 transition-transform duration-200 ease-sio group-hover:translate-x-0.5">
+            </ul></div>,
+<div key="1" data-feature="1"><UploadVisual /></div>,
+<div key="2" data-feature="2"><ScoreMeter value={84} threshold={80} /></div>,
+<div key="3" data-feature="3"><ul className="flex flex-col gap-2 transition-transform duration-200 ease-sio group-hover:translate-x-0.5">
               {taxonomy.map((row) => (
                 <li key={row.type} className="flex flex-wrap items-center gap-1.5">
                   <SignalTypeChip type={row.type} />
@@ -160,30 +192,13 @@ export function Bento() {
                   ))}
                 </li>
               ))}
-            </ul>
-          </Card>
-
-          <Card
-            icon={<Sparkle size={16} weight="regular" aria-hidden />}
-            label="Suggested Next Action"
-            title="A concrete follow-up for every confirmed signal"
-            body="Your team sees what to do next. Sioona never sends it for you."
-          >
-            <div className="rounded-panel border border-sio-border-base p-3 transition-transform duration-200 ease-sio group-hover:translate-x-0.5">
+            </ul></div>,
+<div key="4" data-feature="4"><div className="rounded-panel border border-sio-border-base p-3 transition-transform duration-200 ease-sio group-hover:translate-x-0.5">
               <SignalTypeChip type="retention" />
               <p className="text-copy-14 mt-2 text-sio-fg-base">Offer a fee review call before the end of the week.</p>
               <p className="mt-1 text-label-12 text-sio-fg-muted">Display only. Nothing is sent from Sioona.</p>
-            </div>
-          </Card>
-
-          <Card
-            className="md:col-span-2 lg:col-span-3"
-            icon={<Keyboard size={16} weight="regular" aria-hidden />}
-            label="Keyboard-first review"
-            title="Review a signal without leaving the keyboard"
-            body="Mark a verdict with C, I or P, step through the queue with J and K, and act with A or Enter."
-          >
-            <div className="flex flex-col gap-4 rounded-panel border border-sio-border-base p-4 sm:flex-row sm:items-center sm:justify-between">
+            </div></div>,
+<div key="5" data-feature="5"><div className="flex flex-col gap-4 rounded-panel border border-sio-border-base p-4 sm:flex-row sm:items-center sm:justify-between">
               <KeyCapPair />
               <p className="text-label-13 text-sio-fg-muted">
                 <span className="keycap !h-6 !min-w-6 !px-1.5">C</span>{" "}
@@ -197,10 +212,6 @@ export function Bento() {
                 <span className="keycap !h-6 !min-w-6 !px-1.5">K</span>{" "}
                 <span className="ml-1">to move</span>
               </p>
-            </div>
-          </Card>
-        </RevealGroup>
-      </div>
-    </section>
-  );
+            </div></div>
+  ][index] ?? null;
 }
