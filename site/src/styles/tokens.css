@@ -9,11 +9,11 @@
   color-scheme: light;
 
   /* Neutrals — light product canvas: white page, #e5e7eb hairlines, #f2f1f0 hover */
-  --ds-background-100: #ffffff;
+  --ds-background-100: #faf9f6;
   --ds-background-200: #ffffff;
-  --ds-gray-100: #f2f1f0;
+  --ds-gray-100: #f0eee8;
   --ds-gray-200: #ebebeb;
-  --ds-gray-400: #e5e7eb;
+  --ds-gray-400: #e2e0d8;
   --ds-gray-500: oklch(0.708 0 0);
   --ds-gray-600: oklch(0.556 0 0);
   --ds-gray-700: oklch(0.556 0 0);
@@ -70,7 +70,7 @@
   --sio-border-subtle: var(--ds-gray-400);
   --sio-border-muted: var(--ds-gray-alpha-300);
 
-  --sio-focus-accent: var(--ds-gray-500);
+  --sio-focus-accent: var(--ds-teal-900);
 
   --sio-signal-lead-bg: var(--ds-blue-100);
   --sio-signal-lead-fg: var(--ds-blue-900);
@@ -117,9 +117,9 @@
 
   --page-max: 1200px;
   --page-gutter: 1rem;
-  --nav-height: 3.5rem;
+  --nav-height: 4.5rem;
   --radius-control: 6px;
-  --radius-panel: 8px;
+  --radius-panel: 16px;
   --radius-group: 12px;
 }
 
