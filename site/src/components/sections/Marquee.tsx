@@ -1,6 +1,5 @@
 "use client";
 
-import { Pause, Play } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
 
 const SLOTS = 10;
@@ -39,7 +38,14 @@ export function Marquee() {
         aria-label={paused ? "Play Logo Animation" : "Pause Logo Animation"}
         className="marquee-toggle btn-tertiary mx-auto mt-4 size-11 !px-0 md:size-8"
       >
-        {paused ? <Play size={14} weight="bold" aria-hidden /> : <Pause size={14} weight="bold" aria-hidden />}
+        <img
+          src={paused ? "/play-circle.svg" : "/pause-circle.svg"}
+          alt=""
+          aria-hidden="true"
+          width={24}
+          height={24}
+          className="size-6"
+        />
       </button>
     </div>
   );

@@ -4,7 +4,7 @@ import { FinalCta } from "@/components/sections/FinalCta";
 import { RevealGroup, RevealItem } from "@/components/motion/Reveal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { STEPS } from "@/lib/steps";
+import { FourStepScroll } from "./FourStepScroll";
 import { nb } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -70,26 +70,7 @@ export default function HowItWorksPage() {
         description="Sioona sits on top of the chats you already have. It finds the signals, your team reviews them, and the Signal Score tells you whether it’s ready to trust."
       />
 
-      <section aria-labelledby="loop-title" className="section">
-        <div className="container-page">
-          <h2 id="loop-title" className="sr-only">
-            The four steps
-          </h2>
-          <RevealGroup
-            as="ol"
-            gap={0.1}
-            className="grid overflow-hidden rounded-panel border border-sio-border-base md:grid-cols-2 lg:grid-cols-4 md:divide-x md:divide-sio-border-base max-md:divide-y max-md:divide-sio-border-base"
-          >
-            {STEPS.map((step, index) => (
-              <RevealItem as="li" key={step.id} className="bg-sio-bg-base p-5 lg:p-6">
-                <p className="tabular font-mono text-label-12 text-sio-fg-muted">0{index + 1}</p>
-                <h3 className="text-heading-20 mt-3 text-sio-fg-base">{step.title}</h3>
-                <p className="text-copy-14 mt-2 text-sio-fg-subtle">{nb(step.body)}</p>
-              </RevealItem>
-            ))}
-          </RevealGroup>
-        </div>
-      </section>
+      <FourStepScroll />
 
       <section id="shadow-mode" aria-labelledby="shadow-title" className="section">
         <div className="container-page grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-20">

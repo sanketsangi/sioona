@@ -718,3 +718,56 @@ html[data-drawer-open="true"] {
     opacity: 1 !important;
   }
 }
+
+/* Marketing composition: a warm canvas, evidence-led product surfaces. */
+.marketing-hero { padding-block: 4.5rem 3rem; background: radial-gradient(ellipse at 50% 55%, var(--sio-signal-upsell-bg), transparent 65%); }
+.hero-copy { max-width: 960px; margin-inline: auto; text-align: center; }
+.hero-badge { display: inline-flex; align-items: center; gap: .6rem; border: 1px solid color-mix(in srgb, var(--sio-border-strong) 55%, transparent); border-radius: 999px; padding: .35rem .4rem .35rem .65rem; font-size: 13px; line-height: 20px; color: var(--sio-fg-subtle); background: color-mix(in srgb, var(--sio-bg-subtle) 60%, transparent); transition: border-color .2s ease, background-color .2s ease; }
+.hero-badge:hover { border-color: var(--sio-border-strong); background: var(--sio-bg-subtle); }
+.hero-badge:focus-visible { outline: 2px solid var(--sio-signal-upsell-fg); outline-offset: 3px; }
+.hero-badge-logo { width: 16px; height: 16px; filter: brightness(0) saturate(100%) invert(35%) sepia(44%) saturate(700%) hue-rotate(125deg) brightness(88%) contrast(92%); }
+.hero-badge-copy strong { color: var(--sio-fg-base); font-weight: 600; }
+.hero-badge-arrow { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; color: var(--sio-fg-subtle); background: color-mix(in srgb, var(--sio-fg-base) 4%, transparent); transition: color .2s ease, background-color .2s ease; }
+.hero-badge:hover .hero-badge-arrow { color: var(--sio-fg-base); background: color-mix(in srgb, var(--sio-fg-base) 8%, transparent); }
+.hero-heading { margin-top: 1.6rem; font-size: clamp(2.6rem, 5.8vw, 4.75rem); line-height: 1.06; letter-spacing: -.055em; font-weight: 500; text-wrap: balance; }
+.hero-heading > span { color: var(--sio-signal-upsell-fg); }
+.hero-description { max-width: 610px; margin: 1.7rem auto 0; }
+.hero-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: 2rem; }
+.hero-assurances { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem 1.5rem; margin-top: 1.5rem; font-size: 12px; color: var(--sio-fg-subtle); }
+.hero-assurances li { display: flex; align-items: center; gap: .4rem; }
+.hero-assurances svg { color: var(--sio-signal-upsell-fg); }
+.hero-preview { max-width: 1040px; margin: 3.5rem auto 0; padding: 1rem; border: 1px solid var(--sio-border-base); border-radius: 24px; background: color-mix(in srgb, var(--sio-bg-subtle) 65%, transparent); }
+.preview-label { display: flex; justify-content: space-between; gap: 1rem; margin: .1rem .25rem .9rem; font-family: var(--font-geist-mono), monospace; font-size: 10px; line-height: 16px; letter-spacing: .06em; color: var(--sio-fg-muted); }
+.export-strip { padding-block: 2.5rem; border-block: 1px solid var(--sio-border-base); background: var(--sio-bg-subtle); }
+.export-inner { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
+.export-formats { display: flex; flex-wrap: wrap; gap: 1rem 2rem; }
+.export-formats li { display: flex; align-items: center; gap: .65rem; font-size: 14px; font-weight: 500; }
+.export-formats svg { color: var(--sio-fg-muted); }
+.statement-section { border-top: 0; }
+.statement-grid { display: grid; grid-template-columns: 1fr 3fr; gap: 3rem; }
+.statement-grid > .eyebrow { padding-top: .5rem; }
+.final-cta { text-align: center; background: var(--sio-signal-upsell-bg); }
+.final-cta .max-w-3xl, .final-cta .max-w-xl { margin-inline: auto; }
+.final-cta .flex { justify-content: center; }
+@layer components {
+  .btn-primary, .btn-secondary { border-radius: 999px; }
+  .btn-lg { min-height: 48px; padding-inline: 1.4rem; }
+  .panel { background: var(--sio-bg-subtle); }
+  .text-heading-40 { font-weight: 500; letter-spacing: -.045em; }
+  .eyebrow { color: var(--sio-signal-upsell-fg); }
+}
+@media (min-width: 1024px) {
+  .section { padding-block: 6rem; }
+  .marketing-hero { padding-top: 5.5rem; }
+}
+@media (max-width: 767px) {
+  .marketing-hero { padding-block: 3rem 2rem; }
+  .hero-heading { letter-spacing: -.045em; }
+  .hero-actions > a { width: 100%; }
+  .hero-assurances { gap: .5rem 1rem; }
+  .hero-preview { margin-top: 2.5rem; padding: .5rem; border-radius: 20px; }
+  .preview-label { font-size: 9px; letter-spacing: 0; }
+  .export-inner { flex-direction: column; align-items: flex-start; }
+  .export-formats { gap: 1rem 1.5rem; }
+  .statement-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+}

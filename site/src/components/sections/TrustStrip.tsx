@@ -1,21 +1,15 @@
-import { Marquee } from "@/components/sections/Marquee";
-import { Reveal } from "@/components/motion/Reveal";
+import { ChatCircleText, FileCsv, FileText } from "@phosphor-icons/react/ssr";
 
 export function TrustStrip() {
   return (
-    <section aria-labelledby="trust-title" className="border-t border-sio-border-base py-12 lg:py-16">
-      <div className="container-page">
-        <Reveal>
-          <h2 id="trust-title" className="eyebrow text-center">
-            Works on top of the chat tools your team already uses
-          </h2>
-          <p className="mt-2 text-center text-label-13 text-sio-fg-muted">
-            Placeholder logos. Customer names appear here once pilots are public.
-          </p>
-        </Reveal>
-        <Reveal className="mt-8" delay={0.1}>
-          <Marquee />
-        </Reveal>
+    <section aria-labelledby="trust-title" className="export-strip">
+      <div className="container-page export-inner">
+        <div><h2 id="trust-title" className="eyebrow">Your chats. A clearer picture.</h2><p className="text-copy-14 mt-2 text-sio-fg-subtle">Start from an export. No live integration required.</p></div>
+        <ul aria-label="Supported export sources" className="export-formats">
+          <li><ChatCircleText size={22} aria-hidden />Intercom exports</li>
+          <li><FileText size={22} aria-hidden />WhatsApp exports</li>
+          <li><FileCsv size={22} aria-hidden />CSV &amp; JSON</li>
+        </ul>
       </div>
     </section>
   );
