@@ -1,9 +1,11 @@
 """SQLAlchemy engine and session helpers."""
 
+import os
 from collections.abc import Generator
+from contextvars import ContextVar
 from pathlib import Path
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -58,11 +60,57 @@ else:
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
+# Transaction-local tenant for Postgres RLS. Unset context fails closed under
+# the runtime role. Workers and scripts must call bind_tenant before queries.
+_tenant_id: ContextVar[str | None] = ContextVar("sioona_rls_tenant_id", default=None)
+
+
+def migration_database_url() -> str:
+    """Owner URL for Alembic. Empty means Alembic keeps using DATABASE_URL."""
+    return os.environ.get("MIGRATION_DATABASE_URL", "").strip()
+
+
+def bind_tenant(db: Session, tenant_id: str) -> None:
+    """Scope this session's Postgres transaction to one tenant.
+
+    ``set_config(..., true)`` is local to the transaction, so a pooled
+    connection cannot carry the previous request's tenant. SQLite ignores it.
+    """
+    cleaned = tenant_id.strip()
+    if not cleaned:
+        raise ValueError("tenant_id required")
+    _tenant_id.set(cleaned)
+    bind = db.get_bind()
+    if bind is None or bind.dialect.name != "postgresql" or not db.in_transaction():
+        return
+    db.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": cleaned},
+    )
+
+
+def clear_tenant() -> None:
+    """Drop request tenant context. Does not change an open Postgres transaction."""
+    _tenant_id.set(None)
+
+
+@event.listens_for(Session, "after_begin")
+def _set_tenant_on_begin(_session, _transaction, connection) -> None:  # noqa: ANN001
+    tenant_id = _tenant_id.get()
+    if not tenant_id or connection.dialect.name != "postgresql":
+        return
+    connection.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": tenant_id},
+    )
+
 
 def get_db() -> Generator[Session, None, None]:
     """Yield a request-scoped database session."""
+    clear_tenant()
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+        clear_tenant()

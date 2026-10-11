@@ -8,7 +8,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text, select
 from sqlalchemy.engine import make_url
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
 from app.models.conversation import Conversation
 from app.services.uploads import publish_upload
@@ -266,7 +266,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["023_inference_budgets"]
+        assert heads == ["024_tenant_rls"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -527,3 +527,224 @@ def test_budget_upgrade_and_concurrent_last_allowance(monkeypatch):
     finally:
         get_settings.cache_clear()
         engine.dispose()
+
+
+RLS_TABLES = (
+    "messages",
+    "conversations",
+    "signal_predictions",
+    "signal_feedback",
+    "supervised_action_decisions",
+    "detection_runs",
+    "inference_attempts",
+    "signal_evidence",
+)
+
+
+def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
+    """CB-04: runtime role sees one tenant, missing context sees none, one connection does not leak."""
+    assert URL and make_url(URL).database == "sioona_migration_test", "Refusing a non-test database"
+    assert not os.environ.get("MIGRATION_DATABASE_URL", "").strip(), "Refusing a migration URL during the test reset"
+    engine = create_engine(URL)
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    monkeypatch.setenv("DATABASE_URL", URL)
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
+    from app.config import get_settings
+    from app.db import bind_tenant, clear_tenant
+    get_settings.cache_clear()
+    try:
+        cfg = Config("alembic.ini")
+        command.upgrade(cfg, "head")
+        with engine.begin() as conn:
+            bypass = conn.execute(text(
+                "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = current_user"
+            )).scalar()
+            assert bypass, "Seeding requires a migration role that bypasses RLS"
+            role = conn.execute(text(
+                """
+                SELECT rolsuper, rolbypassrls, rolcanlogin
+                FROM pg_roles WHERE rolname = 'sioona_runtime'
+                """
+            )).one()
+            assert role == (False, False, False)
+            for table in RLS_TABLES:
+                flags = conn.execute(text(
+                    """
+                    SELECT c.relrowsecurity, c.relforcerowsecurity
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    WHERE n.nspname = 'public' AND c.relname = :table
+                    """
+                ), {"table": table}).one()
+                assert flags == (True, True), table
+                policy = conn.execute(text(
+                    """
+                    SELECT cmd, qual, with_check
+                    FROM pg_policies
+                    WHERE schemaname = 'public' AND tablename = :table AND policyname = 'tenant_isolation'
+                    """
+                ), {"table": table}).one()
+                assert policy.cmd == "ALL"
+                assert "current_setting('app.tenant_id'" in policy.qual
+                assert "current_setting('app.tenant_id'" in policy.with_check
+                assert conn.execute(text(
+                    "SELECT has_table_privilege('sioona_runtime', :table, 'SELECT')"
+                ), {"table": table}).scalar() is True
+            assert conn.execute(text(
+                """
+                SELECT COUNT(*) FROM pg_policies
+                WHERE policyname = 'tenant_isolation' AND tablename = 'workspaces'
+                """
+            )).scalar() == 0
+            _seed_two_tenants(conn)
+        _assert_runtime_isolation(engine)
+        command.downgrade(cfg, "023_inference_budgets")
+        with engine.begin() as conn:
+            assert conn.execute(text(
+                "SELECT COUNT(*) FROM pg_policies WHERE policyname = 'tenant_isolation'"
+            )).scalar() == 0
+            assert conn.execute(text(
+                "SELECT COUNT(*) FROM pg_roles WHERE rolname = 'sioona_runtime'"
+            )).scalar() == 1
+        command.upgrade(cfg, "head")
+        with engine.begin() as conn:
+            assert conn.execute(text(
+                "SELECT COUNT(*) FROM pg_policies WHERE policyname = 'tenant_isolation'"
+            )).scalar() == len(RLS_TABLES)
+    finally:
+        clear_tenant()
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+def _seed_two_tenants(conn) -> None:
+    conn.execute(text(
+        """
+        INSERT INTO conversations (id, tenant_id, conversation_id, channel, started_at)
+        VALUES
+          ('10000000-0000-4000-8000-000000000001', 'tenant_a', 'chat-a', 'upload', now()),
+          ('10000000-0000-4000-8000-000000000002', 'tenant_b', 'chat-b', 'upload', now())
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO messages (id, tenant_id, conversation_id, message_id, role, content, timestamp)
+        VALUES
+          ('20000000-0000-4000-8000-000000000001', 'tenant_a', 'chat-a', 'm-a', 'customer', 'a', now()),
+          ('20000000-0000-4000-8000-000000000002', 'tenant_b', 'chat-b', 'm-b', 'customer', 'b', now())
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO signal_predictions (id, tenant_id, conversation_id, signal_type, confidence, summary)
+        VALUES
+          ('30000000-0000-4000-8000-000000000001', 'tenant_a', 'chat-a', 'lead', 0.5, 'a'),
+          ('30000000-0000-4000-8000-000000000002', 'tenant_b', 'chat-b', 'lead', 0.5, 'b')
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO signal_feedback (id, tenant_id, signal_id, feedback, reviewed_by)
+        VALUES
+          ('40000000-0000-4000-8000-000000000001', 'tenant_a', '30000000-0000-4000-8000-000000000001', 'correct', 'reviewer'),
+          ('40000000-0000-4000-8000-000000000002', 'tenant_b', '30000000-0000-4000-8000-000000000002', 'correct', 'reviewer')
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO supervised_action_decisions
+          (id, tenant_id, conversation_id, action_type, status, subject, body, evidence_quote)
+        VALUES
+          ('50000000-0000-4000-8000-000000000001', 'tenant_a', 'chat-a', 'lead_outreach_draft', 'approved', 's', 'b', ''),
+          ('50000000-0000-4000-8000-000000000002', 'tenant_b', 'chat-b', 'lead_outreach_draft', 'approved', 's', 'b', '')
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO detection_runs
+          (tenant_id, run_id, conversation_id, content_hash, model_version, prompt_version, status, output)
+        VALUES
+          ('tenant_a', 'run-a', 'chat-a', :digest, 'model', 'prompt', 'complete', '[]'::json),
+          ('tenant_b', 'run-b', 'chat-b', :digest, 'model', 'prompt', 'complete', '[]'::json)
+        """
+    ), {"digest": "a" * 64})
+    conn.execute(text(
+        """
+        INSERT INTO inference_attempts (
+          id, tenant_id, attempt_id, logical_operation_id, attempt_ordinal, stage,
+          route_version, provider, model, prompt_version, status, usage_status, cost_status, started_at
+        ) VALUES
+          ('60000000-0000-4000-8000-000000000001', 'tenant_a', 'attempt-a', 'op-a', 1, 'detect', 'route', 'groq', 'model', 'prompt', 'pending', 'unknown', 'unknown', now()),
+          ('60000000-0000-4000-8000-000000000002', 'tenant_b', 'attempt-b', 'op-b', 1, 'detect', 'route', 'groq', 'model', 'prompt', 'pending', 'unknown', 'unknown', now())
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO signal_evidence (
+          id, tenant_id, prediction_id, message_id, start_cp, end_cp, text_sha256, candidate_turns
+        ) VALUES
+          ('70000000-0000-4000-8000-000000000001', 'tenant_a', '30000000-0000-4000-8000-000000000001', 'm-a', 0, 1, :digest, 1),
+          ('70000000-0000-4000-8000-000000000002', 'tenant_b', '30000000-0000-4000-8000-000000000002', 'm-b', 0, 1, :digest, 1)
+        """
+    ), {"digest": "b" * 64})
+
+
+def _assert_runtime_isolation(engine) -> None:
+    from app.db import bind_tenant, clear_tenant
+    with engine.connect() as conn:
+        for table in RLS_TABLES:
+            seen = conn.execute(text(f"SELECT tenant_id FROM {table}")).scalars().all()
+            assert sorted(seen) == ["tenant_a", "tenant_b"], table
+        conn.commit()
+        conn.execute(text("SET ROLE sioona_runtime"))
+        conn.commit()
+        try:
+            _as_runtime(conn, "tenant_a", ["tenant_a"])
+            clear_tenant()
+            _as_runtime(conn, None, [])
+            _as_runtime(conn, "tenant_b", ["tenant_b"])
+            trans = conn.begin()
+            conn.execute(text("SELECT set_config('app.tenant_id', 'tenant_a', true)"))
+            with pytest.raises(DBAPIError, match="row-level security"):
+                conn.execute(text(
+                    """
+                    INSERT INTO messages (id, tenant_id, conversation_id, message_id, role, content, timestamp)
+                    VALUES ('20000000-0000-4000-8000-000000000003', 'tenant_b', 'chat-b', 'm-x', 'customer', 'x', now())
+                    """
+                ))
+            trans.rollback()
+            trans = conn.begin()
+            conn.execute(text("SELECT set_config('app.tenant_id', 'tenant_a', true)"))
+            conn.execute(text(
+                """
+                INSERT INTO messages (id, tenant_id, conversation_id, message_id, role, content, timestamp)
+                VALUES ('20000000-0000-4000-8000-000000000004', 'tenant_a', 'chat-a', 'm-ok', 'customer', 'ok', now())
+                """
+            ))
+            trans.commit()
+            session = Session(bind=conn)
+            bind_tenant(session, "tenant_a")
+            visible = session.execute(text("SELECT DISTINCT tenant_id FROM messages")).scalars().all()
+            assert visible == ["tenant_a"]
+            session.commit()
+            clear_tenant()
+            leaked = session.execute(text("SELECT count(*) FROM messages")).scalar()
+            assert leaked == 0
+            session.commit()
+        finally:
+            clear_tenant()
+            conn.rollback()
+            conn.execute(text("RESET ROLE"))
+            conn.commit()
+
+
+def _as_runtime(conn, tenant, expected) -> None:
+    trans = conn.begin()
+    if tenant is not None:
+        conn.execute(text("SELECT set_config('app.tenant_id', :tenant_id, true)"), {"tenant_id": tenant})
+    for table in RLS_TABLES:
+        seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} ORDER BY tenant_id")).scalars().all()
+        assert seen == expected, table
+    trans.commit()

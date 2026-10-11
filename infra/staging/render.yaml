@@ -32,6 +32,11 @@ services:
         fromDatabase:
           name: sioona-staging-db
           property: connectionString
+      # Human step after 024_tenant_rls: point DATABASE_URL at NOLOGIN-turned
+      # sioona_runtime and set this to the owner connection. Alembic uses it
+      # when present. Do not apply this file before cost approval.
+      - key: MIGRATION_DATABASE_URL
+        sync: false
       - key: SIOONA_SERVICE_TOKEN
         sync: false
       - key: SIOONA_ACTOR_KEY

@@ -1,17 +1,17 @@
 # Foundation acceptance — authoritative current closeout
 
-Updated 2026-10-10. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. **`main` tip `5e93be5`** merges foundation remediation plus admission pipeline fixes (`12458d1`). Branch `codex/foundation-cb09-remediation` is merged and deleted; Antigravity verified the four structural fixes (ordinals, global lock removal, admission metering, injection handling). Hosted CB-07 rollout and exact-head CI on this merge remain operator/CI follow-ups — not open code defects on that set.
+Updated 2026-10-12. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. **`main` `96f34f1`** combined status is success for Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site. That head does not contain `024_tenant_rls`. The 2026-10-10 note remains historical: **`5e93be5`** merged foundation remediation plus admission pipeline fixes (`12458d1`). Branch `codex/foundation-cb09-remediation` is merged and deleted; Antigravity verified the four structural fixes (ordinals, global lock removal, admission metering, injection handling). Hosted CB-07 rollout remains an operator follow-up. Rulesets and classic branch protection still return HTTP 403 (GitHub Pro is required for this private repository), so CB-02's protection step is not accepted.
 
 | Card | Implementation | CI | Hosted rollout | Acceptance |
 | --- | --- | --- | --- | --- |
-| CB-01/02 | Merged foundation | Exact historical PR heads inspected below; remediation unverified | No new rollout | Prior closeouts retained; remediation CI pending |
+| CB-01/02 | Merged foundation | `main` `96f34f1` six checks success; ruleset API still HTTP 403 | No new rollout | Historical CI retained. Protection is not accepted until a ruleset can be applied and read back |
 | CB-03 | Merged actor authorization; scoped inference principal additions local | PR #141 head green; new enforcement tests local | Isolated staging not provisioned | Blocked: exact target/cost approval, schema/memberships, deployment and observed 30-minute window |
-| CB-04 | Separate RLS card | Not demonstrated here | Not demonstrated here | Required before broader multi-tenant production rollout |
+| CB-04 | `024_tenant_rls` in the working tree; API binds `app.tenant_id` | Disposable Postgres proof only. This revision has no remote CI | Runtime role is `NOLOGIN`. Hosted `DATABASE_URL` not switched | Postgres acceptance proved locally. Not accepted for multi-tenant production until the operator URL switch |
 | CB-05/06 | Merged gateway/ledger; universal preflight and pending admission ledger local | #146 head passes affected historical checks; new revision unverified | No new rollout | Local fix validation and independent review complete; CI pending |
 | CB-07 | Attempt mode on `main`; admission remediation complete (`12458d1`) | Local + Antigravity green; exact head `5e93be5` CI observation optional | 023 not applied hosted | Pending human schema-first rollout and acceptance |
 | CB-08 | Merged evidence anchors; Unicode conformance remediation local | Local shared Python/TS fixtures; new revision unverified | Historical hosted closeout preserved | Remediation independent review complete; CI pending |
 | CB-09 | Synthetic replay, external runner, split promotion and identity checks implemented | #146 historical synthetic gate passes; new revision unverified | No external evaluation performed | Synthetic D5 metrics pass in clean-state test; external promotion blocked |
-| CB-10 | Not started | — | — | Waits for foundation acceptance |
+| CB-10 | Not started | — | — | Still blocked. No go decision |
 | CB-13 | Not promoted | — | — | Requires identical verified external baseline/candidate holdout comparisons passing unchanged D5 |
 
 ## Read-only GitHub evidence
@@ -66,3 +66,18 @@ Sanket authorized commit and push of these locally verified groups on 2026-10-10
 On exact head `e0124e51a633b3fb02456f8774cc1be65ba08ef1`, [run 38046918070](https://github.com/sanketsangi/sioona/actions/runs/38046918070) passed Web, Backend, Eval gate, Marketing and guarded E2E, including Linux/Postgres checks. Gitleaks 8.28.0 failed reproducibly on the explicitly synthetic actor-signing key in `web/src/lib/backend-client.test.ts:933`; the rerun had the same failure. Bugbot remains neutral/error due to its usage limit.
 
 Remediation adds an AND allowlist for only that exact dummy value and exact test path, including its existing history. It does not ignore the file, commit or rule. A failing-then-passing scanner regression proves an additional secret in the same file, a changed key and the original value relocated to another file still fail. All five scanner tests and full reachable-history scan with the CI-pinned 8.28.0 binary pass locally. New-head hosted CI is pending publication/observation; prior-head results do not prove it. CB-10/CB-13 remain blocked, n=100 is not exempted from the minimum 120, and Migration 023 stays unapplied on hosts.
+
+## CB-04 and remaining gates — 2026-10-12
+
+`main` `96f34f145e7eb5baaec54112f57e9b2f27620fbc` later retired the "exact-head CI pending" statement for the merged remediation: Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site are success. Ruleset and classic branch-protection reads still return HTTP 403, so Phase 0 is not accepted.
+
+CB-04 is implemented, not deferred. Disposable local Postgres proved the runtime role: unscoped reads return one tenant, missing context returns no rows, a cross-tenant insert fails, and a second transaction on the same connection does not keep the previous tenant. Backend unit tests: 251 passed, Postgres migration file 10 passed. That database was a throwaway cluster, not staging or production. No remote CI has run for `024_tenant_rls`.
+
+Not done, and not waived:
+
+- Isolated staging was not provisioned. Render workspace listing returned unauthorized, and the staging quote is still unapproved.
+- CB-03's membership seed and 30-minute shadow window were not observed.
+- Migration 023/024 was not applied to any hosted database. Agents do not run Alembic against non-test databases.
+- `sioona_runtime` stays `NOLOGIN`. Owner connections bypass RLS until an operator sets a password out of band and points `DATABASE_URL` at that role, with `MIGRATION_DATABASE_URL` left on the owner.
+- Tables outside the eight high-value policies are unchanged. Application filters and CB-03 remain the control there.
+- CB-10 has no go decision. CB-13 is unchanged.
