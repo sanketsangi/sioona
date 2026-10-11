@@ -32,25 +32,25 @@ const columns = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-sio-border-base">
-      <div className="container-page py-12 lg:py-16">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-          <div className="max-w-xs">
+    <footer className="site-footer">
+      <div className="container-page footer-inner">
+        <div className="footer-grid">
+          <div className="footer-brand">
             <Logo />
-            <p className="mt-3 text-copy-14 text-sio-fg-muted">
+            <p className="footer-description">
               Conversation intelligence for the chats you already have. Humans review every signal before anything is
               acted on.
             </p>
           </div>
           {columns.map((column) => (
             <nav key={column.title} aria-label={column.title}>
-              <h2 className="eyebrow">{column.title}</h2>
-              <ul className="mt-3 flex flex-col">
+              <h2 className="footer-column-title">{column.title}</h2>
+              <ul className="footer-links">
                 {column.links.map((link) => (
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="inline-flex min-h-8 items-center text-copy-14 text-sio-fg-subtle transition-colors duration-150 hover:text-sio-fg-base md:min-h-7"
+                      className="footer-link"
                     >
                       {link.label}
                     </Link>
@@ -60,7 +60,7 @@ export function Footer() {
             </nav>
           ))}
         </div>
-        <div className="mt-12 flex flex-col gap-2 border-t border-sio-border-base pt-6 text-label-13 text-sio-fg-muted sm:flex-row sm:items-center sm:justify-between">
+        <div className="footer-bottom">
           <p>
             © 2026 <span translate="no">Sioona</span>. All rights reserved.
           </p>

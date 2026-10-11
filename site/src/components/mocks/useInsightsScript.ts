@@ -30,15 +30,16 @@ const HOLD_MS: Record<number, number> = {
 
 type Options = {
   totalChars: number;
+  startAtBeginning?: boolean;
   /** Element is on screen and the user has not paused the loop. */
   running: boolean;
   /** Show the static final frame and never advance. */
   reduced: boolean;
 };
 
-export function useInsightsScript({ totalChars, running, reduced }: Options) {
-  const [step, setStep] = useState<number>(FINAL_STEP);
-  const [chars, setChars] = useState(totalChars);
+export function useInsightsScript({ totalChars, running, reduced, startAtBeginning = false }: Options) {
+  const [step, setStep] = useState<number>(startAtBeginning ? STEP.typing : FINAL_STEP);
+  const [chars, setChars] = useState(startAtBeginning ? 0 : totalChars);
 
   useEffect(() => {
     if (reduced || !running) return;
@@ -48,7 +49,7 @@ export function useInsightsScript({ totalChars, running, reduced }: Options) {
         const done = window.setTimeout(() => setStep(STEP.why), 450);
         return () => window.clearTimeout(done);
       }
-      const tick = window.setTimeout(() => setChars((c) => c + 1), heroScript.typeCharMs);
+      const tick = window.setTimeout(() => setChars((c) => Math.min(totalChars, c + 1)), heroScript.typeCharMs);
       return () => window.clearTimeout(tick);
     }
 

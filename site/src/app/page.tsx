@@ -7,7 +7,6 @@ import { ScoreSection } from "@/components/sections/ScoreSection";
 import { SecurityBand } from "@/components/sections/SecurityBand";
 import { ShadowStory } from "@/components/sections/ShadowStory";
 import { Signals } from "@/components/sections/Signals";
-import { Statement } from "@/components/sections/Statement";
 import { TrustStrip } from "@/components/sections/TrustStrip";
 
 export const metadata: Metadata = {
@@ -20,7 +19,6 @@ export default function HomePage() {
     <>
       <Hero />
       <TrustStrip />
-      <Statement />
       <Signals />
       <ShadowStory />
       <ScoreSection />

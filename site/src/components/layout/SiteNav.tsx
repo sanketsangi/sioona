@@ -2,25 +2,63 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, X } from "@phosphor-icons/react/ssr";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { CaretDown, List, X } from "@phosphor-icons/react/ssr";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Logo } from "@/components/layout/Logo";
 import { navLinks, siteConfig } from "@/lib/site";
 
+import { OutputPreview, WorkflowPreview, ScorePreview, FeaturePreview } from "@/components/layout/MenuPreviews";
+
 const DRAWER_EXIT_MS = 200;
+const productLinks = [
+  { href: "/#product", label: "Product", description: "Find signals and choose your next action", eyebrow: "Conversation intelligence" },
+  { href: "/how-it-works#shadow-mode", label: "Shadow Mode", description: "A simple loop. Humans in control.", eyebrow: "From chat to action" },
+  { href: "/#score", label: "Signal Score", description: "Measure precision before you commit", eyebrow: "Signal Score" },
+  { href: "/#features", label: "Product Feature", description: "Insights, uploads and your review toolkit", eyebrow: "Product Feature" },
+];
 
 export function SiteNav() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [productOpen, setProductOpen] = useState(false);
+  const [activeProduct, setActiveProduct] = useState(0);
+  const [workflowRun, setWorkflowRun] = useState(0);
+  const [retainedPreviews, setRetainedPreviews] = useState<number[]>([]);
+  const productRef = useRef<HTMLDivElement>(null);
+  const productButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closingRef = useRef(false);
+
+  const selectProduct = (index: number) => {
+    if (index === 1 && activeProduct !== 1) setWorkflowRun((value) => value + 1);
+    setRetainedPreviews((previous) => [...new Set([...previous, activeProduct, index])]);
+    setActiveProduct(index);
+  };
+
+  // Keep outgoing artwork alive until its CSS fade completes. Cancel cleanup
+  // when another interaction arrives so rapid switching and reopening work.
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      setRetainedPreviews(productOpen ? [activeProduct] : []);
+    }, reduce ? 0 : 360);
+    return () => window.clearTimeout(timer);
+  }, [productOpen, activeProduct]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onPointer = (event: PointerEvent) => {
+      if (!productRef.current?.contains(event.target as Node)) setProductOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
   }, []);
 
   const openDrawer = useCallback(() => {
@@ -70,7 +108,7 @@ export function SiteNav() {
   }, [closeDrawer]);
 
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
+    const mq = window.matchMedia("(min-width: 1024px)");
     const onChange = () => {
       if (mq.matches && dialogRef.current?.open) dialogRef.current.close();
     };
@@ -89,17 +127,55 @@ export function SiteNav() {
         data-scrolled={scrolled}
         className="pointer-events-none absolute inset-0 border-b border-sio-border-base bg-sio-bg-nav opacity-0 transition-opacity duration-200 ease-sio data-[scrolled=true]:opacity-100"
       />
-      <div className="container-page relative flex h-full items-center justify-between gap-4">
+      <div className="container-page site-nav-layout relative h-full items-center gap-4">
         <Logo />
         <nav
           aria-label="Primary"
-          className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 md:flex"
+          className="site-nav-links hidden items-center gap-1 lg:flex"
         >
-          {navLinks.map((link) => (
+          <div ref={productRef} className="product-navigation" onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setProductOpen(false);
+          }} onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setProductOpen(false);
+              productButtonRef.current?.focus();
+            }
+          }}>
+            <button ref={productButtonRef} type="button" className="nav-link product-trigger" aria-expanded={productOpen} aria-controls="product-navigation" onClick={() => {
+              setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
+              setProductOpen(!productOpen);
+            }}>
+              Product <CaretDown size={14} aria-hidden />
+            </button>
+            <div id="product-navigation" className="product-dropdown" data-open={productOpen} inert={!productOpen}>
+              <div className="product-menu-column">
+                <span className="eyebrow">Explore Sioona</span>
+                <div className="product-menu-items" style={{ "--active-item": activeProduct } as CSSProperties}>
+                  <div className="product-menu-indicator" aria-hidden />
+                  {productLinks.map((link, index) => <Link key={link.href} href={link.href}
+                    onPointerEnter={() => selectProduct(index)} onFocus={() => selectProduct(index)}
+                    onClick={() => setProductOpen(false)} data-active={activeProduct === index}
+                    className="product-dropdown-link">
+                    <span className="product-menu-copy"><strong>{link.label}</strong><small>{link.description}</small></span>
+                  </Link>)}
+                </div>
+              </div>
+              <div className="product-preview" aria-label="Product preview">
+                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
+                  <span className="eyebrow">{link.eyebrow}</span>
+                  {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-open`}>
+                    {index === 0 ? <OutputPreview /> : index === 1 ? <WorkflowPreview key={workflowRun} /> : index === 2 ? <ScorePreview /> : <FeaturePreview />}
+                  </div> : null}
+                </div>)}
+              </div>
+            </div>
+          </div>
+          {navLinks.filter((link) => link.label !== "Product").map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className="nav-link"
+              onClick={() => setProductOpen(false)}
               aria-current={pathname === link.href ? "page" : undefined}
             >
               {link.label}
@@ -107,8 +183,8 @@ export function SiteNav() {
           ))}
         </nav>
 
-        <div className="flex shrink-0 items-center gap-2">
-          {siteConfig.appUrl ? <Link href={siteConfig.appUrl} className="btn-tertiary hidden md:inline-flex">
+        <div className="flex shrink-0 items-center justify-end gap-2">
+          {siteConfig.appUrl ? <Link href={siteConfig.appUrl} className="btn-tertiary hidden lg:inline-flex">
             Sign In
           </Link> : null}
           <Link href="/contact" className="btn-primary hidden rounded-full sm:inline-flex">
@@ -121,7 +197,7 @@ export function SiteNav() {
             aria-haspopup="dialog"
             aria-expanded={open}
             aria-controls="mobile-menu"
-            className="btn-secondary size-11 !px-0 md:hidden"
+            className="btn-secondary size-11 !px-0 lg:hidden"
           >
             <List size={18} weight="bold" aria-hidden />
           </button>

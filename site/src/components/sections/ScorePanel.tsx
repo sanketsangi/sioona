@@ -31,7 +31,7 @@ function CountUp({ to, started }: { to: number; started: boolean }) {
   return <m.span>{rounded}</m.span>;
 }
 
-export function ScorePanel() {
+export function ScorePanel({ compact = false }: { compact?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.35 });
   const started = inView;
@@ -41,8 +41,8 @@ export function ScorePanel() {
   const needleAngle = (SCORE / 100) * 180 - 90;
 
   return (
-    <div ref={ref} className="panel p-5 lg:p-6">
-      <div className="flex items-center justify-between gap-3">
+    <div ref={ref} className={compact ? "menu-score-panel" : "panel p-5 lg:p-6"}>
+      <div className={compact ? "hidden" : "flex items-center justify-between gap-3"}>
         <p className="eyebrow">Signal Score</p>
         <span className="inline-flex h-6 items-center gap-1 rounded-full bg-sio-bg-muted px-2 text-[12px]/[24px] font-medium text-sio-fg-subtle">
           <Info size={14} weight="regular" aria-hidden />
@@ -53,7 +53,7 @@ export function ScorePanel() {
       <div
         role="img"
         aria-label={`Illustrative Signal Score gauge showing ${SCORE} percent against a go threshold of ${GO_THRESHOLD} percent.`}
-        className="mx-auto mt-6 w-full max-w-[280px]"
+        className={compact ? "mx-auto w-full max-w-[164px]" : "mx-auto mt-6 w-full max-w-[280px]"}
       >
         <div
           className="relative mx-auto aspect-[2/1] w-full"
@@ -87,7 +87,7 @@ export function ScorePanel() {
             className="absolute bottom-0 left-1/2 size-3 -translate-x-1/2 translate-y-1/2 rounded-full bg-sio-fg-base"
           />
         </div>
-        <div className="mt-4 text-center">
+        <div className={compact ? "mt-2 text-center" : "mt-4 text-center"}>
           <p className="tabular text-heading-40 text-sio-fg-base">
             <span className="motion-safe:hidden">{SCORE}</span>
             <span className="hidden motion-safe:inline">
@@ -101,12 +101,13 @@ export function ScorePanel() {
         </div>
       </div>
 
-      <div className="mt-6 border-t border-sio-border-base pt-5">
+      <div className={compact ? "mt-3 border-t border-sio-border-base pt-3" : "mt-6 border-t border-sio-border-base pt-5"}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-label-13 font-medium text-sio-fg-base">Precision by review batch</p>
           <p className="text-label-12 text-sio-fg-muted">Illustrative</p>
         </div>
-        <div className="relative mt-4 h-[148px]" role="img" aria-label={`Illustrative precision by review batch: ${BATCHES.join(", ")} percent.`}>
+        <div tabIndex={compact ? 0 : undefined}
+          className={compact ? "score-batch-chart relative mt-3 h-[90px]" : "relative mt-4 h-[148px]"} role="img" aria-label={`Illustrative precision by review batch: ${BATCHES.join(", ")} percent.`}>
           <div
             aria-hidden
             className="absolute inset-x-0 border-t border-dashed border-sio-border-strong"
@@ -116,7 +117,7 @@ export function ScorePanel() {
             {BATCHES.map((value, index) => {
               const pass = value >= GO_THRESHOLD;
               return (
-                <div key={index} className="flex h-full flex-1 flex-col justify-end">
+                <div key={index} className="score-batch-column flex h-full flex-1 flex-col justify-end">
                   <m.span
                     className="score-label tabular mb-1 text-center text-label-12 text-sio-fg-subtle"
                     initial={{ opacity: 0 }}

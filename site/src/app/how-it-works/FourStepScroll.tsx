@@ -68,25 +68,25 @@ function Keycap({ children }: { children: string }) {
   );
 }
 
-function Stage({ step }: { step: number }) {
+export function Stage({ step, compact = false }: { step: number; compact?: boolean }) {
   const desktop = useMediaQuery("(min-width: 1024px)", true);
-  const pos = CARD_POS[desktop ? "desktop" : "mobile"][step];
-  const side = SIDE_POS[desktop ? "desktop" : "mobile"];
+  const pos = compact ? { x: step === 0 ? 82 : step >= 2 ? -88 : 0, y: 0, scale: 1 } : CARD_POS[desktop ? "desktop" : "mobile"][step];
+  const side = compact ? { x: 90, y: 0 } : SIDE_POS[desktop ? "desktop" : "mobile"];
   const state: SignalState = step >= 3 ? "acted" : step >= 2 ? "correct" : "pending";
-  const t = { duration: duration.slow, ease };
-  const tf = { duration: duration.base, ease };
+  const t = { duration: compact ? 0.4 : duration.slow, ease };
+  const tf = { duration: compact ? 0.24 : duration.base, ease };
 
   return (
     <div
       role="img"
       aria-label={`Illustration of step ${step + 1}: ${STEPS[step].title}`}
-      className="relative h-[372px] overflow-hidden rounded-panel bg-sio-bg-muted lg:h-[440px]"
+      className={`relative overflow-hidden rounded-panel bg-sio-bg-muted ${compact ? "menu-compact-stage" : "h-[372px] lg:h-[440px]"}`}
     >
       <div aria-hidden className="absolute inset-0 grid place-items-center">
         <m.div
           className="col-start-1 row-start-1 flex w-[min(300px,calc(100%-24px))] flex-row gap-2 lg:w-[140px] lg:flex-col"
           initial={false}
-          animate={{ opacity: step === 0 ? 1 : 0, x: desktop ? -176 : 0, y: desktop ? (step === 0 ? 0 : -8) : step === 0 ? -128 : -136 }}
+          animate={{ opacity: step === 0 ? 1 : 0, x: compact ? -94 : desktop ? -176 : 0, y: compact ? 0 : desktop ? (step === 0 ? 0 : -8) : step === 0 ? -128 : -136 }}
           transition={t}
         >
           <SourceRow icon={<ChatCircleText size={16} weight="regular" />} label="Intercom" />

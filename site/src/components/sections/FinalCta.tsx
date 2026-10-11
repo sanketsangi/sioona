@@ -6,7 +6,7 @@ export function FinalCta() {
   return (
     <section aria-labelledby="cta-title" className="section final-cta">
       <div className="container-page">
-        <RevealGroup className="max-w-3xl" gap={0.08}>
+        <RevealGroup className="final-cta-card" gap={0.08}>
           <RevealItem>
             <p className="eyebrow">Request A Pilot</p>
           </RevealItem>
