@@ -121,3 +121,17 @@ def test_pyjwt_rejects_a_previous_key() -> None:
     )
     with pytest.raises(ActorTokenError):
         decode_actor_token(token, KEY)
+
+
+@pytest.mark.parametrize('ttl', [61, 3600])
+def test_actor_assertion_rejects_lifetime_beyond_sixty_seconds(ttl):
+    now = int(time.time())
+    token = sign_like_web('user', 'tenant_partner', iat=now, exp=now + ttl)
+    with pytest.raises(ActorTokenError):
+        decode_actor_token(token, KEY)
+
+
+def test_actor_assertion_rejects_empty_jti():
+    token = sign_like_web('user', 'tenant_partner', jti='')
+    with pytest.raises(ActorTokenError):
+        decode_actor_token(token, KEY)

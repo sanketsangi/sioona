@@ -82,7 +82,7 @@ def decode_actor_token(token: str, key: str) -> dict:
     if not key:
         raise ActorTokenError("actor_key_unconfigured")
     try:
-        return jwt.decode(
+        claims = jwt.decode(
             token,
             key,
             algorithms=["HS256"],
@@ -90,6 +90,14 @@ def decode_actor_token(token: str, key: str) -> dict:
             issuer="sioona-web",
             options={"require": ["exp", "iat", "sub", "tid", "jti"]},
         )
+        issued, expires = claims.get("iat"), claims.get("exp")
+        if (
+            type(issued) is not int or type(expires) is not int
+            or not 0 < expires - issued <= 60
+            or not isinstance(claims.get("jti"), str) or not claims["jti"].strip()
+        ):
+            raise ActorTokenError("invalid_actor")
+        return claims
     except jwt.PyJWTError as exc:
         raise ActorTokenError("invalid_actor") from exc
 
