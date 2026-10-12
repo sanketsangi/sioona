@@ -9,6 +9,7 @@ import {
   type BackendTaxonomyTypeOverride,
 } from "./backend-client";
 import type { TaxonomyOverrides, TaxonomyTypeOverride } from "./types";
+import { getStateMode } from "./state-mode";
 
 export function taxonomyNeonEnabled(): boolean {
   if (process.env.SIOONA_TAXONOMY_NEON === "0") return false;
@@ -71,6 +72,9 @@ export async function taxonomyOverridesFromNeon(
   try {
     return fromBackend(await getTaxonomyOverrides(tenantId));
   } catch {
+    if (getStateMode() === "postgres") {
+      throw new Error("Canonical taxonomy read unavailable; retry the request.");
+    }
     return null;
   }
 }
