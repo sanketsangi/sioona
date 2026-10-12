@@ -3,7 +3,6 @@
 import { m } from "framer-motion";
 import type { ReactNode } from "react";
 import {
-  fadeUp,
   staggerContainer,
   stagger,
   transition,
@@ -89,7 +88,12 @@ export function RevealItem({
 }) {
   const Comp = tags[as];
   return (
-    <Comp data-reveal className={className} variants={fadeUp}>
+    <Comp
+      data-reveal
+      className={className}
+      initial={false}
+      style={{ opacity: 1, transform: "none" }}
+    >
       {children}
     </Comp>
   );

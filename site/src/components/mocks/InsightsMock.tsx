@@ -141,7 +141,7 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
             aria-pressed={!userPaused}
             aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
             className={previewHeader
-              ? `preview-chrome-action inline-flex w-7 h-7 items-center justify-center p-0 ${reduced ? "hidden" : ""}`
+              ? `preview-chrome-action demo-playback-control inline-flex w-7 h-7 items-center justify-center p-0 ${reduced ? "hidden" : ""}`
               : `btn-tertiary size-11 !px-0 md:size-8 ${reduced ? "hidden" : ""}`}
           >
             {userPaused ? <PlayCircle size={20} aria-hidden /> : <PauseCircle size={20} aria-hidden />}

@@ -1101,7 +1101,11 @@ html[data-drawer-open="true"] {
 /* Compensate for the supplied SVG's internal canvas padding without editing it. */
 .footer-mark-wrap img.footer-mark { transform: scale(1.3); }
 
-/* Playback control: 28px, no resting chrome. Hover is the only filled state. */
+/* Playback control: 28px visual with an expanded mobile touch target. */
+.demo-playback-control { position: relative; touch-action: manipulation; }
+@media (max-width: 767px) {
+  .demo-playback-control::after { content: ""; position: absolute; width: 44px; height: 44px; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+}
 .home-polish .preview-chrome-header-actions > button { width: 1.75rem; height: 1.75rem; min-width: 1.75rem; min-height: 1.75rem; padding: 0; border: 0; border-radius: 20px; background: transparent; box-shadow: none; color: var(--sio-fg-subtle); }
 .home-polish .preview-chrome-header-actions > button:hover { background: var(--sio-bg-muted); color: var(--sio-fg-base); }
 .home-polish .preview-chrome-header-actions > button:focus-visible { box-shadow: var(--focus-ring); }
