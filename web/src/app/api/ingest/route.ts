@@ -53,6 +53,13 @@ function parseReplaceFlag(form: FormData): boolean {
   return value === "true" || value === "1";
 }
 
+export function signalsForPublishedConversations<
+  T extends { conversationId: string },
+>(signals: T[], conversations: { id: string }[]): T[] {
+  const publishedIds = new Set(conversations.map((conversation) => conversation.id));
+  return signals.filter((signal) => publishedIds.has(signal.conversationId));
+}
+
 export async function POST(request: Request) {
   const session = await requireApiSession(request, "mutate");
   if (session instanceof NextResponse) return session;
@@ -304,8 +311,9 @@ export async function POST(request: Request) {
       if (!partner) await writeStore(store);
 
       // Partner publication precedes the cache. Demo imports retain their local-first flow.
-      const signalsToSync = store.signals.filter((signal) =>
-        ingestedConversationIds.has(signal.conversationId)
+      const signalsToSync = signalsForPublishedConversations(
+        store.signals,
+        ingestedConversations
       );
       let publicationWarnings: string[] = [];
       let dualWrite:
