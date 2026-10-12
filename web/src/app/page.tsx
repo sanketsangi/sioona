@@ -224,10 +224,32 @@ export default async function PlatformPage({
   // uses GET needs-review / GET signals. Dual-write runs after the response
   // on cold start only.
   const requestedVaultFile = parseVaultFile(sp.file);
+  const shadowConversations =
+    getStateMode() === "postgres" &&
+    process.env.SIOONA_CONVERSATION_SHADOW_READ === "1";
   const loaded = await loadStore({
     syncPredictions: false,
     freshOnly: jsonKeepSet,
+    ...(shadowConversations ? { shadowConversations: true } : {}),
   });
+  if (shadowConversations) {
+    const persisted = loaded.conversationShadow;
+    const views = loaded.conversationViewShadow;
+    console.info("[conversation-shadow]", persisted && views ? {
+      status: persisted.equal && views.equal ? "equal" : "mismatch",
+      sourceCounts: persisted.sourceCounts,
+      targetCounts: persisted.targetCounts,
+      sourceViewCounts: views.sourceCounts,
+      targetViewCounts: views.targetCounts,
+      missingConversations: persisted.missingConversations.length,
+      extraConversations: persisted.extraConversations.length,
+      changedConversations: persisted.changedConversations.length,
+      missingMessages: persisted.missingMessages.length,
+      extraMessages: persisted.extraMessages.length,
+      changedMessages: persisted.changedMessages.length,
+      viewMismatches: views.mismatches.length,
+    } : { status: "not_compared", reason: loaded.conversationShadowReason ?? "comparison_failed" });
+  }
   // Replace leaves the bundled showcase in JSON until this request. Drop it
   // before adopt/hydrate, or Groww rows paint beside the uploaded file.
   // Persist from a fresh read — the snapshot above is already stale if a

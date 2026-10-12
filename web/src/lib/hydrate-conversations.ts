@@ -309,6 +309,8 @@ export function mergeOverlayChats(
 }
 
 export type HydrateStoreOptions = {
+  /** Read-only shadow comparison of all persisted conversations, without display filters. */
+  shadowFullSnapshot?: boolean;
   /**
    * Await `POST /v1/predictions`. Default true.
    * Homepage GET / passes false so TTFB is not blocked; Insights/Eval
@@ -398,7 +400,7 @@ export async function tryHydrateStoreFromNeon(
     // publish a reconstruction selected by an editable pilot timestamp.
     return null;
   }
-  const durable = Array.isArray(memberships) && memberships.length > 0;
+  const durable = !options?.shadowFullSnapshot && Array.isArray(memberships) && memberships.length > 0;
   const memberIds = new Set(memberships.flatMap((entry) => entry.conversation_ids));
   let rows: BackendConversation[] = [];
   const liveName = remotePilot?.last_uploaded_file_name?.trim() ?? "";
@@ -407,7 +409,7 @@ export async function tryHydrateStoreFromNeon(
     : NaN;
   const dayOneReplace = remotePilot?.weekly_export_count === 1;
   const freshOnlyFetch = Boolean(
-    !durable && isLivePartnerKeepSet(liveName) &&
+    !options?.shadowFullSnapshot && !durable && isLivePartnerKeepSet(liveName) &&
       Number.isFinite(cutoffMs) &&
       remotePilot?.updated_at &&
       (options?.freshOnly || dayOneReplace),
@@ -459,7 +461,7 @@ export async function tryHydrateStoreFromNeon(
   }
   // Drop Sample / Partner Demo before this hydrate is written and painted.
   // A replace that seeded testing.json leaves those ids in Neon beside the file.
-  if (!durable && isLivePartnerKeepSet(remotePilot?.last_uploaded_file_name)) {
+  if (!options?.shadowFullSnapshot && !durable && isLivePartnerKeepSet(remotePilot?.last_uploaded_file_name)) {
     const showcaseIds = await bundledShowcaseConversationIds();
     if (showcaseIds.size > 0) {
       rows = rows.filter((row) => !showcaseIds.has(row.conversation_id));
@@ -495,7 +497,9 @@ export async function tryHydrateStoreFromNeon(
   }
   const filtered = durable
     ? { apply: false, rows: rows.filter((row) => memberIds.has(row.conversation_id)) }
-    : filterConversationsForLivePartner(rows, remotePilot);
+    : options?.shadowFullSnapshot
+      ? { apply: false, rows }
+      : filterConversationsForLivePartner(rows, remotePilot);
   // Filename is already the weekly upload, but Neon still has the previous pack.
   if (filtered.apply && filtered.rows.length === 0) return null;
   const sourceRows = durable ? filtered.rows :

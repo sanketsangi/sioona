@@ -71,6 +71,7 @@ export type ReadStoreLoad = {
   store: StoreData;
   /** True when this read hydrated from Neon or seeded testing.json. */
   coldStart: boolean;
+  conversationShadowReason?: "snapshot_missing" | "snapshot_unreadable" | "snapshot_invalid" | "comparison_failed";
   conversationShadow?: ReturnType<typeof import("./conversation-reconciliation").reconcileConversationData>;
   conversationViewShadow?: ReturnType<typeof import("./conversation-reconciliation").compareConversationViews>;
 };
@@ -316,9 +317,9 @@ export async function readPersistedStore(): Promise<StoreData | null> {
 }
 
 /** Retained shadow reader: one runtime snapshot, never probes or creates files. */
-async function readLegacyConversationSnapshot(): Promise<StoreData | null> {
+async function readLegacyConversationSnapshot(): Promise<{ store?: StoreData; reason?: ReadStoreLoad["conversationShadowReason"] }> {
   const tenantId = currentStoreTenant();
-  if (resolvedStoreDir === null) return null;
+  if (resolvedStoreDir === null) return { reason: "snapshot_unreadable" };
   const dir =
     vitestStoreDir() ??
     (typeof resolvedStoreDir === "string"
@@ -326,26 +327,31 @@ async function readLegacyConversationSnapshot(): Promise<StoreData | null> {
       : process.env.VERCEL
         ? TMP_DATA_DIR
         : BUNDLED_DATA_DIR);
+  let raw: string;
   try {
-    const raw = await fs.readFile(
+    raw = await fs.readFile(
       /*turbopackIgnore: true*/ path.join(
         dir,
         storeFileNameForTenant(tenantId),
       ),
       "utf8",
     );
+  } catch (error) {
+    return { reason: (error as NodeJS.ErrnoException)?.code === "ENOENT" ? "snapshot_missing" : "snapshot_unreadable" };
+  }
+  try {
     const store = normalizeStore(JSON.parse(raw) as StoreData);
     if (
       store.tenant.id !== tenantId ||
       store.conversations.some((chat) => chat.tenantId !== tenantId)
     ) {
-      return null;
+      return { reason: "snapshot_invalid" };
     }
-    return store;
+    return { store };
   } catch {
     // Shadow comparison is observational. A missing, unreadable, or malformed
     // retained snapshot must never make the canonical dashboard read fail.
-    return null;
+    return { reason: "snapshot_invalid" };
   }
 }
 
@@ -367,14 +373,19 @@ async function loadStoreLocal(
       const canonicalStore = hydrated ?? emptyStoreForTenant(tenantId);
       let conversationShadow: ReadStoreLoad["conversationShadow"];
       let conversationViewShadow: ReadStoreLoad["conversationViewShadow"];
+      let conversationShadowReason: ReadStoreLoad["conversationShadowReason"];
       if (options?.shadowConversations) {
-        const legacy = await readLegacyConversationSnapshot();
+        const snapshot = await readLegacyConversationSnapshot();
+        const legacy = snapshot.store;
+        conversationShadowReason = snapshot.reason;
         if (legacy) {
           try {
             const { comparePersistedConversations, compareConversationViews } = await import("./conversation-reconciliation");
             conversationShadow = await comparePersistedConversations(toConversationSyncPayload(legacy.conversations, legacy.messages));
-            conversationViewShadow = compareConversationViews(legacy, canonicalStore);
+            const comparisonStore = await tryHydrateStoreFromNeon({ syncPredictions: false, shadowFullSnapshot: true });
+            conversationViewShadow = compareConversationViews(legacy, comparisonStore ?? emptyStoreForTenant(tenantId));
           } catch {
+            conversationShadowReason = "comparison_failed";
             conversationShadow = undefined;
             conversationViewShadow = undefined;
             // Shadow comparison is diagnostic only. The canonical read remains
@@ -382,7 +393,7 @@ async function loadStoreLocal(
           }
         }
       }
-      return { store: canonicalStore, coldStart: true, ...(conversationShadow ? { conversationShadow, conversationViewShadow } : {}) };
+      return { store: canonicalStore, coldStart: true, ...(conversationShadowReason ? { conversationShadowReason } : {}), ...(conversationShadow ? { conversationShadow, conversationViewShadow } : {}) };
     }
   }
 

@@ -86,6 +86,7 @@ import {
   refreshStorePilotFromNeon,
 } from "@/lib/sync-pilot";
 import { after } from "next/server";
+import { reconcileConversationData, compareConversationViews } from "@/lib/conversation-reconciliation";
 
 function pageShellProps(result: ReactElement) {
   return result.props as {
@@ -959,6 +960,66 @@ describe("PlatformPage deploy reliability", () => {
       expect(persistDeferredPredictionSync).not.toHaveBeenCalled();
       expect(persistDeferredPilotRefresh).not.toHaveBeenCalled();
     } finally { vi.unstubAllEnvs(); }
+  });
+
+  it.each(["equal", "mismatch", "view_mismatch", "not_compared"] as const)(
+    "enables runtime shadow comparison and reports %s without source identifiers",
+    async (status) => {
+      vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+      vi.stubEnv("SIOONA_CONVERSATION_SHADOW_READ", "1");
+      const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+      const store = mockStore();
+      const source = [{
+        conversation_id: "private-source-id", channel: "chat", started_at: "2026-10-01T00:00:00Z", messages: [],
+      }];
+      const persisted = reconcileConversationData(source, status === "mismatch" ? [] : source);
+      const targetView = structuredClone(store);
+      if (status === "view_mismatch") targetView.conversations = [];
+      const views = compareConversationViews(store, targetView);
+      vi.mocked(loadStore).mockResolvedValue({
+        store, coldStart: false,
+        ...(status === "not_compared" ? { conversationShadowReason: "snapshot_missing" as const } : {}),
+        ...(status === "not_compared" ? {} : {
+          conversationShadow: persisted,
+          conversationViewShadow: views,
+        }),
+      });
+      try {
+        await PlatformPage({ searchParams: Promise.resolve({ view: "insights" }) });
+        expect(loadStore).toHaveBeenCalledWith(expect.objectContaining({ shadowConversations: true }));
+        expect(info).toHaveBeenCalledWith("[conversation-shadow]", expect.objectContaining({ status: status === "view_mismatch" ? "mismatch" : status }));
+        const diagnostics = info.mock.calls.filter(([prefix]) => prefix === "[conversation-shadow]");
+        expect(diagnostics).toHaveLength(1);
+        expect(JSON.stringify(diagnostics)).not.toContain("private-source-id");
+        expect(JSON.stringify(diagnostics)).not.toContain("sig_unsynced");
+        expect(JSON.stringify(diagnostics)).not.toMatch(/sourceHash|targetHash|sourceOutcomeHash|targetOutcomeHash/);
+        expect(JSON.stringify(diagnostics)).not.toContain(views.sourceOutcomeHash);
+        expect(JSON.stringify(diagnostics)).not.toContain(views.targetOutcomeHash);
+        expect(JSON.stringify(diagnostics)).not.toContain(persisted.sourceHash);
+        expect(JSON.stringify(diagnostics)).not.toContain(persisted.targetHash);
+        if (status === "not_compared") {
+          expect(diagnostics[0][1]).toEqual({ status: "not_compared", reason: "snapshot_missing" });
+        }
+        if (status === "mismatch") {
+          expect(diagnostics[0][1]).toMatchObject({ missingConversations: 1 });
+        }
+      } finally { info.mockRestore(); vi.unstubAllEnvs(); }
+    },
+  );
+
+  it.each([
+    ["postgres", undefined],
+    ["postgres", "0"],
+    ["json-demo", "1"],
+  ])("keeps runtime shadow comparison disabled for mode %s and flag %s", async (mode, flag) => {
+    vi.stubEnv("SIOONA_STATE_MODE", mode);
+    vi.stubEnv("SIOONA_CONVERSATION_SHADOW_READ", flag);
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    try {
+      await PlatformPage({ searchParams: Promise.resolve({ view: "insights" }) });
+      expect(vi.mocked(loadStore).mock.calls[0][0]?.shadowConversations).not.toBe(true);
+      expect(info.mock.calls.filter(([prefix]) => prefix === "[conversation-shadow]")).toEqual([]);
+    } finally { info.mockRestore(); vi.unstubAllEnvs(); }
   });
 
 });

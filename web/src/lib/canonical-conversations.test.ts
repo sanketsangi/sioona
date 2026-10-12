@@ -108,6 +108,7 @@ it("drops both shadow reports when an invalid feedback timestamp breaks the view
     const loaded = await runWithTenant("t", () => loadStore({ shadowConversations: true }));
     expect((await persisted.mock.results[0].value).equal).toBe(true);
     expect(views.mock.results[0].type).toBe("throw");
+    expect(loaded.conversationShadowReason).toBe("comparison_failed");
     expect(loaded.store.conversations.map((chat) => chat.id)).toEqual(["c"]);
     expect(loaded.conversationShadow).toBeUndefined();
     expect(loaded.conversationViewShadow).toBeUndefined();
@@ -126,6 +127,7 @@ it.each([
     expect(loaded.store.conversations.map((conversation) => conversation.id)).toEqual(["c"]);
     expect(loaded.conversationShadow).toBeUndefined();
     expect(loaded.conversationViewShadow).toBeUndefined();
+    expect(loaded.conversationShadowReason).toBe("snapshot_invalid");
   } finally { read.mockRestore(); }
 });
 
@@ -140,6 +142,7 @@ it.each([
     const loaded = await runWithTenant("t", () => loadStore({ shadowConversations: true }));
     expect(loaded.store.conversations.map((conversation) => conversation.id)).toEqual(["c"]);
     expect(loaded.conversationShadow).toBeUndefined();
+    expect(loaded.conversationShadowReason).toBe(_case === "missing" ? "snapshot_missing" : "snapshot_unreadable");
   } finally { read.mockRestore(); }
 });
 
@@ -165,4 +168,24 @@ it("restores persisted supervised decisions on canonical reads", async () => {
       body: "Approved body",
     }),
   ]);
+});
+
+it("compares full snapshots while returning a fresh replace subset", async () => {
+  const { promises: fs } = await import("node:fs");
+  const { loadStore } = await import("./store");
+  const old = { ...row, id: "old-uuid", conversation_id: "old", updated_at: "2026-09-01T00:00:00Z",
+    messages: [{ ...row.messages[0], id: "old-message", conversation_id: "old", message_id: "old-m" }] };
+  vi.mocked(backend.getPilotSettings).mockResolvedValue({ tenant_id: "t",
+    last_uploaded_file_name: "Zerodha_week_4_batch_01.json", weekly_export_count: 2,
+    updated_at: "2026-10-01T00:00:00Z" } as Awaited<ReturnType<typeof backend.getPilotSettings>>);
+  vi.mocked(backend.getConversations).mockImplementation(async (_tenant, options) =>
+    options?.updatedSince ? [row] : [row, old]);
+  const snapshot = await runWithTenant("t", () => tryHydrateStoreFromNeon({ syncPredictions: false, shadowFullSnapshot: true }));
+  const read = vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(snapshot));
+  try {
+    const loaded = await runWithTenant("t", () => loadStore({ freshOnly: true, shadowConversations: true }));
+    expect(loaded.store.conversations.map(chat => chat.id)).toEqual(["c"]);
+    expect(loaded.conversationShadow?.equal).toBe(true);
+    expect(loaded.conversationViewShadow?.equal).toBe(true);
+  } finally { read.mockRestore(); }
 });
