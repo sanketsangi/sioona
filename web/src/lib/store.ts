@@ -35,6 +35,14 @@ import {
   type TenantWipeStats,
 } from "./wipe-tenant";
 import { currentStoreTenant, DEMO_TENANT_ID } from "./tenant-context";
+import { getStateMode } from "./state-mode";
+
+export class TenantIsolationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TenantIsolationError";
+  }
+}
 
 export type ReadStoreOptions = {
   /**
@@ -309,6 +317,17 @@ async function loadStoreLocal(
   const syncPredictions = options?.syncPredictions !== false;
   const seedShowcase =
     options?.seedShowcase !== false && tenantId === DEMO_TENANT_ID;
+
+  if (getStateMode() === "postgres" && tenantId !== DEMO_TENANT_ID) {
+    const { tryHydrateStoreFromNeon } = await import("./hydrate-conversations");
+    const hydrated = await tryHydrateStoreFromNeon({
+      syncPredictions,
+      ...(options?.freshOnly ? { freshOnly: true } : {}),
+    });
+    if (hydrated) return { store: hydrated, coldStart: true };
+    return { store: emptyStoreForTenant(tenantId), coldStart: true };
+  }
+
   const persisted = await readPersistedStore();
   if (persisted) return { store: persisted, coldStart: false };
   if (!seedShowcase) {
@@ -368,6 +387,24 @@ export async function readStore(
 }
 
 export async function writeStore(data: StoreData): Promise<void> {
+  const currentTenant = currentStoreTenant();
+  if (data.tenant.id === DEMO_TENANT_ID && currentTenant !== DEMO_TENANT_ID) {
+    throw new TenantIsolationError(
+      `Cannot write demo data to live tenant "${currentTenant}"`
+    );
+  }
+  if (data.tenant.id !== DEMO_TENANT_ID && currentTenant !== data.tenant.id) {
+    throw new TenantIsolationError(
+      `Store data tenant "${data.tenant.id}" does not match context tenant "${currentTenant}"`
+    );
+  }
+
+  if (getStateMode() === "postgres" && data.tenant.id !== DEMO_TENANT_ID) {
+    // In canonical Postgres mode, operational state lives in Postgres.
+    // Non-demo tenants do not write runtime JSON files.
+    return;
+  }
+
   const normalized = normalizeStore(data);
   const storePath = await resolveStorePath();
   if (!storePath) {

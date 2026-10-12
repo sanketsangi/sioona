@@ -171,3 +171,10 @@ Initial enforcement is per-tenant daily and per-run **attempt** limits, with the
 D2 implementation addendum (2026-10-10): CB-07 admission now writes `pending` before dispatch, closing the buffered-only crash window without waiting for CB-11. Finalized attempts still flush idempotently in `finally`.
 
 D4 implementation addendum (2026-10-10, `12458d1`): Global pause is an unlocked read plus a post–tenant-lock recheck; **never** lock the global `InferenceControl` row in `reserve()` (throughput). Ordinals and admission-id metering align with ledger validation; prompt-injection rejects do not increment LLM failure stats. Rationale table: [CB-07 internal changelog](tasks/CB-07.md#internal-changelog--admission-pipeline-remediation-12458d1-merged-5e93be5).
+
+## D6 — Postgres cutover order
+
+Status: **approved**
+Date: 2026-10-12
+Approver: Sanket
+Choice: Conversations/messages → feedback/decisions → pilot settings → taxonomy overrides → remaining JSON. In production mode, Postgres is the only writer for operational state. JSON remains only for local demo mode. Production refuses `json-demo` at boot. A fresh production tenant reconstructs the dashboard after a web restart with no runtime JSON file. Demo or sample data cannot overwrite a live tenant.

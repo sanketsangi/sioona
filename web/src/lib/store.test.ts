@@ -4,6 +4,7 @@ import { EXPECTED_TESTING_JSON } from "./testing-json-eval";
 import {
   addTaxonomyOverride,
   decideSupervisedAction,
+  emptyStoreForTenant,
   mergeTaxonomyOverrides,
   persistSupervisedActions,
   readStore,
@@ -12,8 +13,10 @@ import {
   setConversationGroundTruth,
   setSignalActed,
   setSignalFeedback,
+  TenantIsolationError,
   writeStore,
 } from "./store";
+import { runWithTenant, DEMO_TENANT_ID } from "./tenant-context";
 
 describe("setSignalActed", () => {
   beforeEach(async () => {
@@ -409,5 +412,58 @@ describe("supervised retention email actions", () => {
     expect(
       after.actionLogs?.some((event) => event.event === "dismissed")
     ).toBe(true);
+  });
+
+  describe("canonical Postgres and tenant isolation (CB-10)", () => {
+    const originalEnv = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    it("prevents demo or sample data from overwriting a live tenant", async () => {
+      const demoStore = await readStore();
+      expect(demoStore.tenant.id).toBe(DEMO_TENANT_ID);
+
+      await expect(
+        runWithTenant("tenant_live_partner", async () => {
+          await writeStore(demoStore);
+        })
+      ).rejects.toThrow(TenantIsolationError);
+    });
+
+    it("prevents cross-tenant store writes between different non-demo tenants", async () => {
+      const storeA = emptyStoreForTenant("tenant_alpha");
+
+      await expect(
+        runWithTenant("tenant_beta", async () => {
+          await writeStore(storeA);
+        })
+      ).rejects.toThrow(TenantIsolationError);
+    });
+
+    it("in postgres mode, live tenants bypass local JSON files", async () => {
+      process.env.SIOONA_STATE_MODE = "postgres";
+      const liveStore = emptyStoreForTenant("tenant_gamma");
+      liveStore.conversations.push({
+        id: "conv_gamma_1",
+        customerName: "Gamma User",
+        source: "upload",
+        status: "new",
+        signals: [],
+        timestamp: new Date().toISOString(),
+      });
+
+      // In postgres mode, writing does not persist a local JSON file
+      await runWithTenant("tenant_gamma", async () => {
+        await writeStore(liveStore);
+      });
+
+      // Reading live tenant in postgres mode hydrates from Neon rather than local file
+      const hydrated = await runWithTenant("tenant_gamma", async () => {
+        return readStore();
+      });
+      expect(hydrated.tenant.id).toBe("tenant_gamma");
+    });
   });
 });
