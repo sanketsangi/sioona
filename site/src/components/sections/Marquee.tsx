@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PauseCircle, PlayCircle } from "@phosphor-icons/react/ssr";
 
 const SLOTS = 10;
 
@@ -14,7 +15,7 @@ function LogoSlot() {
 
 /** Slow CSS marquee. Pauses on hover and focus, and via the visible toggle. */
 export function Marquee() {
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
   return (
     <div className="marquee relative" data-paused={paused}>
       <div className="marquee-mask overflow-hidden">
@@ -34,18 +35,11 @@ export function Marquee() {
       <button
         type="button"
         onClick={() => setPaused((value) => !value)}
-        aria-pressed={paused}
+        aria-pressed={!paused}
         aria-label={paused ? "Play Logo Animation" : "Pause Logo Animation"}
         className="marquee-toggle btn-tertiary mx-auto mt-4 size-11 !px-0 md:size-8"
       >
-        <img
-          src={paused ? "/play-circle.svg" : "/pause-circle.svg"}
-          alt=""
-          aria-hidden="true"
-          width={24}
-          height={24}
-          className="size-6"
-        />
+        {paused ? <PlayCircle size={24} aria-hidden /> : <PauseCircle size={24} aria-hidden />}
       </button>
     </div>
   );

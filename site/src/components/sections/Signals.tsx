@@ -54,10 +54,11 @@ export function Signals() {
         />
         <RevealGroup
           gap={0.1}
-          className="mt-12 grid overflow-hidden rounded-panel border border-sio-border-base md:grid-cols-3 md:divide-x md:divide-sio-border-base max-md:divide-y max-md:divide-sio-border-base"
+          className="signals-grid mt-12 grid md:grid-cols-3"
         >
           {signals.map((signal, index) => (
-            <RevealItem key={signal.type} className="flex flex-col gap-5 bg-sio-bg-base p-5 lg:p-6">
+            <RevealItem key={signal.type} className="signal-card flex flex-col gap-5 bg-sio-bg-base p-5 lg:p-6">
+              <span className="signal-card-number" aria-hidden>0{index + 1}</span>
               <div className="flex flex-col items-start gap-3">
                 <SignalTypeChip type={signal.type} />
                 <h3 className="text-heading-20 text-sio-fg-base">{nb(signal.title)}</h3>

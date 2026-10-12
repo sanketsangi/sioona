@@ -52,7 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`} style={{ colorScheme: "light" }}>
       <body>
         <noscript>
-          <style>{`[data-reveal],[data-word],[data-nojs-show]{opacity:1!important;transform:none!important;filter:none!important}`}</style>
+          <style>{`[data-reveal],[data-word],[data-nojs-show]{opacity:1!important;transform:none!important;filter:none!important}.faq-answer[hidden]{display:block!important}.shadow-story-track{height:auto!important}.shadow-story-sticky{position:static!important;height:auto!important;padding-block:2rem}.shadow-story-steps li{display:block!important}.score-needle{transform:rotate(var(--needle))!important}.score-bar{transform:none!important}`}</style>
         </noscript>
         <a
           href="#main"

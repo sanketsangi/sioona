@@ -229,6 +229,7 @@ export function ShadowStory() {
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start start", "end end"] });
 
   useMotionValueEvent(scrollYProgress, "change", (value) => {
+    if (reduced) return;
     const next = Math.max(0, Math.min(STEPS.length - 1, Math.floor(value * STEPS.length)));
     setStep((current) => (current === next ? current : next));
   });
@@ -237,6 +238,10 @@ export function ShadowStory() {
 
   const goTo = useCallback(
     (index: number) => {
+      if (reduced) {
+        setStep(index);
+        return;
+      }
       const track = trackRef.current;
       if (!track) return;
       const top = window.scrollY + track.getBoundingClientRect().top;
@@ -260,8 +265,8 @@ export function ShadowStory() {
         />
       </div>
 
-      <div ref={trackRef} className="relative mt-10 h-[400svh] lg:h-[340svh]">
-        <div className="sticky top-[var(--nav-height)] flex h-[calc(100svh-var(--nav-height))] items-center">
+      <div ref={trackRef} className="shadow-story-track relative mt-10 h-[400svh] lg:h-[340svh]">
+        <div className="shadow-story-sticky sticky top-[var(--nav-height)] flex h-[calc(100svh-var(--nav-height))] items-center">
           <div className="container-page grid w-full items-center gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
             <div>
               <div className="mb-4 flex gap-2 lg:hidden" aria-hidden>
@@ -274,7 +279,7 @@ export function ShadowStory() {
                 <div aria-hidden className="absolute bottom-0 left-0 top-0 hidden w-px bg-sio-border-base lg:block">
                   <m.div className="h-full w-px origin-top bg-sio-fg-base" style={{ scaleY: railFill }} />
                 </div>
-                <ol aria-label="Shadow Mode steps" className="flex flex-col gap-1 lg:gap-6">
+                <ol aria-label="Shadow Mode steps" className="shadow-story-steps flex flex-col gap-1 lg:gap-6">
                   {STEPS.map((s, index) => {
                     const active = index === step;
                     return (

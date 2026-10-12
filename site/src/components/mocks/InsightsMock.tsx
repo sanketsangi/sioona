@@ -1,8 +1,9 @@
 "use client";
 
-import { m } from "framer-motion";
-import { Eye } from "@phosphor-icons/react/ssr";
-import { Fragment, useState } from "react";
+import { m, useInView, useReducedMotion } from "framer-motion";
+import { Eye, PauseCircle, PlayCircle } from "@phosphor-icons/react/ssr";
+import { Fragment, useContext, useRef, useState } from "react";
+import { HeroPreviewEntered } from "@/components/sections/HeroPreview";
 import {
   SignalScoreChip,
   SignalStatus,
@@ -111,9 +112,13 @@ export function InsightsMock({ previewHeader = false }: { previewHeader?: boolea
 }
 
 function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
-  const [userPaused, setUserPaused] = useState(false);
-  const running = !userPaused;
-  const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced });
+  const [userPaused, setUserPaused] = useState(!previewHeader);
+  const ref = useRef<HTMLElement>(null);
+  const inView = useInView(ref, { amount: "some", once: previewHeader, margin: "0px 0px -48px 0px" });
+  const previewEntered = useContext(HeroPreviewEntered);
+  const systemReduced = useReducedMotion();
+  const running = !userPaused && (previewHeader ? previewEntered : inView) && !reduced && systemReduced !== true;
+  const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced: reduced || systemReduced === true });
 
   const reviewing = step >= STEP.rowIn && step < STEP.reset;
   const showWhy = step >= STEP.why && step < STEP.reset;
@@ -133,22 +138,16 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
           <button
             type="button"
             onClick={() => setUserPaused((value) => !value)}
-            aria-pressed={userPaused}
+            aria-pressed={!userPaused}
             aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
             className={`btn-tertiary size-11 !px-0 md:size-8 ${previewHeader ? "preview-chrome-action" : ""} ${reduced ? "hidden" : ""}`}
           >
-            <img
-              src={userPaused ? "/play-circle.svg" : "/pause-circle.svg"}
-              alt=""
-              aria-hidden="true"
-              width={20}
-              height={20}
-            />
+            {userPaused ? <PlayCircle size={20} aria-hidden /> : <PauseCircle size={20} aria-hidden />}
           </button>
   );
 
   return (
-    <figure className="relative m-0">
+    <figure ref={ref} className="relative m-0" data-demo-running={running} data-demo-step={step}>
       {previewHeader ? (
         <div className="preview-chrome-header">
           <div className="preview-chrome-header-lead">

@@ -43,11 +43,12 @@ export function SignalSnippet({ type, before, quote, after = "", reason, delay =
       whileInView="visible"
       viewport={viewport}
     >
-      <m.div variants={rise} className="chat-bubble chat-bubble--customer self-end" style={{ maxWidth: "92%" }}>
+      <m.div data-reveal variants={rise} className="chat-bubble chat-bubble--customer self-end" style={{ maxWidth: "92%" }}>
         {before}
         <span className="relative inline-block">
           <m.span
             aria-hidden
+            data-reveal
             variants={sweep}
             className={`absolute -inset-x-0.5 inset-y-0 origin-left rounded-[3px] ${HIGHLIGHT[type]}`}
           />
@@ -55,7 +56,7 @@ export function SignalSnippet({ type, before, quote, after = "", reason, delay =
         </span>
         {after}
       </m.div>
-      <m.div variants={rise} className="rounded-panel border border-sio-border-base bg-sio-bg-base p-2.5">
+      <m.div data-reveal variants={rise} className="rounded-panel border border-sio-border-base bg-sio-bg-base p-2.5">
         <p className="eyebrow">Why This Fired</p>
         <p className="mt-1 text-label-13 text-sio-fg-subtle">
           <span className="font-medium text-sio-fg-base">“{quote}”</span> · {reason}

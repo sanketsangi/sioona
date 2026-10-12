@@ -24,6 +24,8 @@
   --ds-gray-alpha-300: color-mix(in oklch, var(--ds-gray-1100) 10%, transparent);
 
   --ds-orange-700: #ff6308;
+  --ds-orange-rgb: 255 99 8;
+  --sio-sunset-rgb: var(--ds-orange-rgb);
 
   /* Signal / status chroma */
   --ds-blue-100: #f0f7ff;
@@ -142,4 +144,10 @@
   --sio-window-close: #ff5f57;
   --sio-window-minimize: #febc2e;
   --sio-window-maximize: #28c840;
+}
+
+/* Marketing polish: deeper teal interactions and layered product depth. */
+:root {
+  --sio-polish-accent-hover: #09574f;
+  --sio-polish-preview-shadow: 0 1px 2px color-mix(in srgb, var(--ds-teal-900) 8%, transparent), 0 16px 40px -16px color-mix(in srgb, var(--ds-teal-900) 18%, transparent), 0 48px 80px -40px color-mix(in srgb, var(--ds-gray-1100) 15%, transparent);
 }
