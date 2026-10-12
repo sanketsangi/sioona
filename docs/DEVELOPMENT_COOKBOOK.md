@@ -1121,9 +1121,9 @@ def reconstruct(anchor: Anchor, content: str) -> str | None:
 
 **Acceptance.**
 - [x] Baseline artifact committed for the current route. `web/eval/gate/baseline.json` + 120 replay fixtures on `cb/CB-09-eval-gate` at `924312f`. Historical v2 had six critical injection failures; frozen v3 synthetic metrics pass D5 with zero critical failures. Current accepted coverage is 120/0. External promotion remains blocked. See `docs/development/FOUNDATION_ACCEPTANCE.md`.
-- [ ] A deliberately broken parser change fails `eval:gate` in CI.
-- [ ] Sample sizes and intervals appear in every artifact; empty denominators are `null`, not 0.
-- [ ] The CI job runs without network or keys.
+- [x] A deliberately broken parser fails the gate. `run-gate.test.ts` proves `recall_drop` when positives parse as none; the Web CI suite passed at PR #154 head `f2875747`. See `docs/development/tasks/CB-09.md`.
+- [x] Sample sizes and intervals appear in every artifact; empty denominators are `null`, not 0. Wilson-interval and empty-denominator regressions in `compare.test.ts` pass.
+- [x] The offline CI job is defined without provider keys or a record step; replay tests assert no network calls. PR #154 head `f2875747` Eval gate passed. This proves offline provider behavior; it does not claim a Linux outbound network fence.
 
 ---
 

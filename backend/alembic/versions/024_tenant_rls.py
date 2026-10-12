@@ -4,7 +4,8 @@ Revision ID: 024_tenant_rls
 Revises: 023_inference_budgets
 Create Date: 2026-10-12
 
-The migration role must bypass RLS (Render's database owner is a superuser).
+The migration role must own the tables and bypass RLS. Managed database owners
+may have CREATEROLE/BYPASSRLS without being true Postgres superusers.
 ``sioona_runtime`` is not the owner and has no BYPASSRLS. It is NOLOGIN until
 an operator sets a password out of band and points DATABASE_URL at it.
 Alembic keeps using MIGRATION_DATABASE_URL, or DATABASE_URL when that is unset.
@@ -44,12 +45,15 @@ def upgrade() -> None:
             CREATE ROLE {RUNTIME_ROLE}
               NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE;
           END IF;
+          IF EXISTS (
+            SELECT 1 FROM pg_roles WHERE rolname = '{RUNTIME_ROLE}'
+              AND (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole)
+          ) THEN
+            RAISE EXCEPTION 'Unsafe runtime role attributes; operator repair required';
+          END IF;
         END
         $$
         """
-    )
-    op.execute(
-        f"ALTER ROLE {RUNTIME_ROLE} NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE"
     )
     op.execute(f"GRANT USAGE ON SCHEMA public TO {RUNTIME_ROLE}")
     op.execute(

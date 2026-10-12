@@ -1,20 +1,22 @@
 # Foundation acceptance — authoritative current closeout
 
-Updated 2026-10-12. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. **`main` `96f34f1`** combined status is success for Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site. That head does not contain `024_tenant_rls`. The 2026-10-10 note remains historical: **`5e93be5`** merged foundation remediation plus admission pipeline fixes (`12458d1`). Branch `codex/foundation-cb09-remediation` is merged and deleted; Antigravity verified the four structural fixes (ordinals, global lock removal, admission metering, injection handling). Hosted CB-07 rollout remains an operator follow-up. Rulesets and classic branch protection still return HTTP 403 (GitHub Pro is required for this private repository), so CB-02's protection step is not accepted.
+Updated 2026-10-12. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. **`main` `96f34f1`** combined status is success for Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site. That historical head does not contain `024_tenant_rls`. PR [#154](https://github.com/sanketsangi/sioona/pull/154) is now merged as `2dd47e782874e00a17c3933153a3e14a41b66a67`; its exact source head `f2875747e3601c54edb4956f3cd749e5feac94c2` has all six Actions jobs successful. Merge-commit CI has not been checked in this refresh. The 2026-10-10 note remains historical: **`5e93be5`** merged foundation remediation plus admission pipeline fixes (`12458d1`). Branch `codex/foundation-cb09-remediation` is merged and deleted; Antigravity verified the four structural fixes (ordinals, global lock removal, admission metering, injection handling). Hosted CB-07 rollout remains an operator follow-up. Rulesets and classic branch protection still return HTTP 403 (GitHub Pro is required for this private repository), so CB-02's protection step is not accepted.
 
 | Card | Implementation | CI | Hosted rollout | Acceptance |
 | --- | --- | --- | --- | --- |
 | CB-01/02 | Merged foundation | `main` `96f34f1` six checks success; ruleset API still HTTP 403 | No new rollout | Historical CI retained. Protection is not accepted until a ruleset can be applied and read back |
 | CB-03 | Merged actor authorization; scoped inference principal additions local | PR #141 head green; new enforcement tests local | Isolated staging not provisioned | Blocked: exact target/cost approval, schema/memberships, deployment and observed 30-minute window |
-| CB-04 | `024_tenant_rls` in the working tree; API binds `app.tenant_id` | Disposable Postgres proof only. This revision has no remote CI | Runtime role is `NOLOGIN`. Hosted `DATABASE_URL` not switched | Postgres acceptance proved locally. Not accepted for multi-tenant production until the operator URL switch |
+| CB-04 | `024_tenant_rls` merged in #154; API binds `app.tenant_id` | Exact source head `f2875747` six jobs success, including Backend PostgreSQL migration checks | Runtime role is `NOLOGIN`. Hosted `DATABASE_URL` not switched | Postgres acceptance proved locally. Not accepted for multi-tenant production until the operator URL switch |
 | CB-05/06 | Merged gateway/ledger; universal preflight and pending admission ledger local | #146 head passes affected historical checks; new revision unverified | No new rollout | Local fix validation and independent review complete; CI pending |
-| CB-07 | Attempt mode on `main`; admission remediation complete (`12458d1`) | Local + Antigravity green; exact head `5e93be5` CI observation optional | 023 not applied hosted | Pending human schema-first rollout and acceptance |
+| CB-07 | Attempt mode on `main`; admission remediation complete (`12458d1`) | Local + Antigravity green; exact head `5e93be5` CI observation optional | 023 verified hosted on Neon main (read-only, 2026-10-12) | Operational pause/timing acceptance still pending |
 | CB-08 | Merged evidence anchors; Unicode conformance remediation local | Local shared Python/TS fixtures; new revision unverified | Historical hosted closeout preserved | Remediation independent review complete; CI pending |
 | CB-09 | Synthetic replay, external runner, split promotion and identity checks implemented | #146 historical synthetic gate passes; new revision unverified | No external evaluation performed | Synthetic D5 metrics pass in clean-state test; external promotion blocked |
 | CB-10 | Not started | — | — | Still blocked. No go decision |
 | CB-13 | Not promoted | — | — | Requires identical verified external baseline/candidate holdout comparisons passing unchanged D5 |
 
 ## Read-only GitHub evidence
+
+PR [#154](https://github.com/sanketsangi/sioona/pull/154), inspected 2026-10-12: merged; source head `f2875747e3601c54edb4956f3cd749e5feac94c2`, merge commit `2dd47e782874e00a17c3933153a3e14a41b66a67`. [Run 38182984205](https://github.com/sanketsangi/sioona/actions/runs/38182984205) completed successfully for Web, Backend, E2E, Eval gate, Gitleaks and Marketing site. Backend step “PostgreSQL migration and constraint checks” succeeded; the existing workflow runs the complete migration test file containing the runtime-role proof. This accepts merged implementation and source-head CI, not hosted RLS or CB-03 staging.
 
 PR [#146](https://github.com/sanketsangi/sioona/pull/146), exact head `163a08e54c8340b86c098b7ce6e14fcd845498f1`, inspected 2026-10-10: Web, Backend, E2E, Eval gate, Gitleaks and Marketing site all completed/success in [run 38040540932](https://github.com/sanketsangi/sioona/actions/runs/38040540932). Security Reviewer and Approval Agent reported success. Cursor Bugbot completed neutral with an error: usage/spend limit reached, so no successful Bugbot review is claimed. Vercel reported deployment success for that head; it is not isolated staging acceptance.
 
@@ -71,13 +73,36 @@ Remediation adds an AND allowlist for only that exact dummy value and exact test
 
 `main` `96f34f145e7eb5baaec54112f57e9b2f27620fbc` later retired the "exact-head CI pending" statement for the merged remediation: Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site are success. Ruleset and classic branch-protection reads still return HTTP 403, so Phase 0 is not accepted.
 
-CB-04 is implemented, not deferred. Disposable local Postgres proved the runtime role: unscoped reads return one tenant, missing context returns no rows, a cross-tenant insert fails, and a second transaction on the same connection does not keep the previous tenant. Backend unit tests: 251 passed, Postgres migration file 10 passed. That database was a throwaway cluster, not staging or production. No remote CI has run for `024_tenant_rls`.
+CB-04 is implemented, not deferred. Disposable local Postgres proved the runtime role: unscoped reads return one tenant, missing context returns no rows, a cross-tenant insert fails, and a second transaction on the same connection does not keep the previous tenant. Backend unit tests: 251 passed, Postgres migration file 10 passed. That database was a throwaway cluster, not staging or production. PR #154 has since merged; its exact source-head CI, including PostgreSQL migration checks, is green as recorded above.
 
 Not done, and not waived:
 
 - Isolated staging was not provisioned. Render workspace listing returned unauthorized, and the staging quote is still unapproved.
 - CB-03's membership seed and 30-minute shadow window were not observed.
-- Migration 023/024 was not applied to any hosted database. Agents do not run Alembic against non-test databases.
+- Historical 023/024 statement superseded by live inspection below: hosted 023 is present, 024 is absent. Agents do not run Alembic against non-test databases.
 - `sioona_runtime` stays `NOLOGIN`. Owner connections bypass RLS until an operator sets a password out of band and points `DATABASE_URL` at that role, with `MIGRATION_DATABASE_URL` left on the owner.
 - Tables outside the eight high-value policies are unchanged. Application filters and CB-03 remain the control there.
 - CB-10 has no go decision. CB-13 is unchanged.
+
+## Free local verification refresh — 2026-10-12
+
+Checkout `/Users/sanket/Documents/Sioona`, branch `cb/CB-04-tenant-rls`, source head `f2875747e3601c54edb4956f3cd749e5feac94c2` (PR #154). The unrelated dirty `web/src/components/SignalReviewSuggestedAction.test.ts` was preserved.
+
+- Backend: `.venv/bin/python -m pytest tests/test_tenant_isolation.py tests/test_actor_auth.py tests/test_actor_token.py tests/test_service_auth.py tests/test_seed_memberships.py -q` → **36 passed**, one existing fixture-rewrite warning.
+- Existing disposable Postgres 17.11 cluster `/tmp/sioona-cb04-pg`, verified database `sioona_migration_test`, fixture owner `sioona`, loopback port 5432: `PG_TEST_DATABASE_URL=postgresql+psycopg://sioona@127.0.0.1:5432/sioona_migration_test MIGRATION_DATABASE_URL='' .venv/bin/python -m pytest tests/test_postgres_migrations.py -q -k 'actor_read_mutate_and_revoke or runtime_role_rls'` → **2 passed, 8 deselected**, existing Alembic warnings. Initial connection attempts used the old port/incorrect owner and failed before test SQL; the corrected run above is the acceptance evidence.
+- Web: targeted middleware, auth-guard, auth-token, actor-assertion, backend-client, gate runner and comparison suites → **123 passed** across seven files; no live provider comparison.
+- Browser: isolated app copy outside the repo with synthetic credentials, providers disabled, backend pointed at an unused loopback port and external browser requests blocked. With `SIOONA_PUBLIC_DEMO=1`, a correctly signed expired cookie redirects `/` to `/login`; an API read returns 401 with `loginPath: "/login"`. The visible sign-in form accepts Enter from the password field, login returns 200, replaces the cookie with a fresh httpOnly session, and navigates home. This does not prove hosted sign-in or a backend data flow.
+
+No paid service, hosted migration, ruleset or external model comparison was touched. No commit or push was made. Hosted CB-03 acceptance remains open.
+
+## Live platform refresh and deployment repair — 2026-10-12
+
+- GitHub CLI and connector ruleset reads return 403, explicitly requiring GitHub Pro or a public repository. Classic branch-protection CLI read returns the same plan restriction; connector alone instead returns integration-permission denial. No upgrade, visibility change or ruleset write was performed.
+- Confirmed Render workspace `tea-d9t31uugekts73clssa0` has only `sioona-api` (`srv-d9t38fn40ujc73cr7ho0`), free plan, main auto-deploy. Its build command runs `alembic upgrade head`. PR #154 merge `2dd47e7` deploy `dep-db61mnavcj2c73f615vg` failed; previous `96f34f1` deploy `dep-db5vucbrjlhs73b7okjg` is live.
+- Neon organization `org-bitter-thunder-59170028` is free. Project `summer-haze-99931300`, primary branch `br-winter-cell-avh5pcw3`, database `neondb` reports `023_inference_budgets`. No runtime role or tenant-isolation policies exist. Only global inference control exists: enabled, daily/run limits 1/1, attempts mode. No tenant is enabled by that row alone. CB-07 schema is present; operational acceptance is still unverified.
+- Owner `neondb_owner` is NOSUPERUSER, BYPASSRLS, CREATEROLE. Migration 024 failed on `ALTER ROLE ... NOSUPERUSER`: only a true superuser may alter the SUPERUSER attribute. Reproduced locally with a restricted migration owner before the fix. The fix creates a restricted role or rejects unsafe existing role attributes instead of attempting a superuser-only alteration; existing LOGIN is preserved for operator-managed rollback/re-upgrade.
+- Local Postgres migration suite after repair: **13 passed** (fresh restricted owner, existing safe/unsafe runtime role and existing migration/RLS proofs). No hosted migration or redeploy was performed. This repair needs its own source-head CI and review before another hosted attempt.
+- No isolated staging service/empty staging branch exists. Existing rehearsal/backup branches inherit production data and are not empty staging targets. An on-demand free Render service plus a separate empty Neon project is a candidate, subject to quota verification and operator schema setup; the existing paid Blueprint was not applied.
+- External manifest remains n=100, below D5 four buckets of at least 30 each. No partner bytes were opened or sent to a provider. A sufficient labeled corpus, chosen baseline/candidate identities and an explicit attempt ceiling are still needed; thresholds are unchanged.
+
+CB-10 has no go decision: plan restriction, staging acceptance, hosted RLS and external promotion remain unfulfilled. See `tasks/FOUNDATION_NEXT_ACTIONS.md` for the concrete execution sequence.

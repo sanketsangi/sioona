@@ -748,3 +748,61 @@ def _as_runtime(conn, tenant, expected) -> None:
         seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} ORDER BY tenant_id")).scalars().all()
         assert seen == expected, table
     trans.commit()
+
+
+@pytest.mark.parametrize("existing", ["fresh", "safe", "unsafe"])
+def test_rls_upgrade_with_non_superuser_migration_owner(monkeypatch, existing):
+    """Neon owner has CREATEROLE/BYPASSRLS, but cannot ALTER SUPERUSER attributes."""
+    assert URL and make_url(URL).database == 'sioona_migration_test'
+    assert not os.environ.get('MIGRATION_DATABASE_URL', '').strip()
+    import importlib.util
+    from pathlib import Path
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from app.config import get_settings
+    engine = create_engine(URL)
+    owner = 'cb04_test_migration_owner'
+    runtime = 'cb04_test_runtime'
+    monkeypatch.setenv('DATABASE_URL', URL)
+    get_settings.cache_clear()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text('DROP SCHEMA public CASCADE'))
+            conn.execute(text('CREATE SCHEMA public'))
+            conn.execute(text(f'CREATE ROLE {owner} NOLOGIN NOSUPERUSER CREATEROLE BYPASSRLS'))
+        command.upgrade(Config('alembic.ini'), '023_inference_budgets')
+        spec = importlib.util.spec_from_file_location('rls_migration_test', Path('alembic/versions/024_tenant_rls.py'))
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+        monkeypatch.setattr(migration, 'RUNTIME_ROLE', runtime)
+        with engine.begin() as conn:
+            conn.execute(text(f'ALTER SCHEMA public OWNER TO {owner}'))
+            tables = conn.execute(text("SELECT tablename FROM pg_tables WHERE schemaname='public'")).scalars().all()
+            for table in tables:
+                conn.execute(text(f'ALTER TABLE public."{table}" OWNER TO {owner}'))
+            if existing != 'fresh':
+                attribute = 'CREATEROLE' if existing == 'unsafe' else 'NOCREATEROLE'
+                conn.execute(text(f'CREATE ROLE {runtime} NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB {attribute}'))
+            conn.execute(text(f'SET LOCAL ROLE {owner}'))
+            assert conn.execute(text('SELECT rolsuper FROM pg_roles WHERE rolname=current_user')).scalar() is False
+            monkeypatch.setattr(migration, 'op', Operations(MigrationContext.configure(conn)))
+            if existing == 'unsafe':
+                with pytest.raises(DBAPIError, match='Unsafe runtime role attributes'):
+                    with conn.begin_nested():
+                        migration.upgrade()
+                assert conn.execute(text("SELECT count(*) FROM pg_policies WHERE policyname='tenant_isolation'")).scalar() == 0
+                return
+            migration.upgrade()
+            attributes = conn.execute(text('SELECT rolsuper, rolbypassrls, rolcreaterole, rolcreatedb, rolcanlogin FROM pg_roles WHERE rolname=:role'), {'role': runtime}).one()
+            assert attributes == (False, False, False, False, False)
+            assert conn.execute(text("SELECT count(*) FROM pg_policies WHERE policyname='tenant_isolation'")).scalar() == 8
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text('DROP SCHEMA public CASCADE'))
+            conn.execute(text('CREATE SCHEMA public'))
+            for role in (runtime, owner):
+                if conn.execute(text('SELECT 1 FROM pg_roles WHERE rolname=:role'), {'role': role}).scalar():
+                    conn.execute(text(f'DROP OWNED BY {role} CASCADE'))
+                    conn.execute(text(f'DROP ROLE {role}'))
+        get_settings.cache_clear()
+        engine.dispose()
