@@ -615,7 +615,9 @@ export async function tryHydrateStoreFromNeon(
   }
 
   if (canonical) {
-    ensureSupervisedActions(store);
+    // Shadow parity compares signals/feedback/outcomes, not generated drafts.
+    // Avoid emitting action/signal identifiers for the unfiltered corpus.
+    if (!options?.shadowFullSnapshot) ensureSupervisedActions(store);
     await overlaySupervisedActionsFromNeon(
       store,
       store.conversations.map((conversation) => conversation.id),

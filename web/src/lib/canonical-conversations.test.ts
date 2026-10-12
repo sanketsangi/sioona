@@ -5,6 +5,7 @@ import { readStore, setConversationGroundTruth, writeStore } from "./store";
 import * as backend from "./backend-client";
 import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import * as reconciliation from "./conversation-reconciliation";
+import { fetchTenantSignals } from "./fetch-tenant-signals";
 vi.mock("./backend-client", () => ({ getPilotSettings: vi.fn(), getDetectionResume: vi.fn(async () => null), getActiveUploads: vi.fn(), getConversations: vi.fn(), getSupervisedActionDecisions: vi.fn(), patchConversationGroundTruth: vi.fn(), HYDRATE_CONVERSATIONS_TIMEOUT_MS: 1000 }));
 vi.mock("./fetch-tenant-signals", () => ({ fetchTenantSignals: vi.fn(async () => ({ ok: true, rows: [] })) }));
 vi.mock("./sync-taxonomy", () => ({ taxonomyOverridesFromNeon: vi.fn(async () => ({})), taxonomyNeonEnabled: () => false }));
@@ -188,4 +189,34 @@ it("compares full snapshots while returning a fresh replace subset", async () =>
     expect(loaded.conversationShadow?.equal).toBe(true);
     expect(loaded.conversationViewShadow?.equal).toBe(true);
   } finally { read.mockRestore(); }
+});
+
+it("does not generate or log drafts for signals outside the dashboard keep-set during shadow comparison", async () => {
+  const { promises: fs } = await import("node:fs");
+  const { loadStore } = await import("./store");
+  const hidden = { ...row, conversation_id: "hidden-chat", updated_at: "2026-09-01T00:00:00Z",
+    messages: [{ ...row.messages[0], conversation_id: "hidden-chat", message_id: "hidden-message" }] };
+  vi.mocked(backend.getPilotSettings).mockResolvedValue({ tenant_id: "t",
+    last_uploaded_file_name: "Zerodha_week_4_batch_01.json", weekly_export_count: 2,
+    updated_at: "2026-10-01T00:00:00Z" } as Awaited<ReturnType<typeof backend.getPilotSettings>>);
+  vi.mocked(backend.getConversations).mockImplementation(async (_tenant, options) =>
+    options?.updatedSince ? [row] : [row, hidden]);
+  vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [{
+    id: "hidden-prediction", tenant_id: "t", conversation_id: "hidden-chat",
+    signal_type: "lead", confidence: 0.95, summary: "Synthetic lead",
+    created_at: "2026-10-01T00:00:00Z",
+  } as backend.BackendPredictionWithFeedback] });
+  const snapshot = await runWithTenant("t", () => tryHydrateStoreFromNeon({ shadowFullSnapshot: true }));
+  const read = vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(snapshot));
+  const log = vi.spyOn(console, "info").mockImplementation(() => undefined);
+  try {
+    const loaded = await runWithTenant("t", () => loadStore({ freshOnly: true, shadowConversations: true }));
+    expect(loaded.store.conversations.map(chat => chat.id)).toEqual(["c"]);
+    expect(loaded.store.signals).toEqual([]);
+    expect(loaded.conversationViewShadow?.sourceCounts.signals).toBe(1);
+    expect(loaded.conversationViewShadow?.targetCounts.signals).toBe(1);
+    expect(loaded.conversationViewShadow?.equal).toBe(true);
+    expect(JSON.stringify(log.mock.calls)).not.toContain("hidden-prediction");
+    expect(log.mock.calls.filter(([prefix]) => prefix === "[supervised-action]")).toEqual([]);
+  } finally { read.mockRestore(); log.mockRestore(); }
 });
