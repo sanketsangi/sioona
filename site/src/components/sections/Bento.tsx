@@ -88,7 +88,7 @@ export function Bento() {
       <div className="container-page">
         <SectionHeader
           id="features-title"
-          eyebrow="Product Feature"
+          eyebrow="Product features"
           title="Everything a review team needs, and nothing it doesn’t."
           description="Four surfaces and a keyboard-first workflow: ingest chats, review signals, measure precision, and tune what counts."
         />

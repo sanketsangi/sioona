@@ -3,7 +3,6 @@
 import { m } from "framer-motion";
 import type { ReactNode } from "react";
 import {
-  distance,
   fadeUp,
   staggerContainer,
   stagger,
@@ -35,18 +34,19 @@ type RevealProps = {
   id?: string;
 };
 
-/** Single element: fade + translate-up once when scrolled into view. */
-export function Reveal({ children, as = "div", className, delay = 0, y = distance.md, id }: RevealProps) {
+/** Content paints immediately; motion must never gate readability. */
+export function Reveal({ children, as = "div", className, id }: RevealProps) {
   const Comp = tags[as];
   return (
     <Comp
       id={id}
       data-reveal
       className={className}
-      initial={{ opacity: 0, y }}
+      initial={false}
+      style={{ opacity: 1, transform: "none" }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={viewport}
-      transition={{ ...(transition.base as object), delay }}
+      transition={{ ...(transition.base as object), delay: 0 }}
     >
       {children}
     </Comp>
@@ -61,7 +61,7 @@ type GroupProps = {
   delay?: number;
 };
 
-/** Container that staggers its `RevealItem` children when scrolled into view. */
+/** Group keeps the existing layout API while rendering children visibly. */
 export function RevealGroup({ children, as = "div", className, gap = stagger.base, delay = 0 }: GroupProps) {
   const Comp = tags[as];
   return (
@@ -69,7 +69,7 @@ export function RevealGroup({ children, as = "div", className, gap = stagger.bas
       data-reveal
       className={className}
       variants={staggerContainer(gap, delay)}
-      initial="hidden"
+      initial={false}
       whileInView="visible"
       viewport={viewport}
     >

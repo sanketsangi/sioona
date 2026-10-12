@@ -79,6 +79,7 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
             <span>{SCORE}</span>
             <span aria-hidden>%</span>
           </p>
+          <p className="mt-1 text-label-13 text-sio-fg-muted">Illustrative · example data</p>
           <p className="mt-1 text-label-13 text-sio-fg-muted">
             Go zone starts at <span className="tabular">{GO_THRESHOLD}%</span>
           </p>

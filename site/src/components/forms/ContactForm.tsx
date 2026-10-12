@@ -146,16 +146,34 @@ export function ContactForm() {
 
   if (status === "success") {
     return (
-      <div className="panel p-6 lg:p-8" aria-live="polite">
-        <CheckCircle size={24} weight="bold" className="text-sio-status-success-accent" aria-hidden />
-        <h2 className="text-heading-24 mt-4 text-sio-fg-base">Request received</h2>
-        <p className="text-copy-16 mt-2 max-w-md text-sio-fg-subtle">
-          Thanks, {values.name.split(" ")[0] || "there"}. Your pilot request has been stored for review.
-        </p>
-        <p className="mt-4 text-label-13 text-sio-fg-muted break-words">Receipt: <span translate="no">{receipt}</span></p>
-        <Link href="/" className="btn-secondary mt-6">
-          Back To Home
-        </Link>
+      <div className="panel overflow-hidden" aria-live="polite">
+        <div className="flex items-start gap-4 p-6 lg:p-8">
+          <span
+            aria-hidden
+            className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-control bg-sio-status-success-bg text-sio-status-success-fg"
+          >
+            <CheckCircle size={16} weight="bold" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-heading-24 text-sio-fg-base">Request received</h2>
+            <p className="text-copy-16 mt-1 max-w-prose text-sio-fg-subtle">
+              Thanks, {values.name.split(" ")[0] || "there"}. Your pilot request has been stored for review.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col gap-4 border-t border-sio-border-base px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-8 lg:px-8">
+          <dl className="min-w-0">
+            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-6">
+              <dt className="shrink-0 text-label-13 text-sio-fg-muted">Receipt</dt>
+              <dd className="min-w-0 font-mono text-label-13 break-all text-sio-fg-base" translate="no">
+                {receipt}
+              </dd>
+            </div>
+          </dl>
+          <Link href="/" className="btn-secondary shrink-0">
+            Back To Home
+          </Link>
+        </div>
       </div>
     );
   }
@@ -164,7 +182,7 @@ export function ContactForm() {
   const describedBy = (field: ContactField) => (errors[field] ? `${inputIds[field]}-error` : undefined);
 
   return (
-    <form onSubmit={onSubmit} noValidate className="panel flex flex-col gap-5 p-5 lg:p-6" aria-describedby="contact-status">
+    <form onSubmit={onSubmit} noValidate className="panel flex flex-col gap-5 p-5 lg:p-6" aria-describedby="contact-privacy contact-status">
       <div className="grid gap-5 sm:grid-cols-2">
         <FieldShell field="name" label="Name" hint="Required" error={errors.name}>
           <input
@@ -294,10 +312,14 @@ export function ContactForm() {
         />
       </FieldShell>
 
+      <div id="contact-privacy" className="text-copy-14 text-sio-fg-subtle">
+        <p>We use your business contact details to review this request and reply about a pilot. Please don’t include customer transcripts or sensitive data.</p>
+        <p className="mt-2">By selecting “Request a pilot”, you consent to this use of your details as described in our <Link href="/privacy" className="underline">privacy notice</Link> and accept the <Link href="/terms" className="underline">pilot request terms</Link>. No subscription is created.</p>
+      </div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <button type="submit" disabled={submitting} className="btn-primary btn-lg">
           {submitting ? <CircleNotch size={16} weight="bold" className="animate-spin" aria-hidden /> : null}
-          Request A Pilot
+          Request a pilot
         </button>
         <p className="text-label-13 text-sio-fg-muted">We’ll reply about next steps. No chat access needed to start.</p>
       </div>

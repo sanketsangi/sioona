@@ -5,11 +5,11 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { nb } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: "Request A Pilot",
+  title: "Request a pilot",
   description:
     "Request a two-week Shadow Mode pilot. Share one redacted chat export and see lead, retention and upsell signals with your own Signal Score.",
   alternates: { canonical: "/contact" },
-  openGraph: { url: "/contact", title: "Request A Sioona Pilot" },
+  openGraph: { url: "/contact", title: "Request a Sioona pilot" },
 };
 
 const next = [
@@ -31,7 +31,7 @@ export default function ContactPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Request A Pilot"
+        eyebrow="Request a pilot"
         title="Tell us where your chats live."
         description="A pilot takes one export and a couple of hours of review across two weeks."
       />
