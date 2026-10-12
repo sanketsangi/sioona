@@ -1,8 +1,8 @@
 "use client";
 
-import { animate, m, useInView, useMotionValue, useTransform } from "framer-motion";
+import { m, useInView } from "framer-motion";
 import { Info } from "@phosphor-icons/react/ssr";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { duration, ease } from "@/lib/motion";
 
 const SCORE = 84;
@@ -16,19 +16,6 @@ const CY = 120;
 function arcPoint(fraction: number) {
   const angle = Math.PI * fraction;
   return { x: CX - R * Math.cos(angle), y: CY - R * Math.sin(angle) };
-}
-
-function CountUp({ to, started }: { to: number; started: boolean }) {
-  const value = useMotionValue(0);
-  const rounded = useTransform(value, (v) => Math.round(v).toString());
-
-  useEffect(() => {
-    if (!started) return;
-    const controls = animate(value, to, { duration: 1.4, ease });
-    return () => controls.stop();
-  }, [started, to, value]);
-
-  return <m.span>{rounded}</m.span>;
 }
 
 export function ScorePanel({ compact = false }: { compact?: boolean }) {
@@ -89,10 +76,7 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
         </div>
         <div className={compact ? "mt-2 text-center" : "mt-4 text-center"}>
           <p className="tabular text-heading-40 text-sio-fg-base">
-            <span className="motion-safe:hidden">{SCORE}</span>
-            <span className="hidden motion-safe:inline">
-              <CountUp to={SCORE} started={started} />
-            </span>
+            <span>{SCORE}</span>
             <span aria-hidden>%</span>
           </p>
           <p className="mt-1 text-label-13 text-sio-fg-muted">
@@ -119,6 +103,7 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
               return (
                 <div key={index} className="score-batch-column flex h-full flex-1 flex-col justify-end">
                   <m.span
+                    data-reveal
                     className="score-label tabular mb-1 text-center text-label-12 text-sio-fg-subtle"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: started ? 1 : 0 }}

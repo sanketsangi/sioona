@@ -1,0 +1,19 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import { Footer } from "./Footer";
+describe("Footer brand and navigation", () => {
+  it("provides a labelled home link and the supplied decorative SVG", () => {
+    const html = renderToStaticMarkup(createElement(Footer));
+    expect(html).toMatch(/<a(?=[^>]*href="\/")(?=[^>]*aria-label="Sioona, home")[^>]*>/);
+    expect(html).toContain('translate="no"');
+    expect(html).toMatch(/<img(?=[^>]*src="\/sioona-footer.svg")(?=[^>]*alt="")(?=[^>]*width="43")(?=[^>]*height="43")[^>]*>/);
+    expect(html).not.toContain('<h1');
+  });
+  it("keeps every navigation group and conversion path available", () => {
+    const html = renderToStaticMarkup(createElement(Footer));
+    for (const group of ['Product','Trust','Company']) expect(html).toContain(`aria-label="${group}"`);
+    for (const href of ['/#features','/#score','/security','/pricing','/contact','/#faq']) expect(html).toContain(`href="${href}"`);
+    expect(html).toContain('Human judgment.');
+  });
+});

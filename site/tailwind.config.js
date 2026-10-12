@@ -10,6 +10,7 @@ module.exports = {
       transparent: "transparent",
       current: "currentColor",
       inherit: "inherit",
+      sunset: "rgb(var(--sio-sunset-rgb) / <alpha-value>)",
       sio: {
         "bg-base": "var(--sio-bg-base)",
         "bg-subtle": "var(--sio-bg-subtle)",
