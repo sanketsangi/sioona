@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { nb } from "@/lib/site";
 
+import { DataFacts } from "@/components/sections/DataFacts";
+
 export const metadata: Metadata = {
   title: "Security",
   description:
@@ -115,6 +117,7 @@ export default function SecurityPage() {
         </div>
       </section>
 
+      <DataFacts />
       <FinalCta />
     </>
   );

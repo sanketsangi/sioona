@@ -8,7 +8,7 @@ export function FinalCta() {
       <div className="container-page">
         <RevealGroup className="final-cta-card" gap={0.08}>
           <RevealItem>
-            <p className="eyebrow">Request A Pilot</p>
+            <p className="eyebrow">Request a pilot</p>
           </RevealItem>
           <RevealItem>
             <h2 id="cta-title" className="text-heading-40 mt-3 text-sio-fg-base">
@@ -23,7 +23,7 @@ export function FinalCta() {
           </RevealItem>
           <RevealItem className="mt-8 flex flex-wrap items-center gap-3">
             <ButtonLink href="/contact" large className="w-fit rounded-full">
-              Request A Pilot
+              Request a pilot
               <ArrowRight size={16} weight="bold" aria-hidden />
             </ButtonLink>
             <ButtonLink href="/how-it-works" variant="secondary" large className="w-fit rounded-full">

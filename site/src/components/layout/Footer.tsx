@@ -23,8 +23,10 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "Request A Pilot", href: "/contact" },
+      { label: "Request a pilot", href: "/contact" },
       { label: "Contact", href: "/contact" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
       ...(siteConfig.appUrl ? [{ label: "Sign In", href: siteConfig.appUrl }] : []),
     ],
   },

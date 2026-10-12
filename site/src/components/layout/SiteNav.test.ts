@@ -36,6 +36,8 @@ import { SiteNav } from "./SiteNav";
 let root: Root | undefined;
 let host: HTMLDivElement | undefined;
 
+let intersectionCallback: ((entries: Array<{ intersectionRatio: number }>) => void) | undefined;
+
 function installMatchMedia() {
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -51,6 +53,26 @@ function installMatchMedia() {
       dispatchEvent: () => false,
     }),
   });
+}
+
+function installIntersectionObserver() {
+  class MockObserver {
+    constructor(callback: (entries: Array<{ intersectionRatio: number }>) => void) {
+      intersectionCallback = callback;
+    }
+    observe() {
+      intersectionCallback?.([{ intersectionRatio: 1 }]);
+    }
+    disconnect() {}
+    unobserve() {}
+  }
+  vi.stubGlobal("IntersectionObserver", MockObserver);
+}
+
+function backdrop() {
+  const node = host?.querySelector("header");
+  if (!(node instanceof HTMLElement)) throw new Error("Navigation bar missing");
+  return node;
 }
 
 function renderNav() {
@@ -76,7 +98,9 @@ function menu() {
 
 describe("Product dropdown", () => {
   beforeEach(() => {
+    window.location.hash = "";
     installMatchMedia();
+    installIntersectionObserver();
     renderNav();
   });
 
@@ -151,5 +175,21 @@ describe("Product dropdown", () => {
     });
 
     expect(button.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("turns solid after a hash jump without a scroll event", () => {
+    expect(backdrop().getAttribute("data-scrolled")).toBe("false");
+    expect(backdrop().className).toContain("bg-transparent");
+
+    act(() => {
+      window.location.hash = "#product";
+      Object.defineProperty(window, "scrollY", { configurable: true, value: 640 });
+      intersectionCallback?.([{ intersectionRatio: 0 }]);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    expect(backdrop().getAttribute("data-scrolled")).toBe("true");
+    expect(backdrop().className).toContain("data-[scrolled=true]:bg-sio-bg-base");
+    expect(backdrop().className).not.toContain("opacity-0");
   });
 });

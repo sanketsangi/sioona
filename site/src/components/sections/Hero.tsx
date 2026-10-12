@@ -9,10 +9,10 @@ export function Hero() {
     <section aria-labelledby="hero-title" className="marketing-hero">
       <div className="container-page">
         <div className="hero-copy">
-          <Link className="hero-badge" href="/how-it-works">
+          <Link className="hero-badge gap-2.5 py-1.5 pe-1.5 ps-2.5" href="/how-it-works">
             <span className="hero-badge-label bg-sunset/10 text-sunset inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-medium leading-none">Sioona</span>
-            <span className="hero-badge-copy"><strong className="hero-badge-lead">Conversation intelligence</strong><span className="hero-badge-sep" aria-hidden>·</span><span className="hero-badge-tail">Human judgment</span></span>
-            <span className="hero-badge-arrow"><ArrowUpRight size={12} weight="bold" aria-hidden /></span>
+            <span className="hero-badge-copy text-[13px]"><strong className="hero-badge-lead">Conversation intelligence</strong><span className="hero-badge-sep" aria-hidden>·</span><span className="hero-badge-tail">Human judgment</span></span>
+            <span className="hero-badge-arrow size-6"><ArrowUpRight size={12} className="size-3" weight="bold" aria-hidden /></span>
           </Link>
           <h1 id="hero-title" className="hero-heading">Your next opportunity<br className="hidden sm:block" /> is already <span>in the conversation.</span></h1>
           <p className="text-copy-18 hero-description">Find buying intent, churn risk and expansion opportunities in your customer chats. Give your team the evidence to make the next move.</p>

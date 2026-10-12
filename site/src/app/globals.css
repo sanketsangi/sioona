@@ -266,13 +266,13 @@
 
   .btn-primary {
     border: 1px solid transparent;
-    background: var(--sio-bg-inverse);
+    background: var(--sio-signal-upsell-fg);
     color: var(--sio-fg-on-color);
     box-shadow: var(--sio-shadow-btn);
   }
 
   .btn-primary:hover:not(:disabled):not(:focus-visible) {
-    background: var(--sio-bg-inverse-hover);
+    background: var(--sio-polish-accent-hover);
     box-shadow: var(--sio-shadow-btn-hover);
   }
 
@@ -722,7 +722,7 @@ html[data-drawer-open="true"] {
 /* Marketing composition: a warm canvas, evidence-led product surfaces. */
 .marketing-hero { padding-block: 4.5rem 3rem; background: radial-gradient(ellipse at 50% 55%, var(--sio-signal-upsell-bg), transparent 65%); }
 .hero-copy { max-width: 960px; margin-inline: auto; text-align: center; }
-.hero-badge { display: inline-flex; align-items: center; gap: .6rem; border: 1px solid color-mix(in srgb, var(--sio-border-strong) 55%, transparent); border-radius: 999px; padding: .35rem .4rem .35rem .65rem; font-size: 13px; line-height: 20px; color: var(--sio-fg-subtle); background: color-mix(in srgb, var(--sio-bg-subtle) 60%, transparent); transition: border-color .2s ease, background-color .2s ease; }
+.hero-badge { height: 38px; display: inline-flex; align-items: center; border: 1px solid color-mix(in srgb, var(--sio-border-strong) 55%, transparent); border-radius: 999px; font-size: 13px; line-height: 20px; color: var(--sio-fg-subtle); background: color-mix(in srgb, var(--sio-bg-subtle) 60%, transparent); transition: border-color .2s ease, background-color .2s ease; }
 .hero-badge:hover { border-color: var(--sio-border-strong); background: var(--sio-bg-subtle); }
 .hero-badge:focus-visible { outline: 2px solid var(--sio-signal-upsell-fg); outline-offset: 3px; }
 .hero-badge-copy strong { color: var(--sio-fg-base); font-weight: 600; }
@@ -855,9 +855,8 @@ html[data-drawer-open="true"] {
 .preview-chrome-header-lead { display: flex; align-items: center; min-width: 0; }
 .preview-traffic-lights-spacer { display: flex; align-items: center; width: 68px; min-height: 32px; padding-left: 3px; }
 .preview-chrome-header-actions { display: flex; align-items: center; gap: 4px; color: var(--sio-fg-subtle); }
-.preview-chrome-action { border-radius: 8px; color: var(--sio-fg-subtle); transition: background-color 180ms ease, color 180ms ease, transform 180ms ease; }
-.preview-chrome-action:hover { background: var(--sio-bg-muted); color: var(--sio-fg-base); }
-.preview-chrome-action:active { transform: scale(.96); }
+.preview-chrome-header-actions > button { width: 1.75rem; height: 1.75rem; min-width: 1.75rem; min-height: 1.75rem; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; color: var(--sio-fg-subtle); transition: background-color 180ms ease, color 180ms ease; }
+.preview-chrome-header-actions > button:hover { background: var(--sio-bg-muted); color: var(--sio-fg-base); }
 
 /* A complete toolkit at a glance, with no timed slides. */
 .menu-feature-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, 1fr); gap: 8px; height: 100%; min-width: 0; }
@@ -986,7 +985,7 @@ html[data-drawer-open="true"] {
 .home-polish .hero-heading { font-size: clamp(2.65rem,6vw,5.1rem); letter-spacing: -.06em; line-height: 1.08; margin-top: 1.9rem; }
 .home-polish .hero-heading>span { position: relative; }
 .home-polish .hero-description { max-width: 630px; font-size: clamp(17px,1.8vw,20px); line-height: 1.65; margin-top: 1.6rem; }
-.home-polish .hero-badge { min-height: 36px; padding: .35rem .4rem .35rem .65rem; box-shadow: var(--sio-shadow-quiet); }
+.home-polish .hero-badge { height: 38px; min-height: 38px; box-shadow: var(--sio-shadow-quiet); }
 .home-polish .hero-actions { gap: 12px; margin-top: 1.8rem; }
 .home-polish .hero-actions .btn-lg { min-height: 48px; padding-inline: 22px; border-radius: 999px; gap: 12px; }
 .home-polish .hero-actions .btn-primary,.home-polish .final-cta .btn-primary { background: var(--sio-signal-upsell-fg); }
@@ -1049,7 +1048,6 @@ html[data-drawer-open="true"] {
   .home-polish .preview-window-dots>span { width: 9px; height: 9px; }
   .preview-demo-label { font-size: 10px; }
   .home-polish .preview-chrome-header { gap: 6px; padding-inline: 2px; }
-  .home-polish .preview-chrome-action { min-width: 44px; min-height: 44px; }
   .home-polish .export-strip { padding-bottom: 48px; }
   .home-polish .signal-card,.home-polish .bento-card { padding: 24px; }
   .home-polish .final-cta-card { padding: 44px 24px; border-radius: 20px; }
@@ -1058,7 +1056,6 @@ html[data-drawer-open="true"] {
 @media (max-width: 374px) {
   .home-polish .hero-actions { flex-direction: column; align-items: stretch; }
   .home-polish .hero-actions a { width: 100%; }
-  .home-polish .hero-badge { font-size: 11px; gap: 5px; }
   .home-polish .hero-heading { font-size: 2.4rem; }
 }
 
@@ -1104,19 +1101,21 @@ html[data-drawer-open="true"] {
 /* Compensate for the supplied SVG's internal canvas padding without editing it. */
 .footer-mark-wrap img.footer-mark { transform: scale(1.3); }
 
-/* Light playback control, with a dark icon and a generous touch target. */
-.home-polish .preview-chrome-action { min-width: 44px; min-height: 44px; border: 1px solid var(--sio-border-base); background: var(--sio-bg-subtle); color: var(--sio-fg-base); box-shadow: var(--sio-shadow-quiet); }
-.home-polish .preview-chrome-action:hover { background: var(--sio-bg-muted); border-color: var(--sio-border-strong); }
-.home-polish .preview-chrome-action:focus-visible { box-shadow: var(--focus-ring); }
+/* Playback control: 28px, no resting chrome. Hover is the only filled state. */
+.home-polish .preview-chrome-header-actions > button { width: 1.75rem; height: 1.75rem; min-width: 1.75rem; min-height: 1.75rem; padding: 0; border: 0; border-radius: 20px; background: transparent; box-shadow: none; color: var(--sio-fg-subtle); }
+.home-polish .preview-chrome-header-actions > button:hover { background: var(--sio-bg-muted); color: var(--sio-fg-base); }
+.home-polish .preview-chrome-header-actions > button:focus-visible { box-shadow: var(--focus-ring); }
 
 /* One-line badge: preserve the brand and tail; truncate the lead only if needed. */
-.home-polish .hero-badge { max-width: 100%; min-width: 0; flex-wrap: nowrap; white-space: nowrap; gap: 8px; }
+.home-polish .hero-badge { max-width: 100%; min-width: 0; flex-wrap: nowrap; white-space: nowrap; }
 .home-polish .hero-badge-label,.home-polish .hero-badge-tail,.home-polish .hero-badge-arrow { flex-shrink: 0; }
 .home-polish .hero-badge-copy { display: inline-flex; align-items: center; min-width: 0; gap: 8px; white-space: nowrap; }
 .home-polish .hero-badge-lead { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .home-polish .hero-badge-tail { display: inline-flex; white-space: nowrap; }
 @media (max-width: 767px) {
-  .home-polish .hero-badge { font-size: 11px; min-height: 44px; padding-inline: 6px; gap: 5px; }
+  .hero-badge { position: relative; }
+  .hero-badge::after { content: ""; position: absolute; inset: -4px 0; }
+  .home-polish .hero-badge { height: 38px; min-height: 38px; }
   .home-polish .hero-badge-copy { flex-direction: row; gap: 5px; }
   .home-polish .hero-badge-tail { width: auto; }
 }

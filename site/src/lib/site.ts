@@ -19,7 +19,7 @@ export const navLinks = [
   { label: "Pricing", href: "/pricing" },
 ] as const;
 
-export const routes = ["/", "/how-it-works", "/security", "/pricing", "/contact"] as const;
+export const routes = ["/", "/how-it-works", "/security", "/pricing", "/contact", "/privacy", "/terms"] as const;
 
 const NBSP = "\u00a0";
 

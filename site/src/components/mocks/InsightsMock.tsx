@@ -112,7 +112,7 @@ export function InsightsMock({ previewHeader = false }: { previewHeader?: boolea
 }
 
 function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
-  const [userPaused, setUserPaused] = useState(!previewHeader);
+  const [userPaused, setUserPaused] = useState(true);
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { amount: "some", once: previewHeader, margin: "0px 0px -48px 0px" });
   const previewEntered = useContext(HeroPreviewEntered);
@@ -140,7 +140,9 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
             onClick={() => setUserPaused((value) => !value)}
             aria-pressed={!userPaused}
             aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
-            className={`btn-tertiary size-11 !px-0 md:size-8 ${previewHeader ? "preview-chrome-action" : ""} ${reduced ? "hidden" : ""}`}
+            className={previewHeader
+              ? `preview-chrome-action inline-flex w-7 h-7 items-center justify-center p-0 ${reduced ? "hidden" : ""}`
+              : `btn-tertiary size-11 !px-0 md:size-8 ${reduced ? "hidden" : ""}`}
           >
             {userPaused ? <PlayCircle size={20} aria-hidden /> : <PauseCircle size={20} aria-hidden />}
           </button>

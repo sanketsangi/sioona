@@ -14,7 +14,7 @@ const productLinks = [
   { href: "/#product", label: "Product", description: "Find signals and choose your next action", eyebrow: "Conversation intelligence" },
   { href: "/#how", label: "Shadow Mode", description: "A simple loop. Humans in control.", eyebrow: "From chat to action" },
   { href: "/#score", label: "Signal Score", description: "Measure precision before you commit", eyebrow: "Signal Score" },
-  { href: "/#features", label: "Product Feature", description: "Insights, uploads and your review toolkit", eyebrow: "Product Feature" },
+  { href: "/#features", label: "Product features", description: "Insights, uploads and your review toolkit", eyebrow: "Product features" },
 ];
 
 export function SiteNav() {
@@ -47,11 +47,60 @@ export function SiteNav() {
   }, [productOpen, activeProduct]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    const sentinel = document.createElement("div");
+    sentinel.setAttribute("aria-hidden", "true");
+    sentinel.dataset.navSentinel = "true";
+    sentinel.style.cssText = "position:absolute;top:0;left:0;width:1px;height:9px;pointer-events:none;";
+    document.body.prepend(sentinel);
+
+    let sentinelHidden = false;
+    const readScrolled = () => {
+      const top = Math.max(window.scrollY, document.documentElement.scrollTop, document.body.scrollTop);
+      return top > 8 || sentinelHidden;
+    };
+    const publish = () => {
+      const next = readScrolled();
+      setScrolled((current) => (current === next ? current : next));
+    };
+
+    const observer = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => {
+      sentinelHidden = entry.intersectionRatio < 1;
+      publish();
+    }, { threshold: [0, 1] });
+    observer?.observe(sentinel);
+
+    let frame = 0;
+    let ticks = 0;
+    const followHash = () => {
+      window.cancelAnimationFrame(frame);
+      ticks = 0;
+      const step = () => {
+        publish();
+        ticks += 1;
+        if (ticks < 24) frame = window.requestAnimationFrame(step);
+      };
+      frame = window.requestAnimationFrame(step);
+    };
+
+    publish();
+    window.addEventListener("scroll", publish, { passive: true });
+    document.addEventListener("scroll", publish, { capture: true, passive: true });
+    window.addEventListener("scrollend", publish);
+    window.addEventListener("hashchange", followHash);
+    window.addEventListener("popstate", followHash);
+    if (window.location.hash) followHash();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", publish);
+      document.removeEventListener("scroll", publish, true);
+      window.removeEventListener("scrollend", publish);
+      window.removeEventListener("hashchange", followHash);
+      window.removeEventListener("popstate", followHash);
+      observer?.disconnect();
+      sentinel.remove();
+    };
+  }, [pathname]);
 
   useEffect(() => {
     const onPointer = (event: PointerEvent) => {
@@ -121,12 +170,10 @@ export function SiteNav() {
   }, [pathname]);
 
   return (
-    <header className="sticky top-0 z-40 h-[var(--nav-height)]">
-      <div
-        aria-hidden
-        data-scrolled={scrolled}
-        className="pointer-events-none absolute inset-0 border-b border-sio-border-base bg-sio-bg-nav opacity-0 transition-opacity duration-200 ease-sio data-[scrolled=true]:opacity-100"
-      />
+    <header
+      data-scrolled={scrolled ? "true" : "false"}
+      className="sticky top-0 z-40 h-[var(--nav-height)] border-b border-transparent bg-transparent data-[scrolled=true]:border-sio-border-base data-[scrolled=true]:bg-sio-bg-base"
+    >
       <div className="container-page site-nav-layout relative h-full items-center gap-4">
         <Logo />
         <nav
@@ -188,7 +235,7 @@ export function SiteNav() {
             Sign In
           </Link> : null}
           <Link href="/contact" className="btn-primary hidden rounded-full sm:inline-flex">
-            Request A Pilot
+            Request a pilot
           </Link>
           <button
             type="button"
@@ -240,7 +287,7 @@ export function SiteNav() {
           </nav>
           <div className="mt-auto flex flex-col gap-2 pt-6">
             <Link href="/contact" onClick={closeDrawer} className="btn-primary btn-lg rounded-full">
-              Request A Pilot
+              Request a pilot
             </Link>
             {siteConfig.appUrl ? <Link href={siteConfig.appUrl} onClick={closeDrawer} className="btn-secondary btn-lg">
               Sign In
