@@ -4,7 +4,8 @@ vi.mock("@/lib/defer-ingest-sync", () => ({
   persistDeferredIngestDualWrite: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { POST, signalsForPublishedConversations } from "./route";
+import { signalsForPublishedConversations } from "./publication";
+import { POST } from "./route";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runDetection } from "@/lib/detect";
 import * as detectLlm from "@/lib/detect-llm";

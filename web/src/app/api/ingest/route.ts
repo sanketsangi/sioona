@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { signalsForPublishedConversations } from "./publication";
 import { requireApiSession } from "@/lib/auth-guard";
 import { runWithTenant } from "@/lib/tenant-context";
 import { finalizePublishedUpload } from "@/lib/finalize-published-upload";
@@ -51,13 +52,6 @@ import { listUploadedChatFiles } from "@/lib/vault-file";
 function parseReplaceFlag(form: FormData): boolean {
   const value = form.get("replace");
   return value === "true" || value === "1";
-}
-
-export function signalsForPublishedConversations<
-  T extends { conversationId: string },
->(signals: T[], conversations: { id: string }[]): T[] {
-  const publishedIds = new Set(conversations.map((conversation) => conversation.id));
-  return signals.filter((signal) => publishedIds.has(signal.conversationId));
 }
 
 export async function POST(request: Request) {
