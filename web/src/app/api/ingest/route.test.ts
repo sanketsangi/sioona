@@ -4,6 +4,7 @@ vi.mock("@/lib/defer-ingest-sync", () => ({
   persistDeferredIngestDualWrite: vi.fn().mockResolvedValue(undefined),
 }));
 
+import { signalsForPublishedConversations } from "./publication";
 import { POST } from "./route";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runDetection } from "@/lib/detect";
@@ -91,6 +92,15 @@ function ingestRequest(
 }
 
 describe("POST /api/ingest", () => {
+  it("drops signals for conversation identities removed by an external-id replacement", () => {
+    const kept = { conversationId: "replacement", type: "lead" };
+    const removed = { conversationId: "removed", type: "retention" };
+
+    expect(
+      signalsForPublishedConversations([removed, kept], [{ id: "replacement" }])
+    ).toEqual([kept]);
+  });
+
   beforeEach(async () => {
     vi.stubGlobal(
       "fetch",

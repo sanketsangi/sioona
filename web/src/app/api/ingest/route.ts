@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { signalsForPublishedConversations } from "./publication";
 import { requireApiSession } from "@/lib/auth-guard";
 import { runWithTenant } from "@/lib/tenant-context";
 import { finalizePublishedUpload } from "@/lib/finalize-published-upload";
@@ -304,8 +305,9 @@ export async function POST(request: Request) {
       if (!partner) await writeStore(store);
 
       // Partner publication precedes the cache. Demo imports retain their local-first flow.
-      const signalsToSync = store.signals.filter((signal) =>
-        ingestedConversationIds.has(signal.conversationId)
+      const signalsToSync = signalsForPublishedConversations(
+        store.signals,
+        ingestedConversations
       );
       let publicationWarnings: string[] = [];
       let dualWrite:
