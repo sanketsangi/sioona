@@ -10,12 +10,15 @@ import {
   writeStore,
 } from "@/lib/store";
 import { syncPredictionsToBackend } from "@/lib/sync-predictions";
+import { getStateMode } from "@/lib/state-mode";
 
 export async function POST(request: Request) {
   const session = await requireApiSession(request, "mutate");
   if (session instanceof NextResponse) return session;
   return runWithTenant(session.tenantId, async () => {
     const store = await readStore();
+    const useCanonicalPublication =
+      store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
     const { signals: detected, llm } = await runHybridDetectionWithLedger(
       store.conversations,
       store.messages,
@@ -23,16 +26,16 @@ export async function POST(request: Request) {
       store.taxonomyOverrides,
       { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
     );
-    const updated = store.tenant.id === "tenant_demo"
-      ? await replaceSignalsPreservingFeedback(detected)
-      : { ...store, signals: detected };
+    const updated = useCanonicalPublication
+      ? { ...store, signals: detected }
+      : await replaceSignalsPreservingFeedback(detected);
     if (llm.enabled) {
       updated.llmSkippedConversationIds = llm.skippedIds ?? [];
       updated.llmFailedConversationIds = llm.failedIds ?? [];
     }
     let result;
     try {
-      if (store.tenant.id !== "tenant_demo") {
+      if (useCanonicalPublication) {
         if (llm.failed > 0) {
           await writeStore({ ...store, llmFailedConversationIds: llm.failedIds ?? [], llmSkippedConversationIds: llm.skippedIds ?? [] });
           return NextResponse.json({ error: "Classification failed. Previous published results remain active." }, { status: 503 });

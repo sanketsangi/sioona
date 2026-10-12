@@ -374,6 +374,8 @@ async function loadStoreLocal(
             conversationShadow = await comparePersistedConversations(toConversationSyncPayload(legacy.conversations, legacy.messages));
             conversationViewShadow = compareConversationViews(legacy, canonicalStore);
           } catch {
+            conversationShadow = undefined;
+            conversationViewShadow = undefined;
             // Shadow comparison is diagnostic only. The canonical read remains
             // authoritative when the comparison read or snapshot is unusable.
           }

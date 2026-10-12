@@ -11,7 +11,7 @@ Updated 2026-10-12. This table supersedes stale present-tense task closeouts; da
 | CB-07 | Attempt mode on `main`; admission remediation complete (`12458d1`) | Local + Antigravity green; exact head `5e93be5` CI observation optional | 023 verified hosted on Neon main (read-only, 2026-10-12) | Operational pause/timing acceptance still pending |
 | CB-08 | Merged evidence anchors; Unicode conformance remediation local | Local shared Python/TS fixtures; new revision unverified | Historical hosted closeout preserved | Remediation independent review complete; CI pending |
 | CB-09 | Synthetic replay, external runner, split promotion and identity checks implemented | #146 historical synthetic gate passes; new revision unverified | No external evaluation performed | Synthetic D5 metrics pass in clean-state test; external promotion blocked |
-| CB-10 | In progress on `cb/CB-10-canonical-postgres` (entity table + state mode boot check) | Base `b15f5d0` all six jobs success | In progress | D6 approved by Sanket on 2026-10-12; execution underway |
+| CB-10 | Slice 1 committed locally on `main` at `3258c23`; P1/P2 repairs in the following local commit | Repairs: 159 focused tests passed locally; repair CI unverified | Production Postgres mode off; hosted zero-loss window not run | D6 approved; review findings resolved; later slices and hosted acceptance remain open |
 | CB-13 | Not promoted | — | — | Requires identical verified external baseline/candidate holdout comparisons passing unchanged D5 |
 
 ## Read-only GitHub evidence

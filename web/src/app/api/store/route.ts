@@ -132,6 +132,8 @@ async function redetectWithOverrides(store: StoreData): Promise<{
   store: StoreData;
   redetectCount: number;
 }> {
+  const useCanonicalPublication =
+    store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
   const { signals: detected, llm } = await runHybridDetectionWithLedger(
     store.conversations,
     store.messages,
@@ -139,23 +141,23 @@ async function redetectWithOverrides(store: StoreData): Promise<{
     store.taxonomyOverrides,
     { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
   );
-  if (store.tenant.id !== "tenant_demo" && llm.failed > 0) {
+  if (useCanonicalPublication && llm.failed > 0) {
     await writeStore({ ...store, llmFailedConversationIds: llm.failedIds ?? [],
       llmSkippedConversationIds: llm.skippedIds ?? [] });
     throw new Error("Classification failed. Previous published results remain active.");
   }
-  const updated = store.tenant.id === "tenant_demo"
-    ? await replaceSignalsPreservingFeedback(detected)
-    : { ...store, signals: detected };
+  const updated = useCanonicalPublication
+    ? { ...store, signals: detected }
+    : await replaceSignalsPreservingFeedback(detected);
   if (llm.enabled) {
     updated.llmSkippedConversationIds = llm.skippedIds ?? [];
     updated.llmFailedConversationIds = llm.failedIds ?? [];
   }
-  const synced = store.tenant.id === "tenant_demo"
-    ? await syncPredictionsToBackend(updated.signals, store.tenant.id)
-    : await syncDetectionRun({ tenantId: store.tenant.id, conversations: store.conversations,
+  const synced = useCanonicalPublication
+    ? await syncDetectionRun({ tenantId: store.tenant.id, conversations: store.conversations,
       messages: store.messages, signals: detected, contexts: llm.contexts,
-      skippedIds: llm.skippedIds, priorSignals: store.signals });
+      skippedIds: llm.skippedIds, priorSignals: store.signals })
+    : await syncPredictionsToBackend(updated.signals, store.tenant.id);
   updated.signals = synced.signals;
   await writeStore(updated);
   return { store: updated, redetectCount: updated.signals.length };

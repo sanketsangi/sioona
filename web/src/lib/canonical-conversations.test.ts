@@ -4,6 +4,7 @@ import { runWithTenant } from "./tenant-context";
 import { readStore, setConversationGroundTruth, writeStore } from "./store";
 import * as backend from "./backend-client";
 import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
+import * as reconciliation from "./conversation-reconciliation";
 vi.mock("./backend-client", () => ({ getPilotSettings: vi.fn(), getActiveUploads: vi.fn(), getConversations: vi.fn(), getSupervisedActionDecisions: vi.fn(), patchConversationGroundTruth: vi.fn(), HYDRATE_CONVERSATIONS_TIMEOUT_MS: 1000 }));
 vi.mock("./fetch-tenant-signals", () => ({ fetchTenantSignals: vi.fn(async () => ({ ok: true, rows: [] })) }));
 vi.mock("./sync-taxonomy", () => ({ taxonomyOverridesFromNeon: vi.fn(async () => ({})), taxonomyNeonEnabled: () => false }));
@@ -62,6 +63,27 @@ it("shadow reads return parity reports without filesystem writes", async () => {
     expect(write).not.toHaveBeenCalled();
     expect(mkdir).not.toHaveBeenCalled();
   } finally { read.mockRestore(); write.mockRestore(); mkdir.mockRestore(); }
+});
+
+it("drops both shadow reports when an invalid feedback timestamp breaks the view comparison", async () => {
+  const { promises: fs } = await import("node:fs");
+  const { loadStore } = await import("./store");
+  const snapshot = await runWithTenant("t", () => readStore());
+  snapshot.signals = [{ id: "s", tenantId: "t", conversationId: "c", type: "lead",
+    score: 0.9, confidence: 0.9, summary: "Synthetic", suggestedAction: "", evidence: [],
+    status: "reviewed", createdAt: "2026-10-01T00:00:00Z",
+    feedback: { label: "correct", reviewedAt: "invalid-timestamp" } }];
+  const read = vi.spyOn(fs, "readFile").mockResolvedValue(JSON.stringify(snapshot));
+  const persisted = vi.spyOn(reconciliation, "comparePersistedConversations");
+  const views = vi.spyOn(reconciliation, "compareConversationViews");
+  try {
+    const loaded = await runWithTenant("t", () => loadStore({ shadowConversations: true }));
+    expect((await persisted.mock.results[0].value).equal).toBe(true);
+    expect(views.mock.results[0].type).toBe("throw");
+    expect(loaded.store.conversations.map((chat) => chat.id)).toEqual(["c"]);
+    expect(loaded.conversationShadow).toBeUndefined();
+    expect(loaded.conversationViewShadow).toBeUndefined();
+  } finally { read.mockRestore(); persisted.mockRestore(); views.mockRestore(); }
 });
 
 it.each([
