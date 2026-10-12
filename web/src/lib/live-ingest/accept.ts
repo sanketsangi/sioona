@@ -1,3 +1,4 @@
+import { getStateMode } from "../state-mode";
 import { getPublishedConversationIds } from "../backend-client";
 import { publishAtomicIngest } from "../publish-atomic-ingest";
 import { opaqueExternalIdentity } from "../opaque-identity";
@@ -71,7 +72,7 @@ async function acceptLiveChatsBody(
   if (fresh.length === 0) return { accepted: 0 };
 
   let ingested = toStoreRecords(fresh, store.tenant.id, { stableIds: true });
-  if (store.tenant.id !== "tenant_demo") {
+  if (store.tenant.id !== "tenant_demo" || getStateMode() === "postgres") {
     const published = new Set<string>();
     const ids = ingested.conversations.map((chat) => chat.id);
     for (let offset = 0; offset < ids.length; offset += 50) {
@@ -90,7 +91,7 @@ async function acceptLiveChatsBody(
     store.taxonomyOverrides,
     { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] },
   );
-  if (store.tenant.id !== "tenant_demo") {
+  if (store.tenant.id !== "tenant_demo" || getStateMode() === "postgres") {
     const published = await (deps.publish ?? publishAtomicIngest)({ tenantId: store.tenant.id,
       source: "live-ingest", replace: false, appendOnly: true, conversations: ingested.conversations,
       messages: ingested.messages, signals, contexts: llm.contexts,

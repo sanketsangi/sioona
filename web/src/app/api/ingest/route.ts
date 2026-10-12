@@ -1,3 +1,4 @@
+import { getStateMode } from "@/lib/state-mode";
 import { NextResponse } from "next/server";
 import { signalsForPublishedConversations } from "./publication";
 import { requireApiSession } from "@/lib/auth-guard";
@@ -274,7 +275,7 @@ export async function POST(request: Request) {
         ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
       };
 
-      const partner = store.tenant.id !== "tenant_demo";
+      const partner = store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
       const [{ signals: newSignals, llm }] = await Promise.all([
         runHybridDetectionWithLedger(
           ingestedConversations,

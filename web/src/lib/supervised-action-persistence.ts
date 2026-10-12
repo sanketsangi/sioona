@@ -17,6 +17,7 @@ import type {
   SupervisedActionDecision,
   SupervisedActionType,
 } from "./types";
+import { getStateMode } from "./state-mode";
 
 const ACTION_TYPES = new Set<SupervisedActionType>([
   "lead_outreach_draft",
@@ -129,6 +130,9 @@ export async function overlaySupervisedActionsFromNeon(
     );
   } catch (err) {
     const detail = err instanceof Error ? err.message : "unknown error";
+    if (getStateMode() === "postgres") {
+      throw new Error(`Canonical supervised decision read unavailable: ${detail}`);
+    }
     console.warn(
       `[supervised-action] overlay skipped tenant=${store.tenant.id}: ${detail}`,
     );
@@ -158,6 +162,9 @@ export async function syncSupervisedActionDecision(
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : "unknown error";
+    if (getStateMode() === "postgres") {
+      throw new Error(`Canonical supervised decision write unavailable: ${detail}`);
+    }
     console.warn(
       `[supervised-action] dual-write failed tenant=${action.tenantId} conversation=${action.conversationId} type=${action.type}: ${detail}`,
     );

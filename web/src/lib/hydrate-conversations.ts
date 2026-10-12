@@ -33,7 +33,10 @@ import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
 import { writeStore } from "./store";
+import { getStateMode } from "./state-mode";
 import { syncPredictionsToBackend } from "./sync-predictions";
+import { ensureSupervisedActions } from "./supervised-actions";
+import { overlaySupervisedActionsFromNeon } from "./supervised-action-persistence";
 import { bundledShowcaseConversationIds } from "./showcase-keep-set";
 import { isLivePartnerKeepSet } from "./vault-file";
 import type {
@@ -377,16 +380,19 @@ export async function tryHydrateStoreFromNeon(
   options?: HydrateStoreOptions
 ): Promise<StoreData | null> {
   const tenantId = currentStoreTenant();
+  const canonical = getStateMode() === "postgres";
   let remotePilot: Awaited<ReturnType<typeof getPilotSettings>> = null;
   try {
     remotePilot = await getPilotSettings(tenantId);
   } catch {
+    if (canonical) throw new Error("Canonical pilot read unavailable; retry the request.");
     remotePilot = null;
   }
   let memberships: Awaited<ReturnType<typeof getActiveUploads>> = [];
   try {
     memberships = await getActiveUploads(tenantId);
   } catch {
+    if (canonical) throw new Error("Canonical upload read unavailable; retry the request.");
     // Legacy deployments can still hydrate; durable-corpus failures must not
     // publish a reconstruction selected by an editable pilot timestamp.
     return null;
@@ -405,8 +411,9 @@ export async function tryHydrateStoreFromNeon(
       remotePilot?.updated_at &&
       (options?.freshOnly || dayOneReplace),
   );
+  let fetched: BackendConversation[];
   try {
-    const fetched = durable
+    fetched = durable
       ? await fetchScopedConversations(tenantId, [...memberIds], { timeoutMs: HYDRATE_CONVERSATIONS_TIMEOUT_MS })
       : await getConversations(tenantId, {
       timeoutMs: HYDRATE_CONVERSATIONS_TIMEOUT_MS,
@@ -415,10 +422,39 @@ export async function tryHydrateStoreFromNeon(
         ? { updatedSince: remotePilot.updated_at }
         : {}),
     });
-    if (!Array.isArray(fetched)) return null;
-    rows = fetched;
   } catch {
+    if (canonical) throw new Error("Canonical conversation read unavailable; retry the request.");
     return null;
+  }
+  if (!Array.isArray(fetched)) {
+    if (!canonical) return null;
+    throw new Error("Canonical conversation integrity failure: invalid response.");
+  }
+  rows = fetched;
+  if (canonical && rows.some((row) => row.tenant_id !== tenantId)) {
+    throw new Error("Canonical conversation integrity failure: cross-tenant row.");
+  }
+  if (
+    canonical &&
+    rows.some((row) =>
+      row.messages.some(
+        (message) =>
+          message.tenant_id !== tenantId ||
+          message.conversation_id !== row.conversation_id,
+      ),
+    )
+  ) {
+    throw new Error("Canonical conversation integrity failure: message ownership mismatch.");
+  }
+  if (
+    canonical &&
+    rows.some((row) =>
+      row.messages.some(
+        (message) => !STORE_ROLES.has(message.role as Message["role"]),
+      ),
+    )
+  ) {
+    throw new Error("Canonical conversation integrity failure: invalid message role.");
   }
   // Drop Sample / Partner Demo before this hydrate is written and painted.
   // A replace that seeded testing.json leaves those ids in Neon beside the file.
@@ -427,6 +463,9 @@ export async function tryHydrateStoreFromNeon(
     if (showcaseIds.size > 0) {
       rows = rows.filter((row) => !showcaseIds.has(row.conversation_id));
     }
+  }
+  if (canonical && durable && [...memberIds].some(id => !rows.some(row => row.conversation_id === id))) {
+    throw new Error("Canonical conversation integrity failure: upload membership hole.");
   }
   if (rows.length === 0) return null;
   const filtered = durable
@@ -472,12 +511,13 @@ export async function tryHydrateStoreFromNeon(
   const awaitPredictions = options?.syncPredictions !== false;
 
   try {
-    if (durable) {
+    if (durable || canonical) {
       // Hydration restores stored predictions; it never runs classification.
-      const restored = await fetchTenantSignals(tenantId, { conversationIds: [...memberIds] });
+      const restored = await fetchTenantSignals(tenantId, { conversationIds: chats.conversations.map(chat => chat.id) });
       if (!restored.ok) throw new Error(restored.error);
       const persisted = restored.rows;
-      signals = persisted.filter((row) => memberIds.has(row.conversation_id))
+      const chatIds = new Set(chats.conversations.map(chat => chat.id));
+      signals = persisted.filter((row) => chatIds.has(row.conversation_id))
         .map(predictionToStubSignal).filter((signal): signal is Signal => signal !== null);
       signals = applyNeonFeedbackToSignals(signals, persisted);
     } else {
@@ -515,6 +555,7 @@ export async function tryHydrateStoreFromNeon(
       chats.conversations
     );
   } catch {
+    if (canonical) throw new Error("Canonical prediction read unavailable; retry the request.");
     if (durable) return null;
     // Keep chats (+ any signals assigned before the throw). Do not seed testing.json.
   }
@@ -543,6 +584,14 @@ export async function tryHydrateStoreFromNeon(
     store.pilot = pilotSettingsFromRemote(remotePilot);
   }
 
-  await writeStore(store);
+  if (canonical) {
+    ensureSupervisedActions(store);
+    await overlaySupervisedActionsFromNeon(
+      store,
+      store.conversations.map((conversation) => conversation.id),
+    );
+  }
+
+  if (!canonical) await writeStore(store);
   return store;
 }

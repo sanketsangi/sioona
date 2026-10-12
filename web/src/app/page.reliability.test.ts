@@ -948,4 +948,17 @@ describe("PlatformPage deploy reliability", () => {
       true,
     );
   });
+  it("does not schedule legacy replay writes after a canonical cold read", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    try {
+      stubStore(mockStore(), true);
+      vi.mocked(fetchNeedsReview).mockResolvedValue({ ok: true, predictions: [] });
+      vi.mocked(fetchTenantSignals).mockResolvedValue({ ok: true, rows: [] });
+      await PlatformPage({ searchParams: Promise.resolve({ view: "insights" }) });
+      expect(after).not.toHaveBeenCalled();
+      expect(persistDeferredPredictionSync).not.toHaveBeenCalled();
+      expect(persistDeferredPilotRefresh).not.toHaveBeenCalled();
+    } finally { vi.unstubAllEnvs(); }
+  });
+
 });

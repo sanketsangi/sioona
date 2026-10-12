@@ -444,6 +444,10 @@ describe("supervised retention email actions", () => {
 
     it("in postgres mode, live tenants bypass local JSON files", async () => {
       process.env.SIOONA_STATE_MODE = "postgres";
+      const { promises: fs } = await import("node:fs");
+      const mkdir = vi.spyOn(fs, "mkdir");
+      const writeFile = vi.spyOn(fs, "writeFile");
+      const rename = vi.spyOn(fs, "rename");
       const liveStore = emptyStoreForTenant("tenant_gamma");
       liveStore.conversations.push({
         id: "conv_gamma_1",
@@ -458,12 +462,12 @@ describe("supervised retention email actions", () => {
       await runWithTenant("tenant_gamma", async () => {
         await writeStore(liveStore);
       });
+      expect(mkdir).not.toHaveBeenCalled();
+      expect(writeFile).not.toHaveBeenCalled();
+      expect(rename).not.toHaveBeenCalled();
 
       // Reading live tenant in postgres mode hydrates from Neon rather than local file
-      const hydrated = await runWithTenant("tenant_gamma", async () => {
-        return readStore();
-      });
-      expect(hydrated.tenant.id).toBe("tenant_gamma");
+      await expect(runWithTenant("tenant_gamma", () => readStore())).rejects.toThrow("Canonical pilot read unavailable");
     });
   });
 });

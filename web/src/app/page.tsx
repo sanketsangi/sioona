@@ -1,3 +1,4 @@
+import { getStateMode } from "@/lib/state-mode";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { after } from "next/server";
@@ -249,7 +250,7 @@ export default async function PlatformPage({
   );
   const storeRaw = storeAdopted;
   const coldStart = loaded.coldStart && storeAdopted === loaded.store;
-  if (shouldDeferHomepagePredictionSync(fetches.predictionSync, coldStart)) {
+  if (getStateMode() === "json-demo" && shouldDeferHomepagePredictionSync(fetches.predictionSync, coldStart)) {
     after(() => runWithTenant(storeRaw.tenant.id, async () => {
       await persistDeferredPredictionSync(storeRaw.tenant.id).catch((err) => {
         const detail = err instanceof Error ? err.message : "unknown error";
@@ -259,7 +260,7 @@ export default async function PlatformPage({
   }
   // Insights/Eval first paint uses needs-review / signals, not /pilot.
   // Header filename + cadence helper read JSON; heal Neon after the response.
-  if (shouldDeferHomepagePilotRefresh(fetches.pilotRefresh)) {
+  if (getStateMode() === "json-demo" && shouldDeferHomepagePilotRefresh(fetches.pilotRefresh)) {
     after(() => runWithTenant(storeRaw.tenant.id, async () => {
       await persistDeferredPilotRefresh(storeRaw.tenant.id).catch((err) => {
         const detail = err instanceof Error ? err.message : "unknown error";

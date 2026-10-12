@@ -34,6 +34,7 @@ import { syncPredictionsToBackend } from "@/lib/sync-predictions";
 import type { SignalType, StoreData } from "@/lib/types";
 import { syncPilotSettingsToBackend } from "@/lib/sync-pilot";
 import { wipeTenantDataFailSoft } from "@/lib/wipe-tenant";
+import { getStateMode } from "@/lib/state-mode";
 
 /**
  * After JSON showcase is live: wipe Neon leftovers, restore pilot (partner
@@ -190,6 +191,16 @@ export async function POST(request: Request) {
   const session = await requireApiSession(request, intent);
   if (session instanceof NextResponse) return session;
   return runWithTenant(session.tenantId, async () => {
+
+    if (
+      (body.action === "reset" || body.action === "partner_demo") &&
+      getStateMode() !== "json-demo"
+    ) {
+      return NextResponse.json(
+        { error: "Showcase reset is available only in json-demo state mode." },
+        { status: 409 },
+      );
+    }
 
     if (body.action === "warmup_showcase") {
       const warmed = await warmShowcasePacks();

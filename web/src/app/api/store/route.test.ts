@@ -181,8 +181,23 @@ describe("POST /api/store partner_demo", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it("rejects Partner Demo reset outside json-demo mode", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    const res = await POST(
+      new Request("http://localhost/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "partner_demo" }),
+      }),
+    );
+    expect(res.status).toBe(409);
+    expect(after).not.toHaveBeenCalled();
+    expect(persistDeferredIngestDualWrite).not.toHaveBeenCalled();
   });
 
   it("streams NDJSON wipe → detect → complete (dual-write deferred)", async () => {

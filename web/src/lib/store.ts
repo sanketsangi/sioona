@@ -62,12 +62,16 @@ export type ReadStoreOptions = {
    * and dual-written into Neon before the page hydrates.
    */
   seedShowcase?: boolean;
+  /** Read-only comparison against the retained JSON reader; no repair writes. */
+  shadowConversations?: boolean;
 };
 
 export type ReadStoreLoad = {
   store: StoreData;
   /** True when this read hydrated from Neon or seeded testing.json. */
   coldStart: boolean;
+  conversationShadow?: ReturnType<typeof import("./conversation-reconciliation").reconcileConversationData>;
+  conversationViewShadow?: ReturnType<typeof import("./conversation-reconciliation").compareConversationViews>;
 };
 
 /** In-process cache of the last parsed store.json (mtime+size keyed). */
@@ -310,6 +314,40 @@ export async function readPersistedStore(): Promise<StoreData | null> {
   return null;
 }
 
+/** Retained shadow reader: one runtime snapshot, never probes or creates files. */
+async function readLegacyConversationSnapshot(): Promise<StoreData | null> {
+  const tenantId = currentStoreTenant();
+  if (resolvedStoreDir === null) return null;
+  const dir =
+    vitestStoreDir() ??
+    (typeof resolvedStoreDir === "string"
+      ? resolvedStoreDir
+      : process.env.VERCEL
+        ? TMP_DATA_DIR
+        : BUNDLED_DATA_DIR);
+  try {
+    const raw = await fs.readFile(
+      /*turbopackIgnore: true*/ path.join(
+        dir,
+        storeFileNameForTenant(tenantId),
+      ),
+      "utf8",
+    );
+    const store = normalizeStore(JSON.parse(raw) as StoreData);
+    if (
+      store.tenant.id !== tenantId ||
+      store.conversations.some((chat) => chat.tenantId !== tenantId)
+    ) {
+      return null;
+    }
+    return store;
+  } catch {
+    // Shadow comparison is observational. A missing, unreadable, or malformed
+    // retained snapshot must never make the canonical dashboard read fail.
+    return null;
+  }
+}
+
 async function loadStoreLocal(
   options?: ReadStoreOptions
 ): Promise<ReadStoreLoad> {
@@ -318,14 +356,31 @@ async function loadStoreLocal(
   const seedShowcase =
     options?.seedShowcase !== false && tenantId === DEMO_TENANT_ID;
 
-  if (getStateMode() === "postgres" && tenantId !== DEMO_TENANT_ID) {
+  if (getStateMode() === "postgres") {
     const { tryHydrateStoreFromNeon } = await import("./hydrate-conversations");
     const hydrated = await tryHydrateStoreFromNeon({
       syncPredictions,
       ...(options?.freshOnly ? { freshOnly: true } : {}),
     });
-    if (hydrated) return { store: hydrated, coldStart: true };
-    return { store: emptyStoreForTenant(tenantId), coldStart: true };
+    {
+      const canonicalStore = hydrated ?? emptyStoreForTenant(tenantId);
+      let conversationShadow: ReadStoreLoad["conversationShadow"];
+      let conversationViewShadow: ReadStoreLoad["conversationViewShadow"];
+      if (options?.shadowConversations) {
+        const legacy = await readLegacyConversationSnapshot();
+        if (legacy) {
+          try {
+            const { comparePersistedConversations, compareConversationViews } = await import("./conversation-reconciliation");
+            conversationShadow = await comparePersistedConversations(toConversationSyncPayload(legacy.conversations, legacy.messages));
+            conversationViewShadow = compareConversationViews(legacy, canonicalStore);
+          } catch {
+            // Shadow comparison is diagnostic only. The canonical read remains
+            // authoritative when the comparison read or snapshot is unusable.
+          }
+        }
+      }
+      return { store: canonicalStore, coldStart: true, ...(conversationShadow ? { conversationShadow, conversationViewShadow } : {}) };
+    }
   }
 
   const persisted = await readPersistedStore();
@@ -399,9 +454,9 @@ export async function writeStore(data: StoreData): Promise<void> {
     );
   }
 
-  if (getStateMode() === "postgres" && data.tenant.id !== DEMO_TENANT_ID) {
+  if (getStateMode() === "postgres") {
     // In canonical Postgres mode, operational state lives in Postgres.
-    // Non-demo tenants do not write runtime JSON files.
+    // Ingest publishes through publishAtomicIngest; this snapshot is not a writer.
     return;
   }
 
@@ -751,6 +806,10 @@ export async function setConversationGroundTruth(
     }
   }
 
+  if (getStateMode() === "postgres") {
+    await patchConversationGroundTruth(currentStoreTenant(), conversationId, groundTruth);
+    return store;
+  }
   await writeStore(store);
 
   try {

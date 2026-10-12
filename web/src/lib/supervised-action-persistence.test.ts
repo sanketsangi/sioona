@@ -7,6 +7,7 @@ import type { Signal, StoreData, SupervisedAction } from "./types";
 import {
   applySupervisedDecisionOverlay,
   overlaySupervisedActionsFromNeon,
+  syncSupervisedActionDecision,
 } from "./supervised-action-persistence";
 
 vi.mock("./backend-client", async (importOriginal) => {
@@ -14,10 +15,14 @@ vi.mock("./backend-client", async (importOriginal) => {
   return {
     ...actual,
     getSupervisedActionDecisions: vi.fn(),
+    upsertSupervisedActionDecision: vi.fn(),
   };
 });
 
-import { getSupervisedActionDecisions } from "./backend-client";
+import {
+  getSupervisedActionDecisions,
+  upsertSupervisedActionDecision,
+} from "./backend-client";
 
 function storeWithConversation(): StoreData {
   return {
@@ -94,6 +99,7 @@ function neonStub(): Signal {
 describe("supervised action decision overlay", () => {
   beforeEach(() => {
     vi.mocked(getSupervisedActionDecisions).mockReset();
+    vi.mocked(upsertSupervisedActionDecision).mockReset();
   });
 
   it("restores a decision onto a store that has the conversation but no drafts", () => {
@@ -201,5 +207,21 @@ describe("supervised action decision overlay", () => {
     await overlaySupervisedActionsFromNeon(store, ["conv_keep"]);
     expect(store.supervisedActions[0]?.status).toBe("dismissed");
     expect(store.supervisedActions[0]?.subject).toBe("Local subject");
+  });
+
+  it("fails a canonical decision request when its only durable write fails", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    try {
+      vi.mocked(upsertSupervisedActionDecision).mockRejectedValue(
+        new Error("database_unavailable"),
+      );
+      const store = storeWithConversation();
+      applySupervisedDecisionOverlay(store, [neonRow("approved")]);
+      await expect(
+        syncSupervisedActionDecision(store.supervisedActions![0]),
+      ).rejects.toThrow("Canonical supervised decision write unavailable");
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
