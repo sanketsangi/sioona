@@ -19,6 +19,7 @@ import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   getConversations,
   getActiveUploads,
+  getDetectionResume,
   getPilotSettings,
   HYDRATE_CONVERSATIONS_TIMEOUT_MS,
   type BackendConversation,
@@ -32,7 +33,7 @@ import { withServerEvidence } from "./server-evidence";
 import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
-import { writeStore } from "./store";
+import { emptyStoreForTenant, writeStore } from "./store";
 import { getStateMode } from "./state-mode";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import { ensureSupervisedActions } from "./supervised-actions";
@@ -467,7 +468,31 @@ export async function tryHydrateStoreFromNeon(
   if (canonical && durable && [...memberIds].some(id => !rows.some(row => row.conversation_id === id))) {
     throw new Error("Canonical conversation integrity failure: upload membership hole.");
   }
-  if (rows.length === 0) return null;
+  let remoteResume: Awaited<ReturnType<typeof getDetectionResume>> = null;
+  if (canonical) {
+    try {
+      remoteResume = await getDetectionResume(tenantId);
+    } catch {
+      throw new Error("Canonical detection resume read unavailable; retry the request.");
+    }
+  }
+  const resumeState = {
+    ...(remoteResume?.failed_conversation_ids?.length
+      ? { llmFailedConversationIds: remoteResume.failed_conversation_ids }
+      : {}),
+    ...(remoteResume?.skipped_conversation_ids?.length
+      ? { llmSkippedConversationIds: remoteResume.skipped_conversation_ids }
+      : {}),
+  };
+  if (rows.length === 0) {
+    // An empty corpus is still a canonical tenant. Persisted pilot settings
+    // have to survive that read; otherwise the next baseline save omits them.
+    if (!canonical || !remotePilot) return null;
+    const store = emptyStoreForTenant(tenantId);
+    store.pilot = pilotSettingsFromRemote(remotePilot);
+    Object.assign(store, resumeState);
+    return store;
+  }
   const filtered = durable
     ? { apply: false, rows: rows.filter((row) => memberIds.has(row.conversation_id)) }
     : filterConversationsForLivePartner(rows, remotePilot);
@@ -578,6 +603,7 @@ export async function tryHydrateStoreFromNeon(
     ...(llmSkippedConversationIds
       ? { llmSkippedConversationIds }
       : {}),
+    ...resumeState,
   };
 
   if (remotePilot) {

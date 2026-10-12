@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 vi.mock("@/lib/auth-guard", () => ({ requireApiSession: vi.fn().mockResolvedValue({ tenantId: "tenant_partner", role: "admin" }) }));
 vi.mock("@/lib/store", () => ({ readStore: vi.fn(), addTaxonomyOverride: vi.fn(), writeStore: vi.fn(),
-  replaceSignalsPreservingFeedback: vi.fn() }));
+  replaceSignalsPreservingFeedback: vi.fn(), persistCanonicalDetectionResume: vi.fn() }));
 vi.mock("@/lib/detect-llm", () => ({ runHybridDetection: vi.fn() }));
 vi.mock("@/lib/sync-detection-run", () => ({
   syncDetectionRun: vi.fn(),

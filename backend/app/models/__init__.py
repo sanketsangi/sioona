@@ -2,6 +2,7 @@
 
 from app.models.upload import Upload, UploadConversation
 from app.models.pilot_request import PilotRequest
+from app.models.detection_resume import DetectionResume
 from app.models.detection_run import DetectionRun
 from app.models.inference_attempt import (
     COST_STATUSES,
@@ -73,6 +74,7 @@ __all__ = [
     "User",
     "Workspace",
     "actor_user_id",
+    "DetectionResume",
     "Upload",
     "UploadConversation",
     "Conversation",

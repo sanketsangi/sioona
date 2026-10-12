@@ -837,6 +837,44 @@ export async function getPilotSettings(
   }
 }
 
+export interface BackendDetectionResume {
+  tenant_id: string;
+  failed_conversation_ids: string[];
+  skipped_conversation_ids: string[];
+  updated_at: string;
+}
+
+/** Tenant-scoped chats still waiting after a capped or failed detection run. */
+export async function getDetectionResume(
+  tenantId: string,
+): Promise<BackendDetectionResume | null> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/detection-resume`;
+  try {
+    return await backendFetch<BackendDetectionResume>(tenantId, path);
+  } catch (err) {
+    if (err instanceof BackendClientError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+export async function putDetectionResume(
+  tenantId: string,
+  input: {
+    failed_conversation_ids: string[];
+    skipped_conversation_ids: string[];
+  },
+): Promise<BackendDetectionResume> {
+  const path = `/v1/tenants/${encodeURIComponent(tenantId)}/detection-resume`;
+  return backendFetch<BackendDetectionResume>(tenantId, path, {
+    method: "PUT",
+    body: JSON.stringify({
+      failed_conversation_ids: input.failed_conversation_ids,
+      skipped_conversation_ids: input.skipped_conversation_ids,
+    }),
+    timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
+  });
+}
+
 export async function putPilotSettings(
   tenantId: string,
   input: BackendPilotSettingsInput

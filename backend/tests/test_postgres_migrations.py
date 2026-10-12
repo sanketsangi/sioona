@@ -538,6 +538,7 @@ RLS_TABLES = (
     "detection_runs",
     "inference_attempts",
     "signal_evidence",
+    "detection_resume",
 )
 
 
@@ -689,6 +690,14 @@ def _seed_two_tenants(conn) -> None:
           ('70000000-0000-4000-8000-000000000002', 'tenant_b', '30000000-0000-4000-8000-000000000002', 'm-b', 0, 1, :digest, 1)
         """
     ), {"digest": "b" * 64})
+    conn.execute(text(
+        """
+        INSERT INTO detection_resume (tenant_id, failed_conversation_ids, skipped_conversation_ids)
+        VALUES
+          ('tenant_a', '["chat-a"]'::json, '[]'::json),
+          ('tenant_b', '[]'::json, '["chat-b"]'::json)
+        """
+    ))
 
 
 def _assert_runtime_isolation(engine) -> None:

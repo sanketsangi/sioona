@@ -83,6 +83,8 @@ def _body(method: str, path: str):
         return {"overrides": {}}
     if path.endswith("/pilot"):
         return {"baseline_opportunities": 0}
+    if path.endswith("/detection-resume"):
+        return {"failed_conversation_ids": [], "skipped_conversation_ids": []}
     if "/uploads/" in path and method == "PUT":
         return {
             "source": "weekly.csv",

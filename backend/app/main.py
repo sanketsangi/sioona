@@ -16,6 +16,7 @@ from app.api.routes import (
     tenant_data,
     uploads,
     pilot_requests,
+    detection_resume,
     detection_runs,
     ingestion,
     inference,
@@ -52,6 +53,7 @@ api.include_router(taxonomy.router)
 api.include_router(tenant_data.router)
 api.include_router(uploads.router)
 api.include_router(pilot_requests.router)
+api.include_router(detection_resume.router)
 api.include_router(detection_runs.router)
 api.include_router(ingestion.router)
 api.include_router(inference.router)

@@ -5,6 +5,7 @@ import { runWithTenant } from "@/lib/tenant-context";
 import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import { sortSignals } from "@/lib/eval";
 import {
+  persistCanonicalDetectionResume,
   readStore,
   replaceSignalsPreservingFeedback,
   writeStore,
@@ -26,6 +27,20 @@ export async function POST(request: Request) {
       store.taxonomyOverrides,
       { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
     );
+    if (useCanonicalPublication && llm.enabled) {
+      try {
+        await persistCanonicalDetectionResume(
+          store.tenant.id,
+          llm.failedIds ?? [],
+          llm.skippedIds ?? [],
+        );
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : "Detection resume could not be saved. Please retry.";
+        return NextResponse.json({ error: message }, { status: 503 });
+      }
+    }
     const updated = useCanonicalPublication
       ? { ...store, signals: detected }
       : await replaceSignalsPreservingFeedback(detected);

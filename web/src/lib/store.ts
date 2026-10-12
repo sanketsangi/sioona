@@ -5,10 +5,11 @@ import { randomUUID } from "crypto";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
   patchConversationGroundTruth,
+  putDetectionResume,
   upsertConversation,
 } from "./backend-client";
 import { toConversationSyncPayload } from "./sync-conversations";
-import { syncPilotSettingsToBackend } from "./sync-pilot";
+import { pilotSettingsFromRemote, syncPilotSettingsToBackend } from "./sync-pilot";
 import {
   applySupervisedActionDecision,
   buildActionLogEvent,
@@ -504,6 +505,26 @@ export async function writeStore(data: StoreData): Promise<void> {
   }
 }
 
+/**
+ * Postgres mode has no JSON writer. The resume cursor is the durable record
+ * of chats this tenant still owes, and it must land before the run is acknowledged.
+ */
+export async function persistCanonicalDetectionResume(
+  tenantId: string,
+  failedConversationIds: readonly string[],
+  skippedConversationIds: readonly string[],
+): Promise<void> {
+  if (getStateMode() !== "postgres") return;
+  try {
+    await putDetectionResume(tenantId, {
+      failed_conversation_ids: [...failedConversationIds],
+      skipped_conversation_ids: [...skippedConversationIds],
+    });
+  } catch {
+    throw new Error("Detection resume could not be saved. Please retry.");
+  }
+}
+
 export async function resetStore(): Promise<StoreData> {
   const { store } = await resetStoreWithWipe();
   return store;
@@ -721,6 +742,14 @@ export async function setPilotBaseline(
   }
   store.pilot = pilot;
   await writeStore(store);
+  if (getStateMode() === "postgres") {
+    const saved = await syncPilotSettingsToBackend(store.tenant.id, pilot);
+    if (!saved) {
+      throw new Error("Pilot baseline could not be saved. Please retry.");
+    }
+    store.pilot = pilotSettingsFromRemote(saved);
+    return store;
+  }
   await syncPilotSettingsToBackend(store.tenant.id, pilot);
   return store;
 }

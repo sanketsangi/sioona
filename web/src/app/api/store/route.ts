@@ -14,6 +14,7 @@ import {
   readStore,
   replaceSignalsPreservingFeedback,
   setPilotBaseline,
+  persistCanonicalDetectionResume,
   writeStore,
   type TaxonomyOverrideField,
 } from "@/lib/store";
@@ -141,6 +142,13 @@ async function redetectWithOverrides(store: StoreData): Promise<{
     store.taxonomyOverrides,
     { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
   );
+  if (useCanonicalPublication && llm.enabled) {
+    await persistCanonicalDetectionResume(
+      store.tenant.id,
+      llm.failedIds ?? [],
+      llm.skippedIds ?? [],
+    );
+  }
   if (useCanonicalPublication && llm.failed > 0) {
     await writeStore({ ...store, llmFailedConversationIds: llm.failedIds ?? [],
       llmSkippedConversationIds: llm.skippedIds ?? [] });
@@ -244,14 +252,22 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const store = await setPilotBaseline(
-        body.baselineOpportunities,
-        body.baselineNote
-      );
-      return NextResponse.json({
-        ...store,
-        signals: sortSignals(store.signals),
-      });
+      try {
+        const store = await setPilotBaseline(
+          body.baselineOpportunities,
+          body.baselineNote
+        );
+        return NextResponse.json({
+          ...store,
+          signals: sortSignals(store.signals),
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Pilot baseline could not be saved. Please retry.";
+        return NextResponse.json({ error: message }, { status: 503 });
+      }
     }
 
     if (body.action === "add_taxonomy_override") {

@@ -10,6 +10,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.services.tenant_lock import lock_tenant_corpus
+from app.models.detection_resume import DetectionResume
 from app.models.detection_run import DetectionRun
 from app.models.inference_attempt import InferenceAttempt
 from app.models.upload import Upload, UploadConversation
@@ -52,6 +53,7 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     conversations_deleted = db.execute(
         delete(Conversation).where(Conversation.tenant_id == tenant_id)
     ).rowcount
+    db.execute(delete(DetectionResume).where(DetectionResume.tenant_id == tenant_id))
     pilot_deleted = db.execute(
         delete(PilotSettings).where(PilotSettings.tenant_id == tenant_id)
     ).rowcount

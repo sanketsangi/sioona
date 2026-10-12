@@ -132,6 +132,8 @@ ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
     ("GET", "/v1/tenants/{tenant_id}/signals/page"): ("read", None, "path"),
     ("GET", "/v1/tenants/{tenant_id}/pilot"): ("read", None, "path"),
     ("PUT", "/v1/tenants/{tenant_id}/pilot"): ("review", None, "path"),
+    ("GET", "/v1/tenants/{tenant_id}/detection-resume"): ("read", None, "path"),
+    ("PUT", "/v1/tenants/{tenant_id}/detection-resume"): ("review", None, "path"),
     ("GET", "/v1/tenants/{tenant_id}/supervised-actions"): ("read", None, "path"),
     ("GET", "/v1/tenants/{tenant_id}/taxonomy-overrides"): ("read", None, "path"),
     ("PUT", "/v1/tenants/{tenant_id}/taxonomy-overrides"): ("review", None, "path"),

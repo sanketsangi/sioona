@@ -5,12 +5,12 @@ import { readStore, setConversationGroundTruth, writeStore } from "./store";
 import * as backend from "./backend-client";
 import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import * as reconciliation from "./conversation-reconciliation";
-vi.mock("./backend-client", () => ({ getPilotSettings: vi.fn(), getActiveUploads: vi.fn(), getConversations: vi.fn(), getSupervisedActionDecisions: vi.fn(), patchConversationGroundTruth: vi.fn(), HYDRATE_CONVERSATIONS_TIMEOUT_MS: 1000 }));
+vi.mock("./backend-client", () => ({ getPilotSettings: vi.fn(), getDetectionResume: vi.fn(async () => null), getActiveUploads: vi.fn(), getConversations: vi.fn(), getSupervisedActionDecisions: vi.fn(), patchConversationGroundTruth: vi.fn(), HYDRATE_CONVERSATIONS_TIMEOUT_MS: 1000 }));
 vi.mock("./fetch-tenant-signals", () => ({ fetchTenantSignals: vi.fn(async () => ({ ok: true, rows: [] })) }));
 vi.mock("./sync-taxonomy", () => ({ taxonomyOverridesFromNeon: vi.fn(async () => ({})), taxonomyNeonEnabled: () => false }));
 vi.mock("./ai/run-with-ledger", () => ({ runHybridDetectionWithLedger: vi.fn() }));
 const row = { id: "uuid", tenant_id: "t", conversation_id: "c", channel: "chat", customer_name: null, started_at: "2026-10-01T00:00:00Z", external_id: null, ground_truth: "lead" as const, created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", messages: [{ id: "uuid-m", tenant_id: "t", conversation_id: "c", message_id: "m", role: "customer", content: "Hello", timestamp: "2026-10-01T00:00:00Z", created_at: "2026-10-01T00:00:00Z" }] };
-beforeEach(() => { vi.stubEnv("SIOONA_STATE_MODE", "postgres"); vi.mocked(backend.getPilotSettings).mockResolvedValue(null); vi.mocked(backend.getActiveUploads).mockResolvedValue([]); vi.mocked(backend.getConversations).mockResolvedValue([row]); vi.mocked(backend.getSupervisedActionDecisions).mockResolvedValue([]); });
+beforeEach(() => { vi.stubEnv("SIOONA_STATE_MODE", "postgres"); vi.mocked(backend.getPilotSettings).mockResolvedValue(null); vi.mocked(backend.getDetectionResume).mockResolvedValue(null); vi.mocked(backend.getActiveUploads).mockResolvedValue([]); vi.mocked(backend.getConversations).mockResolvedValue([row]); vi.mocked(backend.getSupervisedActionDecisions).mockResolvedValue([]); });
 afterEach(() => { vi.resetAllMocks(); vi.unstubAllEnvs(); });
 it("reconstructs conversations/messages without detection or JSON writes", async () => {
   const store = await runWithTenant("t", () => tryHydrateStoreFromNeon());
@@ -27,6 +27,34 @@ it("fails closed on a conversation outage", async () => {
 it("distinguishes an empty tenant from an outage", async () => {
   vi.mocked(backend.getConversations).mockResolvedValue([]);
   expect((await runWithTenant("t", () => readStore())).conversations).toEqual([]);
+});
+it("keeps persisted pilot settings when a canonical tenant has no conversations", async () => {
+  vi.mocked(backend.getConversations).mockResolvedValue([]);
+  vi.mocked(backend.getPilotSettings).mockResolvedValue({
+    id: "pilot-1",
+    tenant_id: "t",
+    baseline_opportunities: 12,
+    baseline_note: "agreed baseline",
+    weekly_export_count: 3,
+    last_uploaded_file_name: "week-export.csv",
+    created_at: "2026-10-01T00:00:00Z",
+    updated_at: "2026-10-02T00:00:00Z",
+  });
+  const first = await runWithTenant("t", () => readStore());
+  const second = await runWithTenant("t", () => readStore());
+  expect(first.conversations).toEqual([]);
+  expect(first.pilot).toMatchObject({
+    baselineOpportunities: 12,
+    baselineNote: "agreed baseline",
+    weeklyExportCount: 3,
+    lastUploadedFileName: "week-export.csv",
+  });
+  expect(second.pilot).toMatchObject({
+    baselineOpportunities: 12,
+    baselineNote: "agreed baseline",
+    weeklyExportCount: 3,
+    lastUploadedFileName: "week-export.csv",
+  });
 });
 it("rejects a cross-tenant response", async () => {
   vi.mocked(backend.getConversations).mockResolvedValue([{ ...row, tenant_id: "other" }]);

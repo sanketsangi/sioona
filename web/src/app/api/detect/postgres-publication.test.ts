@@ -10,6 +10,7 @@ vi.mock("@/lib/backend-client", async (importOriginal) => ({
   getPilotSettings: vi.fn(),
   getActiveUploads: vi.fn(),
   getConversations: vi.fn(),
+  getDetectionResume: vi.fn(),
   getTenantSignalsPage: vi.fn(),
   getSupervisedActionDecisions: vi.fn(),
   publishDetectionRun: vi.fn(),
@@ -54,6 +55,7 @@ beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected network call")));
   persisted = [structuredClone(oldPrediction)];
   vi.mocked(backend.getPilotSettings).mockResolvedValue(null);
+  vi.mocked(backend.getDetectionResume).mockResolvedValue(null);
   vi.mocked(backend.getActiveUploads).mockResolvedValue([]);
   vi.mocked(backend.getConversations).mockResolvedValue([conversation]);
   vi.mocked(backend.getSupervisedActionDecisions).mockResolvedValue([]);
