@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 import Image from "next/image";
 import { siteConfig } from "@/lib/site";
 

@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { FileDashed, FileMagnifyingGlass, Info } from "@phosphor-icons/react/ssr";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -9,13 +10,7 @@ import { nb } from "@/lib/site";
 
 import { DataFacts } from "@/components/sections/DataFacts";
 
-export const metadata: Metadata = {
-  title: "Security",
-  description:
-    "Sioona keeps humans in the loop, runs pilots as single tenants, and never sends outbound messages in Shadow Mode. See how chat data is masked and what we don’t need from you.",
-  alternates: { canonical: "/security" },
-  openGraph: { url: "/security", title: "Security And Control" },
-};
+export const metadata: Metadata = pageMetadata("Security", "Sioona keeps humans in the loop, runs pilots as single tenants, and never sends outbound messages in Shadow Mode. See how chat data is masked and what we don’t need from you.", "/security");
 
 const dataHandling = [
   {

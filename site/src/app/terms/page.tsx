@@ -1,5 +1,6 @@
+import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 import { PageHeader } from "@/components/ui/PageHeader";
-export const metadata: Metadata = { title: "Pilot request terms", alternates: { canonical: "/terms" } };
+export const metadata: Metadata = pageMetadata("Pilot request terms", "Terms for requesting a Sioona pilot: business contact details, separately agreed scope and pricing, and human review of signals.", "/terms");
 export default function Page() { return <><PageHeader eyebrow="Terms" title="Pilot request terms" description="Applies to the business contact form for pilot enquiries." /><section className="section"><div className="container-page"><div className="flex max-w-3xl flex-col gap-5 text-copy-16 text-sio-fg-subtle"><p>Submitting this form requests a discussion about a pilot. It does not create a paid subscription or an agreement to begin processing customer exports.</p><p>Only submit business contact details you are authorised to share. Do not upload customer data, secrets or credentials through the message field.</p><p>Pilot scope, price, retention, storage location, security requirements and any data processing agreement must be agreed separately before a pilot begins.</p><p>Sioona presents signals for human review. Your team decides whether to act, using its own tools; Sioona does not send messages to your customers.</p><Link href="/contact" className="btn-secondary self-start">Contact Sioona</Link></div></div></section></>; }

@@ -1136,3 +1136,13 @@ html[data-drawer-open="true"] {
   .header-logo-mark { width: 30px; height: 30px; }
   .header-wordmark { font-size: 22px; }
 }
+
+/* Let the complete workflow determine its height when pinning would clip it. */
+@media (max-height: 760px) {
+  .shadow-story-track { height: auto; }
+  .shadow-story-sticky { position: static; height: auto; padding-block: 2rem; }
+  .shadow-story-steps li { display: block; }
+}
+.menu-preview-playback { align-self: flex-end; flex-shrink: 0; margin-top: 8px; min-height: 44px; }
+
+.product-preview-content[data-preview-running="false"] * { animation-play-state: paused; }

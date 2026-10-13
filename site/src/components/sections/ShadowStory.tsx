@@ -225,11 +225,12 @@ function Stage({ step }: { step: number }) {
 export function ShadowStory() {
   const trackRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
+  const shortViewport = useMediaQuery("(max-height: 760px)", false);
   const [step, setStep] = useState(0);
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start start", "end end"] });
 
   useMotionValueEvent(scrollYProgress, "change", (value) => {
-    if (reduced) return;
+    if (reduced || shortViewport) return;
     const next = Math.max(0, Math.min(STEPS.length - 1, Math.floor(value * STEPS.length)));
     setStep((current) => (current === next ? current : next));
   });
@@ -238,7 +239,7 @@ export function ShadowStory() {
 
   const goTo = useCallback(
     (index: number) => {
-      if (reduced) {
+      if (reduced || shortViewport) {
         setStep(index);
         return;
       }
@@ -251,7 +252,7 @@ export function ShadowStory() {
         behavior: reduced ? "auto" : "smooth",
       });
     },
-    [reduced],
+    [reduced, shortViewport],
   );
 
   return (
@@ -286,7 +287,7 @@ export function ShadowStory() {
                       <li key={s.id} className={active ? "block" : "hidden lg:block"}>
                         <m.div
                           initial={false}
-                          animate={{ opacity: active ? 1 : 0.45 }}
+                          animate={{ opacity: 1 }}
                           transition={{ duration: duration.base, ease }}
                         >
                           <h3 className="text-heading-20 text-sio-fg-base">

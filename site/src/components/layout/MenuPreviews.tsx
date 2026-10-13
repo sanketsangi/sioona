@@ -12,9 +12,9 @@ const CHAT_QUOTE = "I’ll close my account";
 const CHAT_PARTS = ["If I can’t find a better plan this week, ", CHAT_QUOTE, " and move my savings elsewhere."];
 const CHAT = CHAT_PARTS.join("");
 
-export function OutputPreview() {
+export function OutputPreview({ running = false }: { running?: boolean }) {
   const reduced = !!useReducedMotion();
-  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running: true, reduced, startAtBeginning: true });
+  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: false });
   const detected = step >= STEP.why && step < STEP.reset;
   const action = step >= STEP.correct && step < STEP.reset;
   const acted = step === STEP.acted;
@@ -36,15 +36,14 @@ export function OutputPreview() {
   </div>;
 }
 
-export function WorkflowPreview() {
+export function WorkflowPreview({ running = false }: { running?: boolean }) {
   const reduced = useReducedMotion();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(3);
   useEffect(() => {
-    if (reduced) return;
-    const start = window.setTimeout(() => setStep(1), 180);
+    if (reduced || !running) return;
     const timer = window.setInterval(() => setStep((value) => (value + 1) % 4), 2200);
-    return () => { window.clearTimeout(start); window.clearInterval(timer); };
-  }, [reduced]);
+    return () => { window.clearInterval(timer); };
+  }, [reduced, running]);
   return <div className="menu-workflow-preview">
     <Stage step={reduced ? 3 : step} compact />
   </div>;
@@ -57,14 +56,14 @@ export function ScorePreview() {
 const featureNames = ["Insights", "Upload", "Eval", "Taxonomy", "Suggested next action", "Keyboard-first review"];
 const featureDescriptions = ["Evidence, review, and your next move.", "Bring your chats into the workspace.", "Measure precision against human judgment.", "Define the signals that matter to you.", "A clear follow-up. Your team decides.", "Keep reviews moving with keyboard shortcuts."];
 
-export function FeaturePreview() {
+export function FeaturePreview({ running = false }: { running?: boolean }) {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
   useEffect(() => {
-    if (reduced) return;
+    if (reduced || !running) return;
     const timer = window.setInterval(() => setActive((value) => (value + 1) % featureNames.length), 3200);
     return () => window.clearInterval(timer);
-  }, [reduced]);
+  }, [reduced, running]);
   return <div className="menu-feature-sequence">
     <div className="menu-feature-stage">
       <AnimatePresence initial={false}>

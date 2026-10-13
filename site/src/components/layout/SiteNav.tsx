@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 import { usePathname } from "next/navigation";
 import { CaretDown, List, X } from "@phosphor-icons/react/ssr";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
@@ -23,6 +23,7 @@ export function SiteNav() {
   const [open, setOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState(0);
+  const [previewsPaused, setPreviewsPaused] = useState(true);
   const [workflowRun, setWorkflowRun] = useState(0);
   const [retainedPreviews, setRetainedPreviews] = useState<number[]>([]);
   const productRef = useRef<HTMLDivElement>(null);
@@ -181,7 +182,8 @@ export function SiteNav() {
           className="site-nav-links hidden items-center gap-1 md:flex"
         >
           <div ref={productRef} className="product-navigation" onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setProductOpen(false);
+            // Switching previews can make the outgoing focused control inert.
+            if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) setProductOpen(false);
           }} onKeyDown={(event) => {
             if (event.key === "Escape") {
               setProductOpen(false);
@@ -208,10 +210,17 @@ export function SiteNav() {
                 </div>
               </div>
               <div className="product-preview" role="group" aria-label="Product preview">
-                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
-                  <span className="eyebrow">{link.eyebrow}</span>
+                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && activeProduct === index && !previewsPaused} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="eyebrow">{link.eyebrow}</span>
+                    {index !== 2 ? <button type="button" className="btn-tertiary menu-preview-playback motion-reduce:hidden"
+                      aria-label={`${previewsPaused ? "Play" : "Pause"} ${link.label} preview`}
+                      aria-pressed={!previewsPaused} onClick={() => setPreviewsPaused((value) => !value)}>
+                      {previewsPaused ? "Play" : "Pause"}
+                    </button> : null}
+                  </div>
                   {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-open`}>
-                    {index === 0 ? <OutputPreview /> : index === 1 ? <WorkflowPreview key={workflowRun} /> : index === 2 ? <ScorePreview /> : <FeaturePreview />}
+                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && !previewsPaused} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && !previewsPaused} /> : index === 2 ? <ScorePreview /> : <FeaturePreview running={productOpen && activeProduct === index && !previewsPaused} />}
                   </div> : null}
                 </div>)}
               </div>

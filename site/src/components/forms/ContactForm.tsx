@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle, CircleNotch } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   chatPlatforms,
@@ -14,6 +14,8 @@ import {
   type ContactField,
   type ContactValues,
 } from "@/lib/contact";
+
+import { useNavigationGuard } from "@/components/navigation/GuardedLink";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -66,12 +68,19 @@ export function ContactForm() {
   const requestIdentity = useRef<{ payload: string; key: string } | null>(null);
   const fieldRefs = useRef<Partial<Record<ContactField, HTMLElement | null>>>({});
 
+  const { setBlocked } = useNavigationGuard();
   const dirty = contactFieldOrder.some((field) => values[field].trim() !== "");
+
+  useEffect(() => {
+    setBlocked(dirty && status !== "success");
+    return () => setBlocked(false);
+  }, [dirty, status, setBlocked]);
 
   useEffect(() => {
     if (!dirty || status === "success") return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
+      event.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
