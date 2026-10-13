@@ -192,7 +192,7 @@ Status: **approved**
 Date: 2026-10-14
 Approver: Sanket
 Proposal revision: v1.0
-Choice: **Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` and a Render background worker built from the same FastAPI backend revision.** No external broker is introduced.
+Choice: **Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` and a Render background worker built from the same FastAPI backend revision (no external broker).**
 
 ### Scope and Invariants
 

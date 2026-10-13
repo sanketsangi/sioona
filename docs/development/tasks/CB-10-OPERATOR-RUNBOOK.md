@@ -1,277 +1,362 @@
-# CB-10 Operator Rollout Runbook — Hosted Canonical Postgres Cutover
+# CB-10 hosted operator approval package and execution runbook
 
-This runbook defines the exact 5-step operator command sequence for executing and signing off the hosted rollout of **CB-10 (Canonical Postgres Operations)** across all D6 slices.
+Status: **prepared; not executed or accepted**. CB-10 remains **in-progress**.
+Repository/PR authorization from Sanket on 2026-10-14 covers publication, merges,
+and the D9 specification. It does not supply a hosted target, observation window,
+restore approval, provider spend, or CB-10 acceptance. Complete the table below
+before an operator executes this runbook on Neon/Render. Never put secrets,
+transcripts, customer exports, or credential-bearing URLs in repository evidence.
 
-> [!IMPORTANT]
-> **Operator Invariants**
-> - **Execution Order:** Step 1 (Schema Read-Only) → Step 2 (Apply Migration) → Step 3 (Verify Schema & Grants) → Step 4 (Deploy FastAPI Revision) → Step 5 (Deploy Web Revision & Reconcile). Never deploy Web before FastAPI routes are live, and never combine application deployment with implicit migration execution.
-> - **Separation of Roles:** Use `MIGRATION_DATABASE_URL` (table owner with DDL privileges) exclusively for Alembic migrations. The application runtime connects via `DATABASE_URL` using `sioona_runtime`, which has no DDL permissions and is subject to Row Level Security (`CB-04`).
-> - **Zero Loss & Zero JSON Writer:** In `SIOONA_STATE_MODE=postgres`, Postgres is the sole writer for operational state. No customer data is dropped or unmetered. Production refuses `json-demo` at boot.
-> - **Confidentiality:** Never log or commit raw transcripts, secrets, customer exports, or database connection strings containing credentials.
-> - **Pilot Invariant:** Nothing auto-sends. Human keep-set claim remains `SignalScore >= 80%` with `n >= 5`.
+## Approval and sign-off record
 
----
+| Item | Required value / evidence | Operator approval / timestamp |
+| --- | --- | --- |
+| Target | Neon project and branch IDs, database name; Render service ID; web project/environment ID; isolated staging or explicitly approved production | Pending |
+| Tenant | Verified tenant ID and source ownership; authorized second synthetic tenant for isolation drill | Pending |
+| Operator | Name, role, approver; migration owner distinct from `sioona_runtime` | Pending |
+| Revisions | Immutable backend, web, previous backend and previous web SHAs; CI receipts | Pending |
+| Source snapshot | Quiesced read-only snapshot location, SHA-256 manifest checksum, counts by D6 slice, capture timestamp | Pending |
+| Observation window | Start/end with timezone, minimum duration, permitted traffic, success thresholds, monitor owner | Pending |
+| Backup / restore | Neon backup/PITR timestamp and retention, protected source copy, restore rehearsal target and successful receipt | Pending |
+| Rollback | Previous revision compatibility, pause/drain procedure, restore point, abort thresholds, rollback approver | Pending |
+| Runtime / auth | Runtime role URL switch (OP-3); auth mode and isolated shadow/enforce acceptance (OP-2) or explicit residual | Pending |
+| Final acceptance | Zero unexplained loss, hosted checklist receipts, observation outcome, signed CB-10 acceptance by Sanket | Pending |
 
-## 0. Operator Pre-flight & Target Identification
+The only permitted order is **Preflight → `025_detection_resume` →
+`026_weekly_upload_receipts` → FastAPI revision → Web revision**. Keep ingestion
+paused through reconciliation and all mixed-version checks. Do not rely on an
+application deploy to run implicit migrations. Existing OP-1–OP-5 deadlines in
+[Phase 2 go](../PHASE_2_GO.md) remain. D9 approves a specification; CB-11
+implementation waits for signed CB-10 acceptance. Paid worker provisioning and
+live provider spend need a separate operator go.
 
-Set and record the target environment variables in the operator shell. Do not output values containing passwords or secrets.
+## Preflight, pause, and immutable source
 
-```bash
-# 1. Database connection strings (replace placeholders; do not echo credentials)
-export HOSTED_MIGRATION_DATABASE_URL="postgresql://owner_user:owner_secret@ep-hosted.neon.tech/sioona_db?sslmode=require"
-export HOSTED_RUNTIME_DATABASE_URL="postgresql://sioona_runtime:runtime_secret@ep-hosted.neon.tech/sioona_db?sslmode=require"
-
-# 2. Service endpoints
-export FASTAPI_BASE_URL="https://api-staging.sioona.com"
-export WEB_BASE_URL="https://app-staging.sioona.com"
-
-# 3. Target tenant and operator principal
-export TARGET_TENANT_ID="tenant_staging"
-export SIGNED_ACTOR_TOKEN="<SHORT_LIVED_SIGNED_HS256_ACTOR_TOKEN>"
-
-# 4. Immutable application revisions
-export BACKEND_GIT_SHA="<FASTAPI_COMMIT_SHA>"
-export WEB_GIT_SHA="<WEB_COMMIT_SHA>"
-```
-
-Confirm Neon point-in-time recovery (PITR) / snapshot is current, providers are disabled or budget-capped (`CB-07`), and no active ingestion runs are executing for `$TARGET_TENANT_ID`.
-
----
-
-## Step 1: Read-Only Check of Hosted Neon `alembic current` and `alembic heads`
-
-Verify the current schema state on Neon without applying changes.
+Run commands from the repository root in an operator workstation with `psql`,
+Alembic/backend dependencies, `curl`, `jq`, and the approved web hosting CLI.
+Use protected environment bindings, disable shell tracing, and use a private
+operator evidence directory outside the repository. The variables below are
+required inputs, not supplied credentials or approved targets:
 
 ```bash
-cd backend
-
-# Inspect current applied revision on target database
-MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" alembic current
-
-# Inspect target migration heads declared in codebase
-MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" alembic heads
+set -euo pipefail
+set +x
+: "${HOSTED_MIGRATION_DATABASE_URL:?owner URL required}"
+: "${HOSTED_RUNTIME_DATABASE_URL:?sioona_runtime URL required}"
+: "${FASTAPI_BASE_URL:?approved API origin}"
+: "${WEB_BASE_URL:?approved web origin}"
+: "${TARGET_TENANT_ID:?approved tenant}"
+: "${OTHER_TENANT_ID:?second synthetic tenant}"
+: "${SIOONA_SERVICE_TOKEN:?service credential}"
+: "${BACKEND_GIT_SHA:?immutable revision}"
+: "${WEB_GIT_SHA:?immutable revision}"
+: "${SOURCE_SNAPSHOT_DIR:?protected quiesced snapshot}"
+: "${OPERATOR_EVIDENCE_DIR:?private directory outside repo}"
+mkdir -p "$OPERATOR_EVIDENCE_DIR"
+chmod 700 "$OPERATOR_EVIDENCE_DIR"
+test -z "$(git status --porcelain)"
+git cat-file -e "$BACKEND_GIT_SHA^{commit}"
+git cat-file -e "$WEB_GIT_SHA^{commit}"
+git diff --check
+(cd backend && MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" alembic current)
+(cd backend && MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" alembic heads)
 ```
 
-### Verification Criteria
-1. `alembic current` displays `024_tenant_rls` (or verified prior head).
-2. `alembic heads` displays exactly `025_detection_resume (head)`.
-3. Confirm there is exactly one head and no divergent migration branch.
+Require one code head, `026_weekly_upload_receipts`. Record the hosted current
+revision; normally `024_tenant_rls`, or 025/026 if already applied. Investigate
+any earlier or divergent revision before proceeding. Pin the migration checkout
+to the approved backend SHA; do not move backwards if 026 is already present.
 
----
+Pause upload UI access and block ingestion mutations at the hosting ingress for
+all tenants sharing the deployment, including `/api/ingest`, detect/redetect,
+live-ingest and backend ingestion endpoints. Disable live ingestion
+(`LIVE_INGEST=0`), scheduled polls/recovery cron and automatic deploys. There is
+no general CB-10 ingestion-pause flag: disabling `LIVE_INGEST` alone does not
+block manual uploads or recovery. Drain active uploads, publications, `after()`
+work and recovery tasks; verify active-run counts stop changing and that a
+synthetic mutation is denied at ingress. Pause operator edits too. Keep providers
+disabled through CB-07 controls; record zero provider attempts and zero sends.
+Do not change production actor auth to enforce without OP-2 acceptance.
 
-## Step 2: Apply Additive Migrations Through `025_detection_resume`
-
-Apply additive schema changes using the table owner migration connection.
+Capture the frozen source after draining, preserve the original read-only, and
+recheck it before every slice and at the end:
 
 ```bash
-cd backend
-
-# Execute forward migration to head
-MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" alembic upgrade head
+(cd "$SOURCE_SNAPSHOT_DIR" && find . -type f -print0 | sort -z | xargs -0 sha256sum) \
+  > "$OPERATOR_EVIDENCE_DIR/source-files.sha256"
+sha256sum "$OPERATOR_EVIDENCE_DIR/source-files.sha256" \
+  > "$OPERATOR_EVIDENCE_DIR/source-manifest.sha256"
+(cd "$SOURCE_SNAPSHOT_DIR" && sha256sum -c "$OPERATOR_EVIDENCE_DIR/source-files.sha256")
+pg_dump --dbname="$HOSTED_MIGRATION_DATABASE_URL" --format=custom \
+  --file="$OPERATOR_EVIDENCE_DIR/pre-cutover.dump"
+sha256sum "$OPERATOR_EVIDENCE_DIR/pre-cutover.dump" \
+  > "$OPERATOR_EVIDENCE_DIR/pre-cutover.dump.sha256"
 ```
 
-### Execution Details & Recovery Rules
-- Migration `025_detection_resume` creates table `detection_resume` (`tenant_id`, `failed_conversation_ids`, `skipped_conversation_ids`, `updated_at`).
-- Grants `SELECT, INSERT, UPDATE, DELETE` to role `sioona_runtime`.
-- Enables and forces Row Level Security (`FORCE ROW LEVEL SECURITY`) with policy `tenant_isolation`.
-- **Recovery rule:** This migration is strictly additive. If migration execution is interrupted or encounters an error, do **not** run `downgrade` against a shared or staging database. Diagnose the owner role permissions and re-run `alembic upgrade head`.
+The dump contains protected customer data: encrypt/restrict it under the existing
+backup policy, never upload it as a CI artifact. Confirm PITR and rehearse restore
+on an approved disposable branch (`pg_restore --exit-on-error --no-owner
+--dbname="$RESTORE_REHEARSAL_DATABASE_URL" "$OPERATOR_EVIDENCE_DIR/pre-cutover.dump"`)
+with counts/hash verification. Do not use a production URL for the rehearsal.
 
----
+## Apply 025, verify, then apply 026
 
-## Step 3: Verify `alembic_version`, Table Presence, RLS Policies, and Grants
-
-Confirm database catalog state using `psql` with the migration owner URL.
-
-### 3.1 Verify Recorded Migration Head
-```bash
-psql "$HOSTED_MIGRATION_DATABASE_URL" -c "
-  SELECT version_num FROM alembic_version;
-"
-```
-*Expected output:* `025_detection_resume`
-
-### 3.2 Verify `detection_resume` Table Schema
-```bash
-psql "$HOSTED_MIGRATION_DATABASE_URL" -c "
-  SELECT column_name, data_type, is_nullable
-  FROM information_schema.columns
-  WHERE table_name = 'detection_resume'
-  ORDER BY ordinal_position;
-"
-```
-*Expected columns:*
-- `tenant_id` (`text` / `character varying`, `NO`)
-- `failed_conversation_ids` (`json` / `jsonb`, `NO`)
-- `skipped_conversation_ids` (`json` / `jsonb`, `NO`)
-- `updated_at` (`timestamp with time zone`, `NO`)
-
-### 3.3 Verify RLS is Enabled and Forced
-```bash
-psql "$HOSTED_MIGRATION_DATABASE_URL" -c "
-  SELECT relname, relrowsecurity, relforcerowsecurity
-  FROM pg_class
-  WHERE relname = 'detection_resume';
-"
-```
-*Expected output:* `relrowsecurity = true`, `relforcerowsecurity = true`.
-
-### 3.4 Verify Tenant Isolation Policy
-```bash
-psql "$HOSTED_MIGRATION_DATABASE_URL" -c "
-  SELECT policyname, tablename, permissive, roles, cmd, qual, with_check
-  FROM pg_policies
-  WHERE tablename = 'detection_resume';
-"
-```
-*Expected output:* Policy `tenant_isolation` with `USING (tenant_id = current_setting('app.tenant_id', true))` and matching `WITH CHECK`.
-
-### 3.5 Verify `sioona_runtime` Grants
-```bash
-psql "$HOSTED_MIGRATION_DATABASE_URL" -c "
-  SELECT table_name, privilege_type
-  FROM information_schema.role_table_grants
-  WHERE table_name = 'detection_resume' AND grantee = 'sioona_runtime'
-  ORDER BY privilege_type;
-"
-```
-*Expected output:* Grants for `DELETE`, `INSERT`, `SELECT`, and `UPDATE`.
-
-### 3.6 Verify Complete 9-Table RLS Suite
-```bash
-psql "$HOSTED_MIGRATION_DATABASE_URL" -c "
-  SELECT tablename, rowsecurity
-  FROM pg_tables
-  WHERE schemaname = 'public'
-    AND tablename IN (
-      'messages',
-      'conversations',
-      'signal_predictions',
-      'signal_feedback',
-      'supervised_action_decisions',
-      'detection_runs',
-      'inference_attempts',
-      'signal_evidence',
-      'detection_resume'
-    )
-  ORDER BY tablename;
-"
-```
-*Expected output:* Exactly 9 rows, all with `rowsecurity = true`.
-
----
-
-## Step 4: Deploy FastAPI Revision First & Verify Tenant-Scoped Responses
-
-Deploy backend revision `$BACKEND_GIT_SHA` to hosting (e.g. Render). Once the revision is live, verify the endpoints.
-
-### 4.1 Health Check
-```bash
-curl -f -s "$FASTAPI_BASE_URL/health" || curl -f -s "$FASTAPI_BASE_URL/v1/health"
-```
-
-### 4.2 Verify `/detection-resume` Unset Cursor (404)
-When no cursor has been written for `$TARGET_TENANT_ID`, the API must return HTTP 404 with detail `detection_resume_not_found`. (A 500 error indicates missing migration 025).
+Use only the migration owner for DDL. Execute each upgrade only if the database
+is behind that revision. If it is already 026, verify both tables without running
+`upgrade 025` (which would be a backward target).
 
 ```bash
-curl -i -s \
-  -H "X-Tenant-Id: $TARGET_TENANT_ID" \
-  -H "X-Sioona-Actor: $SIGNED_ACTOR_TOKEN" \
-  "$FASTAPI_BASE_URL/v1/tenants/$TARGET_TENANT_ID/detection-resume"
+(cd backend && MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" \
+  alembic upgrade 025_detection_resume)
+psql "$HOSTED_MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SELECT version_num FROM public.alembic_version;
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema='public' AND table_name='detection_resume'
+ORDER BY ordinal_position;
+SQL
 ```
-*Expected HTTP status:* `404 Not Found`
-*Expected JSON body:* `{"detail":"detection_resume_not_found"}`
 
-### 4.3 Verify Cross-Tenant Isolation (403 Forbidden)
-Assert that mismatched tenant header vs URL path is refused server-side.
+Require revision 025 and columns `tenant_id`, `failed_conversation_ids`,
+`skipped_conversation_ids`, `updated_at`, all non-null. Then:
 
 ```bash
-curl -i -s \
-  -H "X-Tenant-Id: tenant_unauthorized" \
-  -H "X-Sioona-Actor: $SIGNED_ACTOR_TOKEN" \
-  "$FASTAPI_BASE_URL/v1/tenants/$TARGET_TENANT_ID/detection-resume"
+(cd backend && MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" \
+  alembic upgrade 026_weekly_upload_receipts)
+psql "$HOSTED_MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SELECT version_num FROM public.alembic_version;
+SELECT table_name, column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema='public'
+  AND table_name IN ('detection_resume','weekly_upload_receipts')
+ORDER BY table_name, ordinal_position;
+SELECT conrelid::regclass AS table_name, conname, pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conrelid IN ('public.detection_resume'::regclass,
+                  'public.weekly_upload_receipts'::regclass);
+SQL
 ```
-*Expected HTTP status:* `403 Forbidden`
 
-### 4.4 Verify `/pilot` Endpoint and Update Scope Boundary
-Verify pilot settings response and field preservation rules:
-- Unset pilot settings return HTTP 404 with detail `pilot_settings_not_found`.
-- Baseline edits (`baseline_opportunities`, `baseline_note`) must preserve existing remote upload metadata (`weekly_export_count`, `last_uploaded_file_name`).
-- Upload metadata updates (`overwriteUploadMetadata: true`) persist export counts and file names without wiping configured baseline notes.
+Require recorded revision 026, receipts columns `tenant_id`, `receipt_id`,
+`weekly_file_count`, `created_at` (all non-null), composite primary key
+`(tenant_id, receipt_id)`, and `weekly_file_count >= 0` check. Both migrations
+are additive. On error stop, inspect the recorded revision/catalog and repair
+owner permissions before retrying the explicit target. Never downgrade a shared
+host or discard receipts to recover an application deployment.
+
+## Ten-table RLS and runtime verification
 
 ```bash
-# Read current pilot settings for target tenant
-curl -i -s \
-  -H "X-Tenant-Id: $TARGET_TENANT_ID" \
-  -H "X-Sioona-Actor: $SIGNED_ACTOR_TOKEN" \
-  "$FASTAPI_BASE_URL/v1/tenants/$TARGET_TENANT_ID/pilot"
+psql "$HOSTED_MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+SELECT rolname, rolcanlogin, rolsuper, rolbypassrls
+FROM pg_roles WHERE rolname='sioona_runtime';
+WITH expected(name) AS (VALUES
+ ('messages'),('conversations'),('signal_predictions'),('signal_feedback'),
+ ('supervised_action_decisions'),('detection_runs'),('inference_attempts'),
+ ('signal_evidence'),('detection_resume'),('weekly_upload_receipts'))
+SELECT e.name, c.relrowsecurity, c.relforcerowsecurity,
+       pg_get_userbyid(c.relowner) AS owner,
+       has_table_privilege('sioona_runtime',c.oid,'SELECT') AS can_select,
+       has_table_privilege('sioona_runtime',c.oid,'INSERT') AS can_insert,
+       has_table_privilege('sioona_runtime',c.oid,'UPDATE') AS can_update,
+       has_table_privilege('sioona_runtime',c.oid,'DELETE') AS can_delete
+FROM expected e LEFT JOIN pg_namespace n ON n.nspname='public'
+LEFT JOIN pg_class c ON c.relnamespace=n.oid AND c.relname=e.name
+ORDER BY e.name;
+SELECT tablename, policyname, roles, cmd, qual, with_check
+FROM pg_policies WHERE schemaname='public' AND tablename IN (
+ 'messages','conversations','signal_predictions','signal_feedback',
+ 'supervised_action_decisions','detection_runs','inference_attempts',
+ 'signal_evidence','detection_resume','weekly_upload_receipts')
+ORDER BY tablename, policyname;
+SQL
 ```
 
----
+Require exactly ten catalog rows with RLS enabled and forced, matching
+`tenant_isolation` USING/WITH CHECK based on
+`current_setting('app.tenant_id', true)`, CRUD grants, and owners distinct from
+`sioona_runtime`. Require `NOSUPERUSER`, `NOBYPASSRLS`; LOGIN is enabled by the
+operator out of band for OP-3. Other canonical tables (pilot/taxonomy) still need
+API authority checks; this ten-table list does not claim they have D8 policies.
 
-## Step 5: Deploy Matching Web Revision, Run Quiesced Zero-Loss Reconciliation, and Verify Reconstruction
+Connect with the actual runtime URL, not owner `SET ROLE` alone:
 
-Deploy web revision `$WEB_GIT_SHA` configured with:
 ```bash
-SIOONA_STATE_MODE=postgres
-SIOONA_ACTOR_AUTH=enforce
-DATABASE_URL="$HOSTED_RUNTIME_DATABASE_URL"
+psql "$HOSTED_RUNTIME_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
+  -v tenant="$TARGET_TENANT_ID" <<'SQL'
+SELECT current_user;
+BEGIN;
+SELECT count(*) AS missing_scope_rows FROM public.detection_resume;
+SELECT count(*) AS missing_scope_receipts FROM public.weekly_upload_receipts;
+SELECT set_config('app.tenant_id', :'tenant', true);
+SELECT count(*) AS wrong_tenant_rows FROM public.detection_resume
+WHERE tenant_id <> current_setting('app.tenant_id', true);
+SELECT count(*) AS wrong_tenant_receipts FROM public.weekly_upload_receipts
+WHERE tenant_id <> current_setting('app.tenant_id', true);
+ROLLBACK;
+SQL
 ```
 
-### 5.1 Boot Integrity Verification
-Inspect web container boot logs. Verify that `instrumentation.ts` registers cleanly and verifies `assertValidStateModeAtBoot()`.
-Confirm that any attempt to boot in production with `SIOONA_STATE_MODE=json-demo` fails closed with `ProductionRefusesJsonDemoError`.
+Require `current_user=sioona_runtime` and all four counts zero. On isolated
+staging, repeat missing-scope and cross-tenant reads/writes for all ten tables
+using two persisted synthetic tenants; cross-tenant writes must fail and missing
+scope reads return zero. Empty tables alone cannot prove isolation. Attach
+bounded counts and denial status, never row contents.
 
-### 5.2 Quiesced Zero-Loss Reconciliation Across All D6 Slices
-With ingestion quiesced for `$TARGET_TENANT_ID`, run the canonical store load with shadow comparison (`shadowConversations: true`):
+## Deploy FastAPI revision and smoke test before web
 
-1. **Slice 1 (Conversations & Messages):**
-   - Source counts and target counts match exactly.
-   - Message text, role, ownership, and normalized timestamp hashes match (`reconcileConversationData.equal === true`).
-   - `missingConversations` is empty (`[]`).
-   - `missingMessages` is empty (`[]`).
-   - `changedConversations` is empty (`[]`).
-   - `changedMessages` is empty (`[]`).
-2. **Slice 2 (Feedback & Supervised Decisions):**
-   - Verified that operator feedback decisions (`approved`, `edited`, `dismissed`) and `supervised_action_decisions` are read canonically from Postgres.
-   - Verify that UI overlays persisted decisions and does not fall back to JSON.
-3. **Slice 3 (Pilot Settings):**
-   - Pilot baseline opportunities, notes, and upload counts hydrate directly from Postgres `pilot_settings`.
-   - `putPilotSettings` updates Postgres without invoking `writeStore`.
-4. **Slice 4 (Taxonomy Overrides):**
-   - Active tenant taxonomy overrides hydrate from Postgres `taxonomy_overrides`.
-   - Mutations fail closed if `SIOONA_TAXONOMY_NEON=0` in Postgres mode.
-5. **Slice 5 (Store Cache & Zero JSON Writes):**
-   - Confirm `writeStore` is a no-op in Postgres mode.
-   - Confirm no `data/store*.json` files are created or updated in the application environment.
+Use the approved existing Render service and protected API token. Set runtime
+`DATABASE_URL` to the accepted runtime-role URL, retain the owner URL only for
+explicit operator migration tooling, and preserve service-token/actor settings.
+Disable automatic deploys and implicit migration commands first.
 
-### 5.3 Multi-Process Cold-Start Dashboard Reconstruction Check
-1. Restart the Web service or trigger a cold container restart.
-2. In a clean browser session (or via curl with authenticated session cookie):
-   ```bash
-   curl -i -s -H "Host: app-staging.sioona.com" "$WEB_BASE_URL/"
-   ```
-3. Verify HTTP 200 response with full dashboard reconstruction:
-   - Conversations and messages displayed.
-   - Predictions and evidence anchors rendered from Postgres without re-running inference.
-   - Feedback and supervised action badges accurately reflect persisted records.
+```bash
+: "${RENDER_SERVICE_ID:?approved existing backend service}"
+: "${RENDER_API_KEY:?operator credential}"
+jq -n --arg sha "$BACKEND_GIT_SHA" '{commitId:$sha}' \
+  > "$OPERATOR_EVIDENCE_DIR/backend-deploy-request.json"
+curl --fail-with-body --silent --show-error \
+  -H "Authorization: Bearer $RENDER_API_KEY" -H 'Content-Type: application/json' \
+  --data-binary @"$OPERATOR_EVIDENCE_DIR/backend-deploy-request.json" \
+  "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+  > "$OPERATOR_EVIDENCE_DIR/backend-deploy.json"
+BACKEND_DEPLOY_ID=$(jq -er '.id' "$OPERATOR_EVIDENCE_DIR/backend-deploy.json")
+curl --fail-with-body --silent --show-error \
+  -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$BACKEND_DEPLOY_ID" \
+  > "$OPERATOR_EVIDENCE_DIR/backend-deploy-status.json"
+jq '{id,status,commit}' "$OPERATOR_EVIDENCE_DIR/backend-deploy-status.json"
+curl --fail --silent --show-error "$FASTAPI_BASE_URL/health"
+```
 
----
+Repeat the status GET until `live`, abort on failure; verify `.commit.id` equals
+the full backend SHA. A health 200 alone does not identify the deployed revision.
+Refresh the signed actor assertion for every smoke request when enforce is
+accepted (HS256 D1 assertions expire after 60 seconds). Use a verified operator
+membership; tenant headers are not authority.
 
-## CB-10 Acceptance Sign-Off
+```bash
+: "${SIGNED_ACTOR_TOKEN:?fresh operator assertion}"
+for resource in detection-resume pilot; do
+  code=$(curl --silent --show-error \
+    -H "Authorization: Bearer $SIOONA_SERVICE_TOKEN" \
+    -H "X-Tenant-Id: $TARGET_TENANT_ID" \
+    -H "X-Sioona-Actor: $SIGNED_ACTOR_TOKEN" \
+    -o "$OPERATOR_EVIDENCE_DIR/$resource.json" -w '%{http_code}' \
+    "$FASTAPI_BASE_URL/v1/tenants/$TARGET_TENANT_ID/$resource")
+  case "$code" in
+    200) jq -e 'type == "object"' "$OPERATOR_EVIDENCE_DIR/$resource.json" >/dev/null ;;
+    404) if [ "$resource" = detection-resume ]; then detail=detection_resume_not_found;
+         else detail=pilot_settings_not_found; fi
+         jq -e --arg detail "$detail" '.detail == $detail' \
+           "$OPERATOR_EVIDENCE_DIR/$resource.json" >/dev/null ;;
+    *) printf 'Smoke failure: %s HTTP %s\n' "$resource" "$code"; exit 1 ;;
+  esac
+done
+```
 
-Record completion details below. Do not include database passwords or customer conversation text.
+A generic route 404 or `database_unavailable` is a rollout failure, not empty
+canonical state. Protected response files may contain pilot notes/IDs: publish
+only statuses/counts. In accepted enforce mode, reuse tenant A's assertion with
+both path and header set to tenant B; expect 403. Also check missing/invalid
+assertions are denied, and authorized B cannot see A. Header/path mismatch alone
+only proves the header gate. If auth is off/shadow, record that OP-2 is open and
+do not claim verified actor isolation from that check.
 
-- **Staging / Target Tenant:** `__________________________`
-- **Hosted Migration Revision:** `025_detection_resume`
-- **FastAPI Revision (Git SHA):** `__________________________`
-- **Web Revision (Git SHA):** `__________________________`
-- **Execution Timestamp (UTC):** `__________________________`
-- **Operator Name / Role:** `__________________________`
+On synthetic staging, use `/pilot` PUT with `update_scope="baseline"` and confirm
+it preserves upload-owned count/filename; use `update_scope="upload"` and confirm
+it preserves baseline. The HTTP body uses `update_scope`, not the web helper's
+`overwriteUploadMetadata` option. Confirm locked `?merge=true` Adapt saves retain
+both concurrent additions. Keep production edits frozen during these drills.
 
-### Checklist Boxes
-- [ ] **Step 1:** Read-only check of hosted Neon `alembic current` and `alembic heads` verified.
-- [ ] **Step 2:** Additive migration `025_detection_resume` applied successfully.
-- [ ] **Step 3:** `alembic_version` (025), table schema, 9 RLS policies, and `sioona_runtime` grants verified.
-- [ ] **Step 4:** FastAPI revision deployed first; tenant-scoped `/detection-resume` (404 missing, 403 isolation) and `/pilot` verified.
-- [ ] **Step 5:** Web revision deployed in `postgres` mode; quiesced zero-loss reconciliation check passed across all D6 slices; multi-process cold-start verified without runtime JSON.
-- [ ] **Invariants Preserved:** Zero customer data lost; no unmetered LLM calls; no auto-sends; human keep-set claim preserved.
+## Deploy web, reconcile while quiesced, then observe
+
+Use the approved hosting project, with `SIOONA_STATE_MODE=postgres`, taxonomy
+Neon writes enabled, backend origin/service token, and the previously accepted
+auth mode. Preserve `LIVE_INGEST=0` and ingress pause. Do not change auth policy
+as a side effect of deploying CB-10. For the repository's Vercel web hosting:
+
+```bash
+: "${WEB_DEPLOY_CHECKOUT:?new clean deployment directory}"
+: "${VERCEL_TOKEN:?operator credential}"
+: "${VERCEL_ORG_ID:?approved scope}"
+: "${VERCEL_PROJECT_ID:?approved web project}"
+git worktree add --detach "$WEB_DEPLOY_CHECKOUT" "$WEB_GIT_SHA"
+(cd "$WEB_DEPLOY_CHECKOUT/web" && \
+  vercel pull --yes --environment=production --token "$VERCEL_TOKEN" && \
+  vercel deploy --prod --yes --token "$VERCEL_TOKEN" \
+    --meta "githubCommitSha=$WEB_GIT_SHA") \
+  > "$OPERATOR_EVIDENCE_DIR/web-deploy.txt"
+```
+
+Use `production`/`--prod` only for the explicitly approved project/environment;
+an isolated staging project may have its own production target. Read back the
+deployment with `vercel inspect <deployment-url> --token "$VERCEL_TOKEN"`, require
+READY, inspect metadata/build revision and environment, and confirm the approved
+alias points to it. Record deployment ID and full SHA. Authenticate to the web
+with the approved synthetic operator session; verify dashboard, Insights, Eval
+and pilot, including an unset tenant with no fabricated demo settings. A login
+redirect or plain curl 200 does not prove dashboard reconstruction.
+
+### Quiesced D6 reconciliation: zero unexplained loss
+
+Retain pause until every slice passes. Read the source snapshot offline and read
+Postgres under the verified tenant scope in a consistent read-only transaction.
+Compare counts, stable identity sets, duplicate identities and normalized
+SHA-256 values; never publish raw records. Normalization must preserve exact
+message content/code-point offsets, ownership, null/absent distinctions and
+UTC timestamp equivalence. Investigate missing, extra, changed and target-only
+rows. Every target-only row needs documented provenance; zero unexplained loss
+is mandatory. Missing shadow reports mean **not compared**, never equality.
+
+| D6 order | Required comparisons and cutover evidence |
+| --- | --- |
+| Conversations/messages | Counts, conversation/message IDs and ownership, exact text/role/metadata/timestamp hashes; predictions, evidence offsets/content hashes and detection runs. Use `reconcileConversationData` and both `conversationShadow`/`conversationViewShadow` reports through `loadStore({shadowConversations:true})` where available. Compare keep-set, channel/GT filters, stable 50-row pages, SignalScore numerator/denominator. |
+| Feedback/decisions | Counts and identity sets, verdict, reviewed/acted timestamps, edited/dismissed/approved-unsent decisions, outcomes, links to persisted signals; UI overlays match Postgres with no JSON fallback. |
+| Pilot | Baseline opportunities/notes, authoritative weekly count, filename, null/empty semantics. Compare receipt identity/count baseline and document historical uploads lacking receipts; do not invent receipts or reset counters. |
+| Taxonomy | Active tenant overrides, phrase identity/hash sets, activation and ownership; concurrent Adapt merge retains additions, unavailable canonical reads fail closed. |
+| Remaining JSON | Inventory every field/cache from CB-10 entity map: upload manifests/status, failed/skipped resume IDs, runs, signal/evidence and derived state. Classify each as canonical, derived/reconstructible, or demo-only with rationale. No unexplained operational field may be discarded. |
+
+The existing conversation shadow helper does not reconcile every D6 entity.
+For other slices prepare a reviewed read-only comparator using the frozen source
+and tenant-scoped API/SQL, recording comparator revision, normalization rules,
+counts/hashes and mismatches. There is no all-slice backfill CLI in this package.
+If data is missing, stop and prepare a separately reviewed transaction-safe
+repair/backfill with source provenance and rollback; never silently overwrite
+canonical rows or import demo/sample data into a live tenant. Re-run comparisons
+after repairs against the same source. Copy the snapshot only to an approved
+protected shadow location; runtime JSON must never serve as a fallback/writer.
+
+### Hosted verification and observation checklist
+
+- [ ] Both migrations/catalog receipts, ten-table RLS/grants and runtime role verified.
+- [ ] Backend-before-web revision receipts; ingestion pause/drain held throughout mixed versions.
+- [ ] All five D6 slices compared, zero unexplained missing/changed/extra rows, source checksum unchanged; count/hash and UI view parity signed.
+- [ ] Fresh web **process/container** restart with new PID/deployment and clean runtime data directory, no `store*.json`; conversations, predictions, evidence, feedback/decisions, pilot, taxonomy and resume reconstruct without inference. Repeat authenticated dashboard/Eval views and canonical counts/hashes.
+- [ ] Staging database/API outage produces recoverable error and generic 404 fails closed; restore connectivity and Retry refetches canonical data. Failed/skipped conversation IDs survive restart and recovery publishes only unpublished IDs. No silent JSON fallback.
+- [ ] Tenant A/B seeded isolation: actor, API and runtime SQL reads/writes denied across tenants; missing tenant scope returns zero; demo cannot overwrite live state. Record any OP-2 residual explicitly.
+- [ ] Weekly receipts: new synthetic weekly publication increments once; replay same upload ID, retry after commit and resume add zero; two distinct concurrent publications both count exactly once. Receipt insertion and pilot increment roll back together on failure; baseline/filename ownership preserved. Keep provider calls disabled, use deterministic/synthetic data.
+- [ ] Zero sends and zero provider attempts verified from counters/audit/ledger for the rehearsal; nothing auto-sends, Approve remains decision-only and Acted display-only. Gateway, v3 prompts, CB-08 evidence and `SignalScore >= 80%` (`n >= 5`) unchanged.
+- [ ] Reopen only approved ingestion traffic after parity and matching revisions; observe through the signed window with counts-only shadow diagnostics, error/retry/resume/receipt metrics and no JSON writes. Any unexplained mismatch aborts acceptance.
+- [ ] Post-observation **writer-removal PR** opened separately: remove residual production JSON/dual-writer/shadow paths per entity map after proven parity, preserve local demo mode and reviewed rollback. Record its review/checks; do not treat this code merge as that step.
+- [ ] Sanket signs CB-10 acceptance after the hosted receipts and observation; only then update CB-10 from in-progress and lift the CB-11 implementation gate.
+
+## Abort, rollback, and evidence handoff
+
+Abort on schema/RLS/grant mismatch, wrong revision, auth leakage, unreconciled
+rows, counter drift, JSON writes or sends. Keep ingress/cron paused, disable
+provider allowance, drain in-flight work and retain source/evidence. Roll back
+the web first, then the backend to the signed compatible pair; leave additive
+025/026 schema and durable receipts in place. Older clients can use obsolete
+counter semantics, so **do not reopen ingestion** on an incompatible rollback.
+Never switch production to `json-demo`. If a data restore is necessary, get the
+recorded restore approver, restore to an isolated Neon branch, reconcile all
+writes since backup and verify counts/hashes before switching both applications.
+Do not point an old web process at a new backend during rollback with traffic on.
+
+Final bounded receipt: target/tenant/operator, source manifest checksum, backup
+and restore receipts, migration revisions/catalog results, runtime/auth mode,
+backend/web deployment IDs and SHAs, reconciliation comparator SHA and counts,
+restart/outage/isolation/receipt drill results, zero-send counters, observation
+start/end and monitor outcome, rollback decision, writer-removal PR link and
+Sanket's signed acceptance. Unfilled approvals and unexecuted checks stay pending.
