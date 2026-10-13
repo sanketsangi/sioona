@@ -1,6 +1,7 @@
 "use client";
 
 import { Check } from "@phosphor-icons/react/ssr";
+import { useRef, useState } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { queueActionLabelForKind } from "@/components/RetentionEmailAction";
 import { QUEUE_REVIEW_ACTION_CLASS } from "@/components/SignalQueueRow";
@@ -28,8 +29,24 @@ export function QueueMarkActedAction({
   signal: Signal;
   summaryForLabel: string;
 }) {
-  const { actedPending, canMarkActed, error, setActed } = useMarkActed(signal);
+  const { actedPending: pending, canMarkActed, error, setActed } =
+    useMarkActed(signal);
+  /** Sync guard — pending state updates too late to stop a second POST. */
+  const inflightRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const label = queueActionLabelForKind("mark_acted", "list");
+
+  async function onMarkActed() {
+    if (inflightRef.current || submitting || pending) return;
+    inflightRef.current = true;
+    setSubmitting(true);
+    try {
+      await setActed(true);
+    } finally {
+      inflightRef.current = false;
+      setSubmitting(false);
+    }
+  }
 
   if (!canMarkActed) return null;
 
@@ -44,12 +61,12 @@ export function QueueMarkActedAction({
                 variant="outline"
                 size="sm"
                 className={QUEUE_REVIEW_ACTION_CLASS}
-                disabled={actedPending}
-                aria-busy={actedPending}
+                disabled={submitting || pending}
+                aria-busy={submitting || pending}
                 aria-label={`${label} for ${summaryForLabel}`}
-                onClick={() => void setActed(true)}
+                onClick={() => void onMarkActed()}
               >
-                {actedPending ? (
+                {submitting || pending ? (
                   <ButtonSpinner />
                 ) : (
                   <Check

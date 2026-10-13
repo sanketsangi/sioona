@@ -371,8 +371,13 @@ async function loadStoreLocal(
       syncPredictions,
       ...(options?.freshOnly ? { freshOnly: true } : {}),
     });
+    if (!hydrated) {
+      throw new Error(
+        "Canonical conversation integrity failure: hydration returned no store; retry the request.",
+      );
+    }
     {
-      const canonicalStore = hydrated ?? emptyStoreForTenant(tenantId);
+      const canonicalStore = hydrated;
       let conversationShadow: ReadStoreLoad["conversationShadow"];
       let conversationViewShadow: ReadStoreLoad["conversationViewShadow"];
       let conversationShadowReason: ReadStoreLoad["conversationShadowReason"];
@@ -385,7 +390,13 @@ async function loadStoreLocal(
             const { comparePersistedConversations, compareConversationViews } = await import("./conversation-reconciliation");
             conversationShadow = await comparePersistedConversations(toConversationSyncPayload(legacy.conversations, legacy.messages));
             const comparisonStore = await tryHydrateStoreFromNeon({ syncPredictions: false, shadowFullSnapshot: true });
-            conversationViewShadow = compareConversationViews(legacy, comparisonStore ?? emptyStoreForTenant(tenantId));
+            if (!comparisonStore) {
+              conversationShadowReason = "comparison_failed";
+              conversationShadow = undefined;
+              conversationViewShadow = undefined;
+            } else {
+              conversationViewShadow = compareConversationViews(legacy, comparisonStore);
+            }
           } catch {
             conversationShadowReason = "comparison_failed";
             conversationShadow = undefined;
@@ -443,7 +454,10 @@ export async function loadStore(
   );
   if (!taxonomyNeonEnabled()) return loaded;
   const remote = await taxonomyOverridesFromNeon(loaded.store.tenant.id);
-  if (!remote) return loaded;
+  // Neon is on. A missed read must not keep stale JSON overrides.
+  if (remote == null) {
+    throw new Error("Could not load taxonomy overrides from Neon.");
+  }
   return {
     ...loaded,
     store: { ...loaded.store, taxonomyOverrides: remote },

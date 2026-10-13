@@ -1,0 +1,10 @@
+{
+  "extends": "../../../web/tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "../../../web/src/components/SignalReviewSuggestedAction.test.ts"
+  ],
+  "exclude": []
+}

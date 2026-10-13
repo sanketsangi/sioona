@@ -1,0 +1,8 @@
+You are an expert code reviewer. I have provided the packed codebase context below.
+Review the code specifically for:
+1. State management race conditions or async/await leaks in the interface.
+2. Enterprise tenant data isolation flaws.
+3. Missing error boundaries or silent failures in data pipelines.
+4. Unoptimized rendering loops.
+
+Output a concise Markdown list of identified bugs and the exact file/line number. If no critical bugs are found, output "✅ LGTM - No critical issues detected."

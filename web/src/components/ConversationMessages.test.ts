@@ -163,4 +163,53 @@ describe("ConversationMessages", () => {
     expect(html).toContain('dateTime="2026-08-01T10:05:00.000Z"');
     expect(html).toContain("1 Aug, 10:05");
   });
+
+  it("virtualizes long transcripts and keeps evidence id anchors", () => {
+    const messages = Array.from({ length: 80 }, (_, index) =>
+      message({
+        id: `msg_${index}`,
+        content: `Body ${index}`,
+        role: index % 2 === 0 ? "customer" : "agent",
+      }),
+    );
+    const html = renderToStaticMarkup(
+      withScroller(
+        createElement(ConversationMessages, {
+          messages,
+          customerName: "Priya",
+        }),
+      ),
+    );
+
+    expect(html).toContain("Body 0");
+    expect(html).not.toContain("Body 79");
+    expect(html).toContain('id="conversation-message-msg_79"');
+    expect(html).toContain('id="conversation-message-msg_0"');
+    expect(html).toContain('data-message-id="msg_0"');
+  });
+
+  it("mounts an offscreen evidence message with its DOM id", () => {
+    const messages = Array.from({ length: 80 }, (_, index) =>
+      message({
+        id: `msg_${index}`,
+        content: `Body ${index}`,
+      }),
+    );
+    const html = renderToStaticMarkup(
+      withScroller(
+        createElement(ConversationMessages, {
+          messages,
+          customerName: "Priya",
+          highlightedMessageId: "msg_79",
+        }),
+      ),
+    );
+
+    expect(html).toContain("Body 79");
+    expect(html).toContain('id="conversation-message-msg_79"');
+    expect(html).toContain("chat-bubble--evidence");
+    expect(html).toContain('data-evidence-match="true"');
+    expect(html).toContain('data-message-id="msg_79"');
+    expect(html.split('id="conversation-message-msg_79"')).toHaveLength(2);
+  });
 });

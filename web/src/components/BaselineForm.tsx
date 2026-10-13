@@ -20,6 +20,9 @@ export function BaselineForm({
 }) {
   const router = useRouter();
   const countRef = useRef<HTMLInputElement>(null);
+  /** Sync guard — `pending` stays false until refresh and allowed a second POST. */
+  const inflightRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState(String(baselineOpportunities));
   const [note, setNote] = useState(baselineNote ?? "");
@@ -42,6 +45,7 @@ export function BaselineForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (inflightRef.current || submitting || pending) return;
     setError(null);
     setSaved(false);
     const n = Number(value.trim());
@@ -51,6 +55,8 @@ export function BaselineForm({
       return;
     }
 
+    inflightRef.current = true;
+    setSubmitting(true);
     try {
       const res = await fetch("/api/store", {
         method: "POST",
@@ -73,6 +79,9 @@ export function BaselineForm({
           ? `${err.message}. Check the count and try again.`
           : "Failed to save baseline. Try again."
       );
+    } finally {
+      inflightRef.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -124,7 +133,7 @@ export function BaselineForm({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             className="input-field mt-1 w-full"
-            disabled={pending}
+            disabled={submitting || pending}
             placeholder="0…"
           />
         </label>
@@ -140,16 +149,16 @@ export function BaselineForm({
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. weekly Intercom opportunities…"
             className="input-field mt-1 w-full"
-            disabled={pending}
+            disabled={submitting || pending}
           />
         </label>
         <button
           type="submit"
           className="btn-primary w-full sm:w-auto"
-          disabled={pending}
-          aria-busy={pending}
+          disabled={submitting || pending}
+          aria-busy={submitting || pending}
         >
-          {pending ? <ButtonSpinner /> : null}
+          {submitting || pending ? <ButtonSpinner /> : null}
           Save Baseline
         </button>
       </div>

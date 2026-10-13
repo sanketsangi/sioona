@@ -16,22 +16,25 @@ describe("Hero demo playback", () => {
   function render() {
     act(() => root.render(createElement(LazyMotion, { features: domAnimation }, createElement(HeroPreviewEntered.Provider, { value: motionState.visible }, createElement(InsightsMock, { previewHeader: true })))));
   }
-  it("stays static after entry until explicitly played, then pauses and resumes", () => {
+  it("runs after entry until pause is clicked, then resumes from the play control", () => {
     render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     expect(motionState.options).toMatchObject({ once: true, amount: "some" });
     motionState.visible = true; render();
     const button = host.querySelector('button') as HTMLButtonElement;
+    expect(button.getAttribute("aria-label")).toBe("Pause Demo Animation");
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
+    act(() => button.click());
     expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
+    render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     act(() => button.click());
     expect(button.getAttribute("aria-label")).toBe("Pause Demo Animation");
-    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
-    act(() => button.click()); expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
-    expect(button.getAttribute("aria-pressed")).toBe("false");
-    render(); expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
-    act(() => button.click()); expect(button.getAttribute("aria-label")).toBe("Pause Demo Animation");
     expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
   });
   it("stops playback when reduced motion is requested", () => {
     motionState.visible = true; render();

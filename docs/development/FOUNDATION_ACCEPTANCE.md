@@ -1,5 +1,7 @@
 # Foundation acceptance — authoritative current closeout
 
+**2026-10-13:** Phase 2 go is recorded in [PHASE_2_GO.md](PHASE_2_GO.md) against `main` `7ab84e5`. D6 implementation is approved; hosted acceptance remains open. Operator items OP-1 through OP-5 stay open.
+
 Updated 2026-10-12. This table supersedes stale present-tense task closeouts; dated historical evidence and the cookbook baseline remain intact. **`main` `b15f5d0`** combined status is success for Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site in GitHub Actions [run 38197731076](https://github.com/sanketsangi/sioona/actions/runs/38197731076). PR [#154](https://github.com/sanketsangi/sioona/pull/154), [#155](https://github.com/sanketsangi/sioona/pull/155) (managed-owner 024 repair), [#156](https://github.com/sanketsangi/sioona/pull/156) (actor assertion contract), and [#157](https://github.com/sanketsangi/sioona/pull/157) (replaced-signal ingest publication) are all merged into `main`. The 2026-10-10 note remains historical: **`5e93be5`** merged foundation remediation plus admission pipeline fixes (`12458d1`). Branch `codex/foundation-cb09-remediation` is merged and deleted; Antigravity verified the four structural fixes (ordinals, global lock removal, admission metering, injection handling). Hosted CB-07 rollout remains an operator follow-up. Rulesets and classic branch protection still return HTTP 403 (GitHub Pro is required for this private repository), so CB-02's protection step is not accepted. D6 was approved by Sanket on 2026-10-12, unlocking CB-10.
 
 | Card | Implementation | CI | Hosted rollout | Acceptance |
@@ -11,7 +13,7 @@ Updated 2026-10-12. This table supersedes stale present-tense task closeouts; da
 | CB-07 | Attempt mode on `main`; admission remediation complete (`12458d1`) | Local + Antigravity green; exact head `5e93be5` CI observation optional | 023 verified hosted on Neon main (read-only, 2026-10-12) | Operational pause/timing acceptance still pending |
 | CB-08 | Merged evidence anchors; Unicode conformance remediation local | Local shared Python/TS fixtures; new revision unverified | Historical hosted closeout preserved | Remediation independent review complete; CI pending |
 | CB-09 | Synthetic replay, external runner, split promotion and identity checks implemented | #146 historical synthetic gate passes; new revision unverified | No external evaluation performed | Synthetic D5 metrics pass in clean-state test; external promotion blocked |
-| CB-10 | Slice 1 committed locally on `main` at `3258c23`; P1/P2 repairs in the following local commit | Repairs: 159 focused tests passed locally; repair CI unverified | Production Postgres mode off; hosted zero-loss window not run | D6 approved; review findings resolved; later slices and hosted acceptance remain open |
+| CB-10 | Slice 1 committed locally on `main` at `3258c23`; P1/P2 repairs committed locally at `6ed8350` | Repairs: 159 focused tests passed locally; repair CI unverified | Production Postgres mode off; hosted zero-loss window not run | D6 approved; subsequent review findings remain open; later slices and hosted acceptance remain open |
 | CB-13 | Not promoted | — | — | Requires identical verified external baseline/candidate holdout comparisons passing unchanged D5 |
 
 ## Read-only GitHub evidence
@@ -82,7 +84,7 @@ Not done, and not waived:
 - Historical 023/024 statement superseded by live inspection below: hosted 023 is present, 024 is absent. Agents do not run Alembic against non-test databases.
 - `sioona_runtime` stays `NOLOGIN`. Owner connections bypass RLS until an operator sets a password out of band and points `DATABASE_URL` at that role, with `MIGRATION_DATABASE_URL` left on the owner.
 - Tables outside the eight high-value policies are unchanged. Application filters and CB-03 remain the control there.
-- CB-10 has no go decision. CB-13 is unchanged.
+- CB-10 D6 implementation is approved; production cutover and hosted acceptance remain open. CB-13 is unchanged.
 
 ## Free local verification refresh — 2026-10-12
 
@@ -105,4 +107,4 @@ No paid service, hosted migration, ruleset or external model comparison was touc
 - No isolated staging service/empty staging branch exists. Existing rehearsal/backup branches inherit production data and are not empty staging targets. An on-demand free Render service plus a separate empty Neon project is a candidate, subject to quota verification and operator schema setup; the existing paid Blueprint was not applied.
 - External manifest remains n=100, below D5 four buckets of at least 30 each. No partner bytes were opened or sent to a provider. A sufficient labeled corpus, chosen baseline/candidate identities and an explicit attempt ceiling are still needed; thresholds are unchanged.
 
-CB-10 has no go decision: plan restriction, staging acceptance, hosted RLS and external promotion remain unfulfilled. See `tasks/FOUNDATION_NEXT_ACTIONS.md` for the concrete execution sequence.
+CB-10 D6 implementation is approved. Staging acceptance, hosted RLS and external promotion remain unfulfilled; production Postgres mode stays off. See `tasks/FOUNDATION_NEXT_ACTIONS.md` for the concrete execution sequence.

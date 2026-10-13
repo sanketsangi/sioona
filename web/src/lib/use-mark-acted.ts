@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   clearRecentFeedbackSaved,
   FEEDBACK_SAVED_EVENT,
@@ -57,6 +57,10 @@ export function resolveCanMarkActed(opts: {
  */
 export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
   const router = useRouter();
+  /** Sync guard — `actedPending` updates too late to stop a second POST. */
+  const inflightRef = useRef(false);
+  const requestGenRef = useRef(0);
+  const [submitting, setSubmitting] = useState(false);
   const [actedPending, setActedPending] = useState(false);
   const [actedLocal, setActedLocal] = useState<boolean | null>(null);
   const [feedbackLocalLabel, setFeedbackLocalLabel] =
@@ -69,6 +73,8 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
   if (signal.id !== trackedSignalId) {
     setTrackedSignalId(signal.id);
     setActedLocal(null);
+    setActedPending(false);
+    setSubmitting(false);
     setError(null);
     setFeedbackLocalLabel(
       feedbackLabel ? null : recentFeedbackLabel(signal.id),
@@ -76,6 +82,12 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
   } else if (feedbackLabel != null && feedbackLocalLabel !== null) {
     setFeedbackLocalLabel(null);
   }
+
+  // Before paint, so a click on the new review cannot reuse the previous POST.
+  useLayoutEffect(() => {
+    requestGenRef.current += 1;
+    inflightRef.current = false;
+  }, [signal.id]);
 
   useEffect(() => {
     if (feedbackLabel) clearRecentFeedbackSaved(signal.id);
@@ -103,10 +115,15 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
 
   const setActed = useCallback(
     async (acted: boolean) => {
+      if (inflightRef.current) return;
+      const generation = requestGenRef.current;
+      inflightRef.current = true;
+      setSubmitting(true);
       setActedPending(true);
       setError(null);
       try {
         await postSignalActed(signal, acted);
+        if (generation !== requestGenRef.current) return;
         const href = afterMarkActedHref({
           acted,
           feedbackLabel: resolvedLabel,
@@ -127,11 +144,16 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
         setActedLocal(acted);
         router.refresh();
       } catch (err) {
+        if (generation !== requestGenRef.current) return;
         setError(
           err instanceof Error ? err.message : "Failed to update acted status",
         );
       } finally {
-        setActedPending(false);
+        if (generation === requestGenRef.current) {
+          inflightRef.current = false;
+          setSubmitting(false);
+          setActedPending(false);
+        }
       }
     },
     [
@@ -152,6 +174,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
 
   return {
     actedPending,
+    submitting,
     canMarkActed,
     error,
     hasFeedback,

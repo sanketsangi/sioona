@@ -2,7 +2,7 @@
 
 import { CaretDown } from "@phosphor-icons/react/ssr";
 import { useRouter } from "next/navigation";
-import { useId, useState, useTransition, type ComponentType } from "react";
+import { useId, useRef, useState, useTransition, type ComponentType } from "react";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
 import { FilterPillFrame, FilterPillTrigger } from "@/components/FilterPill";
 import { CircleSlashIcon } from "@/components/icons/CircleSlashIcon";
@@ -210,6 +210,9 @@ export function GroundTruthControl({
   const [open, setOpen] = useState(false);
   /** Another menu row is under the pointer or keyboard, so the detected wash steps aside. */
   const [browsing, setBrowsing] = useState(false);
+  /** Sync guard — `pending` stays false until refresh and allowed a second POST. */
+  const inflightRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState<GroundTruthValue>(groundTruth ?? "");
   const [prevGroundTruth, setPrevGroundTruth] = useState(groundTruth);
@@ -236,8 +239,10 @@ export function GroundTruthControl({
   const CurrentIcon = currentOption.Icon;
 
   async function onSelect(next: GroundTruthValue) {
-    if (next === value || pending) return;
+    if (inflightRef.current || submitting || pending || next === value) return;
     const previous = value;
+    inflightRef.current = true;
+    setSubmitting(true);
     setValue(next);
     setError(null);
     setOpen(false);
@@ -262,6 +267,9 @@ export function GroundTruthControl({
       setError(
         err instanceof Error ? err.message : "Failed to save ground truth",
       );
+    } finally {
+      inflightRef.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -288,20 +296,22 @@ export function GroundTruthControl({
                     id={labelId}
                     variant="suggestion"
                     shape="full"
-                    disabled={pending}
-                    aria-busy={pending}
+                    disabled={submitting || pending}
+                    aria-busy={submitting || pending}
                     aria-invalid={error ? true : undefined}
                     aria-label={`Ground Truth, ${currentLabel}`}
                     title={
                       error ? groundTruthSaveErrorMessage(error) : undefined
                     }
-                    className={cn(pending && "cursor-wait opacity-80")}
+                    className={cn(
+                      (submitting || pending) && "cursor-wait opacity-80",
+                    )}
                   >
                     <span className="flex min-w-0 max-w-[12rem] flex-row items-center gap-1 font-medium whitespace-nowrap">
                       <span className="shrink-0 font-normal text-sio-fg-base">
                         Ground Truth
                       </span>
-                      {pending ? (
+                      {submitting || pending ? (
                         <ButtonSpinner className="size-4 shrink-0 text-sio-fg-muted" />
                       ) : (
                         <CurrentIcon className="size-4 shrink-0 text-sio-fg-muted" />
@@ -333,7 +343,9 @@ export function GroundTruthControl({
                 <DropdownMenuRadioGroup
                   value={toGroundTruthRadioValue(value)}
                   onValueChange={(next) => {
-                    if (!next || pending) return;
+                    if (!next || inflightRef.current || submitting || pending) {
+                      return;
+                    }
                     void onSelect(
                       fromGroundTruthRadioValue(next as RadioValue),
                     );
@@ -350,7 +362,7 @@ export function GroundTruthControl({
                       <DropdownMenuRadioItem
                         key={opt.label}
                         value={opt.radioValue}
-                        disabled={pending}
+                        disabled={submitting || pending}
                         data-suggested={suggested ? "" : undefined}
                         title={
                           suggested ? `${opt.hint} (detected type)` : opt.hint
@@ -389,7 +401,7 @@ export function GroundTruthControl({
       </TooltipProvider>
 
       <p className="sr-only" aria-live="polite">
-        {pending ? "Saving…" : null}
+        {submitting || pending ? "Saving…" : null}
       </p>
       {error ? <GroundTruthSaveError error={error} /> : null}
     </div>

@@ -1,9 +1,9 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-10-10
+**Last updated:** 2026-10-13
 
-**Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` tip `5e93be5` (foundation remediation merge + admission pipeline fixes `12458d1`)
+**Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats. Phase 2 (canonical Postgres) is authorized.
+**Branch:** local `main` tip `6ed8350`, two commits ahead of `origin/main` `7ab84e5`: D6 conversations/messages `3258c23` and repair `6ed8350`. Phase 2 approval and cited CI cover `7ab84e5` only. Dashboard shadow wiring remains uncommitted; neither local commit nor wiring is covered by that CI. Review repairs precede feedback and supervised decisions. Production Postgres mode remains off; hosted observation requires separate authorization.
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -13,13 +13,15 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 **GTM now:** Offer = single-tenant Insights + Shadow Mode + human-gated suggestions (no autonomy, no Auth0 sell). Approve Draft / Correct / Mark Acted = human gate only — Approve is decision-only (never sends); Acted is display-only (no outbound). Win = human keep-set SignalScore ≥80% on Eval (week window). Primary job = next unused weekly dump after Week-6 (Batch-02 still held-out). Residual gap = Week-7+ real partner export (Batch-02 held-out).
 
-**Heading: foundation sprint, then the Shadow Mode pilot.** Pilot win is unchanged: human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** more Adapt phrase tuning / `taxonomy.ts` expansion. Net-new product features wait. Approved cards may add tenant membership, a model gateway, inference metering, evidence anchors, an eval gate, and canonical Postgres state. Nothing auto-sends.
+**Heading: Phase 2, canonical Postgres, then the Shadow Mode pilot.** Pilot win is unchanged: human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** more Adapt phrase tuning / `taxonomy.ts` expansion. Phase 0 and Phase 1 code is accepted. Phase 2 go is `docs/development/PHASE_2_GO.md` (2026-10-13): continue CB-10. Deferred operator work (GitHub rulesets, staging actor shadow, hosted runtime RLS, hosted budget drill, external holdout) does not block CB-10 and is not waived. Nothing auto-sends. Do not start CB-11 until D9 is approved. Do not promote a route (CB-13) until the external corpus meets D5.
 
 **Decision (2026-08-15):** Eval go is the win. Zerodha `batch_01` Adapt **shipped** (`zerodha-batch01-overrides.ts`, Eval Apply, ingest `labels[]`→GT, sync chunk/90s timeout, Mark Acted after feedback). Resume weekly Insights reviews. Still not Auth0 as the identity vendor / vLLM / Action Mode outbound. Taxonomy base is still `taxonomy.ts`.
 
 **Hosted now (2026-09-06):** Real weekly partner export **Week-6 keep-set closed** (localhost) — Synthetic-Data `Zerodha_week_6_batch_01.json` mid-week upsert `replaced=false` (20 new signals; pack not copied; Batch-02 held-out). Neon/local count **1→2** after Week-5 Day-1 precondition (Sample wipe had left count **null**). **11** Correct (GT-matched human SoT; not all-correct smoke) + **Acted 11/11** (display-only). Eval `?scoreFrom=2026-09-06T19:46:39.000Z` → localhost keep-set **n=11 / correct=11 / incorrect=0 / 1.00 → go**; baseline **55**; lift **0**. Ops via `npm run ops:week6-keep-set -- --review=human`. Not Batch-02 / not Adapt / not Partner Demo wipe / not Auth0 / not outbound. Prior Week-5 go (2026-09-04) stays historical.
 
 **This week (ops, 2026-09-06):** Week-6 keep-set **go** logged (above). Week-4 Batch-02 remains **held-out CLI only**. Next unused weekly dump = Week-7-or-later (not Batch-02) → mid-week `replaced=false` (count now **2**) → ≥5 Corrects + Acted → keep-set ≥0.80. Local CS `batch_001` replace stays a negative example (200/0).
+
+**This pass (review, 2026-10-13, Phase 2 go):** Cookbook §9 checked against the approval base `7ab84e5`. Six CI jobs green on [run 38291090076](https://github.com/sanketsangi/sioona/actions/runs/38291090076). Ruleset API still HTTP 403. Go and deferrals: `docs/development/PHASE_2_GO.md`. Not a keep-set go. Not enforce. Not a hosted migration.
 
 **This pass (code, 2026-10-10, CB-07 admission remediation — complete):** Merged `12458d1` on `main`: 1-based attempt ordinals (ledger preflight ≥1), **global pause read without global row lock** (tenant policy still locked — do not re-add global `FOR UPDATE` in `reserve()`), `admissionId` metering when the provider throws, prompt-injection early return without LLM failure stats. Why captured in `docs/development/tasks/CB-07.md` internal changelog. Antigravity verified; tests green. Not hosted migration 023 / not CB-10.
 
@@ -374,7 +376,7 @@ Types / taxonomy / detect / ingest / store / eval / sync / hydrate: `web/src/lib
 
 ## 7. Later / do not start
 
-*(D0, once approved, allows the foundation cards below. Everything else in this list stays blocked.)*
+*(Phase 2 go, 2026-10-13, allows CB-10 now and CB-12 / CB-14 / CB-15 when their cookbook dependencies are met. CB-11 waits on D9. CB-13 waits on an approved external corpus. Everything else in this list stays blocked.)*
 
 - Auth0 as a vendor (identity work is CB-03: Postgres users and memberships, not a new IdP, until D1 says otherwise)
 - Real tenant isolation is in scope for CB-03 and CB-04 only

@@ -33,7 +33,7 @@ import { withServerEvidence } from "./server-evidence";
 import { runHybridDetectionWithLedger } from "./ai/run-with-ledger";
 import { pilotSettingsFromRemote } from "./sync-pilot";
 import { taxonomyOverridesFromNeon } from "./sync-taxonomy";
-import { emptyStoreForTenant, writeStore } from "./store";
+import { writeStore } from "./store";
 import { getStateMode } from "./state-mode";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import { ensureSupervisedActions } from "./supervised-actions";
@@ -487,14 +487,24 @@ export async function tryHydrateStoreFromNeon(
       ? { llmSkippedConversationIds: remoteResume.skipped_conversation_ids }
       : {}),
   };
+  const emptyKeepSet = (): StoreData => ({
+    tenant: {
+      id: tenantId,
+      name: tenantId === DEMO_TENANT_ID ? "Demo" : tenantId,
+      createdAt: new Date().toISOString(),
+    },
+    conversations: [],
+    messages: [],
+    signals: [],
+    taxonomyOverrides: {},
+    ...(remotePilot ? { pilot: pilotSettingsFromRemote(remotePilot) } : {}),
+    ...resumeState,
+  });
   if (rows.length === 0) {
-    // An empty corpus is still a canonical tenant. Persisted pilot settings
-    // have to survive that read; otherwise the next baseline save omits them.
-    if (!canonical || !remotePilot) return null;
-    const store = emptyStoreForTenant(tenantId);
-    store.pilot = pilotSettingsFromRemote(remotePilot);
-    Object.assign(store, resumeState);
-    return store;
+    // An empty corpus is still a canonical tenant. The fetched pilot has to
+    // survive that read; the showcase shell baseline must not replace it.
+    if (!canonical) return null;
+    return emptyKeepSet();
   }
   const filtered = durable
     ? { apply: false, rows: rows.filter((row) => memberIds.has(row.conversation_id)) }
@@ -502,12 +512,18 @@ export async function tryHydrateStoreFromNeon(
       ? { apply: false, rows }
       : filterConversationsForLivePartner(rows, remotePilot);
   // Filename is already the weekly upload, but Neon still has the previous pack.
-  if (filtered.apply && filtered.rows.length === 0) return null;
+  if (filtered.apply && filtered.rows.length === 0) {
+    if (!canonical) return null;
+    return emptyKeepSet();
+  }
   const sourceRows = durable ? filtered.rows :
     filtered.apply && (options?.freshOnly || dayOneReplace)
       ? filtered.rows
       : rows;
-  if (sourceRows.length === 0) return null;
+  if (sourceRows.length === 0) {
+    if (!canonical) return null;
+    return emptyKeepSet();
+  }
   const chats = mapBackendConversationsToStore(sourceRows, tenantId);
   if (filtered.apply && remotePilot?.last_uploaded_file_name) {
     const freshIds = new Set(
@@ -525,7 +541,12 @@ export async function tryHydrateStoreFromNeon(
     for (const entry of memberships) for (const id of entry.conversation_ids) sourceById.set(id, entry.upload.source);
     chats.conversations = chats.conversations.map((chat) => ({ ...chat, sourceFile: sourceById.get(chat.id) }));
   }
-  if (chats.conversations.length === 0) return null;
+  if (chats.conversations.length === 0) {
+    if (!canonical) return null;
+    throw new Error(
+      "Canonical conversation integrity failure: mapped conversations missing; retry the request.",
+    );
+  }
 
   // Reviewer phrases already stored for this tenant (Neon Adapt).
   const taxonomyOverrides =

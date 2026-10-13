@@ -178,3 +178,14 @@ Status: **approved**
 Date: 2026-10-12
 Approver: Sanket
 Choice: Conversations/messages → feedback/decisions → pilot settings → taxonomy overrides → remaining JSON. In production mode, Postgres is the only writer for operational state. JSON remains only for local demo mode. Production refuses `json-demo` at boot. A fresh production tenant reconstructs the dashboard after a web restart with no runtime JSON file. Demo or sample data cannot overwrite a live tenant.
+
+## D8 — Row level security
+
+Status: **approved**
+Date: 2026-10-12
+Approver: Sanket
+Choice: **Adopt** on `messages`, `conversations`, `signal_predictions`, `signal_feedback`, `supervised_action_decisions`, `detection_runs`, `inference_attempts`, and `signal_evidence`, using runtime role `sioona_runtime` (`NOBYPASSRLS`, distinct from the migration owner). Missing `app.tenant_id` returns no rows. Hosted `DATABASE_URL` stays on the owner until the operator switch in [Phase 2 go](PHASE_2_GO.md) item OP-3. Evidence: CB-04 and merge of #154 / #155.
+
+## D9, D10, D11
+
+Status: **not approved**. Do not start CB-11 (D9), live or outbound integrations (D10), or the retention/deletion program (D11) until a row here has a date and an approver.
