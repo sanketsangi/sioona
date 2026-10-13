@@ -178,3 +178,26 @@ Status: **approved**
 Date: 2026-10-12
 Approver: Sanket
 Choice: Conversations/messages → feedback/decisions → pilot settings → taxonomy overrides → remaining JSON. In production mode, Postgres is the only writer for operational state. JSON remains only for local demo mode. Production refuses `json-demo` at boot. A fresh production tenant reconstructs the dashboard after a web restart with no runtime JSON file. Demo or sample data cannot overwrite a live tenant.
+
+## D9 — Durable job runtime and background execution (CB-11)
+
+Status: **approved**
+Date: 2026-10-14
+Approver: Sanket
+Proposal revision: v1.0
+Choice: **Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` and a Render background worker built from the same FastAPI backend revision.** No external broker is introduced.
+
+### Scope and Invariants
+
+- **Outbox & Canonical Commit Boundary:** Enqueue `jobs` rows with bounded references only (`tenant_id`, `job_type`, `upload_id`, `conversation_ids` digest/cursor, `config_sha256`), never raw transcripts or secrets; enforce `tenant_id` via verified actor/principal authority and `sioona_runtime` RLS (`CB-04`).
+- **Leasing, Fencing & Retry Lifecycle:** States `queued` -> `leased` -> `succeeded` | `failed` | `cancelled` | `dead_lettered`; claim via `FOR UPDATE SKIP LOCKED`; track `attempt_count`, `lease_owner`, monotonic `lease_token`, `leased_at`, and `lease_expires_at` (90s default, 30s heartbeat); require matching `(job_id, lease_token)` on publication/completion so expired workers cannot overwrite reclaimed jobs; bound retries to `max_attempts = 3` with exponential backoff and preserve unpublished conversation IDs in `detection_resume`.
+- **Metering, Budgets & Idempotent Publication:** Reserve `CB-07` budget allowance and write a `pending` row to `inference_attempts` (`CB-06`) under `principal:detection-worker` before every provider call; record `NULL` tokens with `usage_status = 'unknown'` when usage is missing; ensure signal/evidence publication (`CB-08`) is idempotent per `(tenant_id, job_id, conversation_id, content_sha256)`.
+- **Processor Exclusion, Cutover & Rollback:** Gate via `SIOONA_DETECTION_EXECUTION=inline|worker` (default `inline`); prevent inline Next.js/`after()` LLM calls when in `worker` mode; support `SIOONA_WORKER_PAUSE=1` to drain leases cleanly and allow instant rollback to `inline`.
+- **Preserved Semantics & Boundaries:** Keep gateway, prompts (`v3`), evidence offsets (`CB-08`), and human keep-set `SignalScore >= 80%` (`n >= 5`) unchanged; nothing auto-sends. Note that `CB-11` implementation remains gated on signed `CB-10` acceptance, and paid Render worker provisioning or live provider spend requires a separate operator go.
+
+## D10, D11
+
+Status: **not approved**
+
+- **D10 (live/outbound integrations):** Live Intercom / WhatsApp webhooks (`CB-16`) and outbound CRM/email actions (`CB-17`) remain unapproved and blocked. No external actions auto-send.
+- **D11 (retention/deletion program):** Per-class data retention, export, and deletion program (`CB-18`) remains unapproved. Backups and data stores follow existing project invariants.
