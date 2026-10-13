@@ -210,3 +210,55 @@ describe("archive allocation adversaries", () => {
     await expect(parseIngestUpload("a.xlsx", bytes)).rejects.toThrow("archive");
   });
 });
+
+
+describe("review regressions", () => {
+  it.each([
+    '<cols><col min="1" max="1000" width="10"/></cols>',
+    "<cols><col min='1' max='&#49;000' width='10'/></cols>",
+    '<mergeCells count="1"><mergeCell ref="A1:AG2"/></mergeCells>',
+    '<mergeCells count="1"><mergeCell ref="A1:B10002"/></mergeCells>',
+    '<cols><col min="1000" max="1000"/></cols>',
+    '<cols><col min="0" max="2"/></cols>',
+    '<cols><col min="2" max="1"/></cols>',
+    "<mergeCells><mergeCell ref='A1:B&#49;0002'/></mergeCells>",
+  ])("rejects allocation-driving ranges before ExcelJS: %s", async (range) => {
+    const zip = await JSZip.loadAsync(await workbook());
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.file("xl/worksheets/sheet1.xml", xml.replace('</worksheet>', range + '</worksheet>'));
+    const bytes = await zip.generateAsync({ type: "nodebuffer" });
+    expect(() => validateWorkbookArchive(bytes)).toThrow("archive");
+  });
+  it.each(["xl/prefix/xl/worksheets/sheet1.xml", "xl/worksheets/sheet1.xml.extra"])("rejects ExcelJS worksheet path aliases: %s", async (path) => {
+    const zip = await JSZip.loadAsync(await workbook());
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.remove("xl/worksheets/sheet1.xml");
+    zip.file(path, xml.replace('</worksheet>', '<cols><col min="1" max="1000"/></cols></worksheet>'));
+    const relationships = await zip.file("xl/_rels/workbook.xml.rels")!.async("string");
+    zip.file("xl/_rels/workbook.xml.rels", relationships.replace('worksheets/sheet1.xml', path.slice(3)));
+    const bytes = await zip.generateAsync({ type: "nodebuffer" });
+    expect(() => validateWorkbookArchive(bytes)).toThrow("archive");
+  });
+  it("preserves bounded column styles and merges", async () => {
+    const book = new ExcelJS.Workbook();
+    const sheet = book.addWorksheet("Sheet0");
+    sheet.addRows([headers, row]);
+    sheet.getColumn(EXPORT_LIMITS.columns).width = 10;
+    sheet.mergeCells("A3:B4");
+    const bytes = await book.xlsx.writeBuffer();
+    expect(() => validateWorkbookArchive(Buffer.from(bytes))).not.toThrow();
+    const doc = await parseBook();
+    expect(doc.conversations[0].messages[0].content).toBe(body);
+  });
+  it("ignores multipart attachment before the real body", async () => {
+    const content = [
+      '--outer', 'Content-Type: multipart/alternative; boundary="inner"',
+      'Content-Disposition: attachment; filename="attached.mime"', '',
+      '--inner', 'Content-Type: text/plain; charset=utf-8', '', 'ATTACHMENT SECRET',
+      '--inner--', '--outer', 'Content-Type: text/plain; charset=utf-8', '',
+      'ACTUAL BODY', '--outer--',
+    ].join('\r\n');
+    const doc = await parseMail(mail({ type: 'multipart/mixed; boundary="outer"', content }));
+    expect(doc.conversations[0].messages[0].content).toBe('ACTUAL BODY');
+  });
+});

@@ -11,6 +11,16 @@ export const EXPORT_LIMITS = {
   messageChars: 100_000,
 } as const;
 
+function boundedCell(reference: unknown): [number, number] {
+  const match = typeof reference === "string" && /^([A-Z]+)(\d+)$/.exec(reference);
+  if (!match) throw new Error();
+  let column = 0;
+  for (const letter of match[1]) column = column * 26 + letter.charCodeAt(0) - 64;
+  const row = Number(match[2]);
+  if (column > EXPORT_LIMITS.columns || row < 1 || row > EXPORT_LIMITS.rows + 1) throw new Error();
+  return [column, row];
+}
+
 function crc32(bytes: Buffer): number {
   let crc = 0xffffffff;
   for (const byte of bytes) {
@@ -50,6 +60,8 @@ export function validateWorkbookArchive(bytes: Buffer): void {
       const name = new TextDecoder("utf-8", { fatal: true }).decode(nameBytes);
       expanded += original;
       if (flags & 1 || ![0, 8].includes(method) || expanded > EXPORT_LIMITS.expandedBytes || names.has(name) || name.includes("..") || name.startsWith("/") || name.includes("\\") || name.includes("\0") || /vbaProject|externalLinks/i.test(name)) throw new Error();
+      // ExcelJS matches worksheet paths without anchors; reject aliases before XML/load.
+      if (/xl\/worksheets\/sheet\d+[.]xml/.test(name) && !/^xl\/worksheets\/sheet\d+[.]xml$/.test(name)) throw new Error();
       names.add(name);
       if (bytes.readUInt32LE(local) !== 0x04034b50 || bytes.readUInt16LE(local + 6) !== flags || bytes.readUInt16LE(local + 8) !== method || bytes.readUInt16LE(local + 26) !== nameLength) throw new Error();
       if (!bytes.subarray(local + 30, local + 30 + nameLength).equals(nameBytes)) throw new Error();
@@ -83,12 +95,19 @@ export function validateWorkbookArchive(bytes: Buffer): void {
           if (!/^xl\/worksheets\//.test(name)) return;
           const reference = tag.attributes.r;
           if (tag.name === "row" && (typeof reference !== "string" || !/^\d+$/.test(reference) || Number(reference) > EXPORT_LIMITS.rows + 1)) throw new Error();
-          if (tag.name === "c") {
-            const match = typeof reference === "string" && /^([A-Z]+)(\d+)$/.exec(reference);
-            if (!match) throw new Error();
-            let col = 0;
-            for (const letter of match[1]) col = col * 26 + letter.charCodeAt(0) - 64;
-            if (col > EXPORT_LIMITS.columns || Number(match[2]) > EXPORT_LIMITS.rows + 1) throw new Error();
+          if (tag.name === "c") boundedCell(reference);
+          if (tag.name === "col") {
+            const { min, max } = tag.attributes;
+            if (typeof min !== "string" || typeof max !== "string" || !/^\d+$/.test(min) || !/^\d+$/.test(max) || Number(min) < 1 || Number(max) < Number(min) || Number(max) > EXPORT_LIMITS.columns) throw new Error();
+          }
+          if (tag.name === "mergeCell") {
+            const ref = tag.attributes.ref;
+            if (typeof ref !== "string") throw new Error();
+            const endpoints = ref.split(":");
+            if (endpoints.length !== 2) throw new Error();
+            const [left, top] = boundedCell(endpoints[0]);
+            const [right, bottom] = boundedCell(endpoints[1]);
+            if (right < left || bottom < top) throw new Error();
           }
         });
         parser.on("closetag", () => { depth--; });

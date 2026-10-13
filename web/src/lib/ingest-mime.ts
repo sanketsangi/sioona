@@ -16,6 +16,7 @@ export function emailBody(raw: string): { text?: string; html?: string } {
       headers.set(key, match[2]);
     }
     const type = headers.get("content-type") || "text/plain; charset=us-ascii";
+    if (/^attachment\b/i.test(headers.get("content-disposition") || "")) return {};
     if (/^multipart\//i.test(type)) {
       const boundary = /\bboundary\s*=\s*(?:"([^"\r\n]+)"|([^;\s]+))/i.exec(type);
       const value = boundary?.[1] || boundary?.[2];
@@ -37,7 +38,7 @@ export function emailBody(raw: string): { text?: string; html?: string } {
       return { text: results.find((r) => r.text !== undefined)?.text, html: results.find((r) => r.html !== undefined)?.html };
     }
     // Never open attached or inline forwarded messages, or attachments of any MIME type.
-    if (/^attachment\b/i.test(headers.get("content-disposition") || "") || !/^text\/(plain|html)\b/i.test(type)) return {};
+    if (!/^text\/(plain|html)\b/i.test(type)) return {};
     const charset = /\bcharset\s*=\s*"?([^;"\s]+)/i.exec(type)?.[1]?.toLowerCase() || "us-ascii";
     if (!["utf-8", "utf8", "us-ascii", "ascii"].includes(charset)) throw new Error("Unsupported text charset");
     const encoding = (headers.get("content-transfer-encoding") || "7bit").toLowerCase();
