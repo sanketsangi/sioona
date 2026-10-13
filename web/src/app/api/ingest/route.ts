@@ -269,20 +269,23 @@ export async function POST(request: Request) {
         .reverse()
         .find((entry) => entry.basename)?.basename;
       const partner = store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
-      if (!partner) {
-        store.pilot = {
-          baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
-          updatedAt: new Date().toISOString(),
-          weeklyExportCount:
-            weeklyFileCount > 0
-              ? priorExports + weeklyFileCount
-              : priorWeeklyExportCount,
-          ...(store.pilot?.baselineNote
-            ? { baselineNote: store.pilot.baselineNote }
-            : {}),
-          ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
-        };
-      }
+      // Partner counts come from the publication receipt. Demo keeps the local
+      // snapshot, and that object is what the overlapped Neon PUT receives.
+      const demoPilot = partner
+        ? null
+        : {
+            baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
+            updatedAt: new Date().toISOString(),
+            weeklyExportCount:
+              weeklyFileCount > 0
+                ? priorExports + weeklyFileCount
+                : priorWeeklyExportCount,
+            ...(store.pilot?.baselineNote
+              ? { baselineNote: store.pilot.baselineNote }
+              : {}),
+            ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
+          };
+      if (demoPilot) store.pilot = demoPilot;
       const resumeVersion = store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z";
       const priorFailedOutsideBatch = (store.llmFailedConversationIds ?? [])
         .filter((id) => !ingestedConversationIds.has(id));
@@ -300,11 +303,11 @@ export async function POST(request: Request) {
           store.taxonomyOverrides,
           resumeIds.length > 0 ? { resumeIds } : undefined,
         ),
-        partner
-          ? Promise.resolve()
-          : syncPilotSettingsToBackend(store.tenant.id, store.pilot, {
+        demoPilot
+          ? syncPilotSettingsToBackend(store.tenant.id, demoPilot, {
               overwriteUploadMetadata: true,
-            }),
+            })
+          : Promise.resolve(),
       ]);
 
       if (replaceShowcase) {
