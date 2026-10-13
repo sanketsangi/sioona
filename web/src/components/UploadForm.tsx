@@ -44,9 +44,11 @@ const FORMAT_LABELS: Record<string, string> = {
   sioona_json: "Sioona JSON",
   intercom_json: "Intercom JSON",
   whatsapp_txt: "WhatsApp chat",
+  sioona_xlsx: "XLSX workbook",
+  email: "Email export",
 };
 
-const FILE_ACCEPT = ".csv,.json,.txt,text/csv,application/json,text/plain";
+const FILE_ACCEPT = ".csv,.json,.txt,.xlsx,.eml,.mbox,text/csv,application/json,text/plain";
 /** Quiet upload/validation pills dismiss so the drop zone stays clean. */
 const ERROR_DISMISS_MS = 4000;
 
@@ -54,7 +56,7 @@ function fileKey(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
-const EMPTY_UPLOAD_DETAIL = "CSV, JSON, or WhatsApp .txt…";
+const EMPTY_UPLOAD_DETAIL = "CSV, JSON, WhatsApp, XLSX, EML, or MBOX…";
 
 /** The carousel file that Upload & Detect will send. Other selections stay local. */
 export function activeIngestTarget<T extends { name: string }>(
@@ -119,6 +121,7 @@ export function UploadForm({
   const [error, setError] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<{ file: File; detail: string } | null>(null);
   const [pendingPartnerDemoReplace, setPendingPartnerDemoReplace] =
     useState(false);
   const [pendingHeldOutWeeklyIngest, setPendingHeldOutWeeklyIngest] =
@@ -197,13 +200,32 @@ export function UploadForm({
     }
   }
 
+  async function previewMapping() {
+    const target = filesForIngest(files, activeIndex)[0];
+    if (!target) { fileRef.current?.focus(); return; }
+    setLoading(true);
+    setPreview(null);
+    try {
+      const body = new FormData();
+      body.append("file", target);
+      body.append("preview", "true");
+      const response = await fetch("/api/ingest", { method: "POST", body });
+      const data = await response.json() as { error?: string; previews?: { conversations: number; messages: number; mapping: string; missingTimestampPolicy: string }[] };
+      if (!response.ok) throw new Error(data.error || "Preview failed. Check the export and try again.");
+      const result = data.previews?.[0];
+      if (result) setPreview({ file: target, detail: `${Intl.NumberFormat().format(result.conversations)} conversations, ${Intl.NumberFormat().format(result.messages)} messages. ${result.mapping} ${result.missingTimestampPolicy} Nothing imported; choose Upload & Detect to continue.` });
+    } catch (err) {
+      setPreview({ file: target, detail: err instanceof Error ? err.message : "Preview failed. Try again." });
+    } finally { setLoading(false); }
+  }
+
   async function runIngest(opts?: {
     confirmPartnerDemoReplace?: boolean;
     confirmHeldOutWeeklyIngest?: boolean;
   }) {
     const target = filesForIngest(files, activeIndex)[0] ?? null;
     if (!target) {
-      setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
+      setError("Choose a supported export file first.");
       fileRef.current?.focus();
       return;
     }
@@ -306,7 +328,7 @@ export function UploadForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (files.length === 0) {
-      setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
+      setError("Choose a supported export file first.");
       fileRef.current?.focus();
       return;
     }
@@ -429,6 +451,12 @@ export function UploadForm({
       </div>
 
       <div className="flex shrink-0 flex-col gap-3">
+        {preview && preview.file === activeFile ? <p className="break-words text-copy-14" role="status" aria-live="polite">{preview.detail}</p> : null}
+        {activeFile && /\.(xlsx|eml|mbox)$/i.test(activeFile.name) ? (
+          <button type="button" onClick={previewMapping} disabled={loading} aria-busy={loading} className="btn-secondary min-h-11 touch-manipulation">
+            {loading ? <ButtonSpinner /> : null}Preview mapping
+          </button>
+        ) : null}
         {catalogOutcome ? (
           <p
             className="text-center text-pretty text-copy-14 text-sio-fg-base"
