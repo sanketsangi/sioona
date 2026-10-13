@@ -768,7 +768,11 @@ export async function setPilotBaseline(
     store.pilot = pilotSettingsFromRemote(saved);
     return store;
   }
-  await syncPilotSettingsToBackend(store.tenant.id, pilot);
+  const saved = await syncPilotSettingsToBackend(store.tenant.id, pilot);
+  if (saved) {
+    store.pilot = pilotSettingsFromRemote(saved);
+    await writeStore(store);
+  }
   return store;
 }
 

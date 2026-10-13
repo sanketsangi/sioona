@@ -178,16 +178,19 @@ export async function persistDeferredPilotRefresh(
 
 export async function syncPilotSettingsToBackend(
   tenantId: string,
-  pilot: PilotSettings
+  pilot: PilotSettings,
+  options?: { overwriteUploadMetadata?: boolean }
 ): Promise<BackendPilotSettings | null> {
   try {
     const remote = await getPilotSettings(tenantId).catch(() => null);
 
-    const weeklyExportCount =
-      pilot.weeklyExportCount ?? remote?.weekly_export_count ?? null;
+    const weeklyExportCount = options?.overwriteUploadMetadata
+      ? pilot.weeklyExportCount ?? remote?.weekly_export_count ?? null
+      : remote?.weekly_export_count ?? pilot.weeklyExportCount ?? null;
 
-    const lastUploadedFileName =
-      pilot.lastUploadedFileName ?? remote?.last_uploaded_file_name ?? null;
+    const lastUploadedFileName = options?.overwriteUploadMetadata
+      ? pilot.lastUploadedFileName ?? remote?.last_uploaded_file_name ?? null
+      : remote?.last_uploaded_file_name ?? pilot.lastUploadedFileName ?? null;
 
     return await putPilotSettings(tenantId, {
       baseline_opportunities: pilot.baselineOpportunities,

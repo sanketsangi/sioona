@@ -161,6 +161,64 @@ describe("setPilotBaseline", () => {
     expect(after.pilot?.baselineOpportunities).toBe(8);
     expect(after.pilot?.baselineNote).toBe("local only");
   });
+
+  it("interleaves upload metadata persistence and a stale baseline save, verifying both survive", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    try {
+      let currentBackendPilot: backendClient.BackendPilotSettings = {
+        id: "pilot-1",
+        tenant_id: "tenant_demo",
+        baseline_opportunities: 5,
+        baseline_note: "old baseline",
+        weekly_export_count: 3,
+        last_uploaded_file_name: "new.csv",
+        created_at: "2026-08-14T00:00:00.000Z",
+        updated_at: "2026-08-14T00:00:00.000Z",
+      };
+
+      vi.spyOn(backendClient, "getPilotSettings").mockImplementation(async () => currentBackendPilot);
+      vi.spyOn(backendClient, "getActiveUploads").mockResolvedValue([]);
+      vi.spyOn(backendClient, "getConversations").mockResolvedValue([]);
+      vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({ predictions: [], next_cursor: null });
+      vi.spyOn(backendClient, "getSupervisedActionDecisions").mockResolvedValue([]);
+      vi.spyOn(backendClient, "getDetectionResume").mockResolvedValue(null);
+      vi.spyOn(backendClient, "getTaxonomyOverrides").mockResolvedValue({});
+      vi.spyOn(backendClient, "putPilotSettings").mockImplementation(async (_tenant, input) => {
+        currentBackendPilot = {
+          ...currentBackendPilot,
+          baseline_opportunities: input.baseline_opportunities,
+          baseline_note: input.baseline_note,
+          weekly_export_count: input.weekly_export_count,
+          last_uploaded_file_name: input.last_uploaded_file_name,
+        };
+        return currentBackendPilot;
+      });
+
+      const store = await readStore();
+      store.pilot = {
+        baselineOpportunities: 5,
+        baselineNote: "old baseline",
+        weeklyExportCount: 2,
+        lastUploadedFileName: "old.csv",
+      };
+      await writeStore(store);
+
+      const after = await setPilotBaseline(15, "new note");
+
+      expect(after.pilot?.baselineOpportunities).toBe(15);
+      expect(after.pilot?.baselineNote).toBe("new note");
+      expect(after.pilot?.weeklyExportCount).toBe(3);
+      expect(after.pilot?.lastUploadedFileName).toBe("new.csv");
+
+      const backendState = await backendClient.getPilotSettings("tenant_demo");
+      expect(backendState?.baseline_opportunities).toBe(15);
+      expect(backendState?.baseline_note).toBe("new note");
+      expect(backendState?.weekly_export_count).toBe(3);
+      expect(backendState?.last_uploaded_file_name).toBe("new.csv");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("persistHealedPilot", () => {
