@@ -518,8 +518,9 @@ export async function writeStore(data: StoreData): Promise<void> {
 }
 
 /**
- * Postgres mode has no JSON writer. The resume cursor is the durable record
- * of chats this tenant still owes, and it must land before the run is acknowledged.
+ * Postgres mode has no JSON writer. Failed and capped runs record the cursor
+ * before the retryable error. A successful publication records it only after
+ * the commit, and sends the version it read so a newer failed set is merged.
  */
 export async function persistCanonicalDetectionResume(
   tenantId: string,

@@ -142,16 +142,28 @@ async function redetectWithOverrides(store: StoreData): Promise<{
     store.taxonomyOverrides,
     { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] }
   );
-  if (useCanonicalPublication && llm.enabled) {
+  if (useCanonicalPublication && llm.enabled && llm.failed > 0) {
+    const skipped = new Set(llm.skippedIds ?? []);
+    const unpublished = [
+      ...new Set([
+        ...(llm.failedIds ?? []),
+        ...(store.llmFailedConversationIds ?? []).filter((id) => !skipped.has(id)),
+        ...store.conversations
+          .map((conversation) => conversation.id)
+          .filter((id) => !skipped.has(id)),
+      ]),
+    ];
     await persistCanonicalDetectionResume(
       store.tenant.id,
-      llm.failedIds ?? [],
+      unpublished,
       llm.skippedIds ?? [],
+      store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z",
     );
-  }
-  if (useCanonicalPublication && llm.failed > 0) {
-    await writeStore({ ...store, llmFailedConversationIds: llm.failedIds ?? [],
-      llmSkippedConversationIds: llm.skippedIds ?? [] });
+    await writeStore({
+      ...store,
+      llmFailedConversationIds: unpublished,
+      llmSkippedConversationIds: llm.skippedIds ?? [],
+    });
     throw new Error("Classification failed. Previous published results remain active.");
   }
   const updated = useCanonicalPublication
@@ -161,11 +173,50 @@ async function redetectWithOverrides(store: StoreData): Promise<{
     updated.llmSkippedConversationIds = llm.skippedIds ?? [];
     updated.llmFailedConversationIds = llm.failedIds ?? [];
   }
-  const synced = useCanonicalPublication
-    ? await syncDetectionRun({ tenantId: store.tenant.id, conversations: store.conversations,
-      messages: store.messages, signals: detected, contexts: llm.contexts,
-      skippedIds: llm.skippedIds, priorSignals: store.signals })
-    : await syncPredictionsToBackend(updated.signals, store.tenant.id);
+  let synced;
+  try {
+    synced = useCanonicalPublication
+      ? await syncDetectionRun({ tenantId: store.tenant.id, conversations: store.conversations,
+        messages: store.messages, signals: detected, contexts: llm.contexts,
+        skippedIds: llm.skippedIds, priorSignals: store.signals })
+      : await syncPredictionsToBackend(updated.signals, store.tenant.id);
+  } catch (error) {
+    if (useCanonicalPublication && llm.enabled) {
+      const skipped = new Set(llm.skippedIds ?? []);
+      const unpublished = [
+        ...new Set([
+          ...(store.llmFailedConversationIds ?? []).filter((id) => !skipped.has(id)),
+          ...store.conversations
+            .map((conversation) => conversation.id)
+            .filter((id) => !skipped.has(id)),
+        ]),
+      ];
+      try {
+        await persistCanonicalDetectionResume(
+          store.tenant.id,
+          unpublished,
+          llm.skippedIds ?? [],
+          store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z",
+        );
+        await writeStore({
+          ...store,
+          llmFailedConversationIds: unpublished,
+          llmSkippedConversationIds: llm.skippedIds ?? [],
+        });
+      } catch {
+        // The previous cursor stays in place when this write fails.
+      }
+    }
+    throw error;
+  }
+  if (useCanonicalPublication && llm.enabled) {
+    await persistCanonicalDetectionResume(
+      store.tenant.id,
+      llm.failedIds ?? [],
+      llm.skippedIds ?? [],
+      store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z",
+    );
+  }
   updated.signals = synced.signals;
   await writeStore(updated);
   return { store: updated, redetectCount: updated.signals.length };
