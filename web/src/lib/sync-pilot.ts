@@ -14,6 +14,7 @@ import {
   isUnsetOrColdDemoBaseline,
 } from "@/lib/demo-baseline";
 import type { PilotSettings, StoreData } from "@/lib/types";
+import { getStateMode } from "./state-mode";
 
 export function pilotSettingsFromRemote(
   remote: BackendPilotSettings
@@ -182,6 +183,17 @@ export async function syncPilotSettingsToBackend(
   options?: { overwriteUploadMetadata?: boolean }
 ): Promise<BackendPilotSettings | null> {
   try {
+    if (getStateMode() === "postgres") {
+      // Field ownership is enforced inside the backend transaction. A GET
+      // followed by a full replacement cannot protect concurrent updates.
+      return await putPilotSettings(tenantId, {
+        baseline_opportunities: pilot.baselineOpportunities,
+        baseline_note: pilot.baselineNote ?? null,
+        weekly_export_count: pilot.weeklyExportCount ?? null,
+        last_uploaded_file_name: pilot.lastUploadedFileName ?? null,
+        update_scope: options?.overwriteUploadMetadata ? "upload" : "baseline",
+      });
+    }
     const remote = await getPilotSettings(tenantId).catch(() => null);
 
     const weeklyExportCount = options?.overwriteUploadMetadata

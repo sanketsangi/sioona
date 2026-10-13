@@ -19,6 +19,19 @@ import {
 describe("syncPilotSettingsToBackend", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("sends transaction-scoped canonical writes without a stale GET", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    const get = vi.spyOn(backendClient, "getPilotSettings");
+    const put = vi.spyOn(backendClient, "putPilotSettings").mockResolvedValue({} as never);
+    const pilot = { baselineOpportunities: 12, weeklyExportCount: 2, lastUploadedFileName: "new.csv" };
+    await syncPilotSettingsToBackend("tenant_a", pilot);
+    expect(put).toHaveBeenLastCalledWith("tenant_a", expect.objectContaining({ update_scope: "baseline" }));
+    await syncPilotSettingsToBackend("tenant_a", pilot, { overwriteUploadMetadata: true });
+    expect(put).toHaveBeenLastCalledWith("tenant_a", expect.objectContaining({ update_scope: "upload" }));
+    expect(get).not.toHaveBeenCalled();
   });
 
   it("returns the backend row on success", async () => {

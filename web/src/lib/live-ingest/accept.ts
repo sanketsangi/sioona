@@ -48,9 +48,9 @@ type LiveIngestDeps = {
 export async function readLiveIngestStore(): Promise<StoreData> {
   const tenantId = currentStoreTenant();
   const [remotePilot, remoteResume, taxonomyOverrides] = await Promise.all([
-    getPilotSettings(tenantId).catch(() => null),
-    getDetectionResume(tenantId).catch(() => null),
-    taxonomyOverridesFromNeon(tenantId).catch(() => ({})),
+    getPilotSettings(tenantId),
+    getDetectionResume(tenantId),
+    taxonomyOverridesFromNeon(tenantId),
   ]);
   const store = emptyStoreForTenant(tenantId);
   if (remotePilot) {

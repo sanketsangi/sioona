@@ -52,9 +52,10 @@ describe("Postgres set_baseline durability", () => {
       updated_at: "2026-10-01T00:00:00Z",
     };
     vi.stubEnv("SIOONA_STATE_MODE", "postgres");
-    vi.stubEnv("SIOONA_TAXONOMY_NEON", "0");
+    vi.stubEnv("SIOONA_TAXONOMY_NEON", "1");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected network call")));
     vi.spyOn(backend, "getPilotSettings").mockImplementation(async () => structuredClone(pilot));
+    vi.spyOn(backend, "getTaxonomyOverrides").mockResolvedValue({});
     vi.spyOn(backend, "getDetectionResume").mockResolvedValue(null);
     vi.spyOn(backend, "getActiveUploads").mockResolvedValue([]);
     vi.spyOn(backend, "getConversations").mockResolvedValue([conversation]);
@@ -89,6 +90,7 @@ describe("Postgres set_baseline durability", () => {
     const failed = await POST(baselineRequest(12, "eval baseline"));
     expect(failed.status).toBe(503);
     expect((await failed.json()).error).toMatch(/retry/i);
+    expect(putAttempts).toBe(1);
     const unchanged = await runWithTenant("tenant_demo", () => readStore());
     expect(unchanged.pilot).toMatchObject({
       baselineOpportunities: 4,
@@ -99,6 +101,7 @@ describe("Postgres set_baseline durability", () => {
 
     const saved = await POST(baselineRequest(12, "eval baseline"));
     expect(saved.status).toBe(200);
+    expect(putAttempts).toBe(2);
     const persisted = await runWithTenant("tenant_demo", () => readStore());
     expect(persisted.pilot).toMatchObject({
       baselineOpportunities: 12,

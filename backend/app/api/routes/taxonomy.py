@@ -53,6 +53,7 @@ def put_taxonomy_overrides(
     body: TaxonomyOverridesBody,
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
+    merge: bool = False,
 ) -> TaxonomyOverridesResponse:
     keep_header_gate(tenant_id, header_tenant_id)
     try:
@@ -60,6 +61,7 @@ def put_taxonomy_overrides(
             db,
             tenant_id=tenant_id,
             overrides=body.model_dump(),
+            merge=merge,
         )
         return _response(tenant_id, saved)
     except SQLAlchemyError as exc:

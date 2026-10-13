@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { REDACTION_TOKENS } from "../redact";
-import { acceptLiveChats } from "./accept";
+import { acceptLiveChats, readLiveIngestStore } from "./accept";
 import {
   liveIngestEnabled,
   resolveLiveIngestTenant,
@@ -197,6 +197,23 @@ it("does not classify or publish when durable deduplication is unavailable", asy
 });
 
 describe("Postgres live ingest flow", () => {
+  it.each(["pilot", "detection-resume", "taxonomy-overrides"])(
+    "refuses ingestion when the canonical %s read fails", async (failedPath) => {
+      vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+      vi.stubEnv("SIOONA_TAXONOMY_NEON", "1");
+      vi.stubEnv("SIOONA_TENANT_ID", "tenant_partner");
+      vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).includes(`/${failedPath}`)) return new Response("unavailable", { status: 503 });
+        return Response.json({ overrides: {}, failed_conversation_ids: [], skipped_conversation_ids: [] });
+      }));
+      try {
+        await expect(readLiveIngestStore()).rejects.toThrow();
+      } finally {
+        vi.unstubAllEnvs();
+        vi.unstubAllGlobals();
+      }
+    },
+  );
   it("uses readLiveIngestStore and avoids requesting /uploads, conversations, signals, or supervised-actions", async () => {
     vi.stubEnv("SIOONA_STATE_MODE", "postgres");
     vi.stubEnv("SIOONA_TENANT_ID", "tenant_partner");

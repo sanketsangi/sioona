@@ -18,6 +18,66 @@ URL = os.getenv("PG_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not URL, reason="Dedicated PostgreSQL test database required")
 
 
+@pytest.mark.parametrize("seeded", [False, True])
+def test_cb10_concurrent_canonical_writes(monkeypatch, seeded):
+    """Independent sessions preserve scoped pilot fields, Adapt and resume IDs."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.services.pilot import upsert_pilot_settings, get_pilot_settings
+    from app.services.taxonomy import replace_taxonomy_overrides, list_taxonomy_overrides
+    from app.services.detection_resume import upsert_detection_resume, get_detection_resume
+    from app.config import get_settings
+    assert URL and make_url(URL).database == "sioona_migration_test"
+    assert make_url(URL).host in ("localhost", "127.0.0.1", "::1")
+    assert not os.environ.get("MIGRATION_DATABASE_URL", "").strip()
+    engine = create_engine(URL)
+    monkeypatch.setenv("DATABASE_URL", URL)
+    get_settings.cache_clear()
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("DROP SCHEMA public CASCADE"))
+            conn.execute(text("CREATE SCHEMA public"))
+        command.upgrade(Config("alembic.ini"), "head")
+        if seeded:
+            with Session(engine) as db:
+                upsert_pilot_settings(db, tenant_id="cb10", baseline_opportunities=4,
+                    weekly_export_count=1, last_uploaded_file_name="old.csv")
+                replace_taxonomy_overrides(db, tenant_id="cb10", overrides={"lead": {"phrases": ["existing"]}})
+                upsert_detection_resume(db, tenant_id="cb10", failed_conversation_ids=["prior"], skipped_conversation_ids=[])
+
+        def race(operation):
+            barrier = Barrier(2)
+            def run(index):
+                with Session(engine) as db:
+                    barrier.wait(timeout=10)
+                    operation(db, index)
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                list(pool.map(run, [0, 1]))
+
+        race(lambda db, i: upsert_pilot_settings(db, tenant_id="cb10",
+            baseline_opportunities=12 if i == 0 else 4,
+            baseline_note="approved" if i == 0 else "stale",
+            weekly_export_count=1 if i == 0 else 2,
+            last_uploaded_file_name="old.csv" if i == 0 else "new.csv",
+            update_scope="baseline" if i == 0 else "upload"))
+        race(lambda db, i: replace_taxonomy_overrides(db, tenant_id="cb10",
+            overrides={"lead": {"phrases": [f"edit-{i}"]}}, merge=True))
+        race(lambda db, i: upsert_detection_resume(db, tenant_id="cb10",
+            failed_conversation_ids=[f"pending-{i}"], skipped_conversation_ids=[],
+            expected_updated_at=datetime(1970, 1, 1, tzinfo=timezone.utc)))
+        with Session(engine) as db:
+            pilot = get_pilot_settings(db, "cb10")
+            assert (pilot.baseline_opportunities, pilot.baseline_note) == (12, "approved")
+            assert (pilot.weekly_export_count, pilot.last_uploaded_file_name) == (2, "new.csv")
+            assert set(list_taxonomy_overrides(db, "cb10")["lead"]["phrases"]) == (
+                {"existing", "edit-0", "edit-1"} if seeded else {"edit-0", "edit-1"})
+            assert set(get_detection_resume(db, "cb10").failed_conversation_ids) == (
+                {"prior", "pending-0", "pending-1"} if seeded else {"pending-0", "pending-1"})
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()
+
+
 @pytest.mark.parametrize("prior", [None, "011_signal_urgency_value"])
 def test_postgres_fresh_and_existing_schema_upgrade(prior, monkeypatch):
     assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"

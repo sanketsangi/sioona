@@ -61,6 +61,7 @@ def put_tenant_pilot(
             baseline_note=body.baseline_note,
             weekly_export_count=body.weekly_export_count,
             last_uploaded_file_name=body.last_uploaded_file_name,
+            update_scope=body.update_scope,
         )
     except SQLAlchemyError as exc:
         raise HTTPException(

@@ -41,7 +41,7 @@ it("retains existing phrases on a successful canonical mutation", async () => {
   await runWithTenant("t", () => addTaxonomyOverride("lead", "phrases", "new phrase"));
   expect(backend.putTaxonomyOverrides).toHaveBeenCalledWith("t", {
     lead: { phrases: ["saved phrase", "new phrase"], keywords: [], negative_phrases: [] },
-  });
+  }, { merge: true });
 });
 
 it("accepts a successfully read empty canonical taxonomy", async () => {
@@ -49,5 +49,5 @@ it("accepts a successfully read empty canonical taxonomy", async () => {
   await runWithTenant("t", () => addTaxonomyOverride("lead", "phrases", "new phrase"));
   expect(backend.putTaxonomyOverrides).toHaveBeenCalledWith("t", {
     lead: { phrases: ["new phrase"], keywords: [], negative_phrases: [] },
-  });
+  }, { merge: true });
 });

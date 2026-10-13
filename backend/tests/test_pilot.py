@@ -148,3 +148,25 @@ def test_put_rejects_negative_baseline(client: TestClient) -> None:
         json={"baseline_opportunities": -1},
     )
     assert response.status_code == 422
+
+
+def test_scoped_writes_preserve_concurrent_fields(client: TestClient) -> None:
+    url = "/v1/tenants/tenant_demo/pilot"
+    headers = {"X-Tenant-Id": "tenant_demo"}
+    client.put(url, headers=headers, json={"baseline_opportunities": 4,
+        "weekly_export_count": 1, "last_uploaded_file_name": "old.csv"})
+    # Both requests were constructed from that same stale snapshot.
+    upload = client.put(url, headers=headers, json={"update_scope": "upload",
+        "baseline_opportunities": 4, "weekly_export_count": 2,
+        "last_uploaded_file_name": "new.csv"})
+    assert upload.status_code == 200
+    baseline = client.put(url, headers=headers, json={"update_scope": "baseline",
+        "baseline_opportunities": 12, "baseline_note": "approved",
+        "weekly_export_count": 1, "last_uploaded_file_name": "old.csv"})
+    assert baseline.json()["weekly_export_count"] == 2
+    assert baseline.json()["last_uploaded_file_name"] == "new.csv"
+    later_upload = client.put(url, headers=headers, json={"update_scope": "upload",
+        "baseline_opportunities": 4, "weekly_export_count": 3,
+        "last_uploaded_file_name": "third.csv"})
+    assert later_upload.json()["baseline_opportunities"] == 12
+    assert later_upload.json()["baseline_note"] == "approved"

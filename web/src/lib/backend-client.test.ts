@@ -19,6 +19,7 @@ import {
   getPublishedConversationIds,
   getSignalScore,
   getPilotSettings,
+  getDetectionResume,
   getTenantSignals,
   patchConversationGroundTruth,
   pruneConversations,
@@ -38,6 +39,20 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
   vi.useRealTimers();
+});
+
+describe("canonical missing-record responses", () => {
+  it.each([
+    [getPilotSettings, "pilot_settings_not_found"],
+    [getDetectionResume, "detection_resume_not_found"],
+  ] as const)("requires the deployed route's domain 404 (%s)", async (read, detail) => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    const fetch = vi.fn().mockResolvedValue(Response.json({ detail: "Not Found" }, { status: 404 }));
+    vi.stubGlobal("fetch", fetch);
+    await expect(read("tenant_demo")).rejects.toThrow("Not Found");
+    fetch.mockResolvedValue(Response.json({ detail }, { status: 404 }));
+    await expect(read("tenant_demo")).resolves.toBeNull();
+  });
 });
 
 describe("assertBackendUrlConfigured", () => {
