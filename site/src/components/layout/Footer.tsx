@@ -15,6 +15,7 @@ const columns = [
   {
     title: "Trust",
     links: [
+      { label: "About", href: "/about" },
       { label: "Security", href: "/security" },
       { label: "Shadow\u00a0Mode", href: "/how-it-works#shadow-mode" },
       { label: "FAQ", href: "/#faq" },

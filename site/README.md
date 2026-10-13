@@ -25,10 +25,12 @@ Environment variables (see `.env.example`):
 
 ```
 src/
-  app/                     Routes: /, /how-it-works, /security, /pricing, /contact
+  app/                     Routes: /, /about, /how-it-works, /security, /pricing, /contact
     api/contact/route.ts   Stub handler for the pilot form (validates only, stores nothing)
+    llms.txt/route.ts      Public product summary and agent instructions
     template.tsx           CSS-only route fade
     sitemap.ts, robots.ts, icon.svg, not-found.tsx
+  middleware.ts            Markdown when Accept prefers text/markdown, including a 404; Vary: Accept on every response
   components/
     layout/                Logo, SiteNav (native <dialog> drawer), Footer
     sections/              One file per home section

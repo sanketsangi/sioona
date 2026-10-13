@@ -21,7 +21,31 @@ export const navLinks = [
   { label: "Pricing", href: "/pricing" },
 ] as const;
 
-export const routes = ["/", "/how-it-works", "/security", "/pricing", "/contact", "/privacy", "/terms"] as const;
+export const routes = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/privacy", "/terms"] as const;
+
+/** Organization facts for sitewide JSON-LD. Mumbai is the published operating location; no street address is published. */
+export function organizationJsonLd() {
+  const origin = siteConfig.url.replace(/\/$/, "");
+  return {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteConfig.name,
+    url: origin,
+    description: siteConfig.description,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "sales",
+      url: `${origin}/contact`,
+      availableLanguage: "English",
+    },
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Mumbai",
+      addressRegion: "Maharashtra",
+      addressCountry: "IN",
+    },
+  };
+}
 
 const NBSP = "\u00a0";
 
