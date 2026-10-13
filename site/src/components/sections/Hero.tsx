@@ -15,7 +15,7 @@ export function Hero() {
             <span className="hero-badge-arrow size-6"><ArrowUpRight size={12} className="size-3" weight="bold" aria-hidden /></span>
           </Link>
           <h1 id="hero-title" className="hero-heading">Your next opportunity<br className="hidden sm:block" /> is already <span>in the conversation.</span></h1>
-          <p className="text-copy-18 hero-description">Find buying intent, churn risk and expansion opportunities in your customer chats. Give your team the evidence to make the next move.</p>
+          <p className="text-copy-18 hero-description">Find lead, retention and upsell signals in your customer chats. Give your team the evidence to make the next move.</p>
           <div className="hero-actions">
             <ButtonLink href="/contact" large>Request a pilot <ArrowRight size={18} aria-hidden /></ButtonLink>
             <ButtonLink href="#how" variant="secondary" large>Explore the workflow <ArrowUpRight size={18} aria-hidden /></ButtonLink>

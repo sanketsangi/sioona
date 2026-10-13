@@ -1,7 +1,6 @@
 export const chatPlatforms = [
   "Intercom",
   "WhatsApp Business",
-  "Zendesk",
   "CSV or JSON export",
   "Something else",
 ] as const;

@@ -11,7 +11,7 @@ import { TrustStrip } from "@/components/sections/TrustStrip";
 import { pageMetadata, siteConfig } from "@/lib/site";
 
 const title = "Sioona | AI Conversation Intelligence for Customer Teams";
-const description = "Find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.";
+const description = "Find lead, retention and upsell signals in customer chats. Review source evidence, measure precision and keep every action in human hands.";
 
 export const metadata: Metadata = pageMetadata(title, description, "/", { absolute: true });
 

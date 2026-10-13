@@ -29,8 +29,10 @@ Environment variables (see `.env.example`):
 src/
   app/                     Routes: /, /how-it-works, /security, /pricing, /contact
     api/contact/route.ts   Validates the pilot form and stores it through FastAPI
+    llms.txt/route.ts      Public product summary for agents
     template.tsx           CSS-only route fade
     sitemap.ts, robots.ts, icon.svg, not-found.tsx
+  middleware.ts            Markdown when Accept prefers text/markdown; HTML otherwise
   components/
     layout/                Logo, SiteNav (native <dialog> drawer), Footer
     sections/              One file per home section
@@ -69,6 +71,8 @@ The browser posts JSON to `POST /api/contact` with an `Idempotency-Key` of 16–
 When `PILOT_INTAKE_BACKEND_URL` and `SIOONA_SERVICE_TOKEN` are set, a valid request is forwarded server-side to `POST /v1/pilot-requests` with `Authorization: Bearer` and the same idempotency key. Success is `{ ok: true, receipt }` only when the backend echoes that key as `receipt`. The receipt is the primary key of the stored `pilot_requests` row. Sending the same key and payload again returns the same receipt and does not insert a second row.
 
 If either server variable is missing, or the backend does not confirm the receipt, the route returns `503` and does not claim the request was stored. The response never includes the service token. A local `200` is not evidence that production stored the row.
+
+The platform list matches the exports the product accepts: Intercom, WhatsApp Business, and CSV or JSON.
 
 ## Deploy To Vercel
 
