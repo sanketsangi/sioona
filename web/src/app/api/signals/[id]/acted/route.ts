@@ -14,6 +14,7 @@ import {
   resolveFeedbackSignal,
 } from "@/lib/resolve-feedback-signal";
 import { readStore, setSignalActed, writeStore } from "@/lib/store";
+import { getStateMode } from "@/lib/state-mode";
 import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
 
 const FEEDBACK_LABELS = new Set<FeedbackLabel>([
@@ -153,7 +154,9 @@ async function setActedRecoveringStaleId(opts: {
     }
   }
 
-  if (opts.tenantId !== "tenant_demo") throw new BackendClientError("This signal was superseded. Refresh before marking it acted.", 409);
+  if (opts.tenantId !== "tenant_demo" || getStateMode() === "postgres") {
+    throw new BackendClientError("This signal was superseded. Refresh before marking it acted.", 409);
+  }
 
   const signalType = asSignalType(opts.signalType);
   if (!signalType) {
@@ -247,7 +250,12 @@ export async function POST(
         existing.backendSignalId,
         neonStubId
       );
-      if (candidateIds.length === 0 && store.tenant.id !== "tenant_demo") return NextResponse.json({ error: "Refresh the current published signal before marking it acted." }, { status: 409 });
+      if (
+        candidateIds.length === 0 &&
+        (store.tenant.id !== "tenant_demo" || getStateMode() === "postgres")
+      ) {
+        return NextResponse.json({ error: "Refresh the current published signal before marking it acted." }, { status: 409 });
+      }
       if (candidateIds.length > 0) {
         try {
           const { liveId } = await setActedRecoveringStaleId({

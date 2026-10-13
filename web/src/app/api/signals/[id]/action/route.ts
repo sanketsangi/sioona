@@ -8,6 +8,7 @@ import {
 } from "@/lib/resolve-feedback-signal";
 import { decideSupervisedAction, persistSupervisedActions, readStore } from "@/lib/store";
 import { syncSupervisedActionDecision } from "@/lib/supervised-action-persistence";
+import { getStateMode } from "@/lib/state-mode";
 import {
   defaultConfidenceForStoredAction,
   findSupervisedAction,
@@ -301,7 +302,9 @@ export async function POST(
         );
       }
 
-      await syncSupervisedActionDecision(result.action);
+      if (getStateMode() === "json-demo") {
+        await syncSupervisedActionDecision(result.action);
+      }
 
       return NextResponse.json({
         action: result.action,

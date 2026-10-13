@@ -38,6 +38,7 @@ import {
 } from "./wipe-tenant";
 import { currentStoreTenant, DEMO_TENANT_ID } from "./tenant-context";
 import { getStateMode } from "./state-mode";
+import { syncSupervisedActionDecision } from "./supervised-action-persistence";
 
 export class TenantIsolationError extends Error {
   constructor(message: string) {
@@ -684,6 +685,10 @@ export async function decideSupervisedAction(
     edits
   );
   if (!result.ok) return result;
+  if (getStateMode() === "postgres") {
+    await syncSupervisedActionDecision(result.action);
+    return result;
+  }
   await writeStore(store);
   return result;
 }

@@ -12,6 +12,7 @@ import {
   resolveFeedbackSignal,
 } from "@/lib/resolve-feedback-signal";
 import { readStore, setSignalFeedback, writeStore } from "@/lib/store";
+import { getStateMode } from "@/lib/state-mode";
 import type { FeedbackLabel, Signal, SignalType } from "@/lib/types";
 
 const LABELS: FeedbackLabel[] = ["correct", "incorrect", "partially_correct"];
@@ -72,10 +73,12 @@ async function submitFeedbackRecoveringStaleId(opts: {
       return predictionId;
     } catch (err) {
       if (!isPredictionMissingError(err) || !canRecreate) throw err;
-      if (opts.tenantId !== "tenant_demo") throw new BackendClientError("This signal was superseded. Refresh and review the current result.", 409);
+      if (opts.tenantId !== "tenant_demo" || getStateMode() === "postgres") {
+        throw new BackendClientError("This signal was superseded. Refresh and review the current result.", 409);
+      }
       // Stale UUID — fall through to upsert + retry.
     }
-  } else if (opts.tenantId !== "tenant_demo") {
+  } else if (opts.tenantId !== "tenant_demo" || getStateMode() === "postgres") {
     throw new BackendClientError("Refresh and review the current published result before submitting feedback.", 409);
   } else if (!canRecreate) {
     throw new BackendClientError("Signal not found", 404);

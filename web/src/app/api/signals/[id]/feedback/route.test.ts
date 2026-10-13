@@ -163,4 +163,33 @@ describe("POST /api/signals/[id]/feedback", () => {
       "pred-live-2"
     );
   });
+
+  it("does not invent a prediction when Postgres mode sees a stale id", async () => {
+    const storeLib = await import("@/lib/store");
+    const store = await readStore();
+    const target = store.signals[0];
+    expect(target).toBeTruthy();
+    target.backendSignalId = "stale-uuid-gone";
+    vi.spyOn(storeLib, "readStore").mockResolvedValue(store);
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    const { BackendClientError } = await import("@/lib/backend-client");
+    submitFeedback.mockRejectedValue(
+      new BackendClientError("Signal stale-uuid-gone not found for tenant", 404),
+    );
+
+    const res = await POST(
+      feedbackRequest({
+        label: "correct",
+        backendSignalId: "stale-uuid-gone",
+        conversationId: target.conversationId,
+        type: target.type,
+      }),
+      { params: Promise.resolve({ id: target.id }) },
+    );
+
+    expect(res.status).toBe(409);
+    expect(createPrediction).not.toHaveBeenCalled();
+    expect(target.feedback).toBeUndefined();
+    vi.unstubAllEnvs();
+  });
 });

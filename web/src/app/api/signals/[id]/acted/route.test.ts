@@ -73,6 +73,31 @@ describe("POST /api/signals/[id]/acted", () => {
     vi.clearAllMocks();
   });
 
+  it("rejects stale Postgres ids without creating a prediction or changing state", async () => {
+    const storeLib = await import("@/lib/store");
+    const store = await readStore();
+    const target = store.signals[0];
+    target.backendSignalId = "stale-uuid-gone";
+    target.feedback = { label: "correct", reviewedAt: "2026-10-13T00:00:00Z" };
+    const previous = structuredClone(target);
+    const reader = vi.spyOn(storeLib, "readStore").mockResolvedValue(store);
+    setPredictionActed.mockRejectedValue(new BackendClientError("Signal not found", 404));
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    try {
+      const res = await POST(actedRequest({ acted: true, backendSignalId: target.backendSignalId,
+        conversationId: target.conversationId, type: target.type }), {
+        params: Promise.resolve({ id: target.id }),
+      });
+      expect(res.status).toBe(409);
+      expect(createPrediction).not.toHaveBeenCalled();
+      expect(submitFeedback).not.toHaveBeenCalled();
+      expect(target).toEqual(previous);
+    } finally {
+      reader.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("returns 404 when the signal is missing", async () => {
     const res = await POST(actedRequest({ acted: true }), {
       params: Promise.resolve({ id: "sig_missing" }),

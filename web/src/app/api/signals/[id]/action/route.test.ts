@@ -69,6 +69,122 @@ describe("POST /api/signals/[id]/action", () => {
     expect(data.sent).toBe(false);
   });
 
+  it("writes a Postgres decision once and reconstructs it from persisted rows", async () => {
+    const backend = await import("@/lib/backend-client");
+    const signals = await import("@/lib/fetch-tenant-signals");
+    const taxonomy = await import("@/lib/sync-taxonomy");
+    const store = await readStore();
+    const lead = store.signals.find((item) => item.type === "lead")!;
+    expect(lead).toBeTruthy();
+    let saved: Awaited<ReturnType<typeof backend.getSupervisedActionDecisions>> = [{
+      id: "decision-1", tenant_id: store.tenant.id, conversation_id: lead.conversationId,
+      action_type: "lead_outreach_draft", status: "approved", subject: "Previous subject",
+      body: "Previous body", evidence_quote: "", created_at: "2026-10-13T00:00:00Z",
+      decided_at: "2026-10-13T00:00:00Z",
+    }];
+    const writer = vi.spyOn(backend, "upsertSupervisedActionDecision")
+      .mockImplementationOnce(async (tenantId, payload) => {
+        const row = {
+          ...payload, id: "decision-1", tenant_id: tenantId,
+          evidence_quote: payload.evidence_quote ?? null,
+          created_at: "2026-10-13T00:00:00Z",
+          decided_at: payload.decided_at ?? "2026-10-13T00:00:00Z",
+        };
+        saved = [row];
+        return row;
+      })
+      .mockRejectedValue(new Error("unexpected second write"));
+    vi.spyOn(backend, "getPilotSettings").mockResolvedValue(null);
+    vi.spyOn(backend, "getActiveUploads").mockResolvedValue([]);
+    vi.spyOn(backend, "getDetectionResume").mockResolvedValue(null);
+    vi.spyOn(backend, "getConversations").mockResolvedValue([{
+      id: "conversation-row", tenant_id: store.tenant.id, conversation_id: lead.conversationId,
+      channel: "chat", customer_name: null, external_id: null, ground_truth: null,
+      started_at: "2026-10-13T00:00:00Z", created_at: "2026-10-13T00:00:00Z",
+      updated_at: "2026-10-13T00:00:00Z", messages: [],
+    }]);
+    vi.spyOn(backend, "getSupervisedActionDecisions").mockImplementation(async () => structuredClone(saved));
+    vi.spyOn(signals, "fetchTenantSignals").mockResolvedValue({ ok: true, rows: [{ id: "prediction-1", tenant_id: store.tenant.id, conversation_id: lead.conversationId, signal_type: "lead", confidence: 0.95, summary: "Opportunity", created_at: "2026-10-13T00:00:00Z", feedback: null }] });
+    vi.spyOn(taxonomy, "taxonomyNeonEnabled").mockReturnValue(false);
+    vi.spyOn(taxonomy, "taxonomyOverridesFromNeon").mockResolvedValue({});
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    try {
+      const res = await POST(actionRequest("sig_neon_prediction-1", { decision: "edited", subject: "Reviewed subject", body: "Reviewed body" }), {
+        params: Promise.resolve({ id: "sig_neon_prediction-1" }),
+      });
+      expect(res.status).toBe(200);
+      expect(writer).toHaveBeenCalledTimes(1);
+      expect(await res.json()).toMatchObject({ sent: false, action: { status: "edited" } });
+      const fresh = await readStore();
+      expect(fresh.supervisedActions).toEqual([expect.objectContaining({
+        conversationId: lead.conversationId, status: "edited",
+        subject: "Reviewed subject", body: "Reviewed body",
+      })]);
+      expect(writer).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("does not keep a Postgres decision when the durable write fails", async () => {
+    const backend = await import("@/lib/backend-client");
+    const signals = await import("@/lib/fetch-tenant-signals");
+    const taxonomy = await import("@/lib/sync-taxonomy");
+    const store = await readStore();
+    const lead = store.signals.find((item) => item.type === "lead")!;
+    expect(lead).toBeTruthy();
+    const saved: Awaited<ReturnType<typeof backend.getSupervisedActionDecisions>> = [{
+      id: "decision-1", tenant_id: store.tenant.id, conversation_id: lead.conversationId,
+      action_type: "lead_outreach_draft", status: "approved", subject: "Previous subject",
+      body: "Previous body", evidence_quote: "", created_at: "2026-10-13T00:00:00Z",
+      decided_at: "2026-10-13T00:00:00Z",
+    }];
+    const writer = vi.spyOn(backend, "upsertSupervisedActionDecision")
+      .mockRejectedValue(new Error("decision commit failed"));
+    vi.spyOn(backend, "getPilotSettings").mockResolvedValue(null);
+    vi.spyOn(backend, "getActiveUploads").mockResolvedValue([]);
+    vi.spyOn(backend, "getDetectionResume").mockResolvedValue(null);
+    vi.spyOn(backend, "getConversations").mockResolvedValue([{
+      id: "conversation-row", tenant_id: store.tenant.id, conversation_id: lead.conversationId,
+      channel: "chat", customer_name: null, external_id: null, ground_truth: null,
+      started_at: "2026-10-13T00:00:00Z", created_at: "2026-10-13T00:00:00Z",
+      updated_at: "2026-10-13T00:00:00Z", messages: [],
+    }]);
+    vi.spyOn(backend, "getSupervisedActionDecisions").mockImplementation(async () => structuredClone(saved));
+    vi.spyOn(signals, "fetchTenantSignals").mockResolvedValue({ ok: true, rows: [{ id: "prediction-1", tenant_id: store.tenant.id, conversation_id: lead.conversationId, signal_type: "lead", confidence: 0.95, summary: "Opportunity", created_at: "2026-10-13T00:00:00Z", feedback: null }] });
+    vi.spyOn(taxonomy, "taxonomyNeonEnabled").mockReturnValue(false);
+    vi.spyOn(taxonomy, "taxonomyOverridesFromNeon").mockResolvedValue({});
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    try {
+      const before = await readStore();
+      expect(before.supervisedActions).toEqual([expect.objectContaining({
+        conversationId: lead.conversationId, status: "approved",
+        subject: "Previous subject", body: "Previous body",
+      })]);
+      const res = await POST(actionRequest("sig_neon_prediction-1", {
+        decision: "edited", subject: "Rejected subject", body: "Rejected body",
+      }), { params: Promise.resolve({ id: "sig_neon_prediction-1" }) });
+      expect(res.status).toBe(500);
+      expect(await res.json()).toEqual({
+        error: "Canonical supervised decision write unavailable: decision commit failed",
+      });
+      expect(writer).toHaveBeenCalledTimes(1);
+      expect(writer).toHaveBeenCalledWith(store.tenant.id, expect.objectContaining({
+        conversation_id: lead.conversationId, status: "edited",
+        subject: "Rejected subject", body: "Rejected body",
+      }));
+      const fresh = await readStore();
+      expect(fresh.supervisedActions).toEqual([expect.objectContaining({
+        conversationId: lead.conversationId, status: "approved",
+        subject: "Previous subject", body: "Previous body",
+        decidedAt: saved[0].decided_at,
+      })]);
+      expect(writer).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("generates a follow-up draft for lower-confidence retention", async () => {
     const store = await readStore();
     store.signals.push({
