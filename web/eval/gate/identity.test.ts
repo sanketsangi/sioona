@@ -7,6 +7,17 @@ it("a prompt edit changes identity without a version bump", () => {
   const changed = promptConstructionHash(path => read(path).replace("Classify one Indian", "Classify one changed Indian"));
   expect(original).not.toBe(changed);
 });
+
+it("ignores ingest-only name scrubbing and still tracks request redaction", () => {
+  const read = (path:string) => readFileSync(new URL(`../../../${path}`, import.meta.url),"utf8");
+  const original = promptConstructionHash(read);
+  const scrubbed = promptConstructionHash(path => path === "web/src/lib/redact.ts"
+    ? read(path).replace('"[name]"', '"[renamed]"') : read(path));
+  const redacted = promptConstructionHash(path => path === "web/src/lib/redact.ts"
+    ? read(path).replace("[email]", "[email-changed]") : read(path));
+  expect(scrubbed).toBe(original);
+  expect(redacted).not.toBe(original);
+});
 it("legacy captures require their exact archived bytes", () => {
   expect(verifyCaptureIdentity({item_id:"val-lead-01",capture_sha256:"0".repeat(64)})).toBe(false);
   expect(verifyCaptureIdentity({item_id:"synthetic",identity:candidateIdentity()})).toBe(true);

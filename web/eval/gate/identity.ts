@@ -9,6 +9,18 @@ import { detectRouteVersion, detectProviderExecutionConfig } from "../../src/lib
 export type CandidateIdentity = { source_sha: string; prompt_sha256: string; config_sha256: string; request_config_sha256: string };
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+/** Ingest-only. Not applied when a model request is built. */
+const INGEST_ONLY_REDACTION = new Set(["scrubCustomerName"]);
+
+function requestRedactionSource(sourceText: string): string {
+  const source = ts.createSourceFile("redact.ts", sourceText, ts.ScriptTarget.Latest, true);
+  const printer = ts.createPrinter({ removeComments: true });
+  return source.statements
+    .filter(node => !(ts.isFunctionDeclaration(node) && node.name && INGEST_ONLY_REDACTION.has(node.name.text)))
+    .map(node => printer.printNode(ts.EmitHint.Unspecified, node, source))
+    .join("\n");
+}
+
 export function promptConstructionHash(read: (path: string) => string): string {
   const source = ts.createSourceFile("detect.ts", read("web/src/lib/detect-llm.ts"), ts.ScriptTarget.Latest, true);
   const printer = ts.createPrinter({ removeComments: true });
@@ -17,7 +29,7 @@ export function promptConstructionHash(read: (path: string) => string): string {
     (ts.isVariableStatement(node) && node.declarationList.declarations.some(d => d.name.getText(source) === "SYSTEM_PROMPT")));
   if (nodes.length !== 2) throw new Error("prompt_identity_unavailable");
   return hash(JSON.stringify({ builder: nodes.map(n => printer.printNode(ts.EmitHint.Unspecified, n, source)),
-    transcript: read("web/src/lib/recent-transcript.ts"), redaction: read("web/src/lib/redact.ts") }));
+    transcript: read("web/src/lib/recent-transcript.ts"), redaction: requestRedactionSource(read("web/src/lib/redact.ts")) }));
 }
 export function requestConfigurationHash(): string {
   const route = detectRouteVersion();
