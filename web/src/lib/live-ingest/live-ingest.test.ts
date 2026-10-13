@@ -218,9 +218,12 @@ describe("Postgres live ingest flow", () => {
     vi.stubEnv("SIOONA_STATE_MODE", "postgres");
     vi.stubEnv("SIOONA_TENANT_ID", "tenant_partner");
     const requestedPaths: string[] = [];
+    const writes: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       requestedPaths.push(url);
+      const method = init?.method ?? "GET";
+      if (method !== "GET" && method !== "HEAD") writes.push(`${method} ${url}`);
       if (url.includes("/uploads") && (init?.method ?? "GET") === "GET") {
         return new Response("Forbidden", { status: 403 });
       }
@@ -258,6 +261,8 @@ describe("Postgres live ingest flow", () => {
     expect(requestedPaths.some((p) => p.includes("/conversations") && !p.includes("/published-conversations"))).toBe(false);
     expect(requestedPaths.some((p) => p.includes("/signals"))).toBe(false);
     expect(requestedPaths.some((p) => p.includes("/supervised-actions"))).toBe(false);
+    expect(writes.some((entry) => entry.includes("/pilot"))).toBe(false);
+    expect(writes.some((entry) => entry.includes("/ingestions/"))).toBe(true);
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });

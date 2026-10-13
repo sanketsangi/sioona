@@ -28,6 +28,24 @@ it("rejects retired uploads even when they had no signals", async () => {
   await expect(publishAtomicIngest(input)).rejects.toThrow("superseded");
 });
 
+it("marks renamed weekly files and leaves other files out of the count", async () => {
+  await publishAtomicIngest({
+    ...input,
+    recordUploadMetadata: true,
+    weeklySources: ["real-partner-export.local (2).csv"],
+    conversations: [
+      { ...input.conversations[0], sourceFile: "real-partner-export.local (2).csv" },
+      { ...input.conversations[0], id: "c2", sourceFile: "notes.csv" },
+    ],
+  });
+  const body = vi.mocked(publishIngestion).mock.calls[0][2];
+  expect(body.record_upload_metadata).toBe(true);
+  expect(body.files).toEqual([
+    { source: "notes.csv", conversation_ids: ["c2"] },
+    { source: "real-partner-export.local (2).csv", conversation_ids: ["c1"], counts_as_weekly: true },
+  ]);
+});
+
 it("publishes exact per-file membership with the complete corpus", async () => {
   await publishAtomicIngest({ ...input, conversations: [
     { ...input.conversations[0], sourceFile: "one.csv" },

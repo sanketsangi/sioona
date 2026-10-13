@@ -11,11 +11,14 @@ export async function publishAtomicIngest(input: {
   conversations: Conversation[]; messages: Message[]; signals: Signal[];
   contexts?: LlmPassStats["contexts"];
   classificationFailed?: boolean; skippedIds?: string[];
+  weeklySources?: string[];
+  recordUploadMetadata?: boolean;
   onDetectionRunId?: (runId: string) => void;
 }) {
   if (input.classificationFailed || input.skippedIds?.length) {
     throw new Error("Every conversation must finish classification before this upload can publish.");
   }
+  const weekly = new Set(input.weeklySources ?? []);
   const files = new Map<string, string[]>();
   for (const chat of input.conversations) {
     const source = chat.sourceFile || input.source;
@@ -23,9 +26,14 @@ export async function publishAtomicIngest(input: {
   }
   const payload = {
     files: [...files].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
-      .map(([source, ids]) => ({ source, conversation_ids: ids.sort() })),
+      .map(([source, ids]) => ({
+        source,
+        conversation_ids: ids.sort(),
+        ...(weekly.has(source) ? { counts_as_weekly: true } : {}),
+      })),
     source: input.source, replace: input.replace,
     ...(input.appendOnly ? { append_only: true } : {}),
+    ...(input.recordUploadMetadata ? { record_upload_metadata: true } : {}),
     conversations: toConversationSyncPayload(input.conversations, input.messages,
       { clearUnlabeledGroundTruth: input.replace }).sort((a, b) => a.conversation_id < b.conversation_id ? -1 : 1),
     detections: detectionPayload(input),
@@ -45,5 +53,16 @@ export async function publishAtomicIngest(input: {
       feedback: unchanged ? signal.feedback : undefined, outcome: unchanged ? signal.outcome : undefined,
       commercialValueEvidence: unchanged ? signal.commercialValueEvidence : undefined };
   });
-  return { uploadId, signals };
+  return {
+    uploadId,
+    signals,
+    ...("weekly_export_count" in result
+      ? {
+          pilot: {
+            weeklyExportCount: result.weekly_export_count ?? null,
+            lastUploadedFileName: result.last_uploaded_file_name ?? null,
+          },
+        }
+      : {}),
+  };
 }

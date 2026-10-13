@@ -12,6 +12,12 @@ from app.services.conversations import upsert_conversations
 from app.services.detection_runs import reconcile_detection
 from app.services.uploads import publish_upload
 from app.services.tenant_lock import lock_tenant_corpus
+from app.services.weekly_upload import (
+    apply_weekly_upload_receipt,
+    publication_filename,
+    weekly_file_count,
+)
+from app.services.pilot import get_pilot_settings
 
 
 class IngestionError(Exception):
@@ -108,11 +114,23 @@ def publish_ingestion(db: Session, *, tenant_id: str, upload_id: str, body: Inge
                     "conversations": [row.model_dump(mode="json") for row in body.conversations if row.conversation_id in file_ids],
                     "detections": [row.model_dump(mode="json") for row in body.detections if row.conversation_id in file_ids],
                 }}
+            apply_weekly_upload_receipt(
+                db,
+                tenant_id=tenant_id,
+                receipt_id=upload_id,
+                weekly_file_count=weekly_file_count(body),
+                last_uploaded_file_name=publication_filename(body),
+                update_filename=body.record_upload_metadata and not body.append_only,
+            )
             db.commit()
         rows = db.scalars(select(SignalPrediction).where(SignalPrediction.tenant_id == tenant_id,
             SignalPrediction.detection_run_id == upload_id)).all()
         published = db.get(Upload, (tenant_id, upload_id))
-        return {"upload_id": upload_id, "status": "completed", "active": published.active, "predictions": [{"id": str(row.id),
+        pilot = get_pilot_settings(db, tenant_id)
+        return {"upload_id": upload_id, "status": "completed", "active": published.active,
+            "weekly_export_count": None if pilot is None else pilot.weekly_export_count,
+            "last_uploaded_file_name": None if pilot is None else pilot.last_uploaded_file_name,
+            "predictions": [{"id": str(row.id),
             "conversation_id": row.conversation_id, "signal_type": row.signal_type, "active": row.active} for row in rows]}
     except IngestionError as exc:
         db.rollback()

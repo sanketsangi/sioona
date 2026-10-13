@@ -1196,9 +1196,16 @@ export async function getDetectionRunInference(
 
 export async function publishIngestion(tenantId: string, uploadId: string, input: {
   source: string; replace: boolean; conversations: BackendConversationInput[]; detections: BackendDetectionInput[];
-  files?: { source: string; conversation_ids: string[] }[];
+  files?: { source: string; conversation_ids: string[]; counts_as_weekly?: boolean }[];
+  append_only?: boolean;
+  record_upload_metadata?: boolean;
 }) {
-  return backendFetch<{ upload_id: string; status: string; active: boolean; predictions: { id: string; conversation_id: string; signal_type: string; active: boolean }[] }>(tenantId,
+  return backendFetch<{
+    upload_id: string; status: string; active: boolean;
+    weekly_export_count?: number | null;
+    last_uploaded_file_name?: string | null;
+    predictions: { id: string; conversation_id: string; signal_type: string; active: boolean }[];
+  }>(tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/ingestions/${encodeURIComponent(uploadId)}`, {
       method: "PUT", body: JSON.stringify(input), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
     });

@@ -78,6 +78,103 @@ def test_cb10_concurrent_canonical_writes(monkeypatch, seeded):
         engine.dispose()
 
 
+def _postgres_engine(monkeypatch):
+    from app.config import get_settings
+    assert URL and make_url(URL).database == "sioona_migration_test"
+    assert make_url(URL).host in ("localhost", "127.0.0.1", "::1")
+    assert not os.environ.get("MIGRATION_DATABASE_URL", "").strip()
+    engine = create_engine(URL)
+    monkeypatch.setenv("DATABASE_URL", URL)
+    get_settings.cache_clear()
+    with engine.begin() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE"))
+        conn.execute(text("CREATE SCHEMA public"))
+    command.upgrade(Config("alembic.ini"), "head")
+    return engine
+
+
+@pytest.mark.parametrize("seeded,same_receipt,expected", [(True, False, 4), (False, False, 2), (True, True, 3), (False, True, 1)])
+def test_concurrent_weekly_receipts_count_each_publication_once(monkeypatch, seeded, same_receipt, expected):
+    """Two publications that both start from the same counter finish at the exact sum."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.config import get_settings
+    from app.services.pilot import get_pilot_settings, upsert_pilot_settings
+    from app.services.weekly_upload import apply_weekly_upload_receipt
+    engine = _postgres_engine(monkeypatch)
+    try:
+        if seeded:
+            with Session(engine) as db:
+                upsert_pilot_settings(db, tenant_id="weekly", baseline_opportunities=4,
+                    baseline_note="keep", weekly_export_count=2, last_uploaded_file_name="old.csv")
+        barrier = Barrier(2)
+
+        def publish(index):
+            with Session(engine) as db:
+                db.execute(text("SET lock_timeout = '8s'"))
+                barrier.wait(timeout=10)
+                apply_weekly_upload_receipt(db, tenant_id="weekly",
+                    receipt_id="same" if same_receipt else f"upload-{index}",
+                    weekly_file_count=1, last_uploaded_file_name=f"week-{index}.csv", update_filename=True)
+                db.commit()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(publish, [0, 1]))
+        with Session(engine) as db:
+            pilot = get_pilot_settings(db, "weekly")
+            assert pilot.weekly_export_count == expected
+            assert pilot.last_uploaded_file_name in {"week-0.csv", "week-1.csv"}
+            if seeded:
+                assert (pilot.baseline_opportunities, pilot.baseline_note) == (4, "keep")
+            apply_weekly_upload_receipt(db, tenant_id="weekly", receipt_id="same" if same_receipt else "upload-0",
+                weekly_file_count=1, last_uploaded_file_name="replay.csv", update_filename=True)
+            db.commit()
+            assert get_pilot_settings(db, "weekly").weekly_export_count == expected
+            assert get_pilot_settings(db, "weekly").last_uploaded_file_name != "replay.csv"
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+@pytest.mark.parametrize("seeded", [False, True])
+def test_concurrent_baseline_save_preserves_weekly_receipt(monkeypatch, seeded):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.config import get_settings
+    from app.services.pilot import get_pilot_settings, upsert_pilot_settings
+    from app.services.weekly_upload import apply_weekly_upload_receipt
+    engine = _postgres_engine(monkeypatch)
+    try:
+        if seeded:
+            with Session(engine) as db:
+                upsert_pilot_settings(db, tenant_id="weekly", baseline_opportunities=4,
+                    baseline_note="keep", weekly_export_count=2, last_uploaded_file_name="old.csv")
+        barrier = Barrier(2)
+
+        def run(index):
+            with Session(engine) as db:
+                db.execute(text("SET lock_timeout = '8s'"))
+                barrier.wait(timeout=10)
+                if index == 0:
+                    apply_weekly_upload_receipt(db, tenant_id="weekly", receipt_id="upload",
+                        weekly_file_count=1, last_uploaded_file_name="new.csv", update_filename=True)
+                    db.commit()
+                else:
+                    upsert_pilot_settings(db, tenant_id="weekly", baseline_opportunities=12,
+                        baseline_note="approved", weekly_export_count=1, last_uploaded_file_name="old.csv",
+                        update_scope="baseline")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(run, [0, 1]))
+        with Session(engine) as db:
+            pilot = get_pilot_settings(db, "weekly")
+            assert (pilot.baseline_opportunities, pilot.baseline_note) == (12, "approved")
+            assert (pilot.weekly_export_count, pilot.last_uploaded_file_name) == (3 if seeded else 1, "new.csv")
+    finally:
+        get_settings.cache_clear()
+        engine.dispose()
+
+
 @pytest.mark.parametrize("prior", [None, "011_signal_urgency_value"])
 def test_postgres_fresh_and_existing_schema_upgrade(prior, monkeypatch):
     assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"
@@ -326,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["025_detection_resume"]
+        assert heads == ["026_weekly_upload_receipts"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -599,6 +696,7 @@ RLS_TABLES = (
     "inference_attempts",
     "signal_evidence",
     "detection_resume",
+    "weekly_upload_receipts",
 )
 
 
@@ -756,6 +854,14 @@ def _seed_two_tenants(conn) -> None:
         VALUES
           ('tenant_a', '["chat-a"]'::json, '[]'::json),
           ('tenant_b', '[]'::json, '["chat-b"]'::json)
+        """
+    ))
+    conn.execute(text(
+        """
+        INSERT INTO weekly_upload_receipts (tenant_id, receipt_id, weekly_file_count)
+        VALUES
+          ('tenant_a', 'receipt-a', 1),
+          ('tenant_b', 'receipt-b', 1)
         """
     ))
 
