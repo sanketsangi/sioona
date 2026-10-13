@@ -67,7 +67,8 @@ rather than guessing. Excel date cells are interpreted as UTC wall time.
 
 Limits: 10 MiB total file bytes, 16 files per request, 11 MiB multipart envelope,
 40 MiB expanded XLSX ZIP bytes, 256 archive entries, 32 sheets, 32 columns,
-10,000 message rows per request (before workbook deduplication), 100,000 UTF-16
+10,000 rows per workbook (before deduplication), 10,000 normalized messages per
+request, 40 MiB cumulative decoded workbook message text, 100,000 UTF-16
 code units per message, 200,000 XML elements per entry and XML depth 64. Email
 limits: 128 MIME parts, depth 16 and 64 KiB headers per message. ZIP CRC, actual
 expanded lengths, paths and decoded XML coordinates are validated before the
