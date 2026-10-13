@@ -19,12 +19,21 @@ class IngestionConversation(ConversationUpsert):
 class IngestionFile(BaseModel):
     source: str = Field(min_length=1, max_length=512)
     conversation_ids: list[str] = Field(min_length=1, max_length=1000)
+    counts_as_weekly: bool = False
+
+    @model_serializer(mode="wrap")
+    def serialize_file(self, handler):
+        result = handler(self)
+        if not result.get("counts_as_weekly"):
+            result.pop("counts_as_weekly", None)
+        return result
 
 
 class Ingestion(BaseModel):
     source: str = Field(min_length=1, max_length=512)
     replace: bool = False
     append_only: bool = False
+    record_upload_metadata: bool = False
     conversations: list[IngestionConversation] = Field(min_length=1, max_length=1000)
     detections: list[ConversationDetection] = Field(min_length=1, max_length=1000)
 
@@ -55,6 +64,8 @@ class Ingestion(BaseModel):
         result = handler(self)
         if not result.get("append_only"):
             result.pop("append_only", None)
+        if not result.get("record_upload_metadata"):
+            result.pop("record_upload_metadata", None)
         if result.get("files") is None:
             result.pop("files", None)
         return result

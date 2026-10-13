@@ -5,6 +5,7 @@ import { requireApiSession } from "@/lib/auth-guard";
 import { runWithTenant } from "@/lib/tenant-context";
 import { finalizePublishedUpload } from "@/lib/finalize-published-upload";
 import { publishAtomicIngest } from "@/lib/publish-atomic-ingest";
+import { getPilotSettings } from "@/lib/backend-client";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import {
@@ -26,6 +27,7 @@ import { ensureSupervisedActions } from "@/lib/supervised-actions";
 import { sortSignals } from "@/lib/eval";
 import { emptyConversationSyncStats } from "@/lib/sync-conversations";
 import {
+  pilotSettingsFromRemote,
   refreshStorePilotFromNeon,
   syncPilotSettingsToBackend,
 } from "@/lib/sync-pilot";
@@ -260,23 +262,30 @@ export async function POST(request: Request) {
       // Pilot fields do not depend on detect — overlap Neon PUT with hybrid detect
       // so Upload TTFB pays max(detect, pilot) instead of sum.
       const weeklyFileCount = prepared.filter((entry) => entry.isWeekly).length;
+      const weeklySources = prepared.flatMap((entry) =>
+        entry.isWeekly && entry.basename ? [entry.basename] : [],
+      );
       const lastBasename = [...prepared]
         .reverse()
         .find((entry) => entry.basename)?.basename;
-      store.pilot = {
-        baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
-        updatedAt: new Date().toISOString(),
-        weeklyExportCount:
-          weeklyFileCount > 0
-            ? priorExports + weeklyFileCount
-            : priorWeeklyExportCount,
-        ...(store.pilot?.baselineNote
-          ? { baselineNote: store.pilot.baselineNote }
-          : {}),
-        ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
-      };
-
       const partner = store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
+      // Partner counts come from the publication receipt. Demo keeps the local
+      // snapshot, and that object is what the overlapped Neon PUT receives.
+      const demoPilot = partner
+        ? null
+        : {
+            baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
+            updatedAt: new Date().toISOString(),
+            weeklyExportCount:
+              weeklyFileCount > 0
+                ? priorExports + weeklyFileCount
+                : priorWeeklyExportCount,
+            ...(store.pilot?.baselineNote
+              ? { baselineNote: store.pilot.baselineNote }
+              : {}),
+            ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
+          };
+      if (demoPilot) store.pilot = demoPilot;
       const resumeVersion = store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z";
       const priorFailedOutsideBatch = (store.llmFailedConversationIds ?? [])
         .filter((id) => !ingestedConversationIds.has(id));
@@ -294,7 +303,11 @@ export async function POST(request: Request) {
           store.taxonomyOverrides,
           resumeIds.length > 0 ? { resumeIds } : undefined,
         ),
-        partner ? Promise.resolve() : syncPilotSettingsToBackend(store.tenant.id, store.pilot),
+        demoPilot
+          ? syncPilotSettingsToBackend(store.tenant.id, demoPilot, {
+              overwriteUploadMetadata: true,
+            })
+          : Promise.resolve(),
       ]);
 
       if (replaceShowcase) {
@@ -336,14 +349,32 @@ export async function POST(request: Request) {
             );
           }
           const published = await publishAtomicIngest({ tenantId: store.tenant.id,
-            source: store.pilot?.lastUploadedFileName ?? "upload", replace: replaceShowcase,
+            source: lastBasename ?? store.pilot?.lastUploadedFileName ?? "upload", replace: replaceShowcase,
             conversations: ingestedConversations, messages: ingestedMessages, signals: signalsToSync,
-            classificationFailed: llm.failed > 0, contexts: llm.contexts, skippedIds: llm.skippedIds });
+            classificationFailed: llm.failed > 0, contexts: llm.contexts, skippedIds: llm.skippedIds,
+            weeklySources, recordUploadMetadata: true });
           store.signals = [...store.signals.filter((signal) => !ingestedConversationIds.has(signal.conversationId)), ...published.signals];
           ensureSupervisedActions(store);
+          if (published.pilot) {
+            store.pilot = {
+              baselineOpportunities: store.pilot?.baselineOpportunities ?? 0,
+              updatedAt: new Date().toISOString(),
+              ...(store.pilot?.baselineNote ? { baselineNote: store.pilot.baselineNote } : {}),
+              ...(published.pilot.weeklyExportCount != null
+                ? { weeklyExportCount: published.pilot.weeklyExportCount }
+                : {}),
+              ...(published.pilot.lastUploadedFileName
+                ? { lastUploadedFileName: published.pilot.lastUploadedFileName }
+                : {}),
+            };
+          }
           publicationWarnings = await finalizePublishedUpload({
             cache: () => writeStore(store),
-            pilot: () => syncPilotSettingsToBackend(store.tenant.id, store.pilot!),
+            pilot: async () => {
+              const remote = await getPilotSettings(store.tenant.id);
+              if (!remote) throw new Error("Pilot settings could not refresh");
+              store.pilot = pilotSettingsFromRemote(remote);
+            },
           });
           dualWrite = {
             conversationSync: { ...emptyConversationSyncStats(), attempted: ingestedConversations.length,

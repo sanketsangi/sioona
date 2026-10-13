@@ -19,6 +19,19 @@ import {
 describe("syncPilotSettingsToBackend", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
+  });
+
+  it("sends transaction-scoped canonical writes without a stale GET", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    const get = vi.spyOn(backendClient, "getPilotSettings");
+    const put = vi.spyOn(backendClient, "putPilotSettings").mockResolvedValue({} as never);
+    const pilot = { baselineOpportunities: 12, weeklyExportCount: 2, lastUploadedFileName: "new.csv" };
+    await syncPilotSettingsToBackend("tenant_a", pilot);
+    expect(put).toHaveBeenLastCalledWith("tenant_a", expect.objectContaining({ update_scope: "baseline" }));
+    await syncPilotSettingsToBackend("tenant_a", pilot, { overwriteUploadMetadata: true });
+    expect(put).toHaveBeenLastCalledWith("tenant_a", expect.objectContaining({ update_scope: "upload" }));
+    expect(get).not.toHaveBeenCalled();
   });
 
   it("returns the backend row on success", async () => {
@@ -61,6 +74,52 @@ describe("syncPilotSettingsToBackend", () => {
         weeklyExportCount: 1,
       })
     ).resolves.toBeNull();
+  });
+
+  it("keeps remote upload metadata unless the upload path opts in", async () => {
+    const remote = {
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 4,
+      baseline_note: "keep",
+      weekly_export_count: 2,
+      last_uploaded_file_name: "previous.csv",
+      created_at: "2026-08-14T00:00:00.000Z",
+      updated_at: "2026-08-14T00:00:00.000Z",
+    };
+    vi.spyOn(backendClient, "getPilotSettings").mockResolvedValue(remote);
+    vi.spyOn(backendClient, "putPilotSettings").mockResolvedValue({
+      ...remote,
+      weekly_export_count: 3,
+      last_uploaded_file_name: "real-partner-export.week2.local.csv",
+    });
+    const local = {
+      baselineOpportunities: 4,
+      baselineNote: "keep",
+      weeklyExportCount: 3,
+      lastUploadedFileName: "real-partner-export.week2.local.csv",
+      updatedAt: "2026-10-13T00:00:00.000Z",
+    };
+
+    await syncPilotSettingsToBackend("tenant_demo", local);
+    expect(backendClient.putPilotSettings).toHaveBeenLastCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        weekly_export_count: 2,
+        last_uploaded_file_name: "previous.csv",
+      }),
+    );
+
+    await syncPilotSettingsToBackend("tenant_demo", local, {
+      overwriteUploadMetadata: true,
+    });
+    expect(backendClient.putPilotSettings).toHaveBeenLastCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        weekly_export_count: 3,
+        last_uploaded_file_name: "real-partner-export.week2.local.csv",
+      }),
+    );
   });
 
   it("merges weeklyExportCount and filename from Neon when local pilot omits them", async () => {
@@ -215,6 +274,15 @@ describe("setPilotBaseline", () => {
       expect(backendState?.baseline_note).toBe("new note");
       expect(backendState?.weekly_export_count).toBe(3);
       expect(backendState?.last_uploaded_file_name).toBe("new.csv");
+
+      const { promises: fs } = await import("node:fs");
+      const mkdir = vi.spyOn(fs, "mkdir");
+      const writeFile = vi.spyOn(fs, "writeFile");
+      const rename = vi.spyOn(fs, "rename");
+      await setPilotBaseline(16, "newer note");
+      expect(mkdir).not.toHaveBeenCalled();
+      expect(writeFile).not.toHaveBeenCalled();
+      expect(rename).not.toHaveBeenCalled();
     } finally {
       vi.unstubAllEnvs();
     }

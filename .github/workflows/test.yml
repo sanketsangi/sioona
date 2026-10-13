@@ -156,8 +156,14 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://sioona:ci_only@127.0.0.1:5432/sioona_migration_test
           DETECT_LLM: "0"
+          SIOONA_STATE_MODE: "postgres"
+          SIOONA_TAXONOMY_NEON: "1"
+          CB10_E2E_DATA_PATH_FILE: /tmp/cb10-e2e-data-path
           CI: "true"
-        run: bash e2e/guard-linux.sh npm run e2e
+        run: |
+          bash e2e/guard-linux.sh npm run e2e
+          cp "$CB10_E2E_DATA_PATH_FILE" /tmp/cb10-e2e-previous-server.json
+          CB10_E2E_PREVIOUS_SERVER=/tmp/cb10-e2e-previous-server.json bash e2e/guard-linux.sh npm run e2e -- --grep "reconstruct persisted"
 
   eval-gate:
     name: Eval gate

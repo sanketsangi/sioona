@@ -15,6 +15,7 @@ export function taxonomyNeonEnabled(): boolean {
   if (process.env.SIOONA_TAXONOMY_NEON === "0") return false;
   if (process.env.SIOONA_TAXONOMY_NEON === "1") return true;
   if (process.env.VITEST === "true") return false;
+  if (getStateMode() === "postgres") return true;
   return (
     Boolean(process.env.BACKEND_URL?.trim()) || process.env.VERCEL === "1"
   );
@@ -63,7 +64,11 @@ export async function syncTaxonomyOverridesToBackend(
     return;
   }
   try {
-    await putTaxonomyOverrides(tenantId, toBackend(overrides));
+    if (getStateMode() === "postgres") {
+      await putTaxonomyOverrides(tenantId, toBackend(overrides), { merge: true });
+    } else {
+      await putTaxonomyOverrides(tenantId, toBackend(overrides));
+    }
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Neon write failed";
     throw new Error(`Could not save taxonomy overrides to Neon. ${detail}`);
@@ -73,7 +78,12 @@ export async function syncTaxonomyOverridesToBackend(
 export async function taxonomyOverridesFromNeon(
   tenantId: string,
 ): Promise<TaxonomyOverrides | null> {
-  if (!taxonomyNeonEnabled()) return null;
+  if (!taxonomyNeonEnabled()) {
+    if (getStateMode() === "postgres" && process.env.SIOONA_TAXONOMY_NEON === "0") {
+      throw new Error("Canonical taxonomy destination disabled; mutation refused.");
+    }
+    return null;
+  }
   try {
     return fromBackend(await getTaxonomyOverrides(tenantId));
   } catch (err) {

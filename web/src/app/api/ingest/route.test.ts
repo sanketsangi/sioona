@@ -11,9 +11,11 @@ import { runDetection } from "@/lib/detect";
 import * as detectLlm from "@/lib/detect-llm";
 import * as backendClient from "@/lib/backend-client";
 import { BackendClientError } from "@/lib/backend-client";
+import * as publishAtomic from "@/lib/publish-atomic-ingest";
 import {
   readStore,
   resetStore,
+  setPilotBaseline,
   setSignalActed,
   setSignalFeedback,
   writeStore,
@@ -1263,5 +1265,194 @@ describe("POST /api/ingest validation", () => {
       "real-partner-export.week2.local.csv",
     );
     expect(after.pilot?.baselineOpportunities).toBe(12);
+  });
+});
+
+describe("Postgres pilot upload metadata", () => {
+  const weekFile = "real-partner-export.week2.local.csv";
+  let pilot: backendClient.BackendPilotSettings;
+
+  beforeEach(() => {
+    pilot = {
+      id: "pilot-1",
+      tenant_id: "tenant_demo",
+      baseline_opportunities: 4,
+      baseline_note: "keep",
+      weekly_export_count: 2,
+      last_uploaded_file_name: "previous.csv",
+      created_at: "2026-10-01T00:00:00.000Z",
+      updated_at: "2026-10-01T00:00:00.000Z",
+    };
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    vi.stubEnv("SIOONA_TAXONOMY_NEON", "0");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected network call")));
+    vi.spyOn(backendClient, "getPilotSettings").mockImplementation(async () => structuredClone(pilot));
+    vi.spyOn(backendClient, "getDetectionResume").mockResolvedValue(null);
+    vi.spyOn(backendClient, "getActiveUploads").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getConversations").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTenantSignalsPage").mockResolvedValue({
+      predictions: [],
+      next_cursor: null,
+    });
+    vi.spyOn(backendClient, "getSupervisedActionDecisions").mockResolvedValue([]);
+    vi.spyOn(backendClient, "getTaxonomyOverrides").mockResolvedValue({});
+    const applied = new Set<string>();
+    vi.spyOn(backendClient, "putPilotSettings").mockImplementation(async (_tenant, input) => {
+      if (input.update_scope === "baseline") {
+        pilot = {
+          ...pilot,
+          baseline_opportunities: input.baseline_opportunities,
+          baseline_note: input.baseline_note ?? null,
+          updated_at: "2026-10-13T00:00:00.000Z",
+        };
+      } else if (input.update_scope === "upload") {
+        pilot = {
+          ...pilot,
+          weekly_export_count: input.weekly_export_count ?? null,
+          last_uploaded_file_name: input.last_uploaded_file_name ?? null,
+          updated_at: "2026-10-13T00:00:00.000Z",
+        };
+      }
+      return structuredClone(pilot);
+    });
+    vi.spyOn(publishAtomic, "publishAtomicIngest").mockImplementation(async (input) => {
+      const key = `${input.source}|${(input.weeklySources ?? []).join(",")}`;
+      if (input.recordUploadMetadata && !applied.has(key)) {
+        applied.add(key);
+        pilot = {
+          ...pilot,
+          weekly_export_count: (pilot.weekly_export_count ?? 0) + (input.weeklySources?.length ?? 0),
+          last_uploaded_file_name: input.source,
+          updated_at: "2026-10-13T00:00:00.000Z",
+        };
+      }
+      return {
+        uploadId: "upload-1",
+        signals: input.signals.map((signal) => ({ ...signal, backendSignalId: "pred-1" })),
+        pilot: {
+          weeklyExportCount: pilot.weekly_export_count,
+          lastUploadedFileName: pilot.last_uploaded_file_name ?? null,
+        },
+      };
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  function weekRequest() {
+    return ingestRequest(csvFile(weekFile, [LEAD_LINE]));
+  }
+
+  it("writes the incremented count and leaves it in place after a baseline save", async () => {
+    const uploaded = await POST(weekRequest());
+    expect(uploaded.status).toBe(200);
+    expect(publishAtomic.publishAtomicIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordUploadMetadata: true,
+        source: weekFile,
+        weeklySources: [weekFile],
+      }),
+    );
+    expect(backendClient.putPilotSettings).not.toHaveBeenCalled();
+
+    const afterBaseline = await setPilotBaseline(9, "new note");
+    expect(afterBaseline.pilot).toMatchObject({
+      baselineOpportunities: 9,
+      baselineNote: "new note",
+      weeklyExportCount: 3,
+      lastUploadedFileName: weekFile,
+    });
+    expect(backendClient.putPilotSettings).toHaveBeenCalledWith(
+      "tenant_demo",
+      expect.objectContaining({
+        update_scope: "baseline",
+        baseline_opportunities: 9,
+        baseline_note: "new note",
+        weekly_export_count: 3,
+        last_uploaded_file_name: weekFile,
+      }),
+    );
+    const fresh = await readStore();
+    expect(fresh.pilot).toMatchObject({
+      baselineOpportunities: 9,
+      weeklyExportCount: 3,
+      lastUploadedFileName: weekFile,
+    });
+  });
+
+  it("keeps a committed count when the metadata refresh fails", async () => {
+    let refresh = false;
+    vi.mocked(backendClient.getPilotSettings).mockImplementation(async () => {
+      if (refresh) {
+        refresh = false;
+        throw new BackendClientError("database_unavailable", 500);
+      }
+      return structuredClone(pilot);
+    });
+    vi.mocked(publishAtomic.publishAtomicIngest).mockImplementation(async (input) => {
+      pilot = {
+        ...pilot,
+        weekly_export_count: (pilot.weekly_export_count ?? 0) + (input.weeklySources?.length ?? 0),
+        last_uploaded_file_name: input.source,
+      };
+      refresh = true;
+      return {
+        uploadId: "upload-1",
+        signals: input.signals.map((signal) => ({ ...signal, backendSignalId: "pred-1" })),
+        pilot: {
+          weeklyExportCount: pilot.weekly_export_count,
+          lastUploadedFileName: pilot.last_uploaded_file_name ?? null,
+        },
+      };
+    });
+
+    const uploaded = await POST(weekRequest());
+    expect(uploaded.status).toBe(200);
+    const body = (await uploaded.json()) as { publicationWarnings?: string[]; syncError?: string };
+    expect(`${body.syncError ?? ""} ${(body.publicationWarnings ?? []).join(" ")}`).toMatch(
+      /Pilot settings could not refresh/,
+    );
+    expect(backendClient.putPilotSettings).not.toHaveBeenCalled();
+    const fresh = await readStore();
+    expect(fresh.pilot).toMatchObject({
+      baselineOpportunities: 4,
+      baselineNote: "keep",
+      weeklyExportCount: 3,
+      lastUploadedFileName: weekFile,
+    });
+  });
+
+  it("counts every weekly file in one upload and leaves other files at zero", async () => {
+    const uploaded = await POST(ingestRequest([
+      csvFile("real-partner-export.local.csv", [LEAD_LINE]),
+      csvFile("real-partner-export.week3.local.csv", [NEW_CONV_LINE]),
+      csvFile("notes.csv", ['wa-notes,customer,"Thanks for the update",Asha,whatsapp']),
+    ]));
+    expect(uploaded.status).toBe(200);
+    expect(publishAtomic.publishAtomicIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recordUploadMetadata: true,
+        weeklySources: ["real-partner-export.local.csv", "real-partner-export.week3.local.csv"],
+      }),
+    );
+    expect(backendClient.putPilotSettings).not.toHaveBeenCalled();
+    const fresh = await readStore();
+    expect(fresh.pilot).toMatchObject({
+      weeklyExportCount: 4,
+      lastUploadedFileName: "notes.csv",
+    });
+
+    vi.mocked(backendClient.putPilotSettings).mockClear();
+    const notes = await POST(ingestRequest(csvFile("later-notes.csv", [LEAD_LINE])));
+    expect(notes.status).toBe(200);
+    expect(publishAtomic.publishAtomicIngest).toHaveBeenLastCalledWith(
+      expect.objectContaining({ weeklySources: [] }),
+    );
+    expect(backendClient.putPilotSettings).not.toHaveBeenCalled();
+    expect((await readStore()).pilot?.weeklyExportCount).toBe(4);
   });
 });

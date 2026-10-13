@@ -22,6 +22,9 @@ test("E2E CI job uses CI Postgres, migrations, and heuristics-only mode", () => 
   assert.match(e2e, /POSTGRES_DB: sioona_migration_test/);
   assert.match(e2e, /alembic upgrade head/);
   assert.match(e2e, /DETECT_LLM: "0"/);
+  assert.match(e2e, /SIOONA_STATE_MODE: "postgres"/);
+  assert.match(e2e, /SIOONA_TAXONOMY_NEON: "1"/);
+  assert.match(e2e, /CB10_E2E_DATA_PATH_FILE:/);
   assert.doesNotMatch(e2e, /GROQ_API_KEY/);
   assert.match(e2e, /npm run e2e/);
   assert.match(e2e, /@next\/swc-linux-x64-gnu/);
@@ -54,4 +57,16 @@ test("upload review spec persists Correct and approval with no provider or outbo
   const secondReload = spec.indexOf("page.reload()", firstReload + 1);
   assert.ok(firstReload > correctAt && firstReload < approveAt);
   assert.ok(secondReload > approveAt);
+});
+
+
+test("canonical CI settings cross the Linux guard and a separate restart invocation runs", () => {
+  const guard = fs.readFileSync(path.join(root, "web/e2e/guard-linux.sh"), "utf8");
+  const preserved = guard.match(/--preserve-env=([^\s\\]+)/)[1].split(",");
+  for (const key of ["SIOONA_STATE_MODE", "SIOONA_TAXONOMY_NEON", "CB10_E2E_DATA_PATH_FILE", "CB10_E2E_PREVIOUS_SERVER"]) {
+    assert.ok(preserved.includes(key), `${key} must reach the guarded child`);
+  }
+  const workflow = fs.readFileSync(path.join(root, ".github/workflows/test.yml"), "utf8");
+  assert.match(workflow, /CB10_E2E_PREVIOUS_SERVER=/);
+  assert.match(workflow, /npm run e2e -- --grep "reconstruct persisted"/);
 });

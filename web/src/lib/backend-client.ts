@@ -16,6 +16,7 @@ import {
   verifySessionToken,
 } from "./auth-token";
 import { DEMO_TENANT_ID } from "./tenant-context";
+import { getStateMode } from "./state-mode";
 
 const DEFAULT_BACKEND_URL = "http://localhost:8000";
 
@@ -818,6 +819,7 @@ export interface BackendPilotSettingsInput {
   baseline_note?: string | null;
   weekly_export_count?: number | null;
   last_uploaded_file_name?: string | null;
+  update_scope?: "all" | "baseline" | "upload";
 }
 
 /**
@@ -830,7 +832,8 @@ export async function getPilotSettings(
   try {
     return await backendFetch<BackendPilotSettings>(tenantId, path);
   } catch (err) {
-    if (err instanceof BackendClientError && err.status === 404) {
+    if (err instanceof BackendClientError && err.status === 404 &&
+        (getStateMode() !== "postgres" || err.message === "pilot_settings_not_found")) {
       return null;
     }
     throw err;
@@ -852,7 +855,8 @@ export async function getDetectionResume(
   try {
     return await backendFetch<BackendDetectionResume>(tenantId, path);
   } catch (err) {
-    if (err instanceof BackendClientError && err.status === 404) return null;
+    if (err instanceof BackendClientError && err.status === 404 &&
+        (getStateMode() !== "postgres" || err.message === "detection_resume_not_found")) return null;
     throw err;
   }
 }
@@ -897,6 +901,7 @@ export async function putPilotSettings(
           ? null
           : Math.max(0, Math.floor(input.weekly_export_count)),
       last_uploaded_file_name: input.last_uploaded_file_name ?? null,
+      ...(input.update_scope ? { update_scope: input.update_scope } : {}),
     }),
     timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
   });
@@ -975,10 +980,11 @@ export async function getTaxonomyOverrides(
 export async function putTaxonomyOverrides(
   tenantId: string,
   overrides: Record<string, BackendTaxonomyTypeOverride>,
+  options?: { merge: boolean },
 ): Promise<void> {
   await backendFetch(
     tenantId,
-    `/v1/tenants/${encodeURIComponent(tenantId)}/taxonomy-overrides`,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/taxonomy-overrides${options?.merge ? "?merge=true" : ""}`,
     {
       method: "PUT",
       body: JSON.stringify({
@@ -1190,9 +1196,16 @@ export async function getDetectionRunInference(
 
 export async function publishIngestion(tenantId: string, uploadId: string, input: {
   source: string; replace: boolean; conversations: BackendConversationInput[]; detections: BackendDetectionInput[];
-  files?: { source: string; conversation_ids: string[] }[];
+  files?: { source: string; conversation_ids: string[]; counts_as_weekly?: boolean }[];
+  append_only?: boolean;
+  record_upload_metadata?: boolean;
 }) {
-  return backendFetch<{ upload_id: string; status: string; active: boolean; predictions: { id: string; conversation_id: string; signal_type: string; active: boolean }[] }>(tenantId,
+  return backendFetch<{
+    upload_id: string; status: string; active: boolean;
+    weekly_export_count?: number | null;
+    last_uploaded_file_name?: string | null;
+    predictions: { id: string; conversation_id: string; signal_type: string; active: boolean }[];
+  }>(tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/ingestions/${encodeURIComponent(uploadId)}`, {
       method: "PUT", body: JSON.stringify(input), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
     });

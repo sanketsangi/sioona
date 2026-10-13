@@ -104,3 +104,12 @@ def test_service_skips_unknown_types_and_all_empty_rows(db: Session) -> None:
     )
     assert saved == {}
     assert list_taxonomy_overrides(db, "tenant_a") == {}
+
+
+def test_merge_preserves_interleaved_adapt_edits(client: TestClient) -> None:
+    client.put(URL, headers=HEADERS, json={"lead": {"phrases": ["existing"]}})
+    client.put(URL + "?merge=true", headers=HEADERS,
+        json={"lead": {"phrases": ["existing", "first"]}})
+    saved = client.put(URL + "?merge=true", headers=HEADERS,
+        json={"lead": {"phrases": ["existing", "second"]}})
+    assert saved.json()["overrides"]["lead"]["phrases"] == ["existing", "first", "second"]

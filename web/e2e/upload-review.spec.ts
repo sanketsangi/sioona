@@ -1,4 +1,6 @@
 import path from "node:path";
+import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 
 import { expect, test, type Page, type Response } from "@playwright/test";
 
@@ -206,4 +208,70 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
   ).toHaveAttribute("aria-pressed", "true");
 
   expect(blocked, blocked.join("\n")).toEqual([]);
+});
+
+test("reconstruct persisted approval and feedback in canonical mode", async ({ page }) => {
+  test.skip(process.env.SIOONA_STATE_MODE !== "postgres", "Canonical Postgres rehearsal only");
+  const blocked = await failClosedOutbound(page);
+  await signIn(page);
+  const response = await page.request.get(`http://127.0.0.1:8000/v1/tenants/${E2E_TENANT}/signals`, {
+    headers: { Authorization: `Bearer ${E2E_SERVICE_TOKEN}`, "X-Tenant-Id": E2E_TENANT },
+  });
+  expect(response.ok()).toBeTruthy();
+  const signals = await response.json();
+  const signal = signals.find((row: { signal_type: string; feedback?: { feedback: string } }) =>
+    row.signal_type === "retention" && row.feedback?.feedback === "correct");
+  expect(signal).toBeTruthy();
+  await page.goto(`/?view=insights&status=followup&preview=${encodeURIComponent(`sig_neon_${signal.id}`)}`);
+  await expect(page.getByText(NOT_SENT)).toBeVisible();
+  await expect(page.getByRole("group", { name: "Feedback actions" })
+    .getByRole("button", { name: "Correct", exact: true })).toHaveAttribute("aria-pressed", "true");
+  expect(blocked).toEqual([]);
+  if (process.env.CB10_E2E_DATA_PATH_FILE) {
+    const server = JSON.parse(fs.readFileSync(process.env.CB10_E2E_DATA_PATH_FILE, "utf8"));
+    expect(fs.readdirSync(server.dataDir).filter(name => /^store.*\.json$/.test(name))).toEqual([]);
+    if (process.env.CB10_E2E_PREVIOUS_SERVER) {
+      const previous = JSON.parse(fs.readFileSync(process.env.CB10_E2E_PREVIOUS_SERVER, "utf8"));
+      expect(server.pid).not.toBe(previous.pid);
+      expect(server.dataDir).not.toBe(previous.dataDir);
+      expect(fs.existsSync(previous.dataDir)).toBe(false);
+    }
+  }
+});
+
+
+test("canonical read outage recovers persisted state through Retry", async ({ page }) => {
+  test.skip(process.env.SIOONA_STATE_MODE !== "postgres", "Canonical Postgres rehearsal only");
+  const blocked = await failClosedOutbound(page);
+  await signIn(page);
+  const python = fs.existsSync(path.resolve("../backend/.venv/bin/python"))
+    ? path.resolve("../backend/.venv/bin/python") : "python3";
+  const renamePilot = (unavailable: boolean) => execFileSync(python, ["-c", `
+import os
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
+url = make_url(os.environ["DATABASE_URL"])
+assert url.host in ("127.0.0.1", "localhost", "::1") and url.database == "sioona_migration_test" and not url.query, "Refusing non-test database"
+engine = create_engine(url)
+with engine.begin() as conn:
+    conn.execute(text("ALTER TABLE ${unavailable ? "pilot_settings RENAME TO cb10_pilot_settings_unavailable" : "cb10_pilot_settings_unavailable RENAME TO pilot_settings"}"))
+engine.dispose()
+`], { env: process.env, stdio: "pipe" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  renamePilot(true);
+  let unavailable = true;
+  try {
+    await page.goto("/?view=insights");
+    await expect(page.getByRole("heading", { name: "Insights Could Not Be Loaded" })).toBeVisible();
+    const retry = page.getByRole("button", { name: "Retry the request" });
+    expect((await retry.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+    renamePilot(false);
+    unavailable = false;
+    await retry.click();
+    await expect(page.getByRole("heading", { name: "Insights Could Not Be Loaded" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Open approval for / }).first()).toBeVisible();
+    expect(blocked).toEqual([]);
+  } finally {
+    if (unavailable) renamePilot(false);
+  }
 });

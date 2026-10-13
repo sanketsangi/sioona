@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from uuid import UUID
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -13,6 +14,7 @@ class PilotSettingsUpsert(BaseModel):
     baseline_note: str | None = None
     weekly_export_count: int | None = Field(default=None, ge=0)
     last_uploaded_file_name: str | None = None
+    update_scope: Literal["all", "baseline", "upload"] = "all"
 
     @field_validator("baseline_note")
     @classmethod

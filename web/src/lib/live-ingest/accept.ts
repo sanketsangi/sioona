@@ -48,9 +48,9 @@ type LiveIngestDeps = {
 export async function readLiveIngestStore(): Promise<StoreData> {
   const tenantId = currentStoreTenant();
   const [remotePilot, remoteResume, taxonomyOverrides] = await Promise.all([
-    getPilotSettings(tenantId).catch(() => null),
-    getDetectionResume(tenantId).catch(() => null),
-    taxonomyOverridesFromNeon(tenantId).catch(() => ({})),
+    getPilotSettings(tenantId),
+    getDetectionResume(tenantId),
+    taxonomyOverridesFromNeon(tenantId),
   ]);
   const store = emptyStoreForTenant(tenantId);
   if (remotePilot) {
@@ -138,6 +138,8 @@ async function acceptLiveChatsBody(
         resumeVersion,
       );
     }
+    // The publication receipt owns weekly-file counts. Live ingestion does not
+    // add a client snapshot of weeklyExportCount or the upload filename.
     const published = await (deps.publish ?? publishAtomicIngest)({ tenantId: store.tenant.id,
       source: "live-ingest", replace: false, appendOnly: true, conversations: ingested.conversations,
       messages: ingested.messages, signals, contexts: llm.contexts,

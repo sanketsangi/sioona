@@ -71,6 +71,8 @@ describe("syncTaxonomyOverridesToBackend", () => {
       syncTaxonomyOverridesToBackend("tenant_a", { lead: { phrases: ["x"] } })
     ).rejects.toThrow("Canonical taxonomy destination disabled; mutation refused.");
     expect(putTaxonomyOverrides).not.toHaveBeenCalled();
+    await expect(taxonomyOverridesFromNeon("tenant_a"))
+      .rejects.toThrow("Canonical taxonomy destination disabled");
     delete process.env.SIOONA_STATE_MODE;
   });
 

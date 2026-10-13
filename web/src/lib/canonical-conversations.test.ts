@@ -29,6 +29,39 @@ it("distinguishes an empty tenant from an outage", async () => {
   vi.mocked(backend.getConversations).mockResolvedValue([]);
   expect((await runWithTenant("t", () => readStore())).conversations).toEqual([]);
 });
+it("does not invent a showcase pilot for a canonical tenant with chats and no pilot row", async () => {
+  const store = await runWithTenant("t", () => readStore());
+  expect(store.conversations).toHaveLength(1);
+  expect(store.pilot).toBeUndefined();
+});
+it("keeps the fetched baseline when the live-partner filter matches nothing", async () => {
+  vi.mocked(backend.getDetectionResume).mockResolvedValue({ tenant_id: "t", failed_conversation_ids: ["pending"], skipped_conversation_ids: ["skipped"], updated_at: "2026-10-01T00:00:00Z" });
+  vi.mocked(backend.getPilotSettings).mockResolvedValue({
+    id: "pilot-1",
+    tenant_id: "t",
+    baseline_opportunities: 12,
+    baseline_note: "agreed baseline",
+    weekly_export_count: 3,
+    last_uploaded_file_name: "week-export.csv",
+    created_at: "2026-10-01T00:00:00Z",
+    updated_at: "2026-10-02T00:00:00Z",
+  });
+  vi.mocked(backend.getConversations).mockResolvedValue([
+    { ...row, updated_at: "2026-09-01T00:00:00Z" },
+  ]);
+  const store = await runWithTenant("t", () => readStore());
+  expect(store.conversations).toEqual([]);
+  expect(store.messages).toEqual([]);
+  expect(store.llmFailedConversationIds).toEqual(["pending"]);
+  expect(store.llmSkippedConversationIds).toEqual(["skipped"]);
+  expect(store.signals).toEqual([]);
+  expect(store.pilot).toMatchObject({
+    baselineOpportunities: 12,
+    baselineNote: "agreed baseline",
+    weeklyExportCount: 3,
+    lastUploadedFileName: "week-export.csv",
+  });
+});
 it("keeps persisted pilot settings when a canonical tenant has no conversations", async () => {
   vi.mocked(backend.getConversations).mockResolvedValue([]);
   vi.mocked(backend.getPilotSettings).mockResolvedValue({

@@ -22,6 +22,7 @@ def upsert_pilot_settings(
     baseline_note: str | None = None,
     weekly_export_count: int | None = None,
     last_uploaded_file_name: str | None = None,
+    update_scope: str = "all",
 ) -> PilotSettings:
     """Insert or update the single pilot_settings row for tenant_id."""
     baseline = max(0, int(baseline_opportunities))
@@ -37,12 +38,22 @@ def upsert_pilot_settings(
         else None
     )
 
-    existing = get_pilot_settings(db, tenant_id)
+    def locked_row() -> PilotSettings | None:
+        return db.scalar(select(PilotSettings).where(
+            PilotSettings.tenant_id == tenant_id
+        ).with_for_update().execution_options(populate_existing=True))
+
+    def apply(row: PilotSettings) -> None:
+        if update_scope != "upload":
+            row.baseline_opportunities = baseline
+            row.baseline_note = note
+        if update_scope != "baseline":
+            row.weekly_export_count = count
+            row.last_uploaded_file_name = filename
+
+    existing = locked_row()
     if existing is not None:
-        existing.baseline_opportunities = baseline
-        existing.baseline_note = note
-        existing.weekly_export_count = count
-        existing.last_uploaded_file_name = filename
+        apply(existing)
         db.commit()
         db.refresh(existing)
         return existing
@@ -51,21 +62,18 @@ def upsert_pilot_settings(
         tenant_id=tenant_id,
         baseline_opportunities=baseline,
         baseline_note=note,
-        weekly_export_count=count,
-        last_uploaded_file_name=filename,
+        weekly_export_count=count if update_scope != "baseline" else None,
+        last_uploaded_file_name=filename if update_scope != "baseline" else None,
     )
     db.add(row)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        raced = get_pilot_settings(db, tenant_id)
+        raced = locked_row()
         if raced is None:
             raise
-        raced.baseline_opportunities = baseline
-        raced.baseline_note = note
-        raced.weekly_export_count = count
-        raced.last_uploaded_file_name = filename
+        apply(raced)
         db.commit()
         db.refresh(raced)
         return raced

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from hashlib import sha256
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from app.models.taxonomy_override import TaxonomyOverride
@@ -47,8 +48,31 @@ def replace_taxonomy_overrides(
     *,
     tenant_id: str,
     overrides: dict[str, object],
+    merge: bool = False,
 ) -> dict[str, dict[str, list[str]]]:
     """Replace the tenant's override rows with this snapshot."""
+    # Serialize even the first edit, when there is no row to lock. All writers
+    # share this transaction lock; separate web instances cannot lose additions.
+    if db.get_bind().dialect.name == "postgresql":
+        lock_key = int.from_bytes(sha256(f"taxonomy:{tenant_id}".encode()).digest()[:8], "big", signed=True)
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
+    if merge:
+        current = list_taxonomy_overrides(db, tenant_id)
+        for signal_type in CANONICAL_TYPES:
+            incoming = overrides.get(signal_type)
+            if not isinstance(incoming, dict):
+                continue
+            row = current.setdefault(signal_type, {})
+            for field in ("phrases", "keywords", "negative_phrases"):
+                terms = [*row.get(field, []), *_terms(incoming.get(field))]
+                seen: set[str] = set()
+                row[field] = []
+                for term in terms:
+                    key = term.casefold()
+                    if key not in seen:
+                        seen.add(key)
+                        row[field].append(term)
+        overrides = current
     db.execute(delete(TaxonomyOverride).where(TaxonomyOverride.tenant_id == tenant_id))
     now = datetime.now(timezone.utc)
     for signal_type in CANONICAL_TYPES:
