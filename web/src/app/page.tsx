@@ -296,7 +296,7 @@ export default async function PlatformPage({
   const store = shouldAwaitHomepagePilotRefresh(fetches.pilotRefresh)
     ? await refreshStorePilotFromNeon(storeRaw)
     : storeRaw;
-  if (store !== storeRaw) {
+  if (getStateMode() === "json-demo" && store !== storeRaw) {
     // Heal pilot only — do not rewrite the stale SSR snapshot over
     // concurrent feedback / Acted on this instance's JSON store.
     await persistHealedPilot(store, storeRaw);
