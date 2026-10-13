@@ -12,7 +12,6 @@
 
 # testing
 /coverage
-/eval/promptfoo/system-prompt.txt
 /eval/gate/artifact.json
 /test-results/
 /playwright-report/

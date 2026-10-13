@@ -32,12 +32,15 @@ PERMISSIONS = {
 }
 
 SERVICE_PRINCIPALS = {
+    "principal:detection-worker": frozenset({"job:read", "inference:preflight", "inference:write", "inference:reserve", "detection:write", "detection-resume:read"}),
     "principal:eval": frozenset({"inference:preflight", "inference:write", "inference:reserve"}),
     "principal:live-ingest": frozenset({
         "inference:preflight",
         "inference:write",
         "inference:reserve",
         "ingestion:write",
+        "job:enqueue",
+        "job:read",
         "detection:write",
         "conversation:write",
         "pilot:read",
@@ -108,6 +111,10 @@ def decode_actor_token(token: str, key: str) -> dict:
 
 # permission, operation, kind. kind is path, alias, or open.
 ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
+    ("PUT", "/v1/tenants/{tenant_id}/jobs/uploads/{upload_id}"): ("review", "job:enqueue", "path"),
+    ("POST", "/v1/tenants/{tenant_id}/jobs/detect"): ("review", "job:enqueue", "path"),
+    ("GET", "/v1/tenants/{tenant_id}/jobs/{job_id}"): ("read", "job:read", "path"),
+    ("POST", "/v1/tenants/{tenant_id}/jobs/{job_id}/cancel"): ("review", "job:cancel", "path"),
     ("POST", "/v1/predictions"): ("review", None, "alias"),
     ("POST", "/v1/predictions/bulk"): ("review", None, "alias"),
     ("POST", "/v1/signals/{signal_id}/outcome"): ("review", None, "alias"),

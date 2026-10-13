@@ -1288,3 +1288,28 @@ export async function settleInferenceReservation(tenantId: string, attemptId: st
   return backendFetchOnce(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/inference-reservations/${encodeURIComponent(attemptId)}/settle`,
     { method: "POST", headers: await budgetHeaders(tenantId) }, 5_000);
 }
+
+export interface BackendJobStatus {
+  job_id: string; upload_id: string;
+  status: "queued" | "leased" | "succeeded" | "failed" | "cancelled" | "dead_lettered";
+  attempt_count: number; max_attempts: number;
+  completed_conversations: number; conversation_count: number;
+  last_error_category: string | null;
+}
+export async function enqueueUploadJob(tenantId: string, uploadId: string, input: {
+  source: string; replace: boolean; conversations: BackendConversationInput[];
+  files: { source: string; conversation_ids: string[]; counts_as_weekly?: boolean }[];
+  append_only?: boolean; record_upload_metadata?: boolean;
+}): Promise<BackendJobStatus> {
+  return backendFetch<BackendJobStatus>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/jobs/uploads/${encodeURIComponent(uploadId)}`,
+    { method: "PUT", body: JSON.stringify(input), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS });
+}
+export async function enqueueDetectJob(tenantId: string, requestId: string, conversationIds: string[]): Promise<BackendJobStatus> {
+  return backendFetch<BackendJobStatus>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/jobs/detect`,
+    { method: "POST", body: JSON.stringify({ request_id: requestId, conversation_ids: conversationIds }), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS });
+}
+export async function getJobStatus(tenantId: string, jobId: string): Promise<BackendJobStatus> {
+  return backendFetch<BackendJobStatus>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/jobs/${encodeURIComponent(jobId)}`, { method: "GET" });
+}

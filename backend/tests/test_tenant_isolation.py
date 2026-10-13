@@ -13,6 +13,7 @@ PATH_PARAMS = {
     "{signal_id}": "00000000-0000-4000-8000-000000000099",
     "{upload_id}": "missing",
     "{run_id}": "missing",
+    "{job_id}": "missing",
     "{attempt_id}": "missing",
     "{conversation_id}": "shared",
 }
@@ -85,6 +86,13 @@ def _body(method: str, path: str):
         return {"baseline_opportunities": 0}
     if path.endswith("/detection-resume"):
         return {"failed_conversation_ids": [], "skipped_conversation_ids": []}
+    if "/jobs/uploads/" in path:
+        from tests.test_jobs import body
+        return body().model_dump(mode="json")
+    if path.endswith("/jobs/detect"):
+        return {"request_id": "isolation", "conversation_ids": ["shared"]}
+    if "/jobs/" in path:
+        return {}
     if "/uploads/" in path and method == "PUT":
         return {
             "source": "weekly.csv",
