@@ -11,8 +11,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
-    createElement("a", { href, ...props }, children),
+  default: ({ href, children, onNavigate: _onNavigate, ...props }: { href: string; children?: ReactNode; onNavigate?: unknown }) =>
+    createElement("a", { href, ...props, "data-guarded": Boolean(_onNavigate) }, children),
 }));
 
 vi.mock("@/components/layout/MenuPreviews", () => {
@@ -129,6 +129,15 @@ describe("Product dropdown", () => {
     });
     expect(button.getAttribute("aria-expanded")).toBe("false");
     expect(menu().getAttribute("data-open")).toBe("false");
+  });
+
+  it("keeps the menu open when switching previews removes the focused playback control", () => {
+    const button = productButton();
+    act(() => button.click());
+    act(() => button.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null })));
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+    act(() => button.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: document.body })));
+    expect(button.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("closes on Escape and returns focus to the trigger", () => {

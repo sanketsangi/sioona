@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 import { ArrowRight, Lock, Prohibit, UserCheck } from "@phosphor-icons/react/ssr";
 import { RevealGroup, RevealItem } from "@/components/motion/Reveal";
 import { SectionHeader } from "@/components/ui/SectionHeader";

@@ -114,10 +114,10 @@ export function InsightsMock({ previewHeader = false }: { previewHeader?: boolea
 function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
   const [userPaused, setUserPaused] = useState(true);
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { amount: "some", once: previewHeader, margin: "0px 0px -48px 0px" });
+  const inView = useInView(ref, { amount: "some", once: false, margin: "0px 0px -48px 0px" });
   const previewEntered = useContext(HeroPreviewEntered);
   const systemReduced = useReducedMotion();
-  const running = !userPaused && (previewHeader ? previewEntered : inView) && !reduced && systemReduced !== true;
+  const running = !userPaused && inView && previewEntered && !reduced && systemReduced !== true;
   const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced: reduced || systemReduced === true });
 
   const reviewing = step >= STEP.rowIn && step < STEP.reset;

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
+import { NavigationGuardProvider } from "@/components/navigation/GuardedLink";
 import { Footer } from "@/components/layout/Footer";
 import { SiteNav } from "@/components/layout/SiteNav";
 import { MotionProviders } from "@/components/motion/Providers";
@@ -60,13 +61,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip To Content
         </a>
-        <MotionProviders>
+        <NavigationGuardProvider><MotionProviders>
           <SiteNav />
           <main id="main" tabIndex={-1}>
             {children}
           </main>
           <Footer />
-        </MotionProviders>
+        </MotionProviders></NavigationGuardProvider>
       </body>
     </html>
   );

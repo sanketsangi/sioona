@@ -99,7 +99,7 @@ const STATE_DOT_TEXT: Record<SignalState, string> = {
   correct: "text-sio-status-success-fg",
   incorrect: "text-sio-status-danger-fg",
   partial: "text-sio-status-warning-fg",
-  acted: "text-sio-fg-muted",
+  acted: "text-sio-fg-subtle",
 };
 
 /** Review status. `dot` is the queue row treatment, `chip` is the review header. */

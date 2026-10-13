@@ -1,5 +1,5 @@
 import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react/ssr";
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 import { InsightsMock } from "@/components/mocks/InsightsMock";
 import { ButtonLink } from "@/components/ui/Button";
 import { HeroPreview } from "@/components/sections/HeroPreview";

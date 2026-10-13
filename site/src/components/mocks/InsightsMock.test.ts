@@ -19,7 +19,7 @@ describe("Hero demo playback", () => {
   it("stays static after entry until explicitly played, then pauses and resumes", () => {
     render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
-    expect(motionState.options).toMatchObject({ once: true, amount: "some" });
+    expect(motionState.options).toMatchObject({ once: false, amount: "some" });
     motionState.visible = true; render();
     const button = host.querySelector('button') as HTMLButtonElement;
     expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
@@ -32,6 +32,19 @@ describe("Hero demo playback", () => {
     render(); expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     act(() => button.click()); expect(button.getAttribute("aria-label")).toBe("Pause Demo Animation");
     expect(button.getAttribute("aria-pressed")).toBe("true");
+  });
+  it("pauses offscreen and resumes on re-entry without overriding manual pause", () => {
+    motionState.visible = true; render();
+    const button = host.querySelector('button') as HTMLButtonElement;
+    act(() => button.click());
+    motionState.visible = false; render();
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
+    motionState.visible = true; render();
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
+    act(() => button.click());
+    motionState.visible = false; render();
+    motionState.visible = true; render();
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
   });
   it("stops playback when reduced motion is requested", () => {
     motionState.visible = true; render();

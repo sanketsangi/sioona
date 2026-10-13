@@ -1,22 +1,10 @@
+import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { DataFacts } from "@/components/sections/DataFacts";
-const description = "Evaluate Sioona with a two-week pilot using one redacted chat export. Scope and price are agreed before you start, with a clear go or no-go decision.";
 
-export const metadata: Metadata = {
-  title: "Pilot offer",
-  description,
-  alternates: { canonical: "/pricing" },
-  openGraph: {
-    title: "Pilot offer | Sioona",
-    description,
-    url: "/pricing",
-    type: "website",
-    siteName: "Sioona",
-    locale: "en_US",
-  },
-};
+export const metadata: Metadata = pageMetadata("Pilot offer", "Evaluate Sioona with a two-week pilot using one redacted chat export. Scope and price are agreed before you start, with a clear go or no-go decision.", "/pricing");
 export default function PricingPage() {
   return <>
     <PageHeader eyebrow="Pilot offer" title="Two weeks. Your chats. A clear decision."

@@ -1,16 +1,11 @@
+import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { RevealGroup, RevealItem, Reveal } from "@/components/motion/Reveal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { nb } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "Request a pilot",
-  description:
-    "Request a two-week Shadow Mode pilot. Share one redacted chat export and see lead, retention and upsell signals with your own Signal Score.",
-  alternates: { canonical: "/contact" },
-  openGraph: { url: "/contact", title: "Request a Sioona pilot" },
-};
+export const metadata: Metadata = pageMetadata("Request a pilot", "Request a two-week Shadow Mode pilot. Share one redacted chat export and see lead, retention and upsell signals with your own Signal Score.", "/contact");
 
 const next = [
   {

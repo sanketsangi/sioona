@@ -23,6 +23,7 @@ export function UploadVisual() {
     >
       {FILES.map((file) => (
         <m.li
+          data-nojs-show
           key={file.name}
           variants={{
             hidden: { opacity: 0, y: 8 },
@@ -37,6 +38,7 @@ export function UploadVisual() {
             <span className="flex shrink-0 items-center gap-1.5 text-sio-fg-muted">
               <span className="tabular">{file.size.replace(" ", "\u00a0")}</span>
               <m.span
+                data-nojs-show
                 className="text-sio-status-success-accent"
                 variants={{
                   hidden: { opacity: 0, scale: 0.7 },
@@ -49,6 +51,7 @@ export function UploadVisual() {
           </div>
           <span className="h-1 overflow-hidden rounded-full bg-sio-bg-muted">
             <m.span
+              data-nojs-show
               className="block h-full origin-left rounded-full bg-sio-fg-base"
               variants={{
                 hidden: { scaleX: 0 },

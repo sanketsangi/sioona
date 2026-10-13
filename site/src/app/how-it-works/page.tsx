@@ -1,3 +1,4 @@
+import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { ChartLineUp, ListChecks, Tag, UploadSimple } from "@phosphor-icons/react/ssr";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -7,13 +8,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { FourStepScroll } from "./FourStepScroll";
 import { nb } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "How It Works",
-  description:
-    "Connect chats, detect lead, retention and upsell signals, review them with your team, then act. Sioona runs in Shadow Mode, so nothing is acted on without a human.",
-  alternates: { canonical: "/how-it-works" },
-  openGraph: { url: "/how-it-works", title: "How Sioona Works" },
-};
+export const metadata: Metadata = pageMetadata("How It Works", "Connect chats, detect lead, retention and upsell signals, review them with your team, then act. Sioona runs in Shadow Mode, so nothing is acted on without a human.", "/how-it-works");
 
 const surfaces = [
   {

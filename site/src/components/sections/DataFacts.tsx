@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/navigation/GuardedLink";
 const facts = [
   ["Retention and deletion", "A standard retention period is not published yet. Agree the pilot retention window, deletion process and backup handling before sharing an export."],
   ["Storage and region", "Pilot data includes redacted message text, detected signals and review decisions. Hosting region and storage providers must be confirmed for your pilot before transfer."],
