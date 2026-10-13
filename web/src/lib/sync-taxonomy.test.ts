@@ -64,6 +64,16 @@ describe("syncTaxonomyOverridesToBackend", () => {
     expect(putTaxonomyOverrides).not.toHaveBeenCalled();
   });
 
+  it("refuses canonical mutations in postgres mode when Neon is disabled", async () => {
+    process.env.SIOONA_STATE_MODE = "postgres";
+    process.env.SIOONA_TAXONOMY_NEON = "0";
+    await expect(
+      syncTaxonomyOverridesToBackend("tenant_a", { lead: { phrases: ["x"] } })
+    ).rejects.toThrow("Canonical taxonomy destination disabled; mutation refused.");
+    expect(putTaxonomyOverrides).not.toHaveBeenCalled();
+    delete process.env.SIOONA_STATE_MODE;
+  });
+
   it("maps web overrides to the snake_case backend shape", async () => {
     process.env.SIOONA_TAXONOMY_NEON = "1";
     putTaxonomyOverrides.mockResolvedValue(undefined);
@@ -112,9 +122,11 @@ describe("taxonomyOverridesFromNeon", () => {
     });
   });
 
-  it("returns null when the backend call fails", async () => {
+  it("throws when the backend call fails", async () => {
     process.env.SIOONA_TAXONOMY_NEON = "1";
     getTaxonomyOverrides.mockRejectedValue(new Error("down"));
-    expect(await taxonomyOverridesFromNeon("tenant_a")).toBeNull();
+    await expect(taxonomyOverridesFromNeon("tenant_a")).rejects.toThrow(
+      "Could not load taxonomy overrides from Neon. down",
+    );
   });
 });

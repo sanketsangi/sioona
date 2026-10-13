@@ -14,6 +14,8 @@ vi.mock("@/lib/backend-client", async (importOriginal) => ({
   getTenantSignalsPage: vi.fn(),
   getSupervisedActionDecisions: vi.fn(),
   publishDetectionRun: vi.fn(),
+  putTaxonomyOverrides: vi.fn(),
+  getTaxonomyOverrides: vi.fn(),
 }));
 
 import * as backend from "@/lib/backend-client";
@@ -51,7 +53,7 @@ const routes = [
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("SIOONA_STATE_MODE", "postgres");
-  vi.stubEnv("SIOONA_TAXONOMY_NEON", "0");
+  vi.stubEnv("SIOONA_TAXONOMY_NEON", "1");
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Unexpected network call")));
   persisted = [structuredClone(oldPrediction)];
   vi.mocked(backend.getPilotSettings).mockResolvedValue(null);
@@ -59,6 +61,8 @@ beforeEach(() => {
   vi.mocked(backend.getActiveUploads).mockResolvedValue([]);
   vi.mocked(backend.getConversations).mockResolvedValue([conversation]);
   vi.mocked(backend.getSupervisedActionDecisions).mockResolvedValue([]);
+  vi.mocked(backend.putTaxonomyOverrides).mockResolvedValue(undefined);
+  vi.mocked(backend.getTaxonomyOverrides).mockResolvedValue({});
   vi.mocked(backend.getTenantSignalsPage).mockImplementation(async () => ({
     predictions: structuredClone(persisted), next_cursor: null,
   }));

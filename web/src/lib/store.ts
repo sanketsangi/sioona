@@ -819,15 +819,16 @@ export async function addTaxonomyOverride(
   }
 
   const store = await readStore();
-  store.taxonomyOverrides = mergeTaxonomyOverrides(store.taxonomyOverrides, {
+  const nextOverrides = mergeTaxonomyOverrides(store.taxonomyOverrides, {
     [type]: { [field]: [term] },
   });
-  await writeStore(store);
   const { syncTaxonomyOverridesToBackend } = await import("./sync-taxonomy");
   await syncTaxonomyOverridesToBackend(
     store.tenant.id,
-    store.taxonomyOverrides ?? {},
+    nextOverrides,
   );
+  store.taxonomyOverrides = nextOverrides;
+  await writeStore(store);
   return store;
 }
 

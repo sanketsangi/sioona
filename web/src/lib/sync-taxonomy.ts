@@ -56,7 +56,12 @@ export async function syncTaxonomyOverridesToBackend(
   tenantId: string,
   overrides: TaxonomyOverrides,
 ): Promise<void> {
-  if (!taxonomyNeonEnabled()) return;
+  if (!taxonomyNeonEnabled()) {
+    if (getStateMode() === "postgres") {
+      throw new Error("Canonical taxonomy destination disabled; mutation refused.");
+    }
+    return;
+  }
   try {
     await putTaxonomyOverrides(tenantId, toBackend(overrides));
   } catch (err) {
@@ -71,10 +76,13 @@ export async function taxonomyOverridesFromNeon(
   if (!taxonomyNeonEnabled()) return null;
   try {
     return fromBackend(await getTaxonomyOverrides(tenantId));
-  } catch {
+  } catch (err) {
     if (getStateMode() === "postgres") {
-      throw new Error("Canonical taxonomy read unavailable; retry the request.");
+      throw new Error(
+        "Canonical taxonomy read unavailable; retry the request.",
+      );
     }
-    return null;
+    const detail = err instanceof Error ? err.message : "Neon read failed";
+    throw new Error(`Could not load taxonomy overrides from Neon. ${detail}`);
   }
 }

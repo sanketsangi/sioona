@@ -322,6 +322,31 @@ describe("addTaxonomyOverride", () => {
     const after = await readStore();
     expect(after.taxonomyOverrides?.upsell?.negativePhrases).toEqual(["first time"]);
   });
+
+  it("refuses canonical mutations in postgres mode when taxonomy Neon is disabled", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    vi.stubEnv("SIOONA_TAXONOMY_NEON", "0");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/pilot")) return Response.json({ tenant_id: "tenant_demo" });
+        if (url.includes("/detection-resume")) return Response.json({ tenant_id: "tenant_demo" });
+        if (url.includes("/taxonomy-overrides")) return Response.json({});
+        if (url.includes("/uploads")) return Response.json([]);
+        if (url.includes("/conversations")) return Response.json([]);
+        if (url.includes("/signals")) return Response.json({ predictions: [], next_cursor: null });
+        if (url.includes("/supervised-actions")) return Response.json([]);
+        return Response.json({});
+      })
+    );
+    await expect(
+      addTaxonomyOverride("lead", "phrases", "new phrase")
+    ).rejects.toThrow("Canonical taxonomy destination disabled; mutation refused.");
+    const fresh = await readStore();
+    expect(fresh.taxonomyOverrides?.lead?.phrases).toBeUndefined();
+    vi.unstubAllEnvs();
+  });
 });
 
 describe("supervised retention email actions", () => {
