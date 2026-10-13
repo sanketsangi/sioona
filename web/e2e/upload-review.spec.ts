@@ -257,14 +257,17 @@ with engine.begin() as conn:
     conn.execute(text("ALTER TABLE ${unavailable ? "pilot_settings RENAME TO cb10_pilot_settings_unavailable" : "cb10_pilot_settings_unavailable RENAME TO pilot_settings"}"))
 engine.dispose()
 `], { env: process.env, stdio: "pipe" });
+  await page.setViewportSize({ width: 390, height: 844 });
   renamePilot(true);
   let unavailable = true;
   try {
     await page.goto("/?view=insights");
     await expect(page.getByRole("heading", { name: "Insights Could Not Be Loaded" })).toBeVisible();
+    const retry = page.getByRole("button", { name: "Retry the request" });
+    expect((await retry.boundingBox())?.height).toBeGreaterThanOrEqual(44);
     renamePilot(false);
     unavailable = false;
-    await page.getByRole("button", { name: "Retry the request" }).click();
+    await retry.click();
     await expect(page.getByRole("heading", { name: "Insights Could Not Be Loaded" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Open approval for / }).first()).toBeVisible();
     expect(blocked).toEqual([]);

@@ -24,7 +24,7 @@ export default function InsightsError({
       </p>
       <button
         type="button"
-        className="btn-primary mt-6 inline-flex min-h-9 items-center justify-center px-3"
+        className="btn-primary mt-6 inline-flex min-h-11 sm:min-h-9 items-center justify-center px-3"
         onClick={() => retry()}
       >
         Retry the request
