@@ -266,7 +266,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["024_tenant_rls"]
+        assert heads == ["025_detection_resume"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
