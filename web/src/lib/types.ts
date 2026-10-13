@@ -216,4 +216,6 @@ export interface StoreData {
   llmSkippedConversationIds?: string[];
   /** Failed attempted classifications, queued ahead of new work on retry. */
   llmFailedConversationIds?: string[];
+  /** Version captured with the canonical resume cursor before classification. */
+  detectionResumeUpdatedAt?: string;
 }

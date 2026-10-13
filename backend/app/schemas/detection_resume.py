@@ -10,10 +10,11 @@ ConversationId = Annotated[str, Field(min_length=1, max_length=256)]
 
 
 class DetectionResumeUpsert(BaseModel):
-    """Full replace of the chats still waiting for classification."""
+    """Replace the chats still waiting, unless expected_updated_at is stale."""
 
     failed_conversation_ids: list[ConversationId] = Field(max_length=5000)
     skipped_conversation_ids: list[ConversationId] = Field(max_length=5000)
+    expected_updated_at: datetime | None = None
 
 
 class DetectionResumeResponse(BaseModel):

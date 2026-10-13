@@ -18,6 +18,7 @@ import {
 } from "@/lib/merge-conversations";
 import {
   mergeSignalsPreservingFeedback,
+  persistCanonicalDetectionResume,
   readStore,
   writeStore,
 } from "@/lib/store";
@@ -276,12 +277,22 @@ export async function POST(request: Request) {
       };
 
       const partner = store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
+      const resumeVersion = store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z";
+      const priorFailedOutsideBatch = (store.llmFailedConversationIds ?? [])
+        .filter((id) => !ingestedConversationIds.has(id));
+      const priorSkippedOutsideBatch = (store.llmSkippedConversationIds ?? [])
+        .filter((id) => !ingestedConversationIds.has(id));
+      const resumeIds = [...new Set([
+        ...(store.llmFailedConversationIds ?? []),
+        ...(store.llmSkippedConversationIds ?? []),
+      ])];
       const [{ signals: newSignals, llm }] = await Promise.all([
         runHybridDetectionWithLedger(
           ingestedConversations,
           ingestedMessages,
           store.tenant.id,
-          store.taxonomyOverrides
+          store.taxonomyOverrides,
+          resumeIds.length > 0 ? { resumeIds } : undefined,
         ),
         partner ? Promise.resolve() : syncPilotSettingsToBackend(store.tenant.id, store.pilot),
       ]);
@@ -316,6 +327,14 @@ export async function POST(request: Request) {
         | undefined;
       try {
         if (partner) {
+          if (llm.failed > 0 || (llm.skippedIds?.length ?? 0) > 0) {
+            await persistCanonicalDetectionResume(
+              store.tenant.id,
+              [...new Set([...priorFailedOutsideBatch, ...(llm.failedIds ?? [])])],
+              [...new Set([...priorSkippedOutsideBatch, ...(llm.skippedIds ?? [])])],
+              resumeVersion,
+            );
+          }
           const published = await publishAtomicIngest({ tenantId: store.tenant.id,
             source: store.pilot?.lastUploadedFileName ?? "upload", replace: replaceShowcase,
             conversations: ingestedConversations, messages: ingestedMessages, signals: signalsToSync,

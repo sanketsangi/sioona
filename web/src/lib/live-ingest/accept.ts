@@ -13,7 +13,7 @@ import { runHybridDetectionWithLedger } from "../ai/run-with-ledger";
 import type { HybridDetectOptions, HybridDetectResult } from "../detect-llm";
 import { toStoreRecords } from "../ingest";
 import type { IngestConversationInput } from "../ingest-platforms";
-import { readStore, writeStore } from "../store";
+import { readStore, persistCanonicalDetectionResume, writeStore } from "../store";
 import type { Conversation, Message, StoreData, TaxonomyOverrides } from "../types";
 
 type DetectFn = (
@@ -84,6 +84,12 @@ async function acceptLiveChatsBody(
   }
   store.conversations.push(...ingested.conversations);
   store.messages.push(...ingested.messages);
+  const resumeVersion = store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z";
+  const batchIds = new Set(ingested.conversations.map((chat) => chat.id));
+  const priorFailedOutsideBatch = (store.llmFailedConversationIds ?? [])
+    .filter((id) => !batchIds.has(id));
+  const priorSkippedOutsideBatch = (store.llmSkippedConversationIds ?? [])
+    .filter((id) => !batchIds.has(id));
   const { signals, llm } = await detect(
     ingested.conversations,
     ingested.messages,
@@ -92,6 +98,14 @@ async function acceptLiveChatsBody(
     { resumeIds: [...new Set([...(store.llmFailedConversationIds ?? []), ...(store.llmSkippedConversationIds ?? [])])] },
   );
   if (store.tenant.id !== "tenant_demo" || getStateMode() === "postgres") {
+    if (llm.failed > 0 || (llm.skippedIds?.length ?? 0) > 0) {
+      await persistCanonicalDetectionResume(
+        store.tenant.id,
+        [...new Set([...priorFailedOutsideBatch, ...(llm.failedIds ?? [])])],
+        [...new Set([...priorSkippedOutsideBatch, ...(llm.skippedIds ?? [])])],
+        resumeVersion,
+      );
+    }
     const published = await (deps.publish ?? publishAtomicIngest)({ tenantId: store.tenant.id,
       source: "live-ingest", replace: false, appendOnly: true, conversations: ingested.conversations,
       messages: ingested.messages, signals, contexts: llm.contexts,

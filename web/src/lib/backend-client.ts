@@ -862,6 +862,7 @@ export async function putDetectionResume(
   input: {
     failed_conversation_ids: string[];
     skipped_conversation_ids: string[];
+    expected_updated_at?: string;
   },
 ): Promise<BackendDetectionResume> {
   const path = `/v1/tenants/${encodeURIComponent(tenantId)}/detection-resume`;
@@ -870,6 +871,9 @@ export async function putDetectionResume(
     body: JSON.stringify({
       failed_conversation_ids: input.failed_conversation_ids,
       skipped_conversation_ids: input.skipped_conversation_ids,
+      ...(input.expected_updated_at
+        ? { expected_updated_at: input.expected_updated_at }
+        : {}),
     }),
     timeoutMs: BACKEND_MUTATION_TIMEOUT_MS,
   });

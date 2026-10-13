@@ -4,6 +4,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { emptyShowcaseStore } from "@/data/fixtures/sample-store";
 import {
+  getDetectionResume,
   patchConversationGroundTruth,
   putDetectionResume,
   upsertConversation,
@@ -524,12 +525,17 @@ export async function persistCanonicalDetectionResume(
   tenantId: string,
   failedConversationIds: readonly string[],
   skippedConversationIds: readonly string[],
+  expectedUpdatedAt?: string,
 ): Promise<void> {
   if (getStateMode() !== "postgres") return;
   try {
+    const current = expectedUpdatedAt === undefined ? await getDetectionResume(tenantId) : null;
     await putDetectionResume(tenantId, {
       failed_conversation_ids: [...failedConversationIds],
       skipped_conversation_ids: [...skippedConversationIds],
+      ...(expectedUpdatedAt !== undefined
+        ? { expected_updated_at: expectedUpdatedAt }
+        : current ? { expected_updated_at: current.updated_at } : {}),
     });
   } catch {
     throw new Error("Detection resume could not be saved. Please retry.");

@@ -479,6 +479,7 @@ export async function tryHydrateStoreFromNeon(
     }
   }
   const resumeState = {
+    ...(canonical ? { detectionResumeUpdatedAt: remoteResume?.updated_at ?? "1970-01-01T00:00:00Z" } : {}),
     ...(remoteResume?.failed_conversation_ids?.length
       ? { llmFailedConversationIds: remoteResume.failed_conversation_ids }
       : {}),

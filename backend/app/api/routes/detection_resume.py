@@ -57,6 +57,7 @@ def put_tenant_detection_resume(
             tenant_id=tenant_id,
             failed_conversation_ids=body.failed_conversation_ids,
             skipped_conversation_ids=body.skipped_conversation_ids,
+            expected_updated_at=body.expected_updated_at,
         )
     except SQLAlchemyError as exc:
         raise HTTPException(
