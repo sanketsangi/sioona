@@ -764,7 +764,6 @@ export async function setPilotBaseline(
     pilot.lastUploadedFileName = store.pilot.lastUploadedFileName;
   }
   store.pilot = pilot;
-  await writeStore(store);
   if (getStateMode() === "postgres") {
     const saved = await syncPilotSettingsToBackend(store.tenant.id, pilot);
     if (!saved) {
@@ -773,6 +772,7 @@ export async function setPilotBaseline(
     store.pilot = pilotSettingsFromRemote(saved);
     return store;
   }
+  await writeStore(store);
   const saved = await syncPilotSettingsToBackend(store.tenant.id, pilot);
   if (saved) {
     store.pilot = pilotSettingsFromRemote(saved);

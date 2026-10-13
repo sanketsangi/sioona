@@ -82,6 +82,10 @@ describe("Postgres set_baseline durability", () => {
   });
 
   it("returns a retryable failure when the pilot write fails, then keeps a successful retry", async () => {
+    const { promises: fs } = await import("node:fs");
+    const mkdir = vi.spyOn(fs, "mkdir");
+    const writeFile = vi.spyOn(fs, "writeFile");
+    const rename = vi.spyOn(fs, "rename");
     const failed = await POST(baselineRequest(12, "eval baseline"));
     expect(failed.status).toBe(503);
     expect((await failed.json()).error).toMatch(/retry/i);
@@ -102,5 +106,8 @@ describe("Postgres set_baseline durability", () => {
       weeklyExportCount: 2,
       lastUploadedFileName: "week-export.csv",
     });
+    expect(mkdir).not.toHaveBeenCalled();
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(rename).not.toHaveBeenCalled();
   });
 });

@@ -294,7 +294,11 @@ export async function POST(request: Request) {
           store.taxonomyOverrides,
           resumeIds.length > 0 ? { resumeIds } : undefined,
         ),
-        partner ? Promise.resolve() : syncPilotSettingsToBackend(store.tenant.id, store.pilot),
+        partner
+          ? Promise.resolve()
+          : syncPilotSettingsToBackend(store.tenant.id, store.pilot, {
+              overwriteUploadMetadata: true,
+            }),
       ]);
 
       if (replaceShowcase) {
@@ -343,7 +347,16 @@ export async function POST(request: Request) {
           ensureSupervisedActions(store);
           publicationWarnings = await finalizePublishedUpload({
             cache: () => writeStore(store),
-            pilot: () => syncPilotSettingsToBackend(store.tenant.id, store.pilot!),
+            pilot: async () => {
+              const saved = await syncPilotSettingsToBackend(
+                store.tenant.id,
+                store.pilot!,
+                { overwriteUploadMetadata: true },
+              );
+              if (getStateMode() === "postgres" && !saved) {
+                throw new Error("Pilot settings could not refresh");
+              }
+            },
           });
           dualWrite = {
             conversationSync: { ...emptyConversationSyncStats(), attempted: ingestedConversations.length,
