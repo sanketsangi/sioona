@@ -5,10 +5,10 @@ import * as Sentry from "@sentry/nextjs";
 
 export default function InsightsError({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   useEffect(() => {
     Sentry.captureException(error);
@@ -25,7 +25,7 @@ export default function InsightsError({
       <button
         type="button"
         className="btn-primary mt-6 inline-flex min-h-9 items-center justify-center px-3"
-        onClick={() => reset()}
+        onClick={() => retry()}
       >
         Retry the request
       </button>

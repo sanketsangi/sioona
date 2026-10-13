@@ -38,6 +38,6 @@ for firewall in iptables ip6tables; do
 done
 # Same uid retains workspace/cache access. The dedicated gid scopes the firewall.
 # Children cannot regain sudo, change identity, or alter the firewall.
-sudo --preserve-env=PATH,DATABASE_URL,DETECT_LLM,CI,NEXT_TELEMETRY_DISABLED,HOME \
+sudo --preserve-env=PATH,DATABASE_URL,DETECT_LLM,CI,NEXT_TELEMETRY_DISABLED,HOME,SIOONA_STATE_MODE,SIOONA_TAXONOMY_NEON,CB10_E2E_DATA_PATH_FILE,CB10_E2E_PREVIOUS_SERVER \
   setpriv --reuid="$uid" --regid="$gid" --clear-groups --bounding-set=-all \
   --inh-caps=-all --ambient-caps=-all --no-new-privs -- "$@"

@@ -80,7 +80,7 @@ const isolateAndStart = [
   "set -euo pipefail",
   'ROOT="$(pwd)"',
   'WORK="$(mktemp -d "${TMPDIR:-/tmp}/sioona-e2e-web.XXXXXX")"',
-  'cleanup() { rm -rf "$WORK"; }',
+  'cleanup() { if [ -n "${server_pid:-}" ]; then kill "$server_pid" 2>/dev/null || true; fi; rm -rf "$WORK"; }',
   "trap cleanup EXIT TERM INT",
   "rsync -a --exclude /node_modules --exclude /.next --exclude /data --exclude /test-results --exclude /playwright-report --exclude '/.env' --exclude '/.env.*' \"$ROOT/\" \"$WORK/\"",
   'mkdir -p "$WORK/data"',
@@ -88,7 +88,10 @@ const isolateAndStart = [
   'ln -s "$ROOT/node_modules" "$WORK/node_modules"',
   'cd "$WORK"',
   "./node_modules/.bin/next build --webpack",
-  "./node_modules/.bin/next start --hostname 127.0.0.1 --port 3000",
+  "./node_modules/.bin/next start --hostname 127.0.0.1 --port 3000 &",
+  "server_pid=$!",
+  "if [ -n \"${CB10_E2E_DATA_PATH_FILE:-}\" ]; then printf '{\"dataDir\":\"%s\",\"pid\":%s}\\n' \"$WORK/data\" \"$server_pid\" > \"$CB10_E2E_DATA_PATH_FILE\"; fi",
+  'wait "$server_pid"',
 ].join("\n");
 
 const databaseUrl = e2eDatabaseUrl();
@@ -126,6 +129,7 @@ export default defineConfig({
       command: `bash -s <<'E2E'\n${isolateAndStart}\nE2E`,
       cwd: webRoot,
       url: "http://127.0.0.1:3000/login",
+      gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
       timeout: 300_000,
       reuseExistingServer: false,
       env: childEnv({
