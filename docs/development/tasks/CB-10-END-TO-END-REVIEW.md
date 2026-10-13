@@ -1,0 +1,49 @@
+# CB-10 scoped publication review — 13 October 2026
+
+## Verdict and identity
+
+**CB-10 remains in progress. CB-11 is not approved.** This report tracks verification of the scoped publication; hosted acceptance remains separate.
+
+Draft [PR #162](https://github.com/sanketsangi/sioona/pull/162), branch `codex/cb-10-review-repairs`, base `15d7d3ddb61c63f2f1ba154a6564799bce5cb0c6`, independently reviewed code `09a073ac58db8fef254592b7d723888063e3a762`. Managed worktree: `/Users/sanket/.codex/worktrees/cb-10-review-repairs/Sioona`. Publication is verified only after all six checks pass on the final head identified by the linked PR verification receipt; any later commit requires new checks.
+
+The original cloud-sync checkout at `d723ce6` remains unchanged: its HEAD, status, binary diff and 35 source-file hashes were checked against the pre-assembly snapshot. A frozen file allowlist selected the pilot slice `cd1e52e`, five repairs, canonical empty/filter handling, retry boundary, browser/CI checks and existing approval records. Linux guard/environment regressions extend that allowlist by two relevant files. The two WIP commits were not cherry-picked wholesale. Virtualization/dependency, unrelated UI guard, marketing, runner and agent-coordination changes are excluded; package locks, migrations, models, prompts and evaluation thresholds stay at the base.
+
+## Findings and independent review
+
+Five P2 repairs address live-ingestion read failures that became empty state, pilot metadata overwritten across baseline/upload requests, concurrent Adapt additions replaced by stale snapshots, generic missing-route 404s treated as absent records, and canonical hydration inventing a pilot value. Canonical empty tenants/filters retain persisted pilot and resume state, and unavailable reads never fall back to runtime JSON. Regressions reproduced the five defects in the source checkout before the scoped extraction.
+
+Independent review of the actual merge-base diff initially found three more P2 issues:
+
+1. `reset()` clears Next's boundary without refetching failed Server Component data. The control now invokes documented `retry()`; its callback regression failed before repair, and the browser proves outage→restore→Retry recovery.
+2. Linux sudo environment filtering stripped state mode, taxonomy and receipt settings. The guard now preserves these plus the previous-server receipt; the static contract failed before repair, and CI includes an actual guarded-child environment test.
+3. A second test in one Playwright invocation did not restart its web server. CI now runs a separate guarded invocation without resetting the database. JSON receipts identify actual Next PIDs and data directories; the test proves both differ, old cleanup completed and no runtime JSON exists. Graceful SIGTERM shutdown lets the cleanup trap run; an actual rehearsal failed its cleanup assertion before this refinement and passed afterward.
+
+Final independent code recheck at `09a073a`: **no unresolved actionable findings**. The additional compliance follow-up gives Retry a 44px mobile target while retaining 36px desktop; a 390px outage/recovery rehearsal passed its actual-height assertion. This small fourth code commit precedes the acceptance-record commit; it is an additional scoped fix within the planned code/verification groups. The reviewer also checked that outage DDL is restricted to a disposable loopback database named `sioona_migration_test` with no query parameters and restores the renamed table in `finally`. No hosted database was used.
+
+Preexisting acceptance question: file ingestion derives `weeklyExportCount` from a prior web snapshot. Simultaneous weekly uploads can submit the same absolute incremented value. This PR's scoped row update protects baseline/upload ownership, not exact accumulation of arbitrary concurrent uploads. Determine and prove the required counter semantics before hosted pilot acceptance; do not claim that all upload races are solved.
+
+## Isolated candidate verification
+
+- Web: **1,662 passed**, five unavailable external-pack tests intentionally skipped. Lint: zero errors, one existing `NavUser` warning. Typecheck and standard production build pass. The build ran with outbound guards and provider/Sentry/Next telemetry disabled.
+- Backend: **266 passed**, 15 Postgres tests skipped in the default invocation; complete migration/RLS/concurrency file separately **15 passed** on loopback PostgreSQL 17. Includes first-insert and existing-row races for pilot, taxonomy and resume using independent sessions. Dependency check: no broken requirements.
+- Marketing: **28 passed**; lint/token checks, typecheck and standard Turbopack production build pass. Its source is unchanged from main.
+- Browser: **3 passed** for canonical upload/Correct/approved-unsent/reload, reconstruction and outage recovery. A second fresh-server invocation: **1 passed**, with actual process/directory/cleanup/no-JSON assertions against the same persisted database.
+- Synthetic eval: **pass** in a clean local clone of exact code SHA `3388e77`; unchanged D5, 120/120 complete, 88/88 surfaced evidence valid, zero critical injection failures and zero provider attempts. No external holdout or promotion performed.
+- CI/outbound/publication/scanner regressions: **17 passed locally**. The additional actual Linux OS guard controls, including child environment propagation, execute on Linux CI. Inherited offline review runner: **5 passed**; runner shell syntax and whitespace pass. Unpublished mixed-branch runner fixes/results are not part of this candidate.
+- CI-pinned Gitleaks 8.28.0 Git-history scan: no leaks. Final candidate source scan and final-SHA CI remain part of publication verification.
+
+Local runtimes are Node 23/Python 3.13. First exact-code Node 22/Python 3.12/Linux CI passed all six jobs: web **1,658 passed, 9 skipped** (Groww Batch-02 five, Dhan Batch-01 three, partner-export optional corpus one), backend 266 plus all 15 Postgres checks, marketing 28, guarded browser 3 plus fresh-server 1, and actual Linux child-env propagation. The four additional CI skips reflect unavailable optional packs, not failing tests. Final publication-head CI remains mandatory after the mobile/documentation commits. Dependency symlinks initially caused a standard-build filesystem-root rejection; locked dependencies were installed inside the worktree and the standard builds rerun successfully. Sandbox IPC/cache restrictions were resolved with local test permissions, not code/threshold changes.
+
+## Publication evidence
+
+First code-head workflow: [Tests run 38440043121](https://github.com/sanketsangi/sioona/actions/runs/38440043121), `3388e77`. All six required jobs passed on that source head. Final publication-head checks are available at [PR #162 Checks](https://github.com/sanketsangi/sioona/pull/162/checks); its immutable head SHA and final workflow URL are retained in the PR verification receipt. Required jobs: Web, Backend, Marketing site, E2E, Eval gate and Gitleaks. A preview comment or older green head is not equivalent to these checks. Any subsequent commit requires checks on its new SHA.
+
+## Remaining operational gates
+
+1. After publication is verified, a human approves the exact hosted tenant/target/resource IDs, unchanged retained source snapshot, operator, observation window and rollback revisions. Verify any existing staging stack's API/database identity and isolation; otherwise obtain current cost/quota approval before new resources. No resource creation is authorized here.
+2. Operator applies migrations through **025**, verifies schema/policy/grants, deploys the reviewed backend implementing optional pilot `update_scope=all|baseline|upload` and taxonomy `merge=true`, then deploys the matching web. Older backends ignore these fields, so **backend before web** is mandatory. Agents never run Alembic/SQL against non-test databases.
+3. Close each D6 slice in order: conversations/messages, feedback/decisions, pilot, taxonomy, remaining JSON. Separately review any tenant backfill; quiesce ingestion for comparison; retain source digest and per-entity counts/hashes. Use existing conversation/source and view parity tools, and separately compare decisions, pilot fields and normalized taxonomy. Explain every missing/changed/target-only row. Missing reports or `not_compared` do not establish parity. Verify the actual retained-snapshot directory. Require zero unexplained signal/feedback/decision loss and approved observation evidence.
+4. Demonstrate a fresh hosted production-mode tenant's dashboard after web restart without runtime JSON, preserving feedback, Acted, ground truth, pilot, Adapt and edited decisions. Verify outage recovery, no JSON fallback, demo/live isolation and no sends. Retain old readers until sign-off, then complete the separately reviewed writer-removal PR. Record human CB-10 acceptance only after all cookbook boxes are proved.
+5. Date and approve **D9**, selecting Postgres jobs with `FOR UPDATE SKIP LOCKED` and the same-backend Render worker, and record the CB-11 go after its CB-06/CB-07/CB-10 dependencies are accepted. Worker provisioning/cost/provider spend require their own explicit approvals. No CB-11 implementation occurs here.
+
+The original Phase 2 approval is retained verbatim. OP-1 closes before CB-19; OP-2 before production auth enforce or a second tenant; OP-3 before multi-tenant production; OP-4 before relying on the hosted kill switch; OP-5 sufficient approved external holdout and unchanged D5 comparison before CB-13. They are not blanket blockers for this publication. Applicable gates become mandatory if a future rollout introduces those capabilities. D9 remains unapproved. No merge, explicit deployment, hosted migration/configuration change, provisioning, provider call or external evaluation was performed; repository-configured automatic previews do not establish hosted acceptance.
