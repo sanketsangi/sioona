@@ -195,3 +195,54 @@ it("does not classify or publish when durable deduplication is unavailable", asy
   expect(write).not.toHaveBeenCalled();
   expect(publish).not.toHaveBeenCalled();
 });
+
+describe("Postgres live ingest flow", () => {
+  it("uses readLiveIngestStore and avoids requesting /uploads, conversations, signals, or supervised-actions", async () => {
+    vi.stubEnv("SIOONA_STATE_MODE", "postgres");
+    vi.stubEnv("SIOONA_TENANT_ID", "tenant_partner");
+    const requestedPaths: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      requestedPaths.push(url);
+      if (url.includes("/uploads") && (init?.method ?? "GET") === "GET") {
+        return new Response("Forbidden", { status: 403 });
+      }
+      if (url.includes("/pilot")) {
+        return Response.json({ tenant_id: "tenant_partner", weekly_export_count: 2, last_uploaded_file_name: "file.csv" });
+      }
+      if (url.includes("/detection-resume")) {
+        return Response.json({ tenant_id: "tenant_partner", failed_conversation_ids: [], skipped_conversation_ids: [], updated_at: "2026-10-01T00:00:00Z" });
+      }
+      if (url.includes("/taxonomy-overrides")) {
+        return Response.json({ lead: { phrases: ["want demo"], keywords: [], negative_phrases: [] } });
+      }
+      if (url.includes("/published-conversations")) {
+        return Response.json({ conversation_ids: [] });
+      }
+      if (url.includes("/ingestions/")) {
+        return Response.json({ upload_id: "u1", status: "completed", active: true, predictions: [] });
+      }
+      return Response.json({});
+    }));
+
+    const result = await acceptLiveChats(
+      [{
+        externalId: "ext:1",
+        channel: "whatsapp",
+        messages: [{ role: "customer", content: "hello world", timestamp: "2026-10-01T00:00:00Z" }],
+      }],
+      {
+        detect: vi.fn().mockResolvedValue({ signals: [], llm: { enabled: false, failed: 0, skipped: 0 } }) as never,
+      },
+    );
+
+    expect(result.accepted).toBe(1);
+    expect(requestedPaths.some((p) => p.endsWith("/uploads"))).toBe(false);
+    expect(requestedPaths.some((p) => p.includes("/conversations") && !p.includes("/published-conversations"))).toBe(false);
+    expect(requestedPaths.some((p) => p.includes("/signals"))).toBe(false);
+    expect(requestedPaths.some((p) => p.includes("/supervised-actions"))).toBe(false);
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+});
+

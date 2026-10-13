@@ -8,6 +8,8 @@ import time
 from datetime import datetime, timezone
 from uuid import UUID
 
+import pytest
+
 from fastapi.routing import APIRoute
 
 from app.api.actor import ROUTE_GUARDS
@@ -327,3 +329,66 @@ def test_live_ingest_principal_scoped_ledger_access(api):
     assert client.post("/v1/tenants/tenant_a/inference-attempts", headers=headers, json={"attempts": []}).status_code != 403
     assert client.get("/v1/tenants/tenant_b/inference-attempts/preflight", headers=headers).status_code == 404
     assert client.get("/v1/tenants/tenant_a/inference-usage", headers=headers).status_code == 403
+
+
+@pytest.mark.parametrize("resource", ["pilot", "detection-resume", "taxonomy-overrides"])
+def test_live_ingest_principal_reads_only_its_tenant_pilot_and_resume(api, resource):
+    client, factory = api
+    from app.services.pilot import upsert_pilot_settings
+    from app.services.detection_resume import upsert_detection_resume
+    from app.services.taxonomy import replace_taxonomy_overrides
+
+    with factory() as db:
+        for tenant in ("tenant_a", "tenant_b"):
+            upsert_pilot_settings(db, tenant_id=tenant, baseline_opportunities=7)
+            upsert_detection_resume(db, tenant_id=tenant,
+                failed_conversation_ids=[f"{tenant}_pending"], skipped_conversation_ids=[])
+            replace_taxonomy_overrides(db, tenant_id=tenant,
+                overrides={"lead": {"phrases": [f"{tenant}_phrase"], "keywords": [], "negative_phrases": []}})
+    headers = actor_headers("principal:live-ingest", "tenant_a")
+    response = client.get(f"/v1/tenants/tenant_a/{resource}", headers=headers)
+    assert response.status_code == 200
+    if resource != "taxonomy-overrides":
+        assert response.json()["tenant_id"] == "tenant_a"
+    assert "tenant_b_pending" not in response.text
+    assert "tenant_b_phrase" not in response.text
+
+    forged = client.get(f"/v1/tenants/tenant_b/{resource}", headers={**headers, "X-Tenant-Id": "tenant_b"})
+    assert forged.status_code == 404
+    assert "tenant_b_pending" not in forged.text
+    assert "tenant_b_phrase" not in forged.text
+    if resource == "pilot":
+        body = {"baseline_opportunities": 8}
+    elif resource == "detection-resume":
+        body = {"failed_conversation_ids": [], "skipped_conversation_ids": []}
+    else:
+        body = {"lead": {"phrases": ["hacked"], "keywords": [], "negative_phrases": []}}
+    denied_write = client.put(f"/v1/tenants/tenant_a/{resource}", headers=headers, json=body)
+    assert denied_write.status_code == 403
+    for principal in ("principal:eval", "principal:ingestion-recovery"):
+        denied_read = client.get(f"/v1/tenants/tenant_a/{resource}", headers=actor_headers(principal, "tenant_a"))
+        assert denied_read.status_code == 403
+
+
+def test_live_ingest_principal_published_conversations_and_unneeded_read_denials(api):
+    client, _ = api
+    headers = actor_headers("principal:live-ingest", "tenant_a")
+    # published-conversations read is allowed for its tenant
+    allowed_pub = client.post("/v1/tenants/tenant_a/uploads/published-conversations", headers=headers, json={"conversation_ids": ["c1"]})
+    assert allowed_pub.status_code == 200
+    assert allowed_pub.json() == {"conversation_ids": []}
+
+    # Cross-tenant is denied
+    cross_pub = client.post("/v1/tenants/tenant_b/uploads/published-conversations", headers=headers, json={"conversation_ids": ["c1"]})
+    assert cross_pub.status_code == 404
+
+    # Other service principals are denied published-conversations
+    for principal in ("principal:eval", "principal:ingestion-recovery"):
+        denied_pub = client.post("/v1/tenants/tenant_a/uploads/published-conversations", headers=actor_headers(principal, "tenant_a"), json={"conversation_ids": ["c1"]})
+        assert denied_pub.status_code == 403
+
+    # General reader endpoints not needed by live ingest are denied
+    assert client.get("/v1/tenants/tenant_a/uploads", headers=headers).status_code == 403
+    assert client.get("/v1/tenants/tenant_a/conversations", headers=headers).status_code == 403
+    assert client.get("/v1/tenants/tenant_a/signals", headers=headers).status_code == 403
+    assert client.get("/v1/tenants/tenant_a/supervised-actions", headers=headers).status_code == 403

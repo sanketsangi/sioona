@@ -1,7 +1,14 @@
 import { getStateMode } from "../state-mode";
-import { getPublishedConversationIds } from "../backend-client";
+import {
+  getDetectionResume,
+  getPilotSettings,
+  getPublishedConversationIds,
+} from "../backend-client";
 import { publishAtomicIngest } from "../publish-atomic-ingest";
 import { opaqueExternalIdentity } from "../opaque-identity";
+import { currentStoreTenant } from "../tenant-context";
+import { pilotSettingsFromRemote } from "../sync-pilot";
+import { taxonomyOverridesFromNeon } from "../sync-taxonomy";
 /**
  * Append redacted chats and run the existing detection pipeline.
  * Read-only toward the customer: no outbound message is sent.
@@ -13,7 +20,12 @@ import { runHybridDetectionWithLedger } from "../ai/run-with-ledger";
 import type { HybridDetectOptions, HybridDetectResult } from "../detect-llm";
 import { toStoreRecords } from "../ingest";
 import type { IngestConversationInput } from "../ingest-platforms";
-import { readStore, persistCanonicalDetectionResume, writeStore } from "../store";
+import {
+  emptyStoreForTenant,
+  readStore,
+  persistCanonicalDetectionResume,
+  writeStore,
+} from "../store";
 import type { Conversation, Message, StoreData, TaxonomyOverrides } from "../types";
 
 type DetectFn = (
@@ -33,6 +45,26 @@ type LiveIngestDeps = {
   dualWrite?: (input: DeferredIngestDualWriteInput) => Promise<void>;
 };
 
+export async function readLiveIngestStore(): Promise<StoreData> {
+  const tenantId = currentStoreTenant();
+  const [remotePilot, remoteResume, taxonomyOverrides] = await Promise.all([
+    getPilotSettings(tenantId).catch(() => null),
+    getDetectionResume(tenantId).catch(() => null),
+    taxonomyOverridesFromNeon(tenantId).catch(() => ({})),
+  ]);
+  const store = emptyStoreForTenant(tenantId);
+  if (remotePilot) {
+    store.pilot = pilotSettingsFromRemote(remotePilot);
+  }
+  if (taxonomyOverrides) {
+    store.taxonomyOverrides = taxonomyOverrides;
+  }
+  store.detectionResumeUpdatedAt = remoteResume?.updated_at ?? "1970-01-01T00:00:00Z";
+  store.llmFailedConversationIds = remoteResume?.failed_conversation_ids ? [...remoteResume.failed_conversation_ids] : [];
+  store.llmSkippedConversationIds = remoteResume?.skipped_conversation_ids ? [...remoteResume.skipped_conversation_ids] : [];
+  return store;
+}
+
 let liveIngestTail: Promise<void> = Promise.resolve();
 
 /** One webhook at a time so two JSON writes cannot drop each other's chats. */
@@ -49,7 +81,7 @@ async function acceptLiveChatsBody(
   inputs: IngestConversationInput[],
   deps: LiveIngestDeps,
 ): Promise<{ accepted: number }> {
-  const read = deps.read ?? readStore;
+  const read = deps.read ?? (getStateMode() === "postgres" ? readLiveIngestStore : readStore);
   const write = deps.write ?? writeStore;
   const detect = deps.detect ?? runHybridDetectionWithLedger;
   const dualWrite = deps.dualWrite ?? persistDeferredIngestDualWrite;
