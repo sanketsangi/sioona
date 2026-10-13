@@ -8,18 +8,12 @@ import { SecurityBand } from "@/components/sections/SecurityBand";
 import { ShadowStory } from "@/components/sections/ShadowStory";
 import { Signals } from "@/components/sections/Signals";
 import { TrustStrip } from "@/components/sections/TrustStrip";
-import { siteConfig } from "@/lib/site";
+import { pageMetadata, siteConfig } from "@/lib/site";
 
 const title = "Sioona | AI Conversation Intelligence for Customer Teams";
 const description = "Find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.";
 
-export const metadata: Metadata = {
-  title: { absolute: title },
-  description,
-  alternates: { canonical: "/" },
-  openGraph: { title, description, url: "/", type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630 }] },
-  twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
-};
+export const metadata: Metadata = pageMetadata(title, description, "/", { absolute: true });
 
 export default function HomePage() {
   return (

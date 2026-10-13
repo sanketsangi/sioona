@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
+
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
+const socialImage = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: "Sioona \u2014 conversation intelligence with human judgment",
+} as const;
 
 export const siteConfig = {
   name: "Sioona",
@@ -20,6 +29,31 @@ export const navLinks = [
 ] as const;
 
 export const routes = ["/", "/how-it-works", "/security", "/pricing", "/contact", "/privacy", "/terms"] as const;
+
+/** Page title, description, canonical, and complete social tags. Relative URLs resolve through metadataBase. */
+export function pageMetadata(title: string, description: string, path: string, options?: { absolute?: boolean }): Metadata {
+  const socialTitle = options?.absolute ? title : `${title} | Sioona`;
+  return {
+    title: options?.absolute ? { absolute: title } : title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      type: "website",
+      siteName: siteConfig.name,
+      locale: "en_US",
+      url: path,
+      title: socialTitle,
+      description,
+      images: [socialImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: socialTitle,
+      description,
+      images: [socialImage],
+    },
+  };
+}
 
 const NBSP = "\u00a0";
 

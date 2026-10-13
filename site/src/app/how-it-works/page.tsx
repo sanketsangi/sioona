@@ -5,15 +5,13 @@ import { RevealGroup, RevealItem } from "@/components/motion/Reveal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { FourStepScroll } from "./FourStepScroll";
-import { nb } from "@/lib/site";
+import { nb, pageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
-  title: "How It Works",
-  description:
-    "Connect chats, detect lead, retention and upsell signals, review them with your team, then act. Sioona runs in Shadow Mode, so nothing is acted on without a human.",
-  alternates: { canonical: "/how-it-works" },
-  openGraph: { url: "/how-it-works", title: "How Sioona Works" },
-};
+export const metadata: Metadata = pageMetadata(
+  "How It Works",
+  "Connect chats, detect lead, retention and upsell signals, review them with your team, then act. Sioona runs in Shadow Mode, so nothing is acted on without a human.",
+  "/how-it-works",
+);
 
 const surfaces = [
   {
