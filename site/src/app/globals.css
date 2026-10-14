@@ -1138,11 +1138,12 @@ html[data-drawer-open="true"] {
 }
 
 /* Let the complete workflow determine its height when pinning would clip it. */
-@media (max-height: 760px) {
+@media (max-height: 760px), (max-width: 359px) {
   .shadow-story-track { height: auto; }
   .shadow-story-sticky { position: static; height: auto; padding-block: 2rem; }
   .shadow-story-steps li { display: block; }
 }
+.workflow-step-control[aria-current="step"] { box-shadow: inset 3px 0 var(--sio-fg-base); }
 .menu-preview-playback { align-self: flex-end; flex-shrink: 0; margin-top: 8px; min-height: 44px; }
 
 .product-preview-content[data-preview-running="false"] * { animation-play-state: paused; }

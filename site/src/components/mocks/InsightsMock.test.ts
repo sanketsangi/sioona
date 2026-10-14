@@ -46,6 +46,23 @@ describe("Hero demo playback", () => {
     motionState.visible = true; render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
   });
+  it("suspends while the tab is hidden, then resumes", () => {
+    vi.useFakeTimers();
+    motionState.visible = true;
+    render();
+    act(() => (host.querySelector("button") as HTMLButtonElement).click());
+    expect(host.querySelector("figure")?.dataset.demoRunning).toBe("true");
+    const step = host.querySelector("figure")?.dataset.demoStep;
+    vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(host.querySelector("figure")?.dataset.demoRunning).toBe("false");
+    act(() => vi.advanceTimersByTime(12000));
+    expect(host.querySelector("figure")?.dataset.demoStep).toBe(step);
+    vi.restoreAllMocks();
+    act(() => document.dispatchEvent(new Event("visibilitychange")));
+    expect(host.querySelector("figure")?.dataset.demoRunning).toBe("true");
+    vi.useRealTimers();
+  });
   it("stops playback when reduced motion is requested", () => {
     motionState.visible = true; render();
     motionState.reduced = true; render();

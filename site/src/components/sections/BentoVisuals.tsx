@@ -26,7 +26,7 @@ export function UploadVisual() {
           data-nojs-show
           key={file.name}
           variants={{
-            hidden: { opacity: 0, y: 8 },
+            hidden: { opacity: 1, y: 0 },
             visible: { opacity: 1, y: 0, transition: { duration: duration.base, ease } },
           }}
           className="flex flex-col gap-1.5"

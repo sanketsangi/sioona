@@ -225,7 +225,7 @@ function Stage({ step }: { step: number }) {
 export function ShadowStory() {
   const trackRef = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
-  const shortViewport = useMediaQuery("(max-height: 760px)", false);
+  const shortViewport = useMediaQuery("(max-height: 760px), (max-width: 359px)", false);
   const [step, setStep] = useState(0);
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start start", "end end"] });
 
@@ -295,7 +295,7 @@ export function ShadowStory() {
                               type="button"
                               onClick={() => goTo(index)}
                               aria-current={active ? "step" : undefined}
-                              className="-mx-2 inline-flex min-h-11 items-center gap-3 rounded-control px-2 text-left lg:min-h-8"
+                              className="workflow-step-control -mx-2 inline-flex min-h-11 items-center gap-3 rounded-control px-2 text-left lg:min-h-8"
                             >
                               <span className="tabular font-mono text-label-12 text-sio-fg-muted">0{index + 1}</span>
                               {s.title}

@@ -11,7 +11,12 @@ cd site
 npm install
 npm run dev        # http://localhost:3000
 npm run lint       # eslint + design-token guard
-npm run build && npm start
+npm run typecheck
+npm test
+npm run build
+npm start -- --hostname 127.0.0.1 --port 3101
+# In another terminal, against that local production server:
+npm run test:smoke -- http://127.0.0.1:3101
 ```
 
 Environment variables (see `.env.example`):
@@ -72,3 +77,8 @@ To change pacing, edit `motion.ts` (and `heroScript` for the mock) rather than i
 2. Set **Root Directory** to `site`. Framework preset: Next.js.
 3. Add `NEXT_PUBLIC_SITE_URL` (production origin) and `NEXT_PUBLIC_APP_URL` (product sign-in URL).
 4. Deploy. No other configuration is needed.
+
+Unfinished contact requests stay in memory only. Internal links and app Back/Forward
+navigation ask before discarding inputs; browser unload retains its native warning.
+Menu previews start paused and expose Play/Pause; hidden pages and inactive menus
+suspend playback. The hero also suspends when outside the viewport.

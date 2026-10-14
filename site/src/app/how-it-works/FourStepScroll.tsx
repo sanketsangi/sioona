@@ -272,7 +272,7 @@ function ScrollStory() {
                       <li key={s.id} className={active ? "block" : "hidden lg:block"}>
                         <m.div
                           initial={false}
-                          animate={{ opacity: active ? 1 : 0.45 }}
+                          animate={{ opacity: 1 }}
                           transition={{ duration: duration.base, ease }}
                         >
                           <h3 className="text-heading-20 text-sio-fg-base">
@@ -280,7 +280,7 @@ function ScrollStory() {
                               type="button"
                               onClick={() => goTo(index)}
                               aria-current={active ? "step" : undefined}
-                              className="-mx-2 inline-flex min-h-11 touch-manipulation items-center gap-3 rounded-control px-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sio-fg-base"
+                              className="workflow-step-control -mx-2 inline-flex min-h-11 touch-manipulation items-center gap-3 rounded-control px-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sio-fg-base"
                             >
                               <span className="tabular font-mono text-label-12 text-sio-fg-muted">0{index + 1}</span>
                               {s.title}

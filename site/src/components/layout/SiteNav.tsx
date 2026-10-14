@@ -8,6 +8,7 @@ import { Logo } from "@/components/layout/Logo";
 import { navLinks, siteConfig } from "@/lib/site";
 
 import { OutputPreview, WorkflowPreview, ScorePreview, FeaturePreview } from "@/components/layout/MenuPreviews";
+import { usePageVisible } from "@/lib/usePageVisible";
 
 const DRAWER_EXIT_MS = 200;
 const productLinks = [
@@ -24,6 +25,7 @@ export function SiteNav() {
   const [productOpen, setProductOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState(0);
   const [previewsPaused, setPreviewsPaused] = useState(true);
+  const pageVisible = usePageVisible();
   const [workflowRun, setWorkflowRun] = useState(0);
   const [retainedPreviews, setRetainedPreviews] = useState<number[]>([]);
   const productRef = useRef<HTMLDivElement>(null);
@@ -210,7 +212,7 @@ export function SiteNav() {
                 </div>
               </div>
               <div className="product-preview" role="group" aria-label="Product preview">
-                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && activeProduct === index && !previewsPaused} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
+                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && activeProduct === index && !previewsPaused && pageVisible} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="eyebrow">{link.eyebrow}</span>
                     {index !== 2 ? <button type="button" className="btn-tertiary menu-preview-playback motion-reduce:hidden"
@@ -220,7 +222,7 @@ export function SiteNav() {
                     </button> : null}
                   </div>
                   {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-open`}>
-                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && !previewsPaused} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && !previewsPaused} /> : index === 2 ? <ScorePreview /> : <FeaturePreview running={productOpen && activeProduct === index && !previewsPaused} />}
+                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 2 ? <ScorePreview /> : <FeaturePreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} />}
                   </div> : null}
                 </div>)}
               </div>

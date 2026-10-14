@@ -4,6 +4,7 @@ import { m, useInView, useReducedMotion } from "framer-motion";
 import { Eye, PauseCircle, PlayCircle } from "@phosphor-icons/react/ssr";
 import { Fragment, useContext, useRef, useState } from "react";
 import { HeroPreviewEntered } from "@/components/sections/HeroPreview";
+import { usePageVisible } from "@/lib/usePageVisible";
 import {
   SignalScoreChip,
   SignalStatus,
@@ -116,8 +117,9 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { amount: "some", once: false, margin: "0px 0px -48px 0px" });
   const previewEntered = useContext(HeroPreviewEntered);
+  const pageVisible = usePageVisible();
   const systemReduced = useReducedMotion();
-  const running = !userPaused && inView && previewEntered && !reduced && systemReduced !== true;
+  const running = !userPaused && inView && previewEntered && pageVisible && !reduced && systemReduced !== true;
   const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced: reduced || systemReduced === true });
 
   const reviewing = step >= STEP.rowIn && step < STEP.reset;

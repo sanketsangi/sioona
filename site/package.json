@@ -10,7 +10,8 @@
     "lint:tokens": "node scripts/check-tokens.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next tsconfig.tsbuildinfo",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "node scripts/verify-production.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
