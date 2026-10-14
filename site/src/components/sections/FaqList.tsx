@@ -2,6 +2,7 @@
 
 import { Plus } from "@phosphor-icons/react/ssr";
 import { useSyncExternalStore } from "react";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import { faqItems } from "@/lib/faq";
 import { nb } from "@/lib/site";
 
@@ -22,6 +23,7 @@ function subscribe(callback: () => void) {
 /** Accessible accordion: buttons with aria-expanded; open panels reflect in the URL hash. */
 export function FaqList() {
   const open = useSyncExternalStore(subscribe, readHash, () => "");
+  const reduced = useReducedMotion();
 
   const toggle = (id: string) => {
     const url = new URL(window.location.href);
@@ -37,7 +39,9 @@ export function FaqList() {
         const buttonId = `${prefix}${item.id}`;
         const panelId = `${buttonId}-panel`;
         return (
-          <li key={item.id} className="border-b border-sio-border-base">
+          <m.li key={item.id} layout={reduced ? false : "position"}
+            transition={{ layout: { duration: reduced ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] } }}
+            className="border-b border-sio-border-base">
             <h3>
               <button
                 type="button"
@@ -52,7 +56,7 @@ export function FaqList() {
                   size={16}
                   weight="bold"
                   aria-hidden
-                  className={`shrink-0 text-sio-fg-muted transition-transform duration-200 ease-sio group-hover:text-sio-fg-base ${isOpen ? "rotate-45" : ""}`}
+                  className={`shrink-0 text-sio-fg-muted transition-transform duration-300 ease-sio group-hover:text-sio-fg-base ${isOpen ? "rotate-45" : ""}`}
                 />
               </button>
             </h3>
@@ -60,12 +64,21 @@ export function FaqList() {
               id={panelId}
               role="region"
               aria-labelledby={buttonId}
-              hidden={!isOpen}
-              className={`faq-answer ${isOpen ? "faq-panel-in" : ""}`}
+              aria-hidden={!isOpen}
+              inert={!isOpen}
+              className="faq-answer"
             >
-              <p className="text-copy-16 max-w-2xl pb-5 text-sio-fg-subtle">{nb(item.answer)}</p>
+              <AnimatePresence initial={false}>
+                {isOpen ? <m.div key={item.id}
+                  initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: reduced ? 0 : -6 }}
+                  transition={{ duration: reduced ? 0 : 0.32, ease: [0.22, 1, 0.36, 1] }}>
+                  <p className="text-copy-16 max-w-2xl pb-5 text-sio-fg-subtle">{nb(item.answer)}</p>
+                </m.div> : null}
+              </AnimatePresence>
             </div>
-          </li>
+          </m.li>
         );
       })}
     </ul>

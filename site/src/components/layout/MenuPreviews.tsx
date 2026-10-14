@@ -14,7 +14,7 @@ const CHAT = CHAT_PARTS.join("");
 
 export function OutputPreview({ running = false }: { running?: boolean }) {
   const reduced = !!useReducedMotion();
-  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: false });
+  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: true });
   const detected = step >= STEP.why && step < STEP.reset;
   const action = step >= STEP.correct && step < STEP.reset;
   const acted = step === STEP.acted;
@@ -85,7 +85,7 @@ export function FeaturePreview({ running = false }: { running?: boolean }) {
   const [active, setActive] = useState(0);
   useEffect(() => {
     if (reduced || !running) return;
-    const timer = window.setInterval(() => setActive((value) => (value + 1) % featureNames.length), 3200);
+    const timer = window.setInterval(() => setActive((value) => (value + 1) % featureNames.length), 2200);
     return () => window.clearInterval(timer);
   }, [reduced, running]);
   return <div className="menu-feature-sequence">
@@ -95,7 +95,7 @@ export function FeaturePreview({ running = false }: { running?: boolean }) {
         initial={{ x: reduced ? 0 : "110%", opacity: reduced ? 1 : 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: reduced ? 0 : "-110%", opacity: 0 }}
-        transition={{ duration: reduced ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] }}>
+        transition={{ duration: reduced ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}>
         <h3>{name}</h3><p>{featureDescriptions[index]}</p>
         <div className="menu-feature-visual"><BentoFeatureVisual index={index} /></div>
       </m.div> : null)}

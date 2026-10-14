@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       body: JSON.stringify(values), signal: AbortSignal.timeout(10000), cache: "no-store",
     });
     const result = await response.json().catch(() => null);
-    if (response.ok && result?.receipt === key) return NextResponse.json({ ok: true, receipt: key });
+    if (response.ok && result?.ok === true && result?.receipt === key) return NextResponse.json({ ok: true, receipt: key });
     return NextResponse.json({ ok: false, error: response.status === 429 ? "Too many requests. Please retry tomorrow." : "We could not store your request. Please retry." }, { status: response.status === 429 ? 429 : 503 });
   } catch {
     return NextResponse.json({ ok: false, error: "We could not confirm receipt. Please retry." }, { status: 503 });

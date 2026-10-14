@@ -7,10 +7,10 @@ export function Logo({ className = "" }: { className?: string }) {
       href="/"
       aria-label="Sioona, home"
       translate="no"
-      className={`inline-flex min-h-11 min-w-11 items-center gap-2 rounded-control text-sio-fg-base ${className}`}
+      className={`header-brand min-w-11 ${className}`}
     >
-      <SioonaMark />
-      <span className="text-heading-20">Sioona</span>
+      <SioonaMark className="header-logo-mark" />
+      <span className="header-wordmark">Sioona<span className="brand-signature-dot" aria-hidden>.</span></span>
     </Link>
   );
 }

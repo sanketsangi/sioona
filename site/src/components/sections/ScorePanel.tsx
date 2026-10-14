@@ -91,8 +91,8 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
           <p className="text-label-13 font-medium text-sio-fg-base">Precision by review batch</p>
           <p className="text-label-12 text-sio-fg-muted">Illustrative</p>
         </div>
-        <div tabIndex={compact ? 0 : undefined}
-          className={compact ? "score-batch-chart relative mt-3 h-[90px]" : "relative mt-4 h-[148px]"} role="img" aria-label={`Illustrative precision by review batch: ${BATCHES.join(", ")} percent.`}>
+        <div tabIndex={0}
+          className={compact ? "score-batch-chart relative mt-3 h-[90px]" : "score-batch-chart relative mt-4 h-[148px]"} role="img" aria-label={`Illustrative precision by review batch: ${BATCHES.join(", ")} percent.`}>
           <div
             aria-hidden
             className="absolute inset-x-0 border-t border-dashed border-sio-border-strong"
