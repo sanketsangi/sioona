@@ -50,6 +50,10 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     ).rowcount
     detections_deleted = db.execute(delete(DetectionRun).where(DetectionRun.tenant_id == tenant_id)).rowcount
     memberships_deleted = db.execute(delete(UploadConversation).where(UploadConversation.tenant_id == tenant_id)).rowcount
+    from app.models.job_conversation import JobConversation
+    from app.models.classification_cache import ClassificationCache
+    db.execute(delete(JobConversation).where(JobConversation.tenant_id == tenant_id))
+    db.execute(delete(ClassificationCache).where(ClassificationCache.tenant_id == tenant_id))
     db.execute(delete(Job).where(Job.tenant_id == tenant_id))
     uploads_deleted = db.execute(delete(Upload).where(Upload.tenant_id == tenant_id)).rowcount
     conversations_deleted = db.execute(

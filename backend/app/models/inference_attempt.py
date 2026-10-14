@@ -1,4 +1,4 @@
-"""ORM model for one billable provider attempt. Never stores prompt or transcript text."""
+"""Provider attempts and explicit zero-cost cache hits; no prompt/transcript text."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     Index,
@@ -36,10 +37,11 @@ COST_STATUSES = frozenset({"estimated", "reconciled", "unknown"})
 
 
 class InferenceAttempt(Base):
-    """One provider fetch attempt for metering. Additive; wipe only on tenant delete."""
+    """One provider attempt or cache hit. Additive; wipe only on tenant delete."""
 
     __tablename__ = "inference_attempts"
     __table_args__ = (
+        CheckConstraint("NOT cache_hit OR (status = 'succeeded' AND usage_status = 'reported' AND input_tokens IS NOT NULL AND output_tokens IS NOT NULL AND cached_input_tokens IS NOT NULL AND reasoning_tokens IS NOT NULL AND estimated_cost_usd IS NOT NULL AND input_tokens = 0 AND output_tokens = 0 AND cached_input_tokens = 0 AND reasoning_tokens = 0 AND estimated_cost_usd = 0 AND cost_status = 'reconciled' AND provider_request_id IS NULL)", name="ck_inference_cache_hit"),
         UniqueConstraint(
             "tenant_id",
             "attempt_id",
@@ -68,6 +70,7 @@ class InferenceAttempt(Base):
         ),
         Index("ix_inference_attempts_tenant_started", "tenant_id", "started_at"),
         Index("ix_inference_attempts_tenant_run", "tenant_id", "detection_run_id"),
+        Index("ix_inference_attempts_job_conversation", "tenant_id", "job_id", "conversation_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -87,6 +90,7 @@ class InferenceAttempt(Base):
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(128), nullable=False)
     prompt_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    cache_hit: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     error_category: Mapped[str | None] = mapped_column(String(32), nullable=True)
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -89,7 +89,7 @@ def _body(method: str, path: str):
     if "/jobs/uploads/" in path:
         from tests.test_jobs import body
         return body().model_dump(mode="json")
-    if path.endswith("/jobs/detect"):
+    if path.endswith("/jobs/detect") or path.endswith("/jobs/historical"):
         return {"request_id": "isolation", "conversation_ids": ["shared"]}
     if "/jobs/" in path:
         return {}

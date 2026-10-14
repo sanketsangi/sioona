@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const navigation = vi.hoisted(() => ({ pathname: "/" }));
+const motion = vi.hoisted(() => ({ reduced: false }));
+vi.mock("framer-motion", async (original) => ({ ...await original<typeof import("framer-motion")>(), useReducedMotion: () => motion.reduced }));
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
 }));
@@ -99,6 +101,7 @@ function menu() {
 
 describe("Product dropdown", () => {
   beforeEach(() => {
+    motion.reduced = false;
     navigation.pathname = "/";
     window.location.hash = "";
     installMatchMedia();
@@ -181,21 +184,52 @@ describe("Product dropdown", () => {
     scroll.mockRestore();
   });
 
-  it("requires Play for each selected preview", () => {
+  it("plays all four previews on hover/focus and exposes Pause with manual stop/resume", () => {
+    expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
+    act(() => productButton().dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType: "mouse" })));
+    const links = menu().querySelectorAll(".product-dropdown-link");
+    for (let index = 0; index < links.length; index++) {
+      act(() => links[index].dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+      const preview = menu().querySelector('[data-active="true"].product-preview-content');
+      const playback = preview?.querySelector("button") as HTMLButtonElement;
+      expect(preview?.getAttribute("data-preview-running")).toBe("true");
+      expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(1);
+      expect(playback.getAttribute("aria-label")).toBe("Pause Menu Demo");
+      expect(menu().textContent).not.toContain("Illustrative demo");
+      act(() => playback.click());
+      expect(preview?.getAttribute("data-preview-running")).toBe("false");
+      expect(playback.getAttribute("aria-label")).toBe("Play Menu Demo");
+      act(() => links[index].dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+      expect(preview?.getAttribute("data-preview-running")).toBe("false");
+      act(() => playback.click());
+      expect(preview?.getAttribute("data-preview-running")).toBe("true");
+    }
+    act(() => productButton().click());
     expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
     act(() => productButton().click());
-    const preview = menu().querySelector('[data-active="true"].product-preview-content');
-    expect(preview?.getAttribute("data-preview-running")).toBe("false");
-    act(() => (preview?.querySelector("button") as HTMLButtonElement).click());
-    expect(preview?.getAttribute("data-preview-running")).toBe("true");
-    const workflow = menu().querySelector('a[href="/#how"]');
-    act(() => workflow?.dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
-    expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(0);
-    act(() => (menu().querySelector('[data-active="true"].product-preview-content button') as HTMLButtonElement).click());
-    expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(1);
-    expect(menu().querySelector('[data-preview-running="true"]')?.textContent).toContain("From chat to action");
+    expect(menu().querySelector('[data-preview-running="true"]')).not.toBeNull();
+  });
+
+  it("suspends hover playback in a hidden tab and resumes on return", () => {
     act(() => productButton().click());
-    expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    try {
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
+      visibility.mockReturnValue("visible");
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(1);
+    } finally { visibility.mockRestore(); }
+  });
+
+  it("keeps all four previews static for reduced motion", () => {
+    motion.reduced = true;
+    act(() => root?.render(createElement(SiteNav)));
+    act(() => productButton().click());
+    for (const link of menu().querySelectorAll(".product-dropdown-link")) {
+      act(() => link.dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+      expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
+    }
   });
 
   it("keeps the menu open when switching previews removes the focused playback control", () => {

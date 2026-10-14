@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.api.actor import guarded_router, _enforce
 from app.db import get_db, bind_tenant
 from app.models.job import Job
-from app.schemas.job import JobUpload, DetectJobIn
+from app.schemas.job import JobUpload, DetectJobIn, HistoricalDetectJobIn
 from app.services import jobs
 
 router = guarded_router(tags=["jobs"])
@@ -55,6 +55,12 @@ def detect(tenant_id: str, body: DetectJobIn, db: DB, assertion: Assertion = Non
             db, tenant_id, body.request_id, body.conversation_ids
         ),
     )
+
+
+@router.post("/v1/tenants/{tenant_id}/jobs/historical", status_code=202)
+def historical(tenant_id: str, body: HistoricalDetectJobIn, db: DB, assertion: Assertion = None):
+    verified(db, tenant_id, assertion, "job:enqueue")
+    return mutate(db, lambda: jobs.enqueue_historical(db, tenant_id, body.request_id, body.conversation_ids))
 
 
 @router.get("/v1/tenants/{tenant_id}/jobs/{job_id}")

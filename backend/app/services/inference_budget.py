@@ -37,6 +37,19 @@ def _globally_paused(db: Session) -> bool:
     enabled = db.scalar(select(InferenceControl.enabled).where(InferenceControl.scope == "global"))
     return enabled is not None and not enabled
 
+def ai_enabled(db: Session, tenant: str) -> bool:
+    """Fresh control reads only; cache reuse never reserves provider spend.
+
+    Both scopes must be explicitly configured and enabled. Column projections
+    avoid stale ORM identity-map state after an operator changes a control.
+    """
+    global_enabled = db.scalar(select(InferenceControl.enabled).where(
+        InferenceControl.scope == "global", InferenceControl.tenant_id.is_(None)))
+    tenant_enabled = db.scalar(select(InferenceControl.enabled).where(
+        InferenceControl.scope == tenant, InferenceControl.tenant_id == tenant))
+    return global_enabled is True and tenant_enabled is True
+
+
 def reserve(db: Session, tenant: str, attempt: str, run: str, provider: str, model: str,
             *, input_bytes: int = 0, now: datetime | None = None):
     # The global pause is a read. Locking it serialized every admission behind one row.

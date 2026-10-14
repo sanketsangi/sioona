@@ -33,3 +33,7 @@ class DetectJobIn(BaseModel):
         if len(set(self.conversation_ids)) != len(self.conversation_ids):
             raise ValueError("Duplicate conversation reference")
         return self
+
+
+class HistoricalDetectJobIn(DetectJobIn):
+    conversation_ids: list[str] = Field(min_length=1, max_length=10000)

@@ -15,7 +15,6 @@ def reconcile_detection(db: Session, *, tenant_id: str, run_id: str, conversatio
     """Caller commits. Historical prediction feedback remains on superseded IDs."""
     lock_tenant_corpus(db, tenant_id)
     from app.models.job import Job
-    from app.models.upload import Upload
     from app.config import get_settings
     job = db.get(Job, (tenant_id, run_id))
     if job is not None:
@@ -25,8 +24,8 @@ def reconcile_detection(db: Session, *, tenant_id: str, run_id: str, conversatio
         if get_settings().sioona_detection_execution == "worker":
             raise ValueError("Inline detection publication disabled")
         for active_job in db.scalars(select(Job).where(Job.tenant_id == tenant_id, Job.status.in_(["queued", "leased", "failed"]))):
-            source = db.get(Upload, (tenant_id, active_job.upload_id))
-            if conversation_id in {c["conversation_id"] for c in source.payload["conversations"]}:
+            from app.services.jobs import job_ids
+            if conversation_id in set(job_ids(db, active_job)):
                 raise ValueError("Conversation has a durable processor")
     key = (tenant_id, run_id, conversation_id)
     types = [row["signal_type"] for row in output]

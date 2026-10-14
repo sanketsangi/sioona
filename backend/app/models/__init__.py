@@ -121,3 +121,5 @@ __all__ = [
 ]
 
 from app.models.job import Job
+from app.models.classification_cache import ClassificationCache
+from app.models.job_conversation import JobConversation

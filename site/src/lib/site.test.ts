@@ -49,9 +49,11 @@ describe("organization JSON-LD", () => {
 
 describe("production URL boundaries", () => {
   const env = { NODE_ENV: "production" };
-  it("requires an explicit custom origin", () => {
+  it("allows the stable Sioona Vercel origin but rejects temporary Vercel hosts", () => {
     expect(() => resolveSiteUrl(env)).toThrow();
-    for (const url of ["http://example.com", "https://localhost", "https://localhost.", "https://preview.vercel.app.", "https://127.0.0.1", "https://[::1]", "https://preview.vercel.app", "https://u:p@example.com", "https://example.com/path", "https://example.com?x=1", "https://example.com#x", "https://example.com?"]) {
+    expect(resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: "https://sioona-site.vercel.app" })).toBe("https://sioona-site.vercel.app");
+    expect(() => resolveAppUrl({ ...env, NEXT_PUBLIC_APP_URL: "https://sioona-site.vercel.app" })).toThrow();
+    for (const url of ["http://example.com", "https://localhost", "https://localhost.", "https://vercel.app", "https://preview.vercel.app.", "https://127.0.0.1", "https://[::1]", "https://preview.vercel.app", "https://sioona-site.vercel.app.", "https://sioona-site-git-main-sanketsangi-7195s-projects.vercel.app", "https://sioona-site-bw207kycz-sanketsangi-7195s-projects.vercel.app", "https://u:p@example.com", "https://example.com/path", "https://example.com?x=1", "https://example.com#x", "https://example.com?"]) {
       expect(() => resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: url })).toThrow();
       expect(() => resolveAppUrl({ ...env, NEXT_PUBLIC_APP_URL: url })).toThrow();
     }
