@@ -11,8 +11,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, onNavigate: _onNavigate, ...props }: { href: string; children?: ReactNode; onNavigate?: unknown }) =>
-    createElement("a", { href, ...props, "data-guarded": Boolean(_onNavigate) }, children),
+  default: ({ href, children, onNavigate, onClick, ...props }: { href: string; children?: ReactNode; onNavigate?: (event: { preventDefault: () => void }) => void; onClick?: (event: MouseEvent) => void }) =>
+    createElement("a", { href, ...props, onClick: (event: MouseEvent) => { event.preventDefault(); onClick?.(event); onNavigate?.({ preventDefault() {} }); }, "data-guarded": Boolean(onNavigate) }, children),
 }));
 
 vi.mock("@/components/layout/MenuPreviews", () => {

@@ -39,9 +39,13 @@ export function OutputPreview({ running = false }: { running?: boolean }) {
 export function WorkflowPreview({ running = false }: { running?: boolean }) {
   const reduced = !!useReducedMotion();
   const [workflowStep, setWorkflowStep] = useState(running ? 1 : 0);
+  const [wasRunning, setWasRunning] = useState(running);
+  if (running !== wasRunning) {
+    setWasRunning(running);
+    if (running) setWorkflowStep(1);
+  }
   useEffect(() => {
     if (!running || reduced) return;
-    setWorkflowStep(1);
     let timer: number;
     const advance = (step: number) => {
       const holds = [900, 1500, 1600, 2200];

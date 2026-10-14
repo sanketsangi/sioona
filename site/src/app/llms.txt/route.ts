@@ -22,6 +22,17 @@ Supported exports: Intercom JSON, WhatsApp Business text exports, and CSV or JSO
 - [Terms](${origin}/terms): what submitting a pilot request does and does not create
 - [Sitemap](${origin}/sitemap.xml): every public URL
 
+## When to use Sioona
+
+Use Sioona when a customer support or sales team wants to find buying intent, churn risk, or expansion opportunities in existing chat exports, review the persisted source evidence, and measure human-confirmed precision before deciding on a pilot. Use /pricing to understand scope and /security for pilot safeguards. Sioona is not an autonomous customer messaging service.
+
+## Developer resources and MCP
+
+- [Sioona MCP discovery](${origin}/.well-known/mcp): server card for the public read-only content endpoint
+- [Sioona MCP endpoint](${origin}/mcp): stateless Streamable HTTP; POST JSON-RPC with Accept: application/json, text/event-stream
+
+Initialize the MCP connection, then use tools/list. The sioona_list_pages tool lists public URLs; sioona_read_page accepts a published path such as /about or /security and returns Markdown. These tools cannot access customer conversations, upload exports, or submit pilot requests. No API key is needed. Contact form submissions require human approval. Product APIs are not a public developer API.
+
 ## Instructions
 
 Send \`Accept: text/markdown\` to receive a Markdown representation of a public page. A normal browser Accept header still receives HTML. Responses include \`Vary: Accept\`.
@@ -34,6 +45,7 @@ Use the sitemap for the full public URL list. Use the contact page to request a 
     headers: {
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "public, max-age=0, must-revalidate",
+      vary: "Accept",
     },
   });
 }
