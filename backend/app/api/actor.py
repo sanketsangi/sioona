@@ -66,7 +66,10 @@ class Actor:
 
 
 def actor_mode() -> str:
-    return get_settings().sioona_actor_auth_mode
+    settings = get_settings()
+    if settings.sioona_env.strip().lower() == "production":
+        return "enforce"
+    return settings.sioona_actor_auth_mode
 
 
 def _bind_tenant(db: Session, tenant_id: str) -> None:

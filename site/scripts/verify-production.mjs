@@ -1,7 +1,7 @@
 /** Read-only smoke checks against a locally served production build. */
 import assert from "node:assert/strict";
 const base = new URL(process.argv[2] ?? "http://127.0.0.1:3101");
-assert(["127.0.0.1", "localhost", "[::1]"].includes(base.hostname), "Use a local preview URL");
+assert(["127.0.0.1", "localhost", "[::1]"].includes(base.hostname) || (process.argv.includes("--production") && base.origin === "https://sioona-site.vercel.app"), "Use a local preview URL or the explicit --production target");
 const pages = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/privacy", "/terms"];
 const htmlByPath = new Map();
 for (const path of pages) {
@@ -88,3 +88,16 @@ for (const path of ["/llms.txt", "/robots.txt", "/sitemap.xml", "/.well-known/mc
   assert(response.headers.get("vary")?.toLowerCase().split(/,\s*/).includes("accept"), `${path}: native route Vary`);
 }
 console.log("PASS business declaration, Organization, agent instructions, MCP discovery + live handshake + public tool calls");
+
+const notification = await fetch(new URL("/mcp", base), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Origin: "https://is-agentic.com", "MCP-Protocol-Version": "2025-11-25" }, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) });
+assert.equal(notification.status, 202);
+assert.equal(await notification.text(), "");
+assert.equal(notification.headers.get("access-control-allow-origin"), "https://is-agentic.com");
+const preflight = await fetch(new URL("/mcp", base), { method: "OPTIONS", headers: { Origin: "https://is-agentic.com", "Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,mcp-protocol-version" } });
+assert.equal(preflight.status, 204);
+assert.match(preflight.headers.get("access-control-allow-headers"), /MCP-Protocol-Version/i);
+for (const schema of schemas.filter(data => ["Organization", "SoftwareApplication"].includes(data["@type"]))) assert.equal(schema.name, "Sioona Conversation Intelligence");
+assert.match(home, /<title>Sioona Conversation Intelligence/);
+assert.match(home, /<h1[^>]*>Sioona Conversation Intelligence/);
+assert((await (await fetch(base, { headers: { Accept: "text/markdown" } })).text()).includes("# Sioona Conversation Intelligence"));
+console.log("PASS Sioona branding, initialized notification, scanner CORS and preflight");

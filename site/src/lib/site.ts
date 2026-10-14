@@ -6,7 +6,7 @@ export const siteConfig = {
   name: "Sioona",
   tagline: "Signals Into Revenue",
   description:
-    "Sioona overlays conversation intelligence on your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
+    "Sioona Conversation Intelligence works with your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
   url:
     process.env.NEXT_PUBLIC_SITE_URL ??
     (vercelHost ? `https://${vercelHost}` : "https://sioona-site.vercel.app"),
@@ -29,7 +29,8 @@ export function organizationJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: siteConfig.name,
+    name: "Sioona Conversation Intelligence",
+    alternateName: siteConfig.name,
     url: origin,
     description: siteConfig.description,
     contactPoint: {

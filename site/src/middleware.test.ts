@@ -45,7 +45,7 @@ describe("markdown middleware", () => {
     expect(page.status).toBe(200);
     expect(page.headers.get("vary")).toBe("Accept");
     expect(page.headers.get("content-type")).toContain("text/markdown");
-    expect(await page.text()).toContain("# About");
+    expect(await page.text()).toContain("# Sioona — About");
 
     const missing = responseFor("/not-a-page", "text/markdown");
     expect(missing.status).toBe(404);

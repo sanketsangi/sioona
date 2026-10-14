@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { signSession, sessionCookie } from "@/lib/auth-token";
 const mocks = vi.hoisted(() => ({ create: vi.fn(), review: vi.fn(), acted: vi.fn(), write: vi.fn() }));
 vi.mock("@/lib/backend-client", () => ({
@@ -33,4 +33,8 @@ describe("superseded partner prediction", () => {
       expect(mocks.create).not.toHaveBeenCalled();
       expect(mocks.write).not.toHaveBeenCalled();
     });
+});
+
+beforeEach(() => {
+    vi.stubEnv("SIOONA_PILOT_USERS", JSON.stringify([{"email": "reviewer@example.test", "role": "reviewer", "tenantId": "tenant_partner", "password": "synthetic-test-password"}]));
 });

@@ -1,3 +1,4 @@
+import { agentGuidance } from "@/lib/agent-guidance";
 import { prefersMarkdown } from "@/lib/content-negotiation";
 import { aboutParagraphs } from "@/lib/about";
 import { faqItems } from "@/lib/faq";
@@ -5,12 +6,12 @@ import { routes, siteConfig } from "@/lib/site";
 
 const pages: Record<string, { title: string; body: string }> = {
   "/": {
-    title: "Sioona",
+    title: "Sioona Conversation Intelligence",
     body: `${aboutParagraphs.slice(0, 2).join("\n\n")}
 
-## Frequently asked questions
+## Sioona frequently asked questions
 
-${faqItems.map(item => `### ${item.question}\n\n${item.answer}`).join("\n\n")}`,
+${faqItems.map(item => `### Sioona: ${item.question}\n\n${item.answer}`).join("\n\n")}`,
 
   },
   "/about": {
@@ -64,7 +65,7 @@ export function markdownFor(pathname: string): string | null {
   const page = pages[normalizePathname(pathname)];
   if (!page) return null;
   const url = new URL(normalizePathname(pathname), siteConfig.url).toString();
-  return `# ${page.title}\n\n${page.body}\n\n## Navigation\n\n${routes.map(path => `[${pages[path].title}](${absoluteUrl(path)})`).join(" · ")}\n\n[Agent instructions](${absoluteUrl("/llms.txt")})\n\nCanonical: ${url}\n`;
+  return `# ${page.title.includes("Sioona") ? page.title : `Sioona — ${page.title}`}\n\n${page.body}\n\n${agentGuidance()}\n\n## Sioona navigation\n\n${routes.map(path => `[${pages[path].title}](${absoluteUrl(path)})`).join(" · ")}\n\n[Agent instructions](${absoluteUrl("/llms.txt")})\n\nCanonical: ${url}\n`;
 }
 
 function absoluteUrl(path: string): string {
@@ -74,11 +75,11 @@ function absoluteUrl(path: string): string {
 /** Markdown 404 that points agents at the home page, sitemap, and llms.txt. */
 export function markdownNotFound(pathname: string): string {
   const path = normalizePathname(pathname).replace(/[`\u0000-\u001f\u007f]/g, "").slice(0, 200) || "/";
-  return `# Page not found
+  return `# Page not found — Sioona
 
 No public page exists at \`${path}\`.
 
-## Continue
+## Continue with Sioona
 
 - [Home](${absoluteUrl("/")})
 - [Sitemap](${absoluteUrl("/sitemap.xml")})

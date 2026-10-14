@@ -3,8 +3,10 @@ import {
   getDetectionResume,
   getPilotSettings,
   getPublishedConversationIds,
+  getPublishedConversationRevisions,
 } from "../backend-client";
 import { publishAtomicIngest } from "../publish-atomic-ingest";
+import { transcriptContentHash } from "../sync-detection-run";
 import { opaqueExternalIdentity } from "../opaque-identity";
 import { currentStoreTenant } from "../tenant-context";
 import { pilotSettingsFromRemote } from "../sync-pilot";
@@ -42,6 +44,7 @@ type LiveIngestDeps = {
   detect?: DetectFn;
   publish?: typeof publishAtomicIngest;
   publishedIds?: typeof getPublishedConversationIds;
+  revisions?: typeof getPublishedConversationRevisions;
   dualWrite?: (input: DeferredIngestDualWriteInput) => Promise<void>;
 };
 
@@ -97,16 +100,28 @@ async function acceptLiveChatsBody(
     if (!input.externalId) return false;
     const identity = store.tenant.id === "tenant_demo" ? input.externalId
       : `ext_${opaqueExternalIdentity(store.tenant.id, input.channel ?? "upload", input.externalId)}`;
-    if (seen.has(identity)) return false;
+    // Intercom sends evolving conversation snapshots, unlike immutable WhatsApp events.
+    if (seen.has(identity) && !(input.channel === "intercom" && getStateMode() === "postgres")) return false;
     seen.add(identity);
     return true;
   });
   if (fresh.length === 0) return { accepted: 0 };
 
   let ingested = toStoreRecords(fresh, store.tenant.id, { stableIds: true });
+  const expectedContentHashes: Record<string, string | null> = {};
   if (store.tenant.id !== "tenant_demo" || getStateMode() === "postgres") {
     const published = new Set<string>();
-    const ids = ingested.conversations.map((chat) => chat.id);
+    const intercomIds = getStateMode() === "postgres"
+      ? ingested.conversations.filter((chat) => chat.channel === "intercom").map((chat) => chat.id) : [];
+    for (let offset = 0; offset < intercomIds.length; offset += 50) {
+      const revisions = await (deps.revisions ?? getPublishedConversationRevisions)(store.tenant.id, intercomIds.slice(offset, offset + 50));
+      for (const id of intercomIds.slice(offset, offset + 50)) {
+        if (!Object.hasOwn(revisions, id)) throw new Error("Missing Intercom revision precondition");
+        if (revisions[id] === transcriptContentHash(ingested.messages.filter((message) => message.conversationId === id))) published.add(id);
+        else expectedContentHashes[id] = revisions[id];
+      }
+    }
+    const ids = ingested.conversations.filter((chat) => !intercomIds.includes(chat.id)).map((chat) => chat.id);
     for (let offset = 0; offset < ids.length; offset += 50) {
       for (const id of await (deps.publishedIds ?? getPublishedConversationIds)(store.tenant.id, ids.slice(offset, offset + 50))) published.add(id);
     }
@@ -143,7 +158,8 @@ async function acceptLiveChatsBody(
     const published = await (deps.publish ?? publishAtomicIngest)({ tenantId: store.tenant.id,
       source: "live-ingest", replace: false, appendOnly: true, conversations: ingested.conversations,
       messages: ingested.messages, signals, contexts: llm.contexts,
-      classificationFailed: llm.failed > 0, skippedIds: llm.skippedIds });
+      classificationFailed: llm.failed > 0, skippedIds: llm.skippedIds,
+      ...(Object.keys(expectedContentHashes).length ? { expectedContentHashes } : {}) });
     store.signals.push(...published.signals);
     try { await write(store); }
     catch { console.warn("[live-ingest] batch stored; local cache refresh failed"); }

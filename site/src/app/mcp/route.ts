@@ -9,15 +9,36 @@ export const runtime = "nodejs";
 
 const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 
-export async function POST(request: Request) {
+// Explicit origins preserve MCP DNS-rebinding protection while supporting the scanner.
+function allowedOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin && origin !== new URL(siteConfig.url).origin) {
-    return Response.json({ error: "Origin is not allowed" }, { status: 403 });
-  }
+  return !origin || [new URL(request.url).origin, new URL(siteConfig.url).origin, "https://is-agentic.com"].includes(origin);
+}
+
+function transportHeaders(request?: Request) {
+  const headers = new Headers({
+    Vary: "Accept, Origin",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID",
+    "Access-Control-Expose-Headers": "MCP-Protocol-Version, Mcp-Session-Id",
+    "Cache-Control": "no-store",
+  });
+  const origin = request?.headers.get("origin");
+  if (origin && request && allowedOrigin(request)) headers.set("Access-Control-Allow-Origin", origin);
+  return headers;
+}
+
+export function OPTIONS(request: Request) {
+  return new Response(null, { status: allowedOrigin(request) ? 204 : 403, headers: transportHeaders(request) });
+}
+
+export async function POST(request: Request) {
+  const headers = transportHeaders(request);
+  if (!allowedOrigin(request)) return Response.json({ error: "Origin is not allowed" }, { status: 403, headers });
   let parsedBody: unknown;
   try { parsedBody = await readBoundedJson(request); }
   catch (error) {
-    return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: error instanceof RequestTooLarge ? "Request is too large" : "Invalid JSON" } }, { status: error instanceof RequestTooLarge ? 413 : 400 });
+    return Response.json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: error instanceof RequestTooLarge ? "Request is too large" : "Invalid JSON" } }, { status: error instanceof RequestTooLarge ? 413 : 400, headers });
   }
   const server = new Server({ name: "sioona-public-content", version: "1.0.0" }, {
     capabilities: { tools: {} },
@@ -41,10 +62,14 @@ export async function POST(request: Request) {
     await server.connect(transport);
     const response = await transport.handleRequest(request, { parsedBody });
     // All tools return finite public text; drain JSON before closing the transport.
+    for (const [key, value] of headers) response.headers.set(key, value);
     return new Response(response.body ? await response.arrayBuffer() : null, { status: response.status, headers: response.headers });
   } finally { await server.close(); }
 }
 
-export function GET() {
-  return Response.json({ error: "Use POST for the stateless Streamable HTTP endpoint", discovery: "/.well-known/mcp" }, { status: 405, headers: { Allow: "POST" } });
+export function GET(request?: Request) {
+  const headers = transportHeaders(request);
+  if (request && !allowedOrigin(request)) return Response.json({ error: "Origin is not allowed" }, { status: 403, headers });
+  headers.set("Allow", "POST, OPTIONS");
+  return Response.json({ error: "Use POST for the stateless Streamable HTTP endpoint", discovery: "/.well-known/mcp" }, { status: 405, headers });
 }

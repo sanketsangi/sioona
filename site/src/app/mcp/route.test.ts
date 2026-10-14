@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GET, POST } from "./route";
+import { GET, POST, OPTIONS } from "./route";
 import { GET as discovery } from "../.well-known/mcp/route";
 
 function rpc(method: string, params?: object) {
@@ -23,6 +23,18 @@ describe("public content MCP", () => {
     expect(about.content[0].text.length).toBeGreaterThan(500);
     const forbidden = (await (await rpc("tools/call", { name: "sioona_read_page", arguments: { path: "https://example.com/private" } })).json()).result;
     expect(forbidden.isError).toBe(true);
+  });
+  it("accepts initialized notifications and exposes browser transport headers", async () => {
+    const headers = { origin: "https://is-agentic.com", accept: "application/json, text/event-stream", "content-type": "application/json", "mcp-protocol-version": "2025-11-25" };
+    const preflight = OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { method: "OPTIONS", headers }));
+    expect(preflight.status).toBe(204);
+    expect(preflight.headers.get("access-control-allow-headers")).toContain("MCP-Protocol-Version");
+    const response = await POST(new Request("https://sioona-site.vercel.app/mcp", { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) }));
+    expect(response.status).toBe(202);
+    expect(await response.text()).toBe("");
+    expect(response.headers.get("access-control-allow-origin")).toBe(headers.origin);
+    expect(response.headers.get("vary")).toBe("Accept, Origin");
+    expect(OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { headers: { origin: "https://untrusted.example" } })).status).toBe(403);
   });
   it("rejects invalid bodies and cross-origin requests and does not offer a GET stream", async () => {
     expect(GET().status).toBe(405);

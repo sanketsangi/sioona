@@ -14,6 +14,7 @@ export async function publishAtomicIngest(input: {
   weeklySources?: string[];
   recordUploadMetadata?: boolean;
   onDetectionRunId?: (runId: string) => void;
+  expectedContentHashes?: Record<string, string | null>;
 }) {
   if (input.classificationFailed || input.skippedIds?.length) {
     throw new Error("Every conversation must finish classification before this upload can publish.");
@@ -33,6 +34,7 @@ export async function publishAtomicIngest(input: {
       })),
     source: input.source, replace: input.replace,
     ...(input.appendOnly ? { append_only: true } : {}),
+    ...(input.expectedContentHashes ? { expected_content_hashes: input.expectedContentHashes } : {}),
     ...(input.recordUploadMetadata ? { record_upload_metadata: true } : {}),
     conversations: toConversationSyncPayload(input.conversations, input.messages,
       { clearUnlabeledGroundTruth: input.replace }).sort((a, b) => a.conversation_id < b.conversation_id ? -1 : 1),

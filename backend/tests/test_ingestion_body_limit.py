@@ -2,7 +2,7 @@ import asyncio
 from app.ingestion_body_limit import IngestionBodyLimit
 
 
-def exercise(chunks, headers=(), path="/v1/tenants/a/ingestions/u1"):
+def exercise(chunks, headers=(), path="/v1/tenants/a/ingestions/u1", method="PUT"):
     state = {"reads": 0, "called": False, "body": b"", "sent": []}
     async def receive():
         index = state["reads"]
@@ -17,7 +17,7 @@ def exercise(chunks, headers=(), path="/v1/tenants/a/ingestions/u1"):
             state["body"] += message.get("body", b"")
             if not message.get("more_body", False):
                 break
-    scope = {"type": "http", "method": "PUT", "path": path, "headers": headers}
+    scope = {"type": "http", "method": method, "path": path, "headers": headers}
     asyncio.run(IngestionBodyLimit(downstream, max_bytes=10)(scope, receive, send))
     return state
 
@@ -42,3 +42,10 @@ def test_understated_length_cannot_bypass_stream_count():
 def test_exact_boundary_replays_every_byte_and_other_routes_are_unaffected():
     assert exercise([b"12345", b"67890"])["body"] == b"1234567890"
     assert exercise([b"12345678901"], path="/v1/conversations")["called"]
+
+
+def test_direct_intake_is_bounded_before_json_parsing():
+    state = exercise([b"x" * 16385, b"unread"], path="/v1/pilot-requests", method="POST")
+    assert state["reads"] == 1 and not state["called"]
+    assert state["sent"][0]["status"] == 413
+    assert exercise([b"x" * 16384], path="/v1/pilot-requests/", method="POST")["called"]

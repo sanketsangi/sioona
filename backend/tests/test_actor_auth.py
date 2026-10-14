@@ -90,8 +90,8 @@ _observe(request, 'tenant_shadow_test', None, None, 'read', None)
     )
 
 
-def test_shadow_admin_retains_legacy_gate_with_production_settings(api, monkeypatch) -> None:
-    monkeypatch.setenv("SIOONA_ENV", "production")
+def test_shadow_admin_retains_legacy_gate_with_development_settings(api, monkeypatch) -> None:
+    monkeypatch.setenv("SIOONA_ENV", "development")
     monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "synthetic-service-token")
     monkeypatch.setenv("SIOONA_ACTOR_AUTH", "shadow")
     get_settings.cache_clear()
@@ -392,3 +392,30 @@ def test_live_ingest_principal_published_conversations_and_unneeded_read_denials
     assert client.get("/v1/tenants/tenant_a/conversations", headers=headers).status_code == 403
     assert client.get("/v1/tenants/tenant_a/signals", headers=headers).status_code == 403
     assert client.get("/v1/tenants/tenant_a/supervised-actions", headers=headers).status_code == 403
+
+
+@pytest.mark.parametrize("mode", ["off", "shadow"])
+def test_production_cannot_bypass_verified_tenant_actor(api, monkeypatch, mode):
+    client, factory = api
+    monkeypatch.setenv("SIOONA_ENV", "production")
+    monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "synthetic-service-token")
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", mode)
+    get_settings.cache_clear()
+    headers = {"Authorization": "Bearer synthetic-service-token", "X-Tenant-Id": "tenant_a"}
+    path = "/v1/tenants/tenant_a/signal-score"
+    assert client.get(path, headers=headers).status_code == 401
+    subject = add_member(factory, "member@example.test", "tenant_b", "admin")
+    assert client.get(path, headers={**headers, **actor_headers(subject, "tenant_b")}).status_code == 404
+
+
+def test_production_without_actor_key_fails_closed(api, monkeypatch):
+    client, _ = api
+    monkeypatch.setenv("SIOONA_ENV", "production")
+    monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "synthetic-service-token")
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", "off")
+    monkeypatch.setenv("SIOONA_ACTOR_KEY", "")
+    get_settings.cache_clear()
+    response = client.get("/v1/tenants/tenant_a/signal-score", headers={
+        "Authorization": "Bearer synthetic-service-token", "X-Tenant-Id": "tenant_a"})
+    assert response.status_code == 503
+    assert response.json()["detail"] == "actor_key_unconfigured"

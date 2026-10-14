@@ -12,6 +12,7 @@ describe("guardApi", () => {
   beforeEach(() => {
     for (const key of [
       "SIOONA_AUTH_ENFORCE",
+      "SIOONA_PILOT_USERS",
       "AUTH_SECRET",
       "SIOONA_PUBLIC_DEMO",
       "VERCEL_ENV",
@@ -22,6 +23,8 @@ describe("guardApi", () => {
     }
     process.env.SIOONA_AUTH_ENFORCE = "1";
     process.env.AUTH_SECRET = SECRET;
+    process.env.SIOONA_PILOT_USERS = JSON.stringify([{"email": "admin@partner.example", "role": "admin", "tenantId": "tenant_partner", "password": "synthetic-test-password"}, {"email": "reviewer@partner.example", "role": "reviewer", "tenantId": "tenant_partner", "password": "synthetic-test-password"}, {"email": "tenant_alpha@example.test", "role": "reviewer", "tenantId": "tenant_alpha", "password": "synthetic-test-password"}, {"email": "tenant_beta@example.test", "role": "reviewer", "tenantId": "tenant_beta", "password": "synthetic-test-password"}]);
+
     delete process.env.SIOONA_PUBLIC_DEMO;
     delete process.env.VERCEL_ENV;
     delete process.env.SIOONA_ENV;

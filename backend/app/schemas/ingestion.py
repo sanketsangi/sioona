@@ -1,3 +1,4 @@
+from typing import Annotated
 from pydantic import BaseModel, Field, model_serializer, model_validator
 from app.schemas.conversation import ConversationUpsert, MessageUpsert
 from app.schemas.detection_run import ConversationDetection
@@ -34,6 +35,8 @@ class Ingestion(BaseModel):
     replace: bool = False
     append_only: bool = False
     record_upload_metadata: bool = False
+    expected_content_hashes: dict[Annotated[str, Field(min_length=1, max_length=256)],
+        Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")] | None] | None = Field(default=None, max_length=1000)
     conversations: list[IngestionConversation] = Field(min_length=1, max_length=1000)
     detections: list[ConversationDetection] = Field(min_length=1, max_length=1000)
 
@@ -44,6 +47,12 @@ class Ingestion(BaseModel):
     def bounded_transcripts(self):
         if self.append_only and self.replace:
             raise ValueError("Append-only ingestion cannot replace the corpus")
+        if self.expected_content_hashes is not None:
+            chats = {chat.conversation_id: chat for chat in self.conversations}
+            if (not self.append_only or not self.expected_content_hashes
+                    or any(cid not in chats or chats[cid].channel != "intercom"
+                           for cid in self.expected_content_hashes)):
+                raise ValueError("Revision preconditions require append-only Intercom conversations")
         total_messages = 0
         total_bytes = 0
         for chat in self.conversations:
@@ -68,4 +77,6 @@ class Ingestion(BaseModel):
             result.pop("record_upload_metadata", None)
         if result.get("files") is None:
             result.pop("files", None)
+        if result.get("expected_content_hashes") is None:
+            result.pop("expected_content_hashes", None)
         return result

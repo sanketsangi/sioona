@@ -6,7 +6,12 @@ import { routes, siteConfig } from "./site";
 describe("markdown pages", () => {
   it("has a markdown body for every public route", () => {
     for (const route of routes) {
-      expect(markdownFor(route)).toContain("Canonical:");
+      const body = markdownFor(route)!;
+      expect(body).toContain("Canonical:");
+      expect(body).toContain("## When to use Sioona");
+      for (const path of ["/.well-known/mcp", "/mcp", "/llms.txt", "/how-it-works", "/security", "/sitemap.xml"]) expect(body).toContain(path);
+      for (const heading of body.match(/^#+ .+$/gm) ?? []) expect(heading).toContain("Sioona");
+      for (const term of ["Intercom", "WhatsApp", "CSV", "XLSX", "email", "notifications/initialized", "tools/list", "tools/call"]) expect(body).toContain(term);
     }
   });
 

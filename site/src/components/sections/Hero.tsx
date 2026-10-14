@@ -14,7 +14,7 @@ export function Hero() {
             <span className="hero-badge-copy text-[13px]"><strong className="hero-badge-lead">Conversation intelligence</strong><span className="hero-badge-sep" aria-hidden>·</span><span className="hero-badge-tail">Human judgment</span></span>
             <span className="hero-badge-arrow size-6"><ArrowUpRight size={12} className="size-3" weight="bold" aria-hidden /></span>
           </Link>
-          <h1 id="hero-title" className="hero-heading">Your next opportunity<br className="hidden sm:block" /> is already <span>in the conversation.</span></h1>
+          <h1 id="hero-title" className="hero-heading">Sioona Conversation Intelligence<br className="hidden sm:block" /> <span>Your next opportunity is already in the conversation.</span></h1>
           <p className="text-copy-18 hero-description">Find buying intent, churn risk and expansion opportunities in your customer chats. Give your team the evidence to make the next move.</p>
           <div className="hero-actions">
             <ButtonLink href="/contact#top" large>Request a pilot <ArrowRight size={18} aria-hidden /></ButtonLink>

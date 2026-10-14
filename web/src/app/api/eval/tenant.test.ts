@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { currentStoreTenant, runWithTenant } from "@/lib/tenant-context";
 import { signSession, sessionCookie } from "@/lib/auth-token";
 vi.mock("@/lib/store", () => ({ readStore: vi.fn(async () => {
@@ -88,4 +88,8 @@ it("resolves upload scope under the signed tenant and fails closed on missing up
     expect(missing.status).toBe(503);
     expect(fetchSignalScoreSafe).not.toHaveBeenCalled();
   } finally { membership.mockRestore(); }
+});
+
+beforeEach(() => {
+    vi.stubEnv("SIOONA_PILOT_USERS", JSON.stringify([{"email": "reviewer@example.test", "role": "reviewer", "tenantId": "tenant_alpha", "password": "synthetic-test-password"}, {"email": "tenant_alpha@example.test", "role": "reviewer", "tenantId": "tenant_alpha", "password": "synthetic-test-password"}, {"email": "tenant_beta@example.test", "role": "reviewer", "tenantId": "tenant_beta", "password": "synthetic-test-password"}]));
 });
