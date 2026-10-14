@@ -32,9 +32,12 @@ export const metadata: Metadata = {
     template: `%s | ${productName}`,
   },
   description: siteConfig.description,
+  robots: { index: true, follow: true },
+  icons: { icon: "/icon.svg", apple: "/apple-icon" },
   applicationName: "Sioona",
   other: { "is-agentic-site-type": "business" },
   openGraph: {
+    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
     type: "website",
     siteName: productName,
     locale: "en_US",
@@ -42,6 +45,7 @@ export const metadata: Metadata = {
     description: siteConfig.description,
   },
   twitter: {
+    images: ["/opengraph-image"],
     card: "summary_large_image",
     title: productName,
     description: siteConfig.description,

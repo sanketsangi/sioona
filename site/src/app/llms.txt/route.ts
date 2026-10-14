@@ -1,3 +1,4 @@
+import { publicHeaders, VARY } from "@/lib/http-headers";
 import { agentGuidance } from "@/lib/agent-guidance";
 import { siteConfig } from "@/lib/site";
 
@@ -30,7 +31,8 @@ ${agentGuidance()}
     headers: {
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "public, max-age=0, must-revalidate",
-      vary: "Accept",
+      ...publicHeaders,
+      vary: VARY,
     },
   });
 }

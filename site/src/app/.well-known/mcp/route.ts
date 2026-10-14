@@ -1,3 +1,4 @@
+import { publicHeaders } from "@/lib/http-headers";
 import { SUPPORTED_PROTOCOL_VERSIONS } from "@modelcontextprotocol/sdk/types.js";
 import { siteConfig } from "@/lib/site";
 
@@ -8,5 +9,5 @@ export function GET() {
     description: "Read-only Sioona marketing, pilot, pricing and security information. No customer data or write tools.",
     websiteUrl: siteConfig.url,
     remotes: [{ type: "streamable-http", url: new URL("/mcp", siteConfig.url).toString(), supportedProtocolVersions: SUPPORTED_PROTOCOL_VERSIONS.filter(version => version >= "2025-03-26") }],
-  }, { headers: { "Cache-Control": "public, max-age=3600", Vary: "Accept", "Access-Control-Allow-Origin": "*" } });
+  }, { headers: { "Cache-Control": "public, max-age=3600", ...publicHeaders, "Access-Control-Allow-Origin": "*" } });
 }

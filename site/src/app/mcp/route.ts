@@ -1,3 +1,4 @@
+import { publicHeaders, VARY } from "@/lib/http-headers";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -17,7 +18,8 @@ function allowedOrigin(request: Request) {
 
 function transportHeaders(request?: Request) {
   const headers = new Headers({
-    Vary: "Accept, Origin",
+    ...publicHeaders,
+    Vary: VARY,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Accept, MCP-Protocol-Version, Mcp-Session-Id, Last-Event-ID",
     "Access-Control-Expose-Headers": "MCP-Protocol-Version, Mcp-Session-Id",

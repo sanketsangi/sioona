@@ -1,19 +1,38 @@
 import type { Metadata } from "next";
-import { STEPS } from "@/lib/steps";
+import { STEPS } from "./steps";
 
-const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+type SiteEnvironment = Record<string, string | undefined>;
+
+function resolveOrigin(value: string, name: string, env: SiteEnvironment): string {
+  const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
+  let url: URL;
+  try { url = new URL(value.trim()); } catch { throw new Error(`${name} must be an absolute origin`); }
+  const local = url.hostname === "localhost" || url.hostname.endsWith(".localhost") || url.hostname === "[::1]" || /^127\./.test(url.hostname) || url.hostname === "0.0.0.0";
+  if (url.username || url.password || url.pathname !== "/" || url.search || url.hash || value.includes("?") || value.includes("#")) throw new Error(`${name} must contain only an origin`);
+  if (production && (local || url.hostname === "vercel.app" || url.hostname.endsWith(".vercel.app"))) throw new Error(`${name} must use a custom production domain`);
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && local && !production)) throw new Error(`${name} must use HTTPS`);
+  return url.origin;
+}
+
+export function resolveSiteUrl(env: SiteEnvironment = process.env): string {
+  const value = env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!value && (env.NODE_ENV === "production" || env.VERCEL_ENV === "production")) throw new Error("NEXT_PUBLIC_SITE_URL is required in production");
+  return resolveOrigin(value || "http://localhost:3000", "NEXT_PUBLIC_SITE_URL", env);
+}
+
+export function resolveAppUrl(env: SiteEnvironment = process.env): string | null {
+  const value = env.NEXT_PUBLIC_APP_URL?.trim();
+  return value ? resolveOrigin(value, "NEXT_PUBLIC_APP_URL", env) : null;
+}
 
 export const productName = "Sioona Conversation Intelligence";
-
 export const siteConfig = {
   name: "Sioona",
   tagline: "Signals Into Revenue",
-  description:
-    "Sioona Conversation Intelligence works with your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
-  url:
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    (vercelHost ? `https://${vercelHost}` : "https://sioona-site.vercel.app"),
-  appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || null,
+  description: "Sioona Conversation Intelligence works with your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
+  // Direct references are required for Next's public environment substitution.
+  url: resolveSiteUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL }),
+  appUrl: resolveAppUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL }),
 } as const;
 
 
