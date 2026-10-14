@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "bash scripts/ignore-build.sh",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Vary",
+          "value": "Accept, Origin, rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"
+        }
+      ]
+    }
+  ]
+}
