@@ -446,3 +446,45 @@ def test_cache_purges_expired_rows_only_for_current_tenant(db, operation):
     rows = list(db.scalars(select(ClassificationCache)))
     assert not any(r.tenant_id == 'a' and r.model_id == 'old-model' for r in rows)
     assert any(r.tenant_id == 'b' and r.model_id == 'old-model' for r in rows)
+
+
+@pytest.mark.parametrize('scope', ['a', 'global'])
+def test_pause_after_cache_lookup_prevents_publication(db, monkeypatch, scope):
+    from sqlalchemy import select
+    from sqlalchemy.orm import sessionmaker
+    from app.config import get_settings
+    from app.models.detection_run import DetectionRun
+    from app.models.inference_attempt import InferenceAttempt
+    from app.services.inference_budget import configure
+    from app.worker import Worker
+    calls = []
+    provider = enable_provider(monkeypatch, db, calls)
+    chat = body().conversations[0]
+    parsed, _ = provider(get_settings().detect_llm_model, [])
+    cache.store(db, cache.identity('a', chat, get_settings().detect_llm_model, {}), parsed, chat)
+    jid = jobs.enqueue_upload(db, 'a', 'pause-during-lookup', body()).id
+    db.commit()
+    lookup = cache.lookup
+    def pause_after_lookup(session, *args):
+        hit = lookup(session, *args)
+        assert hit is not None
+        configure(session, scope, 1000, 1000, False, 'paused', jobs.PRINCIPAL)
+        return hit
+    monkeypatch.setattr(cache, 'lookup', pause_after_lookup)
+    Worker(sessionmaker(bind=db.get_bind()), call=lambda *_: pytest.fail('paused provider called')).run_once('a')
+    db.expire_all()
+    assert db.get(DetectionRun, ('a', jid, 'c1')).model_version == 'heuristic'
+    assert list(db.scalars(select(InferenceAttempt))) == []
+
+
+def test_cache_normalizes_classification_fields_before_storage(db):
+    from app.models.classification_cache import ClassificationCache
+    chat = body().conversations[0]
+    key = cache.identity('a', chat, 'model', {})
+    parsed = {'type': 'lead', 'confidence': 3, 'summary': 'discard me',
+              'quotes': ['I want to open a demat account'], 'extra': 'discard me'}
+    cache.store(db, key, parsed, chat)
+    db.commit()
+    assert db.get(ClassificationCache, key).classification == {
+        'type': 'lead', 'confidence': 1, 'summary': '',
+        'quotes': ['I want to open a demat account']}

@@ -3,6 +3,7 @@
 Only callers with a fenced job may publish/cache. Provider usage is never
 copied into application-cache hits. Quotes are re-grounded on each lookup.
 """
+import json
 from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
@@ -34,7 +35,7 @@ def identity(tenant, chat, model, overrides):
 def purge_expired(db, tenant):
     db.execute(delete(ClassificationCache).where(
         ClassificationCache.tenant_id == tenant,
-        ClassificationCache.expires_at <= jobs.now(db)))
+        ClassificationCache.expires_at <= jobs.now(db)).execution_options(synchronize_session="fetch"))
 
 
 def sanitized(parsed, chat, model):
@@ -43,6 +44,9 @@ def sanitized(parsed, chat, model):
     Empty summary deliberately selects the gateway's deterministic display text
     on reuse. Grounding does not establish that a model's prose is PII-free.
     """
+    parsed = gateway.parse_classification(json.dumps(parsed))
+    if parsed is None:
+        raise ValueError("invalid_classification")
     gateway.classification_output(parsed, chat, chat.messages, model)
     source = "\n".join(m.content.strip() for m in chat.messages
                        if m.role == "customer" and m.content.strip())
@@ -60,7 +64,6 @@ def lookup(db, key, chat):
         return None
     try:
         # Normalize again; malformed stored JSON must behave as a miss.
-        import json
         parsed = gateway.parse_classification(json.dumps(row.classification))
         parsed = sanitized(parsed, chat, key[3])
         output = gateway.classification_output(parsed, chat, chat.messages, key[3])
