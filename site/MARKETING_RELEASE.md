@@ -103,13 +103,13 @@ Local Chromium home measurement with 4× CPU slowdown, 150 ms network latency, 2
 
 ## Same-day deployment checklist
 
-1. Set Vercel Project Root Directory to `site` and use a supported Node LTS runtime. Set the six required inputs below with real approved values; never deploy the synthetic QA build. Leave `NEXT_PUBLIC_APP_URL` unset for this launch.
+1. Set Vercel Project Root Directory to `site` and use a supported Node LTS runtime. Set the inputs below with real approved values; never deploy the synthetic QA build. Leave `NEXT_PUBLIC_APP_URL` unset for this launch.
 
    - `NEXT_PUBLIC_SITE_URL`: exact canonical HTTPS origin, with no path/query/hash. A custom domain or `https://sioona-site.vercel.app` is accepted; temporary Vercel deployment and branch hostnames remain invalid. Required at build and runtime.
    - `PILOT_INTAKE_BACKEND_URL`: production FastAPI base URL. Required at runtime for accepting pilot requests; the handler appends `/v1/pilot-requests`.
    - `SIOONA_SERVICE_TOKEN`: matching server-only FastAPI bearer token. Required at runtime; never expose it through a public environment variable.
-   - `PILOT_CONTACT_SUPPORT_EMAIL`: approved, actively monitored mailbox. Required at build and runtime.
-   - `PILOT_CONTACT_RETENTION`: approved public wording for contact records. Required at build and runtime.
+   - `PILOT_CONTACT_SUPPORT_EMAIL`: approved, actively monitored mailbox. Optional; leave unset to direct visitors to the contact form.
+   - `PILOT_CONTACT_RETENTION`: approved public wording for contact records. Optional; leave unset to state that a standard retention period is not published yet.
    - `PILOT_CONTACT_HOSTING_REGION`: actual pilot-request database region. Required at build and runtime.
    - `NEXT_PUBLIC_APP_URL`: optional HTTPS product origin; leave unset so Sign in is hidden.
 
@@ -145,7 +145,7 @@ packages static/public assets into the standalone output. `HOSTNAME=0.0.0.0`
 lets Render reach the server, and Render supplies `PORT`. Automatic deployment
 is disabled in the proposal so releases remain operator controlled.
 
-Supply the six required inputs from the same-day checklist through Render's
+Supply the inputs from the same-day checklist through Render's
 `sync: false` placeholders: `NEXT_PUBLIC_SITE_URL`,
 `PILOT_INTAKE_BACKEND_URL`, `SIOONA_SERVICE_TOKEN`,
 `PILOT_CONTACT_SUPPORT_EMAIL`, `PILOT_CONTACT_RETENTION`, and

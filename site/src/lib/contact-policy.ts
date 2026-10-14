@@ -7,7 +7,8 @@ export function contactPolicy(env: Record<string, string | undefined> = process.
     hostingRegion: env.PILOT_CONTACT_HOSTING_REGION?.trim() || "",
   };
   if (env.NODE_ENV === "production" || env.VERCEL_ENV === "production") {
-    if (!policy.supportEmail || !policy.retention || !policy.hostingRegion) throw new Error("Production requires PILOT_CONTACT_SUPPORT_EMAIL, PILOT_CONTACT_RETENTION and PILOT_CONTACT_HOSTING_REGION");
+    if (!policy.hostingRegion) throw new Error("Production requires PILOT_CONTACT_HOSTING_REGION");
+    if (email && !policy.supportEmail) throw new Error("PILOT_CONTACT_SUPPORT_EMAIL must be a valid email when configured");
   }
   // Next substitutes this internally generated public snapshot during the build.
   // Rendering and agent responses use the same facts even on standalone hosting.

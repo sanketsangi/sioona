@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { contactPolicy } from "./contact-policy";
+import { contactPolicy, contactPolicyText } from "./contact-policy";
 
 it("does not fabricate missing policies or allow mailto header injection", () => {
   expect(contactPolicy({})).toEqual({ supportEmail: "", retention: "", hostingRegion: "" });
@@ -15,4 +15,12 @@ it("uses trimmed operator-supplied facts", () => {
 it("fails closed when production public facts are absent or malformed", () => {
   expect(() => contactPolicy({ NODE_ENV: "production" })).toThrow();
   expect(() => contactPolicy({ VERCEL_ENV: "production", PILOT_CONTACT_SUPPORT_EMAIL: "bad", PILOT_CONTACT_RETENTION: "30 days", PILOT_CONTACT_HOSTING_REGION: "test" })).toThrow();
+});
+
+it("publishes truthful fallbacks for unpublished production contact facts", () => {
+  const policy = contactPolicy({ NODE_ENV: "production", PILOT_CONTACT_HOSTING_REGION: "AWS US East 1 (Northern Virginia)" });
+  expect(policy.supportEmail).toBe("");
+  expect(policy.retention).toBe("");
+  expect(contactPolicyText(policy)).toContain("A standard contact-data retention period is not published yet.");
+  expect(contactPolicyText(policy)).toContain("For access, correction, deletion or help with a pilot request, use the contact form.");
 });
