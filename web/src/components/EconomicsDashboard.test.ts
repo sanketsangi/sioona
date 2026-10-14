@@ -20,6 +20,8 @@ describe("EconomicsDashboard", () => {
   it("renders all four panels, projections, alerts, and explicit unavailable states", () => {
     const html = renderToStaticMarkup(React.createElement(EconomicsDashboard, { data: fixture }));
     expect(html).toContain("Funnel");
+    expect(html).toContain("Human acceptance rate");
+    expect(html).not.toContain("SignalScore");
     expect(html).toContain("Signal quality");
     expect(html).toContain("Reliability");
     expect(html).toContain("Economics");

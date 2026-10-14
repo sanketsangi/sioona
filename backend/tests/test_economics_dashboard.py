@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import json
 import uuid
+import pytest
 
 from app.models.conversation import Conversation
 from app.models.detection_run import DetectionRun
@@ -51,6 +52,9 @@ def _seed(db, tenant: str, *, multiplier: int = 1) -> None:
         _attempt(tenant, f"{tenant}-1", ordinal=1, latency=100, cost=str(Decimal("0.02") * multiplier)),
         _attempt(tenant, f"{tenant}-2", ordinal=2, latency=300, cost=None, usage="unknown", status="timeout", http_status=429),
     ])
+    db.flush()
+    for attempt in db.query(InferenceAttempt).filter_by(tenant_id=tenant):
+        attempt.detection_run_id = f"run-{tenant}-0"
     db.commit()
 
 
@@ -154,3 +158,103 @@ def test_dashboard_selects_only_text_free_columns_and_half_open_window(db):
     for sql in statements:
         for field in ("summary", "evidence_quote", "output_json", "notes", "last_error_message", "messages", "transcript"):
             assert field not in sql
+
+
+@pytest.mark.parametrize("mode", ["off", "shadow", "enforce"])
+def test_dashboard_always_requires_verified_admin(api, monkeypatch, mode):
+    from app.config import get_settings
+    client, factory = api
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", mode)
+    monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "test-service-token")
+    get_settings.cache_clear()
+    headers = {"Authorization": "Bearer test-service-token", "X-Tenant-Id": "tenant_a", "X-Sioona-Role": "admin"}
+    url = "/v1/tenants/tenant_a/economics-dashboard"
+    for actor in [None, "invalid", *[
+        actor_headers(add_member(factory, email, "tenant_a", role, revoked=revoked), "tenant_a")["X-Sioona-Actor"]
+        for email, role, revoked in [("review@test.example", "reviewer", False), ("revoked@test.example", "admin", True)]
+    ]]:
+        response = client.get(url, headers={**headers, **({"X-Sioona-Actor": actor} if actor else {})})
+        assert response.status_code in {401, 403, 404}
+        assert "economics" not in response.json()
+    admin = add_member(factory, "valid@test.example", "tenant_a", "admin")
+    assert client.get(url, headers={**headers, **actor_headers(admin, "tenant_a")}).status_code == 200
+
+
+def test_review_window_includes_old_and_superseded_predictions(db):
+    _seed(db, "tenant_a")
+    prediction = db.query(SignalPrediction).one()
+    prediction.created_at = NOW - timedelta(days=10)
+    prediction.active = False
+    db.commit()
+    result = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW)
+    assert result.quality.reviewed == result.quality.correct == 1
+    assert result.quality.by_signal_type[0].acceptance_rate == 1
+
+
+def test_cohort_costs_exclude_unrelated_spend_and_preserve_reconciled(db):
+    _seed(db, "tenant_a")
+    good = _attempt("tenant_a", "reconciled", ordinal=1, latency=20, cost="0.03")
+    good.cost_status = "reconciled"
+    good.detection_run_id = "run-tenant_a-0"
+    # Receipt outside the attempt window still belongs to the completed run cohort.
+    good.started_at = NOW - timedelta(days=2)
+    db.add(good)
+    for key, stage, run in [("report", "report", "run-tenant_a-0"), ("draft", "action_draft", "run-tenant_a-0"), ("unfinished", "detect", "uncompleted"), ("old", "verify", "old-run")]:
+        a = _attempt("tenant_a", key, ordinal=1, latency=20, cost="10")
+        a.stage, a.detection_run_id = stage, run
+        db.add(a)
+    db.add(DetectionRun(tenant_id="tenant_a", run_id="old-run", conversation_id="chat-tenant_a-0", content_hash="e"*64, model_version="m", prompt_version="p", status="complete", output=[], created_at=NOW-timedelta(days=2)))
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW)
+    assert r.economics.known_cost_usd == Decimal("40.02")
+    assert r.economics.cost_per_processed_conversation_usd == Decimal("0.025")
+    assert r.economics.cost_per_correct_signal_usd == Decimal("0.05")
+    assert [p.estimated_cost_usd for p in r.economics.projections] == [Decimal("250"), Decimal("1250"), Decimal("2500")]
+
+
+def test_all_unknown_unit_costs(db):
+    _seed(db, "tenant_a")
+    for a in db.query(InferenceAttempt):
+        a.cost_status, a.estimated_cost_usd = "unknown", None
+    db.commit()
+    e = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW).economics
+    assert all(getattr(e, field) is None for field in ["cost_per_processed_conversation_usd", "cost_per_surfaced_signal_usd", "cost_per_correct_signal_usd", "cost_per_acted_signal_usd"])
+
+
+def test_live_backlog_ignores_window(db):
+    _seed(db, "tenant_a")
+    j = db.query(Job).one()
+    j.status, j.created_at = "queued", NOW-timedelta(days=40)
+    a = db.query(InferenceAttempt).first()
+    a.status, a.started_at = "pending", NOW-timedelta(days=40)
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW, now=NOW)
+    assert r.reliability.queue_depth == r.reliability.unfinished_attempts == 1
+    assert r.reliability.oldest_queue_age_seconds == 40*86400
+    alerts = {a.key: a.status for a in r.alerts}
+    assert alerts["queue_age"] == alerts["unfinished_attempts"] == "alert"
+
+
+def test_job_processing_latency_uses_durable_completion(db):
+    _seed(db, "tenant_a")
+    j = db.query(Job).one()
+    j.completed_at = j.created_at + timedelta(seconds=10)
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW)
+    assert r.reliability.p50_processing_latency_ms == 10000
+    assert r.reliability.p95_processing_latency_ms == 10000
+
+
+def test_spend_anomaly_counts_distinct_daily_conversations(db):
+    _seed(db, "tenant_a")
+    for day in range(4):
+        for repeat in range(3 if day == 3 else 1):
+            key = f"daily-{day}-{repeat}"
+            stamp = NOW-timedelta(days=4-day)
+            db.add(DetectionRun(tenant_id="tenant_a", run_id=key, conversation_id="chat-tenant_a-0", content_hash="f"*64, model_version="m", prompt_version="p", status="complete", output=[], created_at=stamp))
+            a = _attempt("tenant_a", key, ordinal=1, latency=10, cost="1", started_at=stamp)
+            a.detection_run_id = key
+            db.add(a)
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=5), to_ts=NOW-timedelta(hours=12))
+    assert next(a for a in r.alerts if a.key == "spend_anomaly").status == "alert"

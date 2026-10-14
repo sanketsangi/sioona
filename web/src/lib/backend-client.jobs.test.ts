@@ -19,3 +19,17 @@ it("signed-in job enqueue and polling send verified actor assertions with auth o
   await expect(getJobStatus("tenant_partner", "job-1")).resolves.toMatchObject({ status: "queued" });
   expect(fetch).toHaveBeenCalledTimes(3);
 });
+
+it.each(["off", "shadow", "enforce"])("economics signs actor with auth %s", async (mode) => {
+  vi.stubEnv("SIOONA_ACTOR_AUTH", mode); vi.stubEnv("SIOONA_ACTOR_KEY", "test-actor-key-at-least-32-bytes!"); vi.stubEnv("AUTH_SECRET", "test-auth-secret");
+  const { signSession } = await import("./auth-token");
+  const token = await signSession({ email: "admin@partner.example", role: "admin", tenantId: "tenant_partner" });
+  vi.doMock("next/headers", () => ({ cookies: async () => ({ get: () => ({ value: token }) }) })); vi.resetModules();
+  const { getEconomicsDashboard } = await import("./backend-client");
+  vi.stubGlobal("fetch", vi.fn(async (_url, init) => {
+    expect(init.headers["X-Sioona-Actor"]).toBeTruthy();
+    expect(readActorClaims(init.headers["X-Sioona-Actor"]).sub).toBe(actorUserId("admin@partner.example"));
+    return Response.json({ tenant_id: "tenant_partner" });
+  }));
+  await getEconomicsDashboard("tenant_partner");
+});
