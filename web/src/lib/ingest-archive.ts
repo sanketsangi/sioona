@@ -9,6 +9,10 @@ export const EXPORT_LIMITS = {
   rows: 10_000,
   columns: 32,
   messageChars: 100_000,
+  maxMergeCells: 128,
+  maxMergeArea: 1_024,
+  maxDataValidations: 32,
+  maxDataValidationArea: 1_024,
 } as const;
 
 function boundedCell(reference: unknown): [number, number] {
@@ -88,6 +92,10 @@ export function validateWorkbookArchive(bytes: Buffer): void {
         const parser = new SaxesParser();
         let elements = 0;
         let depth = 0;
+        let sheetMergeCells = 0;
+        let sheetMergeArea = 0;
+        let sheetDataValidations = 0;
+        let sheetDataValidationArea = 0;
         parser.on("error", () => { throw new Error(); });
         parser.on("doctype", () => { throw new Error(); });
         parser.on("opentag", (tag) => {
@@ -100,7 +108,12 @@ export function validateWorkbookArchive(bytes: Buffer): void {
             const { min, max } = tag.attributes;
             if (typeof min !== "string" || typeof max !== "string" || !/^\d+$/.test(min) || !/^\d+$/.test(max) || Number(min) < 1 || Number(max) < Number(min) || Number(max) > EXPORT_LIMITS.columns) throw new Error();
           }
+          if (tag.name === "mergeCells") {
+            const count = tag.attributes.count;
+            if (count !== undefined && (!/^\d+$/.test(String(count)) || Number(count) > EXPORT_LIMITS.maxMergeCells)) throw new Error();
+          }
           if (tag.name === "mergeCell") {
+            if (++sheetMergeCells > EXPORT_LIMITS.maxMergeCells) throw new Error();
             const ref = tag.attributes.ref;
             if (typeof ref !== "string") throw new Error();
             const endpoints = ref.split(":");
@@ -108,6 +121,35 @@ export function validateWorkbookArchive(bytes: Buffer): void {
             const [left, top] = boundedCell(endpoints[0]);
             const [right, bottom] = boundedCell(endpoints[1]);
             if (right < left || bottom < top) throw new Error();
+            const area = (right - left + 1) * (bottom - top + 1);
+            sheetMergeArea += area;
+            if (area > EXPORT_LIMITS.maxMergeArea || sheetMergeArea > EXPORT_LIMITS.maxMergeArea) throw new Error();
+          }
+          if (tag.name === "dataValidations") {
+            const count = tag.attributes.count;
+            if (count !== undefined && (!/^\d+$/.test(String(count)) || Number(count) > EXPORT_LIMITS.maxDataValidations)) throw new Error();
+          }
+          if (tag.name === "dataValidation") {
+            if (++sheetDataValidations > EXPORT_LIMITS.maxDataValidations) throw new Error();
+            const sqref = tag.attributes.sqref;
+            if (typeof sqref !== "string" || !sqref.trim()) throw new Error();
+            const ranges = sqref.trim().split(/\s+/);
+            if (ranges.length > EXPORT_LIMITS.maxDataValidations) throw new Error();
+            for (const item of ranges) {
+              if (item.includes(":")) {
+                const endpoints = item.split(":");
+                if (endpoints.length !== 2) throw new Error();
+                const [left, top] = boundedCell(endpoints[0]);
+                const [right, bottom] = boundedCell(endpoints[1]);
+                if (right < left || bottom < top) throw new Error();
+                const area = (right - left + 1) * (bottom - top + 1);
+                sheetDataValidationArea += area;
+                if (area > EXPORT_LIMITS.maxDataValidationArea || sheetDataValidationArea > EXPORT_LIMITS.maxDataValidationArea) throw new Error();
+              } else {
+                boundedCell(item);
+                if (++sheetDataValidationArea > EXPORT_LIMITS.maxDataValidationArea) throw new Error();
+              }
+            }
           }
         });
         parser.on("closetag", () => { depth--; });

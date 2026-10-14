@@ -222,12 +222,27 @@ describe("review regressions", () => {
     '<cols><col min="0" max="2"/></cols>',
     '<cols><col min="2" max="1"/></cols>',
     "<mergeCells><mergeCell ref='A1:B&#49;0002'/></mergeCells>",
+    '<mergeCells count="1"><mergeCell ref="A1:AF100"/></mergeCells>',
+    '<mergeCells count="200"><mergeCell ref="A1:B2"/></mergeCells>',
+    '<dataValidations count="1"><dataValidation sqref="A1:XFD1048576"/></dataValidations>',
+    "<dataValidations><dataValidation sqref='A1:B&#49;0002'/></dataValidations>",
+    '<dataValidations><dataValidation sqref="A1:AF100"/></dataValidations>',
+    '<dataValidations count="100"><dataValidation sqref="A1"/></dataValidations>',
   ])("rejects allocation-driving ranges before ExcelJS: %s", async (range) => {
     const zip = await JSZip.loadAsync(await workbook());
     const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
     zip.file("xl/worksheets/sheet1.xml", xml.replace('</worksheet>', range + '</worksheet>'));
     const bytes = await zip.generateAsync({ type: "nodebuffer" });
     expect(() => validateWorkbookArchive(bytes)).toThrow("archive");
+  });
+  it("preserves bounded data validation without densification", async () => {
+    const zip = await JSZip.loadAsync(await workbook());
+    const xml = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.file("xl/worksheets/sheet1.xml", xml.replace('</worksheet>', '<dataValidations count="1"><dataValidation sqref="B2:B10" type="list"/></dataValidations></worksheet>'));
+    const bytes = await zip.generateAsync({ type: "nodebuffer" });
+    expect(() => validateWorkbookArchive(bytes)).not.toThrow();
+    const doc = await parseIngestUpload("a.xlsx", bytes);
+    expect(doc.conversations[0].messages[0].content).toBe(body);
   });
   it.each(["xl/prefix/xl/worksheets/sheet1.xml", "xl/worksheets/sheet1.xml.extra"])("rejects ExcelJS worksheet path aliases: %s", async (path) => {
     const zip = await JSZip.loadAsync(await workbook());

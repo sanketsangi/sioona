@@ -52,11 +52,14 @@ export async function parseXlsx(bytes: Buffer): Promise<IngestConversationInput[
   for (const entry of Object.values(zip.files)) {
     if (!/^xl\/(sharedStrings|worksheets\/[^/]+)\.xml$/.test(entry.name)) continue;
     const xml = await entry.async("string");
-    const preserved = xml.replace(/(<(t|v)(?:\s[^>]*)?>)([\s\S]*?)(<\/\2>)/g, (whole, open, _tag, text: string, close) => {
+    let preserved = xml.replace(/(<(t|v)(?:\s[^>]*)?>)([\s\S]*?)(<\/\2>)/g, (whole, open, _tag, text: string, close) => {
       if (!text.includes("\r")) return whole;
       const escaped = text.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_whole, value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"));
       return open + escaped.replace(/\r/g, "&#13;") + close;
     });
+    if (/^xl\/worksheets\//.test(entry.name)) {
+      preserved = preserved.replace(/<dataValidations\b[\s\S]*?<\/dataValidations>/gi, "").replace(/<dataValidation\b[^>]*\/>/gi, "");
+    }
     if (preserved !== xml) { zip.file(entry.name, preserved); patched = true; }
   }
   const workbookBytes = patched ? await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }) : bytes;
