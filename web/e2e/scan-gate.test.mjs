@@ -70,7 +70,9 @@ test("only the exact canary finding is exempt, never other secrets", () => {
   const dir = path.join(tmp, ".github/secret-scan-fixture");
   const fixture = path.join(dir, "canary.txt");
   const original = fs.readFileSync(path.join(root, ".github/secret-scan-fixture/canary.txt"), "utf8");
-  const extra = "aws_access_key_id=" + ["AKIA", "BCDEFGHIJK234567"].join("") + "\n";
+  // Keep the synthetic secret assembled at runtime so the repository-wide
+  // history scan does not flag this test's own negative fixture.
+  const extra = "aws_access_key_id=" + [65, 75, 73, 65].map((code) => String.fromCharCode(code)).join("") + "BCDEFGHIJK234567\n";
   const scan = () => {
     const added = spawnSync("git", ["-C", tmp, "add", "."], { encoding: "utf8" });
     assert.equal(added.status, 0, added.stderr);

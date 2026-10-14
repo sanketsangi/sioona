@@ -9,3 +9,4 @@
 9258e06696dd108b7095ac12883071ad339162ec:backend/tests/test_pilot_requests.py:generic-api-key:34
 9258e06696dd108b7095ac12883071ad339162ec:backend/tests/test_pilot_requests.py:generic-api-key:36
 9258e06696dd108b7095ac12883071ad339162ec:backend/tests/test_pilot_requests.py:generic-api-key:37
+42108c7c98b4e78ba4532a625be6147f8c9790dc:backend/tests/test_economics_dashboard.py:generic-api-key:254

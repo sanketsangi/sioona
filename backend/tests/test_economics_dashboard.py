@@ -249,11 +249,11 @@ def test_spend_anomaly_counts_distinct_daily_conversations(db):
     _seed(db, "tenant_a")
     for day in range(4):
         for repeat in range(3 if day == 3 else 1):
-            key = f"daily-{day}-{repeat}"
+            run_key = f"daily-{day}-{repeat}"
             stamp = NOW-timedelta(days=4-day)
-            db.add(DetectionRun(tenant_id="tenant_a", run_id=key, conversation_id="chat-tenant_a-0", content_hash="f"*64, model_version="m", prompt_version="p", status="complete", output=[], created_at=stamp))
-            a = _attempt("tenant_a", key, ordinal=1, latency=10, cost="1", started_at=stamp)
-            a.detection_run_id = key
+            db.add(DetectionRun(tenant_id="tenant_a", run_id=run_key, conversation_id="chat-tenant_a-0", content_hash="f"*64, model_version="m", prompt_version="p", status="complete", output=[], created_at=stamp))
+            a = _attempt("tenant_a", run_key, ordinal=1, latency=10, cost="1", started_at=stamp)
+            a.detection_run_id = run_key
             db.add(a)
     db.commit()
     r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=5), to_ts=NOW-timedelta(hours=12))
