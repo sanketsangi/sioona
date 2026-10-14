@@ -51,6 +51,8 @@ services:
         sync: false
       - key: SIOONA_IDENTITY_KEY
         sync: false
+      - key: SIOONA_ACTOR_KEY
+        sync: false
 
   - type: web
     name: sioona-api
@@ -68,6 +70,8 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: SIOONA_SERVICE_TOKEN
+        sync: false
+      - key: SIOONA_ACTOR_KEY
         sync: false
 
   - type: cron
@@ -105,6 +109,8 @@ services:
       - key: SIOONA_WORKER_TENANTS
         sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: SIOONA_ACTOR_KEY
         sync: false
       - key: DETECT_LLM
         value: "0"
