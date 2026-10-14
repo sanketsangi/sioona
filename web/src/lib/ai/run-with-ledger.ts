@@ -1,3 +1,4 @@
+import { assertInlineDetection } from "../detection-execution";
 import { createAttemptGuard } from "./budget";
 /**
  * Production wrapper: preflight ledger → hybrid detect → attach run id → flush.
@@ -20,6 +21,7 @@ export async function runHybridDetectionWithLedger(
   overrides?: TaxonomyOverrides | null,
   options?: Omit<HybridDetectOptions, "attemptSink" | "skipLlmReason">
 ): Promise<HybridDetectResult> {
+  assertInlineDetection();
   // Injectable classify paths (tests/eval) stay unmetered by design.
   if (options?.classify) {
     return runHybridDetection(

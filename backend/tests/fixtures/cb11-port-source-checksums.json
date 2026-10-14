@@ -1,0 +1,11 @@
+{
+  "web/src/lib/detect.ts": "917fc8d64ab04d59caf0c0156ea4d299ad77286483cfafa9aa19372325045b88",
+  "web/src/lib/detect-llm.ts": "8f3cef4964ce870a5649730b35d9601995a25842c7bbe4d4c437a10e909c40b9",
+  "web/src/lib/detect-patterns.ts": "51fd2db63f7979b066603bb437348dbdd655597bd7628e973ced3a6b24ecd587",
+  "web/src/lib/taxonomy.ts": "84aa584b5cfebb28e254526ea4a796243ac7380fa637750a73f1b89003377dec",
+  "web/src/lib/redact.ts": "ee9bce4f081985dcfb9ec036df6fd7fed7bbbd90e64450e2862b26a0b255b037",
+  "web/src/lib/recent-transcript.ts": "74616c3f67c3e47d29f585b79ced3bd9912e37829111f8a09c687c62bca1c5f1",
+  "web/src/lib/clip-quote.ts": "7e9a9ee8115176c2e4320be39ce2dcea14a06890f9d0ed25abe4ca4b5f4e135f",
+  "web/src/lib/signal-commercial.ts": "1cf6365a43cd421aa1043246ec0604fbf90f01b5ae9d23f5db0a490e03f59189",
+  "web/eval/gold/validation/items.jsonl": "d279d07166d6afcd253ebbc8c51c22213bc8d17c5ce89725003d669b07cd6a8f"
+}

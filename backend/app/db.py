@@ -96,6 +96,9 @@ def clear_tenant() -> None:
 
 @event.listens_for(Session, "after_begin")
 def _set_tenant_on_begin(_session, _transaction, connection) -> None:  # noqa: ANN001
+    if connection.dialect.name == "postgresql":
+        connection.execute(text("SELECT set_config('app.global_control_tenant', :tenant, true)"),
+                           {"tenant": get_settings().sioona_global_control_tenant.strip()})
     tenant_id = _tenant_id.get()
     if not tenant_id or connection.dialect.name != "postgresql":
         return

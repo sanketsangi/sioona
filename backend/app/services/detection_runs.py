@@ -11,9 +11,23 @@ from app.models.signal_prediction import SignalPrediction
 
 def reconcile_detection(db: Session, *, tenant_id: str, run_id: str, conversation_id: str,
                         content_hash: str, model_version: str, prompt_version: str,
-                        output: list[dict], coverage: dict | None = None) -> DetectionRun:
+                        output: list[dict], coverage: dict | None = None, lease_token: int | None = None) -> DetectionRun:
     """Caller commits. Historical prediction feedback remains on superseded IDs."""
     lock_tenant_corpus(db, tenant_id)
+    from app.models.job import Job
+    from app.models.upload import Upload
+    from app.config import get_settings
+    job = db.get(Job, (tenant_id, run_id))
+    if job is not None:
+        if lease_token is None or job.status != "leased" or job.lease_token != lease_token:
+            raise ValueError("Fenced job publication required")
+    else:
+        if get_settings().sioona_detection_execution == "worker":
+            raise ValueError("Inline detection publication disabled")
+        for active_job in db.scalars(select(Job).where(Job.tenant_id == tenant_id, Job.status.in_(["queued", "leased", "failed"]))):
+            source = db.get(Upload, (tenant_id, active_job.upload_id))
+            if conversation_id in {c["conversation_id"] for c in source.payload["conversations"]}:
+                raise ValueError("Conversation has a durable processor")
     key = (tenant_id, run_id, conversation_id)
     types = [row["signal_type"] for row in output]
     if len(set(types)) != len(types) or any(kind not in {"lead", "retention", "upsell"} for kind in types):

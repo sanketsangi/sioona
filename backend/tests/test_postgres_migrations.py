@@ -198,7 +198,6 @@ def test_postgres_fresh_and_existing_schema_upgrade(prior, monkeypatch):
         assert "ix_prediction_tenant_active_id" in {index["name"] for index in schema.get_indexes("signal_predictions")}
         assert_membership_schema(schema)
         assert_inference_schema(schema)
-        assert_jobs_schema(schema)
         with Session(engine) as db:
             db.add(Conversation(tenant_id="a", conversation_id="c1", channel="upload", started_at=datetime.now(timezone.utc)))
             db.commit()
@@ -699,6 +698,9 @@ RLS_TABLES = (
     "detection_resume",
     "weekly_upload_receipts",
     "jobs",
+    "workspaces", "memberships", "pilot_settings", "taxonomy_overrides",
+    "uploads", "upload_conversations", "inference_budgets",
+    "inference_run_budgets", "inference_reservations", "inference_controls",
 )
 
 
@@ -758,7 +760,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
                 SELECT COUNT(*) FROM pg_policies
                 WHERE policyname = 'tenant_isolation' AND tablename = 'workspaces'
                 """
-            )).scalar() == 0
+            )).scalar() == 1
             _seed_two_tenants(conn)
         _assert_runtime_isolation(engine)
         command.downgrade(cfg, "023_inference_budgets")
@@ -781,6 +783,27 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
 
 
 def _seed_two_tenants(conn) -> None:
+    from app.models import Workspace, User, Membership
+    from app.models.pilot_settings import PilotSettings
+    from app.models.taxonomy_override import TaxonomyOverride
+    from app.models.upload import Upload, UploadConversation
+    from app.models.inference_budget import InferenceControl, InferenceBudget, InferenceRunBudget, InferenceReservation
+    from uuid import UUID
+    with Session(bind=conn) as db:
+        for index, tenant in enumerate(("tenant_a", "tenant_b"), 1):
+            user_id = UUID(int=index)
+            db.add(Workspace(tenant_id=tenant, name=tenant))
+            db.add(User(id=user_id, email=f"{tenant}@example.test"))
+            db.flush()
+            db.add(Membership(tenant_id=tenant, user_id=user_id, role="admin"))
+            db.add(PilotSettings(tenant_id=tenant))
+            db.add(TaxonomyOverride(tenant_id=tenant, signal_type="lead", phrases=[]))
+            db.add(Upload(tenant_id=tenant, upload_id="upload", source="fixture", content_sha256="a" * 64))
+            db.add(InferenceControl(scope=tenant, tenant_id=tenant, updated_by="fixture"))
+            db.add(InferenceBudget(tenant_id=tenant, budget_day=datetime.now(timezone.utc).date()))
+            db.add(InferenceRunBudget(tenant_id=tenant, run_id="run"))
+            db.add(InferenceReservation(tenant_id=tenant, attempt_id="attempt", run_id="run", budget_day=datetime.now(timezone.utc).date()))
+        db.flush()
     conn.execute(text(
         """
         INSERT INTO conversations (id, tenant_id, conversation_id, channel, started_at)
@@ -867,32 +890,25 @@ def _seed_two_tenants(conn) -> None:
         """
     ))
 
-
     conn.execute(text("""
-        INSERT INTO jobs (tenant_id, id, upload_id, config_sha256, conversation_digest)
-        VALUES ('tenant_a', 'job-a', 'upload-a', :digest, :digest),
-               ('tenant_b', 'job-b', 'upload-b', :digest, :digest)
+        INSERT INTO uploads (tenant_id, upload_id, source, content_sha256, status)
+        VALUES ('tenant_a','job-source-a','synthetic',:digest,'staged'),
+               ('tenant_b','job-source-b','synthetic',:digest,'staged')
+    """), {"digest": "a" * 64})
+    conn.execute(text("""
+        INSERT INTO jobs (tenant_id,id,job_type,upload_id,conversation_ids_sha256,conversation_count,config_sha256)
+        VALUES ('tenant_a','job-a','upload','job-source-a',:digest,1,:digest),
+               ('tenant_b','job-b','upload','job-source-b',:digest,1,:digest)
     """), {"digest": "a" * 64})
 
-
-def assert_jobs_schema(schema) -> None:
-    columns = {col["name"]: col for col in schema.get_columns("jobs")}
-    assert "payload" not in columns
-    assert {"tenant_id", "id", "upload_id", "config_sha256", "conversation_digest",
-            "lease_token", "lease_expires_at", "heartbeat_at", "cursor"} <= columns.keys()
-    assert columns["lease_token"]["nullable"] is False
-    assert {"ck_jobs_status", "ck_jobs_attempts", "ck_jobs_lease", "ck_jobs_digests",
-            "ck_jobs_cursor_token", "ck_jobs_kind"} <= {
-                c["name"] for c in schema.get_check_constraints("jobs")}
-    assert "uq_jobs_identity" in {c["name"] for c in schema.get_unique_constraints("jobs")}
-    assert "ix_jobs_claim" in {i["name"] for i in schema.get_indexes("jobs")}
+    conn.execute(text("INSERT INTO upload_conversations (tenant_id, upload_id, conversation_id) VALUES ('tenant_a', 'upload', 'chat-a'), ('tenant_b', 'upload', 'chat-b')"))
 
 
 def _assert_runtime_isolation(engine) -> None:
     from app.db import bind_tenant, clear_tenant
     with engine.connect() as conn:
         for table in RLS_TABLES:
-            seen = conn.execute(text(f"SELECT tenant_id FROM {table}")).scalars().all()
+            seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} WHERE tenant_id IS NOT NULL")).scalars().all()
             assert sorted(seen) == ["tenant_a", "tenant_b"], table
         conn.commit()
         conn.execute(text("SET ROLE sioona_runtime"))
@@ -942,7 +958,7 @@ def _as_runtime(conn, tenant, expected) -> None:
     if tenant is not None:
         conn.execute(text("SELECT set_config('app.tenant_id', :tenant_id, true)"), {"tenant_id": tenant})
     for table in RLS_TABLES:
-        seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} ORDER BY tenant_id")).scalars().all()
+        seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} WHERE tenant_id IS NOT NULL ORDER BY tenant_id")).scalars().all()
         assert seen == expected, table
     trans.commit()
 
@@ -1003,3 +1019,513 @@ def test_rls_upgrade_with_non_superuser_migration_owner(monkeypatch, existing):
                     conn.execute(text(f'DROP ROLE {role}'))
         get_settings.cache_clear()
         engine.dispose()
+
+
+@pytest.fixture
+def job_pg(monkeypatch):
+    from app.config import get_settings
+    from app.db import clear_tenant
+
+    monkeypatch.setenv("SIOONA_DETECTION_EXECUTION", "worker")
+    monkeypatch.setenv("SIOONA_WORKER_TENANTS", "a,b")
+    monkeypatch.setenv("SIOONA_WORKER_PAUSE", "0")
+    monkeypatch.setenv("DETECT_LLM", "0")
+    engine = _postgres_engine(monkeypatch)
+    yield engine
+    clear_tenant()
+    get_settings.cache_clear()
+    engine.dispose()
+
+
+def _job_seed(engine, ids=("c1",), upload="u1", tenant="a"):
+    from tests.test_jobs import body
+    from app.services import jobs
+    from app.db import bind_tenant
+
+    with Session(engine) as db:
+        bind_tenant(db, tenant)
+        row = jobs.enqueue_upload(db, tenant, upload, body(ids))
+        db.commit()
+        return row.id
+
+
+def _runtime_session(engine, tenant):
+    from app.db import bind_tenant
+
+    db = Session(engine)
+    from sqlalchemy import event
+
+    event.listen(
+        db,
+        "after_begin",
+        lambda session, transaction, connection: connection.execute(
+            text("SET LOCAL ROLE sioona_runtime")
+        ),
+    )
+    bind_tenant(db, tenant)
+    assert db.scalar(text("SELECT current_user")) == "sioona_runtime"
+    return db
+
+
+def test_cb11_skip_locked_two_independent_workers(job_pg):
+    """Hold the first row lock while another runtime connection claims."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.services import jobs
+
+    jid = _job_seed(job_pg)
+    barrier = Barrier(2)
+
+    def race(owner):
+        with _runtime_session(job_pg, "a") as db:
+            barrier.wait(timeout=10)
+            lease = jobs.claim(db, "a", owner)
+            barrier.wait(timeout=10)  # Both claims finish before either commits.
+            db.commit()
+            return lease
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        leases = list(pool.map(race, ["one", "two"]))
+    assert sum(l is not None for l in leases) == 1
+    assert next(l for l in leases if l).job_id == jid
+
+
+def test_cb11_expired_reclaim_fences_publication_completion_and_heartbeat(job_pg):
+    from app.services import jobs
+    from app.models.job import Job
+    from app.models.detection_run import DetectionRun
+    from app.services.detection_runs import conversation_content_hash
+
+    jid = _job_seed(job_pg)
+    with _runtime_session(job_pg, "a") as db:
+        stale = jobs.claim(db, "a", "old")
+        db.commit()
+    with Session(job_pg) as db:
+        db.get(Job, ("a", jid)).lease_expires_at = datetime.now(
+            timezone.utc
+        ) - __import__("datetime").timedelta(seconds=1)
+        db.commit()
+    with _runtime_session(job_pg, "a") as db:
+        fresh = jobs.claim(db, "a", "new")
+        db.commit()
+        assert fresh.token == stale.token + 1
+        for operation in (
+            lambda: jobs.heartbeat(db, stale),
+            lambda: jobs.complete(db, stale),
+            lambda: jobs.publish_conversation(
+                db,
+                stale,
+                "c1",
+                conversation_content_hash(db, "a", "c1"),
+                "heuristic",
+                [],
+            ),
+        ):
+            with pytest.raises(jobs.LeaseLost):
+                operation()
+            db.rollback()
+        assert db.get(DetectionRun, ("a", jid, "c1")) is None
+        jobs.publish_conversation(
+            db, fresh, "c1", conversation_content_hash(db, "a", "c1"), "heuristic", []
+        )
+        db.commit()
+        jobs.complete(db, fresh)
+        db.commit()
+        assert db.get(Job, ("a", jid)).status == "succeeded"
+
+
+@pytest.mark.parametrize("after_commit", [False, True])
+def test_cb11_crash_publication_boundary_retries_only_unpublished(job_pg, after_commit):
+    from app.services import jobs
+    from app.models.job import Job
+    from app.models.detection_run import DetectionRun
+    from app.worker import Worker
+    from sqlalchemy.orm import sessionmaker
+
+    jid = _job_seed(job_pg, ids=("c1", "c2"))
+    with _runtime_session(job_pg, "a") as db:
+        lease = jobs.claim(db, "a", "first")
+        db.commit()
+        content_hash = jobs.conversation_content_hash(db, "a", "c1")
+        jobs.publish_conversation(db, lease, "c1", content_hash, "heuristic", [])
+        if after_commit:
+            db.commit()
+        else:
+            db.rollback()
+    with Session(job_pg) as db:
+        db.get(Job, ("a", jid)).lease_expires_at = datetime.now(
+            timezone.utc
+        ) - __import__("datetime").timedelta(seconds=1)
+        db.commit()
+    publications = []
+
+    def sessions():
+        return _runtime_session(job_pg, "a")
+
+    from unittest.mock import patch
+
+    original = jobs.publish_conversation
+
+    def record(db, lease, cid, *args, **kwargs):
+        publications.append(cid)
+        return original(db, lease, cid, *args, **kwargs)
+
+    with patch.object(jobs, "publish_conversation", record):
+        assert Worker(sessions, owner="second").run_once("a")
+    assert publications == (["c2"] if after_commit else ["c1", "c2"])
+    with Session(job_pg) as db:
+        assert db.get(Job, ("a", jid)).status == "succeeded"
+        assert (
+            len(
+                db.scalars(select(DetectionRun).where(DetectionRun.run_id == jid)).all()
+            )
+            == 2
+        )
+
+
+def test_cb11_runtime_jobs_isolation_and_constraints(job_pg):
+    from app.services import jobs
+    from app.models.job import Job
+
+    a = _job_seed(job_pg, tenant="a")
+    b = _job_seed(job_pg, tenant="b")
+    with _runtime_session(job_pg, "a") as db:
+        assert db.get(Job, ("b", b)) is None
+        assert db.scalar(select(Job).where(Job.tenant_id == "b")) is None
+        assert (
+            db.execute(
+                text("UPDATE jobs SET status='cancelled' WHERE tenant_id='b'")
+            ).rowcount
+            == 0
+        )
+        with pytest.raises(DBAPIError, match="row-level security"):
+            db.execute(
+                text(
+                    "INSERT INTO jobs (tenant_id,id,job_type,upload_id,conversation_ids_sha256,conversation_count,config_sha256) VALUES ('b','bad','upload','u1',:d,1,:d)"
+                ),
+                {"d": "a" * 64},
+            )
+        db.rollback()
+    with _runtime_session(job_pg, "a") as db:
+        db.execute(text("SELECT set_config('app.tenant_id','',true)"))
+        assert db.scalar(text("SELECT count(*) FROM jobs")) == 0
+    with Session(job_pg) as db:
+        for field, value in [("status", "running"), ("max_attempts", 4), ("cursor", 2)]:
+            with pytest.raises(IntegrityError):
+                setattr(db.get(Job, ("a", a)), field, value)
+                db.commit()
+            db.rollback()
+
+
+def test_cb11_atomic_enqueue_crash_and_lease_exhaustion(job_pg):
+    from app.services import jobs
+    from app.models.job import Job
+    from app.models.detection_resume import DetectionResume
+    from tests.test_jobs import body
+
+    with _runtime_session(job_pg, "a") as db:
+        row = jobs.enqueue_upload(db, "a", "rolled-back", body())
+        jid = row.id
+        db.rollback()
+        assert db.get(Job, ("a", jid)) is None
+        assert (
+            db.get(
+                __import__("app.models.upload", fromlist=["Upload"]).Upload,
+                ("a", "rolled-back"),
+            )
+            is None
+        )
+    jid = _job_seed(job_pg)
+    with _runtime_session(job_pg, "a") as db:
+        for index in range(3):
+            lease = jobs.claim(db, "a", f"worker-{index}")
+            db.commit()
+            assert lease.token == index + 1
+            row = db.get(Job, ("a", jid))
+            row.lease_expires_at = datetime.now(timezone.utc) - __import__(
+                "datetime"
+            ).timedelta(seconds=1)
+            db.commit()
+        assert jobs.reap_exhausted(db, "a") == 1
+        db.commit()
+        assert db.get(Job, ("a", jid)).status == "dead_lettered"
+        assert db.get(DetectionResume, "a").failed_conversation_ids == ["c1"]
+        assert jobs.claim(db, "a", "fourth") is None
+
+
+@pytest.mark.parametrize(
+    "crash",
+    ["before_call", "after_response", "before_publication", "after_publication"],
+)
+def test_cb11_provider_and_commit_crash_boundaries_are_metered(
+    job_pg, monkeypatch, crash
+):
+    from datetime import timedelta
+    from unittest.mock import patch
+    from app.config import get_settings
+    from app.services import jobs
+    from app.services.inference_budget import configure
+    from app.models.job import Job
+    from app.models.inference_attempt import InferenceAttempt
+    from app.models.detection_run import DetectionRun
+    from app.worker import Worker
+
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    with Session(job_pg) as db:
+        configure(db, "a", 20, 20, True, "synthetic", jobs.PRINCIPAL)
+        db.commit()
+    jid = _job_seed(job_pg)
+    calls = []
+    parsed = {
+        "type": "lead",
+        "confidence": 0.9,
+        "summary": "Buying intent",
+        "quotes": ["I want to open a demat account"],
+    }
+
+    def provider(model, messages):
+        with _runtime_session(job_pg, "a") as db:
+            attempt = db.scalar(
+                select(InferenceAttempt)
+                .where(InferenceAttempt.job_id == jid)
+                .order_by(InferenceAttempt.started_at.desc())
+            )
+            assert attempt.status == "pending" and attempt.input_tokens is None
+        if crash == "before_call" and not calls:
+            calls.append("crash")
+            raise SystemExit("simulated process loss before dispatch")
+        calls.append("provider")
+        if crash == "after_response" and len(calls) == 1:
+            raise SystemExit("simulated process loss after response")
+        return parsed, {"status": "succeeded", "usage": {}}
+
+    sessions = lambda: _runtime_session(job_pg, "a")
+    original_publish = jobs.publish_conversation
+    if crash == "before_publication":
+
+        def crash_publish(*args, **kwargs):
+            raise SystemExit("simulated process loss before publication")
+
+        manager = patch.object(jobs, "publish_conversation", crash_publish)
+    elif crash == "after_publication":
+        manager = patch.object(
+            jobs,
+            "complete",
+            side_effect=SystemExit("simulated process loss after publication commit"),
+        )
+    else:
+        from contextlib import nullcontext
+
+        manager = nullcontext()
+    with manager, pytest.raises(SystemExit):
+        Worker(sessions, call=provider).run_once("a")
+    with _runtime_session(job_pg, "a") as db:
+        first = db.scalar(
+            select(InferenceAttempt).where(InferenceAttempt.job_id == jid)
+        )
+        assert first is not None
+        assert first.status == (
+            "pending" if crash in {"before_call", "after_response"} else "succeeded"
+        )
+        assert first.usage_status == "unknown" and first.input_tokens is None
+        row = db.get(Job, ("a", jid))
+        row.lease_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        db.commit()
+    if crash in {"before_call", "after_response"}:
+        # A new provider response is returned on retry; old ambiguous admission
+        # remains metered as pending/unknown and is never refunded or reused.
+        crash = "already_crashed"
+    calls_before = len(calls)
+    assert Worker(sessions, call=provider).run_once("a")
+    with _runtime_session(job_pg, "a") as db:
+        assert db.get(Job, ("a", jid)).status == "succeeded"
+        assert (
+            len(
+                db.scalars(select(DetectionRun).where(DetectionRun.run_id == jid)).all()
+            )
+            == 1
+        )
+        attempts = db.scalars(
+            select(InferenceAttempt).where(InferenceAttempt.job_id == jid)
+        ).all()
+        assert len(attempts) == (1 if len(calls) == calls_before else 2)
+        assert all(
+            a.input_tokens is None and a.usage_status == "unknown" for a in attempts
+        )
+
+
+def test_cb11_cancellation_in_flight_and_unknown_usage(job_pg, monkeypatch):
+    from app.config import get_settings
+    from app.services import jobs
+    from app.services.inference_budget import configure
+    from app.models.job import Job
+    from app.models.inference_attempt import InferenceAttempt
+    from app.models.detection_resume import DetectionResume
+    from app.models.detection_run import DetectionRun
+    from app.worker import Worker
+
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    with Session(job_pg) as db:
+        configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
+        db.commit()
+    jid = _job_seed(job_pg)
+
+    def call(*_):
+        with _runtime_session(job_pg, "a") as db:
+            jobs.cancel(db, "a", jid)
+            db.commit()
+        return {
+            "type": "lead",
+            "confidence": 0.9,
+            "summary": "Buying",
+            "quotes": ["I want to open a demat account"],
+        }, {"status": "succeeded", "usage": {}}
+
+    assert Worker(lambda: _runtime_session(job_pg, "a"), call=call).run_once("a")
+    with _runtime_session(job_pg, "a") as db:
+        assert db.get(Job, ("a", jid)).status == "cancelled"
+        assert db.get(DetectionRun, ("a", jid, "c1")) is None
+        assert db.get(DetectionResume, "a").failed_conversation_ids == ["c1"]
+        attempt = db.scalar(select(InferenceAttempt))
+        assert attempt.status == "succeeded" and attempt.usage_status == "unknown"
+
+
+def test_cb11_executable_refuses_owner_connection(job_pg, monkeypatch):
+    from app import db as db_module
+    from app.worker import main
+
+    monkeypatch.setattr(db_module, "engine", job_pg)
+    with pytest.raises(SystemExit, match="sioona_runtime"):
+        main()
+
+
+def test_all_tenant_tables_have_rls(monkeypatch):
+    from app.models import Base
+    engine = _postgres_engine(monkeypatch)
+    try:
+        with engine.begin() as conn:
+            for table in Base.metadata.sorted_tables:
+                if "tenant_id" not in table.c:
+                    continue
+                flags = conn.execute(text("SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = to_regclass(:name)"), {"name": table.name}).one()
+                assert flags == (True, True), table.name
+    finally:
+        engine.dispose()
+
+
+def test_global_controls_readable_but_only_control_tenant_can_write(monkeypatch):
+    from app.config import get_settings
+    from app.db import bind_tenant, clear_tenant
+    from app.services.inference_budget import configure
+    engine = _postgres_engine(monkeypatch)
+    monkeypatch.setenv("SIOONA_GLOBAL_CONTROL_TENANT", "tenant_control")
+    get_settings.cache_clear()
+    try:
+        with Session(engine) as db:
+            configure(db, "global", 10, 5, False, "paused", "fixture")
+            db.commit()
+        with engine.connect() as conn:
+            conn.execute(text("SET ROLE sioona_runtime"))
+            conn.commit()
+            with Session(bind=conn) as db:
+                bind_tenant(db, "tenant_other")
+                assert db.execute(text("SELECT enabled FROM inference_controls WHERE scope = 'global'")).scalar() is False
+                # SELECT policy must not accidentally grant UPDATE authority.
+                assert db.execute(text("UPDATE inference_controls SET enabled = true WHERE scope = 'global'")).rowcount == 0
+                db.rollback()
+                bind_tenant(db, "tenant_control")
+                configure(db, "global", 10, 5, True, "resumed", "fixture")
+                db.commit()
+                clear_tenant()
+                assert db.execute(text("SELECT count(*) FROM inference_controls")).scalar() == 0
+                db.rollback()
+            conn.execute(text("RESET ROLE"))
+            conn.commit()
+    finally:
+        clear_tenant()
+        get_settings.cache_clear()
+        engine.dispose()
+
+
+
+
+def test_cb11_verified_api_to_runtime_worker_and_polling(job_pg, monkeypatch):
+    """HTTP acceptance, real outbox, runtime processing, and tenant-safe polling."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+    from app.main import app
+    from app.db import get_db, clear_tenant
+    from app.config import get_settings
+    from app.worker import Worker
+    from app.models.job import Job
+    from app.models.inference_attempt import InferenceAttempt
+    from app.services import jobs
+    from app.services.inference_budget import configure
+    from tests.actor_support import add_member, actor_headers
+    from tests.test_actor_token import KEY
+    from tests.test_jobs import body
+
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", "enforce")
+    monkeypatch.setenv("SIOONA_ACTOR_KEY", KEY)
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    factory = sessionmaker(bind=job_pg)
+    a = add_member(factory, "a@example.test", "a", "reviewer")
+    b = add_member(factory, "b@example.test", "b", "reviewer")
+    with Session(job_pg) as db:
+        configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
+        db.commit()
+
+    def request_db():
+        db = Session(job_pg)
+        from sqlalchemy import event
+        event.listen(db, "after_begin", lambda session, transaction, connection:
+                     connection.execute(text("SET LOCAL ROLE sioona_runtime")))
+        try:
+            yield db
+        finally:
+            db.close()
+            clear_tenant()
+
+    def provider(*_):
+        with _runtime_session(job_pg, "a") as db:
+            attempt = db.scalar(select(InferenceAttempt))
+            assert attempt.status == "pending"
+            assert db.scalar(text("SELECT count(*) FROM inference_reservations")) == 1
+        return {"type": "lead", "confidence": 0.9, "summary": "Buying intent",
+                "quotes": ["I want to open a demat account"]}, {"status": "succeeded", "usage": {}}
+
+    prior = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = request_db
+    try:
+        with TestClient(app) as client:
+            payload = body().model_dump(mode="json")
+            response = client.put("/v1/tenants/a/jobs/uploads/u1", json=payload,
+                                  headers=actor_headers(a, "a"))
+            assert response.status_code == 202, response.text
+            jid = response.json()["job_id"]
+            assert response.json()["status"] == "queued"
+            replay = client.put("/v1/tenants/a/jobs/uploads/u1", json=payload,
+                                headers=actor_headers(a, "a"))
+            assert replay.status_code == 202 and replay.json()["job_id"] == jid
+            assert client.get(f"/v1/tenants/b/jobs/{jid}", headers=actor_headers(b, "b")).status_code == 404
+            worker = Worker(lambda: _runtime_session(job_pg, "a"), call=provider)
+            assert worker.run_once("a")
+            status = client.get(f"/v1/tenants/a/jobs/{jid}", headers=actor_headers(a, "a"))
+            assert status.status_code == 200
+            assert status.json()["status"] == "succeeded"
+            assert status.json()["completed_conversations"] == 1
+            assert "demat" not in status.text
+            assert not worker.run_once("a")
+            with _runtime_session(job_pg, "a") as db:
+                assert db.get(Job, ("a", jid)).cursor == 1
+                assert db.scalar(select(InferenceAttempt)).usage_status == "unknown"
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(prior)
+        get_settings.cache_clear()

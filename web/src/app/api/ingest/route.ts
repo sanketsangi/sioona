@@ -1,3 +1,5 @@
+import { detectionExecution } from "@/lib/detection-execution";
+import { enqueueCanonicalUpload } from "@/lib/enqueue-detection";
 import { getStateMode } from "@/lib/state-mode";
 import { NextResponse } from "next/server";
 import { signalsForPublishedConversations } from "./publication";
@@ -286,6 +288,12 @@ export async function POST(request: Request) {
             ...(lastBasename ? { lastUploadedFileName: lastBasename } : {}),
           };
       if (demoPilot) store.pilot = demoPilot;
+      if (detectionExecution() === "worker") {
+        const job = await enqueueCanonicalUpload({ tenantId: session.tenantId,
+          source: lastBasename ?? "upload", replace: replaceShowcase,
+          conversations: ingestedConversations, messages: ingestedMessages, weeklySources });
+        return NextResponse.json({ ...job, accepted: ingestedConversations.length }, { status: 202 });
+      }
       const resumeVersion = store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z";
       const priorFailedOutsideBatch = (store.llmFailedConversationIds ?? [])
         .filter((id) => !ingestedConversationIds.has(id));

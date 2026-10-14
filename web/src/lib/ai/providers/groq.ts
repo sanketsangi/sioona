@@ -1,3 +1,4 @@
+import { assertInlineDetection } from "../../detection-execution";
 import type { LlmFailureKind } from "@/lib/detect-llm";
 import { createInferenceId } from "../attempts";
 import type { InferenceUsage } from "../types";
@@ -136,6 +137,7 @@ export async function postGroqChatCompletion(input: {
   attemptId?: string;
   fetchImpl?: typeof fetch;
 }): Promise<GroqChatResult> {
+  assertInlineDetection();
   const { signal, clear } = timeoutSignal(input.timeoutMs);
   const model = input.model;
   const attemptId = input.attemptId ?? createInferenceId();

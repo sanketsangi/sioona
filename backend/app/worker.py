@@ -1,139 +1,308 @@
-"""Durable worker runtime: python -m app.worker.
+"""D9 worker entry point: python -m app.worker. No owner URL or broker.
 
-Inline is the default and exits before importing DB code. This slice provides
-the leasing runtime only; CLI worker execution fails closed until the metered
-detection gateway and inline exclusion are wired and approved for cutover.
-Handlers do provider work outside a DB transaction, returning a publication
-callback which runs inside the fenced completion transaction. Handlers must
-reserve budget/write pending ledger before dispatch, and honor lost/stop events.
+Deployment is a separate operator action. Trusted tenant allowlist is supplied
+by the operator, never by a job payload/header. SIGTERM and pause stop claims;
+in-flight calls finish metering and publication before the lease drains.
 """
-import logging
+
 import os
 import signal
-from threading import Event, Thread, current_thread, main_thread
-from collections.abc import Callable
-
+import threading
+import time
+from uuid import uuid4
 from app.config import get_settings
-from app.services.jobs import HEARTBEAT_SECONDS, LeaseLost, claim, complete, fail, heartbeat
-
-log = logging.getLogger(__name__)
+from app.db import SessionLocal, bind_tenant, clear_tenant
+from app.models.detection_run import DetectionRun
+from app.services import jobs
+from app.services.inference_budget import BudgetDenied
+from app.ai.gateway import (
+    ProviderFailure,
+    provider_call,
+    heuristic_output,
+    recent_transcript,
+    chat_messages,
+    classification_output,
+)
 
 
 class Worker:
-    def __init__(self, sessions, *, tenants: tuple[str, ...], owner: str,
-                 handler: Callable, paused: Callable | None = None,
-                 heartbeat_seconds: float = HEARTBEAT_SECONDS):
-        if not tenants or not callable(handler) or heartbeat_seconds <= 0 or heartbeat_seconds >= 90:
-            raise ValueError("Trusted tenants, handler and valid heartbeat interval required")
-        self.sessions = sessions
-        self.tenants = tenants
+    def __init__(self, sessions=SessionLocal, *, owner=None, call=provider_call, tenants=None):
+        self.sessions, self.owner, self.call = sessions, owner or uuid4().hex, call
+        self.stopping = threading.Event()
+        configured = get_settings().sioona_worker_tenants.split(",") if tenants is None else tenants
+        self.tenants = tuple(dict.fromkeys(t.strip() for t in configured if t.strip()))
         self._tenant_cursor = 0
-        self.owner = owner
-        self.handler = handler
-        self.paused = paused or (lambda: os.getenv("SIOONA_WORKER_PAUSE", "0") == "1")
-        self.heartbeat_seconds = heartbeat_seconds
-        self.stop = Event()
 
-    def _session(self, tenant):
-        # Worker tenants are server/operator configuration, never request values.
-        from app.db import bind_tenant
-        db = self.sessions()
-        bind_tenant(db, tenant)
-        return db
-
-    def _pulse(self, lease, done, lost):
-        try:
-            while not done.wait(self.heartbeat_seconds):
-                with self._session(lease.tenant_id) as db, db.begin():
-                    if not heartbeat(db, lease):
-                        lost.set()
-                        return
-        except Exception:
-            lost.set()
-            log.warning("sioona.worker.heartbeat_failed")  # category only
-        finally:
-            from app.db import clear_tenant
-            clear_tenant()
-
-    def tick(self) -> bool:
-        if self.stop.is_set() or self.paused():
+    def tick(self):
+        """Claim at most one job, rotating tenant priority on every iteration."""
+        if not self.tenants or self.paused():
             return False
         start = self._tenant_cursor
         self._tenant_cursor = (start + 1) % len(self.tenants)
         for offset in range(len(self.tenants)):
-            tenant = self.tenants[(start + offset) % len(self.tenants)]
-            if self.stop.is_set() or self.paused():
+            if self.paused():
                 return False
-            with self._session(tenant) as db, db.begin():
-                lease = claim(db, tenant_id=tenant, owner=self.owner)
-            if lease is None:
-                continue
-            done, lost = Event(), Event()
-            pulse = Thread(target=self._pulse, args=(lease, done, lost), daemon=True)
-            pulse.start()
-            try:
-                publish = self.handler(lease, lost, self.stop)
-                if not callable(publish):
-                    raise TypeError("Handler must return a publication callback")
-                if lost.is_set():
-                    raise LeaseLost()
-                with self._session(tenant) as db, db.begin():
-                    complete(db, lease, publish=publish)
-            except LeaseLost:
-                log.warning("sioona.worker.lease_lost")
-            except Exception:
-                # Never store/log exception strings, references or provider output.
-                try:
-                    with self._session(tenant) as db, db.begin():
-                        fail(db, lease, category="handler_failed")
-                except LeaseLost:
-                    log.warning("sioona.worker.lease_lost")
-            finally:
-                done.set()
-                pulse.join()
-                from app.db import clear_tenant
-                clear_tenant()
-            return True
-        from app.db import clear_tenant
-        clear_tenant()
+            if self.run_once(self.tenants[(start + offset) % len(self.tenants)]):
+                return True
         return False
 
-    def run(self, *, poll_seconds: float = 1):
-        if poll_seconds <= 0:
-            raise ValueError("poll_seconds must be positive")
-        previous = {}
-        if current_thread() is main_thread():
-            for sig in (signal.SIGTERM, signal.SIGINT):
-                previous[sig] = signal.signal(sig, self.request_stop)
+    def paused(self):
+        return (
+            self.stopping.is_set()
+            or os.getenv("SIOONA_WORKER_PAUSE") == "1"
+            or get_settings().sioona_worker_pause
+        )
+
+    def transaction(self, tenant, operation):
+        clear_tenant()
         try:
-            while not self.stop.is_set():
-                try:
-                    worked = self.tick()
-                except Exception:
-                    log.warning("sioona.worker.poll_failed")
-                    worked = False
-                if not worked:
-                    self.stop.wait(poll_seconds)
+            with self.sessions() as db:
+                bind_tenant(db, tenant)
+                result = operation(db)
+                db.commit()
+                return result
         finally:
-            for sig, handler in previous.items():
-                signal.signal(sig, handler)
-            from app.db import clear_tenant
             clear_tenant()
 
-    def request_stop(self, *_args):
-        """SIGTERM/pause stops new claims while the current handler drains."""
-        self.stop.set()
+    def run_once(self, tenant):
+        if get_settings().sioona_detection_execution != "worker" or self.paused():
+            return False
+        # Source of authority is process configuration. No migration owner scan.
+        allowed = {
+            t.strip()
+            for t in get_settings().sioona_worker_tenants.split(",")
+            if t.strip()
+        }
+        if tenant not in allowed:
+            raise jobs.JobError("worker_tenant_not_authorized")
+        self.transaction(tenant, lambda db: jobs.reap_exhausted(db, tenant))
+        lease = self.transaction(
+            tenant, lambda db: jobs.claim(db, tenant, self.owner, paused=self.paused())
+        )
+        if lease is None:
+            return False
+        finished, lost = threading.Event(), threading.Event()
+
+        def renew():
+            while not finished.wait(jobs.HEARTBEAT_SECONDS):
+                try:
+                    self.transaction(tenant, lambda db: jobs.heartbeat(db, lease))
+                except Exception:
+                    lost.set()
+                    return  # Fail closed; provider may finish, but publication is fenced.
+
+        thread = threading.Thread(target=renew, daemon=True)
+        thread.start()
+        try:
+            self.process(lease, lost)
+        except jobs.LeaseLost:
+            pass  # Another owner or cancellation won. Never update its state.
+        except (ProviderFailure, BudgetDenied, jobs.JobError) as error:
+            if str(error) == "worker_paused":
+                try:
+                    self.transaction(tenant, lambda db: jobs.drain(db, lease))
+                except jobs.LeaseLost:
+                    pass
+                return True
+            category = (
+                error.category if isinstance(error, ProviderFailure) else str(error)
+            )
+            if category not in {
+                "key",
+                "model",
+                "timeout",
+                "network",
+                "http",
+                "quota",
+                "shape",
+                "ungrounded",
+                "injection",
+                "paused",
+                "unconfigured",
+                "daily_limit",
+                "run_limit",
+                "config_changed",
+                "source_changed",
+                "source_unavailable",
+                "source_identity_conflict",
+                "upload_superseded",
+                "worker_paused",
+            }:
+                category = "processing_failed"
+            try:
+                self.transaction(tenant, lambda db: jobs.fail(db, lease, category))
+            except jobs.LeaseLost:
+                pass
+        except Exception:
+            # No exception messages: provider/validation errors can contain text.
+            try:
+                self.transaction(
+                    tenant, lambda db: jobs.fail(db, lease, "processing_failed")
+                )
+            except jobs.LeaseLost:
+                pass
+            raise
+        finally:
+            finished.set()
+            thread.join(timeout=5)
+        return True
+
+    def process(self, lease, lost):
+        tenant = lease.tenant_id
+
+        def load(db):
+            row = jobs.fenced(db, lease)
+            if jobs.config_hash(db, tenant) != row.config_sha256:
+                raise jobs.JobError("config_changed")
+            return jobs.source_body(db, row)
+
+        body = self.transaction(tenant, load)
+        s = get_settings()
+        model = s.detect_llm_model
+        for chat in body.conversations:
+            if lost.is_set():
+                raise jobs.LeaseLost("lease_lost")
+            if self.paused():
+                raise jobs.JobError("worker_paused")
+            content_hash = jobs.digest(
+                sorted([[m.message_id, m.role, m.content] for m in chat.messages])
+            )
+
+            def already_published(db):
+                jobs.fenced(db, lease)
+                if (
+                    jobs.conversation_content_hash(db, tenant, chat.conversation_id)
+                    != content_hash
+                ):
+                    raise jobs.JobError("source_changed")
+                prior = db.get(
+                    DetectionRun, (tenant, lease.job_id, chat.conversation_id)
+                )
+                if prior and prior.content_hash != content_hash:
+                    raise jobs.JobError("source_changed")
+                return prior is not None
+
+            if self.transaction(tenant, already_published):
+                continue  # Crash after commit cannot cause another call/publication.
+            overrides = self.transaction(
+                tenant, lambda db: jobs.list_taxonomy_overrides(db, tenant)
+            )
+            output = heuristic_output(chat, chat.messages, overrides)
+            coverage = None
+            llm = s.detect_llm and bool(s.groq_api_key.strip())
+            if (
+                llm
+                and (s.detect_llm_primary or not output)
+                and any(
+                    m.role == "customer" and m.content.strip() for m in chat.messages
+                )
+            ):
+                text, coverage = recent_transcript(chat.messages)
+                messages = chat_messages(chat, text, coverage["omitted_turns"])
+                for fallback in range(2):
+                    attempt = self.transaction(
+                        tenant,
+                        lambda db: jobs.admit(
+                            db, lease, chat.conversation_id, content_hash, model
+                        ),
+                    )
+                    try:
+                        parsed, result = self.call(model, messages)
+                    except ProviderFailure as error:
+                        self.transaction(
+                            tenant,
+                            lambda db, result=error.result: jobs.finalize_attempt(
+                                db, tenant, attempt, result
+                            ),
+                        )
+                        next_model = s.detect_llm_fallback_model.strip()
+                        if (
+                            error.daily_quota
+                            and fallback == 0
+                            and next_model not in {"", "off", "0", model}
+                        ):
+                            model = next_model
+                            continue
+                        raise
+                    except Exception:
+                        self.transaction(
+                            tenant,
+                            lambda db: jobs.finalize_attempt(
+                                db,
+                                tenant,
+                                attempt,
+                                {"status": "failed", "error_category": "network"},
+                            ),
+                        )
+                        raise
+                    self.transaction(
+                        tenant,
+                        lambda db: jobs.finalize_attempt(db, tenant, attempt, result),
+                    )
+                    output = classification_output(parsed, chat, chat.messages, model)
+                    break
+            self.transaction(
+                tenant,
+                lambda db: jobs.publish_conversation(
+                    db,
+                    lease,
+                    chat.conversation_id,
+                    content_hash,
+                    model if llm else "heuristic",
+                    output,
+                    coverage,
+                ),
+            )
+            time.sleep(
+                0.2 if llm else 0
+            )  # Existing minimum provider pacing; no transaction held.
+        self.transaction(tenant, lambda db: jobs.complete(db, lease))
 
 
-def main() -> int:
-    settings = get_settings()
-    if settings.sioona_detection_execution == "inline" or settings.sioona_worker_pause:
-        return 0
-    # Do not claim real jobs, enable a second processor, or falsely mark jobs
-    # succeeded before the gateway, ledger and outbox cutover exist.
-    log.error("sioona.worker.detection_handler_not_configured")
-    return 2
+def main():
+    s = get_settings()
+    if s.sioona_detection_execution != "worker":
+        raise SystemExit("Worker requires SIOONA_DETECTION_EXECUTION=worker")
+    tenants = list(
+        dict.fromkeys(
+            t.strip() for t in s.sioona_worker_tenants.split(",") if t.strip()
+        )
+    )
+    if not tenants:
+        raise SystemExit("SIOONA_WORKER_TENANTS operator allowlist required")
+    # The executable must never use the owner connection for job processing.
+    from app.db import engine
+    from sqlalchemy import text
+
+    if engine.dialect.name != "postgresql":
+        raise SystemExit("Worker requires PostgreSQL runtime role")
+    with engine.connect() as connection:
+        role = connection.execute(
+            text(
+                "SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname=current_user"
+            )
+        ).one()
+        if tuple(role) != ("sioona_runtime", False, False):
+            raise SystemExit("Worker requires sioona_runtime NOBYPASSRLS")
+        flags = connection.execute(
+            text(
+                "SELECT relrowsecurity,relforcerowsecurity FROM pg_class WHERE oid='public.jobs'::regclass"
+            )
+        ).one()
+        if tuple(flags) != (True, True):
+            raise SystemExit("Job RLS must be enabled and forced")
+    worker = Worker()
+    signal.signal(signal.SIGTERM, lambda *_: worker.stopping.set())
+    signal.signal(signal.SIGINT, lambda *_: worker.stopping.set())
+    while not worker.stopping.is_set():
+        try:
+            worked = worker.tick()
+        except Exception:
+            print("sioona.worker.failed", flush=True)  # Category only.
+            worked = False
+        if not worked:
+            worker.stopping.wait(1)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()

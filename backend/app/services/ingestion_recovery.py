@@ -1,9 +1,10 @@
 """Bounded recovery of interrupted, durably staged ingestion requests."""
 from datetime import datetime, timedelta, timezone
 from app.services.ingestion import IngestionError, resume_ingestion
-from sqlalchemy import select, update
+from sqlalchemy import select, update, exists
 from sqlalchemy.orm import Session
 from app.models.upload import Upload
+from app.models.job import Job
 
 
 def recover_staged_ingestions(db: Session, *, limit: int = 20,
@@ -13,7 +14,8 @@ def recover_staged_ingestions(db: Session, *, limit: int = 20,
     cutoff = (now or datetime.now(timezone.utc)) - timedelta(seconds=grace_seconds)
     # Failed operations require explicit investigation/resume; do not retry them forever.
     candidates = list(db.execute(select(Upload.tenant_id, Upload.upload_id).where(
-        Upload.status == "staged", Upload.payload.is_not(None), Upload.imported_at <= cutoff)
+        Upload.status == "staged", Upload.payload.is_not(None),
+        ~exists(select(Job.id).where(Job.tenant_id == Upload.tenant_id, Job.upload_id == Upload.upload_id)), Upload.imported_at <= cutoff)
         .order_by(Upload.imported_at, Upload.tenant_id, Upload.upload_id).limit(limit)).all())
     db.rollback()  # Release the scan transaction before tenant publication locks.
     counts = {"attempted": 0, "completed": 0, "failed": 0}

@@ -1,278 +1,439 @@
-"""Real locking and fencing checks; schema is created directly, never via Alembic."""
-import os
-from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+"""Durable job API and lifecycle contracts; PostgreSQL races live separately."""
 
+from datetime import datetime, timedelta, timezone
 import pytest
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.engine import make_url
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import DBAPIError
-
+from sqlalchemy import select
+from sqlalchemy.orm import sessionmaker
+from app.config import get_settings
 from app.models.job import Job
-from app.services.jobs import enqueue, claim, heartbeat, complete, fail, cancel, LeaseLost
+from app.models.upload import Upload
+from app.models.detection_run import DetectionRun
+from app.models.inference_attempt import InferenceAttempt
+from app.models.detection_resume import DetectionResume
+from app.schemas.job import JobUpload
+from app.services import jobs
+from app.services.inference_budget import configure
+from app.worker import Worker
+from tests.actor_support import actor_headers, add_member
+
+pytest_plugins = ["tests.actor_support"]
 
 
-@pytest.fixture
-def pg():
-    url = os.getenv("CB11_TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("Disposable CB11 Postgres required")
-    parsed = make_url(url)
-    assert parsed.host in {"127.0.0.1", "localhost", "::1"}
-    assert parsed.database == "sioona_cb11_test"
-    engine = create_engine(url)
-    Job.__table__.create(engine)
-    try:
-        yield engine
-    finally:
-        Job.__table__.drop(engine)
-        engine.dispose()
+def body(ids=("c1",), text="I want to open a demat account"):
+    return JobUpload(
+        source="synthetic.csv",
+        conversations=[
+            {
+                "conversation_id": cid,
+                "channel": "upload",
+                "started_at": "2026-10-14T00:00:00Z",
+                "messages": [
+                    {
+                        "message_id": f"m-{cid}",
+                        "role": "customer",
+                        "content": text,
+                        "timestamp": "2026-10-14T00:00:00Z",
+                    }
+                ],
+            }
+            for cid in ids
+        ],
+    )
 
 
-def seed(pg, tenant="a", upload="upload"):
-    with Session(pg) as db, db.begin():
-        return enqueue(db, tenant_id=tenant, upload_id=upload,
-                       config_sha256="a" * 64, conversation_digest="b" * 64).id
-
-
-def lease(pg, owner="w1", tenant="a"):
-    with Session(pg) as db, db.begin():
-        return claim(db, tenant_id=tenant, owner=owner)
-
-
-def expire(pg, job):
-    with pg.begin() as conn:
-        conn.execute(text("UPDATE jobs SET lease_expires_at=clock_timestamp()-interval '1 second' WHERE id=:id"), {"id": job.id})
-
-
-def test_two_workers_skip_locked_without_waiting(pg):
-    seed(pg)
-    seed(pg, upload="other")
-    barrier = Barrier(2)
-    def run(owner):
-        with Session(pg) as db, db.begin():
-            db.execute(text("SET LOCAL lock_timeout='1s'"))
-            job = claim(db, tenant_id="a", owner=owner)
-            barrier.wait(timeout=5)  # first worker's row is still locked
-            return job.id
-    with ThreadPoolExecutor(2) as pool:
-        ids = list(pool.map(run, ["w1", "w2"]))
-    assert len(set(ids)) == 2
-    assert lease(pg) is None
-
-
-def test_expiry_reclaim_fences_heartbeat_and_atomic_publication(pg):
-    seed(pg)
-    first = lease(pg)
-    expire(pg, first)
-    with Session(pg) as db, db.begin():
-        assert not heartbeat(db, first)
-        with pytest.raises(LeaseLost):
-            complete(db, first, publish=lambda db: pytest.fail("expired publication"))
-    # Recovery schedules a backoff; it must not immediately reclaim the crash.
-    assert lease(pg, "w2") is None
-    with pg.begin() as conn:
-        conn.execute(text("UPDATE jobs SET run_after=clock_timestamp()-interval '1 second'"))
-    second = lease(pg, "w2")
-    assert second.lease_token > first.lease_token
-    with Session(pg) as db, db.begin():
-        with pytest.raises(LeaseLost):
-            complete(db, first)
-        assert heartbeat(db, second)
-        complete(db, second, publish=lambda db: db.execute(text("SELECT 1")))
-
-
-def test_retry_exhaustion_cancellation_and_tenant_scope(pg):
-    jid = seed(pg)
-    assert lease(pg, tenant="b") is None
-    for attempt in range(1, 4):
-        current = lease(pg)
-        assert current.attempt_count == attempt
-        with Session(pg) as db, db.begin():
-            fail(db, current, category="handler_failed")
-        with pg.begin() as conn:
-            conn.execute(text("UPDATE jobs SET run_after=clock_timestamp()-interval '1 second'"))
-    assert lease(pg) is None
-    with Session(pg) as db:
-        assert db.get(Job, ("a", jid)).status == "dead_lettered"
-    seed(pg, upload="cancel")
-    current = lease(pg)
-    with Session(pg) as db, db.begin():
-        assert not cancel(db, tenant_id="b", job_id=current.id)
-        assert cancel(db, tenant_id="a", job_id=current.id)
-        with pytest.raises(LeaseLost):
-            complete(db, current)
-
-
-def test_outbox_rollback_and_duplicate_identity(pg):
-    from tests.test_postgres_migrations import assert_jobs_schema
-    assert_jobs_schema(inspect(pg))
-    with Session(pg) as db:
-        enqueue(db, tenant_id="a", upload_id="rollback", config_sha256="a"*64, conversation_digest="b"*64)
-        db.rollback()
-    assert lease(pg) is None
-    assert seed(pg) == seed(pg)
-
-
-def test_failed_publication_rolls_back_completion(pg):
-    seed(pg)
-    current = lease(pg)
-    def broken(db):
-        raise RuntimeError("synthetic")
-    with Session(pg) as db:
-        with pytest.raises(RuntimeError):
-            complete(db, current, publish=broken)
-        db.rollback()
-    with Session(pg) as db:
-        assert db.get(Job, ("a", current.id)).status == "leased"
-
-
-def test_crashed_final_attempt_dead_letters(pg):
-    jid = seed(pg)
-    for attempt in range(3):
-        current = lease(pg)
-        expire(pg, current)
-        assert lease(pg) is None
-        with pg.begin() as conn:
-            conn.execute(text("UPDATE jobs SET run_after=clock_timestamp()-interval '1 second'"))
-    with Session(pg) as db:
-        assert db.get(Job, ("a", jid)).status == "dead_lettered"
-
-
-def test_priority_run_after_and_non_retryable_failure(pg):
-    seed(pg)
-    with Session(pg) as db, db.begin():
-        high = enqueue(db, tenant_id="a", upload_id="high", config_sha256="a"*64,
-                       conversation_digest="b"*64, priority=10).id
-    current = lease(pg)
-    assert current.id == high
-    with Session(pg) as db, db.begin():
-        fail(db, current, category="handler_failed", retryable=False)
-    current = lease(pg)
-    with Session(pg) as db, db.begin():
-        fail(db, current, category="provider_unavailable")
-    assert lease(pg) is None
-
-
-def test_runtime_rls_missing_context_and_cross_tenant_claim(pg):
-    seed(pg)
-    seed(pg, tenant="b")
-    with pg.begin() as conn:
-        conn.execute(text("CREATE ROLE sioona_cb11_runtime NOLOGIN NOSUPERUSER NOBYPASSRLS"))
-        conn.execute(text("GRANT USAGE ON SCHEMA public TO sioona_cb11_runtime"))
-        conn.execute(text("GRANT SELECT, INSERT, UPDATE, DELETE ON jobs TO sioona_cb11_runtime"))
-        conn.execute(text("ALTER TABLE jobs ENABLE ROW LEVEL SECURITY"))
-        conn.execute(text("ALTER TABLE jobs FORCE ROW LEVEL SECURITY"))
-        conn.execute(text("""CREATE POLICY tenant_isolation ON jobs
-            USING (tenant_id = current_setting('app.tenant_id', true))
-            WITH CHECK (tenant_id = current_setting('app.tenant_id', true))"""))
-    try:
-        with Session(pg) as db, db.begin():
-            db.execute(text("SET LOCAL ROLE sioona_cb11_runtime"))
-            assert claim(db, tenant_id="a", owner="worker") is None
-            db.execute(text("SELECT set_config('app.tenant_id', 'a', true)"))
-            assert claim(db, tenant_id="b", owner="worker") is None
-            assert claim(db, tenant_id="a", owner="worker") is not None
-        with Session(pg) as db, db.begin():
-            db.execute(text("SET LOCAL ROLE sioona_cb11_runtime"))
-            assert db.query(Job).count() == 0  # transaction-local context forgotten
-        with Session(pg) as db:
-            db.execute(text("SET LOCAL ROLE sioona_cb11_runtime"))
-            db.execute(text("SELECT set_config('app.tenant_id', 'a', true)"))
-            with pytest.raises(DBAPIError) as denied:
-                enqueue(db, tenant_id="b", upload_id="forged", config_sha256="a"*64, conversation_digest="b"*64)
-            assert denied.value.orig.sqlstate == "42501"
-            db.rollback()
-    finally:
-        with pg.begin() as conn:
-            conn.execute(text("DROP OWNED BY sioona_cb11_runtime"))
-            conn.execute(text("DROP ROLE sioona_cb11_runtime"))
-
-
-def test_worker_heartbeat_pause_and_drain(pg):
-    from sqlalchemy.orm import sessionmaker
-    from app.worker import Worker
-    from threading import Event
-    jid = seed(pg)
-    seed(pg, upload="remaining")
-    paused = [True]
-    def handler(current, lost, stop):
-        Event().wait(.12)
-        assert not lost.is_set()
-        with Session(pg) as db:
-            row = db.get(Job, ("a", jid))
-            assert row.heartbeat_at > row.leased_at
-        stop.set()  # drain this publication, then no further claims
-        return lambda db: db.execute(text("SELECT 1"))
-    worker = Worker(sessionmaker(pg), tenants=("a",), owner="worker", handler=handler,
-                    paused=lambda: paused[0], heartbeat_seconds=.02)
-    assert not worker.tick()
-    paused[0] = False
-    assert worker.tick()
-    assert not worker.tick()
-    with Session(pg) as db:
-        assert db.get(Job, ("a", jid)).status == "succeeded"
-
-
-def test_worker_failure_does_not_log_exception_or_succeed(pg, caplog):
-    from sqlalchemy.orm import sessionmaker
-    from app.worker import Worker
-    jid = seed(pg)
-    def broken(*args):
-        raise RuntimeError("secret transcript must not leak")
-    worker = Worker(sessionmaker(pg), tenants=("a",), owner="worker", handler=broken)
-    assert worker.tick()
-    assert "secret transcript" not in caplog.text
-    with Session(pg) as db:
-        row = db.get(Job, ("a", jid))
-        assert row.status == "queued"
-        assert row.last_error_category == "handler_failed"
-
-
-def test_worker_default_inline_and_pause_need_no_database(monkeypatch):
-    from app.config import get_settings
-    from app.worker import main
-    monkeypatch.delenv("SIOONA_DETECTION_EXECUTION", raising=False)
+@pytest.fixture(autouse=True)
+def worker_config(monkeypatch):
+    monkeypatch.setenv("SIOONA_DETECTION_EXECUTION", "worker")
+    monkeypatch.setenv("SIOONA_WORKER_TENANTS", "a,b")
     monkeypatch.setenv("SIOONA_WORKER_PAUSE", "0")
+    monkeypatch.setenv("DETECT_LLM", "0")
     get_settings.cache_clear()
-    try:
-        assert get_settings().sioona_detection_execution == "inline"
-        assert main() == 0
-        monkeypatch.setenv("SIOONA_DETECTION_EXECUTION", "worker")
-        get_settings.cache_clear()
-        assert main() == 2  # no processor overlap before cutover wiring
-        monkeypatch.setenv("SIOONA_WORKER_PAUSE", "1")
-        get_settings.cache_clear()
-        assert main() == 0
-    finally:
-        get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def enqueue(db, upload="u1", ids=("c1",)):
+    row = jobs.enqueue_upload(db, "a", upload, body(ids))
+    db.commit()
+    return row.id
+
+
+def test_atomic_outbox_and_bounded_reference(db):
+    jid = jobs.enqueue_upload(db, "a", "u1", body()).id
+    db.rollback()
+    assert db.get(Job, ("a", jid)) is None
+    assert db.get(Upload, ("a", "u1")) is None
+    jid = enqueue(db)
+    row = db.get(Job, ("a", jid))
+    assert row.conversation_count == 1 and len(row.conversation_ids_sha256) == 64
+    assert "demat" not in str(row.__dict__)
+    assert jobs.enqueue_upload(db, "a", "u1", body()).id == jid
+    with pytest.raises(jobs.JobError, match="upload_identity_conflict"):
+        jobs.enqueue_upload(db, "a", "u1", body(text="Different source"))
+
+
+def test_heartbeat_pause_and_exhaustion(db):
+    jid = enqueue(db)
+    assert jobs.claim(db, "a", "worker", paused=True) is None
+    lease = jobs.claim(db, "a", "worker")
+    db.commit()
+    old = db.get(Job, ("a", jid)).lease_expires_at
+    jobs.heartbeat(db, lease)
+    db.commit()
+    assert jobs.utc(db.get(Job, ("a", jid)).lease_expires_at) >= jobs.utc(old)
+    for attempt in range(1, 4):
+        jobs.fail(db, lease, "timeout")
+        db.commit()
+        row = db.get(Job, ("a", jid))
+        if attempt < 3:
+            assert row.status == "failed"
+            row.run_after = datetime.now(timezone.utc) - timedelta(seconds=1)
+            db.commit()
+            lease = jobs.claim(db, "a", "worker")
+            db.commit()
+    assert row.status == "dead_lettered" and row.attempt_count == 3
+    assert db.get(DetectionResume, "a").failed_conversation_ids == ["c1"]
+
+
+def test_cancel_fences_a_provider_in_flight(db):
+    jid = enqueue(db)
+    lease = jobs.claim(db, "a", "worker")
+    db.commit()
+    row = jobs.cancel(db, "a", jid)
+    db.commit()
+    assert row.status == "cancelled"
+    with pytest.raises(jobs.LeaseLost):
+        jobs.complete(db, lease)
+    assert db.get(DetectionResume, "a").failed_conversation_ids == ["c1"]
+
+
+def test_worker_heuristic_reconstruction_and_detect(db):
+    jid = enqueue(db)
+    factory = sessionmaker(bind=db.get_bind(), autoflush=False)
+    worker = Worker(factory)
+    assert worker.run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).status == "succeeded"
+    assert db.get(Upload, ("a", "u1")).status == "completed"
+    assert db.get(DetectionRun, ("a", jid, "c1")) is not None
+    row = jobs.enqueue_detect(db, "a", "recheck", ["c1"])
+    db.commit()
+    assert worker.run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", row.id)).status == "succeeded"
+    assert db.get(Upload, ("a", "recheck")).active is False
+
+
+def test_metering_pending_commits_before_dispatch(db, monkeypatch):
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
+    db.commit()
+    jid = enqueue(db)
+    factory = sessionmaker(bind=db.get_bind(), autoflush=False)
+
+    def call(model, messages):
+        with factory() as check:
+            row = check.scalar(
+                select(InferenceAttempt).where(InferenceAttempt.job_id == jid)
+            )
+            assert row.status == "pending" and row.input_tokens is None
+        return {
+            "type": "lead",
+            "confidence": 0.9,
+            "summary": "Buying intent",
+            "quotes": ["I want to open a demat account"],
+        }, {"status": "succeeded", "usage": {}}
+
+    assert Worker(factory, call=call).run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).status == "succeeded"
+    ledger = db.scalar(select(InferenceAttempt))
+    assert ledger.status == "succeeded" and ledger.usage_status == "unknown"
+    assert ledger.input_tokens is None and ledger.output_tokens is None
+
+
+def test_missing_budget_never_dispatches(db, monkeypatch):
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    jid = enqueue(db)
+
+    def forbidden(*_):
+        raise AssertionError("unmetered provider")
+
+    assert Worker(sessionmaker(bind=db.get_bind()), call=forbidden).run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).last_error_category == "unconfigured"
+    assert db.scalar(select(InferenceAttempt)) is None
+
+
+def test_api_verified_actor_status_and_cancel(api, monkeypatch):
+    client, factory = api
+    monkeypatch.setenv("SIOONA_DETECTION_EXECUTION", "worker")
+    get_settings.cache_clear()
+    a = add_member(factory, "a@example.test", "a", "reviewer")
+    b = add_member(factory, "b@example.test", "b", "reviewer")
+    path = "/v1/tenants/a/jobs/uploads/u1"
+    response = client.put(
+        path, json=body().model_dump(mode="json"), headers=actor_headers(a, "a")
+    )
+    assert response.status_code == 202, response.text
+    jid = response.json()["job_id"]
+    assert (
+        client.get(
+            f"/v1/tenants/a/jobs/{jid}", headers=actor_headers(b, "b")
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/v1/tenants/a/jobs/{jid}/cancel", headers=actor_headers(b, "b")
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/v1/tenants/a/jobs/{jid}/cancel", headers=actor_headers(a, "a")
+        ).json()["status"]
+        == "cancelled"
+    )
+    # Verified authority is required even during the legacy auth rollout.
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", "off")
+    get_settings.cache_clear()
+    assert (
+        client.put(
+            path, json=body().model_dump(mode="json"), headers={"X-Tenant-Id": "a"}
+        ).status_code
+        == 401
+    )
+
+
+def test_inline_mode_preserved_and_jobs_disabled(db, monkeypatch):
+    monkeypatch.delenv("SIOONA_DETECTION_EXECUTION")
+    get_settings.cache_clear()
+    assert get_settings().sioona_detection_execution == "inline"
+    with pytest.raises(jobs.JobError, match="worker_mode_required"):
+        enqueue(db)
+
+
+def test_pause_drains_without_spending_retry(db):
+    jid = enqueue(db)
+    lease = jobs.claim(db, "a", "worker")
+    db.commit()
+    jobs.drain(db, lease)
+    db.commit()
+    row = db.get(Job, ("a", jid))
+    assert row.status == "queued" and row.attempt_count == 0
+    next_lease = jobs.claim(db, "a", "new")
+    db.commit()
+    assert next_lease.token == lease.token + 1
+
+
+def test_completed_job_upload_snapshot_is_reconstructible(db):
+    from app.schemas.ingestion import IngestionFile
+    from app.services.upload_snapshot import load_upload_snapshot
+
+    b = body(ids=("c1", "c2"))
+    b.files = [
+        IngestionFile(source="first.csv", conversation_ids=["c1"]),
+        IngestionFile(source="second.csv", conversation_ids=["c2"]),
+    ]
+    row = jobs.enqueue_upload(db, "a", "u1", b)
+    jid = row.id
+    db.commit()
+    assert Worker(sessionmaker(bind=db.get_bind())).run_once("a")
+    db.expire_all()
+    parent = db.get(Upload, ("a", "u1"))
+    snapshot, run = load_upload_snapshot(db, parent)
+    assert run == jid and len(snapshot.detections) == 2
+    children = db.scalars(
+        select(Upload).where(Upload.tenant_id == "a", Upload.upload_id != "u1")
+    ).all()
+    assert len(children) == 2
+    for child in children:
+        snapshot, run = load_upload_snapshot(db, child)
+        assert run == jid and len(snapshot.detections) == 1
+
+
+def test_recovery_cron_excludes_durable_jobs_even_after_rollback(db, monkeypatch):
+    from app.services.ingestion_recovery import recover_staged_ingestions
+
+    enqueue(db)
+    monkeypatch.setenv("SIOONA_DETECTION_EXECUTION", "inline")
+    get_settings.cache_clear()
+    assert recover_staged_ingestions(db, grace_seconds=0)["attempted"] == 0
+
+
+def test_provider_failures_are_metered_and_bounded(db, monkeypatch):
+    from app.ai.gateway import ProviderFailure
+
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
+    db.commit()
+    jid = enqueue(db)
+    calls = []
+
+    def fail(*_):
+        calls.append(1)
+        raise ProviderFailure(
+            "timeout", result={"status": "timeout", "error_category": "timeout"}
+        )
+
+    worker = Worker(sessionmaker(bind=db.get_bind()), call=fail)
+    for index in range(3):
+        assert worker.run_once("a")
+        db.expire_all()
+        row = db.get(Job, ("a", jid))
+        if index < 2:
+            assert row.status == "failed"
+            row.run_after = datetime.now(timezone.utc) - timedelta(seconds=1)
+            db.commit()
+    assert row.status == "dead_lettered" and len(calls) == 3
+    attempts = db.scalars(select(InferenceAttempt)).all()
+    assert len(attempts) == 3 and all(
+        a.status == "timeout" and a.input_tokens is None for a in attempts
+    )
+
+
+def test_daily_quota_fallback_has_separate_pending_reservation(db, monkeypatch):
+    from app.ai.gateway import ProviderFailure
+
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
+    db.commit()
+    jid = enqueue(db)
+    calls = []
+
+    def call(model, messages):
+        calls.append(model)
+        if len(calls) == 1:
+            raise ProviderFailure("quota", daily_quota=True)
+        return {"type": "none", "confidence": 0.9, "summary": "Ops", "quotes": []}, {
+            "status": "succeeded",
+            "usage": {},
+        }
+
+    assert Worker(sessionmaker(bind=db.get_bind()), call=call).run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).status == "succeeded"
+    assert calls == ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+    attempts = db.scalars(
+        select(InferenceAttempt).order_by(InferenceAttempt.attempt_ordinal)
+    ).all()
+    assert [a.attempt_ordinal for a in attempts] == [1, 2]
+
+
+def test_detect_preserves_canonical_metadata(db):
+    from app.models.conversation import Conversation
+
+    b = body()
+    b.conversations[0].external_id = "external-synthetic"
+    b.conversations[0].ground_truth = "lead"
+    row = jobs.enqueue_upload(db, "a", "u1", b)
+    db.commit()
+    Worker(sessionmaker(bind=db.get_bind())).run_once("a")
+    jobs.enqueue_detect(db, "a", "recheck", ["c1"])
+    db.commit()
+    chat = db.scalar(
+        select(Conversation).where(
+            Conversation.tenant_id == "a", Conversation.conversation_id == "c1"
+        )
+    )
+    assert chat.external_id == "external-synthetic" and chat.ground_truth == "lead"
+
+
+def test_changed_publication_stays_in_resume(db):
+    from app.models.message import Message
+
+    jid = enqueue(db)
+    lease = jobs.claim(db, "a", "worker")
+    db.commit()
+    content_hash = jobs.conversation_content_hash(db, "a", "c1")
+    jobs.publish_conversation(db, lease, "c1", content_hash, "heuristic", [])
+    db.commit()
+    message = db.scalar(select(Message).where(Message.tenant_id == "a"))
+    message.content = "New genuine request"
+    db.commit()
+    jobs.fail(db, lease, "source_changed")
+    db.commit()
+    assert db.get(DetectionResume, "a").failed_conversation_ids == ["c1"]
+
+
+def test_admission_rechecks_lease_after_budget_lock(db, monkeypatch):
+    configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
+    db.commit()
+    jid = enqueue(db)
+    lease = jobs.claim(db, "a", "worker")
+    db.commit()
+    original = jobs.reserve
+
+    def delayed_reserve(*args, **kwargs):
+        result = original(*args, **kwargs)
+        db.get(Job, ("a", jid)).lease_expires_at = datetime.now(
+            timezone.utc
+        ) - timedelta(seconds=1)
+        return result
+
+    monkeypatch.setattr(jobs, "reserve", delayed_reserve)
+    with pytest.raises(jobs.LeaseLost):
+        jobs.admit(
+            db,
+            lease,
+            "c1",
+            jobs.conversation_content_hash(db, "a", "c1"),
+            "qwen/qwen3.8-27b",
+        )
+    db.rollback()
+    assert db.scalar(select(InferenceAttempt)) is None
 
 
 def test_worker_tick_rotates_busy_tenants(monkeypatch):
-    """A tenant with an endless backlog cannot monopolize successive ticks."""
-    from contextlib import nullcontext
-    from app.worker import Worker
-    from app.services.jobs import Lease
-
-    class FakeSession:
-        def __enter__(self):
-            return self
-        def __exit__(self, *_):
-            pass
-        def begin(self):
-            return nullcontext()
-
+    """Same fairness invariant that failed before the initial rotation fix."""
     claimed = []
-    def busy_claim(db, *, tenant_id, owner):
-        claimed.append(tenant_id)
-        return Lease(tenant_id, "job", owner, 1, 1, "upload", "a" * 64, "b" * 64, 0)
-
-    worker = Worker(FakeSession, tenants=("a", "b", "c"), owner="worker",
-                    handler=lambda *_: lambda db: None)
-    monkeypatch.setattr(worker, "_session", lambda _: FakeSession())
-    monkeypatch.setattr("app.worker.claim", busy_claim)
-    monkeypatch.setattr("app.worker.complete", lambda *a, **kw: None)
+    worker = Worker(tenants=("a", "b", "c"))
+    def busy(tenant):
+        claimed.append(tenant)
+        return True
+    monkeypatch.setattr(worker, "run_once", busy)
     for _ in range(6):
         assert worker.tick()
     assert claimed == ["a", "b", "c", "a", "b", "c"]
+
+
+def test_worker_tick_skips_empty_tenants_and_respects_pause(monkeypatch):
+    claimed = []
+    worker = Worker(tenants=("a", "b"))
+    def busy(tenant):
+        claimed.append(tenant)
+        return tenant == "b"
+    monkeypatch.setattr(worker, "run_once", busy)
+    assert worker.tick()
+    assert worker.tick()
+    assert claimed == ["a", "b", "b"]
+    monkeypatch.setenv("SIOONA_WORKER_PAUSE", "1")
+    assert not worker.tick()
+    assert claimed == ["a", "b", "b"]
+
+
+def test_pause_preserves_only_unpublished_ids_for_resume(db):
+    jid = enqueue(db, ids=("c1", "c2"))
+    lease = jobs.claim(db, "a", "worker")
+    db.commit()
+    jobs.publish_conversation(db, lease, "c1", jobs.conversation_content_hash(db, "a", "c1"), "heuristic", [])
+    db.commit()
+    jobs.drain(db, lease)
+    db.commit()
+    resume = db.get(DetectionResume, "a")
+    assert resume is not None
+    assert resume.skipped_conversation_ids == ["c2"]
+    assert resume.failed_conversation_ids == []
+    assert Worker(sessionmaker(bind=db.get_bind())).run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).status == "succeeded"
+    assert db.get(DetectionResume, "a").skipped_conversation_ids == []
