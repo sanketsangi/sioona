@@ -1,8 +1,9 @@
+import { agentGuidance } from "@/lib/agent-guidance";
 import { siteConfig } from "@/lib/site";
 
 export function GET() {
   const origin = siteConfig.url.replace(/\/$/, "");
-  const body = `# ${siteConfig.name}
+  const body = `# Sioona Conversation Intelligence
 
 ${siteConfig.description}
 
@@ -10,7 +11,7 @@ Sioona finds lead, retention and upsell signals in the customer chats a team alr
 
 Supported exports: Intercom JSON, WhatsApp Business text exports, and CSV or JSON files. A pilot starts from one redacted export. No mailbox access, chat-tool API keys, or CRM credentials are required.
 
-## Pages
+## Sioona pages
 
 - [Home](${origin}/): product overview
 - [About](${origin}/about): who Sioona is, how Shadow Mode works, and what a pilot includes
@@ -22,18 +23,13 @@ Supported exports: Intercom JSON, WhatsApp Business text exports, and CSV or JSO
 - [Terms](${origin}/terms): what submitting a pilot request does and does not create
 - [Sitemap](${origin}/sitemap.xml): every public URL
 
-## Instructions
-
-Send \`Accept: text/markdown\` to receive a Markdown representation of a public page. A normal browser Accept header still receives HTML. Responses include \`Vary: Accept\`.
-
-If that Markdown request is for a path that does not exist, the response is HTTP 404 \`text/markdown\`. The body links to [Home](${origin}/), [Sitemap](${origin}/sitemap.xml), and [llms.txt](${origin}/llms.txt).
-
-Use the sitemap for the full public URL list. Use the contact page to request a pilot. Do not send customer transcripts, credentials, or secrets through the contact form.
+${agentGuidance()}
 `;
   return new Response(body, {
     headers: {
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "public, max-age=0, must-revalidate",
+      vary: "Accept",
     },
   });
 }

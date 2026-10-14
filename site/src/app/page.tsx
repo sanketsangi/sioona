@@ -10,8 +10,8 @@ import { Signals } from "@/components/sections/Signals";
 import { TrustStrip } from "@/components/sections/TrustStrip";
 import { siteConfig } from "@/lib/site";
 
-const title = "Sioona | AI Conversation Intelligence for Customer Teams";
-const description = "Find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.";
+const title = "Sioona Conversation Intelligence | Customer Signals";
+const description = "Sioona Conversation Intelligence helps teams find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -25,7 +25,7 @@ export default function HomePage() {
   return (
     <div className="home-polish">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        "@context": "https://schema.org", "@type": "SoftwareApplication", name: "Sioona",
+        "@context": "https://schema.org", "@type": "SoftwareApplication", name: "Sioona Conversation Intelligence",
         applicationCategory: "BusinessApplication", operatingSystem: "Web", url: siteConfig.url, description,
       }).replace(/</g, "\\u003c") }} />
       <Hero />

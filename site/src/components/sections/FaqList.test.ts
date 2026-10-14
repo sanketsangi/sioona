@@ -2,6 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { LazyMotion, domAnimation } from "framer-motion";
 import { FaqList } from "./FaqList";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root;
@@ -11,7 +12,7 @@ beforeEach(() => {
   host = document.createElement("div"); document.body.append(host); root = createRoot(host);
 });
 afterEach(() => { act(() => root.unmount()); host.remove(); });
-function render() { act(() => root.render(createElement(FaqList))); }
+function render() { act(() => root.render(createElement(LazyMotion, { features: domAnimation }, createElement(FaqList)))); }
 function history(hash: string) {
   act(() => { window.history.replaceState(null, "", `/${hash}`); window.dispatchEvent(new PopStateEvent("popstate")); });
 }
@@ -32,7 +33,7 @@ describe("FAQ navigation", () => {
     render(); const button = trigger("pilot-length"); act(() => button.click());
     expect(window.location.hash).toBe("#faq-pilot-length");
     const panel = host.querySelector(`#${button.getAttribute("aria-controls")}`) as HTMLElement;
-    expect(panel.hidden).toBe(false); expect(panel.getAttribute("aria-labelledby")).toBe(button.id);
-    act(() => button.click()); expect(panel.hidden).toBe(true);
+    expect(panel.getAttribute("aria-hidden")).toBe("false"); expect(panel.getAttribute("aria-labelledby")).toBe(button.id);
+    act(() => button.click()); expect(panel.getAttribute("aria-hidden")).toBe("true"); expect(panel.hasAttribute("inert")).toBe(true);
   });
 });

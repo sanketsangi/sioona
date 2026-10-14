@@ -33,6 +33,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   applicationName: "Sioona",
+  other: { "is-agentic-site-type": "business" },
   openGraph: {
     type: "website",
     siteName: "Sioona",

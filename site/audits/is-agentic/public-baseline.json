@@ -1,0 +1,61 @@
+{
+  "target": "https://sioona-site.vercel.app",
+  "display_target": "sioona-site.vercel.app",
+  "report_url": "https://is-agentic.com/scan/sioona-site.vercel.app",
+  "score": 97,
+  "score_label": "Strong technical baseline",
+  "scanned_at": "2026-10-14T02:49:59.887Z",
+  "eligible_checks": 18,
+  "score_breakdown": {
+    "essential": {
+      "earned": 80,
+      "available": 80,
+      "passing": 6,
+      "total": 6
+    },
+    "recommended": {
+      "earned": 14.4,
+      "available": 20,
+      "passing": 8,
+      "total": 12
+    },
+    "bonus": {
+      "points": 2.1,
+      "positive_signals": 9
+    }
+  },
+  "issues": [
+    {
+      "details": "Agent searched for \"vercel\" developer resources but found nothing relevant",
+      "id": "agentic-search-specific",
+      "name": "Developer resource discoverability",
+      "recommendation": "Check whether your developer resources (API docs, OpenAPI spec, auth docs, developer portal, MCP server, SDK documentation) surface in name-based searches. If they do not, use predictable URLs, link them in llms.txt, and include your product name in page titles and headings. This result reflects one search sample.",
+      "result": "failed",
+      "tier": "recommended"
+    },
+    {
+      "details": "sioona-site.vercel.app was not in the top 10 for \"Sioona Conversation Intelligence\"",
+      "id": "brand-search-accuracy",
+      "name": "Brand name discoverability",
+      "recommendation": "Make sure your own domain ranks in the top results when people search your brand together with your main product (for example \"Acme payments API\"). If it does not, your brand may be too generic, conflict with a more established term, or not yet indexed. Strengthen it by describing your main product clearly in your homepage title and headings, earning press mentions that link to your domain, and avoiding redirect chains that mask your main domain in search results.",
+      "result": "failed",
+      "tier": "recommended"
+    },
+    {
+      "details": "No agent instruction file with when-to-use guidance found",
+      "id": "agent-instruction",
+      "name": "Agent instruction / when-to-use",
+      "recommendation": "Tell agents when to reach for you: add a 'when to use this' section to your llms.txt (or a dedicated agent-instructions file) that names your best-fit use cases and how an agent should call you. Be specific about the jobs you are right for - generic marketing copy does not read as guidance.",
+      "result": "failed",
+      "tier": "recommended"
+    },
+    {
+      "details": "Verified MCP server in registry with usage (Smithery, vercel, 549 uses, verified) but no live protocol handshake - add /.well-known/mcp for full credit.",
+      "id": "mcp-server",
+      "name": "MCP server / manifest",
+      "recommendation": "Build an MCP (Model Context Protocol) server exposing your API as tools. Use Streamable HTTP transport for full score. This lets Claude, ChatGPT, and other AI agents call your product natively.",
+      "result": "partial",
+      "tier": "recommended"
+    }
+  ]
+}

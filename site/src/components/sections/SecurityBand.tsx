@@ -26,14 +26,16 @@ export function SecurityBand() {
   return (
     <section aria-labelledby="security-title" className="section bg-sio-bg-muted">
       <div className="container-page">
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1">
           <SectionHeader
             id="security-title"
             eyebrow="Security And Control"
             title="Built so a human is always in control."
             description="Sioona observes and suggests. People decide, and your tools do the follow-up."
           />
-          <Link href="/security" className="btn-secondary self-start md:self-auto">
+          </div>
+          <Link href="/security" className="btn-secondary shrink-0 self-start whitespace-nowrap lg:self-auto">
             Read The Security Overview
             <ArrowRight size={16} weight="bold" aria-hidden />
           </Link>

@@ -24,7 +24,7 @@ export function SiteNav() {
   const [open, setOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState(0);
-  const [previewsPaused, setPreviewsPaused] = useState(true);
+  const [previewRun, setPreviewRun] = useState(0);
   const pageVisible = usePageVisible();
   const [workflowRun, setWorkflowRun] = useState(0);
   const [retainedPreviews, setRetainedPreviews] = useState<number[]>([]);
@@ -32,6 +32,30 @@ export function SiteNav() {
   const productButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closingRef = useRef(false);
+  const pendingHeaderScroll = useRef<string | null>(null);
+  const hoverCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelHoverClose = () => {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+    hoverCloseTimer.current = null;
+  };
+  useEffect(() => () => {
+    if (hoverCloseTimer.current) clearTimeout(hoverCloseTimer.current);
+  }, []);
+
+  const navigateHeader = (href: string) => {
+    if (href.includes("#")) return;
+    if (pathname === href) {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } else {
+      pendingHeaderScroll.current = href;
+    }
+  };
+
+  useEffect(() => {
+    if (pendingHeaderScroll.current !== pathname) return;
+    pendingHeaderScroll.current = null;
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
 
   const selectProduct = (index: number) => {
     if (index === 1 && activeProduct !== 1) setWorkflowRun((value) => value + 1);
@@ -183,7 +207,11 @@ export function SiteNav() {
           aria-label="Primary"
           className="site-nav-links hidden items-center gap-1 md:flex"
         >
-          <div ref={productRef} className="product-navigation" onBlur={(event) => {
+          <div ref={productRef} className="product-navigation" onPointerEnter={cancelHoverClose} onPointerLeave={(event) => {
+            if (event.pointerType !== "mouse") return;
+            cancelHoverClose();
+            hoverCloseTimer.current = setTimeout(() => setProductOpen(false), 180);
+          }} onBlur={(event) => {
             // Switching previews can make the outgoing focused control inert.
             if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) setProductOpen(false);
           }} onKeyDown={(event) => {
@@ -192,7 +220,16 @@ export function SiteNav() {
               productButtonRef.current?.focus();
             }
           }}>
-            <button ref={productButtonRef} type="button" className="nav-link product-trigger" aria-expanded={productOpen} aria-controls="product-navigation" onClick={() => {
+            <button ref={productButtonRef} type="button" className="nav-link product-trigger" aria-expanded={productOpen} aria-controls="product-navigation" onPointerEnter={(event) => {
+              if (event.pointerType !== "mouse") return;
+              cancelHoverClose();
+              if (!productOpen) {
+                setPreviewRun((value) => value + 1);
+                setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
+                setProductOpen(true);
+              }
+            }} onClick={() => {
+              if (!productOpen) setPreviewRun((value) => value + 1);
               setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
               setProductOpen(!productOpen);
             }}>
@@ -212,17 +249,13 @@ export function SiteNav() {
                 </div>
               </div>
               <div className="product-preview" role="group" aria-label="Product preview">
-                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && activeProduct === index && !previewsPaused && pageVisible} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
-                  <div className="flex items-center justify-between gap-2">
+                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && activeProduct === index && pageVisible} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
+                  <div className="product-preview-heading">
                     <span className="eyebrow">{link.eyebrow}</span>
-                    {index !== 2 ? <button type="button" className="btn-tertiary menu-preview-playback motion-reduce:hidden"
-                      aria-label={`${previewsPaused ? "Play" : "Pause"} ${link.label} preview`}
-                      aria-pressed={!previewsPaused} onClick={() => setPreviewsPaused((value) => !value)}>
-                      {previewsPaused ? "Play" : "Pause"}
-                    </button> : null}
+
                   </div>
-                  {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-open`}>
-                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 2 ? <ScorePreview /> : <FeaturePreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} />}
+                  {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-${previewRun}`}>
+                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && pageVisible} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && pageVisible} /> : index === 2 ? <ScorePreview running={productOpen && activeProduct === index && pageVisible} /> : <FeaturePreview running={productOpen && activeProduct === index && pageVisible} />}
                   </div> : null}
                 </div>)}
               </div>
@@ -233,6 +266,7 @@ export function SiteNav() {
               key={link.href}
               href={link.href}
               className="nav-link"
+              onNavigate={() => navigateHeader(link.href)}
               onClick={() => setProductOpen(false)}
               aria-current={pathname === link.href ? "page" : undefined}
             >
@@ -289,6 +323,7 @@ export function SiteNav() {
                 key={link.href}
                 href={link.href}
                 onClick={closeDrawer}
+                onNavigate={() => navigateHeader(link.href)}
                 aria-current={pathname === link.href ? "page" : undefined}
                 className="flex min-h-12 items-center border-b border-sio-border-base text-heading-20 text-sio-fg-base"
               >

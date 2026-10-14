@@ -58,7 +58,7 @@ function FieldShell({
   );
 }
 
-export function ContactForm() {
+export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
   const [values, setValues] = useState<ContactValues>(emptyContact);
   const [errors, setErrors] = useState<ContactErrors>({});
   const [touched, setTouched] = useState<Partial<Record<ContactField, boolean>>>({});
@@ -132,7 +132,7 @@ export function ContactForm() {
         body: payload,
       });
       const data = (await response.json().catch(() => null)) as { ok?: boolean; receipt?: string; error?: string; errors?: ContactErrors } | null;
-      if (response.ok && data?.ok && data.receipt) {
+      if (response.ok && data?.ok === true && data.receipt === requestIdentity.current.key) {
         setReceipt(data.receipt);
         setStatus("success");
         setAnnounce("Your pilot request was stored. Keep your receipt for reference.");
@@ -336,6 +336,11 @@ export function ContactForm() {
       <p id="contact-status" role="status" aria-live="polite" className={announce ? "text-label-13 text-sio-fg-subtle" : "sr-only"}>
         {announce}
       </p>
+      {status === "error" && supportEmail ? (
+        <p className="text-copy-14 text-sio-fg-subtle">
+          If retrying fails, <a href={`mailto:${encodeURIComponent(supportEmail)}`} className="underline">email {supportEmail}</a>. Please don’t include customer transcripts or sensitive data.
+        </p>
+      ) : null}
     </form>
   );
 }

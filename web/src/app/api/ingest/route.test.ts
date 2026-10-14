@@ -1,3 +1,4 @@
+import ExcelJS from "exceljs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/defer-ingest-sync", () => ({
@@ -117,6 +118,30 @@ describe("POST /api/ingest", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it.each(["xlsx", "eml"])("publishes redacted %s through the existing detection pipeline", async (extension) => {
+    const content = "Priya Sharma wants to open a demat account this week हिंदी ₹500";
+    let file: File;
+    if (extension === "xlsx") {
+      const workbook = new ExcelJS.Workbook();
+      workbook.addWorksheet("Synthetic").addRows([
+        ["conversation_id", "role", "content", "customer_name", "timestamp"],
+        ["synthetic-thread", "customer", content, "Priya Sharma", "2026-10-13T12:00:00Z"],
+      ]);
+      file = new File([new Uint8Array(await workbook.xlsx.writeBuffer())], "synthetic.xlsx");
+    } else {
+      file = new File([`From: Priya Sharma <priya@example.test>\r\nMessage-ID: <synthetic@example.test>\r\nDate: Tue, 13 Oct 2026 12:00:00 +0000\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${content}`], "synthetic.eml");
+    }
+    const response = await POST(ingestRequest(file));
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.importedConversations).toBe(1);
+    const persisted = await readStore();
+    expect(persisted.conversations[0].customerName).toMatch(/^Customer [a-f0-9]{8}$/);
+    expect(persisted.messages[0].content).toBe(content.replace("Priya Sharma", "[name]"));
+    expect(JSON.stringify(persisted.messages)).not.toContain("priya@example.test");
+    expect(result.newSignals).toBeGreaterThan(0);
   });
 
   it("replaces showcase chats on the first partner upload after reset", async () => {

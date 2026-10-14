@@ -12,6 +12,12 @@ describe("prefersMarkdown", () => {
     expect(prefersMarkdown("*/*")).toBe(false);
   });
 
+  it("rejects disabled or malformed quality values and preserves HTML ties", () => {
+    for (const value of ["0", "-1", "2", "Infinity", "invalid"]) expect(prefersMarkdown(`text/markdown;q=${value}`)).toBe(false);
+    expect(prefersMarkdown("text/html, text/markdown")).toBe(false);
+    expect(prefersMarkdown("TEXT/MARKDOWN;Q=0.9,text/html;q=0.1")).toBe(true);
+  });
+
   it("serves markdown only when that type outranks HTML", () => {
     expect(prefersMarkdown("text/markdown")).toBe(true);
     expect(prefersMarkdown("text/markdown, text/html;q=0.5")).toBe(true);

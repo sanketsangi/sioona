@@ -1,9 +1,28 @@
+"use client";
+
+import { useEffect } from "react";
 import { FaqList } from "@/components/sections/FaqList";
 import { Reveal } from "@/components/motion/Reveal";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { faqItems } from "@/lib/faq";
 
 export function Faq() {
+  useEffect(() => {
+    let frame = 0;
+    const align = () => {
+      if (window.location.hash !== "#faq") return;
+      frame = window.requestAnimationFrame(() => {
+        const section = document.getElementById("faq");
+        if (!section) return;
+        const headerBottom = document.querySelector("header")?.getBoundingClientRect().bottom ?? 0;
+        const contentTop = section.getBoundingClientRect().top + window.scrollY + parseFloat(window.getComputedStyle(section).paddingTop || "0");
+        window.scrollTo({ top: contentTop - headerBottom, behavior: "instant" });
+      });
+    };
+    align();
+    window.addEventListener("hashchange", align);
+    return () => { window.cancelAnimationFrame(frame); window.removeEventListener("hashchange", align); };
+  }, []);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",

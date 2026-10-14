@@ -20,10 +20,20 @@ describe("markdown middleware", () => {
     expect(pattern.test("/api/contact")).toBe(true);
     expect(pattern.test("/llms.txt")).toBe(true);
     expect(pattern.test("/sitemap.xml")).toBe(true);
+    expect(pattern.test("/.well-known/mcp")).toBe(true);
+    expect(pattern.test("/mcp")).toBe(true);
     expect(pattern.test("/_next/static/chunks/main.js")).toBe(false);
     expect(pattern.test("/_next/image")).toBe(false);
     expect(pattern.test("/sioona-footer.svg")).toBe(false);
     expect(pattern.test("/favicon.ico")).toBe(false);
+  });
+
+  it("keeps discovery and the protocol endpoint native even for Markdown requests", () => {
+    for (const path of ["/.well-known/mcp", "/mcp", "/api/contact"]) {
+      const response = responseFor(path, "text/markdown");
+      expect((response.headers.get("content-type") ?? "")).not.toContain("text/markdown");
+      expect(response.headers.get("vary")).toBe("Accept");
+    }
   });
 
   it("sets Vary: Accept on HTML and Markdown responses", async () => {
@@ -35,7 +45,7 @@ describe("markdown middleware", () => {
     expect(page.status).toBe(200);
     expect(page.headers.get("vary")).toBe("Accept");
     expect(page.headers.get("content-type")).toContain("text/markdown");
-    expect(await page.text()).toContain("# About");
+    expect(await page.text()).toContain("# Sioona — About");
 
     const missing = responseFor("/not-a-page", "text/markdown");
     expect(missing.status).toBe(404);
