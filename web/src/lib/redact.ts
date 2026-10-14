@@ -132,15 +132,16 @@ export function pseudonymCustomerName(
   return `Customer ${shortHash(`sioona-customer:${identityKey(raw)}`)}`;
 }
 
-/** Drop a raw name (4+ chars) from stored message text. */
+/** Drop a raw name; short labels match whole Unicode words to avoid corrupting text. */
 export function scrubCustomerName(
   content: string,
   rawName: string | null | undefined,
 ): string {
   const name = rawName?.trim();
-  if (!name || name.length < 4 || !content) return content;
+  if (!name || !content) return content;
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return content.replace(new RegExp(escaped, "gi"), "[name]");
+  const pattern = name.length < 4 ? `(?<![\\p{L}\\p{M}\\p{N}])${escaped}(?![\\p{L}\\p{M}\\p{N}])` : escaped;
+  return content.replace(new RegExp(pattern, "giu"), "[name]");
 }
 
 /**

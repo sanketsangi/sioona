@@ -6,7 +6,10 @@ describe("llms.txt", () => {
     const response = GET();
     expect(response.headers.get("content-type")).toContain("text/plain");
     const body = await response.text();
-    expect(body).toContain("## Instructions");
+    expect(body).toContain("## Sioona endpoint instructions");
+    expect(body).toContain("## When to use Sioona");
+    expect(body).toContain("/.well-known/mcp");
+    expect(body).toContain("sioona_read_page");
     expect(body).toContain("Accept: text/markdown");
     expect(body).toContain("Vary: Accept");
     expect(body).toContain("/about");

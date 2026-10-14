@@ -14,6 +14,7 @@ from app.models.detection_resume import DetectionResume
 from app.models.detection_run import DetectionRun
 from app.models.inference_attempt import InferenceAttempt
 from app.models.upload import Upload, UploadConversation
+from app.models.job import Job
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.pilot_settings import PilotSettings
@@ -49,6 +50,7 @@ def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
     ).rowcount
     detections_deleted = db.execute(delete(DetectionRun).where(DetectionRun.tenant_id == tenant_id)).rowcount
     memberships_deleted = db.execute(delete(UploadConversation).where(UploadConversation.tenant_id == tenant_id)).rowcount
+    db.execute(delete(Job).where(Job.tenant_id == tenant_id))
     uploads_deleted = db.execute(delete(Upload).where(Upload.tenant_id == tenant_id)).rowcount
     conversations_deleted = db.execute(
         delete(Conversation).where(Conversation.tenant_id == tenant_id)

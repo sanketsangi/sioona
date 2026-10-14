@@ -6,13 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const navigation = vi.hoisted(() => ({ pathname: "/" }));
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => navigation.pathname,
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, onNavigate: _onNavigate, ...props }: { href: string; children?: ReactNode; onNavigate?: unknown }) =>
-    createElement("a", { href, ...props, "data-guarded": Boolean(_onNavigate) }, children),
+  default: ({ href, children, onNavigate, onClick, ...props }: { href: string; children?: ReactNode; onNavigate?: (event: { preventDefault: () => void }) => void; onClick?: (event: MouseEvent) => void }) =>
+    createElement("a", { href, ...props, onClick: (event: MouseEvent) => { event.preventDefault(); onClick?.(event); onNavigate?.({ preventDefault() {} }); }, "data-guarded": Boolean(onNavigate) }, children),
 }));
 
 vi.mock("@/components/layout/MenuPreviews", () => {
@@ -98,6 +99,7 @@ function menu() {
 
 describe("Product dropdown", () => {
   beforeEach(() => {
+    navigation.pathname = "/";
     window.location.hash = "";
     installMatchMedia();
     installIntersectionObserver();
@@ -129,6 +131,68 @@ describe("Product dropdown", () => {
     });
     expect(button.getAttribute("aria-expanded")).toBe("false");
     expect(menu().getAttribute("data-open")).toBe("false");
+  });
+
+  it("opens only on mouse hover over Product and stays open when entering the dropdown", () => {
+    vi.useFakeTimers();
+    const enter = (target: Element, pointerType = "mouse") => act(() => target.dispatchEvent(new PointerEvent("pointerover", { bubbles: true, pointerType })));
+    const wrapper = productButton().parentElement!;
+    enter(wrapper);
+    expect(menu().dataset.open).toBe("false");
+    enter(productButton(), "touch");
+    expect(menu().dataset.open).toBe("false");
+    enter(productButton());
+    expect(menu().dataset.open).toBe("true");
+    act(() => wrapper.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, pointerType: "mouse", relatedTarget: document.body })));
+    enter(menu());
+    act(() => vi.advanceTimersByTime(180));
+    expect(menu().dataset.open).toBe("true");
+    act(() => wrapper.dispatchEvent(new PointerEvent("pointerout", { bubbles: true, pointerType: "mouse", relatedTarget: document.body })));
+    act(() => vi.advanceTimersByTime(180));
+    expect(menu().dataset.open).toBe("false");
+    vi.useRealTimers();
+  });
+
+  it("always links How It Works to its dedicated page on desktop and mobile", () => {
+    for (const pathname of ["/", "/pricing", "/security"]) {
+      navigation.pathname = pathname;
+      act(() => root?.render(createElement(SiteNav)));
+      const links = [...(host?.querySelectorAll("nav a") ?? [])].filter((link) => link.textContent === "How It Works");
+      expect(links).toHaveLength(2);
+      for (const link of links) expect(link.getAttribute("href")).toBe("/how-it-works");
+    }
+  });
+
+  it("resets scroll after header navigation, including same-page clicks, but leaves history navigation alone", () => {
+    const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const link = host?.querySelector('a.nav-link[href="/pricing"]') as HTMLAnchorElement;
+    act(() => link.click());
+    expect(scroll).not.toHaveBeenCalled();
+    navigation.pathname = "/pricing";
+    act(() => root?.render(createElement(SiteNav)));
+    expect(scroll).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "instant" });
+    scroll.mockClear();
+    act(() => link.click());
+    expect(scroll).toHaveBeenCalledTimes(1);
+    scroll.mockClear();
+    navigation.pathname = "/security";
+    act(() => root?.render(createElement(SiteNav)));
+    expect(scroll).not.toHaveBeenCalled();
+    scroll.mockRestore();
+  });
+
+  it("runs the selected preview automatically without playback buttons", () => {
+    expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
+    act(() => productButton().click());
+    const preview = menu().querySelector('[data-active="true"].product-preview-content');
+    expect(preview?.getAttribute("data-preview-running")).toBe("true");
+    expect(menu().querySelector(".menu-preview-playback")).toBeNull();
+    const workflow = menu().querySelector('a[href="/#how"]');
+    act(() => workflow?.dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+    expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(1);
+    expect(menu().querySelector('[data-preview-running="true"]')?.textContent).toContain("From chat to action");
+    act(() => productButton().click());
+    expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
   });
 
   it("keeps the menu open when switching previews removes the focused playback control", () => {

@@ -4,6 +4,7 @@ import { ContactForm } from "@/components/forms/ContactForm";
 import { RevealGroup, RevealItem, Reveal } from "@/components/motion/Reveal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { nb } from "@/lib/site";
+import { contactPolicy } from "@/lib/contact-policy";
 
 export const metadata: Metadata = pageMetadata("Request a pilot", "Request a two-week Shadow Mode pilot. Share one redacted chat export and see lead, retention and upsell signals with your own Signal Score.", "/contact");
 
@@ -49,7 +50,7 @@ export default function ContactPage() {
             </RevealGroup>
           </div>
           <Reveal>
-            <ContactForm />
+            <ContactForm supportEmail={contactPolicy().supportEmail} />
           </Reveal>
         </div>
       </section>

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "evidence": "docs/development/tasks/CB-09.md v3 capture closeout; archived unchanged capture bytes and generation prompt construction at PR #146 head 163a08e",
+  "evidence": "docs/development/tasks/CB-09.md v3 capture closeout; archived unchanged capture bytes and generation prompt construction at PR #146 head 163a08e. prompt_sha256 is that same request redaction with ingest-only scrubCustomerName omitted; capture digests and source_sha are unchanged.",
   "captures": {
     "val-lead-01": "1c75c02fc296047f3ee9a377f37e3487e5799fb0f8e882c61f1d5d3c28feb5b2",
     "val-lead-02": "26de273391b2e3ba02732763f5a55be7586446917deef40fde8ef1d73121d670",
@@ -125,7 +125,7 @@
   },
   "request_identity": {
     "source_sha": "163a08e54c8340b86c098b7ce6e14fcd845498f1",
-    "prompt_sha256": "fa2874e7077d94a56b59b0c27e4f5f5e889701cdc538bc8f13a2a7574dddff2f",
+    "prompt_sha256": "c320895318fdd396c33e33714720ca0c3f3c2e52cd4c0f8585846a1ddff04a4b",
     "request_config_sha256": "e19283cfbba57d8adca9a0a753b8647f2fd989101e1911904d50628397a2d692"
   },
   "execution_identity": "Unknown historical retry/pacing environment; no full live-execution identity is asserted. Accepted for synthetic request replay only, never external promotion."

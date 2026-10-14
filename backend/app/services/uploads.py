@@ -1,12 +1,13 @@
 """Upload membership publication; callers commit it with their corpus transaction."""
 from collections.abc import Sequence
+from datetime import datetime
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from app.models.upload import Upload, UploadConversation
 
 
 def publish_upload(db: Session, *, tenant_id: str, upload_id: str, source: str,
-                   content_sha256: str, conversation_ids: Sequence[str], replace: bool = False) -> Upload:
+                   content_sha256: str, conversation_ids: Sequence[str], replace: bool = False, replacement_before: datetime | None = None) -> Upload:
     """Idempotent publish. Never mutate an existing identity or committed membership.
 
     No commit here: the ingest transaction must include messages and predictions.
@@ -24,7 +25,10 @@ def publish_upload(db: Session, *, tenant_id: str, upload_id: str, source: str,
         if existing.status == "completed":
             return existing
     if replace:
-        db.execute(update(Upload).where(Upload.tenant_id == tenant_id).values(active=False))
+        statement = update(Upload).where(Upload.tenant_id == tenant_id)
+        if replacement_before is not None:
+            statement = statement.where(Upload.imported_at <= replacement_before)
+        db.execute(statement.values(active=False))
     row = existing or Upload(tenant_id=tenant_id, upload_id=upload_id, source=source,
                  content_sha256=content_sha256, status="completed")
     row.status = "completed"

@@ -10,6 +10,12 @@ from app.services.uploads import upload_conversation_ids
 
 
 def load_upload_snapshot(db, upload):
+    from app.models.job import Job
+    marker = upload.payload if isinstance(upload.payload, dict) else {}
+    parent_id = marker.get("parent_upload_id", upload.upload_id)
+    job = db.scalar(select(Job).where(Job.tenant_id == upload.tenant_id, Job.upload_id == parent_id))
+    if job is not None:
+        return _load_job_snapshot(db, upload, job)
     if upload.status != "completed" or not isinstance(upload.payload, dict):
         raise ValueError("upload_snapshot_unavailable")
     snapshot = upload.payload.get("snapshot", upload.payload)
@@ -61,3 +67,51 @@ def load_upload_snapshot(db, upload):
                  item.coverage.model_dump() if item.coverage is not None else None)):
             raise ValueError("upload_snapshot_unavailable")
     return body, run_id
+
+
+def _load_job_snapshot(db, upload, job):
+    """Compose the immutable source and fenced detection outputs without JSON fallback."""
+    from app.services.jobs import source_body
+
+    if job.status != "succeeded" or upload.status != "completed":
+        raise ValueError("upload_snapshot_unavailable")
+    original = source_body(db, job)
+    parent = db.get(Upload, (upload.tenant_id, job.upload_id))
+    if parent is None or parent.content_sha256 != upload.content_sha256:
+        raise ValueError("upload_snapshot_unavailable")
+    selected = set(upload_conversation_ids(db, upload.tenant_id, upload.upload_id))
+    if upload.upload_id == job.upload_id:
+        expected = {c.conversation_id for c in original.conversations}
+    else:
+        file = next(
+            (f for f in original.files or [] if f.source == upload.source), None
+        )
+        if file is None:
+            raise ValueError("upload_snapshot_unavailable")
+        expected = set(file.conversation_ids)
+    if selected != expected:
+        raise ValueError("upload_snapshot_unavailable")
+    detections = []
+    for chat in original.conversations:
+        if chat.conversation_id not in selected:
+            continue
+        run = db.get(DetectionRun, (upload.tenant_id, job.id, chat.conversation_id))
+        if run is None:
+            raise ValueError("upload_snapshot_unavailable")
+        detections.append(
+            {
+                "conversation_id": chat.conversation_id,
+                "content_hash": run.content_hash,
+                "model_version": run.model_version,
+                "prompt_version": run.prompt_version,
+                "output": run.output,
+                **({"coverage": run.coverage} if run.coverage else {}),
+            }
+        )
+    return Ingestion(
+        source=upload.source,
+        conversations=[
+            c for c in original.conversations if c.conversation_id in selected
+        ],
+        detections=detections,
+    ), job.id

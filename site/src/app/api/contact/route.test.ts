@@ -23,6 +23,10 @@ describe("durable pilot intake proxy", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ ok: true })));
     expect((await POST(request())).status).toBe(503);
   });
+  it("requires the backend to explicitly acknowledge storage", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ ok: false, receipt: key })));
+    expect((await POST(request())).status).toBe(503);
+  });
   it("reports an unconfigured preview honestly", async () => {
     vi.stubEnv("PILOT_INTAKE_BACKEND_URL", "");
     expect((await POST(request())).status).toBe(503);

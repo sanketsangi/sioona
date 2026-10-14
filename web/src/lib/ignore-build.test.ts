@@ -28,6 +28,12 @@ describe("Vercel Ignored Build Step script", () => {
     expect(res.stdout).toContain("Production build detected");
   });
 
+  it("proceeds with build (exit code 1) when VERCEL_GIT_COMMIT_REF is origin/main", () => {
+    const res = runScript(scriptPath, { VERCEL_GIT_COMMIT_REF: "origin/main", VERCEL_ENV: undefined });
+    expect(res.status).toBe(1);
+    expect(res.stdout).toContain("Production build detected");
+  });
+
   it("proceeds with build (exit code 1) when VERCEL_ENV is production", () => {
     const res = runScript(scriptPath, { VERCEL_GIT_COMMIT_REF: undefined, VERCEL_ENV: "production" });
     expect(res.status).toBe(1);

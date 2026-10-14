@@ -119,3 +119,5 @@ __all__ = [
     "InferenceRunBudget",
     "InferenceReservation",
 ]
+
+from app.models.job import Job

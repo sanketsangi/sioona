@@ -1,0 +1,23 @@
+{
+  "target": "https://webmasters-electric-willow-wet.trycloudflare.com",
+  "source": "Official is-agentic CLI; two attempts separated by 30 seconds",
+  "preview": "Clean staged snapshot without environment files; temporary URL removed after verification",
+  "results": [
+    {
+      "type": "about:blank",
+      "title": "Is Agentic could not complete the scan",
+      "status": 502,
+      "detail": "The Is Agentic scan service did not produce a completed report for this target.",
+      "code": "scan_failed",
+      "resolution": "Retry shortly or start the scan at https://is-agentic.com."
+    },
+    {
+      "type": "about:blank",
+      "title": "Is Agentic could not complete the scan",
+      "status": 502,
+      "detail": "The Is Agentic scan service did not produce a completed report for this target.",
+      "code": "scan_failed",
+      "resolution": "Retry shortly or start the scan at https://is-agentic.com."
+    }
+  ]
+}

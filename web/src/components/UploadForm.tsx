@@ -44,9 +44,11 @@ const FORMAT_LABELS: Record<string, string> = {
   sioona_json: "Sioona JSON",
   intercom_json: "Intercom JSON",
   whatsapp_txt: "WhatsApp chat",
+  sioona_xlsx: "XLSX workbook",
+  email: "Email export",
 };
 
-const FILE_ACCEPT = ".csv,.json,.txt,text/csv,application/json,text/plain";
+const FILE_ACCEPT = ".csv,.json,.txt,.xlsx,.eml,.mbox,text/csv,application/json,text/plain";
 /** Quiet upload/validation pills dismiss so the drop zone stays clean. */
 const ERROR_DISMISS_MS = 4000;
 
@@ -54,7 +56,18 @@ function fileKey(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
-const EMPTY_UPLOAD_DETAIL = "CSV, JSON, or WhatsApp .txt…";
+function uploadErrorMessage(error: string) {
+  if (
+    error.includes("file first") ||
+    /detection|upload progress|cancelled/i.test(error)
+  ) {
+    return error;
+  }
+  const stem = error.endsWith(".") ? error.slice(0, -1) : error;
+  return `${stem}. Check the file format and try again.`;
+}
+
+const EMPTY_UPLOAD_DETAIL = "CSV, JSON, WhatsApp, XLSX, EML, or MBOX…";
 
 /** The carousel file that Upload & Detect will send. Other selections stay local. */
 export function activeIngestTarget<T extends { name: string }>(
@@ -119,10 +132,50 @@ export function UploadForm({
   const [error, setError] = useState<string | null>(null);
   const [demoError, setDemoError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState<{ file: File; detail: string } | null>(null);
   const [pendingPartnerDemoReplace, setPendingPartnerDemoReplace] =
     useState(false);
   const [pendingHeldOutWeeklyIngest, setPendingHeldOutWeeklyIngest] =
     useState(false);
+
+  const pendingJob = useRef<{ id: string; file: string } | null>(null);
+  const polling = useRef<AbortController | null>(null);
+  useEffect(() => () => polling.current?.abort(), []);
+
+  async function finishQueuedUpload(job: { id: string; file: string }) {
+    const controller = new AbortController();
+    polling.current?.abort();
+    polling.current = controller;
+    setStatus("Upload accepted. Detection pending…");
+    while (!controller.signal.aborted) {
+      const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}`, {
+        cache: "no-store", signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Unable to check upload progress. Submit again to resume checking this upload.");
+      const result = await response.json() as {
+        status: string; completed_conversations: number; conversation_count: number;
+      };
+      if (controller.signal.aborted) return;
+      if (result.status === "succeeded") {
+        pendingJob.current = null;
+        setStatus(`Imported ${result.conversation_count} conversations. Opening Insights…`);
+        router.refresh();
+        router.push(`/?${new URLSearchParams({ view: "insights", imported: String(result.conversation_count), file: job.file })}`);
+        return;
+      }
+      if (["dead_lettered", "cancelled"].includes(result.status)) {
+        pendingJob.current = null;
+        setStatus(null);
+        throw new Error(result.status === "cancelled" ? "Upload detection was cancelled. Submit the file again to retry." : "Upload detection failed. Submit the file again to retry.");
+      }
+      setStatus(`Detection ${result.status === "failed" ? "retrying" : "pending"}… ${result.completed_conversations}/${result.conversation_count} conversations processed.`);
+      await new Promise<void>((resolve, reject) => {
+        const cancel = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+        const timer = setTimeout(() => { controller.signal.removeEventListener("abort", cancel); resolve(); }, 1000);
+        controller.signal.addEventListener("abort", cancel, { once: true });
+      });
+    }
+  }
 
   const partnerDemoActive = isPartnerDemoKeepSetActive(lastUploadedFileName);
   /** Full-replace path (Day-1 / non–mid-week) can wipe Partner Demo keep-set. */
@@ -197,13 +250,32 @@ export function UploadForm({
     }
   }
 
+  async function previewMapping() {
+    const target = filesForIngest(files, activeIndex)[0];
+    if (!target) { fileRef.current?.focus(); return; }
+    setLoading(true);
+    setPreview(null);
+    try {
+      const body = new FormData();
+      body.append("file", target);
+      body.append("preview", "true");
+      const response = await fetch("/api/ingest", { method: "POST", body });
+      const data = await response.json() as { error?: string; previews?: { conversations: number; messages: number; mapping: string; missingTimestampPolicy: string }[] };
+      if (!response.ok) throw new Error(data.error || "Preview failed. Check the export and try again.");
+      const result = data.previews?.[0];
+      if (result) setPreview({ file: target, detail: `${Intl.NumberFormat().format(result.conversations)} conversations, ${Intl.NumberFormat().format(result.messages)} messages. ${result.mapping} ${result.missingTimestampPolicy} Nothing imported; choose Upload & Detect to continue.` });
+    } catch (err) {
+      setPreview({ file: target, detail: err instanceof Error ? err.message : "Preview failed. Try again." });
+    } finally { setLoading(false); }
+  }
+
   async function runIngest(opts?: {
     confirmPartnerDemoReplace?: boolean;
     confirmHeldOutWeeklyIngest?: boolean;
   }) {
     const target = filesForIngest(files, activeIndex)[0] ?? null;
     if (!target) {
-      setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
+      setError("Choose a supported export file first.");
       fileRef.current?.focus();
       return;
     }
@@ -214,6 +286,10 @@ export function UploadForm({
     setHint(null);
     setSyncWarning(null);
     try {
+      if (pendingJob.current) {
+        await finishQueuedUpload(pendingJob.current);
+        return;
+      }
       const body = new FormData();
       body.append("file", target);
       if (!hasPartnerExport) body.append("replace", "true");
@@ -225,6 +301,8 @@ export function UploadForm({
       }
       const res = await fetch("/api/ingest", { method: "POST", body });
       const data = (await res.json()) as {
+        job_id?: string;
+        accepted?: number;
         error?: string;
         code?: string;
         format?: string;
@@ -255,6 +333,15 @@ export function UploadForm({
       }
       if (!res.ok) throw new Error(data.error || "Upload failed");
       clearPendingConfirm();
+      if (res.status === 202) {
+        const file = uploadBasename(target.name);
+        if (!data.job_id || !/^[A-Za-z0-9_-]{1,64}$/.test(data.job_id)) throw new Error("Upload job response was invalid.");
+        if (!file) throw new Error("Upload file name was invalid.");
+        const job = { id: data.job_id, file };
+        pendingJob.current = job;
+        await finishQueuedUpload(job);
+        return;
+      }
       const formatLabel =
         (data.format && FORMAT_LABELS[data.format]) || data.format || "file";
       const imported = data.importedConversations ?? 0;
@@ -297,6 +384,7 @@ export function UploadForm({
       // JSON already has newSignals; do not wait for Neon dual-write.
       router.push(`/?${query.toString()}`);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setLoading(false);
@@ -306,7 +394,7 @@ export function UploadForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (files.length === 0) {
-      setError("Choose a CSV, JSON, or WhatsApp .txt file first.");
+      setError("Choose a supported export file first.");
       fileRef.current?.focus();
       return;
     }
@@ -429,6 +517,12 @@ export function UploadForm({
       </div>
 
       <div className="flex shrink-0 flex-col gap-3">
+        {preview && preview.file === activeFile ? <p className="break-words text-copy-14" role="status" aria-live="polite">{preview.detail}</p> : null}
+        {activeFile && /\.(xlsx|eml|mbox)$/i.test(activeFile.name) ? (
+          <button type="button" onClick={previewMapping} disabled={loading} aria-busy={loading} className="btn-secondary min-h-11 touch-manipulation">
+            {loading ? <ButtonSpinner /> : null}Preview mapping
+          </button>
+        ) : null}
         {catalogOutcome ? (
           <p
             className="text-center text-pretty text-copy-14 text-sio-fg-base"
@@ -503,9 +597,7 @@ export function UploadForm({
                 role="alert"
                 className="max-w-[min(100%,20rem)] rounded-full bg-sio-status-danger-bg px-3 py-1 text-center font-sans font-medium text-copy-14 text-pretty text-sio-status-danger-fg"
               >
-                {error.includes("file first")
-                  ? error
-                  : `${error.endsWith(".") ? error.slice(0, -1) : error}. Check the file format and try again.`}
+                {uploadErrorMessage(error)}
               </p>
             ) : null}
           </div>
@@ -531,12 +623,14 @@ export function UploadForm({
           </div>
         ) : null}
         <div className="sr-only" aria-live="polite">
-          {loading ? "Uploading…" : (status ?? "")}
+          {status ?? (loading ? "Uploading…" : "")}
         </div>
         {status ? (
           <p
             className={`text-copy-14 ${
-              syncWarning ? "text-sio-fg-base" : "text-sio-status-success-fg"
+              syncWarning || !status.startsWith("Imported")
+                ? "text-sio-fg-base"
+                : "text-sio-status-success-fg"
             }`}
           >
             {status}

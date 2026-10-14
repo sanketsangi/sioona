@@ -32,6 +32,15 @@ describe("evaluateScreenStage", () => {
     expect(decision.reason).toBe("below_min_characters");
   });
 
+  it("screens out whitespace-only customer messages", () => {
+    const decision = evaluateScreenStage(
+      { conversationId: "conv-whitespace", customerMessages: ["   ", "\n\t  "] },
+      rules,
+    );
+    expect(decision.screenedOut).toBe(true);
+    expect(decision.reason).toBe("missing_customer_turn");
+  });
+
   it("passes conversations satisfying character and customer turn rules", () => {
     const decision = evaluateScreenStage(
       { conversationId: "conv-3", customerMessages: ["We are considering cancelling our enterprise plan next week."] },
@@ -273,6 +282,90 @@ describe("executeStagedRoute", () => {
     expect(result.attempts[1].status).toBe("succeeded");
     expect(result.attempts[2].status).toBe("succeeded");
   });
+
+  it("records failed status on detect error and skips verify", async () => {
+    const usage: InferenceUsage = {
+      status: "reported",
+      inputTokens: 500,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: null,
+    };
+    const invoker: StageInvoker = {
+      callModel: async () => ({
+        output: { type: null, confidence: 0, summary: "Rate limit exceeded", quotes: [] },
+        usage,
+        latencyMs: 80,
+        error: "rate_limit",
+      }),
+    };
+
+    const result = await executeStagedRoute(
+      ROUTE_CANDIDATE_STAGED,
+      {
+        id: "c-err",
+        tenantId: "t-1",
+        messages: [{ role: "customer", content: "We want to renew our annual enterprise plan." }],
+      },
+      invoker,
+    );
+
+    expect(result.stagesExecuted).toEqual(["screen", "detect"]);
+    expect(result.attempts.length).toBe(1);
+    expect(result.attempts[0].status).toBe("failed");
+  });
+
+  it("records failed status when verify call fails and preserves detect classification", async () => {
+    const detectUsage: InferenceUsage = {
+      status: "reported",
+      inputTokens: 500,
+      cachedInputTokens: 0,
+      outputTokens: 60,
+      reasoningTokens: null,
+    };
+    const verifyUsage: InferenceUsage = {
+      status: "reported",
+      inputTokens: 600,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: null,
+    };
+
+    const invoker: StageInvoker = {
+      callModel: async (stage) => {
+        if (stage === "detect") {
+          return {
+            output: { type: "retention", confidence: 0.90, summary: "Customer cancellation", quotes: ["cancel our account"] },
+            usage: detectUsage,
+            latencyMs: 120,
+          };
+        }
+        return {
+          output: { type: null, confidence: 0, summary: "Verifier timeout", quotes: [] },
+          usage: verifyUsage,
+          latencyMs: 5000,
+          error: "timeout",
+        };
+      },
+    };
+
+    const result = await executeStagedRoute(
+      ROUTE_CANDIDATE_STAGED,
+      {
+        id: "c-verify-fail",
+        tenantId: "t-1",
+        messages: [{ role: "customer", content: "Please cancel our account immediately." }],
+      },
+      invoker,
+    );
+
+    expect(result.stagesExecuted).toEqual(["screen", "detect", "verify"]);
+    expect(result.attempts.length).toBe(2);
+    expect(result.attempts[0].status).toBe("succeeded");
+    expect(result.attempts[1].status).toBe("failed");
+    expect(result.classification.type).toBe("retention");
+    expect(result.modelUsed).toBe("qwen/qwen3.8-27b");
+  });
 });
 
 describe("calculateAttemptCostUsd", () => {
@@ -392,6 +485,80 @@ describe("computeQualityAdjustedBenchmark & compareRouteBenchmarks", () => {
     expect(comparison.promotable).toBe(false);
     expect(comparison.blockingReasons).toContain("candidate_increases_quality_adjusted_cost");
     expect(comparison.blockingReasons).toContain("excessive_quality_regression");
+  });
+
+  it("penalizes zero evidence validity to 0 effective true positives and null cost", () => {
+    const benchmark = computeQualityAdjustedBenchmark({
+      routeName: "candidate_hallucinating_quotes",
+      routeVersion: "route:candidate:v3",
+      totalConversations: 120,
+      screenedOutCount: 0,
+      completedCount: 120,
+      totalCostUsd: 0.12,
+      surfacedSignals: { lead: 30, retention: 30, upsell: 30, total: 90 },
+      truePositives: { lead: 25, retention: 25, upsell: 25, total: 75 },
+      precision: { lead: 0.833, retention: 0.833, upsell: 0.833, macro: 0.833 },
+      recall: { lead: 0.833, retention: 0.833, upsell: 0.833, macro: 0.833 },
+      evidenceValidityRate: 0, // 100% hallucinations!
+    });
+
+    expect(benchmark.breakdown.effectiveTruePositives).toBe(0);
+    expect(benchmark.breakdown.validActionableSignals).toBe(0);
+    expect(benchmark.qualityAdjustedCostPerActionableSignalUsd).toBeNull();
+    expect(benchmark.qualityEfficiencyIndex).toBe(0);
+  });
+
+  it("handles unmeasured (null) evidence validity by defaulting multiplier to 1", () => {
+    const benchmark = computeQualityAdjustedBenchmark({
+      routeName: "unmeasured_evidence",
+      routeVersion: "route:candidate:v4",
+      totalConversations: 100,
+      screenedOutCount: 0,
+      completedCount: 100,
+      totalCostUsd: 0.10,
+      surfacedSignals: { lead: 20, retention: 20, upsell: 20, total: 60 },
+      truePositives: { lead: 18, retention: 18, upsell: 18, total: 54 },
+      precision: { lead: 0.90, retention: 0.90, upsell: 0.90, macro: 0.90 },
+      recall: { lead: 0.90, retention: 0.90, upsell: 0.90, macro: 0.90 },
+      evidenceValidityRate: null,
+    });
+
+    expect(benchmark.breakdown.effectiveTruePositives).toBe(54);
+    expect(benchmark.qualityAdjustedCostPerActionableSignalUsd).toBeCloseTo(0.10 / 54, 5);
+  });
+
+  it("blocks candidate when baseline has measurable cost but candidate has null cost", () => {
+    const baseline = computeQualityAdjustedBenchmark({
+      routeName: "baseline_qwen",
+      routeVersion: "route:baseline:v1",
+      totalConversations: 120,
+      screenedOutCount: 0,
+      completedCount: 120,
+      totalCostUsd: 0.15,
+      surfacedSignals: { lead: 30, retention: 30, upsell: 30, total: 90 },
+      truePositives: { lead: 28, retention: 28, upsell: 28, total: 84 },
+      precision: { lead: 0.933, retention: 0.933, upsell: 0.933, macro: 0.933 },
+      recall: { lead: 0.933, retention: 0.933, upsell: 0.933, macro: 0.933 },
+      evidenceValidityRate: 0.98,
+    });
+
+    const candidateZeroSignals = computeQualityAdjustedBenchmark({
+      routeName: "candidate_silent",
+      routeVersion: "route:candidate:v5",
+      totalConversations: 120,
+      screenedOutCount: 0,
+      completedCount: 120,
+      totalCostUsd: 0.05,
+      surfacedSignals: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      truePositives: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      precision: { lead: null, retention: null, upsell: null, macro: null },
+      recall: { lead: 0, retention: 0, upsell: 0, macro: 0 },
+      evidenceValidityRate: null,
+    });
+
+    const comparison = compareRouteBenchmarks(baseline, candidateZeroSignals);
+    expect(comparison.promotable).toBe(false);
+    expect(comparison.blockingReasons).toContain("candidate_increases_quality_adjusted_cost");
   });
 });
 

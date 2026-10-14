@@ -154,10 +154,11 @@ export function evaluateScreenStage(
   rules: ScreenStageRule,
 ): ScreenDecision {
   if (!rules.enabled) return { screenedOut: false };
-  if (rules.requireCustomerTurn && input.customerMessages.length === 0) {
+  const trimmedMessages = input.customerMessages.map((m) => m.trim()).filter((m) => m.length > 0);
+  if (rules.requireCustomerTurn && trimmedMessages.length === 0) {
     return { screenedOut: true, reason: "missing_customer_turn" };
   }
-  const totalLength = input.customerMessages.reduce((sum, msg) => sum + msg.length, 0);
+  const totalLength = trimmedMessages.reduce((sum, msg) => sum + msg.length, 0);
   if (totalLength < rules.minCharacterCount) {
     return { screenedOut: true, reason: "below_min_characters" };
   }
@@ -311,13 +312,13 @@ export async function executeStagedRoute(
     fallbackTriggered = true;
     detectCall = await invoker.callModel("detect", currentModel, customerMessages.join("\n"));
   }
-  recordAttempt("detect", currentModel, detectCall.usage, detectCall.latencyMs, "succeeded");
+  recordAttempt("detect", currentModel, detectCall.usage, detectCall.latencyMs, detectCall.error ? "failed" : "succeeded");
 
   let finalClassification = detectCall.output;
   let activeModel = currentModel;
 
   // Stage 3: Verify
-  if (route.verifyStage.enabled) {
+  if (route.verifyStage.enabled && !detectCall.error) {
     const escalation = evaluateVerifyEscalation(
       finalClassification,
       route.verifyStage.escalationRules,
@@ -327,9 +328,11 @@ export async function executeStagedRoute(
       stagesExecuted.push("verify");
       const verifierModel = route.verifyStage.verifierModel;
       const verifyCall = await invoker.callModel("verify", verifierModel, customerMessages.join("\n"));
-      recordAttempt("verify", verifierModel, verifyCall.usage, verifyCall.latencyMs, "succeeded");
-      finalClassification = verifyCall.output;
-      activeModel = verifierModel;
+      recordAttempt("verify", verifierModel, verifyCall.usage, verifyCall.latencyMs, verifyCall.error ? "failed" : "succeeded");
+      if (!verifyCall.error) {
+        finalClassification = verifyCall.output;
+        activeModel = verifierModel;
+      }
     }
   }
 
@@ -409,15 +412,15 @@ export function computeQualityAdjustedBenchmark(
   const rawCostPerSignal = surfaced > 0 ? input.totalCostUsd / surfaced : null;
 
   const precision = input.precision.macro ?? 0;
-  const evidenceRate = input.evidenceValidityRate ?? 0;
+  const evidenceMultiplier = input.evidenceValidityRate !== null ? input.evidenceValidityRate : 1;
   const recall = input.recall.macro ?? 0;
 
   const effectiveTP = input.truePositives.total > 0
-    ? input.truePositives.total * (evidenceRate > 0 ? evidenceRate : 1)
-    : surfaced * precision * (evidenceRate > 0 ? evidenceRate : 1);
+    ? input.truePositives.total * evidenceMultiplier
+    : surfaced * precision * evidenceMultiplier;
 
   const qualityAdjustedCost = effectiveTP > 0 ? input.totalCostUsd / effectiveTP : null;
-  const qualityScore = precision * recall * (evidenceRate > 0 ? evidenceRate : 1);
+  const qualityScore = precision * recall * evidenceMultiplier;
   const qualityEfficiencyIndex = costPerConv > 0 ? qualityScore / costPerConv : null;
 
   return {
@@ -430,7 +433,7 @@ export function computeQualityAdjustedBenchmark(
     breakdown: {
       totalCostUsd: input.totalCostUsd,
       actionableSignalsSurfaced: surfaced,
-      validActionableSignals: Math.round(surfaced * evidenceRate),
+      validActionableSignals: Math.round(surfaced * (input.evidenceValidityRate ?? 0)),
       effectiveTruePositives: Math.round(effectiveTP * 100) / 100,
     },
   };
@@ -475,9 +478,9 @@ export function compareRouteBenchmarks(
 
   const blockingReasons: string[] = [];
   if (
-    candidate.qualityAdjustedCostPerActionableSignalUsd !== null &&
     baseline.qualityAdjustedCostPerActionableSignalUsd !== null &&
-    candidate.qualityAdjustedCostPerActionableSignalUsd > baseline.qualityAdjustedCostPerActionableSignalUsd
+    (candidate.qualityAdjustedCostPerActionableSignalUsd === null ||
+      candidate.qualityAdjustedCostPerActionableSignalUsd > baseline.qualityAdjustedCostPerActionableSignalUsd)
   ) {
     blockingReasons.push("candidate_increases_quality_adjusted_cost");
   }

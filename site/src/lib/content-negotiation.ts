@@ -13,7 +13,7 @@ export function prefersMarkdown(accept: string | null): boolean {
         const [key, value] = param.split("=");
         if (key?.trim().toLowerCase() !== "q") continue;
         const parsed = Number(value);
-        if (!Number.isNaN(parsed)) q = parsed;
+        q = Number.isFinite(parsed) && parsed >= 0 && parsed <= 1 ? parsed : 0;
       }
       seen = true;
       best = Math.max(best, q);

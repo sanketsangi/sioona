@@ -5,7 +5,8 @@ describe("organization JSON-LD", () => {
   it("includes a contact point and an address", () => {
     const data = organizationJsonLd();
     expect(data["@type"]).toBe("Organization");
-    expect(data.name).toBe("Sioona");
+    expect(data.name).toBe("Sioona Conversation Intelligence");
+    expect(data.alternateName).toBe("Sioona");
     expect(data.contactPoint["@type"]).toBe("ContactPoint");
     expect(data.contactPoint.contactType).toBe("sales");
     expect(data.contactPoint.url).toMatch(/\/contact$/);

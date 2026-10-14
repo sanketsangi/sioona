@@ -19,7 +19,7 @@ fi
 echo "[vercel-ignore] Branch: '${BRANCH:-unknown}', VERCEL_ENV: '${VERCEL_ENV:-unset}'"
 
 # Production deployments (main branch or VERCEL_ENV=production) must proceed
-if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "refs/heads/main" ] || [ "${VERCEL_ENV:-}" = "production" ]; then
+if [ "$BRANCH" = "main" ] || [ "$BRANCH" = "refs/heads/main" ] || [ "$BRANCH" = "origin/main" ] || [ "${VERCEL_ENV:-}" = "production" ]; then
   echo "[vercel-ignore] ✓ Production build detected for '$BRANCH'. Proceeding with build (exit code 1)."
   exit 1
 fi
