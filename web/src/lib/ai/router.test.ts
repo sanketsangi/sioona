@@ -48,6 +48,15 @@ describe("evaluateScreenStage", () => {
     );
     expect(decision.screenedOut).toBe(false);
   });
+
+  it("ignores non-string customer messages safely", () => {
+    const decision = evaluateScreenStage(
+      { conversationId: "conv-nonstring", customerMessages: [null as unknown as string, undefined as unknown as string, 123 as unknown as string] },
+      rules,
+    );
+    expect(decision.screenedOut).toBe(true);
+    expect(decision.reason).toBe("missing_customer_turn");
+  });
 });
 
 describe("evaluateVerifyEscalation", () => {
@@ -106,6 +115,14 @@ describe("evaluateVerifyEscalation", () => {
   it("does not escalate for clear non-retention signal with single quote and high confidence", () => {
     const decision = evaluateVerifyEscalation(
       { type: "lead", confidence: 0.95, quotes: ["I want to buy 100 seats"] },
+      rules,
+    );
+    expect(decision.shouldEscalate).toBe(false);
+  });
+
+  it("handles missing or undefined quotes property safely", () => {
+    const decision = evaluateVerifyEscalation(
+      { type: "lead", confidence: 0.95, quotes: undefined as unknown as string[] },
       rules,
     );
     expect(decision.shouldEscalate).toBe(false);
@@ -390,6 +407,18 @@ describe("calculateAttemptCostUsd", () => {
     });
     expect(cost).toBeNull();
   });
+
+  it("clamps cached input tokens when reported higher than total input tokens", () => {
+    const cost = calculateAttemptCostUsd("qwen/qwen3.8-27b", {
+      status: "reported",
+      inputTokens: 1_000_000,
+      cachedInputTokens: 1_500_000,
+      outputTokens: 0,
+      reasoningTokens: null,
+    });
+    // 1M cached @ $0.10 => $0.10
+    expect(cost).toBeCloseTo(0.10, 4);
+  });
 });
 
 describe("computeQualityAdjustedBenchmark & compareRouteBenchmarks", () => {
@@ -524,6 +553,7 @@ describe("computeQualityAdjustedBenchmark & compareRouteBenchmarks", () => {
     });
 
     expect(benchmark.breakdown.effectiveTruePositives).toBe(54);
+    expect(benchmark.breakdown.validActionableSignals).toBe(60);
     expect(benchmark.qualityAdjustedCostPerActionableSignalUsd).toBeCloseTo(0.10 / 54, 5);
   });
 
@@ -559,6 +589,77 @@ describe("computeQualityAdjustedBenchmark & compareRouteBenchmarks", () => {
     const comparison = compareRouteBenchmarks(baseline, candidateZeroSignals);
     expect(comparison.promotable).toBe(false);
     expect(comparison.blockingReasons).toContain("candidate_increases_quality_adjusted_cost");
+  });
+
+  it("strictly blocks candidate with zero effective true positives even when baseline is also zero", () => {
+    const zeroBaseline = computeQualityAdjustedBenchmark({
+      routeName: "baseline_zero",
+      routeVersion: "route:baseline:zero",
+      totalConversations: 50,
+      screenedOutCount: 0,
+      completedCount: 50,
+      totalCostUsd: 0.01,
+      surfacedSignals: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      truePositives: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      precision: { lead: null, retention: null, upsell: null, macro: null },
+      recall: { lead: 0, retention: 0, upsell: 0, macro: 0 },
+      evidenceValidityRate: null,
+    });
+
+    const zeroCandidate = computeQualityAdjustedBenchmark({
+      routeName: "candidate_zero",
+      routeVersion: "route:candidate:zero",
+      totalConversations: 50,
+      screenedOutCount: 0,
+      completedCount: 50,
+      totalCostUsd: 0.01,
+      surfacedSignals: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      truePositives: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      precision: { lead: null, retention: null, upsell: null, macro: null },
+      recall: { lead: 0, retention: 0, upsell: 0, macro: 0 },
+      evidenceValidityRate: null,
+    });
+
+    const comparison = compareRouteBenchmarks(zeroBaseline, zeroCandidate);
+    expect(comparison.promotable).toBe(false);
+    expect(comparison.blockingReasons).toContain("candidate_increases_quality_adjusted_cost");
+    expect(comparison.blockingReasons).toContain("excessive_quality_regression");
+  });
+
+  it("safely handles baseline with zero cost or efficiency without producing NaN or Infinity", () => {
+    const freeBaseline = computeQualityAdjustedBenchmark({
+      routeName: "baseline_free",
+      routeVersion: "route:baseline:free",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0,
+      surfacedSignals: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      truePositives: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      precision: { lead: 1.0, retention: null, upsell: null, macro: 1.0 },
+      recall: { lead: 1.0, retention: 0, upsell: 0, macro: 1.0 },
+      evidenceValidityRate: 1.0,
+    });
+
+    const candidate = computeQualityAdjustedBenchmark({
+      routeName: "candidate_paid",
+      routeVersion: "route:candidate:paid",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0.05,
+      surfacedSignals: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      truePositives: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      precision: { lead: 1.0, retention: null, upsell: null, macro: 1.0 },
+      recall: { lead: 1.0, retention: 0, upsell: 0, macro: 1.0 },
+      evidenceValidityRate: 1.0,
+    });
+
+    const comparison = compareRouteBenchmarks(freeBaseline, candidate);
+    expect(Number.isFinite(comparison.deltaCostPerConversationPct)).toBe(true);
+    if (comparison.deltaQualityAdjustedCostPct !== null) {
+      expect(Number.isFinite(comparison.deltaQualityAdjustedCostPct)).toBe(true);
+    }
   });
 });
 

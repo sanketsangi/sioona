@@ -55,11 +55,11 @@ export function calculateAttemptCostUsd(
   }
   const pricing = MODEL_PRICING_TABLE[model];
   if (!pricing) return null;
-  const cached = usage.cachedInputTokens ?? 0;
+  const cached = Math.min(usage.inputTokens, Math.max(0, usage.cachedInputTokens ?? 0));
   const nonCached = Math.max(0, usage.inputTokens - cached);
   const inputCost = (nonCached * pricing.inputPerMillionUsd) / 1_000_000;
   const cachedCost = (cached * pricing.cachedInputPerMillionUsd) / 1_000_000;
-  const outputCost = (usage.outputTokens * pricing.outputPerMillionUsd) / 1_000_000;
+  const outputCost = (Math.max(0, usage.outputTokens) * pricing.outputPerMillionUsd) / 1_000_000;
   return inputCost + cachedCost + outputCost;
 }
 
@@ -154,7 +154,10 @@ export function evaluateScreenStage(
   rules: ScreenStageRule,
 ): ScreenDecision {
   if (!rules.enabled) return { screenedOut: false };
-  const trimmedMessages = input.customerMessages.map((m) => m.trim()).filter((m) => m.length > 0);
+  const trimmedMessages = input.customerMessages
+    .filter((m): m is string => typeof m === "string")
+    .map((m) => m.trim())
+    .filter((m) => m.length > 0);
   if (rules.requireCustomerTurn && trimmedMessages.length === 0) {
     return { screenedOut: true, reason: "missing_customer_turn" };
   }
@@ -188,7 +191,7 @@ export function evaluateVerifyEscalation(
   if (rules.escalateSignalTypes.includes(classification.type)) {
     return { shouldEscalate: true, reason: "high_value_signal" };
   }
-  if (rules.escalateMultiTurnQuotes && classification.quotes.length > 1) {
+  if (rules.escalateMultiTurnQuotes && (classification.quotes?.length ?? 0) > 1) {
     return { shouldEscalate: true, reason: "ambiguous_quotes" };
   }
   return { shouldEscalate: false };
@@ -254,7 +257,8 @@ export async function executeStagedRoute(
     latencyMs: number,
     status: "succeeded" | "failed",
   ) => {
-    const started = new Date(Date.now() - latencyMs).toISOString();
+    const boundedLatencyMs = Math.max(0, latencyMs);
+    const started = new Date(Date.now() - boundedLatencyMs).toISOString();
     const finished = new Date().toISOString();
     const attempt: InferenceAttempt = {
       attemptId: createInferenceId(),
@@ -433,7 +437,7 @@ export function computeQualityAdjustedBenchmark(
     breakdown: {
       totalCostUsd: input.totalCostUsd,
       actionableSignalsSurfaced: surfaced,
-      validActionableSignals: Math.round(surfaced * (input.evidenceValidityRate ?? 0)),
+      validActionableSignals: Math.round(surfaced * evidenceMultiplier),
       effectiveTruePositives: Math.round(effectiveTP * 100) / 100,
     },
   };
@@ -466,25 +470,26 @@ export function compareRouteBenchmarks(
     deltaQualityAdjustedCostPct =
       ((candidate.qualityAdjustedCostPerActionableSignalUsd -
         baseline.qualityAdjustedCostPerActionableSignalUsd) /
-        baseline.qualityAdjustedCostPerActionableSignalUsd) * 100;
+        Math.max(1e-6, baseline.qualityAdjustedCostPerActionableSignalUsd)) * 100;
   }
 
   let deltaEfficiencyPct: number | null = null;
   if (baseline.qualityEfficiencyIndex && candidate.qualityEfficiencyIndex) {
     deltaEfficiencyPct =
       ((candidate.qualityEfficiencyIndex - baseline.qualityEfficiencyIndex) /
-        baseline.qualityEfficiencyIndex) * 100;
+        Math.max(1e-6, baseline.qualityEfficiencyIndex)) * 100;
   }
 
   const blockingReasons: string[] = [];
   if (
-    baseline.qualityAdjustedCostPerActionableSignalUsd !== null &&
-    (candidate.qualityAdjustedCostPerActionableSignalUsd === null ||
+    candidate.qualityAdjustedCostPerActionableSignalUsd === null ||
+    (baseline.qualityAdjustedCostPerActionableSignalUsd !== null &&
       candidate.qualityAdjustedCostPerActionableSignalUsd > baseline.qualityAdjustedCostPerActionableSignalUsd)
   ) {
     blockingReasons.push("candidate_increases_quality_adjusted_cost");
   }
   if (
+    candidate.breakdown.effectiveTruePositives === 0 ||
     candidate.breakdown.effectiveTruePositives < baseline.breakdown.effectiveTruePositives * 0.95
   ) {
     blockingReasons.push("excessive_quality_regression");
