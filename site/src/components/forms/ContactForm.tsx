@@ -325,11 +325,11 @@ export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
         />
       </FieldShell>
 
-      <div id="contact-privacy" className="text-copy-14 text-sio-fg-subtle">
-        <p>We use your business contact details to review this request and reply about a pilot. Please don’t include customer transcripts or sensitive data.</p>
-        <p className="mt-2">By selecting “Request a pilot”, you consent to this use of your details as described in our <Link href="/privacy" className="underline">privacy notice</Link> and accept the <Link href="/terms" className="underline">pilot request terms</Link>. No subscription is created.</p>
+      <div id="contact-privacy" className="rounded-lg border border-sio-border-base/60 bg-sio-bg-muted/30 p-3.5 text-copy-13 text-sio-fg-subtle">
+        <p className="leading-relaxed">We use your business contact details to review this request and reply about a pilot. Please don’t include customer transcripts or sensitive data.</p>
+        <p className="mt-2 text-label-12 text-sio-fg-muted leading-normal">By selecting “Request a pilot”, you consent to this use of your details as described in our <Link href="/privacy" className="underline hover:text-sio-fg-base">privacy notice</Link> and accept the <Link href="/terms" className="underline hover:text-sio-fg-base">pilot request terms</Link>. No subscription is created.</p>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center">
         <button type="submit" disabled={submitting} className="btn-primary btn-lg">
           {submitting ? <CircleNotch size={16} weight="bold" className="animate-spin" aria-hidden /> : null}
           Request a pilot

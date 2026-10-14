@@ -277,11 +277,15 @@ export function SiteNav() {
                 {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
                   <div className="product-preview-heading">
                     <span className="eyebrow">{link.eyebrow}</span>
-                    <span className="text-label-12 text-sio-fg-muted">Illustrative demo</span>
-                    <button type="button" className="btn-tertiary menu-preview-playback" aria-label={previewPlaying ? "Pause Menu Demo" : "Play Menu Demo"} aria-pressed={previewPlaying} onClick={() => setPreviewPlaying(value => !value)}>
-                      {previewPlaying ? <PauseCircle size={20} aria-hidden /> : <PlayCircle size={20} aria-hidden />}
+                    <button
+                      type="button"
+                      className="menu-preview-playback"
+                      aria-label={previewPlaying ? "Pause Menu Demo" : "Play Menu Demo"}
+                      aria-pressed={previewPlaying}
+                      onClick={() => setPreviewPlaying((value) => !value)}
+                    >
+                      {previewPlaying ? <PauseCircle size={18} aria-hidden /> : <PlayCircle size={18} aria-hidden />}
                     </button>
-
                   </div>
                   {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-${previewRun}`}>
                     {index === 0 ? <OutputPreview running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} /> : index === 2 ? <ScorePreview running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} /> : <FeaturePreview running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} />}

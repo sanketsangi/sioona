@@ -51,7 +51,7 @@ export function Footer() {
           <div className="footer-brand">
             <p className="footer-brand-eyebrow">Clarity starts with a conversation.</p>
             <p className="footer-description">
-              Conversation intelligence for the chats you already have. Humans review every signal before anything is
+              Turn raw customer conversations into verified revenue and retention signals. Humans review every insight before anything is
               acted on.
             </p>
           </div>

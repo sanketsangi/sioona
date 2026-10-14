@@ -113,7 +113,7 @@ export function InsightsMock({ previewHeader = false }: { previewHeader?: boolea
 }
 
 function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
-  const [userPaused, setUserPaused] = useState(true);
+  const [userPaused, setUserPaused] = useState(false);
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { amount: "some", once: false, margin: "0px" });
   const previewEntered = useContext(HeroPreviewEntered);
@@ -166,11 +166,11 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
       <div
         className="panel shadow-mock overflow-hidden"
       >
-        <div className="flex h-11 items-center justify-between gap-3 border-b border-sio-border-base px-3 sm:px-4">
-          <div aria-hidden className="flex min-w-0 items-center gap-3">
-            <span className="text-heading-16 text-sio-fg-base">Insights</span>
-            <span className="inline-flex h-6 items-center gap-1 rounded-full bg-sio-bg-muted px-2 text-[12px]/[24px] font-medium text-sio-fg-subtle">
-              <Eye size={14} weight="regular" aria-hidden />
+        <div className="flex h-11 items-center justify-between gap-3 border-b border-sio-border-base bg-sio-bg-subtle/40 px-3 sm:px-4">
+          <div aria-hidden className="flex min-w-0 items-center gap-2.5">
+            <span className="text-heading-16 font-semibold text-sio-fg-base">Insights</span>
+            <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-sio-border-base bg-sio-bg-muted px-2.5 text-[11px] font-medium text-sio-fg-subtle">
+              <Eye size={13} weight="regular" aria-hidden />
               Shadow Mode
             </span>
           </div>
@@ -190,7 +190,7 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
                   {tab}
                   <span className="tabular text-label-12 text-sio-fg-subtle">{counts[index]}</span>
                   <m.span
-                    className="absolute inset-x-0 bottom-0 h-px origin-left bg-sio-fg-base"
+                    className="absolute inset-x-0 bottom-0 h-[2px] origin-left bg-sio-fg-base"
                     initial={false}
                     animate={{ scaleX: activeTab === index ? 1 : 0 }}
                     transition={{ duration: duration.fast, ease }}

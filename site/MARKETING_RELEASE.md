@@ -6,6 +6,16 @@ Branch: `feat/site-is-agentic`. Navigation/focus fixes and the initial report we
 
 Verification is on the clean publishing commit using the synthetic inputs documented below. CI fixture values are only for validation; they must never be used as production launch facts. Production GO remains gated on live custom-domain smoke checks and an explicitly authorized durable pilot receipt/readback.
 
+## Hero preview playback follow-up — 14 October 2026
+
+At the user's request, the hero demo now plays automatically when visible in the viewport. The control defaults to Pause; pausing keeps the demo stopped until resumed. Offscreen and background-tab timer suspension and reduced-motion static rendering remain supported.
+
+## Dropdown hover playback follow-up — 14 October 2026
+
+At the user's request, all four Product dropdown previews now play when the menu opens or another item is hovered/focused. The control defaults to Pause; pausing keeps the selected preview stopped until resumed or another item is selected. The header's “Illustrative demo” text was removed. The dropdown-only score gauge and bars now animate through CSS transforms with a real pause state, rather than repeatedly remounting a static chart. Reduced motion and hidden-tab suspension remain supported.
+
+Verified locally: lint/token guard, 87 Vitest tests, typecheck, production build with the existing synthetic QA inputs, and diff whitespace check passed. Browser verification confirmed the four preview selections, moving score gauge, advancing feature sequence, Pause/Play, and removed label. These follow-up changes are uncommitted and supersede only the earlier dropdown paused-by-default behavior; they do not change production GO gates.
+
 ## Implemented
 
 - Strict centralized site/app origin parsing: production requires an explicit HTTPS custom domain; localhost, loopback, Vercel domains, credentials, path/query/hash and missing canonical input fail closed. Sign in stays omitted when the optional app origin is unset.
@@ -13,7 +23,7 @@ Verification is on the clean publishing commit using the synthetic inputs docume
 - Explicit index/follow metadata, default social previews, a 180×180 Apple icon, preserved JSON-LD schemas with escaped script serialization, deterministic sitemap revisions/priorities including `/llms.txt`, and explicit search/AI crawler rules. Sitemap dates record verified Git content revisions, rather than request/build time; update them when publishing later substantive content revisions.
 - Shared substantive marketing prose, developer documentation, pilot/evidence/Signal Score facts, and privacy/terms copy for human pages and Markdown/MCP. `llms.txt` includes the same pilot/security/policy information. Synthetic demo transcripts are excluded from agent content. Approved public policy is snapshotted at build time; startup rejects different public origins or policy values, so changing them requires a rebuild. `NEXT_PUBLIC_CONTACT_POLICY` is generated internally from the three public facts by Next configuration; it is not another operator input and contains no credentials.
 - Contact JSON/origin checks, bot honeypot rejection, 16 KB streamed body cap, existing field bounds, stable retry identity, 10 s upstream and 12 s browser timeouts, strict matching stored receipt, validated upstream Retry-After, preserved fields, and support-mailbox recovery. No third-party webhook or secondary persistence was added.
-- Hero/menu playback starts paused and requires Play. Offscreen/hidden-tab/reduced-motion guards remain. Explicit WebKit drawer focus restoration and document-level product-menu Escape handling cover pointer interactions that leave focus outside the menu. Navigation prefetch defaults off to avoid background request cancellation warnings and POST-only endpoint prefetch; callers can explicitly opt in.
+- Hero playback plays when visible in the viewport and pauses offscreen or in a hidden tab. Product dropdown playback follows the hover behavior documented above. Offscreen/hidden-tab/reduced-motion guards remain. Explicit WebKit drawer focus restoration and document-level product-menu Escape handling cover pointer interactions that leave focus outside the menu. Navigation prefetch defaults off to avoid background request cancellation warnings and POST-only endpoint prefetch; callers can explicitly opt in.
 
 ## Exact local verification evidence
 
