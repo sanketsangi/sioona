@@ -2,7 +2,9 @@ export type IngestFormat =
   | "sioona_csv"
   | "sioona_json"
   | "intercom_json"
-  | "whatsapp_txt";
+  | "whatsapp_txt"
+  | "sioona_xlsx"
+  | "email";
 
 export interface IngestMessageInput {
   role: "customer" | "agent" | "system";
@@ -14,6 +16,8 @@ export interface IngestConversationInput {
   externalId?: string;
   channel?: string;
   customerName?: string;
+  /** Additional customer participants, scrubbed by the shared normalizer. */
+  customerNames?: string[];
   startedAt?: string;
   groundTruth?: "lead" | "retention" | "upsell" | "none";
   messages: IngestMessageInput[];

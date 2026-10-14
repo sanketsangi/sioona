@@ -34,7 +34,7 @@ describe("upload active file", () => {
     });
     expect(uploadActiveFilePrompt(0, null)).toEqual({
       heading: "Choose a file or drop it here",
-      detail: "CSV, JSON, or WhatsApp .txt…",
+      detail: "CSV, JSON, WhatsApp, XLSX, EML, or MBOX…",
     });
   });
 });
