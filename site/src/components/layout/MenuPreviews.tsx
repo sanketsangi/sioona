@@ -37,20 +37,40 @@ export function OutputPreview({ running = false }: { running?: boolean }) {
 }
 
 export function WorkflowPreview({ running = false }: { running?: boolean }) {
-  const reduced = useReducedMotion();
-  const [step, setStep] = useState(3);
+  const reduced = !!useReducedMotion();
+  const [workflowStep, setWorkflowStep] = useState(running ? 1 : 0);
   useEffect(() => {
-    if (reduced || !running) return;
-    const timer = window.setInterval(() => setStep((value) => (value + 1) % 4), 2200);
-    return () => { window.clearInterval(timer); };
-  }, [reduced, running]);
-  return <div className="menu-workflow-preview">
-    <Stage step={reduced ? 3 : step} compact />
-  </div>;
+    if (!running || reduced) return;
+    setWorkflowStep(1);
+    let timer: number;
+    const advance = (step: number) => {
+      const holds = [900, 1500, 1600, 2200];
+      timer = window.setTimeout(() => {
+        const next = (step + 1) % 4;
+        setWorkflowStep(next);
+        advance(next);
+      }, holds[step]);
+    };
+    advance(1);
+    return () => window.clearTimeout(timer);
+  }, [running, reduced]);
+  return <m.div className="menu-workflow-preview"
+    initial={reduced ? false : { opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: reduced ? 0 : 0.24 }}>
+    <Stage step={reduced ? 3 : workflowStep} compact />
+  </m.div>;
 }
 
-export function ScorePreview() {
-  return <div className="menu-score-preview"><ScorePanel compact /></div>;
+export function ScorePreview({ running = false }: { running?: boolean }) {
+  const reduced = useReducedMotion();
+  const [run, setRun] = useState(0);
+  useEffect(() => {
+    if (!running || reduced) return;
+    const timer = window.setInterval(() => setRun((value) => value + 1), 3600);
+    return () => window.clearInterval(timer);
+  }, [running, reduced]);
+  return <div className="menu-score-preview"><ScorePanel key={run} compact /></div>;
 }
 
 const featureNames = ["Insights", "Upload", "Eval", "Taxonomy", "Suggested next action", "Keyboard-first review"];

@@ -6,28 +6,28 @@ const columns = [
   {
     title: "Product",
     links: [
-      { label: "Insights", href: "/#features" },
+      { label: "Insights", href: "/#insights" },
       { label: "Signal\u00a0Score", href: "/#score" },
-      { label: "How It Works", href: "/how-it-works" },
-      { label: "Pricing", href: "/pricing" },
+      { label: "How It Works", href: "/how-it-works#top" },
+      { label: "Pricing", href: "/pricing#top" },
     ],
   },
   {
     title: "Trust",
     links: [
-      { label: "About", href: "/about" },
-      { label: "Security", href: "/security" },
-      { label: "Shadow\u00a0Mode", href: "/how-it-works#shadow-mode" },
+      { label: "About", href: "/about#top" },
+      { label: "Security", href: "/security#top" },
+      { label: "Shadow\u00a0Mode", href: "/#how" },
       { label: "FAQ", href: "/#faq" },
     ],
   },
   {
     title: "Company",
     links: [
-      { label: "Request a pilot", href: "/contact" },
-      { label: "Contact", href: "/contact" },
-      { label: "Privacy", href: "/privacy" },
-      { label: "Terms", href: "/terms" },
+      { label: "Request a pilot", href: "/contact#top" },
+      { label: "Contact", href: "/contact#top" },
+      { label: "Privacy", href: "/privacy#top" },
+      { label: "Terms", href: "/terms#top" },
       ...(siteConfig.appUrl ? [{ label: "Sign In", href: siteConfig.appUrl }] : []),
     ],
   },
@@ -38,7 +38,7 @@ export function Footer() {
     <footer className="site-footer footer-premium">
       <div className="container-page footer-inner">
         <div className="footer-masthead">
-          <Link href="/" className="footer-wordmark" aria-label="Sioona, home" translate="no">
+          <Link href="/#top" className="footer-wordmark" aria-label="Sioona, home" translate="no">
             <span className="footer-mark-wrap" aria-hidden>
               <Image src="/sioona-footer.svg" alt="" width={43} height={43} unoptimized className="footer-mark" />
             </span>
@@ -62,6 +62,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
+                      scroll={true}
                       className="footer-link"
                     >
                       {link.label}

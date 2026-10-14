@@ -222,7 +222,7 @@ export function SiteNav() {
                     </button> : null}
                   </div>
                   {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-open`}>
-                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 2 ? <ScorePreview /> : <FeaturePreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} />}
+                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : index === 2 ? <ScorePreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} /> : <FeaturePreview running={productOpen && activeProduct === index && !previewsPaused && pageVisible} />}
                   </div> : null}
                 </div>)}
               </div>
