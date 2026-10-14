@@ -366,7 +366,7 @@ export function toStoreRecords(
 
   for (const input of inputs) {
     if (!input.messages?.length) continue;
-    const partnerIdentity = tenantId !== "tenant_demo"
+    const partnerIdentity = tenantId !== "tenant_demo" || options?.provider === "sioona_xlsx" || options?.provider === "email"
       ? opaqueExternalIdentity(tenantId, options?.provider ?? input.channel ?? "upload", input.externalId)
       : undefined;
     const conversationId = partnerIdentity && options?.stableIds
@@ -392,7 +392,9 @@ export function toStoreRecords(
         conversationId,
         role: msg.role,
         // PII redaction on the ingest path, before anything is stored.
-        content: scrubCustomerName(redactText(msg.content), input.customerName),
+        content: [input.customerName, ...(input.customerNames ?? [])].reduce<string>(
+          (text, name) => scrubCustomerName(text, name), redactText(msg.content),
+        ),
         timestamp: msg.timestamp || startedAt,
       });
     }

@@ -1,3 +1,7 @@
+import { readIngestForm } from "@/lib/ingest-form";
+import { parseIngestUpload, EXPORT_MAPPING } from "@/lib/ingest-upload";
+import { EXPORT_LIMITS } from "@/lib/ingest-archive";
+import type { IngestConversationInput } from "@/lib/ingest";
 import { getStateMode } from "@/lib/state-mode";
 import { NextResponse } from "next/server";
 import { signalsForPublishedConversations } from "./publication";
@@ -9,7 +13,6 @@ import { getPilotSettings } from "@/lib/backend-client";
 import { persistDeferredIngestDualWrite } from "@/lib/defer-ingest-sync";
 import { runHybridDetectionWithLedger } from "@/lib/ai/run-with-ledger";
 import {
-  parseIngestDocument,
   toStoreRecords,
   ZERO_SIGNAL_HINT,
 } from "@/lib/ingest";
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
   if (session instanceof NextResponse) return session;
   return runWithTenant(session.tenantId, async () => {
     try {
-      const form = await request.formData();
+      const form = await readIngestForm(request);
       const files = form
         .getAll("file")
         .filter((entry): entry is File => entry instanceof File);
@@ -71,16 +74,18 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "file is required" }, { status: 400 });
       }
 
+      if (files.length > 16 || files.reduce((sum, file) => sum + file.size, 0) > EXPORT_LIMITS.fileBytes) {
+        return NextResponse.json({ error: "Upload allows at most 16 files and 10 MiB total. Nothing was imported." }, { status: 400 });
+      }
+
       const parsedFiles: {
         format: string;
         basename?: string;
-        parsed: ReturnType<typeof parseIngestDocument>["conversations"];
+        parsed: IngestConversationInput[];
       }[] = [];
       for (const file of files) {
-        const content = await file.text();
-        const { format, conversations: parsed } = parseIngestDocument(
-          file.name,
-          content
+        const { format, conversations: parsed } = await parseIngestUpload(
+          file.name, new Uint8Array(await file.arrayBuffer()),
         );
         if (parsed.length === 0) {
           return NextResponse.json(
@@ -93,6 +98,17 @@ export async function POST(request: Request) {
           basename: lastUploadedFileName(file.name),
           parsed,
         });
+      }
+
+      if (parsedFiles.reduce((sum, file) => sum + file.parsed.reduce((n, c) => n + c.messages.length, 0), 0) > EXPORT_LIMITS.rows) {
+        return NextResponse.json({ error: "Upload exceeds 10,000 messages. Nothing was imported." }, { status: 400 });
+      }
+      if (form.get("preview") === "true") {
+        const previews = parsedFiles.map((file) => {
+          const records = toStoreRecords(file.parsed, session.tenantId, { stableIds: true, provider: file.format });
+          return { format: file.format, conversations: records.conversations.length, messages: records.messages.length, mapping: EXPORT_MAPPING[file.format as keyof typeof EXPORT_MAPPING] ?? "Canonical export mapping", missingTimestampPolicy: "New formats use 1970-01-01 UTC when absent; explicit timezones required when present." };
+        });
+        return NextResponse.json({ previews });
       }
 
       const explicitReplace = parseReplaceFlag(form);
