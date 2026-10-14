@@ -61,6 +61,22 @@
       "command": "cd web && npx tsc --noEmit",
       "result": "passed",
       "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "eval_gate": {
+      "command": "cd web && npm run eval:gate",
+      "result": "passed",
+      "code": 0,
+      "source_commit": "2e7d73fabb0ed82e2ae94be2f86d3b3bb8be478c",
+      "git_dirty": false,
+      "mode": "offline replay",
+      "validation_examples": 120,
+      "evidence_validity": 1,
+      "coverage": 1,
+      "critical_injection_failures": 0,
+      "tenant_failures": 0,
+      "log_sha256": "c4b0dcba2d8da54b2f7e993126c006276a6807a9cb2f253fb3e41aa7039e0a41",
+      "artifact": "CB-14-EVAL.json"
     }
-  }
+  },
+  "implementation_commit": "2e7d73fabb0ed82e2ae94be2f86d3b3bb8be478c"
 }

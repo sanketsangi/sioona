@@ -1,0 +1,130 @@
+{
+  "code": 0,
+  "artifact": {
+    "artifact_version": 1,
+    "git_sha": "2e7d73fabb0ed82e2ae94be2f86d3b3bb8be478c",
+    "git_dirty": false,
+    "corpus": {
+      "id": "gold-v1",
+      "split": "validation",
+      "manifest_sha256": "d279d07166d6afcd253ebbc8c51c22213bc8d17c5ce89725003d669b07cd6a8f",
+      "n": 120
+    },
+    "route": {
+      "route_version": "detect:primary:qwen/qwen3.8-27b|openai/gpt-oss-20b",
+      "models": [
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b"
+      ],
+      "prompt_version": "final-intent-recent-complete-turns-v3",
+      "mode": "replay"
+    },
+    "per_type": {
+      "retention": {
+        "tp": 30,
+        "fp": 0,
+        "fn": 0,
+        "n_precision": 30,
+        "n_recall": 30,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "precision_ci95": [
+          0.8864829086095221,
+          1
+        ],
+        "recall_ci95": [
+          0.8864829086095221,
+          1
+        ]
+      },
+      "upsell": {
+        "tp": 28,
+        "fp": 0,
+        "fn": 2,
+        "n_precision": 28,
+        "n_recall": 30,
+        "precision": 1,
+        "recall": 0.9333333333333333,
+        "f1": 0.9655172413793104,
+        "precision_ci95": [
+          0.8793527963418923,
+          1
+        ],
+        "recall_ci95": [
+          0.7867618227892791,
+          0.9815233646723066
+        ]
+      },
+      "lead": {
+        "tp": 28,
+        "fp": 2,
+        "fn": 2,
+        "n_precision": 30,
+        "n_recall": 30,
+        "precision": 0.9333333333333333,
+        "recall": 0.9333333333333333,
+        "f1": 0.9333333333333333,
+        "precision_ci95": [
+          0.7867618227892791,
+          0.9815233646723066
+        ],
+        "recall_ci95": [
+          0.7867618227892791,
+          0.9815233646723066
+        ]
+      },
+      "none": {
+        "tp": 30,
+        "fp": 2,
+        "fn": 0,
+        "n_precision": 32,
+        "n_recall": 30,
+        "precision": 0.9375,
+        "recall": 1,
+        "f1": 0.967741935483871,
+        "precision_ci95": [
+          0.7985253275199642,
+          0.9826897968048427
+        ],
+        "recall_ci95": [
+          0.8864829086095221,
+          1
+        ]
+      }
+    },
+    "fp_per_100": 1.6666666666666667,
+    "evidence_validity": {
+      "valid": 88,
+      "surfaced": 88,
+      "rate": 1
+    },
+    "abstention_rate": 0.26666666666666666,
+    "coverage": {
+      "completed": 120,
+      "eligible": 120,
+      "rate": 1,
+      "screened_out": 0,
+      "failed": 0
+    },
+    "latency_ms": {
+      "p50": null,
+      "p95": null
+    },
+    "cost": {
+      "attempts": 0,
+      "unknown_cost_attempts": 0,
+      "estimated_usd": null,
+      "unknown_cost_fraction": null
+    },
+    "injection_critical_failures": 0,
+    "tenant_failures": 0,
+    "identity": {
+      "source_sha": "2e7d73fabb0ed82e2ae94be2f86d3b3bb8be478c",
+      "prompt_sha256": "c320895318fdd396c33e33714720ca0c3f3c2e52cd4c0f8585846a1ddff04a4b",
+      "config_sha256": "ef561e483410ad1e76bd5985f823e6ea13ac3ab7ded57294c83e7ab0a9e54712",
+      "request_config_sha256": "e19283cfbba57d8adca9a0a753b8647f2fd989101e1911904d50628397a2d692"
+    }
+  },
+  "failures": []
+}
