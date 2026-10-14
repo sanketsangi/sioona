@@ -49,8 +49,9 @@ def store(db, key, parsed, chat):
     gateway.classification_output(parsed, chat, chat.messages, key[3])
     values = dict(zip(KEY_FIELDS, key))
     values.update(classification=parsed, expires_at=jobs.now(db) + TTL)
-    # Atomic upsert handles same-key workers on disjoint jobs without a failed
-    # transaction. Existing validated classification may simply be refreshed.
+    # Keep the first result for an unexpired identity. Concurrent standard
+    # calls can return different JSON even at temperature zero; a losing writer
+    # must not change the result reused by subsequent conversations.
     if db.get_bind().dialect.name == "postgresql":
         from sqlalchemy.dialects.postgresql import insert
     else:
@@ -58,6 +59,7 @@ def store(db, key, parsed, chat):
     db.execute(insert(ClassificationCache).values(**values).on_conflict_do_update(
         index_elements=list(KEY_FIELDS),
         set_={"classification": parsed, "expires_at": values["expires_at"]},
+        where=ClassificationCache.expires_at <= jobs.now(db),
     ))
 
 

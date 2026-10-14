@@ -128,6 +128,27 @@ def test_expired_invalid_and_ungrounded_cache_are_misses(db):
     assert cache.lookup(db, key, chat) is None
 
 
+def test_cache_keeps_first_result_until_expiry(db):
+    from datetime import datetime, timedelta, timezone
+    from app.models.classification_cache import ClassificationCache
+    chat = body().conversations[0]
+    key = cache.identity("a", chat, "model", {})
+    first = {"type": "lead", "confidence": .9, "summary": "First result", "quotes": ["I want to open a demat account"]}
+    second = {**first, "summary": "Second result"}
+    cache.store(db, key, first, chat)
+    db.commit()
+    cache.store(db, key, second, chat)
+    db.commit()
+    db.expire_all()
+    assert cache.lookup(db, key, chat)[0] == first
+    db.get(ClassificationCache, key).expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+    cache.store(db, key, second, chat)
+    db.commit()
+    db.expire_all()
+    assert cache.lookup(db, key, chat)[0] == second
+
+
 def test_cache_hit_atomic_rollback_on_lease_loss(db, monkeypatch):
     from sqlalchemy import select
     from sqlalchemy.orm import sessionmaker
@@ -286,12 +307,12 @@ def test_historical_budget_denial_never_dispatches(db, monkeypatch):
     from app.models.job import Job
     from app.services.conversations import upsert_conversations
     from app.worker import Worker
-    upsert_conversations(db, tenant_id="a", payloads=body().conversations, commit=False)
-    jid = jobs.enqueue_historical(db, "a", "denied", ["c1"]).id
-    db.commit()
     monkeypatch.setenv("DETECT_LLM", "1")
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     get_settings.cache_clear()
+    upsert_conversations(db, tenant_id="a", payloads=body().conversations, commit=False)
+    jid = jobs.enqueue_historical(db, "a", "denied", ["c1"]).id
+    db.commit()
     Worker(sessionmaker(bind=db.get_bind()), call=lambda *_: pytest.fail("unbudgeted call")).run_once("a")
     db.expire_all()
     assert db.get(Job, ("a", jid)).last_error_category == "unconfigured"

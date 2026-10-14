@@ -1549,16 +1549,21 @@ def test_cb14_cache_race_and_runtime_isolation(job_pg):
     key = cache.identity("a", chat, "model", {})
     parsed = {"type": "lead", "confidence": .9, "summary": "Buying intent", "quotes": ["I want to open a demat account"]}
     barrier = Barrier(2)
-    def write(_):
+    def write(index):
         with _runtime_session(job_pg, "a") as db:
             barrier.wait(timeout=10)
-            cache.store(db, key, parsed, chat)
+            cache.store(db, key, {**parsed, "summary": f"Writer {index}"}, chat)
             db.commit()
     with ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(write, range(2)))
     with _runtime_session(job_pg, "a") as db:
         assert len(list(db.scalars(select(ClassificationCache)))) == 1
-        assert cache.lookup(db, key, chat)
+        winner = cache.lookup(db, key, chat)[0]
+        assert winner["summary"] in {"Writer 0", "Writer 1"}
+        cache.store(db, key, parsed, chat)
+        db.commit()
+        db.expire_all()
+        assert cache.lookup(db, key, chat)[0] == winner
     with _runtime_session(job_pg, "b") as db:
         assert cache.lookup(db, key, chat) is None
         with pytest.raises(DBAPIError, match="row-level security"):
@@ -1583,10 +1588,19 @@ def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
     from app.models.detection_run import DetectionRun
     from app.worker import Worker
     from tests.test_jobs import body
+    from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
+    from app.main import app
+    from app.db import get_db, clear_tenant
+    from tests.actor_support import add_member, actor_headers
+    from tests.test_actor_token import KEY
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", "enforce")
+    monkeypatch.setenv("SIOONA_ACTOR_KEY", KEY)
     monkeypatch.setenv("DETECT_LLM", "1")
     monkeypatch.setenv("DETECT_LLM_PRIMARY", "1")
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     get_settings.cache_clear()
+    actor = add_member(sessionmaker(bind=job_pg), "history@example.test", "a", "reviewer")
     started = time.monotonic()
     ids = [f"historical-{i:05}" for i in range(10000)]
     with _runtime_session(job_pg, "a") as db:
@@ -1594,11 +1608,32 @@ def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
         for offset in range(0, len(ids), 100):
             upsert_conversations(db, tenant_id="a", payloads=body(ids[offset:offset + 100]).conversations, commit=False)
         db.commit()
-    with _runtime_session(job_pg, "a") as db:
+    def request_db():
+        with _runtime_session(job_pg, "a") as db:
+            try:
+                yield db
+            finally:
+                clear_tenant()
+
+    prior = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = request_db
+    try:
         enqueue_start = time.monotonic()
-        jid = jobs.enqueue_historical(db, "a", "history-10k", ids).id
-        db.commit()
+        with TestClient(app) as client:
+            response = client.post("/v1/tenants/a/jobs/historical",
+                json={"request_id": "history-10k", "conversation_ids": ids},
+                headers=actor_headers(actor, "a"))
+        assert response.status_code == 202, response.text
+        assert response.json()["status"] == "queued"
+        assert response.json()["completed_conversations"] == 0
+        jid = response.json()["job_id"]
         enqueue_seconds = time.monotonic() - enqueue_start
+        assert enqueue_seconds < 10  # Below both the read and historical enqueue timeout.
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(prior)
+    with _runtime_session(job_pg, "a") as db:
+        assert db.scalar(select(func.count()).select_from(InferenceAttempt)) == 0
     calls = []
     def provider(model, messages):
         calls.append(model)
@@ -1645,6 +1680,12 @@ def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
         assert sum(a.status == "pending" for a in attempts) == 1
         assert all(a.input_tokens is None and a.estimated_cost_usd is None for a in attempts if a.status == "pending")
         assert all(a.estimated_cost_usd == 0 and a.cached_input_tokens == 0 for a in attempts if a.cache_hit)
+        reported = next(a for a in attempts if not a.cache_hit and a.status == "succeeded")
+        assert (reported.input_tokens, reported.output_tokens, reported.cached_input_tokens) == (10, 5, 2)
+        from app.services.inference_ledger import query_detection_run_inference
+        summary = query_detection_run_inference(db, tenant_id="a", detection_run_id=jid)
+        assert (summary.attempts, summary.cache_hits, summary.pending, summary.unknown_usage_count) == (10001, 9999, 1, 1)
+        assert (summary.reported_input_tokens, summary.reported_output_tokens) == (10, 5)
         assert db.scalar(select(func.count()).select_from(InferenceReservation)) == 2
         assert db.scalar(select(func.count()).select_from(DetectionRun).where(DetectionRun.run_id == jid)) == 10000
         assert db.scalar(select(func.count()).select_from(JobConversation).where(JobConversation.completed.is_(True))) == 10000
@@ -1652,6 +1693,9 @@ def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
         assert db.scalar(select(func.count()).select_from(SignalEvidence)) == 10000
         # Retry of completed request is idempotent, with no additional attempts.
         assert jobs.enqueue_historical(db, "a", "history-10k", ids).id == jid
+        db.commit()
+        assert db.scalar(select(func.count()).select_from(InferenceAttempt).where(InferenceAttempt.job_id == jid)) == 10001
+    assert not worker.run_once("a")
     print(f"CB14_10K seconds={time.monotonic()-started:.3f} enqueue_seconds={enqueue_seconds:.3f} provider_calls=2 cache_hits=9999 attempts=10001")
 
 
