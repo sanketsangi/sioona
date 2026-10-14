@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     sioona_env: str = "development"
     sioona_service_token: str = ""
     sioona_global_control_tenant: str = ""
+    sioona_detection_execution: Literal["inline", "worker"] = "inline"
+    sioona_worker_pause: bool = False
     sioona_actor_key: str = ""
     sioona_actor_auth_mode: Literal["off", "shadow", "enforce"] = Field(
         default="off",

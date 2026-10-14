@@ -14,6 +14,7 @@ from app.models.inference_attempt import (
     InferenceAttempt,
 )
 from app.models.base import Base
+from app.models.job import Job
 from app.models.conversation import Conversation
 from app.models.message import (
     MESSAGE_ROLE_AGENT,
@@ -71,6 +72,7 @@ __all__ = [
     "DEMO_ACTOR_EMAIL",
     "MEMBERSHIP_ROLES",
     "Base",
+    "Job",
     "Membership",
     "User",
     "Workspace",

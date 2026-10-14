@@ -198,6 +198,7 @@ def test_postgres_fresh_and_existing_schema_upgrade(prior, monkeypatch):
         assert "ix_prediction_tenant_active_id" in {index["name"] for index in schema.get_indexes("signal_predictions")}
         assert_membership_schema(schema)
         assert_inference_schema(schema)
+        assert_jobs_schema(schema)
         with Session(engine) as db:
             db.add(Conversation(tenant_id="a", conversation_id="c1", channel="upload", started_at=datetime.now(timezone.utc)))
             db.commit()
@@ -423,7 +424,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["026_weekly_upload_receipts"]
+        assert heads == ["027_jobs"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -697,6 +698,7 @@ RLS_TABLES = (
     "signal_evidence",
     "detection_resume",
     "weekly_upload_receipts",
+    "jobs",
 )
 
 
@@ -864,6 +866,26 @@ def _seed_two_tenants(conn) -> None:
           ('tenant_b', 'receipt-b', 1)
         """
     ))
+
+
+    conn.execute(text("""
+        INSERT INTO jobs (tenant_id, id, upload_id, config_sha256, conversation_digest)
+        VALUES ('tenant_a', 'job-a', 'upload-a', :digest, :digest),
+               ('tenant_b', 'job-b', 'upload-b', :digest, :digest)
+    """), {"digest": "a" * 64})
+
+
+def assert_jobs_schema(schema) -> None:
+    columns = {col["name"]: col for col in schema.get_columns("jobs")}
+    assert "payload" not in columns
+    assert {"tenant_id", "id", "upload_id", "config_sha256", "conversation_digest",
+            "lease_token", "lease_expires_at", "heartbeat_at", "cursor"} <= columns.keys()
+    assert columns["lease_token"]["nullable"] is False
+    assert {"ck_jobs_status", "ck_jobs_attempts", "ck_jobs_lease", "ck_jobs_digests",
+            "ck_jobs_cursor_token", "ck_jobs_kind"} <= {
+                c["name"] for c in schema.get_check_constraints("jobs")}
+    assert "uq_jobs_identity" in {c["name"] for c in schema.get_unique_constraints("jobs")}
+    assert "ix_jobs_claim" in {i["name"] for i in schema.get_indexes("jobs")}
 
 
 def _assert_runtime_isolation(engine) -> None:
