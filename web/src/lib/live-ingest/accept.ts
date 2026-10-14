@@ -1,3 +1,6 @@
+import { detectionExecution } from "../detection-execution";
+import { enqueueCanonicalUpload } from "../enqueue-detection";
+import type { BackendJobStatus } from "../backend-client";
 import { getStateMode } from "../state-mode";
 import {
   getDetectionResume,
@@ -80,7 +83,7 @@ function withLiveIngestLock<T>(task: () => Promise<T>): Promise<T> {
 async function acceptLiveChatsBody(
   inputs: IngestConversationInput[],
   deps: LiveIngestDeps,
-): Promise<{ accepted: number }> {
+): Promise<{ accepted: number; job?: BackendJobStatus }> {
   const read = deps.read ?? (getStateMode() === "postgres" ? readLiveIngestStore : readStore);
   const write = deps.write ?? writeStore;
   const detect = deps.detect ?? runHybridDetectionWithLedger;
@@ -116,6 +119,11 @@ async function acceptLiveChatsBody(
   }
   store.conversations.push(...ingested.conversations);
   store.messages.push(...ingested.messages);
+  if (detectionExecution() === "worker") {
+    const job = await enqueueCanonicalUpload({ tenantId: store.tenant.id, source: "live",
+      replace: false, appendOnly: true, conversations: ingested.conversations, messages: ingested.messages });
+    return { accepted: ingested.conversations.length, job };
+  }
   const resumeVersion = store.detectionResumeUpdatedAt ?? "1970-01-01T00:00:00Z";
   const batchIds = new Set(ingested.conversations.map((chat) => chat.id));
   const priorFailedOutsideBatch = (store.llmFailedConversationIds ?? [])
@@ -180,6 +188,6 @@ async function acceptLiveChatsBody(
 export async function acceptLiveChats(
   inputs: IngestConversationInput[],
   deps: LiveIngestDeps = {},
-): Promise<{ accepted: number }> {
+): Promise<{ accepted: number; job?: BackendJobStatus }> {
   return withLiveIngestLock(() => acceptLiveChatsBody(inputs, deps));
 }

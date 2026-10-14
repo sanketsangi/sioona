@@ -1,3 +1,5 @@
+import { detectionExecution } from "@/lib/detection-execution";
+import { enqueueCanonicalDetect } from "@/lib/enqueue-detection";
 import { syncDetectionRun } from "@/lib/sync-detection-run";
 import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
@@ -18,6 +20,14 @@ export async function POST(request: Request) {
   if (session instanceof NextResponse) return session;
   return runWithTenant(session.tenantId, async () => {
     const store = await readStore();
+    if (detectionExecution() === "worker") {
+      try {
+        const job = await enqueueCanonicalDetect(session.tenantId, store.conversations);
+        return NextResponse.json(job, { status: 202 });
+      } catch {
+        return NextResponse.json({ error: "Detection job could not be queued" }, { status: 503 });
+      }
+    }
     const useCanonicalPublication =
       store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
     const { signals: detected, llm } = await runHybridDetectionWithLedger(

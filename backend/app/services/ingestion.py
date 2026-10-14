@@ -28,6 +28,10 @@ class IngestionError(Exception):
 
 
 def publish_ingestion(db: Session, *, tenant_id: str, upload_id: str, body: Ingestion, require_existing: bool = False):
+    from app.config import get_settings
+    from app.models.job import Job
+    if get_settings().sioona_detection_execution == "worker" or db.scalar(select(Job.id).where(Job.tenant_id == tenant_id, Job.upload_id == upload_id)):
+        raise IngestionError(409, "durable_job_required")
     ids = [row.conversation_id for row in body.conversations]
     detected_ids = [row.conversation_id for row in body.detections]
     if len(set(ids)) != len(ids) or len(set(detected_ids)) != len(detected_ids) or set(ids) != set(detected_ids):
