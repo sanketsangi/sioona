@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import bind_tenant
 from app.models.job import Job
+from app.models.job_conversation import JobConversation
 from app.models.upload import Upload
 from app.models.detection_run import DetectionRun
 from app.models.detection_resume import DetectionResume
@@ -37,6 +38,8 @@ from app.services.uploads import publish_upload
 
 LEASE_SECONDS = 90
 HEARTBEAT_SECONDS = 30
+CHUNK_SIZE = 100
+REFERENCE_PAGE_SIZE = 500
 PRINCIPAL = "principal:detection-worker"
 
 
@@ -138,11 +141,7 @@ def enqueue_upload(
         )
     ).all()
     for row in active:
-        source = db.get(Upload, (tenant, row.upload_id))
-        source_ids = [
-            c["conversation_id"]
-            for c in (source.payload or {}).get("conversations", [])
-        ]
+        source_ids = job_ids(db, row)
         if set(source_ids) & set(ids):
             raise JobError("conversation_job_in_progress")
     if body.append_only:
@@ -205,6 +204,129 @@ def enqueue_upload(
     db.add(row)
     db.flush()
     return row
+
+
+def chat_content_hash(chat):
+    return digest(sorted([[m.message_id, m.role, m.content] for m in chat.messages]))
+
+
+def canonical_context(db, tenant, cid):
+    context = db.execute(select(Conversation.customer_name, Conversation.channel).where(
+        Conversation.tenant_id == tenant, Conversation.conversation_id == cid)).one_or_none()
+    if context is None:
+        raise JobError("source_unavailable")
+    return tuple(context)
+
+
+def reference_page(db, tenant, ids):
+    """Project only classification inputs while accepting bounded reference pages."""
+    from types import SimpleNamespace
+    contexts = {cid: (name, channel) for cid, name, channel in db.execute(select(
+        Conversation.conversation_id, Conversation.customer_name, Conversation.channel).where(
+        Conversation.tenant_id == tenant, Conversation.conversation_id.in_(ids)))}
+    if len(contexts) != len(ids):
+        raise JobError("source_unavailable")
+    messages = {cid: [] for cid in ids}
+    for cid, mid, role, content in db.execute(select(Message.conversation_id, Message.message_id,
+            Message.role, Message.content).where(Message.tenant_id == tenant,
+            Message.conversation_id.in_(ids)).order_by(Message.timestamp, Message.message_id)):
+        messages[cid].append(SimpleNamespace(message_id=mid, role=role, content=content))
+    return [SimpleNamespace(conversation_id=cid, customer_name=contexts[cid][0], channel=contexts[cid][1],
+        messages=messages[cid]) for cid in ids]
+
+
+def canonical_page(db, tenant, ids):
+    """Two source queries per page, never one query per conversation."""
+    from app.schemas.ingestion import IngestionConversation
+    chats = {c.conversation_id: c for c in db.scalars(select(Conversation).where(
+        Conversation.tenant_id == tenant, Conversation.conversation_id.in_(ids)))}
+    messages = {cid: [] for cid in ids}
+    for m in db.scalars(select(Message).where(Message.tenant_id == tenant,
+            Message.conversation_id.in_(ids)).order_by(Message.timestamp, Message.message_id)):
+        messages[m.conversation_id].append(dict(message_id=m.message_id, role=m.role, content=m.content, timestamp=m.timestamp))
+    if len(chats) != len(ids):
+        raise JobError("source_unavailable")
+    return [IngestionConversation(conversation_id=cid, channel=chats[cid].channel,
+        customer_name=chats[cid].customer_name, external_id=chats[cid].external_id,
+        ground_truth=chats[cid].ground_truth, started_at=chats[cid].started_at,
+        messages=messages[cid]) for cid in ids]
+
+
+def job_ids(db, row):
+    if row.job_type == "historical":
+        return list(db.scalars(select(JobConversation.conversation_id).where(
+            JobConversation.tenant_id == row.tenant_id, JobConversation.job_id == row.id)))
+    source = db.get(Upload, (row.tenant_id, row.upload_id))
+    return [c["conversation_id"] for c in (source.payload or {}).get("conversations", [])]
+
+
+def enqueue_historical(db, tenant, request_id, ids):
+    from app.schemas.job import HistoricalDetectJobIn
+    from app.services.classification_cache import context_hash
+    HistoricalDetectJobIn(request_id=request_id, conversation_ids=ids)
+    if get_settings().sioona_detection_execution != "worker":
+        raise JobError("worker_mode_required")
+    bind_tenant(db, tenant)
+    lock_tenant_corpus(db, tenant)
+    job_id = digest([tenant, "historical", request_id])
+    existing = db.get(Job, (tenant, job_id))
+    if existing:
+        if set(ids) != set(job_ids(db, existing)):
+            raise JobError("job_identity_conflict")
+        return existing
+    wanted = set(ids)
+    for active in db.scalars(select(Job).where(Job.tenant_id == tenant,
+            Job.status.in_(["queued", "leased", "failed"]))):
+        if wanted.intersection(job_ids(db, active)):
+            raise JobError("conversation_job_in_progress")
+    upload_id = job_id  # Internal source reference cannot collide with request IDs.
+    refs = []
+    records = []
+    for offset in range(0, len(ids), REFERENCE_PAGE_SIZE):
+        for ordinal, chat in enumerate(reference_page(db, tenant, ids[offset:offset + REFERENCE_PAGE_SIZE]), offset):
+            source_hash, context = chat_content_hash(chat), context_hash(chat)
+            refs.append([chat.conversation_id, source_hash, context])
+            records.append(dict(tenant_id=tenant, job_id=job_id, conversation_id=chat.conversation_id,
+                ordinal=ordinal, content_sha256=source_hash, context_sha256=context, completed=False))
+    fingerprint = digest(sorted(refs))
+    db.add(Upload(tenant_id=tenant, upload_id=upload_id, source="historical-detection",
+        content_sha256=fingerprint, status="staged", active=False,
+        payload={"historical_job_id": job_id, "references_sha256": fingerprint}))
+    db.flush()
+    row = Job(tenant_id=tenant, id=job_id, job_type="historical", upload_id=upload_id,
+        conversation_ids_sha256=fingerprint, conversation_count=len(ids),
+        config_sha256=config_hash(db, tenant), run_after=now(db), priority=-1)
+    db.add(row)
+    db.flush()
+    for offset in range(0, len(records), REFERENCE_PAGE_SIZE):
+        db.execute(JobConversation.__table__.insert(), records[offset:offset + REFERENCE_PAGE_SIZE])
+    return row
+
+
+def work_page(db, lease):
+    from app.services.classification_cache import context_hash
+    row = fenced(db, lease)
+    if config_hash(db, row.tenant_id) != row.config_sha256:
+        raise JobError("config_changed")
+    if row.job_type != "historical":
+        return source_body(db, row).conversations
+    refs = list(db.scalars(select(JobConversation).where(
+        JobConversation.tenant_id == row.tenant_id, JobConversation.job_id == row.id,
+        JobConversation.completed.is_(False)).order_by(JobConversation.ordinal).limit(CHUNK_SIZE)))
+    chats = canonical_page(db, row.tenant_id, [r.conversation_id for r in refs]) if refs else []
+    for ref, chat in zip(refs, chats):
+        if chat_content_hash(chat) != ref.content_sha256 or context_hash(chat) != ref.context_sha256:
+            raise JobError("source_changed")
+    return chats
+
+
+def yield_chunk(db, lease):
+    row = fenced(db, lease, corpus=True)
+    row.status = "queued"
+    row.attempt_count -= 1  # Normal continuation does not consume failure retries.
+    row.run_after = now(db)
+    clear_lease(row, row.run_after)
+    db.flush()
 
 
 def enqueue_detect(db: Session, tenant: str, request_id: str, ids: list[str]) -> Job:
@@ -284,6 +406,21 @@ def source_body(db: Session, row: Job) -> JobUpload:
 
 
 def remaining_ids(db: Session, row: Job) -> list[str]:
+    if row.job_type == "historical":
+        from app.services.classification_cache import context_hash
+        remaining = []
+        for offset in range(0, row.conversation_count, CHUNK_SIZE):
+            refs = list(db.scalars(select(JobConversation).where(JobConversation.tenant_id == row.tenant_id,
+                JobConversation.job_id == row.id).order_by(JobConversation.ordinal).offset(offset).limit(CHUNK_SIZE)))
+            # Missing canonical rows must still be recorded for operator recovery.
+            present = set(db.scalars(select(Conversation.conversation_id).where(Conversation.tenant_id == row.tenant_id,
+                Conversation.conversation_id.in_([r.conversation_id for r in refs]))))
+            chats = {c.conversation_id: c for c in canonical_page(db, row.tenant_id, [r.conversation_id for r in refs if r.conversation_id in present])}
+            for ref in refs:
+                chat = chats.get(ref.conversation_id)
+                if not ref.completed or chat is None or chat_content_hash(chat) != ref.content_sha256 or context_hash(chat) != ref.context_sha256:
+                    remaining.append(ref.conversation_id)
+        return remaining
     body = source_body(db, row)
     ids = []
     for chat in body.conversations:
@@ -568,6 +705,16 @@ def publish_conversation(
         raise JobError("source_changed")
     from app.ai.gateway import PROMPT_VERSION
 
+    existing = db.get(DetectionRun, (lease.tenant_id, row.id, cid))
+    if existing:
+        if existing.content_hash != content_hash:
+            raise JobError("source_changed")
+        return
+    if row.job_type == "historical":
+        from app.services.classification_cache import context_hash
+        ref = db.get(JobConversation, (lease.tenant_id, row.id, cid))
+        if ref is None or ref.content_sha256 != content_hash or context_hash(canonical_page(db, lease.tenant_id, [cid])[0]) != ref.context_sha256:
+            raise JobError("source_changed")
     reconcile_detection(
         db,
         tenant_id=lease.tenant_id,
@@ -580,7 +727,11 @@ def publish_conversation(
         coverage=coverage,
         lease_token=lease.token,
     )
-    row.cursor = row.conversation_count - len(remaining_ids(db, row))
+    if row.job_type == "historical":
+        ref.completed = True
+        row.cursor += 1
+    else:
+        row.cursor = row.conversation_count - len(remaining_ids(db, row))
     row.updated_at = now(db)
     # Recheck expiration after validation/publication, before committing writes.
     if utc(row.lease_expires_at) <= row.updated_at:
@@ -590,6 +741,9 @@ def publish_conversation(
 
 def complete(db: Session, lease: Lease) -> None:
     row = fenced(db, lease, corpus=True)
+    if row.job_type == "historical":
+        complete_historical(db, lease, row)
+        return
     if remaining_ids(db, row):
         raise JobError("unpublished_conversations")
     body = source_body(db, row)
@@ -669,5 +823,36 @@ def complete(db: Session, lease: Lease) -> None:
     if utc(row.lease_expires_at) <= clock:
         raise LeaseLost("lease_lost")
     row.status, row.cursor = "succeeded", row.conversation_count
+    clear_lease(row, clock)
+    db.flush()
+
+
+def complete_historical(db, lease, row):
+    """Validate all immutable references in bounded pages at the final boundary."""
+    from app.services.classification_cache import context_hash
+    if config_hash(db, lease.tenant_id) != row.config_sha256:
+        raise JobError("config_changed")
+    references = []
+    for offset in range(0, row.conversation_count, CHUNK_SIZE):
+        refs = list(db.scalars(select(JobConversation).where(JobConversation.tenant_id == row.tenant_id,
+            JobConversation.job_id == row.id).order_by(JobConversation.ordinal).offset(offset).limit(CHUNK_SIZE)))
+        references.extend([r.conversation_id, r.content_sha256, r.context_sha256] for r in refs)
+        chats = canonical_page(db, row.tenant_id, [r.conversation_id for r in refs])
+        for ref, chat in zip(refs, chats):
+            if not ref.completed or chat_content_hash(chat) != ref.content_sha256 or context_hash(chat) != ref.context_sha256:
+                raise JobError("source_changed")
+    source = db.get(Upload, (row.tenant_id, row.upload_id))
+    if len(references) != row.conversation_count or digest(sorted(references)) != row.conversation_ids_sha256 or source.content_sha256 != row.conversation_ids_sha256:
+        raise JobError("source_identity_conflict")
+    source.status = "completed"
+    resume = db.get(DetectionResume, row.tenant_id)
+    if resume:
+        done = set(job_ids(db, row))
+        resume.failed_conversation_ids = [c for c in resume.failed_conversation_ids if c not in done]
+        resume.skipped_conversation_ids = [c for c in resume.skipped_conversation_ids if c not in done]
+    clock = now(db)
+    if utc(row.lease_expires_at) <= clock:
+        raise LeaseLost("lease_lost")
+    row.status = "succeeded"
     clear_lease(row, clock)
     db.flush()

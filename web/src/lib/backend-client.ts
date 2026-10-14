@@ -28,6 +28,8 @@ const DEFAULT_BACKEND_URL = "http://localhost:8000";
 export const BACKEND_FETCH_TIMEOUT_MS = 10_000;
 /** createPrediction / submitFeedback — Neon commits can exceed read latency. */
 export const BACKEND_MUTATION_TIMEOUT_MS = 15_000;
+/** Historical acceptance snapshots up to 10K references; inference runs in the worker. */
+export const HISTORICAL_ENQUEUE_TIMEOUT_MS = 60_000;
 /** Render free cold-start /health — first request often exceeds the 10s read budget. */
 export const BACKEND_HEALTH_TIMEOUT_MS = 25_000;
 const MUTATION_RETRY_BACKOFF_MS = [250, 800] as const;
@@ -1161,6 +1163,7 @@ export async function getInferenceUsage(
     buckets: Array<{
       key: string;
       attempts: number;
+      cache_hits: number;
       reported_input_tokens: number | null;
       reported_output_tokens: number | null;
       unknown_usage_count: number;
@@ -1182,6 +1185,7 @@ export async function getDetectionRunInference(
     tenant_id: string;
     detection_run_id: string;
     attempts: number;
+    cache_hits: number;
     reported_input_tokens: number | null;
     reported_output_tokens: number | null;
     unknown_usage_count: number;
@@ -1308,6 +1312,10 @@ export async function enqueueUploadJob(tenantId: string, uploadId: string, input
 export async function enqueueDetectJob(tenantId: string, requestId: string, conversationIds: string[]): Promise<BackendJobStatus> {
   return backendFetch<BackendJobStatus>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/jobs/detect`,
     { method: "POST", headers: await budgetHeaders(tenantId), body: JSON.stringify({ request_id: requestId, conversation_ids: conversationIds }), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS });
+}
+export async function enqueueHistoricalDetectJob(tenantId: string, requestId: string, conversationIds: string[]): Promise<BackendJobStatus> {
+  return backendFetch<BackendJobStatus>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/jobs/historical`,
+    { method: "POST", headers: await budgetHeaders(tenantId), body: JSON.stringify({ request_id: requestId, conversation_ids: conversationIds }), timeoutMs: HISTORICAL_ENQUEUE_TIMEOUT_MS });
 }
 export async function getJobStatus(tenantId: string, jobId: string): Promise<BackendJobStatus> {
   return backendFetch<BackendJobStatus>(tenantId,

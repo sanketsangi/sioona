@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, text, select
+from sqlalchemy import create_engine, inspect, text, select, func
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Session
@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["027_jobs"]
+        assert heads == ["028_batch_cache"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -697,7 +697,7 @@ RLS_TABLES = (
     "signal_evidence",
     "detection_resume",
     "weekly_upload_receipts",
-    "jobs",
+    "jobs", "classification_cache", "job_conversations",
     "workspaces", "memberships", "pilot_settings", "taxonomy_overrides",
     "uploads", "upload_conversations", "inference_budgets",
     "inference_run_budgets", "inference_reservations", "inference_controls",
@@ -901,6 +901,14 @@ def _seed_two_tenants(conn) -> None:
                ('tenant_b','job-b','upload','job-source-b',:digest,1,:digest)
     """), {"digest": "a" * 64})
 
+    conn.execute(text("""
+        INSERT INTO job_conversations (tenant_id,job_id,conversation_id,ordinal,content_sha256,context_sha256)
+        VALUES ('tenant_a','job-a','chat-a',0,:digest,:digest), ('tenant_b','job-b','chat-b',0,:digest,:digest)
+    """), {"digest": "a" * 64})
+    conn.execute(text("""
+        INSERT INTO classification_cache (tenant_id,content_sha256,prompt_version,model_id,route_version,taxonomy_hash,classification,expires_at)
+        VALUES ('tenant_a',:digest,'p','m','r',:digest,'{}',now()), ('tenant_b',:digest,'p','m','r',:digest,'{}',now())
+    """), {"digest": "a" * 64})
     conn.execute(text("INSERT INTO upload_conversations (tenant_id, upload_id, conversation_id) VALUES ('tenant_a', 'upload', 'chat-a'), ('tenant_b', 'upload', 'chat-b')"))
 
 
@@ -1529,3 +1537,144 @@ def test_cb11_verified_api_to_runtime_worker_and_polling(job_pg, monkeypatch):
         app.dependency_overrides.clear()
         app.dependency_overrides.update(prior)
         get_settings.cache_clear()
+
+
+def test_cb14_cache_race_and_runtime_isolation(job_pg):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.services import classification_cache as cache
+    from app.models.classification_cache import ClassificationCache
+    from tests.test_jobs import body
+    chat = body().conversations[0]
+    key = cache.identity("a", chat, "model", {})
+    parsed = {"type": "lead", "confidence": .9, "summary": "Buying intent", "quotes": ["I want to open a demat account"]}
+    barrier = Barrier(2)
+    def write(_):
+        with _runtime_session(job_pg, "a") as db:
+            barrier.wait(timeout=10)
+            cache.store(db, key, parsed, chat)
+            db.commit()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(write, range(2)))
+    with _runtime_session(job_pg, "a") as db:
+        assert len(list(db.scalars(select(ClassificationCache)))) == 1
+        assert cache.lookup(db, key, chat)
+    with _runtime_session(job_pg, "b") as db:
+        assert cache.lookup(db, key, chat) is None
+        with pytest.raises(DBAPIError, match="row-level security"):
+            cache.store(db, key, parsed, chat)
+            db.commit()
+        db.rollback()
+
+
+def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
+    """Real RLS worker: 10K sources, process loss after response and after commit."""
+    import time
+    from app.config import get_settings
+    from app.services import jobs
+    from app.services.conversations import upsert_conversations
+    from app.services.inference_budget import configure
+    from app.models.job import Job
+    from app.models.job_conversation import JobConversation
+    from app.models.inference_attempt import InferenceAttempt
+    from app.models.inference_budget import InferenceReservation
+    from app.models.signal_prediction import SignalPrediction
+    from app.models.signal_evidence import SignalEvidence
+    from app.models.detection_run import DetectionRun
+    from app.worker import Worker
+    from tests.test_jobs import body
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("DETECT_LLM_PRIMARY", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    get_settings.cache_clear()
+    started = time.monotonic()
+    ids = [f"historical-{i:05}" for i in range(10000)]
+    with _runtime_session(job_pg, "a") as db:
+        configure(db, "a", 20, 20, True, "synthetic", jobs.PRINCIPAL)
+        for offset in range(0, len(ids), 100):
+            upsert_conversations(db, tenant_id="a", payloads=body(ids[offset:offset + 100]).conversations, commit=False)
+        db.commit()
+    with _runtime_session(job_pg, "a") as db:
+        enqueue_start = time.monotonic()
+        jid = jobs.enqueue_historical(db, "a", "history-10k", ids).id
+        db.commit()
+        enqueue_seconds = time.monotonic() - enqueue_start
+    calls = []
+    def provider(model, messages):
+        calls.append(model)
+        if len(calls) == 1:
+            raise SystemExit("synthetic loss after provider response")
+        return {"type": "lead", "confidence": .9, "summary": "Buying intent", "quotes": ["I want to open a demat account"]}, {"status": "succeeded", "usage": {"input_tokens": 10, "output_tokens": 5, "cached_input_tokens": 2}}
+    sessions = lambda: _runtime_session(job_pg, "a")
+    worker = Worker(sessions, call=provider)
+    with pytest.raises(SystemExit):
+        worker.run_once("a")
+    def expire():
+        with Session(job_pg) as db:
+            db.execute(text("UPDATE jobs SET lease_expires_at=now()-interval '1 second' WHERE tenant_id='a' AND id=:id"), {"id": jid})
+            db.commit()
+    expire()
+    worker = Worker(sessions, call=provider)
+    original = worker.transaction
+    committed_hits = 0
+    def crash_after_commit(tenant, operation):
+        nonlocal committed_hits
+        result = original(tenant, operation)
+        if operation.__name__ == "use_cached" and result:
+            committed_hits += 1
+            if committed_hits == 150:
+                raise SystemExit("synthetic loss after cache ledger and publication commit")
+        return result
+    worker.transaction = crash_after_commit
+    with pytest.raises(SystemExit):
+        while worker.run_once("a"):
+            pass
+    expire()
+    worker = Worker(sessions, call=provider)
+    ticks = 0
+    while worker.run_once("a"):
+        ticks += 1
+        assert ticks <= 101
+    with _runtime_session(job_pg, "a") as db:
+        row = db.get(Job, ("a", jid))
+        assert row.status == "succeeded" and row.cursor == row.conversation_count == 10000
+        assert len(calls) == 2
+        attempts = list(db.scalars(select(InferenceAttempt).where(InferenceAttempt.job_id == jid)))
+        assert len(attempts) == 10001
+        assert sum(a.cache_hit for a in attempts) == 9999
+        assert sum(a.status == "pending" for a in attempts) == 1
+        assert all(a.input_tokens is None and a.estimated_cost_usd is None for a in attempts if a.status == "pending")
+        assert all(a.estimated_cost_usd == 0 and a.cached_input_tokens == 0 for a in attempts if a.cache_hit)
+        assert db.scalar(select(func.count()).select_from(InferenceReservation)) == 2
+        assert db.scalar(select(func.count()).select_from(DetectionRun).where(DetectionRun.run_id == jid)) == 10000
+        assert db.scalar(select(func.count()).select_from(JobConversation).where(JobConversation.completed.is_(True))) == 10000
+        assert db.scalar(select(func.count()).select_from(SignalPrediction).where(SignalPrediction.active.is_(True))) == 10000
+        assert db.scalar(select(func.count()).select_from(SignalEvidence)) == 10000
+        # Retry of completed request is idempotent, with no additional attempts.
+        assert jobs.enqueue_historical(db, "a", "history-10k", ids).id == jid
+    print(f"CB14_10K seconds={time.monotonic()-started:.3f} enqueue_seconds={enqueue_seconds:.3f} provider_calls=2 cache_hits=9999 attempts=10001")
+
+
+def test_cb14_migration_constraints_and_safe_downgrade(job_pg, monkeypatch):
+    from app.models.inference_attempt import InferenceAttempt
+    from app.services import jobs
+    from app.services.conversations import upsert_conversations
+    from tests.test_jobs import body
+    with _runtime_session(job_pg, "a") as db:
+        db.add(InferenceAttempt(tenant_id="a", attempt_id="invalid-hit", logical_operation_id="op", attempt_ordinal=1,
+            stage="detect", route_version="r", provider="groq", model="m", prompt_version="p", cache_hit=True,
+            status="succeeded", usage_status="reported", started_at=datetime.now(timezone.utc),
+            cost_status="reconciled", estimated_cost_usd=0))
+        with pytest.raises(IntegrityError, match="ck_inference_cache_hit"):
+            db.flush()
+        db.rollback()
+    # Empty additive revision can roll back and upgrade without losing baseline.
+    command.downgrade(Config("alembic.ini"), "027_jobs")
+    command.upgrade(Config("alembic.ini"), "head")
+    with _runtime_session(job_pg, "a") as db:
+        upsert_conversations(db, tenant_id="a", payloads=body().conversations, commit=False)
+        jobs.enqueue_historical(db, "a", "retained", ["c1"])
+        db.commit()
+    with pytest.raises(DBAPIError, match="historical jobs must be retained"):
+        command.downgrade(Config("alembic.ini"), "027_jobs")
+    assert inspect(job_pg).has_table("job_conversations")

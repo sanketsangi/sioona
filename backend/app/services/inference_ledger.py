@@ -61,6 +61,7 @@ def _apply_payload(row: InferenceAttempt, payload: InferenceAttemptIn) -> None:
     row.provider = payload.provider
     row.model = payload.model
     row.prompt_version = payload.prompt_version
+    row.cache_hit = payload.cache_hit
     row.status = payload.status
     row.error_category = payload.error_category
     row.http_status = payload.http_status
@@ -145,6 +146,7 @@ def upsert_inference_attempts(
 def _status_counts(rows: list[InferenceAttempt]) -> dict[str, int]:
     counts = {
         "attempts": len(rows),
+        "cache_hits": sum(bool(row.cache_hit) for row in rows),
         "succeeded": 0,
         "failed": 0,
         "timeout": 0,
@@ -172,7 +174,7 @@ def _usage_totals(rows: list[InferenceAttempt]) -> dict[str, int | Decimal | Non
             reported_output += int(row.output_tokens or 0)
         else:
             unknown_usage += 1
-        if row.cost_status == "estimated" and row.estimated_cost_usd is not None:
+        if row.cost_status in {"estimated", "reconciled"} and row.estimated_cost_usd is not None:
             has_estimated = True
             estimated_cost += Decimal(row.estimated_cost_usd)
         else:
@@ -228,6 +230,7 @@ def query_inference_usage(
             InferenceUsageBucket(
                 key=key,
                 attempts=counts["attempts"],
+                cache_hits=counts["cache_hits"],
                 succeeded=counts["succeeded"],
                 failed=counts["failed"],
                 timeout=counts["timeout"],
@@ -273,6 +276,7 @@ def query_detection_run_inference(
         tenant_id=tenant_id,
         detection_run_id=detection_run_id,
         attempts=counts["attempts"],
+        cache_hits=counts["cache_hits"],
         succeeded=counts["succeeded"],
         failed=counts["failed"],
         timeout=counts["timeout"],

@@ -6,7 +6,7 @@ it("signed-in job enqueue and polling send verified actor assertions with auth o
   const { signSession } = await import("./auth-token");
   const token = await signSession({ email: "reviewer@partner.example", role: "reviewer", tenantId: "tenant_partner" });
   vi.doMock("next/headers", () => ({ cookies: async () => ({ get: () => ({ value: token }) }) })); vi.resetModules();
-  const { enqueueUploadJob, enqueueDetectJob, getJobStatus } = await import("./backend-client");
+  const { enqueueUploadJob, enqueueDetectJob, enqueueHistoricalDetectJob, getJobStatus } = await import("./backend-client");
   const fetch = vi.fn(async (_url, init) => {
     const assertion = init.headers["X-Sioona-Actor"];
     if (!assertion) return Response.json({ detail: "actor_required" }, { status: 401 });
@@ -16,6 +16,8 @@ it("signed-in job enqueue and polling send verified actor assertions with auth o
   }); vi.stubGlobal("fetch", fetch);
   await expect(enqueueUploadJob("tenant_partner", "upload-1", { source: "week.csv", replace: false, conversations: [], files: [] })).resolves.toMatchObject({ job_id: "job-1" });
   await expect(enqueueDetectJob("tenant_partner", "request-1", ["c1"])).resolves.toMatchObject({ job_id: "job-1" });
+  await expect(enqueueHistoricalDetectJob("tenant_partner", "history-1", ["c1", "c2"])).resolves.toMatchObject({ job_id: "job-1" });
+  expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/jobs/historical"), expect.objectContaining({ body: JSON.stringify({ request_id: "history-1", conversation_ids: ["c1", "c2"] }) }));
   await expect(getJobStatus("tenant_partner", "job-1")).resolves.toMatchObject({ status: "queued" });
-  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(fetch).toHaveBeenCalledTimes(4);
 });
