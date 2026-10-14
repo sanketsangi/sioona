@@ -1,4 +1,5 @@
-import { publicHeaders, VARY } from "@/lib/http-headers";
+import { markdownFor } from "@/lib/markdown-pages";
+import { publicHeaders } from "@/lib/http-headers";
 import { agentGuidance } from "@/lib/agent-guidance";
 import { siteConfig } from "@/lib/site";
 
@@ -8,9 +9,9 @@ export function GET() {
 
 ${siteConfig.description}
 
-Sioona finds lead, retention and upsell signals in the customer chats a team already has. Reviewers see the source words, record whether each signal is correct, and use Signal Score as the pilot go or no-go measure. Shadow Mode does not send messages to customers.
+${markdownFor("/pricing")}
 
-Supported exports: Intercom JSON, WhatsApp Business text exports, and CSV or JSON files. A pilot starts from one redacted export. No mailbox access, chat-tool API keys, or CRM credentials are required.
+${markdownFor("/security")}
 
 ## Sioona pages
 
@@ -32,7 +33,6 @@ ${agentGuidance()}
       "content-type": "text/plain; charset=utf-8",
       "cache-control": "public, max-age=0, must-revalidate",
       ...publicHeaders,
-      vary: VARY,
     },
   });
 }

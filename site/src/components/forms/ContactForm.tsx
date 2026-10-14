@@ -1,4 +1,6 @@
 "use client";
+import { honeypotField } from "@/lib/contact";
+
 
 import { CheckCircle, CircleNotch } from "@phosphor-icons/react/ssr";
 import Link from "@/components/navigation/GuardedLink";
@@ -121,7 +123,7 @@ export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
       return;
     }
 
-    const payload = JSON.stringify(clean);
+    const payload = JSON.stringify({ ...clean, [honeypotField]: new FormData(event.currentTarget).get(honeypotField) || "" });
     if (requestIdentity.current?.payload !== payload) requestIdentity.current = { payload, key: crypto.randomUUID() };
     setStatus("submitting");
     setAnnounce("Sending your request…");
@@ -130,6 +132,7 @@ export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": requestIdentity.current.key },
         body: payload,
+        signal: AbortSignal.timeout(12000),
       });
       const data = (await response.json().catch(() => null)) as { ok?: boolean; receipt?: string; error?: string; errors?: ContactErrors } | null;
       if (response.ok && data?.ok === true && data.receipt === requestIdentity.current.key) {
@@ -149,7 +152,7 @@ export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
       setAnnounce(data?.error || "We could not store your request. Please retry.");
     } catch {
       setStatus("error");
-      setAnnounce("Something went wrong. Please try again.");
+      setAnnounce("We could not confirm receipt. Your details are preserved. Retry safely, or contact support.");
     }
   };
 
@@ -192,6 +195,7 @@ export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
 
   return (
     <form onSubmit={onSubmit} noValidate className="panel flex flex-col gap-5 p-5 lg:p-6" aria-describedby="contact-privacy contact-status">
+      <div hidden aria-hidden="true"><label htmlFor="contact-website">Company website</label><input id="contact-website" name={honeypotField} tabIndex={-1} autoComplete="off" defaultValue="" /></div>
       <div className="grid gap-5 sm:grid-cols-2">
         <FieldShell field="name" label="Name" hint="Required" error={errors.name}>
           <input
@@ -333,7 +337,7 @@ export function ContactForm({ supportEmail = "" }: { supportEmail?: string }) {
         <p className="text-label-13 text-sio-fg-muted">We’ll reply about next steps. No chat access needed to start.</p>
       </div>
 
-      <p id="contact-status" role="status" aria-live="polite" className={announce ? "text-label-13 text-sio-fg-subtle" : "sr-only"}>
+      <p id="contact-status" role={status === "error" ? "alert" : "status"} aria-live="polite" className={announce ? "text-label-13 text-sio-fg-subtle" : "sr-only"}>
         {announce}
       </p>
       {status === "error" && supportEmail ? (

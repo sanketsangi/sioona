@@ -1,3 +1,5 @@
+import { ContactPolicyFacts } from "@/components/sections/ContactPolicyFacts";
+import { marketingCopy } from "@/lib/marketing-copy";
 import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { ContactForm } from "@/components/forms/ContactForm";
@@ -10,16 +12,16 @@ export const metadata: Metadata = pageMetadata("Request a pilot", "Request a two
 
 const next = [
   {
-    title: "We reply with a short plan",
-    body: "What to export, how to redact it, and the Signal Score threshold we’ll use.",
+    title: marketingCopy.contact[0].text,
+    body: marketingCopy.contact[1].text,
   },
   {
-    title: "You share one export",
-    body: "An Intercom, WhatsApp or CSV export of support or sales chats. No integrations to approve.",
+    title: marketingCopy.contact[2].text,
+    body: marketingCopy.contact[3].text,
   },
   {
-    title: "Your team reviews for two weeks",
-    body: "Signals appear in Insights. Nothing is sent to customers, and you decide whether to go.",
+    title: marketingCopy.contact[4].text,
+    body: marketingCopy.contact[5].text,
   },
 ];
 
@@ -28,8 +30,8 @@ export default function ContactPage() {
     <>
       <PageHeader
         eyebrow="Request a pilot"
-        title="Tell us where your chats live."
-        description="A pilot takes one export and a couple of hours of review across two weeks."
+        title={marketingCopy.contact[6].text}
+        description={marketingCopy.contact[7].text}
       />
       <section aria-labelledby="contact-title" className="border-t border-sio-border-base py-12 lg:py-20">
         <div className="container-page grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20">
@@ -50,6 +52,7 @@ export default function ContactPage() {
             </RevealGroup>
           </div>
           <Reveal>
+            <ContactPolicyFacts />
             <ContactForm supportEmail={contactPolicy().supportEmail} />
           </Reveal>
         </div>

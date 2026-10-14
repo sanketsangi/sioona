@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { POST } from "./route";
+import { POST, retryAfter } from "./route";
 const key = "receipt-test-00000001";
 const payload = { name: " Reviewer ", email: "reviewer@example.test", company: "Company" };
 const request = (body = JSON.stringify(payload)) => new Request("http://localhost/api/contact", {
@@ -45,5 +45,33 @@ describe("durable pilot intake proxy", () => {
   it("surfaces rate limits without claiming receipt", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({}, { status: 429 })));
     expect((await POST(request())).status).toBe(429);
+  });
+});
+
+describe("contact boundary protections", () => {
+  it("rejects bots before forwarding", async () => {
+    const fetch = vi.fn(); vi.stubGlobal("fetch", fetch);
+    const response = await POST(request(JSON.stringify({ ...payload, companyWebsite: "https://spam.test" })));
+    expect(response.status).toBe(422);
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await response.json()).ok).toBe(false);
+  });
+  it("rejects cross-origin and cross-site submissions", async () => {
+    for (const headers of [{ Origin: "https://evil.test" }, { "Sec-Fetch-Site": "cross-site" }]) {
+      const req = request(); for (const [key, value] of Object.entries(headers)) req.headers.set(key, value);
+      expect((await POST(req)).status).toBe(403);
+    }
+  });
+  it("requires JSON and a valid identity", async () => {
+    const req = request(); req.headers.set("Content-Type", "text/plain"); expect((await POST(req)).status).toBe(415);
+    const missing = request(); missing.headers.delete("Idempotency-Key"); expect((await POST(missing)).status).toBe(400);
+  });
+  it("forwards validated Retry-After and excludes the honeypot from the backend payload", async () => {
+    const fetch = vi.fn().mockResolvedValue(Response.json({}, { status: 429, headers: { "Retry-After": "120" } })); vi.stubGlobal("fetch", fetch);
+    const response = await POST(request(JSON.stringify({ ...payload, companyWebsite: "" })));
+    expect(response.status).toBe(429); expect(response.headers.get("Retry-After")).toBe("120");
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).not.toHaveProperty("companyWebsite");
+    expect(retryAfter("tomorrow")).toBeNull(); expect(retryAfter("-1")).toBeNull();
+    expect(retryAfter("Wed, 21 Oct 2026 07:28:00 GMT")).toBe("Wed, 21 Oct 2026 07:28:00 GMT");
   });
 });

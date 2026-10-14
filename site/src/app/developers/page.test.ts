@@ -9,7 +9,7 @@ describe("developer resources page", () => {
     expect(html).toContain("Sioona developer resources");
     expect(html).toContain("Sioona MCP server");
     expect(html).toContain('href="/.well-known/mcp"');
-    expect(html).toContain('href="/mcp"');
+    expect(html).toContain('href="#developers-mcp-title"');
     expect(html).toContain('href="/llms.txt"');
     expect(html).toContain("BreadcrumbList");
     expect(html).toContain("sioona_list_pages");

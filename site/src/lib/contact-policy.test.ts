@@ -11,3 +11,8 @@ it("uses trimmed operator-supplied facts", () => {
     PILOT_CONTACT_RETENTION: " Approved synthetic policy ", PILOT_CONTACT_HOSTING_REGION: " synthetic-region " }))
     .toEqual({ supportEmail: "help@example.test", retention: "Approved synthetic policy", hostingRegion: "synthetic-region" });
 });
+
+it("fails closed when production public facts are absent or malformed", () => {
+  expect(() => contactPolicy({ NODE_ENV: "production" })).toThrow();
+  expect(() => contactPolicy({ VERCEL_ENV: "production", PILOT_CONTACT_SUPPORT_EMAIL: "bad", PILOT_CONTACT_RETENTION: "30 days", PILOT_CONTACT_HOSTING_REGION: "test" })).toThrow();
+});

@@ -6,10 +6,12 @@ import { contactPolicy } from "./src/lib/contact-policy";
 
 resolveSiteUrl();
 resolveAppUrl();
-contactPolicy();
+const publishedPolicy = contactPolicy();
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // These three facts are explicitly public. Credentials never enter this snapshot.
+  env: { NEXT_PUBLIC_CONTACT_POLICY: JSON.stringify(publishedPolicy) },
   poweredByHeader: false,
   async headers() {
     // Prerendered HTML is served without the Node Vary patch, so Accept has to be configured.

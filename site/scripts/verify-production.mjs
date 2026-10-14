@@ -1,12 +1,34 @@
 /** Read-only smoke checks against a locally served production build. */
 import assert from "node:assert/strict";
 const base = new URL(process.argv[2] ?? "http://127.0.0.1:3101");
-assert(["127.0.0.1", "localhost", "[::1]"].includes(base.hostname) || (process.argv.includes("--production") && base.origin === "https://sioona-site.vercel.app"), "Use a local preview URL or the explicit --production target");
+const production = process.argv.includes("--production");
+const local = ["127.0.0.1", "localhost", "[::1]"].includes(base.hostname);
+assert((local && !production) || (production && !local && base.protocol === "https:" && !base.hostname.replace(/\.$/, "").endsWith(".vercel.app")), "Use a local URL or an explicit HTTPS custom domain with --production");
+assert(!base.username && !base.password && base.pathname === "/" && !base.search && !base.hash, "Target must be an origin");
+const canonicalOrigin = production ? base.origin : new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").origin;
+const requiredHeaders = {
+  "x-content-type-options": "nosniff", "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin", "permissions-policy": "camera=(), microphone=(), geolocation=()",
+};
+const varyTokens = ["accept", "origin", "rsc", "next-router-state-tree", "next-router-prefetch", "next-router-segment-prefetch"];
+function checkHeaders(response, path) {
+  for (const [name, value] of Object.entries(requiredHeaders)) assert.equal(response.headers.get(name), value, `${path}: ${name}`);
+  for (const token of varyTokens) assert(response.headers.get("vary")?.toLowerCase().split(/,\s*/).includes(token), `${path}: Vary ${token}`);
+}
+function checkOrigin(value, label) { assert.equal(new URL(value).origin, canonicalOrigin, label); }
+function checkSchema(data) {
+  if (!data || typeof data !== "object") return;
+  for (const [key, value] of Object.entries(data)) {
+    if (["url", "item", "@id", "termsOfService"].includes(key) && typeof value === "string") checkOrigin(value, `JSON-LD ${key}`);
+    else if (typeof value === "object") checkSchema(value);
+  }
+}
 const pages = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/developers", "/privacy", "/terms"];
 const htmlByPath = new Map();
 for (const path of pages) {
   const response = await fetch(new URL(path, base));
   assert.equal(response.status, 200, path);
+  checkHeaders(response, path);
   const html = await response.text(); htmlByPath.set(path, html);
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path}: one h1`);
   assert.equal((html.match(/<main\b/g) ?? []).length, 1, `${path}: one main`);
@@ -21,6 +43,10 @@ for (const path of pages) {
   assert.equal(meta("twitter:description"), meta("description"), `${path}: page-specific Twitter description`);
   assert.equal(meta("og:description"), meta("description"), `${path}: page-specific OpenGraph description`);
   assert.match(html, /property="og:image" content="https:\/\//, `${path}: social image`);
+  const canonical = html.match(/rel="canonical" href="([^"]+)"/)?.[1];
+  checkOrigin(canonical, `${path}: canonical`);
+  for (const key of ["og:url", "og:image"]) checkOrigin(meta(key), `${path}: ${key}`);
+  for (const match of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)) checkSchema(JSON.parse(match[1]));
   console.log(`PASS ${path}: HTTP, landmarks, title, description, canonical`);
 }
 for (const [path, html] of htmlByPath) {
@@ -39,22 +65,25 @@ assert.equal(schemas.find(data => data["@type"] === "FAQPage")?.mainEntity.lengt
 assert(/(?:Play|Pause) Demo Animation/.test(home) && /data-demo-running="(?:true|false)"/.test(home), "Demo exposes its playback control and running state");
 const assets = new Set([...home.matchAll(/(?:src|href)="([^"\s]+)"/g)].map(match => match[1]).filter(url => url.startsWith("/_next/static/") || url.endsWith(".svg")));
 for (const asset of assets) assert.equal((await fetch(new URL(asset, base))).status, 200, asset);
-for (const [path, type] of [["/robots.txt","text/plain"],["/sitemap.xml","application/xml"],["/opengraph-image","image/png"],["/icon.svg","image/svg+xml"]]) {
+for (const [path, type] of [["/apple-icon","image/png"],["/robots.txt","text/plain"],["/sitemap.xml","application/xml"],["/opengraph-image","image/png"],["/icon.svg","image/svg+xml"]]) {
   const response = await fetch(new URL(path, base)); assert.equal(response.status,200,path); assert(response.headers.get("content-type")?.includes(type),path);
-  if (path === "/robots.txt") assert.match(await response.text(), /Sitemap: https:\/\//);
+  if (path === "/robots.txt") assert.equal((await response.text()).match(/Sitemap: (.+)/)?.[1], `${canonicalOrigin}/sitemap.xml`);
   if (path === "/sitemap.xml") {
     const sitemap = await response.text();
     const listed = [...sitemap.matchAll(/<loc>(.*?)<\/loc>/g)].map(match => new URL(match[1]).pathname);
-    assert.deepEqual(listed.sort(), [...pages].sort(), "Sitemap lists every marketing route exactly once");
+    for (const match of sitemap.matchAll(/<loc>(.*?)<\/loc>/g)) checkOrigin(match[1], "sitemap loc");
+    assert.deepEqual(listed.sort(), [...pages, "/llms.txt"].sort(), "Sitemap lists every marketing route exactly once");
   }
 }
-assert.equal((await fetch(new URL("/missing-page-smoke-test", base))).status,404);
+const missingResponse = await fetch(new URL("/missing-page-smoke-test", base));
+assert.equal(missingResponse.status,404); checkHeaders(missingResponse, "HTML 404");
 console.log(`PASS internal anchors, structured data, user-controlled demo, ${assets.size} assets, crawl files, social image, 404`);
 
 for (const path of [...pages, "/agentic-missing-page"]) {
   const html = await fetch(new URL(path, base), { headers: { Accept: "text/html" } });
   const markdown = await fetch(new URL(path, base), { headers: { Accept: "text/markdown" } });
   const missing = path === "/agentic-missing-page";
+  checkHeaders(html, path); checkHeaders(markdown, `${path} Markdown`);
   assert.equal(html.status, missing ? 404 : 200, path);
   assert.equal(markdown.status, missing ? 404 : 200, path);
   assert.match(markdown.headers.get("content-type") ?? "", /text\/markdown/, path);
@@ -73,9 +102,12 @@ const discovery = await fetch(new URL("/.well-known/mcp", base), { headers: { Ac
 assert.equal(discovery.status, 200);
 assert.match(discovery.headers.get("content-type"), /application\/json/);
 const card = await discovery.json();
+checkOrigin(card.websiteUrl, "MCP website");
+card.remotes.forEach(remote => checkOrigin(remote.url, "MCP remote"));
 assert(card.remotes.some(remote => remote.type === "streamable-http" && new URL(remote.url).pathname === "/mcp"));
 const call = async (method, params) => {
   const response = await fetch(new URL("/mcp", base), { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": "2025-11-25" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  checkHeaders(response, method);
   assert.equal(response.status, 200, method);
   assert(response.headers.get("vary")?.toLowerCase().split(/,\s*/).includes("accept"));
   return (await response.json()).result;
@@ -85,7 +117,7 @@ assert.equal((await call("tools/list")).tools.length, 2);
 assert((await call("tools/call", { name: "sioona_read_page", arguments: { path: "/about" } })).content[0].text.length >= 500);
 for (const path of ["/llms.txt", "/robots.txt", "/sitemap.xml", "/.well-known/mcp", "/mcp", "/api/contact"]) {
   const response = await fetch(new URL(path, base));
-  assert(response.headers.get("vary")?.toLowerCase().split(/,\s*/).includes("accept"), `${path}: native route Vary`);
+  checkHeaders(response, path);
 }
 console.log("PASS business declaration, Organization, agent instructions, MCP discovery + live handshake + public tool calls");
 
@@ -101,3 +133,5 @@ assert.match(home, /<title>Sioona Conversation Intelligence/);
 assert.match(home, /<h1[^>]*>Sioona Conversation Intelligence/);
 assert((await (await fetch(base, { headers: { Accept: "text/markdown" } })).text()).includes("# Sioona Conversation Intelligence"));
 console.log("PASS Sioona branding, initialized notification, scanner CORS and preflight");
+
+console.log("PASS exact canonical origin, all security headers and complete Vary tokens; no contact POST sent");

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breadcrumbJsonLd, howToJsonLd, organizationJsonLd, productJsonLd, productName, serviceJsonLd, siteConfig, websiteJsonLd } from "./site";
+import { breadcrumbJsonLd, howToJsonLd, organizationJsonLd, productJsonLd, productName, resolveSiteUrl, resolveAppUrl, serviceJsonLd, siteConfig, websiteJsonLd } from "./site";
 
 describe("organization JSON-LD", () => {
   it("includes a contact point and an address", () => {
@@ -44,5 +44,23 @@ describe("organization JSON-LD", () => {
     expect(howTo["@type"]).toBe("HowTo");
     expect(howTo.step.map((step) => step.name)).toEqual(["Connect Chats", "Detect Signals", "Human Review", "Act"]);
     expect(howTo.step.every((step) => step["@type"] === "HowToStep" && step.url.endsWith("/#how"))).toBe(true);
+  });
+});
+
+describe("production URL boundaries", () => {
+  const env = { NODE_ENV: "production" };
+  it("requires an explicit custom origin", () => {
+    expect(() => resolveSiteUrl(env)).toThrow();
+    for (const url of ["http://example.com", "https://localhost", "https://localhost.", "https://preview.vercel.app.", "https://127.0.0.1", "https://[::1]", "https://preview.vercel.app", "https://u:p@example.com", "https://example.com/path", "https://example.com?x=1", "https://example.com#x", "https://example.com?"]) {
+      expect(() => resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: url })).toThrow();
+      expect(() => resolveAppUrl({ ...env, NEXT_PUBLIC_APP_URL: url })).toThrow();
+    }
+    expect(resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: " https://example.com/ " })).toBe("https://example.com");
+    expect(resolveAppUrl(env)).toBeNull();
+  });
+  it("allows local HTTP only for development/test and honors Vercel production", () => {
+    expect(resolveSiteUrl({ NODE_ENV: "test" })).toBe("http://localhost:3000");
+    expect(resolveSiteUrl({ NODE_ENV: "development", NEXT_PUBLIC_SITE_URL: "http://127.0.0.1:3001" })).toBe("http://127.0.0.1:3001");
+    expect(() => resolveSiteUrl({ NODE_ENV: "development", VERCEL_ENV: "production" })).toThrow();
   });
 });

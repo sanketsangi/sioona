@@ -1,3 +1,4 @@
+import { marketingCopy } from "@/lib/marketing-copy";
 import { ArrowRight, ArrowUpRight, Check } from "@phosphor-icons/react/ssr";
 import Link from "@/components/navigation/GuardedLink";
 import { InsightsMock } from "@/components/mocks/InsightsMock";
@@ -15,10 +16,10 @@ export function Hero() {
             <span className="hero-badge-arrow size-6"><ArrowUpRight size={12} className="size-3" weight="bold" aria-hidden /></span>
           </Link>
           <div className="hero-heading">
-            <h1 id="hero-title">Sioona Conversation Intelligence</h1>
-            <p className="hero-tagline">Your next opportunity is already in the conversation.</p>
+            <h1 id="hero-title">{marketingCopy.hero[0].text}</h1>
+            <p className="hero-tagline">{marketingCopy.hero[1].text}</p>
           </div>
-          <p className="text-copy-18 hero-description">Find buying intent, churn risk and expansion opportunities in your customer chats. Give your team the evidence to make the next move.</p>
+          <p className="text-copy-18 hero-description">{marketingCopy.hero[2].text}</p>
           <div className="hero-actions">
             <ButtonLink href="/contact#top" large>Request a pilot <ArrowRight size={18} aria-hidden /></ButtonLink>
             <a href="#how" className="btn-secondary btn-lg">Explore the workflow <ArrowUpRight size={18} aria-hidden /></a>
@@ -30,7 +31,7 @@ export function Hero() {
         <HeroPreview>
           <InsightsMock previewHeader />
         </HeroPreview>
-        <p className="hero-preview-caption">From the customer’s words to your team’s next move. <Link href="#product">Explore the signals <ArrowRight size={14} aria-hidden /></Link></p>
+        <p className="hero-preview-caption">{marketingCopy.hero[3].text} <Link href="#product">Explore the signals <ArrowRight size={14} aria-hidden /></Link></p>
       </div>
     </section>
   );

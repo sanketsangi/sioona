@@ -7,9 +7,10 @@ function resolveOrigin(value: string, name: string, env: SiteEnvironment): strin
   const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
   let url: URL;
   try { url = new URL(value.trim()); } catch { throw new Error(`${name} must be an absolute origin`); }
-  const local = url.hostname === "localhost" || url.hostname.endsWith(".localhost") || url.hostname === "[::1]" || /^127\./.test(url.hostname) || url.hostname === "0.0.0.0";
+  const host = url.hostname.replace(/\.$/, "");
+  const local = host === "localhost" || host.endsWith(".localhost") || host === "[::1]" || /^127\./.test(host) || host === "0.0.0.0";
   if (url.username || url.password || url.pathname !== "/" || url.search || url.hash || value.includes("?") || value.includes("#")) throw new Error(`${name} must contain only an origin`);
-  if (production && (local || url.hostname === "vercel.app" || url.hostname.endsWith(".vercel.app"))) throw new Error(`${name} must use a custom production domain`);
+  if (production && (local || host === "vercel.app" || host.endsWith(".vercel.app"))) throw new Error(`${name} must use a custom production domain`);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local && !production)) throw new Error(`${name} must use HTTPS`);
   return url.origin;
 }

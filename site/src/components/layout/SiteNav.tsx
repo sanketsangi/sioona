@@ -1,8 +1,10 @@
 "use client";
+import { useReducedMotion } from "framer-motion";
+
 
 import Link from "@/components/navigation/GuardedLink";
 import { usePathname } from "next/navigation";
-import { CaretDown, List, X } from "@phosphor-icons/react/ssr";
+import { CaretDown, List, X, PlayCircle, PauseCircle } from "@phosphor-icons/react/ssr";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Logo } from "@/components/layout/Logo";
 import { navLinks, siteConfig } from "@/lib/site";
@@ -24,8 +26,10 @@ export function SiteNav() {
   const [open, setOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState(0);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
   const [previewRun, setPreviewRun] = useState(0);
   const pageVisible = usePageVisible();
+  const reduced = useReducedMotion();
   const [workflowRun, setWorkflowRun] = useState(0);
   const [retainedPreviews, setRetainedPreviews] = useState<number[]>([]);
   const productRef = useRef<HTMLDivElement>(null);
@@ -61,6 +65,7 @@ export function SiteNav() {
     if (index === 1 && activeProduct !== 1) setWorkflowRun((value) => value + 1);
     setRetainedPreviews((previous) => [...new Set([...previous, activeProduct, index])]);
     setActiveProduct(index);
+    if (index !== activeProduct) setPreviewPlaying(false);
   };
 
   // Keep outgoing artwork alive until its CSS fade completes. Cancel cleanup
@@ -69,6 +74,7 @@ export function SiteNav() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => {
       setRetainedPreviews(productOpen ? [activeProduct] : []);
+      if (!productOpen) setPreviewPlaying(false);
     }, reduce ? 0 : 360);
     return () => window.clearTimeout(timer);
   }, [productOpen, activeProduct]);
@@ -226,11 +232,13 @@ export function SiteNav() {
               if (!productOpen) {
                 setPreviewRun((value) => value + 1);
                 setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
+                setPreviewPlaying(false);
                 setProductOpen(true);
               }
             }} onClick={() => {
               if (!productOpen) setPreviewRun((value) => value + 1);
               setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
+              setPreviewPlaying(false);
               setProductOpen(!productOpen);
             }}>
               Product <CaretDown size={14} aria-hidden />
@@ -249,13 +257,17 @@ export function SiteNav() {
                 </div>
               </div>
               <div className="product-preview" role="group" aria-label="Product preview">
-                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && activeProduct === index && pageVisible} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
+                {productLinks.map((link, index) => <div key={link.href} className="product-preview-content" data-preview-running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} data-active={activeProduct === index} aria-hidden={activeProduct !== index} inert={activeProduct !== index}>
                   <div className="product-preview-heading">
                     <span className="eyebrow">{link.eyebrow}</span>
+                    <span className="text-label-12 text-sio-fg-muted">Illustrative demo</span>
+                    <button type="button" className="btn-tertiary menu-preview-playback" aria-label={previewPlaying ? "Pause Menu Demo" : "Play Menu Demo"} aria-pressed={previewPlaying} onClick={() => setPreviewPlaying(value => !value)}>
+                      {previewPlaying ? <PauseCircle size={20} aria-hidden /> : <PlayCircle size={20} aria-hidden />}
+                    </button>
 
                   </div>
                   {(productOpen && activeProduct === index) || retainedPreviews.includes(index) ? <div className="product-preview-art" key={`${index}-${previewRun}`}>
-                    {index === 0 ? <OutputPreview running={productOpen && activeProduct === index && pageVisible} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && activeProduct === index && pageVisible} /> : index === 2 ? <ScorePreview running={productOpen && activeProduct === index && pageVisible} /> : <FeaturePreview running={productOpen && activeProduct === index && pageVisible} />}
+                    {index === 0 ? <OutputPreview running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} /> : index === 1 ? <WorkflowPreview key={workflowRun} running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} /> : index === 2 ? <ScorePreview running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} /> : <FeaturePreview running={productOpen && previewPlaying && activeProduct === index && pageVisible && reduced !== true} />}
                   </div> : null}
                 </div>)}
               </div>

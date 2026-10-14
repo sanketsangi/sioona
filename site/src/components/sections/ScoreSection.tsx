@@ -1,3 +1,4 @@
+import { marketingCopy } from "@/lib/marketing-copy";
 import { ScorePanel } from "@/components/sections/ScorePanel";
 import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -5,16 +6,16 @@ import { nb } from "@/lib/site";
 
 const points = [
   {
-    title: "Measured on your conversations",
-    body: "Precision is calculated from your own chats, not a generic benchmark.",
+    title: marketingCopy.score[0].text,
+    body: marketingCopy.score[1].text,
   },
   {
-    title: "Judged by your team",
-    body: "Every signal is marked Correct, Incorrect or Partially Correct by a person who knows your customers.",
+    title: marketingCopy.score[2].text,
+    body: marketingCopy.score[3].text,
   },
   {
-    title: "A clear go or no-go",
-    body: "Compare the score to the threshold you agree up front, then decide whether to roll out or stop.",
+    title: marketingCopy.score[4].text,
+    body: marketingCopy.score[5].text,
   },
 ];
 
@@ -26,8 +27,8 @@ export function ScoreSection() {
           <SectionHeader
             id="score-title"
             eyebrow="Signal Score"
-            title="Know your precision before you commit."
-            description="Signal Score is the share of reviewed signals that humans confirmed as correct. It’s the go or no-go metric for a pilot."
+            title={marketingCopy.score[6].text}
+            description={marketingCopy.score[7].text}
           />
           <RevealGroup as="ul" className="mt-10 border-t border-sio-border-base">
             {points.map((point) => (
@@ -39,8 +40,7 @@ export function ScoreSection() {
           </RevealGroup>
           <Reveal className="mt-6">
             <p className="text-label-13 text-sio-fg-muted">
-              Pilot default: go at 80% or higher, with at least 5&nbsp;reviews. Thresholds are agreed with each team.
-            </p>
+              {marketingCopy.score[8].text}</p>
           </Reveal>
         </div>
         <Reveal y={16}>

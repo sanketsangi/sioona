@@ -83,3 +83,9 @@ export function validateContact(values: Partial<ContactValues>): ContactErrors {
   }
   return errors;
 }
+
+/** Bot trap is never forwarded as a business field. */
+export const honeypotField = "companyWebsite";
+export function hasContactHoneypot(payload: Record<string, unknown>): boolean {
+  return payload[honeypotField] !== undefined && payload[honeypotField] !== "";
+}

@@ -1,10 +1,9 @@
 import type { MetadataRoute } from "next";
-import { routes, siteConfig } from "@/lib/site";
-
+import { siteConfig } from "@/lib/site";
+import { sitemapRevisions } from "@/lib/sitemap-revisions";
 export default function sitemap(): MetadataRoute.Sitemap {
-  return routes.map((route) => ({
-    url: new URL(route, siteConfig.url).toString(),
-    changeFrequency: route === "/" ? "weekly" : "monthly",
-    priority: route === "/" ? 1 : 0.7,
+  return Object.entries(sitemapRevisions).map(([path, revision]) => ({
+    url: new URL(path, siteConfig.url).toString(), ...revision,
+    changeFrequency: path === "/" ? "weekly" : "monthly",
   }));
 }

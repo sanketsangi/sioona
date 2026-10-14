@@ -1,3 +1,4 @@
+import { marketingCopy } from "@/lib/marketing-copy";
 import { SignalSnippet } from "@/components/sections/SignalSnippet";
 import { SignalTypeChip, type SignalType } from "@/components/signal/SignalChips";
 import { RevealGroup, RevealItem } from "@/components/motion/Reveal";
@@ -15,8 +16,8 @@ const signals: {
 }[] = [
   {
     type: "lead",
-    title: "Buying intent, caught in the moment",
-    body: "A prospect or existing customer shows they want to buy, open more accounts or bring in their team.",
+    title: marketingCopy.signals[0].text,
+    body: marketingCopy.signals[1].text,
     before: "We’re ",
     quote: "opening accounts for our whole team",
     after: ". Who should we talk to?",
@@ -24,8 +25,8 @@ const signals: {
   },
   {
     type: "retention",
-    title: "Churn risk, before the cancellation",
-    body: "A customer hints they may leave, pause or switch. Your team sees it while there is still time to respond.",
+    title: marketingCopy.signals[2].text,
+    body: marketingCopy.signals[3].text,
     before: "Honestly, I’m ",
     quote: "thinking about moving my account",
     after: " somewhere else.",
@@ -33,8 +34,8 @@ const signals: {
   },
   {
     type: "upsell",
-    title: "Expansion, in the customer’s own words",
-    body: "A customer asks for more than their current plan gives them, and tells you exactly what they need.",
+    title: marketingCopy.signals[4].text,
+    body: marketingCopy.signals[5].text,
     before: "Can I get higher limits? I ",
     quote: "hit the cap every week",
     after: ".",
@@ -49,8 +50,8 @@ export function Signals() {
         <SectionHeader
           id="signals-title"
           eyebrow="Three Signals"
-          title="Three signals. One clearer view of revenue."
-          description="Sioona looks for the moments that matter to revenue and shows you the exact words that triggered each one."
+          title={marketingCopy.signals[6].text}
+          description={marketingCopy.signals[7].text}
         />
         <RevealGroup
           gap={0.1}

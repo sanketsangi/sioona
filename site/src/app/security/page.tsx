@@ -1,3 +1,4 @@
+import { marketingCopy } from "@/lib/marketing-copy";
 import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { FileDashed, FileMagnifyingGlass, Info } from "@phosphor-icons/react/ssr";
@@ -15,13 +16,13 @@ export const metadata: Metadata = pageMetadata("Security", "Sioona keeps humans 
 const dataHandling = [
   {
     icon: FileDashed,
-    title: "Masked on ingest",
-    body: "When chats are ingested, Sioona masks email addresses, phone numbers, tax and national ID numbers, and long account numbers. We still recommend redacting before you share an export. Masking is defense in depth, not a replacement for your own data controls.",
+    title: marketingCopy.security[0].text,
+    body: marketingCopy.security[1].text,
   },
   {
     icon: FileMagnifyingGlass,
     title: "What we store",
-    body: "Redacted message text, the signals detected in it, and your team’s review decisions, including which signals were marked Acted.",
+    body: marketingCopy.security[2].text,
   },
 ];
 
@@ -36,8 +37,8 @@ export default function SecurityPage() {
     <>
       <PageHeader
         eyebrow="Security"
-        title="Built so a human is always in control."
-        description="Sioona observes and suggests. It never acts on its own, and it never contacts your customers."
+        title={marketingCopy.security[3].text}
+        description={marketingCopy.security[4].text}
       />
 
       <section aria-labelledby="principles-title" className="section">
@@ -66,8 +67,8 @@ export default function SecurityPage() {
           <SectionHeader
             id="data-title"
             eyebrow="Data Handling"
-            title="Only the chat text, and only what’s needed."
-            description="A pilot starts from a single export. There’s no integration to approve."
+            title={marketingCopy.security[5].text}
+            description={marketingCopy.security[6].text}
           />
           <RevealGroup
             as="ul"
@@ -104,9 +105,7 @@ export default function SecurityPage() {
                 Compliance and certifications
               </h2>
               <p className="text-copy-14 mt-1.5 text-sio-fg-subtle">
-                We haven’t published compliance certifications or an audit report yet. If your security team needs
-                specifics before a pilot, tell us what you need and we’ll answer directly.
-              </p>
+                {marketingCopy.security[7].text}</p>
             </div>
           </div>
         </div>

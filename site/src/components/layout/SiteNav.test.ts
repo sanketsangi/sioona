@@ -181,14 +181,17 @@ describe("Product dropdown", () => {
     scroll.mockRestore();
   });
 
-  it("runs the selected preview automatically without playback buttons", () => {
+  it("requires Play for each selected preview", () => {
     expect(menu().querySelector('[data-preview-running="true"]')).toBeNull();
     act(() => productButton().click());
     const preview = menu().querySelector('[data-active="true"].product-preview-content');
+    expect(preview?.getAttribute("data-preview-running")).toBe("false");
+    act(() => (preview?.querySelector("button") as HTMLButtonElement).click());
     expect(preview?.getAttribute("data-preview-running")).toBe("true");
-    expect(menu().querySelector(".menu-preview-playback")).toBeNull();
     const workflow = menu().querySelector('a[href="/#how"]');
     act(() => workflow?.dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+    expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(0);
+    act(() => (menu().querySelector('[data-active="true"].product-preview-content button') as HTMLButtonElement).click());
     expect(menu().querySelectorAll('[data-preview-running="true"]')).toHaveLength(1);
     expect(menu().querySelector('[data-preview-running="true"]')?.textContent).toContain("From chat to action");
     act(() => productButton().click());

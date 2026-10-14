@@ -1,3 +1,4 @@
+import { marketingCopy } from "@/lib/marketing-copy";
 import {
   Keyboard,
   ListChecks,
@@ -88,9 +89,9 @@ export function Bento() {
       <div className="container-page">
         <SectionHeader
           id="features-title"
-          eyebrow="Product features"
-          title="Everything a review team needs, and nothing it doesn’t."
-          description="Four surfaces and a keyboard-first workflow: ingest chats, review signals, measure precision, and tune what counts."
+          eyebrow={marketingCopy.features[0].text}
+          title={marketingCopy.features[1].text}
+          description={marketingCopy.features[2].text}
         />
         <RevealGroup
           gap={0.08}
@@ -100,8 +101,8 @@ export function Bento() {
             className="md:col-span-2"
             icon={<ListChecks size={16} weight="regular" aria-hidden />}
             label="Insights"
-            title="One queue for every signal"
-            body="Pending, needs follow-up and done. Open a conversation to read the transcript, see the words that fired the signal, and record your verdict."
+            title={marketingCopy.features[3].text}
+            body={marketingCopy.features[4].text}
           >
             <BentoFeatureVisual index={0} />
           </Card>
@@ -109,8 +110,8 @@ export function Bento() {
           <Card
             icon={<UploadSimple size={16} weight="regular" aria-hidden />}
             label="Upload"
-            title="Start from an export"
-            body="Drop in Intercom, WhatsApp or CSV and JSON exports. No live integration needed."
+            title={marketingCopy.features[5].text}
+            body={marketingCopy.features[6].text}
           >
             <BentoFeatureVisual index={1} />
           </Card>
@@ -118,8 +119,8 @@ export function Bento() {
           <Card
             icon={<ChartLineUp size={16} weight="regular" aria-hidden />}
             label="Eval"
-            title="Signal Score, always visible"
-            body="Precision against human review, tracked as your team works through the queue."
+            title={marketingCopy.features[7].text}
+            body={marketingCopy.features[8].text}
           >
             <BentoFeatureVisual index={2} />
           </Card>
@@ -127,8 +128,8 @@ export function Bento() {
           <Card
             icon={<Tag size={16} weight="regular" aria-hidden />}
             label="Taxonomy"
-            title="You define what counts"
-            body="Phrases and keywords for each signal, plus negative phrases that rule out noise."
+            title={marketingCopy.features[9].text}
+            body={marketingCopy.features[10].text}
           >
             <BentoFeatureVisual index={3} />
           </Card>
@@ -136,8 +137,8 @@ export function Bento() {
           <Card
             icon={<Sparkle size={16} weight="regular" aria-hidden />}
             label="Suggested Next Action"
-            title="A concrete follow-up for every confirmed signal"
-            body="Your team sees what to do next. Sioona never sends it for you."
+            title={marketingCopy.features[11].text}
+            body={marketingCopy.features[12].text}
           >
             <BentoFeatureVisual index={4} />
           </Card>
@@ -146,8 +147,8 @@ export function Bento() {
             className="md:col-span-2 lg:col-span-3"
             icon={<Keyboard size={16} weight="regular" aria-hidden />}
             label="Keyboard-first review"
-            title="Review a signal without leaving the keyboard"
-            body="Mark a verdict with C, I or P, step through the queue with J and K, and act with A or Enter."
+            title={marketingCopy.features[13].text}
+            body={marketingCopy.features[14].text}
           >
             <BentoFeatureVisual index={5} />
           </Card>
@@ -195,8 +196,8 @@ export function BentoFeatureVisual({ index }: { index: number }) {
             </ul></div>,
 <div key="4" data-feature="4"><div className="rounded-panel border border-sio-border-base p-3 transition-transform duration-200 ease-sio group-hover:translate-x-0.5">
               <SignalTypeChip type="retention" />
-              <p className="text-copy-14 mt-2 text-sio-fg-base">Offer a fee review call before the end of the week.</p>
-              <p className="mt-1 text-label-12 text-sio-fg-muted">Display only. Nothing is sent from Sioona.</p>
+              <p className="text-copy-14 mt-2 text-sio-fg-base">{marketingCopy.features[15].text}</p>
+              <p className="mt-1 text-label-12 text-sio-fg-muted">{marketingCopy.features[16].text}</p>
             </div></div>,
 <div key="5" data-feature="5"><div className="flex flex-col gap-4 rounded-panel border border-sio-border-base p-4 sm:flex-row sm:items-center sm:justify-between">
               <KeyCapPair />

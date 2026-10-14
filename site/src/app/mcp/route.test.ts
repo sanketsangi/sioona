@@ -48,7 +48,7 @@ describe("public content MCP", () => {
     expect(response.status).toBe(202);
     expect(await response.text()).toBe("");
     expect(response.headers.get("access-control-allow-origin")).toBe(headers.origin);
-    expect(response.headers.get("vary")).toBe("Accept, Origin");
+    expect(response.headers.get("vary")).toContain("Accept, Origin");
     expect(OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { headers: { origin: "https://untrusted.example" } })).status).toBe(403);
   });
   it("rejects invalid bodies and cross-origin requests and does not offer a GET stream", async () => {

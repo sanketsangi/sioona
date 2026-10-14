@@ -1,4 +1,4 @@
-import { publicHeaders, VARY } from "@/lib/http-headers";
+import { publicHeaders } from "@/lib/http-headers";
 import { markdownDocument } from "@/lib/markdown-pages";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -16,9 +16,7 @@ export function proxy(request: NextRequest) {
     headers: {
       "content-type": "text/markdown; charset=utf-8",
       ...publicHeaders,
-      vary: VARY,
       "cache-control": "public, max-age=0, must-revalidate",
-      "x-content-type-options": "nosniff",
       ...(document.status === 404 ? { "x-robots-tag": "noindex" } : {}),
     },
   });

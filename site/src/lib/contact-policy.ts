@@ -9,5 +9,18 @@ export function contactPolicy(env: Record<string, string | undefined> = process.
   if (env.NODE_ENV === "production" || env.VERCEL_ENV === "production") {
     if (!policy.supportEmail || !policy.retention || !policy.hostingRegion) throw new Error("Production requires PILOT_CONTACT_SUPPORT_EMAIL, PILOT_CONTACT_RETENTION and PILOT_CONTACT_HOSTING_REGION");
   }
+  // Next substitutes this internally generated public snapshot during the build.
+  // Rendering and agent responses use the same facts even on standalone hosting.
+  if (env === process.env && env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_CONTACT_POLICY) {
+    return JSON.parse(process.env.NEXT_PUBLIC_CONTACT_POLICY) as typeof policy;
+  }
   return policy;
+}
+
+export function contactPolicyText(policy = contactPolicy()): string[] {
+  return [
+    policy.retention ? `Contact-data retention: ${policy.retention}` : "A standard contact-data retention period is not published yet.",
+    policy.hostingRegion ? `Pilot request database hosting region: ${policy.hostingRegion}` : "The pilot request database hosting region is not published yet.",
+    policy.supportEmail ? `For access, correction, deletion or help with a pilot request, email ${policy.supportEmail}.` : "For access, correction, deletion or help with a pilot request, use the contact form.",
+  ];
 }

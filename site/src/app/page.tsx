@@ -1,3 +1,4 @@
+import { PilotFacts } from "@/components/sections/PilotFacts";
 import type { Metadata } from "next";
 import { Bento } from "@/components/sections/Bento";
 import { Faq } from "@/components/sections/Faq";
@@ -40,6 +41,7 @@ export default function HomePage() {
       <ScoreSection />
       <Bento />
       <SecurityBand />
+      <PilotFacts />
       <Faq />
       <FinalCta />
     </div>

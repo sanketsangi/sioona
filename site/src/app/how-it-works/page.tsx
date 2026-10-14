@@ -1,3 +1,5 @@
+import { PilotFacts } from "@/components/sections/PilotFacts";
+import { marketingCopy } from "@/lib/marketing-copy";
 import { pageMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { ChartLineUp, ListChecks, Tag, UploadSimple } from "@phosphor-icons/react/ssr";
@@ -14,45 +16,45 @@ const surfaces = [
   {
     icon: ListChecks,
     title: "Insights",
-    body: "The review queue. Pending, needs follow-up and done, with the transcript, the words that fired each signal, and a Suggested Next Action.",
+    body: marketingCopy.workflow[0].text,
   },
   {
     icon: UploadSimple,
     title: "Upload",
-    body: "Bring chats in from Intercom JSON, WhatsApp Business text exports, or CSV and JSON files. Sensitive details are masked on ingest.",
+    body: marketingCopy.workflow[1].text,
   },
   {
     icon: ChartLineUp,
     title: "Eval",
-    body: "Signal Score, measured as your team reviews. The go or no-go view for a pilot.",
+    body: marketingCopy.workflow[2].text,
   },
   {
     icon: Tag,
     title: "Taxonomy",
-    body: "The phrases and keywords behind each signal type, with negative phrases that rule out noise. Tuned from review feedback.",
+    body: marketingCopy.workflow[3].text,
   },
 ];
 
 const timeline = [
   {
     when: "Day 0",
-    title: "Share one redacted export",
-    body: "Tell us how many opportunities you find today. That’s your baseline.",
+    title: marketingCopy.workflow[4].text,
+    body: marketingCopy.workflow[5].text,
   },
   {
     when: "Days 1–3",
-    title: "Review in Insights",
-    body: "Your team marks signals Correct, Incorrect or Partially Correct, and marks the confirmed ones Acted.",
+    title: marketingCopy.workflow[6].text,
+    body: marketingCopy.workflow[7].text,
   },
   {
     when: "Around day 7",
-    title: "Add a second export",
-    body: "Upload new messages from the same conversations so the queue keeps moving.",
+    title: marketingCopy.workflow[8].text,
+    body: marketingCopy.workflow[9].text,
   },
   {
     when: "Days 10–14",
-    title: "Read the Signal Score",
-    body: "Compare your score to the agreed threshold and your baseline, then decide whether to continue.",
+    title: marketingCopy.workflow[10].text,
+    body: marketingCopy.workflow[11].text,
   },
 ];
 
@@ -61,8 +63,8 @@ export default function HowItWorksPage() {
     <>
       <PageHeader
         eyebrow="How It Works"
-        title="A four-step loop that keeps humans in charge."
-        description="Sioona sits on top of the chats you already have. It finds the signals, your team reviews them, and the Signal Score tells you whether it’s ready to trust."
+        title={marketingCopy.workflow[12].text}
+        description={marketingCopy.workflow[13].text}
       />
 
       <FourStepScroll />
@@ -72,8 +74,8 @@ export default function HowItWorksPage() {
           <SectionHeader
             id="shadow-title"
             eyebrow="Shadow Mode"
-            title="Detection that runs beside your process, not instead of it."
-            description="Sioona is not a chatbot. It never talks to your customers."
+            title={marketingCopy.workflow[14].text}
+            description={marketingCopy.workflow[15].text}
           />
           <RevealGroup as="ul" className="border-t border-sio-border-base">
             {[
@@ -94,9 +96,9 @@ export default function HowItWorksPage() {
         <div className="container-page">
           <SectionHeader
             id="surfaces-title"
-            eyebrow="Product Surfaces"
-            title="Four places your team works."
-            description="Each surface has one job, so a review session stays fast."
+            eyebrow={marketingCopy.workflow[16].text}
+            title={marketingCopy.workflow[17].text}
+            description={marketingCopy.workflow[18].text}
           />
           <RevealGroup
             as="ul"
@@ -118,9 +120,9 @@ export default function HowItWorksPage() {
         <div className="container-page">
           <SectionHeader
             id="pilot-title"
-            eyebrow="A Two-Week Pilot"
-            title="What a pilot looks like."
-            description="A typical cadence. We agree the details with each team before you start."
+            eyebrow={marketingCopy.workflow[19].text}
+            title={marketingCopy.workflow[20].text}
+            description={marketingCopy.workflow[21].text}
           />
           <RevealGroup as="ol" gap={0.08} className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-4">
             {timeline.map((item) => (
@@ -134,6 +136,7 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      <PilotFacts />
       <FinalCta />
     </>
   );
