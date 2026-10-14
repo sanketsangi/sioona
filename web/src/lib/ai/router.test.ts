@@ -57,6 +57,15 @@ describe("evaluateScreenStage", () => {
     expect(decision.screenedOut).toBe(true);
     expect(decision.reason).toBe("missing_customer_turn");
   });
+
+  it("handles null or undefined customerMessages property safely", () => {
+    const decision = evaluateScreenStage(
+      { conversationId: "conv-null", customerMessages: undefined as unknown as string[] },
+      rules,
+    );
+    expect(decision.screenedOut).toBe(true);
+    expect(decision.reason).toBe("missing_customer_turn");
+  });
 });
 
 describe("evaluateVerifyEscalation", () => {
@@ -67,9 +76,23 @@ describe("evaluateVerifyEscalation", () => {
     escalateMultiTurnQuotes: true,
   };
 
-  it("does not escalate when there is no signal type", () => {
+  it("does not escalate when classification is null or has no signal type", () => {
+    const decisionNull = evaluateVerifyEscalation(
+      null as unknown as { type: null; confidence: number; quotes: string[] },
+      rules,
+    );
+    expect(decisionNull.shouldEscalate).toBe(false);
+
     const decision = evaluateVerifyEscalation(
       { type: null, confidence: 0.99, quotes: [] },
+      rules,
+    );
+    expect(decision.shouldEscalate).toBe(false);
+  });
+
+  it("does not escalate when confidence is NaN", () => {
+    const decision = evaluateVerifyEscalation(
+      { type: "lead", confidence: Number.NaN, quotes: ["Quote"] },
       rules,
     );
     expect(decision.shouldEscalate).toBe(false);
@@ -383,6 +406,30 @@ describe("executeStagedRoute", () => {
     expect(result.classification.type).toBe("retention");
     expect(result.modelUsed).toBe("qwen/qwen3.8-27b");
   });
+
+  it("handles NaN and negative latencyMs safely without throwing RangeError", async () => {
+    const invoker: StageInvoker = {
+      callModel: async () => ({
+        output: { type: null, confidence: 0.9, summary: "Safe", quotes: [] },
+        usage: { status: "reported", inputTokens: 100, cachedInputTokens: 0, outputTokens: 20, reasoningTokens: null },
+        latencyMs: Number.NaN,
+      }),
+    };
+
+    const result = await executeStagedRoute(
+      ROUTE_CANDIDATE_STAGED,
+      {
+        id: "c-nan-lat",
+        tenantId: "t-1",
+        messages: [{ role: "customer", content: "This is a sufficiently long test message." }],
+      },
+      invoker,
+    );
+
+    expect(result.attempts.length).toBe(1);
+    expect(result.attempts[0].latencyMs).toBe(0);
+    expect(Number.isFinite(Date.parse(result.attempts[0].startedAt))).toBe(true);
+  });
 });
 
 describe("calculateAttemptCostUsd", () => {
@@ -397,15 +444,45 @@ describe("calculateAttemptCostUsd", () => {
     expect(cost).toBeCloseTo(0.35, 4);
   });
 
-  it("returns null for unknown usage", () => {
-    const cost = calculateAttemptCostUsd("qwen/qwen3.8-27b", {
+  it("returns null for unknown usage or negative/non-finite token counts", () => {
+    const costUnknown = calculateAttemptCostUsd("qwen/qwen3.8-27b", {
       status: "unknown",
       inputTokens: null,
       cachedInputTokens: null,
       outputTokens: null,
       reasoningTokens: null,
     });
-    expect(cost).toBeNull();
+    expect(costUnknown).toBeNull();
+
+    const costNegative = calculateAttemptCostUsd("qwen/qwen3.8-27b", {
+      status: "reported",
+      inputTokens: -100,
+      cachedInputTokens: 0,
+      outputTokens: 50,
+      reasoningTokens: null,
+    });
+    expect(costNegative).toBeNull();
+
+    const costNaN = calculateAttemptCostUsd("qwen/qwen3.8-27b", {
+      status: "reported",
+      inputTokens: Number.NaN,
+      cachedInputTokens: 0,
+      outputTokens: 50,
+      reasoningTokens: null,
+    });
+    expect(costNaN).toBeNull();
+  });
+
+  it("safely handles NaN cachedInputTokens by defaulting to 0", () => {
+    const cost = calculateAttemptCostUsd("qwen/qwen3.8-27b", {
+      status: "reported",
+      inputTokens: 1_000_000,
+      cachedInputTokens: Number.NaN,
+      outputTokens: 0,
+      reasoningTokens: null,
+    });
+    // 1M non-cached @ $0.20 => $0.20
+    expect(cost).toBeCloseTo(0.20, 4);
   });
 
   it("clamps cached input tokens when reported higher than total input tokens", () => {
@@ -660,6 +737,77 @@ describe("computeQualityAdjustedBenchmark & compareRouteBenchmarks", () => {
     if (comparison.deltaQualityAdjustedCostPct !== null) {
       expect(Number.isFinite(comparison.deltaQualityAdjustedCostPct)).toBe(true);
     }
+  });
+
+  it("handles undefined and out-of-range evidenceValidityRate gracefully without NaN", () => {
+    const unmeasured = computeQualityAdjustedBenchmark({
+      routeName: "unmeasured_cohort",
+      routeVersion: "route:unmeasured",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0.10,
+      surfacedSignals: { lead: 6, retention: 0, upsell: 0, total: 6 },
+      truePositives: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      precision: { lead: 0.833, retention: null, upsell: null, macro: 0.833 },
+      recall: { lead: 1.0, retention: 0, upsell: 0, macro: 1.0 },
+      evidenceValidityRate: undefined as unknown as null,
+    });
+
+    expect(Number.isFinite(unmeasured.breakdown.validActionableSignals)).toBe(true);
+    expect(unmeasured.breakdown.validActionableSignals).toBe(6);
+    expect(Number.isFinite(unmeasured.breakdown.effectiveTruePositives)).toBe(true);
+    expect(unmeasured.breakdown.effectiveTruePositives).toBe(5);
+    expect(Number.isFinite(unmeasured.qualityEfficiencyIndex)).toBe(true);
+
+    const clamped = computeQualityAdjustedBenchmark({
+      routeName: "clamped_cohort",
+      routeVersion: "route:clamped",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0.10,
+      surfacedSignals: { lead: 6, retention: 0, upsell: 0, total: 6 },
+      truePositives: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      precision: { lead: 0.833, retention: null, upsell: null, macro: 0.833 },
+      recall: { lead: 1.0, retention: 0, upsell: 0, macro: 1.0 },
+      evidenceValidityRate: 1.5, // should be clamped to 1.0
+    });
+    expect(clamped.breakdown.validActionableSignals).toBe(6);
+  });
+
+  it("computes deltaQualityEfficiencyPct accurately when candidate efficiency drops to zero", () => {
+    const efficientBaseline = computeQualityAdjustedBenchmark({
+      routeName: "efficient_baseline",
+      routeVersion: "route:baseline",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0.10,
+      surfacedSignals: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      truePositives: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      precision: { lead: 1.0, retention: null, upsell: null, macro: 1.0 },
+      recall: { lead: 1.0, retention: 0, upsell: 0, macro: 1.0 },
+      evidenceValidityRate: 1.0,
+    });
+
+    const zeroEfficiencyCandidate = computeQualityAdjustedBenchmark({
+      routeName: "zero_eff_candidate",
+      routeVersion: "route:candidate",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0.10,
+      surfacedSignals: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      truePositives: { lead: 0, retention: 0, upsell: 0, total: 0 },
+      precision: { lead: 0, retention: null, upsell: null, macro: 0 },
+      recall: { lead: 0, retention: 0, upsell: 0, macro: 0 },
+      evidenceValidityRate: 1.0,
+    });
+
+    const comparison = compareRouteBenchmarks(efficientBaseline, zeroEfficiencyCandidate);
+    // Efficiency dropped from ~100 to 0: delta should be -100%, NOT null!
+    expect(comparison.deltaQualityEfficiencyPct).toBe(-100);
   });
 });
 

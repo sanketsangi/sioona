@@ -50,16 +50,28 @@ export function calculateAttemptCostUsd(
   model: string,
   usage: InferenceUsage,
 ): number | null {
-  if (usage.status === "unknown" || usage.inputTokens === null || usage.outputTokens === null) {
+  if (
+    usage.status === "unknown" ||
+    usage.inputTokens === null ||
+    usage.outputTokens === null ||
+    !Number.isFinite(usage.inputTokens) ||
+    !Number.isFinite(usage.outputTokens) ||
+    usage.inputTokens < 0 ||
+    usage.outputTokens < 0
+  ) {
     return null;
   }
   const pricing = MODEL_PRICING_TABLE[model];
   if (!pricing) return null;
-  const cached = Math.min(usage.inputTokens, Math.max(0, usage.cachedInputTokens ?? 0));
+  const rawCached =
+    typeof usage.cachedInputTokens === "number" && Number.isFinite(usage.cachedInputTokens)
+      ? Math.max(0, usage.cachedInputTokens)
+      : 0;
+  const cached = Math.min(usage.inputTokens, rawCached);
   const nonCached = Math.max(0, usage.inputTokens - cached);
   const inputCost = (nonCached * pricing.inputPerMillionUsd) / 1_000_000;
   const cachedCost = (cached * pricing.cachedInputPerMillionUsd) / 1_000_000;
-  const outputCost = (Math.max(0, usage.outputTokens) * pricing.outputPerMillionUsd) / 1_000_000;
+  const outputCost = (usage.outputTokens * pricing.outputPerMillionUsd) / 1_000_000;
   return inputCost + cachedCost + outputCost;
 }
 
@@ -154,7 +166,8 @@ export function evaluateScreenStage(
   rules: ScreenStageRule,
 ): ScreenDecision {
   if (!rules.enabled) return { screenedOut: false };
-  const trimmedMessages = input.customerMessages
+  const rawMessages = Array.isArray(input?.customerMessages) ? input.customerMessages : [];
+  const trimmedMessages = rawMessages
     .filter((m): m is string => typeof m === "string")
     .map((m) => m.trim())
     .filter((m) => m.length > 0);
@@ -181,14 +194,18 @@ export function evaluateVerifyEscalation(
   if (fallbackTriggered) {
     return { shouldEscalate: true, reason: "primary_fallback" };
   }
-  if (!classification.type) {
+  if (!classification?.type) {
     return { shouldEscalate: false };
   }
-  if (classification.confidence >= rules.minConfidenceForEscalation &&
-      classification.confidence < rules.maxConfidenceForEscalation) {
+  if (
+    Number.isFinite(classification.confidence) &&
+    classification.confidence >= rules.minConfidenceForEscalation &&
+    classification.confidence < rules.maxConfidenceForEscalation
+  ) {
     return { shouldEscalate: true, reason: "borderline_confidence" };
   }
-  if (rules.escalateSignalTypes.includes(classification.type)) {
+  const escalateSignalTypes = Array.isArray(rules?.escalateSignalTypes) ? rules.escalateSignalTypes : [];
+  if (escalateSignalTypes.includes(classification.type)) {
     return { shouldEscalate: true, reason: "high_value_signal" };
   }
   if (rules.escalateMultiTurnQuotes && (classification.quotes?.length ?? 0) > 1) {
@@ -239,8 +256,9 @@ export async function executeStagedRoute(
   conversation: { id: string; tenantId: string; messages: { role: string; content: string }[] },
   invoker: StageInvoker,
 ): Promise<StagedExecutionResult> {
-  const customerMessages = conversation.messages
-    .filter((m) => m.role === "customer")
+  const rawMessages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+  const customerMessages = rawMessages
+    .filter((m) => m?.role === "customer" && typeof m?.content === "string")
     .map((m) => m.content);
 
   const stagesExecuted: InferenceStage[] = [];
@@ -257,7 +275,7 @@ export async function executeStagedRoute(
     latencyMs: number,
     status: "succeeded" | "failed",
   ) => {
-    const boundedLatencyMs = Math.max(0, latencyMs);
+    const boundedLatencyMs = Number.isFinite(latencyMs) ? Math.max(0, latencyMs) : 0;
     const started = new Date(Date.now() - boundedLatencyMs).toISOString();
     const finished = new Date().toISOString();
     const attempt: InferenceAttempt = {
@@ -273,7 +291,7 @@ export async function executeStagedRoute(
       promptVersion: "v3",
       startedAt: started,
       finishedAt: finished,
-      latencyMs,
+      latencyMs: boundedLatencyMs,
       status,
       usage,
     };
@@ -416,7 +434,10 @@ export function computeQualityAdjustedBenchmark(
   const rawCostPerSignal = surfaced > 0 ? input.totalCostUsd / surfaced : null;
 
   const precision = input.precision.macro ?? 0;
-  const evidenceMultiplier = input.evidenceValidityRate !== null ? input.evidenceValidityRate : 1;
+  const evidenceMultiplier =
+    typeof input.evidenceValidityRate === "number" && Number.isFinite(input.evidenceValidityRate)
+      ? Math.max(0, Math.min(1, input.evidenceValidityRate))
+      : 1;
   const recall = input.recall.macro ?? 0;
 
   const effectiveTP = input.truePositives.total > 0
@@ -474,7 +495,10 @@ export function compareRouteBenchmarks(
   }
 
   let deltaEfficiencyPct: number | null = null;
-  if (baseline.qualityEfficiencyIndex && candidate.qualityEfficiencyIndex) {
+  if (
+    baseline.qualityEfficiencyIndex !== null &&
+    candidate.qualityEfficiencyIndex !== null
+  ) {
     deltaEfficiencyPct =
       ((candidate.qualityEfficiencyIndex - baseline.qualityEfficiencyIndex) /
         Math.max(1e-6, baseline.qualityEfficiencyIndex)) * 100;

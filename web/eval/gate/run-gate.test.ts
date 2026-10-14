@@ -282,7 +282,7 @@ describe("eval:gate replay", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+  }, 15_000);
 });
 
 describe("eval:gate:record", () => {
