@@ -1,3 +1,6 @@
+import { detectionExecution } from "@/lib/detection-execution";
+import { enqueueCanonicalDetect } from "@/lib/enqueue-detection";
+import type { BackendJobStatus } from "@/lib/backend-client";
 import { runWithTenant } from "@/lib/tenant-context";
 import { after, NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/auth-guard";
@@ -132,7 +135,11 @@ function streamShowcaseNdjson(
 async function redetectWithOverrides(store: StoreData): Promise<{
   store: StoreData;
   redetectCount: number;
+  job?: BackendJobStatus;
 }> {
+  if (detectionExecution() === "worker") {
+    return { store, redetectCount: 0, job: await enqueueCanonicalDetect(store.tenant.id, store.conversations) };
+  }
   const useCanonicalPublication =
     store.tenant.id !== "tenant_demo" || getStateMode() === "postgres";
   const { signals: detected, llm } = await runHybridDetectionWithLedger(
@@ -348,15 +355,18 @@ export async function POST(request: Request) {
           body.value
         );
         let redetectCount: number | undefined;
+        let job: BackendJobStatus | undefined;
         if (body.redetect !== false) {
           const result = await redetectWithOverrides(store);
           store = result.store;
           redetectCount = result.redetectCount;
+          job = result.job;
         }
         return NextResponse.json({
           ...store,
           signals: sortSignals(store.signals),
           redetectCount,
+          ...(job ? { job } : {}),
         });
       } catch (error) {
         const message =
@@ -392,6 +402,7 @@ export async function POST(request: Request) {
           ...store,
           signals: sortSignals(store.signals),
           redetectCount: result.redetectCount,
+          ...(result.job ? { job: result.job } : {}),
         });
       } catch (error) {
         const message =
@@ -427,6 +438,7 @@ export async function POST(request: Request) {
           ...store,
           signals: sortSignals(store.signals),
           redetectCount: result.redetectCount,
+          ...(result.job ? { job: result.job } : {}),
         });
       } catch (error) {
         const message =

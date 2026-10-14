@@ -12,7 +12,7 @@ class IngestionBodyLimit:
 
     async def __call__(self, scope, receive, send):
         if (scope["type"] != "http" or scope.get("method") != "PUT" or
-                not re.fullmatch(r"/v1/tenants/[^/]+/ingestions/[^/]+/?", scope.get("path", ""))):
+                not re.fullmatch(r"/v1/tenants/[^/]+/(?:ingestions|jobs/uploads)/[^/]+/?", scope.get("path", ""))):
             return await self.app(scope, receive, send)
         async def reject():
             await JSONResponse({"detail": "ingestion_body_too_large"}, status_code=413)(scope, receive, send)

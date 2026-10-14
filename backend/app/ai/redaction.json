@@ -1,0 +1,67 @@
+[
+  {
+    "pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+    "flags": "g",
+    "token": "[email]"
+  },
+  {
+    "pattern": "(?<![A-Za-z0-9.])[A-Za-z][A-Za-z0-9._-]{1,40}@(?:okaxis|okhdfcbank|okicici|oksbi|ybl|paytm|upi|ibl|axl|apl|fbl)\\b",
+    "flags": "gi",
+    "token": "[upi]"
+  },
+  {
+    "pattern": "\\b[A-Za-z]{5}[0-9]{4}[A-Za-z]\\b",
+    "flags": "g",
+    "token": "[pan]"
+  },
+  {
+    "pattern": "\\b[A-Z]{4}0[A-Z0-9]{6}\\b",
+    "flags": "g",
+    "token": "[ifsc]"
+  },
+  {
+    "pattern": "(?<!\\d)\\d{4}[\\s-]\\d{4}[\\s-]\\d{4}(?!\\d)",
+    "flags": "g",
+    "token": "[aadhaar]"
+  },
+  {
+    "pattern": "(?<!\\d)(?:\\+?91[\\s-]?|0)?[6-9]\\d{4}[\\s-]?\\d{5}(?!\\d)",
+    "flags": "g",
+    "token": "[phone]"
+  },
+  {
+    "pattern": "(?<!\\d)\\d{12}(?!\\d)",
+    "flags": "g",
+    "token": "[aadhaar]"
+  },
+  {
+    "pattern": "(?<!\\d)\\d{9,18}(?!\\d)",
+    "flags": "g",
+    "token": "[account]"
+  },
+  {
+    "pattern": "\\b(?:client(?:\\s+(?:id|code))?|ucc|bo\\s*id|dp\\s*id)\\s*[:#-]?\\s*[A-Za-z0-9]{4,16}\\b",
+    "flags": "gi",
+    "token": "[broker-id]"
+  },
+  {
+    "pattern": "\\b[A-Z]{2,4}\\d{6,10}\\b",
+    "flags": "g",
+    "token": "[broker-id]"
+  },
+  {
+    "pattern": "\\b(?:d\\.?o\\.?b\\.?|date of birth|born on)\\s*[:\\-]?\\s*\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}\\b",
+    "flags": "gi",
+    "token": "[dob]"
+  },
+  {
+    "pattern": "\\b(?:address|addr)\\s*:\\s*[^\\n]{6,160}",
+    "flags": "gi",
+    "token": "[address]"
+  },
+  {
+    "pattern": "\\b(?:pin(?:\\s*code)?|pincode)\\s*[:\\-]?\\s*\\d{6}\\b",
+    "flags": "gi",
+    "token": "[pin]"
+  }
+]

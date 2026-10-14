@@ -1,4 +1,5 @@
-# Defines only the ingestion recovery cron. The existing sioona-api web service
+# Deployment proposal only: CB-11 worker remains unprovisioned until hosted CB-10 acceptance.
+# Defines the ingestion recovery cron and proposed durable worker. The existing sioona-api web service
 # is managed in the Render dashboard and is intentionally not declared here.
 services:
   - type: cron
@@ -14,4 +15,26 @@ services:
       - key: PYTHON_VERSION
         value: "3.12.8"
       - key: DATABASE_URL
+        sync: false
+
+  - type: worker
+    name: sioona-detection-worker
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.worker
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: SIOONA_DETECTION_EXECUTION
+        value: worker
+      - key: SIOONA_WORKER_PAUSE
+        value: "1"
+      - key: SIOONA_WORKER_TENANTS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DETECT_LLM
+        value: "0"
+      - key: GROQ_API_KEY
         sync: false
