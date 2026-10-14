@@ -312,9 +312,12 @@ export function UploadForm({
       if (!res.ok) throw new Error(data.error || "Upload failed");
       clearPendingConfirm();
       if (res.status === 202) {
+        const file = uploadBasename(target.name);
         if (!data.job_id || !/^[A-Za-z0-9_-]{1,64}$/.test(data.job_id)) throw new Error("Upload job response was invalid.");
-        pendingJob.current = { id: data.job_id, file: uploadBasename(target.name) };
-        await finishQueuedUpload(pendingJob.current);
+        if (!file) throw new Error("Upload file name was invalid.");
+        const job = { id: data.job_id, file };
+        pendingJob.current = job;
+        await finishQueuedUpload(job);
         return;
       }
       const formatLabel =
