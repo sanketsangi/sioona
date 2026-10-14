@@ -15,6 +15,8 @@ describe("llms.txt", () => {
     expect(body).toContain("/about");
     expect(body).toContain("/sitemap.xml");
     expect(body).toContain("/llms.txt");
+    expect(body).toContain("/developers");
+    expect(body).toContain('"query":""');
     expect(body).toContain("404");
   });
 });

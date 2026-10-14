@@ -1,48 +1,40 @@
+import { developerDescription, developerResources, developerSections } from "@/lib/developer-copy";
 import { agentGuidance } from "@/lib/agent-guidance";
 import { prefersMarkdown } from "@/lib/content-negotiation";
 import { aboutParagraphs } from "@/lib/about";
 import { faqItems } from "@/lib/faq";
 import { routes, siteConfig } from "@/lib/site";
 
-const pages: Record<string, { title: string; body: string }> = {
-  "/": {
-    title: "Sioona Conversation Intelligence",
-    body: `${aboutParagraphs.slice(0, 2).join("\n\n")}
+import { marketingCopy } from "@/lib/marketing-copy";
+import { dataFacts, pilotFacts, privacyParagraphs, termsParagraphs } from "@/lib/public-facts";
+import { contactPolicyText } from "@/lib/contact-policy";
+import { STEPS } from "@/lib/steps";
 
-## Sioona frequently asked questions
-
-${faqItems.map(item => `### Sioona: ${item.question}\n\n${item.answer}`).join("\n\n")}`,
-
-  },
-  "/about": {
-    title: "About",
-    body: aboutParagraphs.join("\n\n"),
-  },
-  "/how-it-works": {
-    title: "How it works",
-    body: "Connect an export, detect lead, retention and upsell signals, review them with your team, then act. Shadow Mode means nothing is acted on without a human.",
-  },
-  "/security": {
-    title: "Security",
-    body: "Humans stay in the loop, each pilot is a single tenant, and Shadow Mode never sends outbound messages. Sensitive details are masked on ingest.",
-  },
-  "/pricing": {
-    title: "Pilot offer",
-    body: "A pilot uses one redacted chat export for two weeks. Scope and price are agreed before it starts; no public list price is available yet. The pilot includes Insights, uploads, evaluation and taxonomy tools, a Signal Score measured against your team’s review, and an agreed threshold for a go or no-go decision. Ongoing use, volume and procurement requirements are discussed separately after the results.",
-  },
-  "/contact": {
-    title: "Request a pilot",
-    body: "Request a two-week Shadow Mode pilot. Supported exports are Intercom JSON, WhatsApp Business text, and CSV or JSON. The form stores a business contact request and returns a receipt.",
-  },
-  "/privacy": {
-    title: "Pilot request privacy notice",
-    body: "The pilot form collects business contact details so Sioona can review the request and reply. Use the contact form to ask for access, correction, or deletion. Do not include customer transcripts or secrets.",
-  },
-  "/terms": {
-    title: "Pilot request terms",
-    body: "Submitting the form requests a discussion. It does not create a subscription. Scope, price, and data terms are agreed separately. People review signals, and Sioona does not message customers.",
-  },
+const titles: Record<string, string> = {
+  "/": "Sioona Conversation Intelligence", "/about": "About", "/how-it-works": "How it works",
+  "/security": "Security", "/pricing": "Pilot offer", "/contact": "Request a pilot",
+  "/developers": "Sioona developer resources", "/privacy": "Pilot request privacy notice", "/terms": "Pilot request terms",
 };
+function copy(...groups: (keyof typeof marketingCopy)[]) {
+  return groups.flatMap<{ kind: string; text: string }>(group => marketingCopy[group]).map(row => `${row.kind === "heading" ? "## " : row.kind === "item" ? "- " : ""}${row.text}`).join("\n\n");
+}
+const pilot = () => `## Pilot scope and evidence\n\n${Object.values(pilotFacts).join("\n\n")}`;
+const policy = () => contactPolicyText().join("\n\n");
+const data = () => `## Data facts before you share\n\n${dataFacts.map(([title, text]) => `### ${title}\n\n${text}`).join("\n\n")}\n\n${policy()}`;
+function bodyFor(path: string): string {
+  switch (path) {
+    case "/": return [copy("hero", "trust", "signals", "shadow", "score", "features", "securityBand"), pilot(), `## Frequently asked questions\n\n${faqItems.map(item => `### ${item.question}\n\n${item.answer}`).join("\n\n")}`, copy("finalCta")].join("\n\n");
+    case "/about": return aboutParagraphs.join("\n\n");
+    case "/how-it-works": return [copy("workflow"), STEPS.map(step => `### ${step.title}\n\n${step.body}`).join("\n\n"), pilot(), copy("finalCta")].join("\n\n");
+    case "/security": return [copy("security", "securityBand"), data(), copy("finalCta")].join("\n\n");
+    case "/pricing": return [copy("pricing"), pilot(), data()].join("\n\n");
+    case "/contact": return [copy("contact"), policy()].join("\n\n");
+    case "/privacy": return [privacyParagraphs.join("\n\n"), policy()].join("\n\n");
+    case "/terms": return termsParagraphs.join("\n\n");
+    case "/developers": return [developerDescription, "## Sioona public index", developerResources.map(resource => `[${resource.label}](${absoluteUrl(resource.href === "/mcp" ? "/developers#developers-mcp-title" : resource.href)}) — ${resource.note}`).join("\n\n"), ...developerSections.map(section => `## ${section.title}\n\n${section.paragraphs.join("\n\n")}`)].join("\n\n");
+    default: return "";
+  }
+}
 
 const passThroughPaths = new Set([
   "/llms.txt",
@@ -52,6 +44,7 @@ const passThroughPaths = new Set([
   "/robots.txt",
   "/opengraph-image",
   "/icon.svg",
+  "/apple-icon",
   "/favicon.ico",
 ]);
 
@@ -62,14 +55,24 @@ export function normalizePathname(pathname: string): string {
 }
 
 export function markdownFor(pathname: string): string | null {
-  const page = pages[normalizePathname(pathname)];
-  if (!page) return null;
+  const path = normalizePathname(pathname);
+  const title = titles[path];
+  if (!title) return null;
   const url = new URL(normalizePathname(pathname), siteConfig.url).toString();
-  return `# ${page.title.includes("Sioona") ? page.title : `Sioona — ${page.title}`}\n\n${page.body}\n\n${agentGuidance()}\n\n## Sioona navigation\n\n${routes.map(path => `[${pages[path].title}](${absoluteUrl(path)})`).join(" · ")}\n\n[Agent instructions](${absoluteUrl("/llms.txt")})\n\nCanonical: ${url}\n`;
+  return `# ${title.includes("Sioona") ? title : `Sioona — ${title}`}\n\n${bodyFor(path).replace(/^(#{2,3}) (?!Sioona)(.+)$/gm, "$1 Sioona: $2")}\n\n${agentGuidance()}\n\n## Sioona navigation\n\n${routes.map(path => `[${titles[path]}](${absoluteUrl(path)})`).join(" · ")}\n\n[Agent instructions](${absoluteUrl("/llms.txt")})\n\nCanonical: ${url}\n`;
 }
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString();
+}
+
+/** Public pages the docs MCP can list and filter. */
+export function pageCatalog() {
+  return routes.map((path) => ({
+    path,
+    title: titles[path],
+    url: absoluteUrl(path),
+  }));
 }
 
 /** Markdown 404 that points agents at the home page, sitemap, and llms.txt. */

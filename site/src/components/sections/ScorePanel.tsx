@@ -1,12 +1,14 @@
 "use client";
+import { PILOT_GO_THRESHOLD } from "@/lib/public-facts";
 
-import { m, useInView } from "framer-motion";
+
+import { m } from "framer-motion";
 import { Info } from "@phosphor-icons/react/ssr";
 import { useRef } from "react";
 import { duration, ease } from "@/lib/motion";
 
 const SCORE = 84;
-const GO_THRESHOLD = 80;
+const GO_THRESHOLD = PILOT_GO_THRESHOLD;
 const BATCHES = [70, 76, 82, 85, 88, 89];
 
 const R = 100;
@@ -20,8 +22,7 @@ function arcPoint(fraction: number) {
 
 export function ScorePanel({ compact = false }: { compact?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.35 });
-  const started = inView;
+  const started = true;
 
   const goStart = arcPoint(GO_THRESHOLD / 100);
   const goEnd = arcPoint(1);
@@ -65,8 +66,8 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
           <m.div
             aria-hidden
             className="score-needle absolute bottom-0 left-1/2 h-[82%] w-0.5 -ml-px origin-bottom rounded-full bg-sio-fg-base"
-            initial={{ rotate: -90 }}
-            animate={{ rotate: started ? needleAngle : -90 }}
+            initial={false}
+            animate={{ rotate: needleAngle }}
             transition={{ duration: 1.4, ease }}
           />
           <span
@@ -106,7 +107,7 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
                   <m.span
                     data-reveal
                     className="score-label tabular mb-1 text-center text-label-12 text-sio-fg-subtle"
-                    initial={{ opacity: 0 }}
+                    initial={false}
                     animate={{ opacity: started ? 1 : 0 }}
                     transition={{ duration: duration.base, ease, delay: 0.5 + index * 0.08 }}
                   >
@@ -115,7 +116,7 @@ export function ScorePanel({ compact = false }: { compact?: boolean }) {
                   <m.div
                     className={`score-bar origin-bottom rounded-t-[3px] ${pass ? "bg-sio-status-success-accent" : "bg-sio-border-strong"}`}
                     style={{ height: `${value * 0.8}%` }}
-                    initial={{ scaleY: 0 }}
+                    initial={false}
                     animate={{ scaleY: started ? 1 : 0 }}
                     transition={{ duration: duration.slow, ease, delay: 0.3 + index * 0.08 }}
                   />

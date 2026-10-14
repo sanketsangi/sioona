@@ -9,7 +9,7 @@ const discardMessage = "You have an unfinished pilot request. Leave this page an
 
 function leavesCurrentPage(href: string) {
   const destination = new URL(href, window.location.href);
-  return destination.pathname !== window.location.pathname || destination.search !== window.location.search;
+  return destination.origin !== window.location.origin || destination.pathname !== window.location.pathname || destination.search !== window.location.search;
 }
 
 // Browser history traversals do not pass through Next Link's onNavigate.
@@ -39,7 +39,7 @@ export function useNavigationGuard() {
 
 export default function GuardedLink({ onNavigate, onClick, ...props }: ComponentProps<typeof NextLink>) {
   const { blocked } = useNavigationGuard();
-  return <NextLink {...props} onClick={(event) => {
+  return <NextLink {...props} prefetch={props.prefetch ?? false} onClick={(event) => {
     onClick?.(event);
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || props.target === "_blank") return;
     const href = typeof props.href === "string" ? props.href : "";

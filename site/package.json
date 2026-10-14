@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint src && node scripts/check-tokens.mjs",
+    "start": "node scripts/start-standalone.mjs",
+    "lint": "eslint src scripts next.config.ts && node scripts/check-tokens.mjs",
     "lint:tokens": "node scripts/check-tokens.mjs",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next tsconfig.tsbuildinfo",

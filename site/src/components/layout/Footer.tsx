@@ -26,6 +26,7 @@ const columns = [
     links: [
       { label: "Request a pilot", href: "/contact#top" },
       { label: "Contact", href: "/contact#top" },
+      { label: "Developer resources", href: "/developers#top" },
       { label: "Privacy", href: "/privacy#top" },
       { label: "Terms", href: "/terms#top" },
       ...(siteConfig.appUrl ? [{ label: "Sign In", href: siteConfig.appUrl }] : []),

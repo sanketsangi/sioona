@@ -1,3 +1,4 @@
+import { VARY } from "./http-headers";
 /** Keep Accept in Vary when Next replaces the header with its router list. */
 export function varyWithAccept(current: string | number | readonly string[] | undefined): string {
   const parts: string[] = [];
@@ -14,6 +15,6 @@ export function varyWithAccept(current: string | number | readonly string[] | un
   } else if (current != null && current !== "") {
     add(String(current));
   }
-  if (!parts.some((part) => part.toLowerCase() === "accept")) parts.unshift("Accept");
+  add(VARY);
   return parts.join(", ");
 }

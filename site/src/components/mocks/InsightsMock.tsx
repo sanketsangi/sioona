@@ -113,9 +113,9 @@ export function InsightsMock({ previewHeader = false }: { previewHeader?: boolea
 }
 
 function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
-  const [userPaused, setUserPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(true);
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { amount: "some", once: false, margin: "0px 0px -48px 0px" });
+  const inView = useInView(ref, { amount: "some", once: false, margin: "0px" });
   const previewEntered = useContext(HeroPreviewEntered);
   const pageVisible = usePageVisible();
   const systemReduced = useReducedMotion();

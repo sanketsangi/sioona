@@ -19,6 +19,21 @@ describe("public content MCP", () => {
     const tools = (await (await rpc("tools/list")).json()).result.tools;
     expect(tools).toHaveLength(2);
     expect(tools.every((tool: { annotations: { readOnlyHint: boolean } }) => tool.annotations.readOnlyHint)).toBe(true);
+    const list = tools.find((tool: { name: string }) => tool.name === "sioona_list_pages");
+    const read = tools.find((tool: { name: string }) => tool.name === "sioona_read_page");
+    expect(list.inputSchema.required).toEqual(["query"]);
+    expect(list.inputSchema.properties.query.type).toBe("string");
+    expect(list.inputSchema.properties.query.description.length).toBeGreaterThan(20);
+    expect(read.inputSchema.required).toEqual(["path"]);
+    expect(read.inputSchema.properties.path.type).toBe("string");
+    expect(read.inputSchema.properties.path.description).toContain("/developers");
+    const listed = (await (await rpc("tools/call", { name: "sioona_list_pages", arguments: { query: "" } })).json()).result;
+    expect(listed.content[0].text).toContain("/developers");
+    const filtered = (await (await rpc("tools/call", { name: "sioona_list_pages", arguments: { query: "security" } })).json()).result;
+    expect(filtered.content[0].text).toContain("/security");
+    expect(filtered.content[0].text).not.toContain("/pricing");
+    const unmatched = (await (await rpc("tools/call", { name: "sioona_list_pages", arguments: { query: "not-a-page" } })).json()).result;
+    expect(unmatched.isError).toBe(true);
     const about = (await (await rpc("tools/call", { name: "sioona_read_page", arguments: { path: "/about" } })).json()).result;
     expect(about.content[0].text.length).toBeGreaterThan(500);
     const forbidden = (await (await rpc("tools/call", { name: "sioona_read_page", arguments: { path: "https://example.com/private" } })).json()).result;
@@ -33,7 +48,7 @@ describe("public content MCP", () => {
     expect(response.status).toBe(202);
     expect(await response.text()).toBe("");
     expect(response.headers.get("access-control-allow-origin")).toBe(headers.origin);
-    expect(response.headers.get("vary")).toBe("Accept, Origin");
+    expect(response.headers.get("vary")).toContain("Accept, Origin");
     expect(OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { headers: { origin: "https://untrusted.example" } })).status).toBe(403);
   });
   it("rejects invalid bodies and cross-origin requests and does not offer a GET stream", async () => {

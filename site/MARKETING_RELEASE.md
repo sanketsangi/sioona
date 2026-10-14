@@ -1,3 +1,143 @@
+# Same-day launch verification — 14 October 2026
+
+**Local implementation verified; production launch NO-GO until the hosted gates below pass.**
+
+Branch: `feat/site-is-agentic`. Navigation/focus fixes and the initial report were committed as `6f5ac428` above `46795bd` by another process. The publishing follow-up integrates the latest `origin/main`, removes already-committed `.agents/teamwork` artifacts from the PR diff, and supplies explicit non-secret Marketing site CI fixtures. A local recovery archive for the removed artifacts is retained at `.cache/launch-qa/teamwork-before-pr.tar`; the earlier recovery stash is also retained. No unrelated working-tree source is included. The user authorized committing, pushing, opening the PR and merging after all CI jobs pass; deployment, DNS/firewall changes and external pilot submissions remain outside this authorization.
+
+Verification is on the clean publishing commit using the synthetic inputs documented below. CI fixture values are only for validation; they must never be used as production launch facts. Production GO remains gated on live custom-domain smoke checks and an explicitly authorized durable pilot receipt/readback.
+
+## Implemented
+
+- Strict centralized site/app origin parsing: production requires an explicit HTTPS custom domain; localhost, loopback, Vercel domains, credentials, path/query/hash and missing canonical input fail closed. Sign in stays omitted when the optional app origin is unset.
+- Four security headers and the complete Accept/Origin/Next-router Vary list across HTML, Markdown, native discovery/protocol endpoints and errors. Next 16 proxy convention, standalone output, and a warning-free standalone `npm start` launcher that copies public/static assets.
+- Explicit index/follow metadata, default social previews, a 180×180 Apple icon, preserved JSON-LD schemas with escaped script serialization, deterministic sitemap revisions/priorities including `/llms.txt`, and explicit search/AI crawler rules. Sitemap dates record verified Git content revisions, rather than request/build time; update them when publishing later substantive content revisions.
+- Shared substantive marketing prose, developer documentation, pilot/evidence/Signal Score facts, and privacy/terms copy for human pages and Markdown/MCP. `llms.txt` includes the same pilot/security/policy information. Synthetic demo transcripts are excluded from agent content. Approved public policy is snapshotted at build time; startup rejects different public origins or policy values, so changing them requires a rebuild. `NEXT_PUBLIC_CONTACT_POLICY` is generated internally from the three public facts by Next configuration; it is not another operator input and contains no credentials.
+- Contact JSON/origin checks, bot honeypot rejection, 16 KB streamed body cap, existing field bounds, stable retry identity, 10 s upstream and 12 s browser timeouts, strict matching stored receipt, validated upstream Retry-After, preserved fields, and support-mailbox recovery. No third-party webhook or secondary persistence was added.
+- Hero/menu playback starts paused and requires Play. Offscreen/hidden-tab/reduced-motion guards remain. Explicit WebKit drawer focus restoration and document-level product-menu Escape handling cover pointer interactions that leave focus outside the menu. Navigation prefetch defaults off to avoid background request cancellation warnings and POST-only endpoint prefetch; callers can explicitly opt in.
+
+## Exact local verification evidence
+
+From `site/`, final checks returned exit 0:
+
+```text
+npm run lint
+> eslint src scripts next.config.ts && node scripts/check-tokens.mjs
+check-tokens: ok
+
+node scripts/check-tokens.mjs
+check-tokens: ok
+
+npm test
+ Test Files  25 passed (25)
+      Tests  85 passed (85)
+
+npm run typecheck
+> tsc --noEmit
+
+npm run build
+✓ Compiled successfully in 798ms
+  Finished TypeScript in 1681ms
+✓ Generating static pages using 7 workers (20/20) in 415ms
+
+git diff --check -- .
+(no output)
+```
+
+The build used **synthetic QA inputs**, not approved launch facts. The existing `.env.local` was not edited. This artifact must be rebuilt before production deployment:
+
+```sh
+NEXT_PUBLIC_SITE_URL=https://launch.example.test NEXT_PUBLIC_APP_URL= \
+PILOT_CONTACT_SUPPORT_EMAIL=launch@example.test \
+PILOT_CONTACT_RETENTION='Synthetic verification policy only' \
+PILOT_CONTACT_HOSTING_REGION=synthetic-test-region npm run build
+```
+
+Standalone server was verified with the same synthetic environment, `HOSTNAME=127.0.0.1 PORT=3197 npm start`. The Node launcher emitted no standalone/middleware warning.
+
+```sh
+NEXT_PUBLIC_SITE_URL=https://launch.example.test \
+node scripts/verify-production.mjs http://127.0.0.1:3197
+```
+
+Exact smoke output:
+
+```text
+PASS /: HTTP, landmarks, title, description, canonical
+PASS /about: HTTP, landmarks, title, description, canonical
+PASS /how-it-works: HTTP, landmarks, title, description, canonical
+PASS /security: HTTP, landmarks, title, description, canonical
+PASS /pricing: HTTP, landmarks, title, description, canonical
+PASS /contact: HTTP, landmarks, title, description, canonical
+PASS /developers: HTTP, landmarks, title, description, canonical
+PASS /privacy: HTTP, landmarks, title, description, canonical
+PASS /terms: HTTP, landmarks, title, description, canonical
+PASS internal anchors, structured data, user-controlled demo, 17 assets, crawl files, social image, 404
+PASS /: HTML/Markdown negotiation, status and Vary
+PASS /about: HTML/Markdown negotiation, status and Vary
+PASS /how-it-works: HTML/Markdown negotiation, status and Vary
+PASS /security: HTML/Markdown negotiation, status and Vary
+PASS /pricing: HTML/Markdown negotiation, status and Vary
+PASS /contact: HTML/Markdown negotiation, status and Vary
+PASS /developers: HTML/Markdown negotiation, status and Vary
+PASS /privacy: HTML/Markdown negotiation, status and Vary
+PASS /terms: HTML/Markdown negotiation, status and Vary
+PASS /agentic-missing-page: HTML/Markdown negotiation, status and Vary
+PASS business declaration, Organization, agent instructions, MCP discovery + live handshake + public tool calls
+PASS Sioona branding, initialized notification, scanner CORS and preflight
+PASS exact canonical origin, all security headers and complete Vary tokens; no contact POST sent
+```
+
+Browser automation: **68 checks passed**, Chromium and WebKit 26.5; all 9 public routes at 375×667, 1440×900 and 2560×1440, no horizontal document overflow or heading-level jumps. Explicit playback, offscreen pause, menu Escape/focus restoration, reduced-motion and no-JavaScript home/workflow checks passed. Captured console/page errors: **0**. Contact POST attempts: **0**. Unit coverage additionally verifies hidden-tab timer suspension and mocked intake receipt/failure/retry behavior.
+
+Local Chromium home measurement with 4× CPU slowdown, 150 ms network latency, 200,000 bytes/s download and 100,000 bytes/s upload: FCP 0.856 s, LCP 2.120 s, CLS 0. This is a single local run, not a hosted Lighthouse score, field measurement or physical Safari/iOS Low Power Mode certification. Ignored local evidence is under `.cache/launch-qa/` (browser report, screenshots, smoke output and the executable QA script). Browser tooling came from the bundled workspace runtime; no application dependency was added.
+
+## Same-day deployment checklist
+
+1. Set Vercel Project Root Directory to `site` and use a supported Node LTS runtime. Set the six required inputs below with real approved values; never deploy the synthetic QA build. Leave `NEXT_PUBLIC_APP_URL` unset for this launch.
+
+   - `NEXT_PUBLIC_SITE_URL`: exact canonical HTTPS origin, with no path/query/hash or Vercel hostname. Required at build and runtime.
+   - `PILOT_INTAKE_BACKEND_URL`: production FastAPI base URL. Required at runtime for accepting pilot requests; the handler appends `/v1/pilot-requests`.
+   - `SIOONA_SERVICE_TOKEN`: matching server-only FastAPI bearer token. Required at runtime; never expose it through a public environment variable.
+   - `PILOT_CONTACT_SUPPORT_EMAIL`: approved, actively monitored mailbox. Required at build and runtime.
+   - `PILOT_CONTACT_RETENTION`: approved public wording for contact records. Required at build and runtime.
+   - `PILOT_CONTACT_HOSTING_REGION`: actual pilot-request database region. Required at build and runtime.
+   - `NEXT_PUBLIC_APP_URL`: optional HTTPS product origin; leave unset so Sign in is hidden.
+
+   Rebuild after changing the canonical/app origin or any public policy value. Contact-record policies do not replace separately agreed customer-export processing terms.
+
+2. Add the actual marketing domain to this Vercel project. Configure `A` at the apex (`@`) to the IP shown in that project's Domain Settings, and `CNAME` for `www`/the chosen subdomain to the project-specific DNS target shown there. Exact values cannot be listed until the domain/project configuration is supplied. Configure the secondary hostname to 308-redirect to the canonical host, then verify DNS resolution and a valid TLS certificate. [Vercel domain setup](https://vercel.com/docs/domains/working-with-domains/add-a-domain).
+
+3. Verify and publish a firewall rate rule: production environment AND method `POST` AND exact path `/api/contact`; fixed window **600 seconds**, limit **10**, counting key **client IP**, action **429**. Verify actual rule behavior without sending customer data. Vercel counters are regional, so this is not proof of a global limit; keep and verify FastAPI rate enforcement, including for standalone hosting. No firewall rule or paid configuration was changed here. [Vercel rate-limiting guidance](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting).
+
+4. Deploy the rebuilt artifact and immediately run:
+
+```sh
+cd /Users/sanket/Documents/Sioona/site
+node scripts/verify-production.mjs https://YOUR-CANONICAL-DOMAIN --production
+```
+
+Replace the placeholder with the actual canonical origin. The script accepts explicit HTTPS custom domains, rejects preview/localhost production targets, checks canonical/OG/JSON-LD/robots/sitemap origins, all security/Vary headers, assets, Markdown 200/404 negotiation, discovery and stateless read-only MCP protocol calls. It sends **zero POST `/api/contact` requests**.
+
+5. Recheck the live pages at the three viewport sizes and in the target browsers. Separately obtain explicit authorization for one synthetic pilot request; require its matching durable receipt, read back the row using the operator's `backend/scripts/lookup_pilot_request.py` workflow, confirm the expected fields and idempotent retry behavior, and confirm a human actively monitors the support mailbox and intake queue. Backend files/infrastructure were not edited or exercised here.
+
+**Remaining external blockers:** actual canonical domain and DNS/TLS, approved policy values, production backend/token configuration, active firewall/backend rate enforcement, live-domain smoke/browser evidence, monitored support mailbox, and authorized persisted receipt/readback. Declare GO only when all of these have evidence.
+
+## Standalone Node/Docker hosting
+
+`npm run build` produces `.next/standalone/server.js`. `npm start` copies `public/` and `.next/static/` into that output and launches it without `next start` warnings. For a minimal container artifact, copy those directories at image build time:
+
+```sh
+cp -r public .next/standalone/
+cp -r .next/static .next/standalone/.next/
+HOSTNAME=0.0.0.0 PORT=3000 node .next/standalone/server.js
+```
+
+Supply the same real mandatory runtime values used for the production build. Terminate TLS at your hosting proxy and configure the canonical-domain redirect there. Verify the backend's abuse controls; a Vercel firewall rule does not protect standalone Node hosting.
+
+---
+
+The sections below are historical records; the verification and deployment conditions above supersede their playback, environment and test-count statements.
+
 # Marketing design review — 10 October 2026
 
 Branch: `codex/marketing-market-ready`. Base: `b432400`.

@@ -1,5 +1,8 @@
 "use client";
 
+import { marketingCopy } from "@/lib/marketing-copy";
+
+
 import {
   m,
   useMotionValueEvent,
@@ -127,7 +130,7 @@ function Stage({ step }: { step: number }) {
             </span>
           </div>
           <p className="text-copy-14 text-sio-fg-subtle">
-            …if I can’t find a better plan this week,{" "}
+            {marketingCopy.shadow[0].text}{" "}
             <span className="relative whitespace-nowrap text-sio-fg-base">
               <m.span
                 className="absolute -inset-x-1 inset-y-0 origin-left rounded-[3px] bg-sio-signal-retention-bg ring-1 ring-sio-signal-retention-accent"
@@ -206,7 +209,7 @@ function Stage({ step }: { step: number }) {
         >
           <p className="eyebrow">Suggested Next Action</p>
           <p className="text-copy-14 text-sio-fg-base">Offer a fee review call.</p>
-          <p className="text-label-13 text-sio-fg-muted">Display only. Nothing is sent from Sioona.</p>
+          <p className="text-label-13 text-sio-fg-muted">{marketingCopy.shadow[1].text}</p>
           <m.div
             className="mt-1 inline-flex h-8 items-center justify-between gap-2 rounded-control border border-sio-border-subtle px-2.5 text-label-13 font-medium text-sio-fg-base"
             initial={false}
@@ -261,8 +264,8 @@ export function ShadowStory() {
         <SectionHeader
           id="story-title"
           eyebrow="Shadow Mode"
-          title="Detect first. Act only after a human says so."
-          description="Shadow Mode keeps people in charge. Sioona proposes, your team decides, and nothing reaches a customer from Sioona."
+          title={marketingCopy.shadow[2].text}
+          description={marketingCopy.shadow[3].text}
         />
       </div>
 

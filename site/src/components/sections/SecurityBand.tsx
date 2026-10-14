@@ -1,3 +1,4 @@
+import { marketingCopy } from "@/lib/marketing-copy";
 import Link from "@/components/navigation/GuardedLink";
 import { ArrowRight, Lock, Prohibit, UserCheck } from "@phosphor-icons/react/ssr";
 import { RevealGroup, RevealItem } from "@/components/motion/Reveal";
@@ -7,18 +8,18 @@ import { nb } from "@/lib/site";
 export const securityPoints = [
   {
     icon: UserCheck,
-    title: "Human in the loop",
-    body: "Every signal is reviewed by a person before it’s acted on. Correct, Incorrect and Mark Acted are human decisions only.",
+    title: marketingCopy.securityBand[0].text,
+    body: marketingCopy.securityBand[1].text,
   },
   {
     icon: Lock,
-    title: "Tenant isolation",
-    body: "Each pilot is set up as a single tenant, so your conversations, signals and reviews stay in your own workspace.",
+    title: marketingCopy.securityBand[2].text,
+    body: marketingCopy.securityBand[3].text,
   },
   {
     icon: Prohibit,
-    title: "No outbound messaging",
-    body: "In Shadow Mode, Sioona never sends anything to your customers. Suggested actions are display-only.",
+    title: marketingCopy.securityBand[4].text,
+    body: marketingCopy.securityBand[5].text,
   },
 ] as const;
 
@@ -30,9 +31,9 @@ export function SecurityBand() {
           <div className="min-w-0 flex-1">
           <SectionHeader
             id="security-title"
-            eyebrow="Security And Control"
-            title="Built so a human is always in control."
-            description="Sioona observes and suggests. People decide, and your tools do the follow-up."
+            eyebrow={marketingCopy.securityBand[6].text}
+            title={marketingCopy.securityBand[7].text}
+            description={marketingCopy.securityBand[8].text}
           />
           </div>
           <Link href="/security" className="btn-secondary shrink-0 self-start whitespace-nowrap lg:self-auto">

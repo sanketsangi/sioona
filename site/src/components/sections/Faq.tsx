@@ -1,4 +1,6 @@
 "use client";
+import { jsonLdScript } from "@/lib/site";
+
 
 import { useEffect } from "react";
 import { FaqList } from "@/components/sections/FaqList";
@@ -35,7 +37,7 @@ export function Faq() {
 
   return (
     <section id="faq" aria-labelledby="faq-title" className="section">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }} />
       <div className="container-page grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-20">
         <SectionHeader id="faq-title" eyebrow="FAQ" title="Questions, answered plainly." />
         <Reveal>

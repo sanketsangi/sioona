@@ -14,7 +14,7 @@ const CHAT = CHAT_PARTS.join("");
 
 export function OutputPreview({ running = false }: { running?: boolean }) {
   const reduced = !!useReducedMotion();
-  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: true });
+  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: false });
   const detected = step >= STEP.why && step < STEP.reset;
   const action = step >= STEP.correct && step < STEP.reset;
   const acted = step === STEP.acted;
@@ -31,7 +31,7 @@ export function OutputPreview({ running = false }: { running?: boolean }) {
       return index === 1 ? <mark key={index} className="menu-output-highlight" data-detected={detected} aria-label={detected ? "Evidence: customer states they plan to leave" : undefined}>{text}</mark> : <span key={index}>{text}</span>;
     })}</p></div>
     </div>
-    <div className="menu-output-evidence" data-visible={detected}><h3 className="eyebrow menu-evidence-heading">Why This Fired</h3><div className="menu-output-evidence-detail"><SignalTypeChip type="retention" /><span>“I’ll close my account”</span></div><p className="menu-output-reason">Customer may close their account if they can’t find a better plan.</p></div>
+    <div className="menu-output-evidence" data-visible={detected}><p className="eyebrow menu-evidence-heading">Why This Fired</p><div className="menu-output-evidence-detail"><SignalTypeChip type="retention" /><span>“I’ll close my account”</span></div><p className="menu-output-reason">Customer may close their account if they can’t find a better plan.</p></div>
     <div className="menu-output-action" data-visible={action}><div className="menu-action-copy"><span className="eyebrow">Suggested next action</span><p>Offer a fee review call. Nothing sends.</p></div><span className="menu-acted-indicator" data-acted={acted}>{acted ? "✓ Acted" : "Mark Acted"}<kbd aria-hidden>A</kbd></span></div>
   </div>;
 }
@@ -96,7 +96,7 @@ export function FeaturePreview({ running = false }: { running?: boolean }) {
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: reduced ? 0 : "-110%", opacity: 0 }}
         transition={{ duration: reduced ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}>
-        <h3>{name}</h3><p>{featureDescriptions[index]}</p>
+        <p className="text-heading-20">{name}</p><p>{featureDescriptions[index]}</p>
         <div className="menu-feature-visual"><BentoFeatureVisual index={index} /></div>
       </m.div> : null)}
       </AnimatePresence>

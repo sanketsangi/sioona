@@ -5,7 +5,7 @@ import { NavigationGuardProvider } from "@/components/navigation/GuardedLink";
 import { Footer } from "@/components/layout/Footer";
 import { SiteNav } from "@/components/layout/SiteNav";
 import { MotionProviders } from "@/components/motion/Providers";
-import { organizationJsonLd, siteConfig } from "@/lib/site";
+import { jsonLdScript, organizationJsonLd, productName, serviceJsonLd, siteConfig, websiteJsonLd } from "@/lib/site";
 import { THEME_COLOR } from "@/lib/tokens";
 import "@/styles/tokens.css";
 import "./globals.css";
@@ -28,22 +28,26 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: "Sioona | See Every Revenue Signal In Your Customer Chats",
-    template: "%s | Sioona",
+    default: productName,
+    template: `%s | ${productName}`,
   },
   description: siteConfig.description,
+  robots: { index: true, follow: true },
+  icons: { icon: "/icon.svg", apple: "/apple-icon" },
   applicationName: "Sioona",
   other: { "is-agentic-site-type": "business" },
   openGraph: {
+    images: [{ url: "/opengraph-image", width: 1200, height: 630 }],
     type: "website",
-    siteName: "Sioona",
+    siteName: productName,
     locale: "en_US",
-    title: "Sioona | See Every Revenue Signal In Your Customer Chats",
+    title: productName,
     description: siteConfig.description,
   },
   twitter: {
+    images: ["/opengraph-image"],
     card: "summary_large_image",
-    title: "Sioona | See Every Revenue Signal In Your Customer Chats",
+    title: productName,
     description: siteConfig.description,
   },
   alternates: { canonical: "/" },
@@ -55,8 +59,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd()).replace(/</g, "\\u003c") }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
         />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(serviceJsonLd()) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }} />
         <noscript>
           <style>{`[data-reveal],[data-word],[data-nojs-show]{opacity:1!important;transform:none!important;filter:none!important}.faq-answer[hidden]{display:block!important}.shadow-story-track{height:auto!important}.shadow-story-sticky{position:static!important;height:auto!important;padding-block:2rem}.shadow-story-steps li{display:block!important}.score-needle{transform:rotate(var(--needle))!important}.score-bar{transform:none!important}`}</style>
         </noscript>
