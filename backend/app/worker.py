@@ -14,7 +14,7 @@ from app.config import get_settings
 from app.db import SessionLocal, bind_tenant, clear_tenant
 from app.models.detection_run import DetectionRun
 from app.services import jobs, classification_cache as cache
-from app.services.inference_budget import BudgetDenied
+from app.services.inference_budget import BudgetDenied, ai_enabled
 from app.ai.gateway import (
     ProviderFailure,
     provider_call,
@@ -199,17 +199,27 @@ class Worker:
                     key = cache.identity(tenant, chat, model, overrides)
 
                     def use_cached(db):
-                        jobs.fenced(db, lease, corpus=True)
+                        row = jobs.fenced(db, lease, corpus=True)
+                        if not ai_enabled(db, tenant):
+                            row.last_error_category = "ai_paused"
+                            return "ai_paused"
                         hit = cache.lookup(db, key, chat)
                         if hit is None:
                             return False
                         if jobs.canonical_context(db, tenant, chat.conversation_id) != (chat.customer_name, chat.channel):
                             raise jobs.JobError("source_changed")
+                        if not ai_enabled(db, tenant):
+                            row.last_error_category = "ai_paused"
+                            return "ai_paused"
                         cache.record_hit(db, lease, chat, key)
                         jobs.publish_conversation(db, lease, chat.conversation_id, content_hash, model, hit[1], coverage)
                         return True
 
-                    if self.transaction(tenant, use_cached):
+                    cached = self.transaction(tenant, use_cached)
+                    if cached == "ai_paused":
+                        coverage = None
+                        break
+                    if cached:
                         publication_model = "cache_published"
                         break
                     attempt = self.transaction(

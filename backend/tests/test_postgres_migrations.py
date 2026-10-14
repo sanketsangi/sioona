@@ -1552,14 +1552,15 @@ def test_cb14_cache_race_and_runtime_isolation(job_pg):
     def write(index):
         with _runtime_session(job_pg, "a") as db:
             barrier.wait(timeout=10)
-            cache.store(db, key, {**parsed, "summary": f"Writer {index}"}, chat)
+            cache.store(db, key, {**parsed, "confidence": .8 + index / 10}, chat)
             db.commit()
     with ThreadPoolExecutor(max_workers=2) as pool:
         list(pool.map(write, range(2)))
     with _runtime_session(job_pg, "a") as db:
         assert len(list(db.scalars(select(ClassificationCache)))) == 1
         winner = cache.lookup(db, key, chat)[0]
-        assert winner["summary"] in {"Writer 0", "Writer 1"}
+        assert winner["confidence"] in {.8, .9}
+        assert winner["summary"] == ""
         cache.store(db, key, parsed, chat)
         db.commit()
         db.expire_all()
@@ -1603,6 +1604,9 @@ def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
     actor = add_member(sessionmaker(bind=job_pg), "history@example.test", "a", "reviewer")
     started = time.monotonic()
     ids = [f"historical-{i:05}" for i in range(10000)]
+    with Session(job_pg) as owner_db:
+        configure(owner_db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
+        owner_db.commit()
     with _runtime_session(job_pg, "a") as db:
         configure(db, "a", 20, 20, True, "synthetic", jobs.PRINCIPAL)
         for offset in range(0, len(ids), 100):
@@ -1691,6 +1695,25 @@ def test_cb14_10k_historical_restart_and_ledger(job_pg, monkeypatch):
         assert db.scalar(select(func.count()).select_from(JobConversation).where(JobConversation.completed.is_(True))) == 10000
         assert db.scalar(select(func.count()).select_from(SignalPrediction).where(SignalPrediction.active.is_(True))) == 10000
         assert db.scalar(select(func.count()).select_from(SignalEvidence)) == 10000
+        from app.models.message import Message
+        from app.services.evidence_anchors import reconstruct, text_sha256
+        anchors = list(db.scalars(select(SignalEvidence)))
+        messages = {m.message_id: m for m in db.scalars(select(Message).where(Message.tenant_id == "a"))}
+        predictions = {p.id: p for p in db.scalars(select(SignalPrediction).where(SignalPrediction.tenant_id == "a"))}
+        assert len(anchors) == 10000
+        reconstructed = set()
+        for anchor in anchors:
+            message = messages[anchor.message_id]
+            prediction = predictions[anchor.prediction_id]
+            assert anchor.tenant_id == message.tenant_id == prediction.tenant_id == "a"
+            assert message.conversation_id == prediction.conversation_id
+            assert prediction.detection_run_id == jid
+            assert anchor.text_sha256 == text_sha256(message.content)
+            assert 0 <= anchor.start_cp < anchor.end_cp <= len(message.content)
+            assert reconstruct(message.content, start=anchor.start_cp, end=anchor.end_cp,
+                digest=anchor.text_sha256) == "I want to open a demat account"
+            reconstructed.add(message.conversation_id)
+        assert reconstructed == set(ids)
         # Retry of completed request is idempotent, with no additional attempts.
         assert jobs.enqueue_historical(db, "a", "history-10k", ids).id == jid
         db.commit()

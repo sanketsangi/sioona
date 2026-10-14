@@ -56,6 +56,7 @@ def enable_provider(monkeypatch, db, calls):
     monkeypatch.setenv("DETECT_LLM_PRIMARY", "1")
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     get_settings.cache_clear()
+    configure(db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     configure(db, "a", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     db.commit()
     def provider(model, messages):
@@ -119,7 +120,11 @@ def test_expired_invalid_and_ungrounded_cache_are_misses(db):
     row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     db.commit()
     assert cache.lookup(db, key, chat) is None
-    row.expires_at = datetime.now(timezone.utc) + timedelta(days=1)
+    db.commit()
+    assert db.get(ClassificationCache, key) is None
+    cache.store(db, key, parsed, chat)
+    db.commit()
+    row = db.get(ClassificationCache, key)
     row.classification = {"type": "lead", "confidence": .9, "quotes": ["fabricated quote"]}
     db.commit()
     assert cache.lookup(db, key, chat) is None
@@ -134,19 +139,19 @@ def test_cache_keeps_first_result_until_expiry(db):
     chat = body().conversations[0]
     key = cache.identity("a", chat, "model", {})
     first = {"type": "lead", "confidence": .9, "summary": "First result", "quotes": ["I want to open a demat account"]}
-    second = {**first, "summary": "Second result"}
+    second = {**first, "confidence": .8, "summary": "Second result"}
     cache.store(db, key, first, chat)
     db.commit()
     cache.store(db, key, second, chat)
     db.commit()
     db.expire_all()
-    assert cache.lookup(db, key, chat)[0] == first
+    assert cache.lookup(db, key, chat)[0] == {**first, "summary": ""}
     db.get(ClassificationCache, key).expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
     db.commit()
     cache.store(db, key, second, chat)
     db.commit()
     db.expire_all()
-    assert cache.lookup(db, key, chat)[0] == second
+    assert cache.lookup(db, key, chat)[0] == {**second, "summary": ""}
 
 
 def test_cache_hit_atomic_rollback_on_lease_loss(db, monkeypatch):
@@ -208,25 +213,42 @@ def test_cache_hit_requires_explicit_zero_usage(db):
         db.flush()
 
 
-def test_cached_and_uncached_offline_replay_parity(db):
+from tests.test_gateway import ROWS
+
+
+@pytest.mark.parametrize("row", ROWS, ids=lambda row: row["id"])
+def test_cached_and_uncached_offline_replay_parity(db, row):
     from types import SimpleNamespace as NS
-    from tests.test_gateway import ROWS
     from app.ai import gateway
-    count = 0
-    for row in ROWS:
-        chat = NS(customer_name=row["conversation"]["customerName"], channel=row["conversation"]["channel"], messages=[NS(**m) for m in row["messages"]])
-        parsed = gateway.parse_classification(row["replay"])
-        try:
-            expected = gateway.classification_output(parsed, chat, chat.messages, gateway.DEFAULT_MODEL)
-        except gateway.ProviderFailure:
-            continue
-        key = cache.identity("a", chat, gateway.DEFAULT_MODEL, {})
+    from app.models.classification_cache import ClassificationCache
+    from sqlalchemy import select
+    assert len(ROWS) == 120
+    chat = NS(customer_name=row["conversation"]["customerName"], channel=row["conversation"]["channel"], messages=[NS(**m) for m in row["messages"]])
+    parsed = gateway.parse_classification(row["replay"])
+    key = cache.identity("a", chat, gateway.DEFAULT_MODEL, {})
+    try:
+        expected = gateway.classification_output(parsed, chat, chat.messages, gateway.DEFAULT_MODEL)
+    except gateway.ProviderFailure as rejected:
+        uncached = gateway.heuristic_output(chat, chat.messages)
+        # Attempted cache admission must reject the same response on every run.
+        for _ in range(2):
+            with pytest.raises(gateway.ProviderFailure) as failure:
+                cache.store(db, key, parsed, chat)
+            assert failure.value.category == rejected.category
+            db.commit()
+            assert cache.lookup(db, key, chat) is None
+            assert list(db.scalars(select(ClassificationCache))) == []
+            assert gateway.heuristic_output(chat, chat.messages) == uncached == row["output"]
+    else:
         cache.store(db, key, parsed, chat)
         db.commit()
         actual = cache.lookup(db, key, chat)
-        assert actual is not None and actual[1] == expected
-        count += 1
-    assert count >= 100
+        assert actual is not None
+        # Free-form provider summaries are deliberately redacted from the cache;
+        # classification, confidence, quotes and commercial evidence are unchanged.
+        assert [{k: v for k, v in item.items() if k != "summary"} for item in actual[1]] == [
+            {k: v for k, v in item.items() if k != "summary"} for item in expected]
+        assert cache.lookup(db, key, chat) == actual
 
 
 def test_historical_chunk_completion(db, monkeypatch):
@@ -315,7 +337,7 @@ def test_historical_budget_denial_never_dispatches(db, monkeypatch):
     db.commit()
     Worker(sessionmaker(bind=db.get_bind()), call=lambda *_: pytest.fail("unbudgeted call")).run_once("a")
     db.expire_all()
-    assert db.get(Job, ("a", jid)).last_error_category == "unconfigured"
+    assert db.get(Job, ("a", jid)).last_error_category == "ai_paused"
     assert db.scalar(select(InferenceAttempt)) is None
 
 
@@ -328,3 +350,99 @@ def test_cache_identity_is_sensitive_to_order_and_privacy_version(monkeypatch):
     assert key != cache.identity("a", chat.model_copy(update={"messages": list(reversed(chat.messages))}), "model", {})
     monkeypatch.setattr(gateway, "PORT_SHA256", "f" * 64)
     assert key != cache.identity("a", chat, "model", {})
+
+
+@pytest.mark.parametrize('scope', ['a', 'global'])
+@pytest.mark.parametrize('unconfigured', [False, True])
+def test_warm_cache_respects_ai_controls(db, monkeypatch, scope, unconfigured):
+    from sqlalchemy import select, delete
+    from sqlalchemy.orm import sessionmaker
+    from app.config import get_settings
+    from app.models.inference_budget import InferenceControl, InferenceReservation
+    from app.models.inference_attempt import InferenceAttempt
+    from app.models.detection_run import DetectionRun
+    from app.models.job import Job
+    from app.services.inference_budget import configure
+    from app.ai.gateway import heuristic_output
+    from app.worker import Worker
+    calls = []
+    provider = enable_provider(monkeypatch, db, calls)
+    configure(db, 'global', 1000, 1000, True, 'synthetic', jobs.PRINCIPAL)
+    chat = body().conversations[0]
+    parsed, _ = provider(get_settings().detect_llm_model, [])
+    cache.store(db, cache.identity('a', chat, get_settings().detect_llm_model, {}), parsed, chat)
+    if unconfigured:
+        db.execute(delete(InferenceControl).where(InferenceControl.scope == scope))
+    else:
+        configure(db, scope, 1000, 1000, False, 'paused', jobs.PRINCIPAL)
+    jid = jobs.enqueue_upload(db, 'a', 'paused', body()).id
+    db.commit()
+    monkeypatch.setattr(cache, 'lookup', lambda *_: pytest.fail('paused cache consulted'))
+    Worker(sessionmaker(bind=db.get_bind()), call=lambda *_: pytest.fail('paused provider called')).run_once('a')
+    db.expire_all()
+    row = db.get(Job, ('a', jid))
+    assert row.status == 'succeeded' and row.last_error_category == 'ai_paused'
+    run = db.get(DetectionRun, ('a', jid, 'c1'))
+    assert run.model_version == 'heuristic'
+    assert run.output == heuristic_output(chat, chat.messages, {})
+    assert list(db.scalars(select(InferenceAttempt))) == []
+    assert list(db.scalars(select(InferenceReservation))) == []
+
+
+def test_cache_discards_sensitive_free_text_and_reconstructs(db, monkeypatch):
+    import json
+    from sqlalchemy import select
+    from sqlalchemy.orm import sessionmaker
+    from app.models.classification_cache import ClassificationCache
+    from app.models.signal_evidence import SignalEvidence
+    from app.models.message import Message
+    from app.models.job import Job
+    from app.models.inference_attempt import InferenceAttempt
+    from app.services.evidence_anchors import reconstruct
+    from app.worker import Worker
+    calls = []
+    successful = enable_provider(monkeypatch, db, calls)
+    marker = 'SYNTHETIC-SENSITIVE-MARKER'
+    def provider(*args):
+        parsed, result = successful(*args)
+        parsed['quotes'].append(marker)
+        parsed['summary'] = marker
+        parsed['unused'] = marker
+        return parsed, result
+    jid = jobs.enqueue_upload(db, 'a', 'sanitize', body(('c1', 'c2'))).id
+    db.commit()
+    Worker(sessionmaker(bind=db.get_bind()), call=provider).run_once('a')
+    db.expire_all()
+    assert db.get(Job, ('a', jid)).status == 'succeeded'
+    rows = list(db.scalars(select(ClassificationCache)))
+    assert len(rows) == 1 and marker not in json.dumps(rows[0].classification)
+    assert set(rows[0].classification) == {'type', 'confidence', 'summary', 'quotes'}
+    assert len(calls) == 1
+    assert len(list(db.scalars(select(InferenceAttempt).where(InferenceAttempt.cache_hit.is_(True))))) == 1
+    anchors = list(db.scalars(select(SignalEvidence)))
+    assert {a.message_id for a in anchors} == {'m-c1', 'm-c2'}
+    for anchor in anchors:
+        message = db.scalar(select(Message).where(Message.tenant_id == 'a', Message.message_id == anchor.message_id))
+        assert anchor.tenant_id == message.tenant_id == 'a'
+        assert reconstruct(message.content, start=anchor.start_cp, end=anchor.end_cp, digest=anchor.text_sha256) == 'I want to open a demat account'
+
+
+@pytest.mark.parametrize('operation', ['lookup', 'store'])
+def test_cache_purges_expired_rows_only_for_current_tenant(db, operation):
+    from datetime import timedelta
+    from sqlalchemy import select
+    from app.models.classification_cache import ClassificationCache
+    chat = body().conversations[0]
+    parsed = {'type': 'lead', 'confidence': .9, 'summary': '', 'quotes': ['I want to open a demat account']}
+    for tenant in ('a', 'b'):
+        key = cache.identity(tenant, chat, 'old-model', {})
+        cache.store(db, key, parsed, chat)
+        db.flush()
+        db.get(ClassificationCache, key).expires_at = jobs.now(db) - timedelta(seconds=1)
+    db.commit()
+    key = cache.identity('a', chat, 'new-model', {})
+    cache.lookup(db, key, chat) if operation == 'lookup' else cache.store(db, key, parsed, chat)
+    db.commit()
+    rows = list(db.scalars(select(ClassificationCache)))
+    assert not any(r.tenant_id == 'a' and r.model_id == 'old-model' for r in rows)
+    assert any(r.tenant_id == 'b' and r.model_id == 'old-model' for r in rows)

@@ -6,7 +6,7 @@ copied into application-cache hits. Quotes are re-grounded on each lookup.
 from datetime import timedelta
 from decimal import Decimal
 from uuid import uuid4
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 from app.ai import gateway
 from app.models.classification_cache import ClassificationCache
 from app.models.inference_attempt import InferenceAttempt
@@ -31,7 +31,30 @@ def identity(tenant, chat, model, overrides):
             model, gateway.route_version(), jobs.digest({"base": gateway.HEURISTICS, "overrides": overrides}))
 
 
+def purge_expired(db, tenant):
+    db.execute(delete(ClassificationCache).where(
+        ClassificationCache.tenant_id == tenant,
+        ClassificationCache.expires_at <= jobs.now(db)))
+
+
+def sanitized(parsed, chat, model):
+    """Keep grounded quotes and scalar classification, never provider free text.
+
+    Empty summary deliberately selects the gateway's deterministic display text
+    on reuse. Grounding does not establish that a model's prose is PII-free.
+    """
+    gateway.classification_output(parsed, chat, chat.messages, model)
+    source = "\n".join(m.content.strip() for m in chat.messages
+                       if m.role == "customer" and m.content.strip())
+    quotes = [] if parsed["type"] == "none" else list(dict.fromkeys(
+        quote for raw in parsed["quotes"]
+        if (quote := gateway.grounded_quote(raw, source))))[:2]
+    return {"type": parsed["type"], "confidence": parsed["confidence"],
+            "summary": "", "quotes": quotes}
+
+
 def lookup(db, key, chat):
+    purge_expired(db, key[0])
     row = db.get(ClassificationCache, key)
     if row is None or jobs.utc(row.expires_at) <= jobs.now(db):
         return None
@@ -39,14 +62,18 @@ def lookup(db, key, chat):
         # Normalize again; malformed stored JSON must behave as a miss.
         import json
         parsed = gateway.parse_classification(json.dumps(row.classification))
+        parsed = sanitized(parsed, chat, key[3])
         output = gateway.classification_output(parsed, chat, chat.messages, key[3])
     except (ValueError, TypeError, KeyError):
         return None
+    # Also remove rejected text from entries written by older workers.
+    row.classification = parsed
     return parsed, output
 
 
 def store(db, key, parsed, chat):
-    gateway.classification_output(parsed, chat, chat.messages, key[3])
+    parsed = sanitized(parsed, chat, key[3])
+    purge_expired(db, key[0])
     values = dict(zip(KEY_FIELDS, key))
     values.update(classification=parsed, expires_at=jobs.now(db) + TTL)
     # Keep the first result for an unexpired identity. Concurrent standard
