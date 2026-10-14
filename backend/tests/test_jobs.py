@@ -247,3 +247,32 @@ def test_worker_default_inline_and_pause_need_no_database(monkeypatch):
         assert main() == 0
     finally:
         get_settings.cache_clear()
+
+
+def test_worker_tick_rotates_busy_tenants(monkeypatch):
+    """A tenant with an endless backlog cannot monopolize successive ticks."""
+    from contextlib import nullcontext
+    from app.worker import Worker
+    from app.services.jobs import Lease
+
+    class FakeSession:
+        def __enter__(self):
+            return self
+        def __exit__(self, *_):
+            pass
+        def begin(self):
+            return nullcontext()
+
+    claimed = []
+    def busy_claim(db, *, tenant_id, owner):
+        claimed.append(tenant_id)
+        return Lease(tenant_id, "job", owner, 1, 1, "upload", "a" * 64, "b" * 64, 0)
+
+    worker = Worker(FakeSession, tenants=("a", "b", "c"), owner="worker",
+                    handler=lambda *_: lambda db: None)
+    monkeypatch.setattr(worker, "_session", lambda _: FakeSession())
+    monkeypatch.setattr("app.worker.claim", busy_claim)
+    monkeypatch.setattr("app.worker.complete", lambda *a, **kw: None)
+    for _ in range(6):
+        assert worker.tick()
+    assert claimed == ["a", "b", "c", "a", "b", "c"]

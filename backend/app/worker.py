@@ -27,6 +27,7 @@ class Worker:
             raise ValueError("Trusted tenants, handler and valid heartbeat interval required")
         self.sessions = sessions
         self.tenants = tenants
+        self._tenant_cursor = 0
         self.owner = owner
         self.handler = handler
         self.paused = paused or (lambda: os.getenv("SIOONA_WORKER_PAUSE", "0") == "1")
@@ -57,7 +58,10 @@ class Worker:
     def tick(self) -> bool:
         if self.stop.is_set() or self.paused():
             return False
-        for tenant in self.tenants:
+        start = self._tenant_cursor
+        self._tenant_cursor = (start + 1) % len(self.tenants)
+        for offset in range(len(self.tenants)):
+            tenant = self.tenants[(start + offset) % len(self.tenants)]
             if self.stop.is_set() or self.paused():
                 return False
             with self._session(tenant) as db, db.begin():
