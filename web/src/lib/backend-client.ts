@@ -216,7 +216,6 @@ export function runWithServicePrincipal<T>(
 }
 
 function actorAuthMode(): ActorAuthMode {
-  if ([process.env.SIOONA_ENV, process.env.NODE_ENV, process.env.VERCEL_ENV].includes("production")) return "enforce";
   const mode = process.env.SIOONA_ACTOR_AUTH;
   if (mode === "shadow" || mode === "enforce") return mode;
   return "off";
@@ -263,10 +262,7 @@ async function actorRequestHeaders(
   if (actorAuthMode() === "off") return {};
   const key = process.env.SIOONA_ACTOR_KEY?.trim() ?? "";
   const actor = await resolveActor(tenantId);
-  if (!key || !actor) {
-    if (actorAuthMode() === "enforce") throw new Error("actor_unavailable");
-    return {};
-  }
+  if (!key || !actor) return {};
   return { "X-Sioona-Actor": signActorAssertion(actor.sub, actor.tid, key) };
 }
 
@@ -1202,7 +1198,6 @@ export async function publishIngestion(tenantId: string, uploadId: string, input
   source: string; replace: boolean; conversations: BackendConversationInput[]; detections: BackendDetectionInput[];
   files?: { source: string; conversation_ids: string[]; counts_as_weekly?: boolean }[];
   append_only?: boolean;
-  expected_content_hashes?: Record<string, string | null>;
   record_upload_metadata?: boolean;
 }) {
   return backendFetch<{
@@ -1271,25 +1266,6 @@ export async function getPublishedConversationIds(tenantId: string, conversation
     throw new Error("Invalid published conversation lookup");
   }
   return result.conversation_ids;
-}
-
-/** Snapshot preconditions for stable Intercom transcripts; never trust an old API's ID-only response. */
-export async function getPublishedConversationRevisions(tenantId: string, conversationIds: string[]): Promise<Record<string, string | null>> {
-  if (!conversationIds.length) return {};
-  if (conversationIds.length > 50 || new Set(conversationIds).size !== conversationIds.length ||
-      conversationIds.some((id) => !id || id.length > 256)) throw new Error("Invalid conversation revision scope");
-  const result = await backendFetch<{ content_hashes: Record<string, string | null> }>(tenantId,
-    `/v1/tenants/${encodeURIComponent(tenantId)}/uploads/published-conversations`, {
-      method: "POST", body: JSON.stringify({ conversation_ids: conversationIds, include_content_hashes: true }),
-    });
-  const hashes = result?.content_hashes;
-  if (!hashes || typeof hashes !== "object" || Array.isArray(hashes) ||
-      Object.keys(hashes).length !== conversationIds.length ||
-      conversationIds.some((id) => !Object.hasOwn(hashes, id) ||
-        (hashes[id] !== null && (typeof hashes[id] !== "string" || !/^[a-f0-9]{64}$/.test(hashes[id]))))) {
-    throw new Error("Invalid conversation revision lookup");
-  }
-  return hashes;
 }
 
 /** CB-07 admission always uses a verified actor, including off/shadow callers. */

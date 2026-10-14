@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["027_complete_tenant_rls"]
+        assert heads == ["026_weekly_upload_receipts"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -697,9 +697,6 @@ RLS_TABLES = (
     "signal_evidence",
     "detection_resume",
     "weekly_upload_receipts",
-    "workspaces", "memberships", "pilot_settings", "taxonomy_overrides",
-    "uploads", "upload_conversations", "inference_budgets",
-    "inference_run_budgets", "inference_reservations", "inference_controls",
 )
 
 
@@ -759,7 +756,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
                 SELECT COUNT(*) FROM pg_policies
                 WHERE policyname = 'tenant_isolation' AND tablename = 'workspaces'
                 """
-            )).scalar() == 1
+            )).scalar() == 0
             _seed_two_tenants(conn)
         _assert_runtime_isolation(engine)
         command.downgrade(cfg, "023_inference_budgets")
@@ -782,27 +779,6 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
 
 
 def _seed_two_tenants(conn) -> None:
-    from app.models import Workspace, User, Membership
-    from app.models.pilot_settings import PilotSettings
-    from app.models.taxonomy_override import TaxonomyOverride
-    from app.models.upload import Upload, UploadConversation
-    from app.models.inference_budget import InferenceControl, InferenceBudget, InferenceRunBudget, InferenceReservation
-    from uuid import UUID
-    with Session(bind=conn) as db:
-        for index, tenant in enumerate(("tenant_a", "tenant_b"), 1):
-            user_id = UUID(int=index)
-            db.add(Workspace(tenant_id=tenant, name=tenant))
-            db.add(User(id=user_id, email=f"{tenant}@example.test"))
-            db.flush()
-            db.add(Membership(tenant_id=tenant, user_id=user_id, role="admin"))
-            db.add(PilotSettings(tenant_id=tenant))
-            db.add(TaxonomyOverride(tenant_id=tenant, signal_type="lead", phrases=[]))
-            db.add(Upload(tenant_id=tenant, upload_id="upload", source="fixture", content_sha256="a" * 64))
-            db.add(InferenceControl(scope=tenant, tenant_id=tenant, updated_by="fixture"))
-            db.add(InferenceBudget(tenant_id=tenant, budget_day=datetime.now(timezone.utc).date()))
-            db.add(InferenceRunBudget(tenant_id=tenant, run_id="run"))
-            db.add(InferenceReservation(tenant_id=tenant, attempt_id="attempt", run_id="run", budget_day=datetime.now(timezone.utc).date()))
-        db.flush()
     conn.execute(text(
         """
         INSERT INTO conversations (id, tenant_id, conversation_id, channel, started_at)
@@ -888,14 +864,13 @@ def _seed_two_tenants(conn) -> None:
           ('tenant_b', 'receipt-b', 1)
         """
     ))
-    conn.execute(text("INSERT INTO upload_conversations (tenant_id, upload_id, conversation_id) VALUES ('tenant_a', 'upload', 'chat-a'), ('tenant_b', 'upload', 'chat-b')"))
 
 
 def _assert_runtime_isolation(engine) -> None:
     from app.db import bind_tenant, clear_tenant
     with engine.connect() as conn:
         for table in RLS_TABLES:
-            seen = conn.execute(text(f"SELECT tenant_id FROM {table} WHERE tenant_id IS NOT NULL")).scalars().all()
+            seen = conn.execute(text(f"SELECT tenant_id FROM {table}")).scalars().all()
             assert sorted(seen) == ["tenant_a", "tenant_b"], table
         conn.commit()
         conn.execute(text("SET ROLE sioona_runtime"))
@@ -905,16 +880,6 @@ def _assert_runtime_isolation(engine) -> None:
             clear_tenant()
             _as_runtime(conn, None, [])
             _as_runtime(conn, "tenant_b", ["tenant_b"])
-            for table in RLS_TABLES:
-                with conn.begin():
-                    conn.execute(text("SELECT set_config('app.tenant_id', 'tenant_a', true)"))
-                    assert conn.execute(text(f"UPDATE {table} SET tenant_id = tenant_id WHERE tenant_id = 'tenant_b'")).rowcount == 0
-                    assert conn.execute(text(f"DELETE FROM {table} WHERE tenant_id = 'tenant_b'")).rowcount == 0
-                    with conn.begin_nested() as savepoint:
-                        with pytest.raises(DBAPIError, match="row-level security"):
-                            conn.execute(text(f"UPDATE {table} SET tenant_id = 'tenant_b' WHERE tenant_id = 'tenant_a'"))
-                        savepoint.rollback()
-
             trans = conn.begin()
             conn.execute(text("SELECT set_config('app.tenant_id', 'tenant_a', true)"))
             with pytest.raises(DBAPIError, match="row-level security"):
@@ -955,7 +920,7 @@ def _as_runtime(conn, tenant, expected) -> None:
     if tenant is not None:
         conn.execute(text("SELECT set_config('app.tenant_id', :tenant_id, true)"), {"tenant_id": tenant})
     for table in RLS_TABLES:
-        seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} WHERE tenant_id IS NOT NULL ORDER BY tenant_id")).scalars().all()
+        seen = conn.execute(text(f"SELECT DISTINCT tenant_id FROM {table} ORDER BY tenant_id")).scalars().all()
         assert seen == expected, table
     trans.commit()
 
@@ -1014,82 +979,5 @@ def test_rls_upgrade_with_non_superuser_migration_owner(monkeypatch, existing):
                 if conn.execute(text('SELECT 1 FROM pg_roles WHERE rolname=:role'), {'role': role}).scalar():
                     conn.execute(text(f'DROP OWNED BY {role} CASCADE'))
                     conn.execute(text(f'DROP ROLE {role}'))
-        get_settings.cache_clear()
-        engine.dispose()
-
-
-def test_all_tenant_tables_have_rls(monkeypatch):
-    from app.models import Base
-    engine = _postgres_engine(monkeypatch)
-    try:
-        with engine.begin() as conn:
-            for table in Base.metadata.sorted_tables:
-                if "tenant_id" not in table.c:
-                    continue
-                flags = conn.execute(text("SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = to_regclass(:name)"), {"name": table.name}).one()
-                assert flags == (True, True), table.name
-    finally:
-        engine.dispose()
-
-
-def test_global_controls_readable_but_only_control_tenant_can_write(monkeypatch):
-    from app.config import get_settings
-    from app.db import bind_tenant, clear_tenant
-    from app.services.inference_budget import configure
-    engine = _postgres_engine(monkeypatch)
-    monkeypatch.setenv("SIOONA_GLOBAL_CONTROL_TENANT", "tenant_control")
-    get_settings.cache_clear()
-    try:
-        with Session(engine) as db:
-            configure(db, "global", 10, 5, False, "paused", "fixture")
-            db.commit()
-        with engine.connect() as conn:
-            conn.execute(text("SET ROLE sioona_runtime"))
-            conn.commit()
-            with Session(bind=conn) as db:
-                bind_tenant(db, "tenant_other")
-                assert db.execute(text("SELECT enabled FROM inference_controls WHERE scope = 'global'")).scalar() is False
-                # SELECT policy must not accidentally grant UPDATE authority.
-                assert db.execute(text("UPDATE inference_controls SET enabled = true WHERE scope = 'global'")).rowcount == 0
-                db.rollback()
-                bind_tenant(db, "tenant_control")
-                configure(db, "global", 10, 5, True, "resumed", "fixture")
-                db.commit()
-                clear_tenant()
-                assert db.execute(text("SELECT count(*) FROM inference_controls")).scalar() == 0
-                db.rollback()
-            conn.execute(text("RESET ROLE"))
-            conn.commit()
-    finally:
-        clear_tenant()
-        get_settings.cache_clear()
-        engine.dispose()
-
-
-def test_production_database_dependency_rejects_owner_accepts_runtime(monkeypatch):
-    import app.db as module
-    from app.config import get_settings
-    from fastapi import HTTPException
-    engine = _postgres_engine(monkeypatch)
-    monkeypatch.setenv("SIOONA_ENV", "production")
-    get_settings.cache_clear()
-    try:
-        with engine.connect() as conn:
-            monkeypatch.setattr(module, "SessionLocal", lambda: Session(bind=conn))
-            dependency = module.get_db()
-            with pytest.raises(HTTPException, match="unsafe_database_role"):
-                next(dependency)
-            conn.rollback()
-            conn.execute(text("SET ROLE sioona_runtime"))
-            conn.commit()
-            dependency = module.get_db()
-            db = next(dependency)
-            module.bind_tenant(db, "tenant_a")
-            assert db.execute(text("SELECT count(*) FROM memberships")).scalar() == 0
-            dependency.close()
-            conn.rollback()
-            conn.execute(text("RESET ROLE"))
-            conn.commit()
-    finally:
         get_settings.cache_clear()
         engine.dispose()

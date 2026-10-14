@@ -1,5 +1,3 @@
-import { loadPilotUsers } from "./auth-accounts";
-
 /**
  * Signed httpOnly session for a small B2B pilot.
  *
@@ -23,14 +21,15 @@ export type SessionClaims = {
 const TENANT_RE = /^tenant_[a-z0-9_]{1,64}$/;
 
 export function authEnforced(): boolean {
-  if (
-    process.env.VERCEL_ENV === "production" ||
-    process.env.NODE_ENV === "production" ||
-    process.env.SIOONA_ENV === "production"
-  ) return true;
   if (process.env.SIOONA_AUTH_ENFORCE === "0") return false;
   if (process.env.SIOONA_AUTH_ENFORCE === "1") return true;
   if (process.env.VITEST === "true") return false;
+  if (
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NODE_ENV === "production"
+  ) {
+    return true;
+  }
   return Boolean(process.env.AUTH_SECRET?.trim());
 }
 
@@ -163,13 +162,6 @@ export async function inspectSessionToken(
     if (claims.exp < Math.floor(Date.now() / 1000)) {
       return { ok: false, reason: "expired" };
     }
-    // Recheck current account authority on every request, including middleware.
-    // The loader is runtime-neutral; password hashing remains server-only.
-    const active = loadPilotUsers().some((user) =>
-      user.email === claims.email && user.role === claims.role &&
-      user.tenantId === claims.tenantId && user.tenantId !== "tenant_demo",
-    );
-    if (!active) return { ok: false, reason: "invalid" };
     return { ok: true, claims };
   } catch {
     return { ok: false, reason: "invalid" };

@@ -9,7 +9,7 @@ from app.models.upload import Upload
 from app.models.signal_prediction import SignalPrediction
 from app.schemas.ingestion import Ingestion
 from app.services.conversations import upsert_conversations
-from app.services.detection_runs import reconcile_detection, conversation_content_hash
+from app.services.detection_runs import reconcile_detection
 from app.services.uploads import publish_upload
 from app.services.tenant_lock import lock_tenant_corpus
 from app.services.weekly_upload import (
@@ -58,28 +58,6 @@ def publish_ingestion(db: Session, *, tenant_id: str, upload_id: str, body: Inge
                 raise IngestionError(409, "ingestion_removed_before_publication")
             completed = prior.status == "completed"
         if not completed:
-            expected = body.expected_content_hashes or {}
-            if expected:
-                from app.models.conversation import Conversation
-                for chat in body.conversations:
-                    cid = chat.conversation_id
-                    if cid not in expected:
-                        continue
-                    current = db.scalar(select(Conversation).where(
-                        Conversation.tenant_id == tenant_id, Conversation.conversation_id == cid)
-                        .with_for_update().execution_options(populate_existing=True))
-                    current_hash = conversation_content_hash(db, tenant_id, cid) if current else None
-                    if (current_hash != expected[cid] or (current is not None and
-                            (current.channel != "intercom" or current.external_id != chat.external_id))):
-                        raise IngestionError(409, "conversation_revision_conflict")
-                    # A delayed/partial snapshot must never delete already stored
-                    # replies, even if its lookup happened after the newer write.
-                    if current is not None:
-                        from app.models.message import Message
-                        stored_ids = set(db.scalars(select(Message.message_id).where(
-                            Message.tenant_id == tenant_id, Message.conversation_id == cid)).all())
-                        if not stored_ids.issubset({message.message_id for message in chat.messages}):
-                            raise IngestionError(409, "intercom_snapshot_missing_replies")
             if not body.append_only:
                 newer = db.scalar(select(Upload.upload_id).where(
                     Upload.tenant_id == tenant_id, Upload.status == "completed",
@@ -91,7 +69,7 @@ def publish_ingestion(db: Session, *, tenant_id: str, upload_id: str, body: Inge
                 duplicate = db.scalar(select(UploadConversation.conversation_id).join(Upload,
                     (Upload.tenant_id == UploadConversation.tenant_id) & (Upload.upload_id == UploadConversation.upload_id))
                     .where(Upload.tenant_id == tenant_id, Upload.status == "completed",
-                           UploadConversation.conversation_id.in_([cid for cid in ids if cid not in expected])).limit(1))
+                           UploadConversation.conversation_id.in_(ids)).limit(1))
                 if duplicate is not None:
                     raise IngestionError(409, "live_event_already_published")
             if db.bind.dialect.name == "sqlite":
@@ -156,7 +134,7 @@ def publish_ingestion(db: Session, *, tenant_id: str, upload_id: str, body: Inge
             "conversation_id": row.conversation_id, "signal_type": row.signal_type, "active": row.active} for row in rows]}
     except IngestionError as exc:
         db.rollback()
-        if exc.detail in {"live_event_already_published", "ingestion_superseded_by_newer_upload", "conversation_revision_conflict", "intercom_snapshot_missing_replies"}:
+        if exc.detail in {"live_event_already_published", "ingestion_superseded_by_newer_upload"}:
             db.execute(update(Upload).where(Upload.tenant_id == tenant_id,
                 Upload.upload_id == upload_id, Upload.status != "completed").values(status="failed"))
             db.commit()

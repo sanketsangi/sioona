@@ -5,8 +5,6 @@ from collections.abc import Generator
 from contextvars import ContextVar
 from pathlib import Path
 
-from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -98,9 +96,6 @@ def clear_tenant() -> None:
 
 @event.listens_for(Session, "after_begin")
 def _set_tenant_on_begin(_session, _transaction, connection) -> None:  # noqa: ANN001
-    if connection.dialect.name == "postgresql":
-        connection.execute(text("SELECT set_config('app.global_control_tenant', :tenant, true)"),
-                           {"tenant": get_settings().sioona_global_control_tenant.strip()})
     tenant_id = _tenant_id.get()
     if not tenant_id or connection.dialect.name != "postgresql":
         return
@@ -115,19 +110,6 @@ def get_db() -> Generator[Session, None, None]:
     clear_tenant()
     db = SessionLocal()
     try:
-        if get_settings().sioona_env.strip().lower() == "production":
-            if db.get_bind().dialect.name != "postgresql":
-                raise HTTPException(503, "unsafe_database_role")
-            try:
-                unsafe = db.execute(text("""
-                    SELECT rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb
-                        OR current_user <> 'sioona_runtime'
-                    FROM pg_roles WHERE rolname = current_user
-                """)).scalar()
-            except SQLAlchemyError as exc:
-                raise HTTPException(503, "database_unavailable") from exc
-            if unsafe is not False:
-                raise HTTPException(503, "unsafe_database_role")
         yield db
     finally:
         db.close()

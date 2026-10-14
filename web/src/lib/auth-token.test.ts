@@ -14,7 +14,6 @@ import {
 } from "./auth-token";
 
 const ENV_KEYS = [
-  "SIOONA_PILOT_USERS",
   "AUTH_SECRET",
   "NODE_ENV",
   "VERCEL_ENV",
@@ -32,8 +31,6 @@ beforeEach(() => {
     if (key !== "NODE_ENV") delete process.env[key];
   }
   process.env.AUTH_SECRET = "test-secret";
-    vi.stubEnv("SIOONA_PILOT_USERS", JSON.stringify([{"email": "admin@partner.example", "role": "admin", "tenantId": "tenant_partner", "password": "synthetic-test-password"}]));
-
 });
 
 afterEach(() => {
@@ -251,21 +248,4 @@ describe("readCookie", () => {
   it("ignores segments without a name", () => {
     expect(readCookie("=orphan; a=1", "a")).toBe("1");
   });
-});
-
-it.each(["VERCEL_ENV", "NODE_ENV", "SIOONA_ENV"])("cannot disable production auth through %s", (key) => {
-  vi.stubEnv(key, "production");
-  vi.stubEnv("SIOONA_AUTH_ENFORCE", "0");
-  expect(authEnforced()).toBe(true);
-});
-
-it.each(["removed", "role", "tenant", "malformed"])("rejects a session after account configuration is %s", async (change) => {
-  vi.stubEnv("SIOONA_PILOT_USERS", JSON.stringify([{ ...claims, password: "synthetic-password" }]));
-  const token = await signSession(claims);
-  expect(await verifySessionToken(token)).not.toBeNull();
-  vi.stubEnv("SIOONA_PILOT_USERS", change === "malformed" ? "{" : JSON.stringify(change === "removed" ? [] : [{
-    ...claims, password: "synthetic-password",
-    ...(change === "role" ? { role: "reviewer" } : { tenantId: "tenant_other" }),
-  }]));
-  expect(await verifySessionToken(token)).toBeNull();
 });

@@ -1,9 +1,8 @@
-"""Bound upload and contact JSON before FastAPI buffers/parses the request."""
+"""Bound atomic upload JSON before FastAPI buffers/parses the request."""
 import re
 from starlette.responses import JSONResponse
 
 INGESTION_BODY_LIMIT = 32 * 1024 * 1024
-PILOT_INTAKE_BODY_LIMIT = 16 * 1024
 
 
 class IngestionBodyLimit:
@@ -12,21 +11,15 @@ class IngestionBodyLimit:
         self.max_bytes = max_bytes
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
+        if (scope["type"] != "http" or scope.get("method") != "PUT" or
+                not re.fullmatch(r"/v1/tenants/[^/]+/ingestions/[^/]+/?", scope.get("path", ""))):
             return await self.app(scope, receive, send)
-        intake = (scope.get("method") == "POST" and
-                  re.fullmatch(r"/v1/pilot-requests/?", scope.get("path", "")))
-        ingestion = (scope.get("method") == "PUT" and
-                     re.fullmatch(r"/v1/tenants/[^/]+/ingestions/[^/]+/?", scope.get("path", "")))
-        if not intake and not ingestion:
-            return await self.app(scope, receive, send)
-        max_bytes = PILOT_INTAKE_BODY_LIMIT if intake else self.max_bytes
         async def reject():
-            await JSONResponse({"detail": "intake_body_too_large" if intake else "ingestion_body_too_large"}, status_code=413)(scope, receive, send)
+            await JSONResponse({"detail": "ingestion_body_too_large"}, status_code=413)(scope, receive, send)
         for name, value in scope.get("headers", []):
             if name.lower() == b"content-length":
                 try:
-                    if int(value) > max_bytes:
+                    if int(value) > self.max_bytes:
                         return await reject()
                 except ValueError:
                     pass  # The streamed count remains authoritative.
@@ -38,7 +31,7 @@ class IngestionBodyLimit:
                 return
             chunk = message.get("body", b"")
             size += len(chunk)
-            if size > max_bytes:
+            if size > self.max_bytes:
                 return await reject()
             body.extend(chunk)
             if not message.get("more_body", False):

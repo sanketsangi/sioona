@@ -127,15 +127,4 @@ def published_conversations(tenant_id: str,
         (Upload.tenant_id == UploadConversation.tenant_id) & (Upload.upload_id == UploadConversation.upload_id))
         .where(Upload.tenant_id == tenant_id, Upload.status == "completed",
                UploadConversation.conversation_id.in_(body.conversation_ids)).distinct()).all()
-    result = {"conversation_ids": sorted(ids)}
-    if body.include_content_hashes:
-        from app.models.conversation import Conversation
-        from app.services.detection_runs import conversation_content_hash
-        # The lookup is advisory; publication rechecks these preconditions under
-        # the tenant lock. Include unpublished rows so null means truly absent.
-        present = set(db.scalars(select(Conversation.conversation_id).where(
-            Conversation.tenant_id == tenant_id,
-            Conversation.conversation_id.in_(body.conversation_ids))).all())
-        result["content_hashes"] = {cid: conversation_content_hash(db, tenant_id, cid)
-            if cid in present else None for cid in body.conversation_ids}
-    return result
+    return {"conversation_ids": sorted(ids)}

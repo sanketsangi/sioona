@@ -27,5 +27,4 @@ class UploadMembership(BaseModel):
 
 
 class PublishedConversationLookup(BaseModel):
-    include_content_hashes: bool = False
     conversation_ids: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(min_length=1, max_length=50)

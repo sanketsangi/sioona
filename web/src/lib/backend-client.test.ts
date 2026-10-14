@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEMO_ACTOR_EMAIL,
   LIVE_INGEST_PRINCIPAL,
@@ -954,16 +954,4 @@ describe("budget actor scope", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
-});
-
-beforeEach(() => {
-    vi.stubEnv("SIOONA_PILOT_USERS", JSON.stringify([{"email": "admin@partner.example", "role": "admin", "tenantId": "tenant_partner", "password": "synthetic-test-password"}]));
-});
-
-it("requires actor assertions for production even when actor mode is off", async () => {
-  vi.stubEnv("SIOONA_ENV", "production");
-  vi.stubEnv("SIOONA_ACTOR_AUTH", "off");
-  vi.stubEnv("SIOONA_ACTOR_KEY", "");
-  const { wipeTenantData } = await import("./backend-client");
-  await expect(wipeTenantData("tenant_partner")).rejects.toThrow("actor");
 });

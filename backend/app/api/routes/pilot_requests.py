@@ -11,7 +11,6 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.api.actor import guarded_router
-from app.config import get_settings
 from app.db import get_db
 from app.models.pilot_request import PilotRequest
 
@@ -41,9 +40,6 @@ def accept_request(body: Intake,
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
     try:
         if db.bind.dialect.name == "postgresql":
-            # Cross-worker cap cannot be bypassed by rotating email addresses.
-            db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {
-                "key": int.from_bytes(hashlib.sha256(b"pilot-intake-global-limit").digest()[:8], "big", signed=True)})
             # Serialize both retry identity and recipient rate checks across workers.
             for lock in sorted([idempotency_key, payload["email"]]):
                 db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": int.from_bytes(hashlib.sha256(lock.encode()).digest()[:8], "big", signed=True)})
@@ -52,14 +48,9 @@ def accept_request(body: Intake,
             if existing.payload_hash != digest:
                 raise HTTPException(409, "idempotency_key_conflict")
             return {"ok": True, "receipt": existing.receipt_id}
-        since = datetime.now(timezone.utc) - timedelta(days=1)
-        total = db.scalar(select(func.count()).select_from(PilotRequest).where(
-            PilotRequest.created_at >= since))
-        if total >= get_settings().pilot_intake_daily_limit:
-            raise HTTPException(429, "Too many requests. Please retry tomorrow.")
         recent = db.scalar(select(func.count()).select_from(PilotRequest).where(
             PilotRequest.email == payload["email"],
-            PilotRequest.created_at >= since))
+            PilotRequest.created_at >= datetime.now(timezone.utc) - timedelta(days=1)))
         if recent >= 3:
             raise HTTPException(429, "Too many requests. Please retry tomorrow.")
         db.add(PilotRequest(receipt_id=idempotency_key, payload_hash=digest, **payload))
