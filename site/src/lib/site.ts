@@ -2,15 +2,18 @@ import type { Metadata } from "next";
 import { STEPS } from "./steps";
 
 type SiteEnvironment = Record<string, string | undefined>;
+const APPROVED_VERCEL_SITE_HOST = "sioona-site.vercel.app";
 
-function resolveOrigin(value: string, name: string, env: SiteEnvironment): string {
+function resolveOrigin(value: string, name: string, env: SiteEnvironment, approvedVercelHost?: string): string {
   const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
   let url: URL;
   try { url = new URL(value.trim()); } catch { throw new Error(`${name} must be an absolute origin`); }
   const host = url.hostname.replace(/\.$/, "");
   const local = host === "localhost" || host.endsWith(".localhost") || host === "[::1]" || /^127\./.test(host) || host === "0.0.0.0";
   if (url.username || url.password || url.pathname !== "/" || url.search || url.hash || value.includes("?") || value.includes("#")) throw new Error(`${name} must contain only an origin`);
-  if (production && (local || host === "vercel.app" || host.endsWith(".vercel.app"))) throw new Error(`${name} must use a custom production domain`);
+  const approvedVercelSiteHost = url.hostname === approvedVercelHost;
+  const unapprovedVercelHost = (host === "vercel.app" || host.endsWith(".vercel.app")) && !approvedVercelSiteHost;
+  if (production && (local || unapprovedVercelHost)) throw new Error(`${name} must use a custom production domain or the approved canonical host`);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local && !production)) throw new Error(`${name} must use HTTPS`);
   return url.origin;
 }
@@ -18,7 +21,7 @@ function resolveOrigin(value: string, name: string, env: SiteEnvironment): strin
 export function resolveSiteUrl(env: SiteEnvironment = process.env): string {
   const value = env.NEXT_PUBLIC_SITE_URL?.trim();
   if (!value && (env.NODE_ENV === "production" || env.VERCEL_ENV === "production")) throw new Error("NEXT_PUBLIC_SITE_URL is required in production");
-  return resolveOrigin(value || "http://localhost:3000", "NEXT_PUBLIC_SITE_URL", env);
+  return resolveOrigin(value || "http://localhost:3000", "NEXT_PUBLIC_SITE_URL", env, APPROVED_VERCEL_SITE_HOST);
 }
 
 export function resolveAppUrl(env: SiteEnvironment = process.env): string | null {

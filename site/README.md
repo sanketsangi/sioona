@@ -23,7 +23,7 @@ Environment variables (see `.env.example`):
 
 | Variable | Purpose |
 |---|---|
-| `NEXT_PUBLIC_SITE_URL` | Canonical origin for metadata, sitemap and OG. Falls back to the Vercel URL, then `http://localhost:3000`. |
+| `NEXT_PUBLIC_SITE_URL` | Required production canonical origin for metadata, sitemap and OG. Accepts a custom HTTPS origin or `https://sioona-site.vercel.app`; development falls back to `http://localhost:3000`. |
 | `NEXT_PUBLIC_APP_URL` | Target of the Sign In link. Falls back to `/contact` until the product URL is confirmed. |
 
 ## Structure
@@ -75,7 +75,7 @@ To change pacing, edit `motion.ts` (and `heroScript` for the mock) rather than i
 
 1. Import the repository in Vercel.
 2. Set **Root Directory** to `site`. Framework preset: Next.js.
-3. Add `NEXT_PUBLIC_SITE_URL` (production origin) and `NEXT_PUBLIC_APP_URL` (product sign-in URL).
+3. Add `NEXT_PUBLIC_SITE_URL` using the custom production origin or the approved stable origin `https://sioona-site.vercel.app`, plus `NEXT_PUBLIC_APP_URL` when the product sign-in URL is confirmed.
 4. Deploy. No other configuration is needed.
 
 Unfinished contact requests stay in memory only. Internal links and app Back/Forward
