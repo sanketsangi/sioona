@@ -1,0 +1,86 @@
+{
+  "card": "CB-14",
+  "date": "2026-10-14",
+  "checkpoint": "31677af46fe082332211cb5326eec92f6888a395",
+  "offline": true,
+  "hosted_changes": false,
+  "live_provider_calls": 0,
+  "checks": {
+    "backend_pytest": {
+      "command": "cd backend && python -m pytest -q",
+      "result": "passed",
+      "log_sha256": "0421d5b3735b2cea9d6b796c4dcbde6779337b68f3ff04f7b6e3e3121bb683df",
+      "passed": 579,
+      "skipped": 39,
+      "skips": "Postgres cases covered by the separate disposable suite",
+      "replay_fixtures": 120,
+      "rejected_replay_fixtures": "assert rejection and absence of cache writes; no skipped cases"
+    },
+    "postgres": {
+      "command": "cd backend && PG_TEST_DATABASE_URL=postgresql+psycopg://sioona@127.0.0.1:55459/sioona_migration_test python -m pytest tests/test_postgres_migrations.py -q -s",
+      "result": "passed",
+      "log_sha256": "c54925d8e5549997480b3dc74c01b308f78c1d66d6534e84762310ebd23732ee",
+      "passed": 39,
+      "historical_10k": {
+        "seconds": 274.639,
+        "http_enqueue_seconds": 0.746,
+        "http_status": 202,
+        "provider_calls": 2,
+        "cache_hits": 9999,
+        "attempts": 10001,
+        "completed_conversations": 10000,
+        "active_predictions": 10000,
+        "evidence_rows": 10000,
+        "ambiguous_pending_attempts": 1,
+        "reported_input_tokens": 10,
+        "reported_output_tokens": 5,
+        "provider_cached_input_tokens": 2,
+        "duplicate_publications": 0,
+        "forced_crashes": [
+          "ambiguous provider response",
+          "after cache-hit publication commit"
+        ],
+        "reconstructed_evidence_rows": 10000
+      },
+      "suite_seconds": 289.87
+    },
+    "web_vitest": {
+      "command": "cd web && npm test -- --maxWorkers=1 --testTimeout=30000",
+      "result": "passed",
+      "log_sha256": "d9c8121454e0863434c2e391ed7c93895ff924259a3a63cdd92791087004ac17",
+      "passed": 1828,
+      "skipped": 5,
+      "files_passed": 198,
+      "files_skipped": 1
+    },
+    "lint": {
+      "command": "cd web && npm run lint",
+      "result": "passed",
+      "log_sha256": "97b3d9b55df97ed77f810c09c5646dc08237da3e774ade959fab5ccb38c90c1d",
+      "errors": 0,
+      "warnings": 1,
+      "warning": "Existing NavUser.tsx internal navigation warning"
+    },
+    "typecheck": {
+      "command": "cd web && npx tsc --noEmit",
+      "result": "passed",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "eval_gate": {
+      "command": "cd web && npm run eval:gate",
+      "result": "passed",
+      "code": 0,
+      "source_commit": "7f622b01a6fd79c1531e824376111f9f04728817",
+      "git_dirty": false,
+      "mode": "offline replay",
+      "validation_examples": 120,
+      "evidence_validity": 1,
+      "coverage": 1,
+      "critical_injection_failures": 0,
+      "tenant_failures": 0,
+      "log_sha256": "2f01883fb9764dd369af52163d9ce5a23e9d90805ba6366c8ce93067edbb2cd2",
+      "artifact": "CB-14-EVAL.json"
+    }
+  },
+  "implementation_commit": "7f622b01a6fd79c1531e824376111f9f04728817"
+}

@@ -13,8 +13,8 @@ from uuid import uuid4
 from app.config import get_settings
 from app.db import SessionLocal, bind_tenant, clear_tenant
 from app.models.detection_run import DetectionRun
-from app.services import jobs
-from app.services.inference_budget import BudgetDenied
+from app.services import jobs, classification_cache as cache
+from app.services.inference_budget import BudgetDenied, ai_enabled
 from app.ai.gateway import (
     ProviderFailure,
     provider_call,
@@ -150,16 +150,11 @@ class Worker:
     def process(self, lease, lost):
         tenant = lease.tenant_id
 
-        def load(db):
-            row = jobs.fenced(db, lease)
-            if jobs.config_hash(db, tenant) != row.config_sha256:
-                raise jobs.JobError("config_changed")
-            return jobs.source_body(db, row)
-
-        body = self.transaction(tenant, load)
+        page = self.transaction(tenant, lambda db: jobs.work_page(db, lease))
         s = get_settings()
-        model = s.detect_llm_model
-        for chat in body.conversations:
+        for chat in page:
+            model = s.detect_llm_model
+            cache_write = None
             if lost.is_set():
                 raise jobs.LeaseLost("lease_lost")
             if self.paused():
@@ -201,6 +196,32 @@ class Worker:
                 text, coverage = recent_transcript(chat.messages)
                 messages = chat_messages(chat, text, coverage["omitted_turns"])
                 for fallback in range(2):
+                    key = cache.identity(tenant, chat, model, overrides)
+
+                    def use_cached(db):
+                        row = jobs.fenced(db, lease, corpus=True)
+                        if not ai_enabled(db, tenant):
+                            row.last_error_category = "ai_paused"
+                            return "ai_paused"
+                        hit = cache.lookup(db, key, chat)
+                        if hit is None:
+                            return False
+                        if jobs.canonical_context(db, tenant, chat.conversation_id) != (chat.customer_name, chat.channel):
+                            raise jobs.JobError("source_changed")
+                        if not ai_enabled(db, tenant):
+                            row.last_error_category = "ai_paused"
+                            return "ai_paused"
+                        cache.record_hit(db, lease, chat, key)
+                        jobs.publish_conversation(db, lease, chat.conversation_id, content_hash, model, hit[1], coverage)
+                        return True
+
+                    cached = self.transaction(tenant, use_cached)
+                    if cached == "ai_paused":
+                        coverage = None
+                        break
+                    if cached:
+                        publication_model = "cache_published"
+                        break
                     attempt = self.transaction(
                         tenant,
                         lambda db: jobs.admit(
@@ -243,27 +264,33 @@ class Worker:
                     try:
                         output = classification_output(parsed, chat, chat.messages, model)
                         publication_model = model
+                        cache_write = (key, parsed)
                     except ProviderFailure:
                         # A metered successful call can still be unsafe/ungrounded.
                         # Retain grounded heuristics and continue the upload.
                         coverage = None
                     break
-            self.transaction(
-                tenant,
-                lambda db: jobs.publish_conversation(
-                    db,
-                    lease,
-                    chat.conversation_id,
-                    content_hash,
-                    publication_model,
-                    output,
-                    coverage,
-                ),
-            )
+            if publication_model == "cache_published":
+                continue
+
+            def publish(db):
+                jobs.publish_conversation(db, lease, chat.conversation_id, content_hash,
+                    publication_model, output, coverage)
+                if cache_write:
+                    if jobs.canonical_context(db, tenant, chat.conversation_id) != (chat.customer_name, chat.channel):
+                        raise jobs.JobError("source_changed")
+                    cache.store(db, cache_write[0], cache_write[1], chat)
+            self.transaction(tenant, publish)
             time.sleep(
                 0.2 if llm else 0
             )  # Existing minimum provider pacing; no transaction held.
-        self.transaction(tenant, lambda db: jobs.complete(db, lease))
+        def finish(db):
+            row = jobs.fenced(db, lease, corpus=True)
+            if row.job_type == "historical" and row.cursor < row.conversation_count:
+                jobs.yield_chunk(db, lease)
+            else:
+                jobs.complete(db, lease)
+        self.transaction(tenant, finish)
 
 
 def main():

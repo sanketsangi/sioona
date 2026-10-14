@@ -21,7 +21,7 @@ class Job(Base):
         ForeignKeyConstraint(
             ["tenant_id", "upload_id"], ["uploads.tenant_id", "uploads.upload_id"]
         ),
-        CheckConstraint("job_type IN ('upload', 'detect')", name="ck_jobs_type"),
+        CheckConstraint("job_type IN ('upload', 'detect', 'historical')", name="ck_jobs_type"),
         CheckConstraint(
             "status IN ('queued','leased','succeeded','failed','cancelled','dead_lettered')",
             name="ck_jobs_status",
@@ -31,7 +31,7 @@ class Job(Base):
             name="ck_jobs_attempts",
         ),
         CheckConstraint(
-            "lease_token >= 0 AND cursor >= 0 AND conversation_count BETWEEN 1 AND 1000 AND cursor <= conversation_count",
+            "lease_token >= 0 AND cursor >= 0 AND conversation_count BETWEEN 1 AND 10000 AND (job_type = 'historical' OR conversation_count <= 1000) AND cursor <= conversation_count",
             name="ck_jobs_cursor",
         ),
         CheckConstraint(

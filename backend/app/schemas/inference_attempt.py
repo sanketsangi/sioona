@@ -31,6 +31,7 @@ class InferenceAttemptIn(BaseModel):
     provider: str = Field(min_length=1, max_length=64)
     model: str = Field(min_length=1, max_length=128)
     prompt_version: str = Field(min_length=1, max_length=128)
+    cache_hit: bool = False
     status: InferenceStatus
     error_category: str | None = Field(default=None, max_length=32)
     http_status: int | None = Field(default=None, ge=100, le=599)
@@ -67,6 +68,8 @@ class InferenceAttemptIn(BaseModel):
 
     @model_validator(mode="after")
     def usage_consistency(self) -> InferenceAttemptIn:
+        if self.cache_hit:
+            raise ValueError("cache hits are worker-owned and cannot be submitted by clients")
         if self.usage_status == "unknown":
             if any(
                 value is not None
@@ -107,6 +110,7 @@ class InferenceAttemptOut(BaseModel):
     provider: str
     model: str
     prompt_version: str
+    cache_hit: bool = False
     status: str
     error_category: str | None
     http_status: int | None
@@ -136,6 +140,7 @@ class InferenceAttemptBatchResult(BaseModel):
 
 class InferenceUsageBucket(BaseModel):
     key: str
+    cache_hits: int = Field(default=0, ge=0)
     attempts: int = Field(ge=0)
     succeeded: int = Field(ge=0)
     failed: int = Field(ge=0)
@@ -162,6 +167,7 @@ class InferenceUsageResponse(BaseModel):
 class DetectionRunInferenceResponse(BaseModel):
     tenant_id: str
     detection_run_id: str
+    cache_hits: int = Field(default=0, ge=0)
     attempts: int = Field(ge=0)
     succeeded: int = Field(ge=0)
     failed: int = Field(ge=0)

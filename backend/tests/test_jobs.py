@@ -128,6 +128,7 @@ def test_metering_pending_commits_before_dispatch(db, monkeypatch):
     monkeypatch.setenv("DETECT_LLM", "1")
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     get_settings.cache_clear()
+    configure(db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
     db.commit()
     jid = enqueue(db)
@@ -165,7 +166,7 @@ def test_missing_budget_never_dispatches(db, monkeypatch):
 
     assert Worker(sessionmaker(bind=db.get_bind()), call=forbidden).run_once("a")
     db.expire_all()
-    assert db.get(Job, ("a", jid)).last_error_category == "unconfigured"
+    assert db.get(Job, ("a", jid)).last_error_category == "ai_paused"
     assert db.scalar(select(InferenceAttempt)) is None
 
 
@@ -272,6 +273,7 @@ def test_provider_failures_are_metered_and_bounded(db, monkeypatch):
     monkeypatch.setenv("DETECT_LLM", "1")
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     get_settings.cache_clear()
+    configure(db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
     db.commit()
     jid = enqueue(db)
@@ -305,6 +307,7 @@ def test_daily_quota_fallback_has_separate_pending_reservation(db, monkeypatch):
     monkeypatch.setenv("DETECT_LLM", "1")
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     get_settings.cache_clear()
+    configure(db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
     db.commit()
     jid = enqueue(db)
@@ -366,6 +369,7 @@ def test_changed_publication_stays_in_resume(db):
 
 
 def test_admission_rechecks_lease_after_budget_lock(db, monkeypatch):
+    configure(db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL)
     db.commit()
     jid = enqueue(db)
@@ -509,6 +513,7 @@ def test_rejected_classification_falls_back_and_continues(db, monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "test-only")
     monkeypatch.setattr("app.worker.time.sleep", lambda _: None)
     get_settings.cache_clear()
+    configure(db, "global", 1000, 1000, True, "synthetic", jobs.PRINCIPAL)
     configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL); db.commit()
     b = body(ids=("fixture", "after"))
     b.conversations[0].messages = [type(b.conversations[0].messages[0])(
