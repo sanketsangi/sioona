@@ -10,6 +10,7 @@ import {
   BACKEND_MUTATION_TIMEOUT_MS,
   BackendClientError,
   VERCEL_BACKEND_MISCONFIG_MESSAGE,
+  HOSTED_BACKEND_MISCONFIG_MESSAGE,
   assertBackendUrlConfigured,
   createPrediction,
   createPredictionsBulk,
@@ -56,32 +57,44 @@ describe("canonical missing-record responses", () => {
 });
 
 describe("assertBackendUrlConfigured", () => {
-  it("allows localhost default off Vercel", () => {
+  const environments = [
+    ["VERCEL", "1", VERCEL_BACKEND_MISCONFIG_MESSAGE],
+    ["RENDER", "true", HOSTED_BACKEND_MISCONFIG_MESSAGE],
+    ["SIOONA_ENV", "production", HOSTED_BACKEND_MISCONFIG_MESSAGE],
+  ] as const;
+
+  function clearHostingFlags() {
     vi.stubEnv("VERCEL", "");
+    vi.stubEnv("RENDER", "");
+    vi.stubEnv("SIOONA_ENV", "");
+  }
+
+  for (const [key, value, message] of environments) {
+    describe(`${key}=${value}`, () => {
+      it.each(["", "   ", "http://localhost:8000", "http://127.0.0.1:8000", "http://[::1]:8000"])(
+        "rejects missing or loopback BACKEND_URL %s", (url) => {
+          clearHostingFlags();
+          vi.stubEnv(key, value);
+          vi.stubEnv("BACKEND_URL", url);
+          expect(() => assertBackendUrlConfigured()).toThrow(message);
+        },
+      );
+
+      it("accepts and normalizes a configured backend URL", () => {
+        clearHostingFlags();
+        vi.stubEnv(key, value);
+        vi.stubEnv("BACKEND_URL", " https://sioona-api.example.com/ ");
+        expect(assertBackendUrlConfigured()).toBe("https://sioona-api.example.com");
+      });
+    });
+  }
+
+  it.each(["", "0", "false"])("allows local development with inactive flags %s", (flag) => {
+    vi.stubEnv("VERCEL", flag);
+    vi.stubEnv("RENDER", flag);
+    vi.stubEnv("SIOONA_ENV", "development");
     vi.stubEnv("BACKEND_URL", "");
     expect(assertBackendUrlConfigured()).toBe("http://localhost:8000");
-  });
-
-  it("fails loud when Vercel has unset BACKEND_URL", () => {
-    vi.stubEnv("VERCEL", "1");
-    vi.stubEnv("BACKEND_URL", "");
-    expect(() => assertBackendUrlConfigured()).toThrow(
-      VERCEL_BACKEND_MISCONFIG_MESSAGE
-    );
-  });
-
-  it("fails loud when Vercel BACKEND_URL is localhost", () => {
-    vi.stubEnv("VERCEL", "1");
-    vi.stubEnv("BACKEND_URL", "http://localhost:8000");
-    expect(() => assertBackendUrlConfigured()).toThrow(
-      VERCEL_BACKEND_MISCONFIG_MESSAGE
-    );
-  });
-
-  it("accepts a public BACKEND_URL on Vercel", () => {
-    vi.stubEnv("VERCEL", "1");
-    vi.stubEnv("BACKEND_URL", "https://sioona-api.example.com/");
-    expect(assertBackendUrlConfigured()).toBe("https://sioona-api.example.com");
   });
 });
 

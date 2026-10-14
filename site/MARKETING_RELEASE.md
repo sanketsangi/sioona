@@ -132,6 +132,38 @@ Replace the placeholder with the actual canonical origin. The script accepts exp
 
 **Remaining external blockers:** actual canonical domain and DNS/TLS, approved policy values, production backend/token configuration, active firewall/backend rate enforcement, live-domain smoke/browser evidence, monitored support mailbox, and authorized persisted receipt/readback. Declare GO only when all of these have evidence.
 
+## Render deployment (proposed unified hosting)
+
+The repository-root `render.yaml` proposes `sioona-site` alongside the product
+web service, API, paused detection worker, and ingestion recovery cron.
+Applying the Blueprint is a separately approved hosted action. Review adoption
+of the existing API and the worker's CB-10/D9 gates before syncing it.
+
+Use a **Node web service**, Root Directory `site`, Node 22, build command
+`npm ci && npm run build`, and start command `npm start`. The start script
+packages static/public assets into the standalone output. `HOSTNAME=0.0.0.0`
+lets Render reach the server, and Render supplies `PORT`. Automatic deployment
+is disabled in the proposal so releases remain operator controlled.
+
+Supply the six required inputs from the same-day checklist through Render's
+`sync: false` placeholders: `NEXT_PUBLIC_SITE_URL`,
+`PILOT_INTAKE_BACKEND_URL`, `SIOONA_SERVICE_TOKEN`,
+`PILOT_CONTACT_SUPPORT_EMAIL`, `PILOT_CONTACT_RETENTION`, and
+`PILOT_CONTACT_HOSTING_REGION`. Use approved policy facts and the actual
+marketing HTTPS origin; rebuild after changes to public values. Keep the token
+server-only and matching the API. `NEXT_PUBLIC_APP_URL` remains optional; leave
+it unset until the product origin is approved. Never deploy synthetic QA values.
+
+Configure DNS, TLS, and canonical redirects for the approved Render domain.
+Vercel firewall rules do not apply on Render: verify backend abuse controls and
+any approved edge rate controls before opening contact intake. Run
+`node scripts/verify-production.mjs https://YOUR-CANONICAL-DOMAIN --production`
+and repeat viewport/browser checks after deployment. This smoke test does not
+submit contact requests. The separately authorized synthetic receipt/readback,
+monitored mailbox, and all remaining external blockers above still gate GO.
+See [Render's Blueprint specification](https://render.com/docs/blueprint-spec)
+and [`../web/DEPLOY.md`](../web/DEPLOY.md) for the product/API configuration.
+
 ## Standalone Node/Docker hosting
 
 `npm run build` produces `.next/standalone/server.js`. `npm start` copies `public/` and `.next/static/` into that output and launches it without `next start` warnings. For a minimal container artifact, copy those directories at image build time:

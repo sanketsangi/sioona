@@ -38,10 +38,13 @@ const MUTATION_MAX_ATTEMPTS = 2;
 export const VERCEL_BACKEND_MISCONFIG_MESSAGE =
   "BACKEND_URL unset or localhost on Vercel — set Production BACKEND_URL to the public FastAPI base URL";
 
+export const HOSTED_BACKEND_MISCONFIG_MESSAGE =
+  "BACKEND_URL unset or localhost in hosted production — set BACKEND_URL to the FastAPI base URL";
+
 function isLoopbackBackendUrl(url: string): boolean {
   try {
     const { hostname } = new URL(url);
-    return hostname === "localhost" || hostname === "127.0.0.1";
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
   } catch {
     return /localhost|127\.0\.0\.1/i.test(url);
   }
@@ -170,14 +173,21 @@ export function getBackendUrl(): string {
 }
 
 /**
- * On Vercel, refuse unset/localhost BACKEND_URL so demos fail loudly
+ * On Vercel, Render, or explicit production, refuse unset/localhost BACKEND_URL
  * instead of timing out against the laptop default.
  */
 export function assertBackendUrlConfigured(): string {
   const fromEnv = process.env.BACKEND_URL?.trim();
   const url = getBackendUrl();
-  if (process.env.VERCEL && (!fromEnv || isLoopbackBackendUrl(url))) {
-    throw new BackendClientError(VERCEL_BACKEND_MISCONFIG_MESSAGE);
+  const onVercel = process.env.VERCEL === "1";
+  const hosted =
+    onVercel ||
+    process.env.RENDER === "true" ||
+    process.env.SIOONA_ENV === "production";
+  if (hosted && (!fromEnv || isLoopbackBackendUrl(url))) {
+    throw new BackendClientError(
+      onVercel ? VERCEL_BACKEND_MISCONFIG_MESSAGE : HOSTED_BACKEND_MISCONFIG_MESSAGE,
+    );
   }
   return url;
 }

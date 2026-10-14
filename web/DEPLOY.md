@@ -325,3 +325,44 @@ SELECT count(*) FROM conversations WHERE channel = 'unknown';  -- equals orphan_
 ## Alembic `022_evidence_anchors`
 
 Render must apply `022` **before** the FastAPI revision that SELECTs `messages.content_sha256` and `signal_predictions.evidence_status`. A database still on `021_inference_attempts` 500s prediction list, review, acted, and snapshot reads. Confirm `alembic current` is `022_evidence_anchors`, then deploy the API. Then run `backend/scripts/backfill_signal_evidence.py --tenant …` (dry-run, then `--apply`). Never point a laptop `alembic upgrade` at production Neon. Existing rows stay `unresolved` until that backfill.
+
+## Render deployment (proposed unified hosting)
+
+The repository-root `render.yaml` proposes five services: `sioona-site`,
+`sioona-web`, `sioona-api`, `sioona-detection-worker`, and
+`sioona-ingestion-recovery`. Review and approve the Blueprint diff before applying
+it, especially adoption of the existing dashboard-managed API. This proposal
+performs no hosted changes or migrations. Worker provisioning still requires
+hosted CB-10 acceptance and D9 approval; keep `SIOONA_WORKER_PAUSE=1` until the
+separate worker cutover is approved. Automatic deploys are disabled for web
+services and the worker; cron provisioning starts its scheduled runs.
+
+For `sioona-web`, use a Node web service with Root Directory `web`, Node 22,
+build command `npm ci && npm run build`, and start command `npm start`.
+Next.js listens on Render's supplied `PORT`; do not hardcode a port.
+The Blueprint uses `sync: false` inputs: supply real values in Render, never Git.
+Set `BACKEND_URL` to the deployed API base URL (normally HTTPS), `AUTH_SECRET`,
+`SIOONA_SERVICE_TOKEN` matching the API, `SIOONA_TENANT_ID`, approved
+`SIOONA_PILOT_USERS` credentials, and the stable `SIOONA_IDENTITY_KEY`.
+`SIOONA_ENV=production` enforces sign-in and defaults operational state to
+Postgres. `RENDER=true` (provided by Render), `SIOONA_ENV=production`, or
+`VERCEL=1` each requires a configured non-localhost `BACKEND_URL`.
+Configure actor-auth keys/mode and optional model or ingestion credentials to
+match the approved API configuration before enabling those features.
+
+The API entry uses Root Directory `backend`, Python 3.12.8,
+`pip install -r requirements.txt`, and
+`uvicorn app.main:app --host 0.0.0.0 --port $PORT`, with `/health` as its probe.
+Supply the approved runtime-role `DATABASE_URL` and matching service token.
+Preserve existing dashboard settings and actor keys when adopting the API.
+Apply required database migrations through a separately approved operator action
+before deploying dependent routes; do not turn migration execution into an
+automatic build step. Worker and recovery database credentials must use their
+approved roles and targets.
+
+After an approved deployment, repeat the hosted read-only checks above with
+`VERCEL_URL` set to the new Render web origin. Verify sign-in, tenant isolation,
+and API health before changing DNS or retiring the previous host. Render's local
+filesystem is ephemeral; production operational state must stay in Postgres.
+See [`../site/MARKETING_RELEASE.md`](../site/MARKETING_RELEASE.md) for marketing
+configuration and its release gates. Reference: [Render Blueprint specification](https://render.com/docs/blueprint-spec).

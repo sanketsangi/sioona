@@ -1,7 +1,75 @@
-# Deployment proposal only: CB-11 worker remains unprovisioned until hosted CB-10 acceptance.
-# Defines the ingestion recovery cron and proposed durable worker. The existing sioona-api web service
-# is managed in the Render dashboard and is intentionally not declared here.
+# Proposed unified hosting; applying this blueprint requires human approval.
+# CB-11 worker provisioning remains gated on hosted CB-10 acceptance and D9 approval.
+# Review the existing dashboard-managed sioona-api before adopting it into this blueprint.
 services:
+  - type: web
+    name: sioona-site
+    runtime: node
+    rootDir: site
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOSTNAME
+        value: "0.0.0.0"
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: PILOT_INTAKE_BACKEND_URL
+        sync: false
+      - key: SIOONA_SERVICE_TOKEN
+        sync: false
+      - key: PILOT_CONTACT_SUPPORT_EMAIL
+        sync: false
+      - key: PILOT_CONTACT_RETENTION
+        sync: false
+      - key: PILOT_CONTACT_HOSTING_REGION
+        sync: false
+
+  - type: web
+    name: sioona-web
+    runtime: node
+    rootDir: web
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: SIOONA_ENV
+        value: "production"
+      - key: BACKEND_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: SIOONA_SERVICE_TOKEN
+        sync: false
+      - key: SIOONA_TENANT_ID
+        sync: false
+      - key: SIOONA_PILOT_USERS
+        sync: false
+      - key: SIOONA_IDENTITY_KEY
+        sync: false
+
+  - type: web
+    name: sioona-api
+    runtime: python
+    rootDir: backend
+    autoDeployTrigger: off
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: SIOONA_ENV
+        value: "production"
+      - key: DATABASE_URL
+        sync: false
+      - key: SIOONA_SERVICE_TOKEN
+        sync: false
+
   - type: cron
     name: sioona-ingestion-recovery
     runtime: python
@@ -16,11 +84,15 @@ services:
         value: "3.12.8"
       - key: DATABASE_URL
         sync: false
+      # Cross-tenant recovery needs the separately approved recovery/admin role.
+      - key: MIGRATION_DATABASE_URL
+        sync: false
 
   - type: worker
     name: sioona-detection-worker
     runtime: python
     rootDir: backend
+    autoDeployTrigger: off
     buildCommand: pip install -r requirements.txt
     startCommand: python -m app.worker
     envVars:
