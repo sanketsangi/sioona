@@ -65,12 +65,11 @@ def _unavailable(reason: str) -> UnavailableMetric:
     return UnavailableMetric(reason=reason)
 
 
-def _alerts(*, attempts: list[InferenceAttempt], jobs: list[Job], predictions: list[SignalPrediction], now: datetime, spend_anomaly: bool | None) -> list[DashboardAlert]:
+def _alerts(*, attempts: list[InferenceAttempt], pending_attempts: list[InferenceAttempt], jobs: list[Job], live_jobs: list[Job], predictions: list[SignalPrediction], now: datetime, spend_anomaly: bool | None) -> list[DashboardAlert]:
     unknown = sum(a.usage_status == "unknown" or a.cost_status == "unknown" for a in attempts)
-    old_pending = sum(a.status == "pending" and now - _utc(a.started_at) > timedelta(minutes=15) for a in attempts)
+    old_pending = sum(now - _utc(a.started_at) > timedelta(minutes=15) for a in pending_attempts)
     dead = sum(j.status == "dead_lettered" for j in jobs)
-    queued = [j for j in jobs if j.status in {"queued", "leased"}]
-    old_queue = any(now - _utc(j.created_at) > timedelta(minutes=15) for j in queued)
+    old_queue = any(now - _utc(j.created_at) > timedelta(minutes=15) for j in live_jobs)
     bursts = sum(a.http_status == 429 for a in attempts)
     invalid = sum(p.evidence_status in {"unresolved", "stale"} for p in predictions)
     rows = [
@@ -144,14 +143,31 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
         Job.attempt_count,
         Job.conversation_count,
         Job.created_at,
+        Job.updated_at,
     ).where(Job.tenant_id == tenant_id, Job.created_at >= start, Job.created_at < end)).all())
+    live_jobs = list(db.execute(select(
+        Job.status,
+        Job.created_at,
+    ).where(Job.tenant_id == tenant_id, Job.status.in_(("queued", "leased")))).all())
+    live_pending_attempts = list(db.execute(select(
+        InferenceAttempt.status,
+        InferenceAttempt.started_at,
+    ).where(InferenceAttempt.tenant_id == tenant_id, InferenceAttempt.status == "pending")).all())
 
     ingested = sum(j.conversation_count for j in jobs if j.job_type == "upload")
     completed_runs = [r for r in runs if r.status in {"complete", "completed", "succeeded"}]
     processed = len({r.conversation_id for r in completed_runs})
     surfaced = len(predictions)
-    prediction_by_id = {p.id: p for p in predictions}
-    scoped_feedback = [f for f in feedback if f.signal_id in prediction_by_id]
+    reviewed_prediction_ids = {f.signal_id for f in feedback}
+    reviewed_predictions = list(db.execute(select(
+        SignalPrediction.id,
+        SignalPrediction.signal_type,
+    ).where(
+        SignalPrediction.tenant_id == tenant_id,
+        SignalPrediction.id.in_(reviewed_prediction_ids),
+    )).all()) if reviewed_prediction_ids else []
+    reviewed_prediction_by_id = {p.id: p for p in reviewed_predictions}
+    scoped_feedback = [f for f in feedback if f.signal_id in reviewed_prediction_by_id]
     reviewed = len(scoped_feedback)
     correct = sum(f.feedback == "correct" for f in scoped_feedback)
     incorrect = sum(f.feedback == "incorrect" for f in scoped_feedback)
@@ -162,7 +178,7 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
 
     type_counts: dict[str, Counter] = defaultdict(Counter)
     for item in scoped_feedback:
-        type_counts[prediction_by_id[item.signal_id].signal_type][item.feedback] += 1
+        type_counts[reviewed_prediction_by_id[item.signal_id].signal_type][item.feedback] += 1
     by_type = []
     for signal_type, counts in sorted(type_counts.items()):
         total = sum(counts.values())
@@ -184,11 +200,16 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
 
     attempt_status = Counter(a.status for a in attempts)
     job_status = Counter(j.status for j in jobs)
-    queued = [j for j in jobs if j.status in {"queued", "leased"}]
+    queued = live_jobs
     oldest_age = max((max(0, int((current - _utc(j.created_at)).total_seconds())) for j in queued), default=None)
     retry_count = sum(a.attempt_ordinal > 1 for a in attempts)
     error_count = sum(a.status in {"failed", "timeout", "cancelled"} for a in attempts)
     latencies = [a.latency_ms for a in attempts if a.latency_ms is not None and a.latency_ms >= 0]
+    processing_latencies = [
+        max(0, int((_utc(j.updated_at) - _utc(j.created_at)).total_seconds() * 1000))
+        for j in jobs
+        if j.status in {"succeeded", "failed", "cancelled", "dead_lettered"}
+    ]
 
     unknown_usage = sum(a.usage_status == "unknown" for a in attempts)
     unknown_cost = sum(a.cost_status == "unknown" or a.estimated_cost_usd is None for a in attempts)
@@ -196,16 +217,28 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
     estimated = sum((Decimal(a.estimated_cost_usd) for a in known if a.cost_status == "estimated"), ZERO)
     reconciled = sum((Decimal(a.estimated_cost_usd) for a in known if a.cost_status == "reconciled"), ZERO)
     known_cost = estimated + reconciled
-    base_cost = _cost_per(known_cost, processed) if known else None
-    projections = [CostProjection(conversations=volume, estimated_cost_usd=(known_cost * volume / Decimal(processed)).quantize(MONEY, rounding=ROUND_HALF_UP) if base_cost is not None else None, status="available" if base_cost is not None else "unavailable", incomplete=unknown_cost > 0) for volume in (10_000, 50_000, 100_000)]
+    completed_run_ids = {r.run_id for r in completed_runs}
+    cohort_attempts = list(db.execute(select(
+        InferenceAttempt.estimated_cost_usd,
+        InferenceAttempt.cost_status,
+    ).where(
+        InferenceAttempt.tenant_id == tenant_id,
+        InferenceAttempt.detection_run_id.in_(completed_run_ids),
+        InferenceAttempt.stage.in_(("screen", "detect", "verify")),
+    )).all()) if completed_run_ids else []
+    known_cohort_attempts = [a for a in cohort_attempts if a.cost_status != "unknown" and a.estimated_cost_usd is not None]
+    cohort_cost = sum((Decimal(a.estimated_cost_usd) for a in known_cohort_attempts), ZERO)
+    unknown_cohort_cost = sum(a.cost_status == "unknown" or a.estimated_cost_usd is None for a in cohort_attempts)
+    base_cost = _cost_per(cohort_cost, processed) if known_cohort_attempts else None
+    projections = [CostProjection(conversations=volume, estimated_cost_usd=(cohort_cost * volume / Decimal(processed)).quantize(MONEY, rounding=ROUND_HALF_UP) if base_cost is not None else None, status="available" if base_cost is not None else "unavailable", incomplete=unknown_cohort_cost > 0) for volume in (10_000, 50_000, 100_000)]
 
     daily_cost: dict[object, Decimal] = defaultdict(lambda: ZERO)
-    daily_processed: Counter = Counter()
+    daily_processed: dict[object, set[str]] = defaultdict(set)
     for a in known:
         daily_cost[_utc(a.started_at).astimezone(IST).date()] += Decimal(a.estimated_cost_usd or ZERO)
     for r in completed_runs:
-        daily_processed[_utc(r.created_at).astimezone(IST).date()] += 1
-    daily_rates = [(day, daily_cost[day] / count) for day, count in daily_processed.items() if count and day in daily_cost]
+        daily_processed[_utc(r.created_at).astimezone(IST).date()].add(r.conversation_id)
+    daily_rates = [(day, daily_cost[day] / len(conversations)) for day, conversations in daily_processed.items() if conversations and day in daily_cost]
     daily_rates.sort()
     spend_anomaly: bool | None = None
     if len(daily_rates) >= 4:
@@ -221,6 +254,7 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
         "ingested": "Sum of upload-job conversation_count by job created_at.", "processed": "Distinct conversations with a completed detection run by run created_at.", "surfaced": "Active predictions by prediction created_at.", "reviewed": "Feedback within the window joined to surfaced predictions.", "correct": "Canonical correct feedback in reviewed.", "acted": "Surfaced predictions marked acted.", "positive_outcomes": "Surfaced predictions with retained or converted outcome.", "influenced_value_inr": "Customer-recorded value for positive outcomes; not incremental revenue.",
     })
     quality = QualityPanel(signal_score=_ratio(correct, reviewed), reviewed=reviewed, correct=correct, incorrect=incorrect, partially_correct=partial, false_positive_rate=_ratio(incorrect, reviewed), evidence_valid=evidence_valid, evidence_unresolved=evidence_unresolved, evidence_stale=evidence_stale, evidence_failure_rate=_ratio(evidence_unresolved + evidence_stale, evidence_measured), abstained=abstained, abstention_rate=_ratio(abstained, len(completed_runs)), by_signal_type=by_type, gold_set_precision=_unavailable(unavailable_reason), gold_set_recall=_unavailable(unavailable_reason), calibration=_unavailable(unavailable_reason))
-    reliability = ReliabilityPanel(jobs_by_status=dict(job_status), recovered_jobs=sum(j.attempt_count > 1 for j in jobs), queue_depth=len(queued), oldest_queue_age_seconds=oldest_age, attempts_by_status=dict(attempt_status), retry_or_fallback_attempts=retry_count, retry_rate=_ratio(retry_count, len(attempts)), http_429_attempts=sum(a.http_status == 429 for a in attempts), error_rate=_ratio(error_count, len(attempts)), unfinished_attempts=attempt_status["pending"], p50_latency_ms=_percentile(latencies, .5), p95_latency_ms=_percentile(latencies, .95), ledger_flush_failures=_unavailable(unavailable_reason), reservation_drift=_unavailable(unavailable_reason), database_latency=_unavailable(unavailable_reason), connector_errors=_unavailable(unavailable_reason))
-    economics = EconomicsPanel(attempts=len(attempts), input_tokens=sum(a.input_tokens or 0 for a in attempts if a.usage_status != "unknown"), cached_input_tokens=sum(a.cached_input_tokens or 0 for a in attempts if a.usage_status != "unknown"), output_tokens=sum(a.output_tokens or 0 for a in attempts if a.usage_status != "unknown"), unknown_usage_count=unknown_usage, unknown_usage_rate=_ratio(unknown_usage, len(attempts)), unknown_cost_count=unknown_cost, unknown_cost_rate=_ratio(unknown_cost, len(attempts)), known_cost_coverage=_ratio(len(known), len(attempts)), estimated_cost_usd=estimated, reconciled_cost_usd=reconciled, known_cost_usd=known_cost, cost_per_processed_conversation_usd=base_cost, cost_per_surfaced_signal_usd=_cost_per(known_cost, surfaced), cost_per_correct_signal_usd=_cost_per(known_cost, correct), cost_per_acted_signal_usd=_cost_per(known_cost, acted), projections=projections)
-    return EconomicsDashboardResponse(tenant_id=tenant_id, from_ts=start, to_ts=end, funnel=funnel, quality=quality, reliability=reliability, economics=economics, alerts=_alerts(attempts=attempts, jobs=jobs, predictions=predictions, now=current, spend_anomaly=spend_anomaly))
+    reliability = ReliabilityPanel(jobs_by_status=dict(job_status), recovered_jobs=sum(j.attempt_count > 1 for j in jobs), queue_depth=len(queued), oldest_queue_age_seconds=oldest_age, attempts_by_status=dict(attempt_status), retry_or_fallback_attempts=retry_count, retry_rate=_ratio(retry_count, len(attempts)), http_429_attempts=sum(a.http_status == 429 for a in attempts), error_rate=_ratio(error_count, len(attempts)), unfinished_attempts=len(live_pending_attempts), p50_latency_ms=_percentile(latencies, .5), p95_latency_ms=_percentile(latencies, .95), p50_processing_latency_ms=_percentile(processing_latencies, .5), p95_processing_latency_ms=_percentile(processing_latencies, .95), ledger_flush_failures=_unavailable(unavailable_reason), reservation_drift=_unavailable(unavailable_reason), database_latency=_unavailable(unavailable_reason), connector_errors=_unavailable(unavailable_reason))
+    unit_cost = lambda denominator: _cost_per(cohort_cost, denominator) if known_cohort_attempts else None
+    economics = EconomicsPanel(attempts=len(attempts), input_tokens=sum(a.input_tokens or 0 for a in attempts if a.usage_status != "unknown"), cached_input_tokens=sum(a.cached_input_tokens or 0 for a in attempts if a.usage_status != "unknown"), output_tokens=sum(a.output_tokens or 0 for a in attempts if a.usage_status != "unknown"), unknown_usage_count=unknown_usage, unknown_usage_rate=_ratio(unknown_usage, len(attempts)), unknown_cost_count=unknown_cost, unknown_cost_rate=_ratio(unknown_cost, len(attempts)), known_cost_coverage=_ratio(len(known), len(attempts)), estimated_cost_usd=estimated, reconciled_cost_usd=reconciled, known_cost_usd=known_cost, cost_per_processed_conversation_usd=base_cost, cost_per_surfaced_signal_usd=unit_cost(surfaced), cost_per_correct_signal_usd=unit_cost(correct), cost_per_acted_signal_usd=unit_cost(acted), projections=projections)
+    return EconomicsDashboardResponse(tenant_id=tenant_id, from_ts=start, to_ts=end, funnel=funnel, quality=quality, reliability=reliability, economics=economics, alerts=_alerts(attempts=attempts, pending_attempts=live_pending_attempts, jobs=jobs, live_jobs=live_jobs, predictions=predictions, now=current, spend_anomaly=spend_anomaly))

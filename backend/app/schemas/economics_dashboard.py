@@ -66,6 +66,8 @@ class ReliabilityPanel(BaseModel):
     unfinished_attempts: int = Field(ge=0)
     p50_latency_ms: float | None = Field(default=None, ge=0)
     p95_latency_ms: float | None = Field(default=None, ge=0)
+    p50_processing_latency_ms: float | None = Field(default=None, ge=0)
+    p95_processing_latency_ms: float | None = Field(default=None, ge=0)
     ledger_flush_failures: UnavailableMetric
     reservation_drift: UnavailableMetric
     database_latency: UnavailableMetric

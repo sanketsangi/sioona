@@ -238,7 +238,7 @@ def test_live_backlog_ignores_window(db):
 def test_job_processing_latency_uses_durable_completion(db):
     _seed(db, "tenant_a")
     j = db.query(Job).one()
-    j.completed_at = j.created_at + timedelta(seconds=10)
+    j.updated_at = j.created_at + timedelta(seconds=10)
     db.commit()
     r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW)
     assert r.reliability.p50_processing_latency_ms == 10000

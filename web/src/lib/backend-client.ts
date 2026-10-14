@@ -1323,7 +1323,8 @@ export interface BackendEconomicsDashboard {
     oldest_queue_age_seconds: number | null; attempts_by_status: Record<string, number>;
     retry_or_fallback_attempts: number; retry_rate: number | null; http_429_attempts: number;
     error_rate: number | null; unfinished_attempts: number; p50_latency_ms: number | null;
-    p95_latency_ms: number | null; ledger_flush_failures: UnavailableMetric;
+    p95_latency_ms: number | null; p50_processing_latency_ms: number | null;
+    p95_processing_latency_ms: number | null; ledger_flush_failures: UnavailableMetric;
     reservation_drift: UnavailableMetric; database_latency: UnavailableMetric; connector_errors: UnavailableMetric;
   };
   economics: {
@@ -1349,7 +1350,7 @@ export async function getEconomicsDashboard(
   const query = params.size ? `?${params.toString()}` : "";
   return backendFetch<BackendEconomicsDashboard>(tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/economics-dashboard${query}`,
-    { method: "GET", headers: { "X-Sioona-Role": "admin" } });
+    { method: "GET", headers: { ...(await budgetHeaders(tenantId)), "X-Sioona-Role": "admin" } });
 }
 export async function enqueueUploadJob(tenantId: string, uploadId: string, input: {
   source: string; replace: boolean; conversations: BackendConversationInput[];

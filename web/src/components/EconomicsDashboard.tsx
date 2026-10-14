@@ -64,7 +64,7 @@ export function EconomicsDashboard({ data }: { data: BackendEconomicsDashboard }
 
       <Panel id="quality" title="Signal quality" description="Human acceptance and evidence health from canonical predictions and feedback.">
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="SignalScore" value={ratio(quality.signal_score)} note="Correct ÷ reviewed" />
+          <Metric label="Human acceptance rate" value={ratio(quality.signal_score)} note="Correct ÷ reviewed in this reporting window" />
           <Metric label="False-positive rate" value={ratio(quality.false_positive_rate)} note="Incorrect ÷ reviewed" />
           <Metric label="Evidence failure rate" value={ratio(quality.evidence_failure_rate)} note={`${integer.format(quality.evidence_unresolved + quality.evidence_stale)} stale or unresolved`} />
           <Metric label="Abstention rate" value={ratio(quality.abstention_rate)} note={`${integer.format(quality.abstained)} completed run(s) without a surfaced signal`} />
@@ -87,6 +87,8 @@ export function EconomicsDashboard({ data }: { data: BackendEconomicsDashboard }
           <Metric label="Error rate" value={ratio(reliability.error_rate)} note={`${integer.format(reliability.http_429_attempts)} provider 429 response(s)`} />
           <Metric label="p50 provider latency" value={reliability.p50_latency_ms == null ? "Unavailable" : `${integer.format(reliability.p50_latency_ms)} ms`} />
           <Metric label="p95 provider latency" value={reliability.p95_latency_ms == null ? "Unavailable" : `${integer.format(reliability.p95_latency_ms)} ms`} />
+          <Metric label="p50 processing latency" value={reliability.p50_processing_latency_ms == null ? "Unavailable" : `${integer.format(reliability.p50_processing_latency_ms)} ms`} />
+          <Metric label="p95 processing latency" value={reliability.p95_processing_latency_ms == null ? "Unavailable" : `${integer.format(reliability.p95_processing_latency_ms)} ms`} />
           <Metric label="Unfinished attempts" value={integer.format(reliability.unfinished_attempts)} />
           <Metric label="Durable telemetry gaps" value="4 unavailable" note="Flush failures, reservation drift, DB latency, connector errors" />
         </dl>
