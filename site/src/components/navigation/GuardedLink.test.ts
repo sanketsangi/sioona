@@ -6,7 +6,7 @@ import type NextLink from "next/link";
 
 const navigate = vi.fn();
 vi.mock("next/link", () => ({ default: ({ onNavigate, href, children, ...props }: ComponentProps<typeof NextLink>) =>
-  createElement("a", { ...props, href: String(href), onClick: (event: MouseEvent<HTMLAnchorElement>) => {
+  createElement("a", { ...props, prefetch: undefined, href: String(href), onClick: (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || props.target === "_blank") return;
     let prevented = false;

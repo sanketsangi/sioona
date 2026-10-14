@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/link", () => ({
   default: ({ href, children, onNavigate, onClick, ...props }: { href: string; children?: ReactNode; onNavigate?: (event: { preventDefault: () => void }) => void; onClick?: (event: MouseEvent) => void }) =>
-    createElement("a", { href, ...props, onClick: (event: MouseEvent) => { event.preventDefault(); onClick?.(event); onNavigate?.({ preventDefault() {} }); }, "data-guarded": Boolean(onNavigate) }, children),
+    createElement("a", { href, ...props, prefetch: undefined, onClick: (event: MouseEvent) => { event.preventDefault(); onClick?.(event); onNavigate?.({ preventDefault() {} }); }, "data-guarded": Boolean(onNavigate) }, children),
 }));
 
 vi.mock("@/components/layout/MenuPreviews", () => {
@@ -268,4 +268,28 @@ describe("Product dropdown", () => {
     expect(backdrop().className).toContain("data-[scrolled=true]:bg-sio-bg-base");
     expect(backdrop().className).not.toContain("opacity-0");
   });
+
+it("closes the product menu on Escape when pointer interaction left focus outside it", () => {
+  act(() => productButton().click());
+  act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
+  expect(productButton().getAttribute("aria-expanded")).toBe("false");
+  expect(document.activeElement).toBe(productButton());
+});
+
+it("restores drawer focus even when opening by pointer did not focus the trigger", () => {
+  vi.useFakeTimers();
+  try {
+    const trigger = host?.querySelector('button[aria-label="Open Menu"]') as HTMLButtonElement;
+    const dialog = host?.querySelector('dialog') as HTMLDialogElement;
+    dialog.showModal = () => { dialog.open = true; };
+    dialog.close = () => { dialog.open = false; dialog.dispatchEvent(new Event("close")); };
+    act(() => trigger.click());
+    act(() => (dialog.querySelector('button') as HTMLButtonElement).focus());
+    act(() => dialog.dispatchEvent(new Event("cancel", { cancelable: true })));
+    act(() => vi.advanceTimersByTime(200));
+    expect(dialog.open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
+  } finally { vi.useRealTimers(); }
+});
+
 });

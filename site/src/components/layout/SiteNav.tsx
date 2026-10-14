@@ -34,6 +34,7 @@ export function SiteNav() {
   const [retainedPreviews, setRetainedPreviews] = useState<number[]>([]);
   const productRef = useRef<HTMLDivElement>(null);
   const productButtonRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closingRef = useRef(false);
   const pendingHeaderScroll = useRef<string | null>(null);
@@ -143,6 +144,19 @@ export function SiteNav() {
     return () => document.removeEventListener("pointerdown", onPointer);
   }, []);
 
+  useEffect(() => {
+    if (!productOpen) return;
+    // WebKit pointer clicks may leave focus on the document rather than the menu.
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setProductOpen(false);
+      productButtonRef.current?.focus();
+    };
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+  }, [productOpen]);
+
   const openDrawer = useCallback(() => {
     const dialog = dialogRef.current;
     if (!dialog || dialog.open) return;
@@ -162,6 +176,7 @@ export function SiteNav() {
     window.setTimeout(
       () => {
         dialog.close();
+        menuButtonRef.current?.focus();
         dialog.removeAttribute("data-closing");
         closingRef.current = false;
       },
@@ -175,6 +190,7 @@ export function SiteNav() {
     const onClose = () => {
       delete document.documentElement.dataset.drawerOpen;
       setOpen(false);
+      menuButtonRef.current?.focus();
     };
     const onCancel = (event: Event) => {
       event.preventDefault();
@@ -222,6 +238,7 @@ export function SiteNav() {
             if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) setProductOpen(false);
           }} onKeyDown={(event) => {
             if (event.key === "Escape") {
+              event.preventDefault();
               setProductOpen(false);
               productButtonRef.current?.focus();
             }
@@ -296,6 +313,7 @@ export function SiteNav() {
           </Link>
           <button
             type="button"
+            ref={menuButtonRef}
             onClick={openDrawer}
             aria-label="Open Menu"
             aria-haspopup="dialog"
