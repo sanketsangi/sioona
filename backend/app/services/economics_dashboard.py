@@ -171,13 +171,21 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
     evidence_unresolved = sum(p.evidence_status == "unresolved" for p in predictions)
     evidence_stale = sum(p.evidence_status == "stale" for p in predictions)
     evidence_measured = evidence_valid + evidence_unresolved + evidence_stale
-    surfaced_runs = {p.detection_run_id for p in predictions if p.detection_run_id}
+    # Superseding a prediction does not turn its completed run into an abstention.
+    surfaced_runs = set(db.scalars(select(SignalPrediction.detection_run_id).where(
+        SignalPrediction.tenant_id == tenant_id,
+        SignalPrediction.detection_run_id.in_(select(DetectionRun.run_id).where(
+            DetectionRun.tenant_id == tenant_id,
+            DetectionRun.created_at >= start, DetectionRun.created_at < end,
+            DetectionRun.status.in_(("complete", "completed", "succeeded")),
+        )),
+    )))
     abstained = sum(r.run_id not in surfaced_runs for r in completed_runs)
 
     attempt_status = Counter(a.status for a in attempts)
     job_status = Counter(j.status for j in jobs)
     queued = [j for j in jobs if j.status in {"queued", "leased"}]
-    oldest_age = max((int((current - _utc(j.created_at)).total_seconds()) for j in queued), default=None)
+    oldest_age = max((max(0, int((current - _utc(j.created_at)).total_seconds())) for j in queued), default=None)
     retry_count = sum(a.attempt_ordinal > 1 for a in attempts)
     error_count = sum(a.status in {"failed", "timeout", "cancelled"} for a in attempts)
     latencies = [a.latency_ms for a in attempts if a.latency_ms is not None and a.latency_ms >= 0]
@@ -188,8 +196,8 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
     estimated = sum((Decimal(a.estimated_cost_usd) for a in known if a.cost_status == "estimated"), ZERO)
     reconciled = sum((Decimal(a.estimated_cost_usd) for a in known if a.cost_status == "reconciled"), ZERO)
     known_cost = estimated + reconciled
-    base_cost = _cost_per(known_cost, processed)
-    projections = [CostProjection(conversations=volume, estimated_cost_usd=(base_cost * volume).quantize(MONEY) if base_cost is not None else None, status="available" if base_cost is not None else "unavailable", incomplete=unknown_cost > 0) for volume in (10_000, 50_000, 100_000)]
+    base_cost = _cost_per(known_cost, processed) if known else None
+    projections = [CostProjection(conversations=volume, estimated_cost_usd=(known_cost * volume / Decimal(processed)).quantize(MONEY, rounding=ROUND_HALF_UP) if base_cost is not None else None, status="available" if base_cost is not None else "unavailable", incomplete=unknown_cost > 0) for volume in (10_000, 50_000, 100_000)]
 
     daily_cost: dict[object, Decimal] = defaultdict(lambda: ZERO)
     daily_processed: Counter = Counter()

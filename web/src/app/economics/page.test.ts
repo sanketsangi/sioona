@@ -36,10 +36,15 @@ describe("EconomicsPage authorization and date state", () => {
 
   it("uses the signed tenant and preserves a half-open URL date window", async () => {
     const result = await EconomicsPage({ searchParams: Promise.resolve({ from: "2026-10-01", to: "2026-10-14" }) });
-    expect(state.getDashboard).toHaveBeenCalledWith("tenant_a", "2026-10-01T00:00:00.000Z", "2026-10-15T00:00:00.000Z");
+    expect(state.getDashboard).toHaveBeenCalledWith("tenant_a", "2026-09-30T18:30:00.000Z", "2026-10-14T18:30:00.000Z");
     const html = renderToStaticMarkup(result);
     expect(html).toContain('name="from"');
     expect(html).toContain('value="2026-10-01"');
     expect(html).toContain("dashboard-ready");
   });
 });
+
+ it("handles invalid calendar dates without crashing", async () => {
+    await EconomicsPage({ searchParams: Promise.resolve({ from: "2026-02-30", to: "2026-99-99" }) });
+    expect(state.getDashboard).toHaveBeenCalledWith("tenant_a", undefined, undefined);
+ });

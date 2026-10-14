@@ -104,7 +104,7 @@ export function EconomicsDashboard({ data }: { data: BackendEconomicsDashboard }
           <Metric label="Cost / correct signal" value={money(economics.cost_per_correct_signal_usd)} />
         </dl>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {economics.projections.map((projection) => <div key={projection.conversations} className="rounded-lg border border-border p-4"><h3 className="text-sm font-medium">{projection.conversations / 1000}K conversations</h3><p className="mt-1 text-xl font-semibold tabular-nums">{money(projection.estimated_cost_usd)}</p><p className="mt-1 text-xs text-muted-foreground">{projection.status === "unavailable" ? "Unavailable: no processed denominator." : projection.incomplete ? "Incomplete estimate · unknown costs excluded." : "Measured known-cost projection."}</p></div>)}
+          {economics.projections.map((projection) => <div key={projection.conversations} className="rounded-lg border border-border p-4"><h3 className="text-sm font-medium">{projection.conversations / 1000}K conversations</h3><p className="mt-1 text-xl font-semibold tabular-nums">{money(projection.estimated_cost_usd)}</p><p className="mt-1 text-xs text-muted-foreground">{projection.status === "unavailable" ? "Unavailable: no processed conversations or known costs." : projection.incomplete ? "Incomplete estimate · unknown costs excluded." : "Measured known-cost projection."}</p></div>)}
         </div>
       </Panel>
 

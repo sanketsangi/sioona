@@ -1529,3 +1529,30 @@ def test_cb11_verified_api_to_runtime_worker_and_polling(job_pg, monkeypatch):
         app.dependency_overrides.clear()
         app.dependency_overrides.update(prior)
         get_settings.cache_clear()
+
+
+def test_cb15_dashboard_reconciliation_under_runtime_rls(job_pg):
+    from tests.test_economics_dashboard import _seed, NOW
+    from app.services.economics_dashboard import build_economics_dashboard
+    from datetime import timedelta
+    from decimal import Decimal
+    with Session(job_pg) as db:
+        _seed(db, "a")
+        _seed(db, "b", multiplier=3)
+    with _runtime_session(job_pg, "a") as db:
+        result = build_economics_dashboard(db, tenant_id="a", from_ts=NOW - timedelta(days=1), to_ts=NOW, now=NOW)
+        assert (result.funnel.ingested, result.funnel.processed, result.funnel.correct) == (2, 2, 1)
+        assert result.funnel.influenced_value_inr == 500
+        assert result.quality.signal_score == 1
+        assert result.quality.abstention_rate == .5
+        assert result.reliability.p50_latency_ms == 200
+        assert result.reliability.p95_latency_ms == 290
+        assert result.economics.input_tokens == 100
+        assert result.economics.unknown_usage_rate == .5
+        assert result.economics.known_cost_usd == Decimal("0.02")
+        assert [p.estimated_cost_usd for p in result.economics.projections] == [Decimal("100"), Decimal("500"), Decimal("1000")]
+        assert all(p.incomplete for p in result.economics.projections)
+        # Deliberately request B through A's DB context: RLS must still deny rows.
+        denied = build_economics_dashboard(db, tenant_id="b", from_ts=NOW - timedelta(days=1), to_ts=NOW, now=NOW)
+        assert denied.funnel.ingested == denied.funnel.processed == denied.economics.attempts == 0
+        assert denied.funnel.surfaced == denied.funnel.reviewed == 0

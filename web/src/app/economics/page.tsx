@@ -12,14 +12,15 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Tenant Economics" };
 
 function isoStart(value?: string): string | undefined {
-  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : undefined;
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) return undefined;
+  return new Date(date.getTime() - 330 * 60_000).toISOString();
 }
 
 function isoExclusiveEnd(value?: string): string | undefined {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + 1);
-  return date.toISOString();
+  const start = isoStart(value);
+  return start ? new Date(new Date(start).getTime() + 86_400_000).toISOString() : undefined;
 }
 
 export default async function EconomicsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
