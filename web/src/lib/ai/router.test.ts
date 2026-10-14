@@ -809,6 +809,27 @@ describe("computeQualityAdjustedBenchmark & compareRouteBenchmarks", () => {
     // Efficiency dropped from ~100 to 0: delta should be -100%, NOT null!
     expect(comparison.deltaQualityEfficiencyPct).toBe(-100);
   });
+
+  it("blocks ambiguous cost comparisons when both routes have zero measured quality-adjusted cost", () => {
+    const zeroCostBaseline = computeQualityAdjustedBenchmark({
+      routeName: "zero_cost_baseline",
+      routeVersion: "route:baseline:zero-cost",
+      totalConversations: 10,
+      screenedOutCount: 0,
+      completedCount: 10,
+      totalCostUsd: 0,
+      surfacedSignals: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      truePositives: { lead: 5, retention: 0, upsell: 0, total: 5 },
+      precision: { lead: 1, retention: null, upsell: null, macro: 1 },
+      recall: { lead: 1, retention: 0, upsell: 0, macro: 1 },
+      evidenceValidityRate: 1,
+    });
+    const zeroCostCandidate = { ...zeroCostBaseline, routeName: "zero_cost_candidate", routeVersion: "route:candidate:zero-cost" };
+
+    const comparison = compareRouteBenchmarks(zeroCostBaseline, zeroCostCandidate);
+    expect(comparison.promotable).toBe(false);
+    expect(comparison.blockingReasons).toContain("candidate_increases_quality_adjusted_cost");
+  });
 });
 
 describe("offline synthetic replay through staged routing pipeline", () => {

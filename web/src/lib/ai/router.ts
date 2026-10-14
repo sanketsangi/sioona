@@ -507,6 +507,8 @@ export function compareRouteBenchmarks(
   const blockingReasons: string[] = [];
   if (
     candidate.qualityAdjustedCostPerActionableSignalUsd === null ||
+    (baseline.qualityAdjustedCostPerActionableSignalUsd === 0 &&
+      candidate.qualityAdjustedCostPerActionableSignalUsd === 0) ||
     (baseline.qualityAdjustedCostPerActionableSignalUsd !== null &&
       candidate.qualityAdjustedCostPerActionableSignalUsd > baseline.qualityAdjustedCostPerActionableSignalUsd)
   ) {
