@@ -190,6 +190,29 @@ cd web
 npx vercel --prod --yes --token "$VERCEL_TOKEN"
 ```
 
+## Vercel build & preview deployment configuration (Hobby vs Pro tier)
+
+### Hobby (Free) tier behavior & preview build-ignore script
+
+- **Daily quota constraint**: Vercel Hobby tier enforces a strict limit of **100 deployments per day** across all projects on the account (`sioona-site`, `sioona-web`, and `web`). Frequent commits on PRs quickly exhaust this limit and cause `Deployment rate limit reached` build errors on GitHub PR checks.
+- **Ignored Build Step**: To conserve the daily deployment quota for production releases on `main`, both `web/vercel.json` and `site/vercel.json` configure:
+  ```json
+  "ignoreCommand": "bash scripts/ignore-build.sh"
+  ```
+- **Exit code semantics**:
+  - `exit 0`: Cancels/ignores the build. Vercel skips building without consuming daily deployment quota or build minutes. Used for non-production branches (`VERCEL_GIT_COMMIT_REF != main`).
+  - `exit 1`: Tells Vercel to proceed with the build. Used for production deployments on `main` (`VERCEL_GIT_COMMIT_REF == main` or `VERCEL_ENV == production`).
+
+### Vercel Pro upgrade path & requirements
+
+Once a Vercel Pro team subscription is active:
+
+1. **Re-enabling PR previews**: If live preview URLs for pull requests are desired, update `scripts/ignore-build.sh` (or remove `"ignoreCommand"` from `vercel.json`) to allow preview builds for designated branches or all PRs.
+2. **Build concurrency**: Increase concurrent build capacity (Pro provides up to 12 concurrent builds, eliminating the 1-concurrency queue stalls seen on Hobby).
+3. **Deployment quota**: Pro provides 3,000 deployments/day per team, resolving rate limit exhaustion across monorepo packages.
+4. **Deployment Protection (Preview passwords)**: Enable Vercel Deployment Protection (Password Protection or Vercel Authentication / SSO) in project settings for preview environments to prevent public access to pre-release features or unreleased internal demo tenant data.
+5. **Serverless execution timeout**: Serverless timeouts can be increased from 10s up to 300s, enabling more resilient multi-call LLM detection passes and report PDF exports.
+
 ## Revenue leak report
 
 No new environment variables. The report is `/?view=report` (anonymised by default). Download PDF is `GET /api/revenue-report/pdf`.

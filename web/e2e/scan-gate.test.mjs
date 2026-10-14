@@ -136,3 +136,36 @@ test("only the exact synthetic budget actor key and test path are exempt", () =>
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test("only the exact synthetic pilot idempotency keys and test path are exempt", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cb13-pilot-scan-"));
+  const relative = "backend/tests/test_pilot_requests.py";
+  const dir = path.join(tmp, "backend/tests");
+  const fixture = path.join(tmp, relative);
+  const sample = 'headers = {"Idempotency-Key": "' + ["global", "pilot", "test", "0001"].join("-") + '"}\n';
+  const scan = () => {
+    const added = spawnSync("git", ["-C", tmp, "add", "."], { encoding: "utf8" });
+    assert.equal(added.status, 0, added.stderr);
+    return spawnSync(process.env.GITLEAKS_BIN || "gitleaks", [
+      "protect", "--staged", "--source", tmp, "--config", path.join(root, ".gitleaks.toml"), "--no-banner", "--redact",
+    ], { encoding: "utf8" });
+  };
+  try {
+    const initialized = spawnSync("git", ["init", tmp], { encoding: "utf8" });
+    assert.equal(initialized.status, 0, initialized.stderr);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(fixture, sample);
+    let result = scan();
+    assert.equal(result.status, 0, "documented synthetic pilot test keys must be exempt: " + result.stderr);
+    const extraKey = 'headers = {"Idempotency-Key": "' + ["global", "pilot", "test", "0009"].join("-") + '"}\n';
+    fs.appendFileSync(fixture, extraKey);
+    result = scan();
+    assert.equal(result.status, 1, "an additional secret in the same file must fail");
+    fs.writeFileSync(fixture, sample);
+    fs.writeFileSync(path.join(dir, "other.py"), sample);
+    result = scan();
+    assert.equal(result.status, 1, "the same idempotency keys in a different file must fail");
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

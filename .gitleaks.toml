@@ -16,3 +16,10 @@ condition = "AND"
 paths = ['''(^|/)web/src/lib/backend-client\.test\.ts$''']
 regexTarget = "secret"
 regexes = ['''^synthetic-actor-key-at-least-32-bytes$''']
+
+[[allowlists]]
+description = "Only synthetic pilot test idempotency keys at their exact test path."
+condition = "AND"
+paths = ['''(^|/)backend/tests/test_pilot_requests\.py$''']
+regexTarget = "secret"
+regexes = ['''^global-pilot-test-000[123]$''']

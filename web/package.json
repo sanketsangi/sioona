@@ -21,6 +21,7 @@
     "agent": "npx tsx scripts/cursor-agent.ts",
     "e2e": "node e2e/run-guarded.mjs",
     "eval:holdout": "tsx eval/gate/holdout.ts",
+    "eval:holdout:preflight": "tsx eval/gate/holdout.ts --preflight",
     "eval:promotion": "tsx eval/gate/holdout.ts --promotion"
   },
   "dependencies": {
