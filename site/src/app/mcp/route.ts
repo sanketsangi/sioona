@@ -2,7 +2,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { readBoundedJson, RequestTooLarge } from "@/lib/bounded-json";
-import { markdownFor, markdownNotFound } from "@/lib/markdown-pages";
+import { markdownFor, markdownNotFound, pageCatalog } from "@/lib/markdown-pages";
 import { routes, siteConfig } from "@/lib/site";
 
 export const runtime = "nodejs";
@@ -42,14 +42,21 @@ export async function POST(request: Request) {
   }
   const server = new Server({ name: "sioona-public-content", version: "1.0.0" }, {
     capabilities: { tools: {} },
-    instructions: "Read public Sioona pilot, pricing and security information. No customer data or write actions are available. Use the contact page only with human approval; never submit transcripts or secrets.",
+    instructions: "Read public Sioona pilot, pricing, security, and developer-resource pages. sioona_list_pages requires a string query (empty lists every page). sioona_read_page requires a published path. No customer data or write actions are available. Use the contact page only with human approval; never submit transcripts or secrets.",
   });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [
-    { name: "sioona_list_pages", description: "List Sioona's public marketing pages.", inputSchema: { type: "object", properties: {}, additionalProperties: false }, annotations },
-    { name: "sioona_read_page", description: "Read a public Sioona page in Markdown. Only published marketing paths are supported.", inputSchema: { type: "object", properties: { path: { type: "string", enum: [...routes] } }, required: ["path"], additionalProperties: false }, annotations },
+    { name: "sioona_list_pages", description: "List Sioona's public pages. Filter with the query parameter, or pass an empty string to list every page.", inputSchema: { type: "object", properties: { query: { type: "string", description: "Case-insensitive text matched against Sioona page paths and titles, for example security or pricing. An empty string lists every published page." } }, required: ["query"], additionalProperties: false }, annotations },
+    { name: "sioona_read_page", description: "Read a public Sioona page in Markdown. Only published marketing paths are supported.", inputSchema: { type: "object", properties: { path: { type: "string", description: "Published Sioona path to read as Markdown, such as /security or /developers. Use a path returned by sioona_list_pages.", enum: [...routes] } }, required: ["path"], additionalProperties: false }, annotations },
   ] }));
   server.setRequestHandler(CallToolRequestSchema, async ({ params }) => {
-    if (params.name === "sioona_list_pages") return { content: [{ type: "text", text: routes.map(path => new URL(path, siteConfig.url).toString()).join("\n") }] };
+    if (params.name === "sioona_list_pages") {
+      const raw = params.arguments?.query;
+      if (raw !== undefined && typeof raw !== "string") return { content: [{ type: "text", text: "query must be a string. Pass an empty string to list every public Sioona page." }], isError: true };
+      const query = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+      const rows = pageCatalog().filter((page) => !query || [page.path, page.title, page.url].some((value) => value.toLowerCase().includes(query)));
+      if (!rows.length) return { content: [{ type: "text", text: "No public Sioona pages match that query. Call sioona_list_pages with an empty query to list every page." }], isError: true };
+      return { content: [{ type: "text", text: rows.map((page) => page.url).join("\n") }] };
+    }
     if (params.name === "sioona_read_page" && typeof params.arguments?.path === "string") {
       const path = params.arguments.path;
       const body = routes.some(route => route === path) ? markdownFor(path) : null;

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 const base = new URL(process.argv[2] ?? "http://127.0.0.1:3101");
 assert(["127.0.0.1", "localhost", "[::1]"].includes(base.hostname) || (process.argv.includes("--production") && base.origin === "https://sioona-site.vercel.app"), "Use a local preview URL or the explicit --production target");
-const pages = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/privacy", "/terms"];
+const pages = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/developers", "/privacy", "/terms"];
 const htmlByPath = new Map();
 for (const path of pages) {
   const response = await fetch(new URL(path, base));

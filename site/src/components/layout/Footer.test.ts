@@ -13,7 +13,7 @@ describe("Footer brand and navigation", () => {
   it("keeps every navigation group and conversion path available", () => {
     const html = renderToStaticMarkup(createElement(Footer));
     for (const group of ['Product','Trust','Company']) expect(html).toContain(`aria-label="${group}"`);
-    for (const href of ['/#insights','/#score','/how-it-works#top','/about#top','/security#top','/pricing#top','/contact#top','/#how','/#faq']) expect(html).toContain(`href="${href}"`);
+    for (const href of ['/#insights','/#score','/how-it-works#top','/about#top','/security#top','/pricing#top','/contact#top','/developers#top','/#how','/#faq']) expect(html).toContain(`href="${href}"`);
     expect(html).toContain('Human judgment.');
   });
 });

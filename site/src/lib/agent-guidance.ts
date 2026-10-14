@@ -11,6 +11,7 @@ Use Sioona to reconstruct signals from source evidence, have people mark them co
 
 ## Sioona developer resources
 
+- [Sioona developer resources](${origin}/developers): public index for the MCP server, Markdown pages, and agent instructions
 - [Sioona agent instructions](${origin}/llms.txt)
 - [Sioona MCP discovery manifest](${origin}/.well-known/mcp)
 - [Sioona Streamable HTTP MCP endpoint](${origin}/mcp)
@@ -27,8 +28,8 @@ For MCP, POST each JSON-RPC message separately to \`${origin}/mcp\` with \`Conte
 1. Initialize: \`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"sioona-reader","version":"1.0.0"}}}\`.
 2. Send \`{"jsonrpc":"2.0","method":"notifications/initialized"}\` without an id. Expect HTTP 202 with no body. Include \`MCP-Protocol-Version\` with the version returned by initialize on subsequent requests. This server is stateless and requires no session id.
 3. Discover tools: \`{"jsonrpc":"2.0","id":2,"method":"tools/list"}\`.
-4. List pages: \`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"sioona_list_pages","arguments":{}}}\`.
-5. Read a page: \`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"sioona_read_page","arguments":{"path":"/security"}}}\`. Use a published path from sioona_list_pages; arbitrary URLs are not accepted.
+4. List pages: \`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"sioona_list_pages","arguments":{"query":""}}}\`. \`query\` is a required string matched against public paths and titles; an empty string lists every page, and \`"security"\` returns the security page.
+5. Read a page: \`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"sioona_read_page","arguments":{"path":"/security"}}}\`. \`path\` is required and must be a published path from sioona_list_pages; arbitrary URLs are not accepted. The developer index is \`/developers\`.
 
 ## Sioona boundaries and next steps
 

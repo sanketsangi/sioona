@@ -19,6 +19,7 @@ Supported exports: Intercom JSON, WhatsApp Business text exports, and CSV or JSO
 - [Security](${origin}/security): human review, tenant isolation, no outbound messaging
 - [Pricing](${origin}/pricing): two-week pilot, scope agreed before start
 - [Request a pilot](${origin}/contact): business contact form with a stored receipt
+- [Sioona developer resources](${origin}/developers): MCP server, Markdown pages, and agent instructions
 - [Privacy](${origin}/privacy): how pilot-request contact details are used
 - [Terms](${origin}/terms): what submitting a pilot request does and does not create
 - [Sitemap](${origin}/sitemap.xml): every public URL

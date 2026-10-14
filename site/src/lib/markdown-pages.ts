@@ -34,6 +34,18 @@ ${faqItems.map(item => `### Sioona: ${item.question}\n\n${item.answer}`).join("\
     title: "Request a pilot",
     body: "Request a two-week Shadow Mode pilot. Supported exports are Intercom JSON, WhatsApp Business text, and CSV or JSON. The form stores a business contact request and returns a receipt.",
   },
+  "/developers": {
+    title: "Sioona developer resources",
+    body: `Public read-only resources for agents. Sioona does not publish a customer-data API, SDK, or OpenAPI spec for product actions.
+
+## Sioona MCP server
+
+The discovery manifest is ${absoluteUrl("/.well-known/mcp")}. The Streamable HTTP endpoint is ${absoluteUrl("/mcp")}. \`sioona_list_pages\` takes a required string \`query\` matched against public paths and titles; an empty query lists every page. \`sioona_read_page\` takes a required \`path\` from that list.
+
+## Sioona Markdown pages
+
+Fetch any public page with \`Accept: text/markdown\`. Start from ${absoluteUrl("/llms.txt")} and ${absoluteUrl("/developers")}.`,
+  },
   "/privacy": {
     title: "Pilot request privacy notice",
     body: "The pilot form collects business contact details so Sioona can review the request and reply. Use the contact form to ask for access, correction, or deletion. Do not include customer transcripts or secrets.",
@@ -70,6 +82,15 @@ export function markdownFor(pathname: string): string | null {
 
 function absoluteUrl(path: string): string {
   return new URL(path, siteConfig.url).toString();
+}
+
+/** Public pages the docs MCP can list and filter. */
+export function pageCatalog() {
+  return routes.map((path) => ({
+    path,
+    title: pages[path].title,
+    url: absoluteUrl(path),
+  }));
 }
 
 /** Markdown 404 that points agents at the home page, sitemap, and llms.txt. */
