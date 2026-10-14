@@ -14,7 +14,7 @@ const CHAT = CHAT_PARTS.join("");
 
 export function OutputPreview({ running = false }: { running?: boolean }) {
   const reduced = !!useReducedMotion();
-  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: false });
+  const { step, chars } = useInsightsScript({ totalChars: CHAT.length, running, reduced, startAtBeginning: true });
   const detected = step >= STEP.why && step < STEP.reset;
   const action = step >= STEP.correct && step < STEP.reset;
   const acted = step === STEP.acted;
@@ -68,13 +68,7 @@ export function WorkflowPreview({ running = false }: { running?: boolean }) {
 
 export function ScorePreview({ running = false }: { running?: boolean }) {
   const reduced = useReducedMotion();
-  const [run, setRun] = useState(0);
-  useEffect(() => {
-    if (!running || reduced) return;
-    const timer = window.setInterval(() => setRun((value) => value + 1), 3600);
-    return () => window.clearInterval(timer);
-  }, [running, reduced]);
-  return <div className="menu-score-preview"><ScorePanel key={run} compact /></div>;
+  return <div className="menu-score-preview" data-running={running && !reduced}><ScorePanel compact /></div>;
 }
 
 const featureNames = ["Insights", "Upload", "Eval", "Taxonomy", "Suggested next action", "Keyboard-first review"];

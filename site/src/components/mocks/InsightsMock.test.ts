@@ -16,14 +16,12 @@ describe("Hero demo playback", () => {
   function render() {
     act(() => root.render(createElement(LazyMotion, { features: domAnimation }, createElement(HeroPreviewEntered.Provider, { value: motionState.visible }, createElement(InsightsMock, { previewHeader: true })))));
   }
-  it("starts paused on entry, then plays, pauses and resumes", () => {
+  it("plays automatically on entry, then pauses and resumes", () => {
     render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     expect(motionState.options).toMatchObject({ once: false, amount: "some", margin: "0px" });
     motionState.visible = true; render();
     const button = host.querySelector('button') as HTMLButtonElement;
-    expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
-    act(() => button.click());
     expect(button.getAttribute("aria-label")).toBe("Pause Demo Animation");
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
     act(() => button.click()); expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
@@ -35,8 +33,6 @@ describe("Hero demo playback", () => {
   it("pauses offscreen and resumes on re-entry without overriding manual pause", () => {
     motionState.visible = true; render();
     const button = host.querySelector('button') as HTMLButtonElement;
-    expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
-    act(() => button.click());
     motionState.visible = false; render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     motionState.visible = true; render();
@@ -50,7 +46,6 @@ describe("Hero demo playback", () => {
     vi.useFakeTimers();
     motionState.visible = true;
     render();
-    act(() => (host.querySelector("button") as HTMLButtonElement).click());
     expect(host.querySelector("figure")?.dataset.demoRunning).toBe("true");
     const step = host.querySelector("figure")?.dataset.demoStep;
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
@@ -65,7 +60,7 @@ describe("Hero demo playback", () => {
   });
   it("stops playback when reduced motion is requested", () => {
     motionState.visible = true; render();
-    act(() => (host.querySelector("button") as HTMLButtonElement).click());
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
     motionState.reduced = true; render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
   });
