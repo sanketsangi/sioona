@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.deps import require_service_token
 from app.api.routes import (
+    economics_dashboard,
     jobs,
     conversations,
     feedback,
@@ -43,6 +44,7 @@ app = FastAPI(
 )
 
 api = APIRouter(dependencies=[Depends(require_service_token)])
+api.include_router(economics_dashboard.router)
 api.include_router(jobs.router)
 api.include_router(predictions.router)
 api.include_router(conversations.router)

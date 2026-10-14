@@ -111,6 +111,7 @@ def decode_actor_token(token: str, key: str) -> dict:
 
 # permission, operation, kind. kind is path, alias, or open.
 ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
+    ("GET", "/v1/tenants/{tenant_id}/economics-dashboard"): ("admin", None, "path"),
     ("PUT", "/v1/tenants/{tenant_id}/jobs/uploads/{upload_id}"): ("review", "job:enqueue", "path"),
     ("POST", "/v1/tenants/{tenant_id}/jobs/detect"): ("review", "job:enqueue", "path"),
     ("GET", "/v1/tenants/{tenant_id}/jobs/{job_id}"): ("read", "job:read", "path"),

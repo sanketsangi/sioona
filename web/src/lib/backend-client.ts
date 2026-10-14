@@ -1296,6 +1296,61 @@ export interface BackendJobStatus {
   completed_conversations: number; conversation_count: number;
   last_error_category: string | null;
 }
+
+export type UnavailableMetric = { status: "unavailable"; reason: string };
+export interface BackendEconomicsDashboard {
+  tenant_id: string;
+  from_ts: string;
+  to_ts: string;
+  timezone: "Asia/Kolkata";
+  cost_currency: "USD";
+  influenced_value_currency: "INR";
+  funnel: {
+    ingested: number; processed: number; surfaced: number; reviewed: number;
+    correct: number; acted: number; positive_outcomes: number;
+    influenced_value_inr: string; denominators: Record<string, number | null>; definitions: Record<string, string>;
+  };
+  quality: {
+    signal_score: number | null; reviewed: number; correct: number;
+    incorrect: number; partially_correct: number; false_positive_rate: number | null;
+    evidence_valid: number; evidence_unresolved: number; evidence_stale: number;
+    evidence_failure_rate: number | null; abstained: number; abstention_rate: number | null;
+    by_signal_type: { signal_type: string; reviewed: number; correct: number; acceptance_rate: number | null }[];
+    gold_set_precision: UnavailableMetric; gold_set_recall: UnavailableMetric; calibration: UnavailableMetric;
+  };
+  reliability: {
+    jobs_by_status: Record<string, number>; recovered_jobs: number; queue_depth: number;
+    oldest_queue_age_seconds: number | null; attempts_by_status: Record<string, number>;
+    retry_or_fallback_attempts: number; retry_rate: number | null; http_429_attempts: number;
+    error_rate: number | null; unfinished_attempts: number; p50_latency_ms: number | null;
+    p95_latency_ms: number | null; ledger_flush_failures: UnavailableMetric;
+    reservation_drift: UnavailableMetric; database_latency: UnavailableMetric; connector_errors: UnavailableMetric;
+  };
+  economics: {
+    attempts: number; input_tokens: number; cached_input_tokens: number; output_tokens: number;
+    unknown_usage_count: number; unknown_usage_rate: number | null;
+    unknown_cost_count: number; unknown_cost_rate: number | null; known_cost_coverage: number | null;
+    estimated_cost_usd: string; reconciled_cost_usd: string; known_cost_usd: string;
+    cost_per_processed_conversation_usd: string | null; cost_per_surfaced_signal_usd: string | null;
+    cost_per_correct_signal_usd: string | null; cost_per_acted_signal_usd: string | null;
+    projections: { conversations: number; estimated_cost_usd: string | null; status: "available" | "unavailable"; incomplete: boolean }[];
+  };
+  alerts: { key: string; label: string; status: "ok" | "warning" | "alert" | "unavailable"; owner: string; runbook: string; detail: string }[];
+}
+
+export async function getEconomicsDashboard(
+  tenantId: string,
+  from?: string,
+  to?: string,
+): Promise<BackendEconomicsDashboard> {
+  const params = new URLSearchParams();
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  const query = params.size ? `?${params.toString()}` : "";
+  return backendFetch<BackendEconomicsDashboard>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/economics-dashboard${query}`,
+    { method: "GET", headers: { "X-Sioona-Role": "admin" } });
+}
 export async function enqueueUploadJob(tenantId: string, uploadId: string, input: {
   source: string; replace: boolean; conversations: BackendConversationInput[];
   files: { source: string; conversation_ids: string[]; counts_as_weekly?: boolean }[];
