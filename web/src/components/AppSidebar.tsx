@@ -88,6 +88,7 @@ const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
   { view: "eval", label: "Eval", icon: null },
   { view: "report", label: "Report", icon: null },
   { view: "taxonomy", label: "Taxonomy", icon: Tag },
+  { view: "economics", label: "Economics", icon: null },
 ];
 
 function WorkspaceNav({
@@ -158,7 +159,7 @@ function WorkspaceNav({
                     if (isMobile) setOpenMobile(false);
                   }}
                 >
-                  {item.view === "insights" ? (
+                  {item.view === "insights" || item.view === "economics" ? (
                     <ChartLineUpIcon className="size-4 shrink-0 text-sio-fg-base" />
                   ) : item.view === "eval" ? (
                     <ListChecksIcon className="size-4 shrink-0 text-sio-fg-base" />

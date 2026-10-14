@@ -111,6 +111,7 @@ def decode_actor_token(token: str, key: str) -> dict:
 
 # permission, operation, kind. kind is path, alias, or open.
 ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
+    ("GET", "/v1/tenants/{tenant_id}/economics-dashboard"): ("admin", None, "path"),
     ("PUT", "/v1/tenants/{tenant_id}/jobs/uploads/{upload_id}"): ("review", "job:enqueue", "path"),
     ("POST", "/v1/tenants/{tenant_id}/jobs/historical"): ("review", "job:enqueue", "path"),
     ("POST", "/v1/tenants/{tenant_id}/jobs/detect"): ("review", "job:enqueue", "path"),
@@ -172,6 +173,10 @@ ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
     ("POST", "/v1/pilot-requests"): ("read", None, "open"),
 }
 
+ALWAYS_ENFORCED_ROUTES = frozenset({
+    ("GET", "/v1/tenants/{tenant_id}/economics-dashboard"),
+})
+
 
 def guarded_router(*args, **kwargs):
     dependencies = list(kwargs.pop("dependencies", []))
@@ -211,6 +216,10 @@ def guard_request(
     tenant_id = request.path_params.get("tenant_id")
     if not isinstance(tenant_id, str) or not tenant_id:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "unguarded_route")
+    if (method, path) in ALWAYS_ENFORCED_ROUTES:
+        _bind_tenant(db, tenant_id)
+        _enforce(tenant_id, assertion, db, permission, operation)
+        return
     if mode != "enforce":
         header = (x_tenant_id or "").strip()
         if not header:

@@ -1539,6 +1539,91 @@ def test_cb11_verified_api_to_runtime_worker_and_polling(job_pg, monkeypatch):
         get_settings.cache_clear()
 
 
+def test_cb15_dashboard_reconciliation_under_runtime_rls(job_pg):
+    from tests.test_economics_dashboard import _seed, NOW
+    from app.services.economics_dashboard import build_economics_dashboard
+    from datetime import timedelta
+    from decimal import Decimal
+    with Session(job_pg) as db:
+        _seed(db, "a")
+        _seed(db, "b", multiplier=3)
+    with _runtime_session(job_pg, "a") as db:
+        result = build_economics_dashboard(db, tenant_id="a", from_ts=NOW - timedelta(days=1), to_ts=NOW, now=NOW)
+        assert (result.funnel.ingested, result.funnel.processed, result.funnel.correct) == (2, 2, 1)
+        assert result.funnel.influenced_value_inr == 500
+        assert result.quality.signal_score == 1
+        assert result.quality.abstention_rate == .5
+        assert result.reliability.p50_latency_ms == 200
+        assert result.reliability.p95_latency_ms == 290
+        assert result.economics.input_tokens == 100
+        assert result.economics.unknown_usage_rate == .5
+        assert result.economics.known_cost_usd == Decimal("0.02")
+        assert [p.estimated_cost_usd for p in result.economics.projections] == [Decimal("100"), Decimal("500"), Decimal("1000")]
+        assert all(p.incomplete for p in result.economics.projections)
+        # Deliberately request B through A's DB context: RLS must still deny rows.
+        denied = build_economics_dashboard(db, tenant_id="b", from_ts=NOW - timedelta(days=1), to_ts=NOW, now=NOW)
+        assert denied.funnel.ingested == denied.funnel.processed == denied.economics.attempts == 0
+        assert denied.funnel.surfaced == denied.funnel.reviewed == 0
+
+
+def test_cb15_reference_sql_under_runtime_rls(job_pg):
+    from pathlib import Path
+    from decimal import Decimal
+    import re
+    from datetime import timedelta
+    from tests.test_economics_dashboard import _seed, NOW, _attempt
+    from app.models.signal_prediction import SignalPrediction
+    from app.models.detection_run import DetectionRun
+    from app.models.job import Job
+    from app.services.economics_dashboard import build_economics_dashboard
+    with Session(job_pg) as db:
+        _seed(db, "a")
+        _seed(db, "b", multiplier=3)
+        prediction = db.scalar(select(SignalPrediction).where(SignalPrediction.tenant_id == "a"))
+        prediction.created_at = NOW - timedelta(days=40)
+        job = db.get(Job, ("a", "job-a"))
+        job.status, job.created_at = "queued", NOW-timedelta(days=40)
+        db.add(DetectionRun(tenant_id="a", run_id="repeat", conversation_id="chat-a-0", content_hash="f"*64, model_version="m", prompt_version="p", status="complete", output=[], created_at=NOW-timedelta(hours=2)))
+        attempt = _attempt("a", "repeat", ordinal=1, latency=500, cost="0.03")
+        attempt.detection_run_id, attempt.cost_status = "repeat", "reconciled"
+        db.add(attempt)
+        db.commit()
+    cookbook = (Path(__file__).resolve().parents[2] / "docs/DEVELOPMENT_COOKBOOK.md").read_text()
+    section = cookbook.split("### 13.3 Queries", 1)[1].split("### 13.4", 1)[0]
+    queries = re.findall(r"```sql\n(.*?)```", section, re.S)
+    assert len(queries) == 4
+    start, end = NOW-timedelta(days=1), NOW
+    parameters = {"tenant_id": "a", "date_from": start, "date_to": end, "run_id": "run-a-0"}
+    with _runtime_session(job_pg, "a") as db:
+        dashboard = build_economics_dashboard(db, tenant_id="a", from_ts=start, to_ts=end, now=NOW)
+        # Execute the cookbook SQL itself. Only replace the moving daily window
+        # with the fixed half-open test window and explicit tenant predicate.
+        run_rows = db.execute(text(queries[0]), parameters).mappings().all()
+        daily_sql = queries[1].replace("started_at >= now() - interval '30 days'", "tenant_id = :tenant_id AND started_at >= :date_from AND started_at < :date_to")
+        daily = db.execute(text(daily_sql), parameters).mappings().all()
+        acceptance = db.execute(text(queries[2]), parameters).mappings().all()
+        funnel = db.execute(text(queries[3]), parameters).mappings().all()
+        assert sum(r["attempts"] for r in run_rows) == 2
+        assert dashboard.economics.attempts == sum(r["attempts"] for r in daily)
+        assert dashboard.economics.known_cost_usd == sum(r["estimated_cost_usd"] for r in daily)
+        assert dashboard.economics.input_tokens == sum(r["input_tokens"] for r in daily)
+        assert dashboard.economics.cached_input_tokens == sum(r["cached_input_tokens"] for r in daily)
+        assert dashboard.economics.output_tokens == sum(r["output_tokens"] for r in daily)
+        assert dashboard.economics.unknown_cost_count == sum(r["unknown_cost_attempts"] for r in daily)
+        assert len(daily) == 1
+        assert dashboard.reliability.p95_latency_ms == daily[0]["p95_latency_ms"]
+        assert dashboard.quality.reviewed == sum(r["reviewed"] for r in acceptance)
+        assert dashboard.quality.correct == sum(r["correct"] for r in acceptance)
+        assert dashboard.quality.by_signal_type[0].acceptance_rate == float(acceptance[0]["acceptance"])
+        assert dashboard.funnel.surfaced == sum(r["signals"] for r in funnel)
+        assert dashboard.funnel.acted == sum(r["acted"] for r in funnel)
+        assert dashboard.funnel.positive_outcomes == sum(r["positive_outcomes"] for r in funnel)
+        assert dashboard.funnel.processed == 2
+        assert dashboard.economics.cost_per_processed_conversation_usd == Decimal("0.025")
+        assert dashboard.reliability.queue_depth == 1
+        assert next(a for a in dashboard.alerts if a.key == "queue_age").status == "alert"
+
+
 def test_cb14_cache_race_and_runtime_isolation(job_pg):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier

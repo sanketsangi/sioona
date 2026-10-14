@@ -110,6 +110,7 @@ const TITLES: Record<PlatformView, string> = {
   eval: "Eval & SignalScore",
   taxonomy: "Signal Taxonomy",
   report: "Revenue Leak",
+  economics: "Tenant Economics",
 };
 
 export async function generateMetadata({
