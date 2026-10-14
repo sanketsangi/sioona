@@ -1207,3 +1207,27 @@ html[data-drawer-open="true"] {
 }
 
 .product-preview-content[data-preview-running="false"] * { animation-play-state: paused; }
+
+/* Dropdown-only chart playback. The homepage chart remains a static example. */
+@keyframes menu-score-needle {
+  0%, 100% { transform: rotate(-90deg); }
+  40%, 85% { transform: rotate(var(--needle)); }
+}
+@keyframes menu-score-bars {
+  0%, 100% { transform: scaleY(0); }
+  40%, 85% { transform: scaleY(1); }
+}
+.menu-score-preview .score-needle {
+  animation: menu-score-needle 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-play-state: paused;
+}
+.menu-score-preview .score-bar {
+  animation: menu-score-bars 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  animation-play-state: paused;
+}
+.menu-score-preview[data-running="true"] .score-needle,
+.menu-score-preview[data-running="true"] .score-bar { animation-play-state: running; }
+@media (prefers-reduced-motion: reduce) {
+  .menu-score-preview .score-needle,
+  .menu-score-preview .score-bar { animation: none; }
+}

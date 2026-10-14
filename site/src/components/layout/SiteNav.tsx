@@ -26,7 +26,7 @@ export function SiteNav() {
   const [open, setOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
   const [activeProduct, setActiveProduct] = useState(0);
-  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewPlaying, setPreviewPlaying] = useState(true);
   const [previewRun, setPreviewRun] = useState(0);
   const pageVisible = usePageVisible();
   const reduced = useReducedMotion();
@@ -66,7 +66,7 @@ export function SiteNav() {
     if (index === 1 && activeProduct !== 1) setWorkflowRun((value) => value + 1);
     setRetainedPreviews((previous) => [...new Set([...previous, activeProduct, index])]);
     setActiveProduct(index);
-    if (index !== activeProduct) setPreviewPlaying(false);
+    if (index !== activeProduct) setPreviewPlaying(true);
   };
 
   // Keep outgoing artwork alive until its CSS fade completes. Cancel cleanup
@@ -75,7 +75,7 @@ export function SiteNav() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => {
       setRetainedPreviews(productOpen ? [activeProduct] : []);
-      if (!productOpen) setPreviewPlaying(false);
+      if (!productOpen) setPreviewPlaying(true);
     }, reduce ? 0 : 360);
     return () => window.clearTimeout(timer);
   }, [productOpen, activeProduct]);
@@ -249,13 +249,13 @@ export function SiteNav() {
               if (!productOpen) {
                 setPreviewRun((value) => value + 1);
                 setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
-                setPreviewPlaying(false);
+                setPreviewPlaying(true);
                 setProductOpen(true);
               }
             }} onClick={() => {
               if (!productOpen) setPreviewRun((value) => value + 1);
               setRetainedPreviews((previous) => [...new Set([...previous, activeProduct])]);
-              setPreviewPlaying(false);
+              setPreviewPlaying(true);
               setProductOpen(!productOpen);
             }}>
               Product <CaretDown size={14} aria-hidden />
