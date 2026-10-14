@@ -44,6 +44,14 @@ jobs:
     name: Marketing site
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Non-secret QA fixtures: exercise strict production validation in CI.
+    # These are not deployment configuration or approved public launch facts.
+    env:
+      NEXT_PUBLIC_SITE_URL: https://launch.example.test
+      NEXT_PUBLIC_APP_URL: ""
+      PILOT_CONTACT_SUPPORT_EMAIL: launch@example.test
+      PILOT_CONTACT_RETENTION: Synthetic verification policy only
+      PILOT_CONTACT_HOSTING_REGION: synthetic-test-region
     defaults:
       run:
         working-directory: site

@@ -2,7 +2,9 @@
 
 **Local implementation verified; production launch NO-GO until the hosted gates below pass.**
 
-Branch: `feat/site-is-agentic`. Implementation started from `d09b3e60f36cfaa0389a964c0b6dec074e1933be`; current HEAD is `46795bde48918e8ee77ab196223ba2215860012a`. An external process committed most implementation changes as `46795bd` while this task was running. The final WebKit navigation/focus fixes, their tests and this release report remain uncommitted. Verification covers HEAD plus these working-tree changes. An external process committed the initial environment/header/proxy changes and switched the checkout during this task; the authorized branch was restored. The recovery stash named `site launch recovery before authorized branch return` remains retained, including the pre-existing teamwork files. No commit, push, deployment, DNS change, firewall change or external contact submission was performed by this task.
+Branch: `feat/site-is-agentic`. Navigation/focus fixes and the initial report were committed as `6f5ac428` above `46795bd` by another process. The publishing follow-up integrates the latest `origin/main`, removes already-committed `.agents/teamwork` artifacts from the PR diff, and supplies explicit non-secret Marketing site CI fixtures. A local recovery archive for the removed artifacts is retained at `.cache/launch-qa/teamwork-before-pr.tar`; the earlier recovery stash is also retained. No unrelated working-tree source is included. The user authorized committing, pushing, opening the PR and merging after all CI jobs pass; deployment, DNS/firewall changes and external pilot submissions remain outside this authorization.
+
+Verification is on the clean publishing commit using the synthetic inputs documented below. CI fixture values are only for validation; they must never be used as production launch facts. Production GO remains gated on live custom-domain smoke checks and an explicitly authorized durable pilot receipt/readback.
 
 ## Implemented
 
