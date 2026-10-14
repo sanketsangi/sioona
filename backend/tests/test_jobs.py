@@ -437,3 +437,93 @@ def test_pause_preserves_only_unpublished_ids_for_resume(db):
     db.expire_all()
     assert db.get(Job, ("a", jid)).status == "succeeded"
     assert db.get(DetectionResume, "a").skipped_conversation_ids == []
+
+
+@pytest.mark.parametrize("older_replace", [False, True])
+def test_disjoint_newer_append_preserves_older_publication(db, older_replace):
+    from app.models.upload import UploadConversation
+    from app.models.weekly_upload_receipt import WeeklyUploadReceipt
+    older = body(ids=("older",)); older.replace = older_replace
+    jid = jobs.enqueue_upload(db, "a", "older-upload", older).id
+    db.commit()
+    lease = jobs.claim(db, "a", "old-worker"); db.commit()
+    jobs.fail(db, lease, "timeout"); db.commit()
+    newer = jobs.enqueue_upload(db, "a", "newer-upload", body(ids=("newer",)))
+    newer_id = newer.id
+    db.get(Job, ("a", jid)).run_after = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.get(Upload, ("a", "older-upload")).imported_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    db.commit()
+    worker = Worker(sessionmaker(bind=db.get_bind()))
+    assert worker.run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", newer_id)).status == "succeeded"
+    db.get(Job, ("a", jid)).run_after = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+    assert worker.run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).status == "succeeded"
+    for uid, cid in [("older-upload", "older"), ("newer-upload", "newer")]:
+        assert db.get(Upload, ("a", uid)).active
+        assert db.get(UploadConversation, ("a", uid, cid)) is not None
+        assert db.get(WeeklyUploadReceipt, ("a", uid)) is not None
+
+
+def test_newer_completed_replace_supersedes_older_retry(db):
+    from app.models.weekly_upload_receipt import WeeklyUploadReceipt
+    older = body(ids=("older",))
+    jid = jobs.enqueue_upload(db, "a", "older-upload", older).id
+    db.commit()
+    lease = jobs.claim(db, "a", "old-worker")
+    db.commit()
+    jobs.fail(db, lease, "timeout")
+    db.commit()
+    replacement = body(ids=("newer",))
+    replacement.replace = True
+    newer_id = jobs.enqueue_upload(db, "a", "newer-upload", replacement).id
+    db.get(Job, ("a", jid)).run_after = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.get(Upload, ("a", "older-upload")).imported_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    db.commit()
+    worker = Worker(sessionmaker(bind=db.get_bind()))
+    assert worker.run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", newer_id)).status == "succeeded"
+    db.get(Job, ("a", jid)).run_after = datetime.now(timezone.utc) - timedelta(seconds=1)
+    db.commit()
+    assert worker.run_once("a")
+    db.expire_all()
+    older_job = db.get(Job, ("a", jid))
+    assert older_job.status == "failed"
+    assert older_job.last_error_category == "upload_superseded"
+    assert db.get(WeeklyUploadReceipt, ("a", "older-upload")) is None
+    assert db.get(Upload, ("a", "newer-upload")).active
+    assert db.get(WeeklyUploadReceipt, ("a", "newer-upload")) is not None
+
+
+def test_rejected_classification_falls_back_and_continues(db, monkeypatch):
+    import json
+    from pathlib import Path
+    from app.ai.gateway import parse_classification
+    from app.models.signal_prediction import SignalPrediction as Prediction
+    row = next(r for r in json.loads((Path(__file__).parent / "fixtures/cb11-gateway-parity.json").read_text()) if r["id"] == "val-upsell-15")
+    monkeypatch.setenv("DETECT_LLM", "1")
+    monkeypatch.setenv("GROQ_API_KEY", "test-only")
+    monkeypatch.setattr("app.worker.time.sleep", lambda _: None)
+    get_settings.cache_clear()
+    configure(db, "a", 10, 10, True, "synthetic", jobs.PRINCIPAL); db.commit()
+    b = body(ids=("fixture", "after"))
+    b.conversations[0].messages = [type(b.conversations[0].messages[0])(
+        message_id=f"fixture-{i}", role=m["role"], content=m["content"], timestamp="2026-10-14T00:00:00Z"
+    ) for i, m in enumerate(row["messages"])]
+    jid = jobs.enqueue_upload(db, "a", "u1", b).id; db.commit()
+    calls = []
+    def call(*_):
+        calls.append(1)
+        return parse_classification(row["replay"]), {"status": "succeeded", "usage": {}}
+    assert Worker(sessionmaker(bind=db.get_bind()), call=call).run_once("a")
+    db.expire_all()
+    assert db.get(Job, ("a", jid)).status == "succeeded"
+    assert len(calls) == 2
+    assert db.get(DetectionRun, ("a", jid, "after")) is not None
+    prediction = db.scalar(select(Prediction).where(Prediction.conversation_id == "fixture"))
+    assert prediction.signal_type == row["heuristic"][0]["signal_type"]
+    assert len(db.scalars(select(InferenceAttempt)).all()) == 2

@@ -189,6 +189,7 @@ class Worker:
             )
             output = heuristic_output(chat, chat.messages, overrides)
             coverage = None
+            publication_model = "heuristic"
             llm = s.detect_llm and bool(s.groq_api_key.strip())
             if (
                 llm
@@ -239,7 +240,13 @@ class Worker:
                         tenant,
                         lambda db: jobs.finalize_attempt(db, tenant, attempt, result),
                     )
-                    output = classification_output(parsed, chat, chat.messages, model)
+                    try:
+                        output = classification_output(parsed, chat, chat.messages, model)
+                        publication_model = model
+                    except ProviderFailure:
+                        # A metered successful call can still be unsafe/ungrounded.
+                        # Retain grounded heuristics and continue the upload.
+                        coverage = None
                     break
             self.transaction(
                 tenant,
@@ -248,7 +255,7 @@ class Worker:
                     lease,
                     chat.conversation_id,
                     content_hash,
-                    model if llm else "heuristic",
+                    publication_model,
                     output,
                     coverage,
                 ),

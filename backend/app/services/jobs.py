@@ -606,20 +606,19 @@ def complete(db: Session, lease: Lease) -> None:
             raise JobError("source_changed")
     source = db.get(Upload, (lease.tenant_id, row.upload_id))
     if row.job_type == "upload":
-        if not body.append_only:
-            newer = db.scalar(
-                select(Upload.upload_id)
-                .where(
-                    Upload.tenant_id == lease.tenant_id,
-                    Upload.status == "completed",
-                    Upload.active.is_(True),
-                    Upload.upload_id != row.upload_id,
-                    Upload.imported_at > source.imported_at,
-                )
-                .limit(1)
+        # Only a newer corpus replacement invalidates this publication boundary.
+        # Ordinary uploads and live append events can finish out of order.
+        newer = db.scalars(
+            select(Upload).where(
+                Upload.tenant_id == lease.tenant_id,
+                Upload.status == "completed",
+                Upload.active.is_(True),
+                Upload.upload_id != row.upload_id,
+                Upload.imported_at > source.imported_at,
             )
-            if newer:
-                raise JobError("upload_superseded")
+        ).all()
+        if any((upload.payload or {}).get("replace") for upload in newer):
+            raise JobError("upload_superseded")
         publish_upload(
             db,
             tenant_id=lease.tenant_id,
@@ -628,6 +627,7 @@ def complete(db: Session, lease: Lease) -> None:
             content_sha256=source.content_sha256,
             conversation_ids=[c.conversation_id for c in body.conversations],
             replace=body.replace,
+            replacement_before=source.imported_at,
         )
         # Preserve per-file membership used by Uploaded Chats.
         for file in body.files or []:
