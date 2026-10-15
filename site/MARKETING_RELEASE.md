@@ -18,7 +18,7 @@ Verified locally: lint/token guard, 87 Vitest tests, typecheck, production build
 
 ## Implemented
 
-- Strict centralized site/app origin parsing: production requires an explicit HTTPS custom domain or the approved stable `https://sioona-site.vercel.app` site origin; localhost, loopback, temporary Vercel domains, credentials, path/query/hash and missing canonical input fail closed. Sign in stays omitted when the optional app origin is unset.
+- Strict centralized site/app origin parsing: `NEXT_PUBLIC_SITE_URL` has precedence for an explicit HTTPS custom domain. Until cutover, Render's built-in `RENDER_EXTERNAL_URL` is accepted only when it is exactly `https://sioona-site.onrender.com`; the legacy approved `https://sioona-site.vercel.app` origin remains valid. Localhost, loopback, unapproved platform domains, credentials, path/query/hash and missing canonical input fail closed. Sign in stays omitted when the optional app origin is unset.
 - Four security headers and the complete Accept/Origin/Next-router Vary list across HTML, Markdown, native discovery/protocol endpoints and errors. Next 16 proxy convention, standalone output, and a warning-free standalone `npm start` launcher that copies public/static assets.
 - Explicit index/follow metadata, default social previews, a 180×180 Apple icon, preserved JSON-LD schemas with escaped script serialization, deterministic sitemap revisions/priorities including `/llms.txt`, and explicit search/AI crawler rules. Sitemap dates record verified Git content revisions, rather than request/build time; update them when publishing later substantive content revisions.
 - Shared substantive marketing prose, developer documentation, pilot/evidence/Signal Score facts, and privacy/terms copy for human pages and Markdown/MCP. `llms.txt` includes the same pilot/security/policy information. Synthetic demo transcripts are excluded from agent content. Approved public policy is snapshotted at build time; startup rejects different public origins or policy values, so changing them requires a rebuild. `NEXT_PUBLIC_CONTACT_POLICY` is generated internally from the three public facts by Next configuration; it is not another operator input and contains no credentials.
@@ -105,7 +105,7 @@ Local Chromium home measurement with 4× CPU slowdown, 150 ms network latency, 2
 
 1. Set Vercel Project Root Directory to `site` and use a supported Node LTS runtime. Set the inputs below with real approved values; never deploy the synthetic QA build. Leave `NEXT_PUBLIC_APP_URL` unset for this launch.
 
-   - `NEXT_PUBLIC_SITE_URL`: exact canonical HTTPS origin, with no path/query/hash. A custom domain or `https://sioona-site.vercel.app` is accepted; temporary Vercel deployment and branch hostnames remain invalid. Required at build and runtime.
+   - `NEXT_PUBLIC_SITE_URL`: exact canonical HTTPS origin, with no path/query/hash. Set it for the custom domain; it strictly overrides Render's built-in URL. If it is unset on Render, the site accepts only `RENDER_EXTERNAL_URL=https://sioona-site.onrender.com`. The legacy `https://sioona-site.vercel.app` origin remains accepted; temporary platform deployment and branch hostnames remain invalid.
    - `PILOT_INTAKE_BACKEND_URL`: production FastAPI base URL. Required at runtime for accepting pilot requests; the handler appends `/v1/pilot-requests`.
    - `SIOONA_SERVICE_TOKEN`: matching server-only FastAPI bearer token. Required at runtime; never expose it through a public environment variable.
    - `PILOT_CONTACT_SUPPORT_EMAIL`: approved, actively monitored mailbox. Optional; leave unset to direct visitors to the contact form.
@@ -126,7 +126,7 @@ cd /Users/sanket/Documents/Sioona/site
 node scripts/verify-production.mjs https://YOUR-CANONICAL-DOMAIN --production
 ```
 
-Replace the placeholder with the actual canonical origin. The script accepts explicit HTTPS custom domains and `https://sioona-site.vercel.app`, rejects temporary Vercel and localhost production targets, checks canonical/OG/JSON-LD/robots/sitemap origins, all security/Vary headers, assets, Markdown 200/404 negotiation, discovery and stateless read-only MCP protocol calls. It sends **zero POST `/api/contact` requests**.
+Replace the placeholder with the actual canonical origin. The script accepts explicit HTTPS custom domains, `https://sioona-site.onrender.com`, and `https://sioona-site.vercel.app`; it rejects temporary Render/Vercel and localhost production targets. It checks canonical/OG/JSON-LD/robots/sitemap origins, all security/Vary headers, assets, Markdown 200/404 negotiation, discovery and stateless read-only MCP protocol calls. It sends **zero POST `/api/contact` requests**.
 
 5. Recheck the live pages at the three viewport sizes and in the target browsers. Separately obtain explicit authorization for one synthetic pilot request; require its matching durable receipt, read back the row using the operator's `backend/scripts/lookup_pilot_request.py` workflow, confirm the expected fields and idempotent retry behavior, and confirm a human actively monitors the support mailbox and intake queue. Backend files/infrastructure were not edited or exercised here.
 
@@ -155,6 +155,15 @@ server-only and matching the API. `NEXT_PUBLIC_APP_URL` remains optional; leave
 it unset until the product origin is approved. Never deploy synthetic QA values.
 
 Configure DNS, TLS, and canonical redirects for the approved Render domain.
+For a root custom domain at DNS providers without ALIAS/ANAME flattening, set
+`A @ 216.24.57.1`; set `CNAME www sioona-site.onrender.com` for `www` (and use
+the service's `onrender.com` hostname for any other subdomain). Remove conflicting
+`AAAA` records, add the root or `www` domain to the service in Render, verify it,
+and wait for Render-managed TLS. Choose one canonical hostname in Render: adding
+the root makes Render add and redirect `www` to the root, while adding `www`
+makes Render add and redirect the root to `www`. Set `NEXT_PUBLIC_SITE_URL` to
+that exact canonical HTTPS origin, rebuild, then verify the alternate hostname
+redirects permanently to it before optionally disabling the Render subdomain.
 Vercel firewall rules do not apply on Render: verify backend abuse controls and
 any approved edge rate controls before opening contact intake. Run
 `node scripts/verify-production.mjs https://YOUR-CANONICAL-DOMAIN --production`

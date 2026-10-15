@@ -338,8 +338,12 @@ separate worker cutover is approved. Automatic deploys are disabled for web
 services and the worker; cron provisioning starts its scheduled runs.
 
 For `sioona-web`, use a Node web service with Root Directory `web`, Node 22,
-build command `npm ci && npm run build`, and start command `npm start`.
+build command matching `render.yaml` (`npm ci`, install the lockfile-matched
+`@rollup/rollup-linux-x64-gnu` and `@next/swc-linux-x64-gnu` optional binaries,
+then `npm run build`), and start command `npm start`. This mirrors Linux CI and
+avoids npm/cli#4828 when a macOS-generated lockfile omits optional packages.
 Next.js listens on Render's supplied `PORT`; do not hardcode a port.
+Keep `HOSTNAME=0.0.0.0`; the Blueprint probes `/` and accepts its 2xx/3xx response.
 The Blueprint uses `sync: false` inputs: supply real values in Render, never Git.
 Set `BACKEND_URL` to the deployed API base URL (normally HTTPS), `AUTH_SECRET`,
 `SIOONA_SERVICE_TOKEN` matching the API, `SIOONA_TENANT_ID`, approved
@@ -364,5 +368,15 @@ After an approved deployment, repeat the hosted read-only checks above with
 `VERCEL_URL` set to the new Render web origin. Verify sign-in, tenant isolation,
 and API health before changing DNS or retiring the previous host. Render's local
 filesystem is ephemeral; production operational state must stay in Postgres.
+For each future custom hostname, add and verify it on the matching Render service
+before DNS cutover. At providers without ALIAS/ANAME flattening, use
+`A @ 216.24.57.1` for an apex and `CNAME app sioona-web.onrender.com` for the
+product subdomain; remove conflicting `AAAA` records. Keep the product on a
+subdomain so marketing can own the apex/`www`. Configure the non-canonical
+hostname as a permanent redirect to the chosen canonical HTTPS hostname (Render
+automatically pairs root and `www` and redirects whichever counterpart is not
+canonical), wait for Render-managed TLS, then update all origin/cookie/auth
+settings and verify redirects, sign-in, tenant isolation, and `/health` before
+disabling any old hostname or the Render subdomain.
 See [`../site/MARKETING_RELEASE.md`](../site/MARKETING_RELEASE.md) for marketing
 configuration and its release gates. Reference: [Render Blueprint specification](https://render.com/docs/blueprint-spec).

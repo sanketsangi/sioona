@@ -8,6 +8,7 @@ services:
     rootDir: site
     buildCommand: npm ci && npm run build
     startCommand: npm start
+    healthCheckPath: /
     autoDeployTrigger: off
     envVars:
       - key: NODE_VERSION
@@ -31,12 +32,19 @@ services:
     name: sioona-web
     runtime: node
     rootDir: web
-    buildCommand: npm ci && npm run build
+    buildCommand: |
+      npm ci
+      npm install --no-save "@rollup/rollup-linux-x64-gnu@$(node -p "require('rollup/package.json').version")"
+      npm install --no-save "@next/swc-linux-x64-gnu@$(node -p "require('next/package.json').version")"
+      npm run build
     startCommand: npm start
+    healthCheckPath: /
     autoDeployTrigger: off
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: HOSTNAME
+        value: "0.0.0.0"
       - key: SIOONA_ENV
         value: "production"
       - key: BACKEND_URL
