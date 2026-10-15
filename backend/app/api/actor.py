@@ -213,6 +213,17 @@ ALWAYS_ENFORCED_ROUTES = ALWAYS_ENFORCED_ROUTES | LIVE_ADMIN_ROUTES | {LIVE_ACCE
 
 
 
+EXTERNAL_ACTION_ROUTES = {
+    ('POST', '/v1/tenants/{tenant_id}/external-actions/proposals'),
+    ('POST', '/v1/tenants/{tenant_id}/external-actions/proposals/{proposal_id}/approve'),
+    ('POST', '/v1/tenants/{tenant_id}/external-actions/executions/{execution_id}/execute'),
+    ('POST', '/v1/tenants/{tenant_id}/external-actions/executions/{execution_id}/reconcile'),
+    ('GET', '/v1/tenants/{tenant_id}/external-actions'),
+}
+ROUTE_GUARDS.update({key: ('admin', None, 'path') for key in EXTERNAL_ACTION_ROUTES})
+ALWAYS_ENFORCED_ROUTES = ALWAYS_ENFORCED_ROUTES | EXTERNAL_ACTION_ROUTES
+
+
 def guarded_router(*args, **kwargs):
     dependencies = list(kwargs.pop("dependencies", []))
     dependencies.append(Depends(guard_request))

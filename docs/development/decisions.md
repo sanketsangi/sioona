@@ -209,6 +209,13 @@ Date: 2026-10-15
 Approver: Sanket
 Scope: The approved CB-16 plan covers provider signature/replay checks, server-bound installations, durable event/job acceptance, ordering/deletion, and explicit recovery, with local/disposable PostgreSQL verification. The 2026-10-16 follow-up authorizes verification, commit, push, and PR creation. Hosted migration, deployment, customer enablement, provider spend, and worker provisioning require separate approval. CB-03/CB-07 operator acceptance and signed CB-10 acceptance remain rollout gates. WhatsApp productionization and CB-17 are outside this change. Nothing auto-sends.
 
+### D10 — CB-17 supervised external action approval
+
+Status: **approved for local/sandbox implementation and verification only**
+Date: 2026-10-16
+Approver: Sanket
+Scope: CB-17 implementation, disposable PostgreSQL 17 tests, local checks, commit and push of `cb/CB-17-supervised-external-action`. First action: `intercom_internal_note`, posting an internal operator note to an explicitly allowlisted sandbox Intercom conversation, never messaging the customer. `SIOONA_EXTERNAL_ACTIONS_ENABLED=0` is the default. Separate approval binds the exact proposal, payload SHA-256, target, verified actor, tenant, action version and expiry; Approve Draft never authorizes execution. A submitted timeout is `unknown` and cannot be blindly retried; explicit admin reconciliation is required. No hosted migration, deployment, production enablement, live customer target or provider credential provisioning is authorized. Existing hosted acceptance gates remain.
+
 ## D11 — Audit, retention, export, and deletion
 
 Status: **approved**
