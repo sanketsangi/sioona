@@ -430,6 +430,16 @@ def sweep(db, tenant, actor):
     # definer function; runtime has no direct audit UPDATE/DELETE privilege.
     if db.get_bind().dialect.name == 'postgresql':
         counts['expired_summaries'] = db.scalar(text('SELECT cb18_expire_summaries(:tenant)'), {'tenant': tenant})
+    else:
+        # SQLite has no roles/definer functions; keep the same bounded policy
+        # in the local verification path after the hold check above.
+        counts['expired_summaries'] = sum(
+            delete_batch(db, model.__table__,
+                (model.tenant_id == tenant) & (model.created_at < now - timedelta(days=365)),
+                BATCH_SIZE)
+            for model in (AuditEvent, LifecycleLedgerSummary)
+        )
+        db.expire_all()
     audit(db, tenant, actor, 'retention_sweep', 'retention')
     db.commit()
     return counts

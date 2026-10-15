@@ -988,5 +988,3 @@ describe("SignalReviewSuggestedAction", () => {
     expect(html).toContain(NO_RECOMMENDED_REPLY);
   });
 });
-
-});

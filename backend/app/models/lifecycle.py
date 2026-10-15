@@ -107,6 +107,11 @@ def sqlite_lifecycle_fences(metadata, connection, **kwargs):
     connection.exec_driver_sql('''CREATE TRIGGER IF NOT EXISTS cb18_sticky_fence
         BEFORE UPDATE ON tenant_deletions WHEN OLD.fenced=1 AND NEW.fenced=0
         BEGIN SELECT RAISE(ABORT, 'deletion_fence_is_permanent'); END''')
-    for operation in ('UPDATE','DELETE'):
-        connection.exec_driver_sql(f'''CREATE TRIGGER IF NOT EXISTS cb18_audit_{operation.lower()}
-            BEFORE {operation} ON audit_events BEGIN SELECT RAISE(ABORT, 'audit_append_only'); END''')
+    connection.exec_driver_sql('''CREATE TRIGGER IF NOT EXISTS cb18_audit_update
+        BEFORE UPDATE ON audit_events BEGIN SELECT RAISE(ABORT, 'audit_append_only'); END''')
+    # SQLite has no runtime roles; permit only policy-aged, unheld expiry.
+    connection.exec_driver_sql('''CREATE TRIGGER IF NOT EXISTS cb18_audit_delete
+        BEFORE DELETE ON audit_events WHEN
+        julianday(OLD.created_at) >= julianday('now', '-365 days') OR EXISTS
+        (SELECT 1 FROM legal_holds WHERE tenant_id=OLD.tenant_id AND active=1)
+        BEGIN SELECT RAISE(ABORT, 'audit_append_only'); END''')

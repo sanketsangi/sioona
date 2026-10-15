@@ -200,3 +200,20 @@ def test_resource_hold_cannot_target_another_tenants_resource(db):
     with pytest.raises(lifecycle.LifecycleError, match='resource_not_found'):
         lifecycle.place_hold(db, 'a', actor, 'regulatory', 'conversation', 'b-only')
     assert lifecycle.place_hold(db, 'a', actor, 'regulatory', 'conversation', 'c')
+
+
+def test_manual_retention_expires_old_audit_and_financial_summaries(db):
+    from app.models.lifecycle import AuditEvent, LifecycleLedgerSummary
+    actor, _ = seed(db)
+    old = datetime.now(timezone.utc) - timedelta(days=366)
+    event_id = str(uuid.uuid4())
+    db.add(AuditEvent(id=event_id, tenant_id='a', actor_id=actor,
+        resource_type='retention', resource_id=str(uuid.uuid4()),
+        operation='retention_sweep', created_at=old))
+    db.add(LifecycleLedgerSummary(tenant_id='a', id=str(uuid.uuid4()), attempts=1,
+        unknown_attempts=0, reserved_usd=0, spent_usd=0, created_at=old))
+    db.commit()
+    counts = lifecycle.sweep(db, 'a', actor)
+    assert counts['expired_summaries'] == 2
+    assert db.scalar(select(func.count()).select_from(LifecycleLedgerSummary)) == 0
+    assert db.get(AuditEvent, event_id) is None
