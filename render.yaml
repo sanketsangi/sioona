@@ -9,7 +9,8 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /
-    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 120
+    autoDeployTrigger: "off"
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -39,7 +40,8 @@ services:
       npm run build
     startCommand: npm start
     healthCheckPath: /
-    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 120
+    autoDeployTrigger: "off"
     envVars:
       - key: NODE_VERSION
         value: "22"
@@ -66,9 +68,10 @@ services:
     name: sioona-api
     runtime: python
     rootDir: backend
-    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 120
+    autoDeployTrigger: "off"
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m scripts.check_schema && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT --timeout-graceful-shutdown 110
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
@@ -84,13 +87,14 @@ services:
 
   - type: cron
     name: sioona-ingestion-recovery
+    autoDeployTrigger: "off"
     runtime: python
     rootDir: backend
     # UTC. Uploads staged longer than --grace-seconds are retried in bounded batches;
     # a non-zero exit marks the run failed when any recovery fails.
     schedule: "*/10 * * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m app.recover_ingestions --limit 20 --grace-seconds 300
+    startCommand: python -m scripts.check_schema && exec python -m app.recover_ingestions --limit 20 --grace-seconds 300
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
@@ -104,9 +108,10 @@ services:
     name: sioona-detection-worker
     runtime: python
     rootDir: backend
-    autoDeployTrigger: off
+    maxShutdownDelaySeconds: 120
+    autoDeployTrigger: "off"
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m app.worker
+    startCommand: python -m scripts.check_schema && exec python -m app.worker
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"

@@ -175,7 +175,7 @@ def test_concurrent_baseline_save_preserves_weekly_receipt(monkeypatch, seeded):
         engine.dispose()
 
 
-@pytest.mark.parametrize("prior", [None, "011_signal_urgency_value"])
+@pytest.mark.parametrize("prior", [None, "011_signal_urgency_value", "028_batch_cache"])
 def test_postgres_fresh_and_existing_schema_upgrade(prior, monkeypatch):
     assert URL and make_url(URL).database == "sioona_migration_test", "Refusing to reset a non-test database"
     engine = create_engine(URL)
@@ -2144,3 +2144,218 @@ def test_cb18_deleted_summary_expiry_uses_restricted_runtime_function(job_pg):
         assert db.scalar(select(func.count()).select_from(AuditEvent)) == 1  # recent release retained
     with _runtime_session(job_pg, 'b') as db:
         assert db.scalar(select(func.count()).select_from(AuditEvent)) == 1
+
+
+def test_cb19_worker_pause_resume(job_pg, monkeypatch):
+    """Pause after first publication while a real runtime lease is active."""
+    from app.worker import Worker
+    from app.services import jobs
+    from app.models.job import Job
+    from app.models.detection_run import DetectionRun
+    from app.config import get_settings
+    jid = _job_seed(job_pg, ids=('c1', 'c2'))
+    original = jobs.publish_conversation
+    def pause_after_publish(*args, **kwargs):
+        result = original(*args, **kwargs)
+        monkeypatch.setenv('SIOONA_WORKER_PAUSE', '1')
+        return result
+    monkeypatch.setattr(jobs, 'publish_conversation', pause_after_publish)
+    worker = Worker(lambda: _runtime_session(job_pg, 'a'))
+    assert worker.run_once('a')
+    assert not worker.tick()
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.scalar(select(func.count()).select_from(DetectionRun)) == 1
+        row = db.get(Job, ('a', jid))
+        assert row.status == 'queued'
+        assert row.lease_owner is None and row.lease_expires_at is None
+    monkeypatch.setattr(jobs, 'publish_conversation', original)
+    monkeypatch.setenv('SIOONA_WORKER_PAUSE', '0')
+    get_settings.cache_clear()
+    assert worker.run_once('a')
+    assert not worker.run_once('a')
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.get(Job, ('a', jid)).status == 'succeeded'
+        assert db.scalar(select(func.count()).select_from(DetectionRun)) == 2
+        from app.models.weekly_upload_receipt import WeeklyUploadReceipt
+        assert db.scalar(select(func.count()).select_from(WeeklyUploadReceipt)) == 1
+
+
+@pytest.mark.parametrize('scope', ['global', 'a'])
+def test_cb19_provider_kill_switch(job_pg, monkeypatch, scope):
+    import time
+    from app.worker import Worker
+    from app.services.inference_budget import configure
+    from app.config import get_settings
+    from app.models.detection_run import DetectionRun
+    from app.models.inference_attempt import InferenceAttempt
+    monkeypatch.setenv('DETECT_LLM', '1')
+    monkeypatch.setenv('DETECT_LLM_PRIMARY', '1')
+    monkeypatch.setenv('GROQ_API_KEY', 'synthetic-never-dispatched')
+    get_settings.cache_clear()
+    _job_seed(job_pg)
+    with Session(job_pg) as db:
+        for control in ('global', 'a'):
+            configure(db, control, 10, 10, True, 'rehearsal', 'operator')
+        db.commit()
+    calls = []
+    def unavailable(*args):
+        calls.append(1)
+        raise AssertionError('provider must never be dispatched after pause')
+    worker = Worker(lambda: _runtime_session(job_pg, 'a'), call=unavailable)
+    with Session(job_pg) as db:
+        configure(db, scope, 10, 10, False, 'provider_outage', 'operator')
+        db.commit()
+    begin = time.monotonic()
+    assert worker.run_once('a')
+    assert time.monotonic() - begin <= 60
+    assert calls == []
+    from app.models.job import Job
+    with _runtime_session(job_pg, 'a') as db:
+        run = db.scalar(select(DetectionRun))
+        assert run is not None and run.model_version == 'heuristic'
+        assert db.scalar(select(Job)).last_error_category == 'ai_paused'
+        assert db.scalar(select(func.count()).select_from(InferenceAttempt)) == 0
+
+
+def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
+    """Restore an actual pre-deletion pg_dump; replay externally retained receipt."""
+    import subprocess
+    from pathlib import Path
+    from app.services import lifecycle
+    from app.models import Base, SignalEvidence
+    from tests.test_audit_lifecycle import seed
+    import sys
+    binaries = Path(os.environ.get('CB19_PG_BIN', '/opt/homebrew/opt/postgresql@17/bin' if sys.platform == 'darwin' else '/usr/lib/postgresql/17/bin'))
+    url = make_url(URL)
+    env = dict(os.environ, PGPASSWORD=url.password or '')
+    connection = ['-h', url.host, '-p', str(url.port or 5432), '-U', url.username, '-d', url.database]
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    backup = tmp_path / 'before.dump'
+    subprocess.run([str(binaries / 'pg_dump'), *connection, '-Fc', '-f', str(backup)], env=env, check=True)
+    with _runtime_session(job_pg, 'a') as db:
+        row = lifecycle.request_deletion(db, 'a', actor)
+        rid = row.id
+        lifecycle.confirm_deletion(db, 'a', rid, actor, 'DELETE a')
+        for _ in range(100):
+            row = lifecycle.advance_deletion(db, 'a', rid, actor, batch_size=1)
+            if row.state == 'completed':
+                break
+        assert row.state == 'completed'
+        trusted_receipt = lifecycle.receipt(row)
+    job_pg.dispose()
+    subprocess.run([str(binaries / 'pg_restore'), *connection, '--clean', '--if-exists', '--exit-on-error', str(backup)], env=env, check=True)
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.scalar(select(func.count()).select_from(SignalEvidence)) == 1
+        row = lifecycle.reconcile_tombstone(db, 'a', trusted_receipt, actor)
+        assert row.fenced
+    for _ in range(100):
+        with _runtime_session(job_pg, 'a') as db:
+            row = lifecycle.advance_deletion(db, 'a', rid, actor, batch_size=1)
+            if row.state == 'completed':
+                break
+    assert row.state == 'completed'
+    with Session(job_pg) as db:
+        # Explicitly retained tombstones/audit/accounting are not displayable data.
+        for name, table in Base.metadata.tables.items():
+            if 'tenant_id' in table.c and name in lifecycle.DELETE_ORDER:
+                assert db.scalar(select(func.count()).select_from(table).where(table.c.tenant_id == 'a')) == 0, name
+        assert db.scalar(select(func.count()).select_from(SignalEvidence).where(SignalEvidence.tenant_id == 'a')) == 0
+        assert db.scalar(select(func.count()).select_from(Conversation).where(Conversation.tenant_id == 'b')) == 1
+
+
+def test_cb19_database_outage_recovery(job_pg, monkeypatch):
+    """Disable connections to this disposable DB; HTTP reads fail then recover."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.db import get_db
+    from app.config import get_settings
+    monkeypatch.setenv('SIOONA_ACTOR_AUTH', 'off')
+    get_settings.cache_clear()
+    _job_seed(job_pg)
+    def database():
+        with Session(job_pg) as db:
+            yield db
+    prior = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = database
+    admin = create_engine(make_url(URL).set(database='postgres'), isolation_level='AUTOCOMMIT')
+    try:
+        with TestClient(app) as client:
+            headers = {'X-Tenant-Id': 'a'}
+            path = '/v1/tenants/a/conversations'
+            assert client.get(path, headers=headers).status_code == 200
+            job_pg.dispose()
+            with admin.connect() as connection:
+                connection.execute(text('ALTER DATABASE sioona_migration_test ALLOW_CONNECTIONS false'))
+                connection.execute(text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='sioona_migration_test'"))
+            response = client.get(path, headers=headers)
+            assert response.status_code >= 500
+            assert response.json()['detail'] == 'database_unavailable'
+            with admin.connect() as connection:
+                connection.execute(text('ALTER DATABASE sioona_migration_test ALLOW_CONNECTIONS true'))
+            assert client.get(path, headers=headers).status_code == 200
+    finally:
+        with admin.connect() as connection:
+            connection.execute(text('ALTER DATABASE sioona_migration_test ALLOW_CONNECTIONS true'))
+        admin.dispose()
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(prior)
+
+
+def test_cb19_schema_gate(job_pg, monkeypatch):
+    from scripts import check_schema
+    # Readiness needs SELECT only, never schema writes or migration-owner URLs.
+    runtime = create_engine(URL, connect_args={'options': '-c role=sioona_runtime'})
+    monkeypatch.setattr(check_schema, 'create_engine', lambda *_: runtime)
+    check_schema.main()
+    with job_pg.begin() as connection:
+        connection.execute(text("UPDATE alembic_version SET version_num='028_batch_cache'"))
+    try:
+        with pytest.raises(SystemExit, match='schema_not_ready'):
+            check_schema.main()
+    finally:
+        with job_pg.begin() as connection:
+            connection.execute(text("UPDATE alembic_version SET version_num='029_audit_lifecycle'"))
+
+
+def test_cb19_provider_outage_fallback(job_pg, monkeypatch):
+    """Synthetic provider failure is metered, then pauses suppress dispatch."""
+    from app.worker import Worker
+    from app.ai.gateway import ProviderFailure
+    from app.services.inference_budget import configure
+    from app.models.inference_attempt import InferenceAttempt
+    from app.models.detection_run import DetectionRun
+    from app.config import get_settings
+    monkeypatch.setenv('DETECT_LLM', '1')
+    monkeypatch.setenv('DETECT_LLM_PRIMARY', '1')
+    monkeypatch.setenv('GROQ_API_KEY', 'synthetic-never-networked')
+    get_settings.cache_clear()
+    _job_seed(job_pg)
+    with Session(job_pg) as db:
+        for scope in ('global', 'a'):
+            configure(db, scope, 10, 10, True, 'drill', 'operator')
+        db.commit()
+    calls = []
+    def unavailable(*_):
+        calls.append(1)
+        raise ProviderFailure('network', retryable=False)
+    worker = Worker(lambda: _runtime_session(job_pg, 'a'), call=unavailable)
+    assert worker.run_once('a')
+    assert calls
+    with _runtime_session(job_pg, 'a') as db:
+        attempts = list(db.scalars(select(InferenceAttempt)))
+        assert len(attempts) == len(calls)
+        assert all(row.status == 'failed' for row in attempts)
+        assert db.scalar(select(DetectionRun)) is None
+    with Session(job_pg) as db:
+        configure(db, 'global', 10, 10, False, 'provider_outage', 'operator')
+        db.commit()
+    import time
+    time.sleep(2.1)  # Real first-retry backoff, no clock or queue-state patch.
+    previous_calls = len(calls)
+    assert worker.run_once('a')
+    assert len(calls) == previous_calls
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.scalar(select(DetectionRun)).model_version == 'heuristic'
+        from app.models.job import Job
+        assert db.scalar(select(Job)).last_error_category == 'ai_paused'
