@@ -144,6 +144,8 @@ export function NavUser({ account }: { account: AccountSurface }) {
     if (pending) return;
     setPending(true);
     void fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+      // Logout must discard the authenticated document and its client caches.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/login");
     });
   }

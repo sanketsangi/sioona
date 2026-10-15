@@ -12,6 +12,8 @@ from app.db import clear_tenant, get_db
 from app.main import app
 from app.models import Base
 
+pytest.register_assert_rewrite("tests.actor_support")
+
 
 def _sqlite_engine():
     engine = create_engine(
