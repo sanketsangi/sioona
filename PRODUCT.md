@@ -7,6 +7,17 @@ Overlay conversation intelligence for finance / high-volume chat teams. Sits on 
 
 **Now:** 2-week Shadow Mode pilot — win = keep-set SignalScore ≥80% on Eval (week window). Phase 1 loop is **largely built / hosted**. Daily SoT: [`.cursor/docs/PROJECT_STATE.md`](./.cursor/docs/PROJECT_STATE.md). North star: [`.cursor/plans/sioona_product_context.md`](./.cursor/plans/sioona_product_context.md). Pilot ask + redaction + outreach: [`PARTNER_DEMO.md`](./PARTNER_DEMO.md).
 
+**Code status (2026-10-15):** `main` tip `7506fb4e` includes merged CB-18
+(#178, audit/retention/export/deletion; migration `029_audit_lifecycle`)
+and CB-19 (#179, reproducible infrastructure and local recovery/launch drills).
+The local inference-control audit reconciliation advances the schema head to
+`030_inference_control_audit`; apply it before deploying the audited handlers.
+Unified Render hosting is declared in `render.yaml`, with the app at
+`https://sioona-web.onrender.com`; Vercel deployment is retired. Merged code does
+not establish hosted launch acceptance. Blueprint application, hosted migrations,
+live deletion, worker/scheduler activation and D10 integrations require separate
+approval; existing CB-03/CB-10 hosted gates and human-only decisions remain.
+
 ## Sell today (GTM)
 
 **One-liner offer:** Send one anonymized Intercom / WhatsApp export; we run Shadow Mode and show keep-set SignalScore + opportunity lift vs your baseline — before any integration.
@@ -51,7 +62,7 @@ Prove domain signal detection beats the customer’s current process with enough
 - Partner baseline + opportunity lift on Eval; conversation groundTruth labeling
 - Eval: keep-set SignalScore on week window (go ≥80%); labeled P/R is pack/CLI only — not the customer claim
 - Partner demo path: `/` Demo Home, one-click **Start Partner Demo**, sample pack + [`PARTNER_DEMO.md`](./PARTNER_DEMO.md)
-- Hosted: Vercel app + Render FastAPI + Neon (predictions, feedback, Acted, dual-written chats, ground truth, pilot settings + hydrate)
+- Hosting target: unified Render (`render.yaml`; `sioona-web.onrender.com` app, separate marketing site and FastAPI; worker/recovery activation gated) + Neon (predictions, feedback, Acted, dual-written chats, ground truth, pilot settings + hydrate)
 
 ## Out of scope (unless explicitly asked)
 

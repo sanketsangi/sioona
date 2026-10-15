@@ -1,7 +1,7 @@
 # Sioona — Architecture (Ask / Architect SoT)
 
 **Audience:** Ask mode + Architect planning. Living pilot status stays in [`PROJECT_STATE.md`](./PROJECT_STATE.md) — do not duplicate week scores / blockers here.  
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-15 — `main` tip `7506fb4e`
 
 ---
 
@@ -13,16 +13,22 @@
 
 ## 2. Process topology
 
-**Local lifecycle addition (2026-10-15, CB-18):** `/lifecycle` → same-origin
+**Merged lifecycle addition (2026-10-15, CB-18, #178):** `/lifecycle` → same-origin
 `/api/lifecycle` BFF → always-enforced verified-admin FastAPI lifecycle routes →
 tenant-scoped Postgres audit/hold/export/deletion state. Migration
-`029_audit_lifecycle` follows `028_batch_cache`. Exports are private 24-hour
+`029_audit_lifecycle` follows `028_batch_cache`; the local reconciliation adds
+`030_inference_control_audit` for atomic tenant/global inference-control events.
+Apply 030 before deploying the audited handlers. Exports are private 24-hour
 database artifacts; confirmed deletion fences canonical writes and workers
 before bounded FK-safe checkpoints through `wipe_tenant_data`. Audit uses forced
 RLS and INSERT/SELECT-only runtime grants; legal holds block manual expiry and
 deletion. No scheduler, hosted migration or D10 integration is enabled. The
 historical pilot topology below is preserved; current authorization and receipts
-are in `docs/development/tasks/CB-18.md`.
+are in `docs/development/tasks/CB-18.md`. CB-19 (#179) is also merged on
+`main`: `render.yaml` defines unified hosting, exact-head schema checks run
+before Python consumers start, and disposable launch/recovery drills are
+recorded in `docs/development/tasks/CB-19.md`. Blueprint application and hosted
+launch remain separate operator gates; this reconciliation verifies local code only.
 
 ```text
 Cold open / Reset (Groww testing.json)
@@ -54,7 +60,7 @@ Partner export (Upload)
 | Auth (browser → web)                             | Signed httpOnly `sioona_session` cookie (HMAC-SHA256 with `AUTH_SECRET`, 12h). Carries email, role (`admin` / `reviewer` / `demo`) and tenant id. Not Auth0. |
 | Auth (web → FastAPI)                             | `Authorization: Bearer $SIOONA_SERVICE_TOKEN` + `X-Tenant-Id`, sent only by the Next server. |
 
-Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sioona-api` + Neon `sioona`. Hydrate + Adapt union + pilot restore survive wipe. Platform SSR also overlays `store.pilot` from Neon (heal stale `/tmp` after Partner Demo / cross-instance `set_baseline`). Partner Demo restores a prior partner baseline after wipe (cold-demo 4 only when none exists).
+Hosting target: unified Render via `render.yaml` — `sioona-site`, `sioona-web.onrender.com` (`web/`), `sioona-api`, paused detection worker and gated ingestion recovery cron — plus Neon `sioona`. Vercel deployment is retired; live deployment is not asserted here. Hydrate + Adapt union + pilot restore survive wipe. Platform SSR also overlays `store.pilot` from Neon (heal stale `/tmp` after Partner Demo / cross-instance `set_baseline`). Partner Demo restores a prior partner baseline after wipe (cold-demo 4 only when none exists).
 
 ---
 
@@ -67,7 +73,7 @@ Hosted: Vercel `sioona-demo.vercel.app` (`web/`, ephemeral `/tmp`) + Render `sio
 | `web/src/lib/`                          | Domain logic (prefer edits here)                               |
 | `web/data/`                             | Runtime store + samples — **never commit `store.json`**        |
 | `backend/app/`                          | FastAPI routes, models, services                               |
-| `backend/alembic/versions/`             | `001`–`011` (head = `011_signal_urgency_value`)                |
+| `backend/alembic/versions/`             | `001`–`030` (head = `030_inference_control_audit`)                |
 | `.cursor/docs/PROJECT_STATE.md`         | Heading, gates, do-not-start                                   |
 | `.cursor/rules/sioona-architecture.mdc` | Always-on short stack rules                                    |
 
@@ -129,7 +135,9 @@ Primary wedge type: **retention**.
 | Pilot            | `GET`/`PUT …/pilot`                                                                                   |
 | Wipe             | `DELETE …/data`                                                                                       |
 
-Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/messages → `004` acted → `005` ground_truth → `006` pilot_settings → `007` `last_uploaded_file_name` → `008` index on feedback `(tenant_id, reviewed_at)` → `009` `supervised_action_decisions` → `010` outcome columns + `taxonomy_overrides` + Postgres FK → `011` urgency / `urgency_timeframe` / `mentioned_value_inr`.
+Current local migration head: `030_inference_control_audit` (CB-07/CB-18 inference-control audit vocabulary, follows `029_audit_lifecycle`); CB-19 startup checks require the exact code head without applying migrations. The early migration sequence below is historical, not the complete current chain.
+
+Migrations (early history): `001` predictions+feedback → `002` upsert unique → `003` chats/messages → `004` acted → `005` ground_truth → `006` pilot_settings → `007` `last_uploaded_file_name` → `008` index on feedback `(tenant_id, reviewed_at)` → `009` `supervised_action_decisions` → `010` outcome columns + `taxonomy_overrides` + Postgres FK → `011` urgency / `urgency_timeframe` / `mentioned_value_inr`.
 
 **FK (Postgres only):** `010` adds `fk_signal_predictions_conversation` from `signal_predictions (tenant_id, conversation_id)` to `conversations (tenant_id, conversation_id)` with `ON DELETE RESTRICT`, after backfilling stub conversations for orphan predictions. The ORM models and the SQLite test database have no FK. Delete order matters: feedback → predictions → messages → conversations (`delete_conversation`, `prune_conversations_not_in`, `wipe_tenant_data` all do this).
 
@@ -148,7 +156,7 @@ Migrations: `001` predictions+feedback → `002` upsert unique → `003` chats/m
 ## 8. Fragile seams (plan around these)
 
 - Dual SoT: JSON can drift ahead of Neon if dual-write fails (`syncFailed` banners).
-- Vercel `/tmp` ephemeral — rely on hydrate, not local files.
+- Render service filesystems are ephemeral — rely on canonical persistence and hydrate, not local files.
 - Render free cold starts (~15m) → queue/score timeouts. Insights/Eval auto-wake `/api/backend-health` once, then refresh (cooldown; partner-safe copy).
 - Tenancy is enforced by the web cookie, not by FastAPI. FastAPI trusts `X-Tenant-Id` from any holder of the service token, and is open to anyone who can reach it when the token is unset outside production.
 - Neon **pending / Follow-up / Done** stubs without a JSON signal may join, but queue cards require a keep-set chat (`filterPendingWithChat`). Request-scoped overlay (`GET …/conversations?conversation_id=`) is **wipe-recovery only** (`shouldOverlayKeepSetChats`: empty JSON, not `replaced=1`) — never pull leftover Sample/Partner Demo chats into an active keep-set. Stubs with **no** store or allowed overlay chat are dropped.

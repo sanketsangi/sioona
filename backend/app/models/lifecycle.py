@@ -11,10 +11,10 @@ class AuditEvent(Base):
     __tablename__ = 'audit_events'
     __table_args__ = (
         CheckConstraint("actor_role = 'admin'", name='ck_audit_role'),
-        CheckConstraint("operation IN ('hold_placed','hold_released','export_created','export_read','deletion_requested','deletion_confirmed','deletion_step','deletion_completed','deletion_blocked','deletion_failed','retention_sweep')", name='ck_audit_operation'),
+        CheckConstraint("operation IN ('hold_placed','hold_released','export_created','export_read','deletion_requested','deletion_confirmed','deletion_step','deletion_completed','deletion_blocked','deletion_failed','retention_sweep','inference_paused','inference_enabled')", name='ck_audit_operation'),
         CheckConstraint("result IN ('succeeded','blocked','failed')", name='ck_audit_result'),
         CheckConstraint("reason_code IN ('approved','litigation','regulatory','investigation','legal_hold','internal_error','expired')", name='ck_audit_reason'),
-        CheckConstraint("resource_type IN ('tenant','hold','export','deletion','retention')", name='ck_audit_resource'),
+        CheckConstraint("resource_type IN ('tenant','hold','export','deletion','retention','inference_control','global_inference_control')", name='ck_audit_resource'),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str] = mapped_column(String(256), index=True)

@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["029_audit_lifecycle"]
+        assert heads == ["030_inference_control_audit"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -2347,7 +2347,7 @@ def test_cb19_schema_gate(job_pg, monkeypatch):
             check_schema.main()
     finally:
         with job_pg.begin() as connection:
-            connection.execute(text("UPDATE alembic_version SET version_num='029_audit_lifecycle'"))
+            connection.execute(text("UPDATE alembic_version SET version_num='030_inference_control_audit'"))
 
 
 def test_cb19_provider_outage_fallback(job_pg, monkeypatch):
@@ -2391,3 +2391,33 @@ def test_cb19_provider_outage_fallback(job_pg, monkeypatch):
         assert db.scalar(select(DetectionRun)).model_version == 'heuristic'
         from app.models.job import Job
         assert db.scalar(select(Job)).last_error_category == 'ai_paused'
+
+
+def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg):
+    """029→030 preserves history and admits bounded events under runtime RLS."""
+    import uuid
+    from app.models.lifecycle import AuditEvent
+    from app.services.lifecycle import audit
+    cfg = Config('alembic.ini')
+    command.downgrade(cfg, '029_audit_lifecycle')
+    actor = str(uuid.uuid4())
+    with _runtime_session(job_pg, 'a') as db:
+        audit(db, 'a', actor, 'retention_sweep')
+        db.commit()
+    command.upgrade(cfg, 'head')
+    with _runtime_session(job_pg, 'a') as db:
+        assert list(db.scalars(select(AuditEvent.operation))) == ['retention_sweep']
+        for resource in ('inference_control', 'global_inference_control'):
+            for operation in ('inference_paused', 'inference_enabled'):
+                audit(db, 'a', actor, operation, resource)
+        db.commit()
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 5
+    with _runtime_session(job_pg, 'b') as db:
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 0
+    # A rollback cannot discard incompatible append-only events to fit 029.
+    with pytest.raises(DBAPIError, match='ck_audit_operation'):
+        command.downgrade(cfg, '029_audit_lifecycle')
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 5
+    with job_pg.connect() as conn:
+        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '030_inference_control_audit'
