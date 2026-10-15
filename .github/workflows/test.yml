@@ -103,7 +103,19 @@ jobs:
       - name: Test
         run: python -m pytest
       - name: Install PostgreSQL 17 restore tools
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client-17
+        run: |
+          sudo apt-get install -y ca-certificates curl
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error --location \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          distro_codename="$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")"
+          architecture="$(dpkg --print-architecture)"
+          printf 'deb [arch=%s signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt %s-pgdg main\n' \
+            "$architecture" "$distro_codename" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
       - name: PostgreSQL migration and constraint checks
         env:
           CB19_PG_BIN: /usr/lib/postgresql/17/bin
