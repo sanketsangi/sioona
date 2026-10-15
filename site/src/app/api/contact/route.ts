@@ -8,7 +8,7 @@ import { normalizeContact, validateContact, hasContactHoneypot, type ContactValu
 function json(body: unknown, status = 200, headers: Record<string, string> = {}) {
   return NextResponse.json(body, { status, headers: { ...publicHeaders, "Cache-Control": "no-store", ...headers } });
 }
-export function retryAfter(value: string | null): string | null {
+function retryAfter(value: string | null): string | null {
   if (!value) return null;
   if (/^\d{1,10}$/.test(value)) return value;
   if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), \d{2} (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d{4} \d{2}:\d{2}:\d{2} GMT$/.test(value) && Number.isFinite(Date.parse(value))) return value;

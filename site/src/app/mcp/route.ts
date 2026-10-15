@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   } finally { await server.close(); }
 }
 
-export function GET(request?: Request) {
+export function GET(request: Request) {
   const headers = transportHeaders(request);
   if (request && !allowedOrigin(request)) return Response.json({ error: "Origin is not allowed" }, { status: 403, headers });
   headers.set("Allow", "POST, OPTIONS");
