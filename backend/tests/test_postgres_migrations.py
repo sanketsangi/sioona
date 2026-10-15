@@ -2221,37 +2221,69 @@ def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
     """Restore an actual pre-deletion pg_dump; replay externally retained receipt."""
     import subprocess
     from pathlib import Path
+    from decimal import Decimal
+    from uuid import UUID
     from app.services import lifecycle
     from app.models import Base, SignalEvidence
-    from tests.test_audit_lifecycle import seed
+    from app.models.lifecycle import AuditEvent, LegalHold, LifecycleLedgerSummary, TenantExport
     import sys
     binaries = Path(os.environ.get('CB19_PG_BIN', '/opt/homebrew/opt/postgresql@17/bin' if sys.platform == 'darwin' else '/usr/lib/postgresql/17/bin'))
     url = make_url(URL)
     env = dict(os.environ, PGPASSWORD=url.password or '')
     connection = ['-h', url.host, '-p', str(url.port or 5432), '-U', url.username, '-d', url.database]
+    protected_tables = (*lifecycle.DELETE_ORDER, 'audit_events', 'legal_holds', 'lifecycle_ledger_summaries')
+
+    def tenant_snapshot(db, tenant):
+        snapshot = {}
+        for name in protected_tables:
+            table = Base.metadata.tables[name]
+            primary_key = tuple(table.primary_key.columns)
+            rows = [tuple(str(value) for value in row) for row in db.execute(
+                select(*primary_key).where(table.c.tenant_id == tenant)
+            )]
+            encoded = json.dumps(sorted(rows), separators=(',', ':')).encode()
+            snapshot[name] = {
+                'count': len(rows),
+                'primary_key_digest': hashlib.sha256(encoded).hexdigest(),
+            }
+        return snapshot
+
+    with job_pg.begin() as conn:
+        _seed_two_tenants(conn)
+    actor = str(UUID(int=1))
     with Session(job_pg) as db:
-        actor, _ = seed(db)
+        expires = datetime.now(timezone.utc).replace(microsecond=0)
+        for tenant in ('tenant_a', 'tenant_b'):
+            db.add(TenantExport(tenant_id=tenant, bundle={'tenant': tenant}, expires_at=expires))
+        db.add(AuditEvent(tenant_id='tenant_b', actor_id=actor, resource_type='tenant',
+            resource_id=actor, operation='retention_sweep'))
+        db.add(LegalHold(tenant_id='tenant_b', reason_code='litigation', resource_type='tenant'))
+        db.add(LifecycleLedgerSummary(tenant_id='tenant_b', id='summary-b', attempts=1,
+            unknown_attempts=0, reserved_usd=Decimal('1'), spent_usd=Decimal('1')))
+        db.commit()
+        tenant_b_before = tenant_snapshot(db, 'tenant_b')
+        assert all(item['count'] > 0 for item in tenant_b_before.values())
     backup = tmp_path / 'before.dump'
     subprocess.run([str(binaries / 'pg_dump'), *connection, '-Fc', '-f', str(backup)], env=env, check=True)
-    with _runtime_session(job_pg, 'a') as db:
-        row = lifecycle.request_deletion(db, 'a', actor)
+    with _runtime_session(job_pg, 'tenant_a') as db:
+        row = lifecycle.request_deletion(db, 'tenant_a', actor)
         rid = row.id
-        lifecycle.confirm_deletion(db, 'a', rid, actor, 'DELETE a')
+        lifecycle.confirm_deletion(db, 'tenant_a', rid, actor, 'DELETE tenant_a')
         for _ in range(100):
-            row = lifecycle.advance_deletion(db, 'a', rid, actor, batch_size=1)
+            row = lifecycle.advance_deletion(db, 'tenant_a', rid, actor, batch_size=1)
             if row.state == 'completed':
                 break
         assert row.state == 'completed'
         trusted_receipt = lifecycle.receipt(row)
     job_pg.dispose()
     subprocess.run([str(binaries / 'pg_restore'), *connection, '--clean', '--if-exists', '--exit-on-error', str(backup)], env=env, check=True)
-    with _runtime_session(job_pg, 'a') as db:
+    with _runtime_session(job_pg, 'tenant_a') as db:
         assert db.scalar(select(func.count()).select_from(SignalEvidence)) == 1
-        row = lifecycle.reconcile_tombstone(db, 'a', trusted_receipt, actor)
+        row = lifecycle.reconcile_tombstone(db, 'tenant_a', trusted_receipt, actor)
         assert row.fenced
     for _ in range(100):
-        with _runtime_session(job_pg, 'a') as db:
-            row = lifecycle.advance_deletion(db, 'a', rid, actor, batch_size=1)
+        with _runtime_session(job_pg, 'tenant_a') as db:
+            row = lifecycle.advance_deletion(db, 'tenant_a', rid, actor, batch_size=1)
             if row.state == 'completed':
                 break
     assert row.state == 'completed'
@@ -2259,9 +2291,9 @@ def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
         # Explicitly retained tombstones/audit/accounting are not displayable data.
         for name, table in Base.metadata.tables.items():
             if 'tenant_id' in table.c and name in lifecycle.DELETE_ORDER:
-                assert db.scalar(select(func.count()).select_from(table).where(table.c.tenant_id == 'a')) == 0, name
-        assert db.scalar(select(func.count()).select_from(SignalEvidence).where(SignalEvidence.tenant_id == 'a')) == 0
-        assert db.scalar(select(func.count()).select_from(Conversation).where(Conversation.tenant_id == 'b')) == 1
+                assert db.scalar(select(func.count()).select_from(table).where(table.c.tenant_id == 'tenant_a')) == 0, name
+        assert db.scalar(select(func.count()).select_from(SignalEvidence).where(SignalEvidence.tenant_id == 'tenant_a')) == 0
+        assert tenant_snapshot(db, 'tenant_b') == tenant_b_before
 
 
 def test_cb19_database_outage_recovery(job_pg, monkeypatch):
