@@ -1,0 +1,57 @@
+{
+  "scope": "local disposable PostgreSQL 17; no hosted RTO/RPO approval",
+  "passed": true,
+  "seconds": 6.808150000000751,
+  "drills": [
+    {
+      "name": "test_postgres_fresh_and_existing_schema_upgrade[None]",
+      "seconds": 0.297,
+      "passed": true
+    },
+    {
+      "name": "test_postgres_fresh_and_existing_schema_upgrade[011_signal_urgency_value]",
+      "seconds": 0.246,
+      "passed": true
+    },
+    {
+      "name": "test_postgres_fresh_and_existing_schema_upgrade[028_batch_cache]",
+      "seconds": 0.244,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_worker_pause_resume",
+      "seconds": 0.239,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_provider_kill_switch[global]",
+      "seconds": 0.418,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_provider_kill_switch[a]",
+      "seconds": 0.529,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_backup_restore_tombstone",
+      "seconds": 0.578,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_database_outage_recovery",
+      "seconds": 0.215,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_schema_gate",
+      "seconds": 0.151,
+      "passed": true
+    },
+    {
+      "name": "test_cb19_provider_outage_fallback",
+      "seconds": 2.6,
+      "passed": true
+    }
+  ]
+}
