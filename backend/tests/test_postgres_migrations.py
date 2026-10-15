@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["032_live_ingest"]
+        assert heads == ["033_supervised_action_executions"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -775,7 +775,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
         with engine.begin() as conn:
             assert conn.execute(text(
                 "SELECT COUNT(*) FROM pg_policies WHERE policyname = 'tenant_isolation'"
-            )).scalar() == len(RLS_TABLES) + 8  # CB-18 forced-RLS tables
+            )).scalar() == len(RLS_TABLES) + 10  # CB-18/CB-17 forced-RLS tables
     finally:
         clear_tenant()
         get_settings.cache_clear()
@@ -2275,6 +2275,16 @@ def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
             db.add(LiveSource(tenant_id=tenant, installation_id='restore-install', source_id='restore-source',
                 source_version=1, content_sha256='b'*64, deleted=False))
         db.commit()
+        from app.models.supervised_action import ActionProposal, ActionExecution, SupervisedActionDecision
+        for tenant in ('tenant_a','tenant_b'):
+            decision = db.scalar(select(SupervisedActionDecision).where(SupervisedActionDecision.tenant_id == tenant))
+            proposal = ActionProposal(tenant_id=tenant, decision_id=decision.id, action_version=1,
+                target='123', payload_json={'message_type':'note','type':'admin','admin_id':'42','body':'Synthetic'},
+                payload_sha256='a'*64, state='proposed')
+            db.add(proposal); db.flush()
+            db.add(ActionExecution(tenant_id=tenant, proposal_id=proposal.id, payload_sha256='a'*64,
+                target='123', actor_id=actor, action_version=1, expires_at=expires, state='approved'))
+        db.commit()
         tenant_b_before = tenant_snapshot(db, 'tenant_b')
         assert all(item['count'] > 0 for item in tenant_b_before.values())
     backup = tmp_path / 'before.dump'
@@ -2443,7 +2453,7 @@ def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg, opera
             ('retention_sweep', 'tenant'), (operation, resource),
         }
     with job_pg.connect() as conn:
-        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '032_live_ingest'
+        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '033_supervised_action_executions'
 
 
 def test_queue_search_pg17_indexes_and_runtime_rls(job_pg):
@@ -2576,7 +2586,7 @@ def test_cb16_upgrade_preserves_inflight_deletion_checkpoint_and_downgrade_guard
         db.commit()
     command.downgrade(cfg,'031_queue_search')
     with Session(job_pg) as db:
-        assert db.get(TenantDeletion,'deleting').checkpoint == 4
+        assert db.get(TenantDeletion,'deleting').checkpoint == 2
     command.upgrade(cfg,'head')
     with Session(job_pg) as db:
         assert db.get(TenantDeletion,'deleting').checkpoint == 7
@@ -2586,3 +2596,147 @@ def test_cb16_upgrade_preserves_inflight_deletion_checkpoint_and_downgrade_guard
         command.downgrade(cfg,'031_queue_search')
     with _runtime_session(job_pg,'a') as db:
         assert db.get(LiveInstallation,('a','install1')).active
+
+
+def test_cb17_sandbox_outbox_runtime_rls_and_durable_attempt(job_pg, monkeypatch):
+    from app.models.supervised_action import ActionProposal, ActionExecution, SupervisedActionDecision
+    from app.services import external_actions as actions
+    from datetime import timedelta
+    import uuid
+    actor = str(uuid.uuid4())
+    monkeypatch.setenv('SIOONA_EXTERNAL_ACTIONS_SANDBOX_CONFIG', '{"a":{"sandbox":true,"conversation_ids":["123"],"admin_id":"42","token":"synthetic"}}')
+    with _runtime_session(job_pg, 'a') as db:
+        draft = SupervisedActionDecision(tenant_id='a', conversation_id='c', action_type='upsell_note_draft', status='approved', subject='Note', body='Synthetic note')
+        db.add(draft); db.commit()
+        p = actions.propose(db, 'a', actor, draft.id, '123', 'Synthetic operator note')
+        e = actions.approve(db, 'a', actor, p.id, p.payload_sha256, p.target, p.action_version, datetime.now(timezone.utc)+timedelta(minutes=5))
+        pid, eid = p.id, e.id
+    with _runtime_session(job_pg, 'b') as db:
+        assert db.get(ActionProposal, ('a',pid)) is None
+        assert db.get(ActionExecution, ('a',eid)) is None
+        with pytest.raises(DBAPIError):
+            db.execute(text("INSERT INTO action_proposals (tenant_id,id,decision_id,action_version,action_type,target,payload_json,payload_sha256,state) VALUES ('a',:id,:decision,1,'intercom_internal_note','123','{}',:sha,'proposed')"), {'id':str(uuid.uuid4()), 'decision':uuid.uuid4(), 'sha':'a'*64})
+    with job_pg.connect() as conn:
+        rows = conn.execute(text("SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname IN ('action_proposals','action_executions')")).all()
+        assert len(rows) == 2 and all(row[1] and row[2] for row in rows)
+    # Commit attempted before simulating a process crash. Re-entry never sends.
+    calls = []
+    monkeypatch.setattr(actions, 'submit_note', lambda *args: calls.append(args))
+    with _runtime_session(job_pg, 'a') as db:
+        e = db.get(ActionExecution, ('a',eid)); e.state='attempted'; db.commit()
+        assert actions.execute(db, 'a', actor, eid).state == 'unknown'
+        assert calls == []
+        actions.reconcile(db, 'a', actor, eid, 'failed', 'investigation_1')
+        assert actions.execute(db, 'a', actor, eid).state == 'failed'
+
+
+def test_cb17_concurrent_dispatch_exact_binding_and_audit(job_pg, monkeypatch):
+    from app.models.supervised_action import ActionProposal, ActionExecution, SupervisedActionDecision
+    from app.models.lifecycle import AuditEvent
+    from app.services import external_actions as actions
+    from tests.test_audit_lifecycle import seed
+    from datetime import timedelta
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    monkeypatch.setenv('SIOONA_EXTERNAL_ACTIONS_SANDBOX_CONFIG', '{"a":{"sandbox":true,"conversation_ids":["123"],"admin_id":"42","token":"synthetic"}}')
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    with _runtime_session(job_pg,'a') as db:
+        draft = SupervisedActionDecision(tenant_id='a', conversation_id='c', action_type='upsell_note_draft', status='approved', subject='Note', body='Synthetic')
+        db.add(draft); db.commit()
+        p = actions.propose(db, 'a', actor, draft.id, '123', 'Synthetic internal note')
+        e = actions.approve(db, 'a', actor, p.id, p.payload_sha256, p.target, 1, datetime.now(timezone.utc)+timedelta(minutes=5))
+        pid, eid, did = p.id, e.id, p.decision_id
+    with _runtime_session(job_pg,'a') as db:
+        with pytest.raises(DBAPIError, match='immutable_action_approval'):
+            db.execute(text("UPDATE action_executions SET target='999' WHERE id=:id"), {'id':eid})
+        db.rollback()
+        with pytest.raises(DBAPIError, match='immutable_action_proposal'):
+            db.execute(text("UPDATE action_proposals SET payload_sha256=:sha WHERE id=:id"), {'sha':'b'*64,'id':pid})
+    started, release = Event(), Event()
+    calls = []
+    def submit(*args):
+        calls.append(args); started.set(); assert release.wait(15)
+        return 'succeeded', '123'
+    monkeypatch.setattr(actions, 'enabled', lambda: True)
+    monkeypatch.setattr(actions, 'submit_note', submit)
+    def execute():
+        with _runtime_session(job_pg,'a') as db:
+            return actions.execute(db, 'a', actor, eid).state
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first = pool.submit(execute)
+        try:
+            assert started.wait(10)
+            with pytest.raises(actions.ActionError, match='dispatch_in_progress'):
+                pool.submit(execute).result(timeout=10)
+            with _runtime_session(job_pg, 'a') as db:
+                with pytest.raises(actions.ActionError, match='dispatch_in_progress'):
+                    actions.reconcile(db, 'a', actor, eid, 'failed', 'verified_absent')
+            with _runtime_session(job_pg, 'a') as db:
+                with pytest.raises(actions.ActionError, match='reconciliation_required'):
+                    actions.propose(db, 'a', actor, did, '123', 'Replacement')
+        finally: release.set()
+        assert first.result(timeout=10) == 'succeeded'
+    assert len(calls) == 1
+    with _runtime_session(job_pg,'a') as db:
+        operations = list(db.scalars(select(AuditEvent.operation).where(AuditEvent.resource_type == 'action').order_by(AuditEvent.created_at)))
+        assert operations == ['action_proposed','action_approved','action_attempted','action_succeeded']
+        assert actions.execute(db,'a',actor,eid).state == 'succeeded'
+
+
+def test_cb17_concurrent_approval_is_single_use(job_pg, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import timedelta
+    from app.models.supervised_action import SupervisedActionDecision, ActionExecution
+    from app.services import external_actions as actions
+    from tests.test_audit_lifecycle import seed
+    monkeypatch.setenv('SIOONA_EXTERNAL_ACTIONS_SANDBOX_CONFIG', '{"a":{"sandbox":true,"conversation_ids":["123"],"admin_id":"42","token":"synthetic"}}')
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    with _runtime_session(job_pg, 'a') as db:
+        draft = SupervisedActionDecision(tenant_id='a', conversation_id='c', action_type='upsell_note_draft', status='approved', subject='Note', body='Synthetic')
+        db.add(draft)
+        db.commit()
+        p = actions.propose(db, 'a', actor, draft.id, '123', 'Synthetic internal note')
+        pid, sha = p.id, p.payload_sha256
+    def approve_once(_):
+        with _runtime_session(job_pg, 'a') as db:
+            try:
+                actions.approve(db, 'a', actor, pid, sha, '123', 1, datetime.now(timezone.utc)+timedelta(minutes=5))
+                return 'approved'
+            except actions.ActionError as error:
+                return str(error)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(approve_once, range(2))) == ['already_approved', 'approved']
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.scalar(select(func.count()).select_from(ActionExecution)) == 1
+
+
+def test_cb17_source_deletion_invalidates_unattempted_approval(job_pg, monkeypatch):
+    from tests.test_live_ingest import install, event
+    from tests.test_external_actions import proposal, approve, ACTOR
+    from app.services import live_ingest as live, external_actions as actions
+    from app.models.supervised_action import ActionProposal
+    from app.models.lifecycle import AuditEvent
+    monkeypatch.setenv('SIOONA_EXTERNAL_ACTIONS_SANDBOX_CONFIG', '{"a":{"sandbox":true,"conversation_ids":["123"],"admin_id":"42","token":"synthetic"}}')
+    with Session(job_pg) as db:
+        install(db)
+        source = event()
+        source.conversation.conversation_id = 'c'
+        live.accept_event(db, 'a', source)
+        db.commit()
+        p = proposal(db)
+        e = approve(db, p)
+        pid, eid = p.id, e.id
+    calls = []
+    monkeypatch.setattr(actions, 'enabled', lambda: True)
+    monkeypatch.setattr(actions, 'submit_note', lambda *args: calls.append(args))
+    with _runtime_session(job_pg, 'a') as db:
+        live.accept_event(db, 'a', event('delete', 101, kind='delete'))
+        db.commit()
+        assert db.get(ActionProposal, ('a', pid)).state == 'superseded'
+        assert actions.execute(db, 'a', ACTOR, eid).state == 'failed'
+        assert calls == []
+        events = list(db.scalars(select(AuditEvent).where(AuditEvent.operation.in_(['action_invalidated', 'action_failed']))))
+        assert len(events) == 2
+        assert all(row.actor_role == 'service' and row.reason_code == 'source_deleted' for row in events)

@@ -126,3 +126,5 @@ from app.models.job_conversation import JobConversation
 
 from app.models.lifecycle import AuditEvent, LegalHold, TenantDeletion, TenantExport, LifecycleLedgerSummary
 from app.models.live_ingest import LiveInstallation, LiveEvent, LiveSource
+
+from app.models.supervised_action import ActionProposal, ActionExecution

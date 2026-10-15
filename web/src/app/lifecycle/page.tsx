@@ -16,6 +16,7 @@ export default async function LifecyclePage() {
     <Link href="/?view=insights" className="inline-flex min-h-11 touch-manipulation items-center underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Back to workspace</Link>
     <h1 className="text-balance text-2xl font-semibold">Workspace data lifecycle</h1>
     <p className="break-words text-foreground">Workspace: <strong translate="no">{session.tenantId}</strong>. Only verified workspace admins can use these controls.</p>
+    <Link href="/external-actions" className="inline-flex min-h-11 items-center underline focus-visible:outline focus-visible:outline-2">Supervised sandbox actions</Link>
     <LifecycleControls tenant={session.tenantId} />
   </main>;
 }

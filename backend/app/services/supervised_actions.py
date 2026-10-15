@@ -48,6 +48,7 @@ def upsert_supervised_action_decision(
     body: str,
     evidence_quote: str = "",
     decided_at: datetime | None = None,
+    actor_id: str | None = None,
 ) -> SupervisedActionDecision:
     """Insert or update one decision. Re-decisions overwrite in place."""
     conversation = conversation_id.strip()
@@ -68,6 +69,15 @@ def upsert_supervised_action_decision(
     stamped = _stamp(decided_at, now)
 
     def apply(row: SupervisedActionDecision) -> SupervisedActionDecision:
+        from app.models.supervised_action import ActionProposal
+        from app.services.external_actions import invalidate
+        if db.scalar(select(ActionProposal.id).where(ActionProposal.tenant_id == tenant_id, ActionProposal.decision_id == row.id, ActionProposal.state == 'proposed')):
+            from app.models.membership import Membership
+            import uuid
+            member = db.get(Membership, (tenant_id, uuid.UUID(actor_id)), populate_existing=True) if actor_id else None
+            if member is None or member.role != 'admin' or member.revoked_at is not None:
+                raise InvalidSupervisedActionError('verified_admin_required_for_proposed_draft')
+            invalidate(db, tenant_id, row.id, actor_id)
         row.status = status
         row.subject = next_subject
         row.body = next_body
@@ -77,6 +87,8 @@ def upsert_supervised_action_decision(
         db.refresh(row)
         return row
 
+    from app.services.external_actions import locked
+    locked(db, tenant_id)
     existing = db.scalar(
         select(SupervisedActionDecision).where(
             SupervisedActionDecision.tenant_id == tenant_id,

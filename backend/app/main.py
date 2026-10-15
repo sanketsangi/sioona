@@ -7,6 +7,7 @@ from app.api.deps import require_service_token
 from app.api.routes import (
     lifecycle,
     live_ingest,
+    external_actions,
     economics_dashboard,
     jobs,
     conversations,
@@ -51,6 +52,7 @@ api = APIRouter(dependencies=[Depends(require_service_token)])
 api.include_router(economics_dashboard.router)
 api.include_router(jobs.router)
 api.include_router(live_ingest.router)
+api.include_router(external_actions.router)
 api.include_router(predictions.router)
 api.include_router(conversations.router)
 api.include_router(feedback.router)

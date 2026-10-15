@@ -1275,6 +1275,8 @@ Local Intercom implementation and operator recovery contract: [CB-16 record](dev
 
 ### CB-17 — Explicitly supervised external action
 
+Local/sandbox implementation, recovery runbook and verification: [CB-17 record](development/tasks/CB-17.md). Hosted enablement remains gated; external actions default off.
+
 **Priority** P2, separately authorized · **Depends on** CB-03, CB-08, CB-11, CB-18 (audit) · **Size** 4–7 days
 
 **Steps.** Extend `supervised_action_decisions` with versioned `action_proposals` (payload JSON plus payload sha256) and an `action_executions` outbox. Approval binds payload hash, target, actor, tenant, expiry, and action version, and any edit invalidates it. Use least-privilege tenant credentials. Retries are deduplicated by execution ID.

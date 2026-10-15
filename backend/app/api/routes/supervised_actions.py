@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, status, Header
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -30,8 +30,11 @@ def submit_supervised_action_decision(
     body: SupervisedActionDecisionUpsert,
     tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
+    assertion: Annotated[str | None, Header(alias="X-Sioona-Actor")] = None,
 ) -> SupervisedActionDecisionResponse:
     """Upsert Approve / Edit / Dismiss for one conversation + draft kind."""
+    from app.api.actor import _enforce
+    actor_id = _enforce(tenant_id, assertion, db, 'review', None).user_id if assertion else None
     try:
         row = upsert_supervised_action_decision(
             db,
@@ -43,6 +46,7 @@ def submit_supervised_action_decision(
             body=body.body,
             evidence_quote=body.evidence_quote,
             decided_at=body.decided_at,
+            actor_id=actor_id,
         )
     except InvalidSupervisedActionError as exc:
         raise HTTPException(
@@ -63,9 +67,10 @@ def submit_supervised_action_decision_for_tenant(
     body: SupervisedActionDecisionUpsert,
     header_tenant_id: Annotated[str, Depends(require_tenant_id)],
     db: Annotated[Session, Depends(get_db)],
+    assertion: Annotated[str | None, Header(alias="X-Sioona-Actor")] = None,
 ) -> SupervisedActionDecisionResponse:
     keep_header_gate(tenant_id, header_tenant_id)
-    return submit_supervised_action_decision(body, tenant_id, db)
+    return submit_supervised_action_decision(body, tenant_id, db, assertion)
 
 
 @router.get(

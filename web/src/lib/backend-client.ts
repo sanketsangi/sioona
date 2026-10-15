@@ -1406,3 +1406,11 @@ export async function acceptIntercomEvent(tenantId: string, event: import("./liv
     method: "POST", headers: await budgetHeaders(tenantId), body: JSON.stringify(event),
   }, BACKEND_MUTATION_TIMEOUT_MS);
 }
+
+/** CB-17 exact approval; mutations deliberately have no retry wrapper. */
+export async function externalActionRequest<T>(tenantId: string, path = "", method = "GET", body?: unknown): Promise<T> {
+  if (!/^(?:|\/proposals(?:\/[0-9a-f-]{36}\/approve)?|\/executions\/[0-9a-f-]{36}\/(?:execute|reconcile))$/.test(path)) throw new Error("Invalid external action path");
+  return backendFetchOnce<T>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/external-actions${path}`, {
+    method, headers: await budgetHeaders(tenantId), ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  }, 30_000);
+}

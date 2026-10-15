@@ -18,6 +18,8 @@ EXPORT_MAX_ROWS = 25000
 EXPORT_MAX_BYTES = 16 * 1024 * 1024
 # Explicit dispositions: adding a table requires a deliberate policy decision.
 DISPOSITIONS = {
+    'action_executions': 'export; tenant deletion; retain until explicit reconciliation',
+    'action_proposals': 'export private payload; tenant deletion; no automatic expiry',
     'lifecycle_ledger_summaries': 'export financial totals; retain 365d after deletion; privileged expiry',
     'live_installations': 'export credential reference only; delete with tenant; no expiry',
     'live_events': 'export redacted canonical input; unresolved retained for recovery; terminal payload expires 180d; replay receipts retained',
@@ -54,6 +56,7 @@ DISPOSITIONS = {
 }
 # FK order is explicit. Audit, tombstones and holds survive for reconciliation.
 DELETE_ORDER = (
+    'action_executions', 'action_proposals',
     'live_events', 'live_sources', 'live_installations',
     'tenant_exports', 'signal_evidence', 'signal_feedback', 'supervised_action_decisions',
     'signal_predictions', 'inference_reservations', 'inference_attempts',
@@ -65,6 +68,8 @@ DELETE_ORDER = (
 )
 # Explicit allowlists for records containing operational payloads or identity.
 EXPORT_COLUMNS = {
+    'action_proposals': ('tenant_id','id','decision_id','action_version','action_type','target','payload_json','payload_sha256','state','created_at'),
+    'action_executions': ('tenant_id','id','proposal_id','payload_sha256','target','actor_id','action_version','expires_at','state','provider_receipt','created_at'),
     'live_installations': ('tenant_id','id','workspace_id','credential_ref','active','consent_reference','monitoring_reference','reconciliation_cursor','created_at'),
     'live_events': ('tenant_id','installation_id','event_id','source_id','provider_object_id','source_version','occurred_at','payload_sha256','content_sha256','kind','state','payload','job_id','reason','received_at'),
     'live_sources': ('tenant_id','installation_id','source_id','source_version','content_sha256','conversation_id','deleted'),
@@ -389,7 +394,11 @@ def sweep(db, tenant, actor):
     ):
         table = Base.metadata.tables[name]
         cutoff = now if name == 'tenant_exports' else now - timedelta(days=days)
-        counts[name] = delete_batch(db, table, (table.c.tenant_id == tenant) & (table.c[column] <= cutoff), BATCH_SIZE)
+        predicate = (table.c.tenant_id == tenant) & (table.c[column] <= cutoff)
+        if name == 'supervised_action_decisions':
+            proposals = Base.metadata.tables['action_proposals']
+            predicate &= ~select(proposals.c.id).where(proposals.c.tenant_id == tenant, proposals.c.decision_id == table.c.id).exists()
+        counts[name] = delete_batch(db, table, predicate, BATCH_SIZE)
     for name, days, column, values in (
         ('conversations',180,'created_at',dict(customer_name=None, external_id=None, ground_truth=None)),
         ('uploads',180,'imported_at',dict(payload=None, source='expired')),

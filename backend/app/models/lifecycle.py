@@ -10,11 +10,11 @@ from app.models.base import Base
 class AuditEvent(Base):
     __tablename__ = 'audit_events'
     __table_args__ = (
-        CheckConstraint("actor_role = 'admin'", name='ck_audit_role'),
-        CheckConstraint("operation IN ('hold_placed','hold_released','export_created','export_read','deletion_requested','deletion_confirmed','deletion_step','deletion_completed','deletion_blocked','deletion_failed','retention_sweep','inference_paused','inference_enabled','integration_configured','integration_revoked','live_requeued')", name='ck_audit_operation'),
+        CheckConstraint("actor_role = 'admin' OR (actor_role = 'service' AND actor_id = 'f6b064b4-67ad-5a62-8feb-6d9211817876' AND resource_type = 'action' AND operation IN ('action_invalidated','action_failed') AND reason_code = 'source_deleted')", name='ck_audit_role'),
+        CheckConstraint("operation IN ('hold_placed','hold_released','export_created','export_read','deletion_requested','deletion_confirmed','deletion_step','deletion_completed','deletion_blocked','deletion_failed','retention_sweep','inference_paused','inference_enabled','integration_configured','integration_revoked','live_requeued','action_proposed','action_approved','action_attempted','action_succeeded','action_failed','action_unknown','action_invalidated','action_reconciled')", name='ck_audit_operation'),
         CheckConstraint("result IN ('succeeded','blocked','failed')", name='ck_audit_result'),
-        CheckConstraint("reason_code IN ('approved','litigation','regulatory','investigation','legal_hold','internal_error','expired')", name='ck_audit_reason'),
-        CheckConstraint("resource_type IN ('tenant','hold','export','deletion','retention','inference_control','global_inference_control','integration','live_event')", name='ck_audit_resource'),
+        CheckConstraint("reason_code IN ('approved','litigation','regulatory','investigation','legal_hold','internal_error','expired') OR (actor_role = 'service' AND actor_id = 'f6b064b4-67ad-5a62-8feb-6d9211817876' AND resource_type = 'action' AND operation IN ('action_invalidated','action_failed') AND reason_code = 'source_deleted')", name='ck_audit_reason'),
+        CheckConstraint("resource_type IN ('tenant','hold','export','deletion','retention','inference_control','global_inference_control','integration','live_event','action')", name='ck_audit_resource'),
     )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     tenant_id: Mapped[str] = mapped_column(String(256), index=True)
