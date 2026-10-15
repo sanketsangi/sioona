@@ -13,6 +13,17 @@
 
 ## 2. Process topology
 
+**Local lifecycle addition (2026-10-15, CB-18):** `/lifecycle` → same-origin
+`/api/lifecycle` BFF → always-enforced verified-admin FastAPI lifecycle routes →
+tenant-scoped Postgres audit/hold/export/deletion state. Migration
+`029_audit_lifecycle` follows `028_batch_cache`. Exports are private 24-hour
+database artifacts; confirmed deletion fences canonical writes and workers
+before bounded FK-safe checkpoints through `wipe_tenant_data`. Audit uses forced
+RLS and INSERT/SELECT-only runtime grants; legal holds block manual expiry and
+deletion. No scheduler, hosted migration or D10 integration is enabled. The
+historical pilot topology below is preserved; current authorization and receipts
+are in `docs/development/tasks/CB-18.md`.
+
 ```text
 Cold open / Reset (Groww testing.json)
 Partner Demo (wipe Neon → Zerodha Batch-02 JSON)

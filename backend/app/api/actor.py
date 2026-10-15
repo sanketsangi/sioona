@@ -29,6 +29,7 @@ PERMISSIONS = {
     "read": frozenset({"admin", "reviewer", "demo"}),
     "review": frozenset({"admin", "reviewer"}),
     "admin": frozenset({"admin"}),
+    "receipt": frozenset({"admin"}),
 }
 
 SERVICE_PRINCIPALS = {
@@ -186,6 +187,9 @@ LIFECYCLE_ROUTES = {
     ('DELETE', '/v1/tenants/{tenant_id}/data'),
 }
 ROUTE_GUARDS.update({key: ('admin', None, 'path') for key in LIFECYCLE_ROUTES})
+for key in (('GET', '/v1/tenants/{tenant_id}/lifecycle'),
+            ('POST', '/v1/tenants/{tenant_id}/lifecycle/deletions/{request_id}/advance')):
+    ROUTE_GUARDS[key] = ('receipt', None, 'path')
 
 ALWAYS_ENFORCED_ROUTES = frozenset(LIFECYCLE_ROUTES | {
     ("GET", "/v1/tenants/{tenant_id}/economics-dashboard"),
@@ -347,6 +351,11 @@ def _enforce(
         membership = _membership(db, tenant_id, subject)
     except SQLAlchemyError as exc:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "database_unavailable") from exc
+    if permission == 'receipt':
+        from app.models.lifecycle import TenantDeletion
+        completed = db.get(TenantDeletion, tenant_id)
+        if completed and completed.state == 'completed' and completed.requested_by == subject:
+            return Actor(subject, tenant_id, 'receipt')
     if membership is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "not_found")
     if membership.role not in PERMISSIONS[permission]:

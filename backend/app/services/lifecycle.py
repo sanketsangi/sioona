@@ -167,12 +167,34 @@ def release_hold(db, tenant, actor, hold_id):
 
 
 def create_export(db, tenant, actor):
-    # Finish auth transaction before selecting repeatable read. Every statement in
-    # the snapshot (including DB trigger writes) sees one committed cutoff.
-    db.commit()
-    if db.get_bind().dialect.name == 'postgresql':
-        db.connection(execution_options={'isolation_level': 'REPEATABLE READ'})
-    lock_tenant_corpus(db, tenant)
+    db.commit()  # End authorization before choosing the snapshot isolation.
+    if db.get_bind().dialect.name != 'postgresql':
+        return _create_export(db, tenant, actor)
+    # Pin the connection: a session advisory lock must never escape to the pool.
+    # Use the same corpus key/order as confirmation, before any RR snapshot or
+    # tenant GUC SELECT can begin. Transaction locks alone freeze a stale snapshot
+    # while waiting. Keeping the lock through publication serializes revocation.
+    original_bind = db.bind
+    key = int.from_bytes(hashlib.sha256(tenant.encode()).digest()[:8], 'big', signed=True)
+    with db.get_bind().engine.connect() as connection:
+        try:
+            connection.execute(text('SELECT pg_advisory_lock(:key)'), {'key': key})
+            connection.commit()
+            connection.execution_options(isolation_level='REPEATABLE READ')
+            db.bind = connection
+            return _create_export(db, tenant, actor)
+        finally:
+            db.rollback()
+            db.bind = original_bind
+            try:
+                connection.execute(text('SELECT pg_advisory_unlock(:key)'), {'key': key})
+                connection.rollback()
+            except Exception:
+                connection.invalidate()  # Closing the socket releases session locks.
+                raise
+
+
+def _create_export(db, tenant, actor):
     ensure_open(db, tenant)
     snapshot = clock()
     data, total = {}, 0
@@ -388,10 +410,10 @@ def sweep(db, tenant, actor):
     uploads = Base.metadata.tables['uploads']
     memberships = Base.metadata.tables['upload_conversations']
     jobs_table = Base.metadata.tables['jobs']
-    active_uploads = select(jobs_table.c.upload_id).where(jobs_table.c.tenant_id == tenant,
-        jobs_table.c.status.in_(['queued','leased','failed']), jobs_table.c.upload_id.is_not(None))
+    referenced_uploads = select(jobs_table.c.upload_id).where(jobs_table.c.tenant_id == tenant,
+        jobs_table.c.upload_id.is_not(None))
     upload_ids = select(uploads.c.upload_id).where(uploads.c.tenant_id == tenant,
-        uploads.c.imported_at <= now-timedelta(days=180), uploads.c.upload_id.not_in(active_uploads)).limit(BATCH_SIZE)
+        uploads.c.imported_at <= now-timedelta(days=180), uploads.c.upload_id.not_in(referenced_uploads)).limit(BATCH_SIZE)
     counts['upload_conversations'] = delete_batch(db, memberships,
         (memberships.c.tenant_id == tenant) & memberships.c.upload_id.in_(upload_ids), BATCH_SIZE)
     remaining_uploads = select(memberships.c.upload_id).where(memberships.c.tenant_id == tenant)
@@ -486,3 +508,27 @@ def reconcile_tombstone(db, tenant, trusted_receipt, actor):
     audit(db, tenant, actor, 'deletion_confirmed', 'deletion', row.id)
     db.commit()
     return row
+
+
+def expire_deleted_tenant_summaries(db, tenant):
+    """Operator-only manual expiry; no HTTP route or scheduler invokes this.
+
+    Bind the trusted tenant before calling. Tombstones remain for restore replay.
+    """
+    lock_tenant_corpus(db, tenant)
+    row = db.get(TenantDeletion, tenant)
+    if row is None or row.state != 'completed':
+        raise LifecycleError('deletion_not_completed')
+    check_hold(db, tenant)
+    cutoff = clock() - timedelta(days=365)
+    if row.completed_at is None or aware(row.completed_at) > cutoff:
+        return 0
+    if db.get_bind().dialect.name == 'postgresql':
+        count = db.scalar(text('SELECT cb18_expire_summaries(:tenant)'), {'tenant': tenant})
+    else:
+        count = sum(delete_batch(db, model.__table__,
+            (model.tenant_id == tenant) & (model.created_at < cutoff), BATCH_SIZE)
+            for model in (AuditEvent, LifecycleLedgerSummary))
+    db.commit()
+    db.expire_all()
+    return count

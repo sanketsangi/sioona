@@ -1262,8 +1262,11 @@ def test_tenant_data_wipe_is_tenant_safe(api, monkeypatch) -> None:
     assert pilot_b.status_code == 200
     assert pilot_b.json()["baseline_opportunities"] == 4
 
-    # Final membership removal revokes further lifecycle access.
-    assert client.get('/v1/tenants/tenant_a/lifecycle', headers=headers_a).status_code == 404
+    # Membership removal leaves only counts-only receipt recovery for the requester.
+    recovered = client.get('/v1/tenants/tenant_a/lifecycle', headers=headers_a)
+    assert recovered.status_code == 200
+    assert recovered.json()['deletion']['state'] == 'completed'
+    assert recovered.json()['audit'] == [] and recovered.json()['holds'] == []
 
 
 def test_needs_review_returns_database_unavailable_on_sqlalchemy_error(

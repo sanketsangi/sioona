@@ -24,6 +24,9 @@ it("binds operations to the signed tenant and forwards exact confirmation", asyn
 it("blocks cross-origin writes, unknown actions and invalid IDs", async () => {
   expect((await POST(post({action:"sweep"},"https://attacker.test"))).status).toBe(403);
   expect((await POST(post({action:"unfence"}))).status).toBe(400);
+  for (const action of ["__proto__", "constructor", "toString"]) {
+    expect((await POST(post({action}))).status).toBe(400);
+  }
   expect((await POST(post({action:"advance",id:"../b"}))).status).toBe(400);
   expect(state.request).not.toHaveBeenCalled();
 });

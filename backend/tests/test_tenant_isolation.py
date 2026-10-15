@@ -1,5 +1,7 @@
 """Every route has a cross-tenant case. Tenant B cannot read or change tenant A."""
 
+import pytest
+
 from fastapi.routing import APIRoute
 
 from app.main import app
@@ -281,3 +283,31 @@ def test_lifecycle_always_requires_current_admin_in_every_mode(api, monkeypatch)
         assert client.get('/v1/tenants/tenant_a/lifecycle', headers=actor_headers(admin,'tenant_a')).status_code == 200
     add_member(factory, 'admin@example.test', 'tenant_a', 'admin', revoked=True)
     assert client.get('/v1/tenants/tenant_a/lifecycle', headers=actor_headers(admin,'tenant_a')).status_code == 404
+
+
+@pytest.mark.parametrize('mode', ['off', 'shadow', 'enforce'])
+def test_completed_requester_recovers_only_receipt_without_membership(api, monkeypatch, mode):
+    from app.config import get_settings
+    from tests.actor_support import delete_via_lifecycle
+    client, factory = api
+    owner = add_member(factory, 'owner@example.test', 'tenant_a', 'admin')
+    stranger = add_member(factory, 'other@example.test', 'tenant_b', 'admin')
+    headers = actor_headers(owner, 'tenant_a')
+    receipt = delete_via_lifecycle(client, 'tenant_a', headers)
+    monkeypatch.setenv('SIOONA_ACTOR_AUTH', mode)
+    get_settings.cache_clear()
+    base = '/v1/tenants/tenant_a/lifecycle'
+    status = client.get(base, headers=headers)
+    assert status.status_code == 200, status.text
+    assert status.json()['deletion'] == receipt
+    assert status.json()['holds'] == [] and status.json()['audit'] == []
+    retry = client.post(f"{base}/deletions/{receipt['id']}/advance", headers=headers)
+    assert retry.status_code == 200 and retry.json() == receipt
+    for method, path in [('GET', base), ('POST', f"{base}/deletions/{receipt['id']}/advance")]:
+        assert client.request(method, path, headers=actor_headers(stranger, 'tenant_a')).status_code == 404
+        assert client.request(method, path, headers=actor_headers(owner, 'tenant_b')).status_code == 404
+        assert client.request(method, path, headers=actor_headers('principal:live-ingest', 'tenant_a')).status_code == 403
+        assert client.request(method, path, headers={'X-Tenant-Id': 'tenant_a'}).status_code == 401
+    assert client.post(f'{base}/exports', headers=headers).status_code == 404
+    assert client.post(f'{base}/holds', headers=headers, json={'reason_code':'litigation'}).status_code == 404
+    assert client.post(f'{base}/retention/sweep', headers=headers).status_code == 404
