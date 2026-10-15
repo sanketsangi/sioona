@@ -1,44 +1,89 @@
-# Proposal only. Never apply before cost/target approval and exact-revision CI.
-# Empty isolated DB; never clone production or attach a production env group.
-databases:
-  - name: sioona-staging-db
-    databaseName: sioona_staging
-    plan: 0.1c-256mb
-    diskSizeGB: 1
-    storageAutoscalingEnabled: false
-    ipAllowList: []
-    region: virginia
-    postgresMajorVersion: "17"
+# Operator-reviewed proposal; apply only after exact-target approval and CI.
+# Existing free API srv-db62psijnfac73c74oj0; Web requires separate approval.
+# Neon sioona_staging_clean is bootstrapped exclusively by the human operator.
 services:
+  - type: web
+    name: sioona-web-staging
+    runtime: node
+    plan: 0.5c-512mb
+    region: virginia
+    rootDir: web
+    buildCommand: |
+      npm ci
+      npm install --no-save "@rollup/rollup-linux-x64-gnu@$(node -p "require('rollup/package.json').version")"
+      npm install --no-save "@next/swc-linux-x64-gnu@$(node -p "require('next/package.json').version")"
+      npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    maxShutdownDelaySeconds: 120
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: HOSTNAME
+        value: "0.0.0.0"
+      - key: SIOONA_ENV
+        value: "production"
+      - key: SIOONA_ACTOR_AUTH
+        value: "shadow"
+      - key: BACKEND_URL
+        sync: false
+      - key: AUTH_SECRET
+        sync: false
+      - key: SIOONA_SERVICE_TOKEN
+        sync: false
+      - key: SIOONA_TENANT_ID
+        sync: false
+      - key: SIOONA_PILOT_USERS
+        sync: false
+      - key: SIOONA_IDENTITY_KEY
+        sync: false
+      - key: SIOONA_ACTOR_KEY
+        sync: false
+      - key: DETECT_LLM
+        value: "0"
+      - key: LIVE_INGEST
+        value: "0"
+      - key: SIOONA_EXTERNAL_ACTIONS_ENABLED
+        value: "0"
+      - key: SIOONA_PUBLIC_DEMO
+        value: "0"
+      - key: SIOONA_ALLOW_DEMO_ACTIONS
+        value: "1"
+
   - type: web
     name: sioona-api-staging
     runtime: python
-    plan: 0.5c-512mb
+    plan: free
     region: virginia
-    repo: https://github.com/sanketsangi/sioona
     rootDir: backend
+    maxShutdownDelaySeconds: 120
     autoDeployTrigger: "off"
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m scripts.check_schema && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT --timeout-graceful-shutdown 110
     healthCheckPath: /health
     envVars:
+      - key: DETECT_LLM
+        value: "0"
+      - key: LIVE_INGEST
+        value: "0"
+      - key: SIOONA_EXTERNAL_ACTIONS_ENABLED
+        value: "0"
       - key: PYTHON_VERSION
-        value: 3.12.8
+        value: "3.12.8"
       - key: SIOONA_ENV
-        value: production
+        value: "production"
       - key: SIOONA_ACTOR_AUTH
-        value: shadow
+        value: "shadow"
       - key: DATABASE_URL
-        fromDatabase:
-          name: sioona-staging-db
-          property: connectionString
-      # Human step after 024_tenant_rls: point DATABASE_URL at NOLOGIN-turned
-      # sioona_runtime and set this to the owner connection. Alembic uses it
-      # when present. Do not apply this file before cost approval.
+        sync: false
+      # Direct Neon runtime URL after Step 2; owner URL stays in human terminal.
+      # Optional migration override is not required by the running service.
       - key: MIGRATION_DATABASE_URL
         sync: false
       - key: SIOONA_SERVICE_TOKEN
         sync: false
       - key: SIOONA_ACTOR_KEY
         sync: false
-# Intentionally no migration/seed command, worker, cron, or outbound integration.
+
+# Intentionally no migration/seed command, worker, cron, site, or outbound integration.
