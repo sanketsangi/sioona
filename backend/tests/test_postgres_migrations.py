@@ -2393,7 +2393,13 @@ def test_cb19_provider_outage_fallback(job_pg, monkeypatch):
         assert db.scalar(select(Job)).last_error_category == 'ai_paused'
 
 
-def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg):
+@pytest.mark.parametrize('operation,resource,constraint', [
+    ('inference_paused', 'tenant', 'ck_audit_operation'),
+    ('inference_enabled', 'tenant', 'ck_audit_operation'),
+    ('retention_sweep', 'inference_control', 'ck_audit_resource'),
+    ('retention_sweep', 'global_inference_control', 'ck_audit_resource'),
+])
+def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg, operation, resource, constraint):
     """029→030 preserves history and admits bounded events under runtime RLS."""
     import uuid
     from app.models.lifecycle import AuditEvent
@@ -2407,17 +2413,20 @@ def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg):
     command.upgrade(cfg, 'head')
     with _runtime_session(job_pg, 'a') as db:
         assert list(db.scalars(select(AuditEvent.operation))) == ['retention_sweep']
-        for resource in ('inference_control', 'global_inference_control'):
-            for operation in ('inference_paused', 'inference_enabled'):
-                audit(db, 'a', actor, operation, resource)
+        # Isolate each new vocabulary dimension so neither constraint masks the other.
+        audit(db, 'a', actor, operation, resource)
         db.commit()
-        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 5
+        before = set(db.scalars(select(AuditEvent.id)))
+        assert len(before) == 2
     with _runtime_session(job_pg, 'b') as db:
         assert db.scalar(select(func.count()).select_from(AuditEvent)) == 0
     # A rollback cannot discard incompatible append-only events to fit 029.
-    with pytest.raises(DBAPIError, match='ck_audit_operation'):
+    with pytest.raises(DBAPIError, match=constraint):
         command.downgrade(cfg, '029_audit_lifecycle')
     with _runtime_session(job_pg, 'a') as db:
-        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 5
+        assert set(db.scalars(select(AuditEvent.id))) == before
+        assert set(db.execute(select(AuditEvent.operation, AuditEvent.resource_type)).all()) == {
+            ('retention_sweep', 'tenant'), (operation, resource),
+        }
     with job_pg.connect() as conn:
         assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '030_inference_control_audit'
