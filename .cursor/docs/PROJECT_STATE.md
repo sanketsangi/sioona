@@ -11,6 +11,16 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 ## 0. What we are doing now
 
+**Local CB-18 continuation (2026-10-15):** Sanket approved D11 and an explicit
+local-only exception to CB-03/CB-10 hosted acceptance. Branch
+`cb/CB-18-audit-lifecycle` contains migration `029_audit_lifecycle`, forced-RLS
+audit, manual retention/holds, private checksummed exports, checkpointed deletion
+with persistent worker fences and `/lifecycle` admin controls. See
+`docs/development/tasks/CB-18.md` for exact local receipts and remaining review/UI
+acceptance. Hosted migrations, live customer deletion, background schedulers and
+D10 integrations remain prohibited. Earlier hosted/pilot records below are dated
+history, not CB-18 hosted acceptance.
+
 **GTM now:** Offer = single-tenant Insights + Shadow Mode + human-gated suggestions (no autonomy, no Auth0 sell). Approve Draft / Correct / Mark Acted = human gate only — Approve is decision-only (never sends); Acted is display-only (no outbound). Win = human keep-set SignalScore ≥80% on Eval (week window). Primary job = next unused weekly dump after Week-6 (Batch-02 still held-out). Residual gap = Week-7+ real partner export (Batch-02 held-out).
 
 **Heading: foundation sprint, then the Shadow Mode pilot.** Pilot win is unchanged: human keep-set SignalScore ≥80% on Eval (week window) — **not** labeled P/R, **not** more Adapt phrase tuning / `taxonomy.ts` expansion. Net-new product features wait. Approved cards may add tenant membership, a model gateway, inference metering, evidence anchors, an eval gate, and canonical Postgres state. Nothing auto-sends.

@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   try { input = JSON.parse(raw); } catch { return Response.json({ error: "Invalid request" }, { status: 400, headers }); }
   if (!input || typeof input !== "object") return Response.json({ error: "Invalid request" }, { status: 400, headers });
   const paths: Record<string, string> = { export: "/exports", request: "/deletions", sweep: "/retention/sweep", hold: "/holds" };
-  let path = paths[input.action ?? ""];
+  let path = typeof input.action === "string" && Object.hasOwn(paths, input.action) ? paths[input.action] : "";
   let body: unknown;
   if (input.action === "hold") body = { reason_code: input.reason_code, resource_type: input.resource_type ?? "tenant", resource_id: input.resource_id ?? null };
   if (["confirm", "advance", "release"].includes(input.action ?? "")) {
