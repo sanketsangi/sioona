@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { POST, retryAfter } from "./route";
+import { POST } from "./route";
 const key = "receipt-test-00000001";
 const payload = { name: " Reviewer ", email: "reviewer@example.test", company: "Company" };
 const request = (body = JSON.stringify(payload)) => new Request("http://localhost/api/contact", {
@@ -71,7 +71,10 @@ describe("contact boundary protections", () => {
     const response = await POST(request(JSON.stringify({ ...payload, companyWebsite: "" })));
     expect(response.status).toBe(429); expect(response.headers.get("Retry-After")).toBe("120");
     expect(JSON.parse(fetch.mock.calls[0][1].body)).not.toHaveProperty("companyWebsite");
-    expect(retryAfter("tomorrow")).toBeNull(); expect(retryAfter("-1")).toBeNull();
-    expect(retryAfter("Wed, 21 Oct 2026 07:28:00 GMT")).toBe("Wed, 21 Oct 2026 07:28:00 GMT");
+    for (const value of ["tomorrow", "-1", "Wed, 21 Oct 2026 07:28:00 GMT"]) {
+      fetch.mockResolvedValue(Response.json({}, { status: 429, headers: { "Retry-After": value } }));
+      const retried = await POST(request());
+      expect(retried.headers.get("Retry-After")).toBe(value.startsWith("Wed,") ? value : null);
+    }
   });
 });

@@ -52,7 +52,7 @@ describe("public content MCP", () => {
     expect(OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { headers: { origin: "https://untrusted.example" } })).status).toBe(403);
   });
   it("rejects invalid bodies and cross-origin requests and does not offer a GET stream", async () => {
-    expect(GET().status).toBe(405);
+    expect(GET(new Request("https://sioona-site.vercel.app/mcp")).status).toBe(405);
     const request = (body: string, origin?: string) => new Request("https://sioona-site.vercel.app/mcp", { method: "POST", headers: { "content-type": "application/json", ...(origin ? { origin } : {}) }, body });
     expect((await POST(request("no JSON"))).status).toBe(400);
     expect((await POST(request("x".repeat(17000)))).status).toBe(413);
