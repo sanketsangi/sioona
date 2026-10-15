@@ -19,6 +19,7 @@ export async function fetchTenantSignals(
   opts?: {
     /** Active JSON keep-set. Empty array → no rows. Omit for hydrate / wipe. */
     conversationIds?: string[];
+    q?: string;
   }
 ): Promise<TenantSignalsResult> {
   if (
@@ -35,7 +36,7 @@ export async function fetchTenantSignals(
       const seen = new Set<string>();
       while (true) {
         if (pages++ >= 100) throw new Error("Tenant signals exceed the page budget; narrow the conversation scope.");
-        const batch = await getTenantSignalsPage(tenantId, { limit: 100, after, conversationIds: scope });
+        const batch = await getTenantSignalsPage(tenantId, { limit: 100, after, conversationIds: scope, q: opts?.q });
         rows.push(...batch.predictions);
         if (!batch.next_cursor) break;
         if (seen.has(batch.next_cursor)) throw new Error("Tenant signals returned a repeated cursor.");

@@ -1235,10 +1235,11 @@ export async function getIngestionStatus(tenantId: string, uploadId: string) {
 }
 
 export async function getNeedsReviewPage(tenantId: string, opts: {
-  limit: number; after?: string; conversationIds?: string[];
+  limit: number; after?: string; conversationIds?: string[]; q?: string;
 }): Promise<{ predictions: BackendPrediction[]; next_cursor: string | null }> {
   const params = new URLSearchParams({ limit: String(opts.limit) });
   if (opts.after) params.set("after", opts.after);
+  if (opts.q?.trim()) params.set("q", opts.q.trim());
   appendKeepSetConversationIds(params, opts.conversationIds);
   const page = await backendFetch<{ predictions: BackendPrediction[]; next_cursor: string | null }>(tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/signals/needs-review/page?${params}`);
@@ -1250,10 +1251,11 @@ export async function getNeedsReviewPage(tenantId: string, opts: {
 }
 
 export async function getTenantSignalsPage(tenantId: string, opts: {
-  limit: number; after?: string; conversationIds?: string[];
+  limit: number; after?: string; conversationIds?: string[]; q?: string;
 }): Promise<{ predictions: BackendPredictionWithFeedback[]; next_cursor: string | null }> {
   const params = new URLSearchParams({ limit: String(opts.limit) });
   if (opts.after) params.set("after", opts.after);
+  if (opts.q?.trim()) params.set("q", opts.q.trim());
   appendKeepSetConversationIds(params, opts.conversationIds);
   const page = await backendFetch<{ predictions: BackendPredictionWithFeedback[]; next_cursor: string | null }>(tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/signals/page?${params}`);
@@ -1396,4 +1398,11 @@ export async function lifecycleRequest<T>(tenantId: string, path = "", method = 
   return backendFetchOnce<T>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/lifecycle${path}`, {
     method, headers: await budgetHeaders(tenantId), ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }, 30_000);
+}
+
+/** CB-16 verification happens before this principal-scoped, idempotent receipt. */
+export async function acceptIntercomEvent(tenantId: string, event: import("./live-ingest/intercom-verified").IntercomEventInput): Promise<{ event_id: string; state: string; job_id: string | null }> {
+  return backendFetchOnce(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/live/events`, {
+    method: "POST", headers: await budgetHeaders(tenantId), body: JSON.stringify(event),
+  }, BACKEND_MUTATION_TIMEOUT_MS);
 }

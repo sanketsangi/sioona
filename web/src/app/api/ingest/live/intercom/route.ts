@@ -1,48 +1,24 @@
-import { LIVE_INGEST_PRINCIPAL } from "@/lib/actor-assertion";
-import { readWebhookJson, WebhookBodyTooLarge } from "@/lib/bounded-webhook-json";
-import { runWithServicePrincipal } from "@/lib/backend-client";
-import { runWithTenant } from "@/lib/tenant-context";
 import { NextResponse } from "next/server";
-import { acceptLiveChats } from "@/lib/live-ingest/accept";
-import {
-  bindLiveIngestTenant,
-  liveIngestEnabled,
-  webhookSecretMatches,
-} from "@/lib/live-ingest/flag";
-import { intercomWebhookToChats } from "@/lib/live-ingest/intercom";
-
+import { LIVE_INGEST_PRINCIPAL } from "@/lib/actor-assertion";
+import { acceptIntercomEvent, runWithServicePrincipal } from "@/lib/backend-client";
+import { WebhookBodyTooLarge } from "@/lib/bounded-webhook-json";
+import { liveIngestEnabled } from "@/lib/live-ingest/flag";
+import { verifyIntercomEvent, IntercomVerificationError } from "@/lib/live-ingest/intercom-verified";
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!liveIngestEnabled()) {
-    return NextResponse.json({ error: "live_ingest_disabled" }, { status: 404 });
-  }
-  if (
-    !webhookSecretMatches(
-      request.headers.get("x-sioona-webhook-secret"),
-      process.env.INTERCOM_WEBHOOK_SECRET,
-    )
-  ) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  const tenantId = bindLiveIngestTenant(request);
-  if (!tenantId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  return runWithServicePrincipal(LIVE_INGEST_PRINCIPAL, tenantId, () => runWithTenant(tenantId, async () => {
-  let body: unknown;
-  try { body = await readWebhookJson(request); }
-  catch (error) {
-    return NextResponse.json({ error: error instanceof WebhookBodyTooLarge ? "webhook_body_too_large" : "invalid_webhook_json" },
-      { status: error instanceof WebhookBodyTooLarge ? 413 : 400 });
-  }
-  const chats = intercomWebhookToChats(body);
+  if (!liveIngestEnabled()) return NextResponse.json({ error: "live_ingest_disabled" }, { status: 404 });
   try {
-    const result = await acceptLiveChats(chats);
-    return NextResponse.json({ accepted: result.accepted, sent: false });
-  } catch {
-    return NextResponse.json({ error: "live_ingest_not_published", sent: false },
+    const { tenantId, event } = await verifyIntercomEvent(request);
+    const receipt = await runWithServicePrincipal(LIVE_INGEST_PRINCIPAL, tenantId,
+      () => acceptIntercomEvent(tenantId, event));
+    return NextResponse.json({ ...receipt, sent: false }, { status: 202 });
+  } catch (error) {
+    if (error instanceof WebhookBodyTooLarge) return NextResponse.json({ error: "webhook_body_too_large" }, { status: 413 });
+    if (error instanceof IntercomVerificationError) return NextResponse.json({ error: "invalid_intercom_event" }, { status: error.status });
+    // No acknowledgment until durable acceptance; never expose provider/customer text.
+    return NextResponse.json({ error: "live_ingest_not_persisted", sent: false },
       { status: 503, headers: { "Retry-After": "30" } });
   }
-  }));
 }

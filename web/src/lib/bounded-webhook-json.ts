@@ -1,7 +1,7 @@
 export class WebhookBodyTooLarge extends Error {}
 
 /** Bound unredacted provider data before JSON parsing. */
-export async function readWebhookJson(request: Pick<Request, "body">, maxBytes = 32 * 1024 * 1024): Promise<unknown> {
+export async function readWebhookBytes(request: Pick<Request, "body">, maxBytes = 32 * 1024 * 1024): Promise<Uint8Array> {
   const reader = request.body?.getReader();
   if (!reader) throw new Error("Missing webhook body");
   let buffer = new Uint8Array(Math.min(65536, maxBytes));
@@ -23,5 +23,9 @@ export async function readWebhookJson(request: Pick<Request, "body">, maxBytes =
       bytes += value.byteLength;
     }
   } finally { reader.releaseLock(); }
-  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, bytes)));
+  return buffer.slice(0, bytes);
+}
+
+export async function readWebhookJson(request: Pick<Request, "body">, maxBytes = 32 * 1024 * 1024): Promise<unknown> {
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(await readWebhookBytes(request, maxBytes)));
 }

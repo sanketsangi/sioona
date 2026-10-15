@@ -204,9 +204,10 @@ Choice: **Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` and a Render backg
 
 ## D10 — Live/outbound integrations
 
-Status: **not approved**
-
-- **D10 (live/outbound integrations):** Live Intercom / WhatsApp webhooks (`CB-16`) and outbound CRM/email actions (`CB-17`) remain unapproved and blocked. No external actions auto-send.
+Status: **approved for CB-16 local Intercom implementation**
+Date: 2026-10-15
+Approver: Sanket
+Scope: The approved CB-16 plan covers provider signature/replay checks, server-bound installations, durable event/job acceptance, ordering/deletion, and explicit recovery, with local/disposable PostgreSQL verification. The 2026-10-16 follow-up authorizes verification, commit, push, and PR creation. Hosted migration, deployment, customer enablement, provider spend, and worker provisioning require separate approval. CB-03/CB-07 operator acceptance and signed CB-10 acceptance remain rollout gates. WhatsApp productionization and CB-17 are outside this change. Nothing auto-sends.
 
 ## D11 — Audit, retention, export, and deletion
 

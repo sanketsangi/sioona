@@ -36,6 +36,7 @@ SERVICE_PRINCIPALS = {
     "principal:detection-worker": frozenset({"job:read", "inference:preflight", "inference:write", "inference:reserve", "detection:write", "detection-resume:read"}),
     "principal:eval": frozenset({"inference:preflight", "inference:write", "inference:reserve"}),
     "principal:live-ingest": frozenset({
+        "live:accept",
         "inference:preflight",
         "inference:write",
         "inference:reserve",
@@ -194,6 +195,22 @@ for key in (('GET', '/v1/tenants/{tenant_id}/lifecycle'),
 ALWAYS_ENFORCED_ROUTES = frozenset(LIFECYCLE_ROUTES | {
     ("GET", "/v1/tenants/{tenant_id}/economics-dashboard"),
 })
+
+
+
+LIVE_ADMIN_ROUTES = {
+    ('PUT', '/v1/tenants/{tenant_id}/live/installations/{installation_id}'),
+    ('POST', '/v1/tenants/{tenant_id}/live/installations/{installation_id}/revoke'),
+    ('GET', '/v1/tenants/{tenant_id}/live/events'),
+    ('POST', '/v1/tenants/{tenant_id}/live/installations/{installation_id}/events/{event_id}/requeue'),
+    ('PUT', '/v1/tenants/{tenant_id}/live/installations/{installation_id}/events/{event_id}/resolution'),
+    ('PUT', '/v1/tenants/{tenant_id}/live/installations/{installation_id}/checkpoint'),
+}
+LIVE_ACCEPT = ('POST', '/v1/tenants/{tenant_id}/live/events')
+ROUTE_GUARDS.update({key: ('admin', None, 'path') for key in LIVE_ADMIN_ROUTES})
+ROUTE_GUARDS[LIVE_ACCEPT] = ('review', 'live:accept', 'path')
+ALWAYS_ENFORCED_ROUTES = ALWAYS_ENFORCED_ROUTES | LIVE_ADMIN_ROUTES | {LIVE_ACCEPT}
+
 
 
 def guarded_router(*args, **kwargs):
