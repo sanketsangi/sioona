@@ -972,7 +972,7 @@ describe("budget actor scope", () => {
 it("CB-18 signs lifecycle writes in off mode and never retries a failed mutation", async () => {
   const { lifecycleRequest } = await import("./backend-client");
   vi.stubEnv("SIOONA_ACTOR_AUTH", "off");
-  vi.stubEnv("SIOONA_ACTOR_KEY", "synthetic-cb18-key");
+  vi.stubEnv("SIOONA_ACTOR_KEY", "synthetic-actor-key-at-least-32-bytes");
   vi.stubEnv("SIOONA_PUBLIC_DEMO", "1");
   const fetchMock = vi.fn().mockResolvedValue(Response.json({detail:"lifecycle_unavailable"},{status:503}));
   vi.stubGlobal("fetch", fetchMock);
