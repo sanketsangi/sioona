@@ -1,7 +1,9 @@
 # CB-18 approval packet — audit, retention, export, and deletion
 
 Prepared 2026-10-15 against main `f281d6cf5b956cd1118a1cd998d0d9cca518ba3e`.
-**Proposal only. No Phase 3 implementation or decision approval is recorded.**
+**D11 approved for local implementation and disposable PostgreSQL verification on 2026-10-15. Hosted execution and D10 remain separate.**
+The original approval packet below is retained as design context; the dated local
+authorization at the end and `decisions.md` D11 govern the implemented scope.
 
 ## Entry gates and dependency graph
 

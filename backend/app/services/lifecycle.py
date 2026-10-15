@@ -334,7 +334,7 @@ def run_deletion_step(db, tenant, request_id, actor, batch_size):
 
 
 def receipt(row):
-    return {'id': row.id, 'state': row.state, 'checkpoint': row.checkpoint, 'steps': len(DELETE_ORDER),
+    return {'id': row.id, 'tenant_id': row.tenant_id, 'state': row.state, 'checkpoint': row.checkpoint, 'steps': len(DELETE_ORDER),
         'counts': row.counts, 'reason_code': row.reason_code, 'policy_version': row.policy_version,
         'completed_at': row.completed_at.isoformat() if row.completed_at else None, 'backup_expiry': 'Hosting provider natural retention window; no immediate backup deletion.'}
 
@@ -463,7 +463,9 @@ def reconcile_tombstone(db, tenant, trusted_receipt, actor):
     Re-fence restored work and replay the same bounded deletion path, with holds
     checked at each batch. No provider backup is mutated by this function.
     """
-    if trusted_receipt.get('state') != 'completed' or trusted_receipt.get('policy_version') != POLICY_VERSION:
+    if (trusted_receipt.get('tenant_id') != tenant
+            or trusted_receipt.get('state') != 'completed'
+            or trusted_receipt.get('policy_version') != POLICY_VERSION):
         raise LifecycleError('invalid_tombstone')
     request_id = str(uuid.UUID(trusted_receipt['id']))
     if not all(type(value) is int and value >= 0 for value in trusted_receipt.get('counts', {}).values()):

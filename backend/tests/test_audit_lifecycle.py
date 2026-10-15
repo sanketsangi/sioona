@@ -217,3 +217,16 @@ def test_manual_retention_expires_old_audit_and_financial_summaries(db):
     assert counts['expired_summaries'] == 2
     assert db.scalar(select(func.count()).select_from(LifecycleLedgerSummary)) == 0
     assert db.get(AuditEvent, event_id) is None
+
+
+def test_restore_receipt_is_bound_to_its_original_tenant(db):
+    actor, _ = seed(db)
+    row = lifecycle.request_deletion(db, 'a', actor)
+    lifecycle.confirm_deletion(db, 'a', row.id, actor, 'DELETE a')
+    while lifecycle.advance_deletion(db, 'a', row.id, actor).state != 'completed':
+        pass
+    saved = lifecycle.receipt(row)
+    assert saved['tenant_id'] == 'a'
+    with pytest.raises(lifecycle.LifecycleError, match='invalid_tombstone'):
+        lifecycle.reconcile_tombstone(db, 'b', saved, actor)
+    assert db.get(Workspace, 'b') is not None
