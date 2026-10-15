@@ -1,5 +1,46 @@
 # Main verification — 15 October 2026
 
+## Subsequent local audit at `fd13848a`
+
+The following is a fresh, uncommitted audit of main
+`fd13848a84f2a2b01c482700f548937326010f2b`, superseding earlier receipts only
+for the commands repeated here. Initial tracked status was clean.
+
+- Web full `npm test`: **1,853 passed, 5 skipped** (86.34s) after repairing the
+  holdout subprocess invocation. Node `--import tsx` avoids the CLI IPC socket;
+  the preflight assertions and fail-closed result are unchanged. Focused
+  holdout/NavUser tests: **16 passed**.
+- Web lint: zero errors/warnings. Logout retains a deliberate full document
+  navigation to discard authenticated client caches, with a narrow documented
+  lint exception. Initial TypeScript errors referenced stale generated lifecycle
+  routes; the successful production build regenerated types and the subsequent
+  `npx tsc --noEmit` passed without adding lifecycle code.
+- Site lint, typecheck and tests: passed, **88 tests**.
+- Both default Turbopack builds failed on sandbox port binding (`EPERM`). Both
+  alternative Webpack production builds passed. Site used the synthetic build
+  settings described below. Default build success remains unproved.
+- Backend `DATABASE_URL=sqlite+pysqlite:///:memory: .venv/bin/python -m pytest -q`:
+  **595 passed, 41 Postgres tests skipped**, no warnings (17.00s).
+  Added Alembic `path_separator=os` and early assertion-rewrite registration for
+  the shared test helper. `pip check` passed; Alembic has one head,
+  `028_batch_cache`; the migration-chain regression passed.
+- Offline replay via `node --import tsx eval/gate/run-gate.ts` reconstructed
+  88/88 valid surfaced anchors across 120/120 completed items, with zero critical
+  injection or tenant failures. Command exited 1 solely for `git_dirty`; this
+  is not a clean promotion receipt. No model/provider call occurred.
+- Disposable Postgres migration/RLS/concurrency/restart suite: **41 passed**,
+  no skips (201.13s), using a newly initialized local PostgreSQL 17 cluster on
+  loopback port 55459 and database `sioona_migration_test`. The initial restricted
+  initialization failed on shared-memory permissions; approved escalation allowed
+  the disposable test run. No hosted target was accessed.
+- `git diff --check`: passed. No commits, pushes, deployments or policy changes.
+
+Next-card assessment is recorded in [CB-18](tasks/CB-18.md). Existing incomplete
+operator/evaluation gates remain open; new lifecycle implementation requires
+approved D11 values, prerequisite receipts or a local-only exception, and plan
+approval under cookbook §5.2. The prepared implementation plan remains the
+concrete proposal; this audit does not approve it.
+
 ## Verdict and scope
 
 Verified fetched main `f281d6cf5b956cd1118a1cd998d0d9cca518ba3e` plus the four-file

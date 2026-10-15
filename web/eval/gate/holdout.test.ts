@@ -103,7 +103,7 @@ import { resolve } from "node:path";
 it("offline preflight fails infeasible metadata with no live authorization or private path", () => {
   let output = "";
   try {
-    execFileSync(resolve("node_modules/.bin/tsx"), ["eval/gate/holdout.ts", "--preflight"], {
+    execFileSync(process.execPath, ["--import", "tsx", "eval/gate/holdout.ts", "--preflight"], {
       cwd: resolve("."), env: {...process.env, EVAL_HOLDOUT_AUTHORIZED:"0", EVAL_HOLDOUT_PATH:"/must-not-open", EVAL_HOLDOUT_OUTPUT:"/must-not-write"}, encoding:"utf8",
     });
   } catch (error) { output = String((error as {stdout:unknown}).stdout); }
