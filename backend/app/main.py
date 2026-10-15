@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.deps import require_service_token
 from app.api.routes import (
+    lifecycle,
     economics_dashboard,
     jobs,
     conversations,
@@ -55,6 +56,7 @@ api.include_router(pilot.router)
 api.include_router(supervised_actions.router)
 api.include_router(taxonomy.router)
 api.include_router(tenant_data.router)
+api.include_router(lifecycle.router)
 api.include_router(uploads.router)
 api.include_router(pilot_requests.router)
 api.include_router(detection_resume.router)

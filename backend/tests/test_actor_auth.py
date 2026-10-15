@@ -90,7 +90,7 @@ _observe(request, 'tenant_shadow_test', None, None, 'read', None)
     )
 
 
-def test_shadow_admin_retains_legacy_gate_with_production_settings(api, monkeypatch) -> None:
+def test_shadow_admin_requires_lifecycle_confirmation_with_production_settings(api, monkeypatch) -> None:
     monkeypatch.setenv("SIOONA_ENV", "production")
     monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "synthetic-service-token")
     monkeypatch.setenv("SIOONA_ACTOR_AUTH", "shadow")
@@ -99,12 +99,12 @@ def test_shadow_admin_retains_legacy_gate_with_production_settings(api, monkeypa
     sub = add_member(factory, "admin@example.test", "tenant_a", "admin")
     headers = {**actor_headers(sub, "tenant_a"), "Authorization": "Bearer synthetic-service-token"}
     denied = client.delete("/v1/tenants/tenant_a/data", headers=headers)
-    assert denied.status_code == 403
-    assert denied.json()["detail"] == "admin_role_required"
+    assert denied.status_code == 409
+    assert denied.json()["detail"] == "use_lifecycle_deletion_confirmation"
     allowed = client.delete(
         "/v1/tenants/tenant_a/data", headers={**headers, "X-Sioona-Role": "admin"},
     )
-    assert allowed.status_code == 200
+    assert allowed.status_code == 409
 
 
 def test_enforce_rejects_missing_expired_and_wrong_token(api) -> None:
@@ -275,7 +275,7 @@ def test_enforce_wipe_requires_admin_membership_on_path_tenant(api) -> None:
             "X-Sioona-Actor": sign_like_web(user_id, "tenant_demo"),
         },
     )
-    assert allowed.status_code == 200
+    assert allowed.status_code == 409
 
 
 def test_shadow_logs_membership_db_error(api, monkeypatch, caplog) -> None:

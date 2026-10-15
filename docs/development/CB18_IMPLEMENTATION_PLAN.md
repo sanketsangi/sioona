@@ -162,3 +162,15 @@ the current wipe's semantics during the Phase 0–2 verification.
 
 Approval must identify the selected scope, completed decision inputs and entry
 gate receipts/exception. Until then this document is reviewable planning only.
+
+## 2026-10-15 local implementation authorization
+
+Sanket approved D11 and the audit-plus-lifecycle local implementation/disposable
+PostgreSQL verification scope in the implementation request. This supersedes the
+proposal-only restriction for that local scope and explicitly permits the local
+CB-03/CB-10 entry-gate exception. Hosted execution, entry-gate acceptance, provider
+backup facts, operational SLAs/rollout windows and D10 remain separate. See
+`decisions.md` D11 for the approved policy and `tasks/CB-18.md` for the concrete
+clocks, conservative hold closure, bounded export envelope, retention disposition,
+verification receipts, and schema-first rollout/restore runbook. No external
+storage/notification service, scheduler or customer-data execution is enabled.

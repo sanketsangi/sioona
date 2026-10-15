@@ -208,21 +208,12 @@ def test_preflight_ok_and_wipe_clears_ledger(api) -> None:
     )
     assert posted.status_code == 200
 
-    wiped = client.delete("/v1/tenants/tenant_a/data", headers=headers)
-    assert wiped.status_code == 200
-    assert wiped.json()["inference_attempts"] == 1
-
-    usage = client.get(
-        "/v1/tenants/tenant_a/inference-usage",
-        headers=headers,
-        params={
-            "from": "2026-10-08T00:00:00Z",
-            "to": "2026-10-09T00:00:00Z",
-            "group_by": "day",
-        },
-    )
-    assert usage.status_code == 200
-    assert usage.json()["buckets"] == []
+    from tests.actor_support import delete_via_lifecycle
+    from sqlalchemy import func, select
+    receipt = delete_via_lifecycle(client, 'tenant_a', headers)
+    assert receipt['counts']['inference_attempts'] == 1
+    with factory() as db:
+        assert db.scalar(select(func.count()).select_from(InferenceAttempt).where(InferenceAttempt.tenant_id == 'tenant_a')) == 0
 
 
 def test_ledger_model_has_no_text_columns() -> None:

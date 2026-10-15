@@ -202,10 +202,23 @@ Choice: **Postgres `jobs` table with `FOR UPDATE SKIP LOCKED` and a Render backg
 - **Processor Exclusion, Cutover & Rollback:** Gate via `SIOONA_DETECTION_EXECUTION=inline|worker` (default `inline`); prevent inline Next.js/`after()` LLM calls when in `worker` mode; support `SIOONA_WORKER_PAUSE=1` to drain leases cleanly and allow instant rollback to `inline`.
 - **Preserved Semantics & Boundaries:** Keep gateway, prompts (`v3`), evidence offsets (`CB-08`), and human keep-set `SignalScore >= 80%` (`n >= 5`) unchanged; nothing auto-sends. Note that `CB-11` implementation remains gated on signed `CB-10` acceptance, and paid Render worker provisioning or live provider spend requires a separate operator go.
 
-## D10, D11
+## D10 — Live/outbound integrations
 
 Status: **not approved**
 
 - **D10 (live/outbound integrations):** Live Intercom / WhatsApp webhooks (`CB-16`) and outbound CRM/email actions (`CB-17`) remain unapproved and blocked. No external actions auto-send.
-- **D11 (retention/deletion program):** Per-class data retention, export, and deletion program (`CB-18`) remains unapproved. Backups and data stores follow existing project invariants.
+
+## D11 — Audit, retention, export, and deletion
+
+Status: **approved**
+Date: 2026-10-15
+Approver: Sanket
+Scope: **Local implementation and disposable Postgres verification authorized; hosted execution and D10 remain separate.**
+
+- **Audit:** Append-only `audit_events` with forced tenant RLS and restricted `sioona_runtime` privileges (INSERT/SELECT only; no UPDATE/DELETE except final tombstone reconciliation). Bounded metadata only: id, tenant_id, actor_id, actor_role, resource_type, resource_id, resource_version, operation, result, reason_code, correlation_id, created_at. Never PII, transcripts, quotes, emails, or secrets. Retain audit and financial ledger summaries for 365 days.
+- **Per-class retention:** Manual/on-demand sweeps only; no background auto-scheduler enabled by default. Redacted conversations/messages/uploads/predictions/evidence/detection runs: 180 days. Feedback/supervised decisions/outcomes/taxonomy/pilot settings: 365 days. Jobs/job-conversations/classification cache: 7–30 days. Generated export bundles: 24-hour TTL. Preserve shared users when removing one workspace membership unless zero workspace memberships remain. `pilot_requests` remain outside tenant deletion under operator ownership.
+- **Legal hold:** Admin-only tenant/resource `legal_holds` with bounded reason_code block retention expiry and tenant deletion while allowing authorized admin read/export.
+- **Tenant export:** Verified admin-only, with `X-Sioona-Actor` strictly enforced in all auth modes. Point-in-time JSON bundle with a versioned manifest and SHA-256 checksums covering only the requesting tenant's canonical data, excluding secrets/keys and cross-tenant users. Invalidate immediately upon tenant deletion.
+- **Resumable deletion:** Extend `backend/app/services/tenant_data.py::wipe_tenant_data` into a checkpointed, resumable state machine: requested → confirmed → running → completed | blocked | failed. Require verified admin membership and exact tenant confirmation text. Fence active workers/jobs first; delete in FK-safe bounded steps; leave zero displayable `signal_evidence`; record a counts-only deletion tombstone/receipt for post-restore reconciliation.
+- **Backups:** Backups expire on the hosting provider's natural retention window; immediate backup deletion is not promised.
 

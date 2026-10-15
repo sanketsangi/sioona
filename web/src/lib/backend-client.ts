@@ -1387,3 +1387,13 @@ export async function getJobStatus(tenantId: string, jobId: string): Promise<Bac
   return backendFetch<BackendJobStatus>(tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/jobs/${encodeURIComponent(jobId)}`, { method: "GET", headers: await budgetHeaders(tenantId) });
 }
+
+/** CB-18 always requires a signed actor and never retries a mutation. */
+export async function lifecycleRequest<T>(tenantId: string, path = "", method = "GET", body?: unknown): Promise<T> {
+  if (!/^(?:|\/exports(?:\/[0-9a-f-]{36})?|\/holds(?:\/[0-9a-f-]{36}\/release)?|\/deletions(?:\/[0-9a-f-]{36}\/(?:confirm|advance))?|\/retention\/sweep)$/.test(path)) {
+    throw new Error("Invalid lifecycle path");
+  }
+  return backendFetchOnce<T>(tenantId, `/v1/tenants/${encodeURIComponent(tenantId)}/lifecycle${path}`, {
+    method, headers: await budgetHeaders(tenantId), ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  }, 30_000);
+}

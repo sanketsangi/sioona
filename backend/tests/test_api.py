@@ -1159,8 +1159,14 @@ def test_conversation_ground_truth_upsert_list_and_patch(client: TestClient) -> 
     assert cleared_flag.json()["ground_truth"] is None
 
 
-def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
-    headers_a = {"X-Tenant-Id": "tenant_a"}
+def test_tenant_data_wipe_is_tenant_safe(api, monkeypatch) -> None:
+    from tests.actor_support import actor_headers, add_member, delete_via_lifecycle
+    from app.config import get_settings
+    client, factory = api
+    monkeypatch.setenv('SIOONA_ACTOR_AUTH', 'off')
+    get_settings.cache_clear()
+    sub = add_member(factory, 'admin@example.test', 'tenant_a', 'admin')
+    headers_a = actor_headers(sub, 'tenant_a')
     headers_b = {"X-Tenant-Id": "tenant_b"}
 
     for tenant, headers, conv_id in (
@@ -1215,33 +1221,18 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
         )
         assert pilot.status_code == 200
 
-    mismatch = client.delete(
-        "/v1/tenants/tenant_a/data",
-        headers=headers_b,
-    )
-    assert mismatch.status_code == 403
-
-    missing_header = client.delete("/v1/tenants/tenant_a/data")
-    assert missing_header.status_code == 400
-
-    wiped = client.delete(
-        "/v1/tenants/tenant_a/data",
-        headers=headers_a,
-    )
-    assert wiped.status_code == 200
-    assert wiped.json() == {
-        "uploads": 0,
-        "upload_memberships": 0,
-        "detection_runs": 0,
-        "conversations": 1,
-        "messages": 1,
-        "predictions": 1,
-        "feedback": 1,
-        "supervised_actions": 0,
-        "inference_attempts": 0,
-        "pilot_settings": 1,
-        "taxonomy_overrides": 0,
-    }
+    # Header-only legacy deletion cannot bypass actor verification.
+    mismatch = client.delete('/v1/tenants/tenant_a/data', headers=headers_b)
+    assert mismatch.status_code == 401
+    missing = client.delete('/v1/tenants/tenant_a/data')
+    assert missing.status_code == 401
+    retired = client.delete('/v1/tenants/tenant_a/data', headers=headers_a)
+    assert retired.status_code == 409
+    receipt = delete_via_lifecycle(client, 'tenant_a', headers_a)
+    assert receipt['counts']['conversations'] == 1
+    assert receipt['counts']['messages'] == 1
+    assert receipt['counts']['signal_predictions'] == 1
+    assert receipt['counts']['signal_feedback'] == 1
 
     listed_a = client.get(
         "/v1/tenants/tenant_a/conversations",
@@ -1271,24 +1262,8 @@ def test_tenant_data_wipe_is_tenant_safe(client: TestClient) -> None:
     assert pilot_b.status_code == 200
     assert pilot_b.json()["baseline_opportunities"] == 4
 
-    empty = client.delete(
-        "/v1/tenants/tenant_a/data",
-        headers=headers_a,
-    )
-    assert empty.status_code == 200
-    assert empty.json() == {
-        "uploads": 0,
-        "upload_memberships": 0,
-        "detection_runs": 0,
-        "conversations": 0,
-        "messages": 0,
-        "predictions": 0,
-        "feedback": 0,
-        "supervised_actions": 0,
-        "inference_attempts": 0,
-        "pilot_settings": 0,
-        "taxonomy_overrides": 0,
-    }
+    # Final membership removal revokes further lifecycle access.
+    assert client.get('/v1/tenants/tenant_a/lifecycle', headers=headers_a).status_code == 404
 
 
 def test_needs_review_returns_database_unavailable_on_sqlalchemy_error(
