@@ -24,13 +24,30 @@ from app.models.supervised_action import SupervisedActionDecision
 from app.models.taxonomy_override import TaxonomyOverride
 
 
-def wipe_tenant_data(db: Session, *, tenant_id: str) -> dict[str, int]:
+def wipe_tenant_data(db: Session, *, tenant_id: str, request_id: str | None = None,
+                     actor_id: str | None = None, batch_size: int = 250, retention_actor_id: str | None = None):
     """Delete all Neon rows for ``tenant_id``. Never touches other tenants.
 
     Order: feedback → predictions → decisions → ledger → messages →
     conversations → pilot_settings (feedback FK to predictions).
     """
+    from app.services.lifecycle import run_deletion_step, check_hold, ensure_open
+    if retention_actor_id is not None:
+        from app.services.lifecycle import sweep
+        return sweep(db, tenant_id, retention_actor_id)
+    if request_id is not None:
+        if actor_id is None:
+            raise ValueError('actor_required')
+        try:
+            return run_deletion_step(db, tenant_id, request_id, actor_id, batch_size)
+        except Exception:
+            db.rollback()
+            from app.services.lifecycle import mark_deletion_failed
+            mark_deletion_failed(db, tenant_id, request_id, actor_id)
+            raise
     lock_tenant_corpus(db, tenant_id)
+    check_hold(db, tenant_id)
+    ensure_open(db, tenant_id)
     feedback_deleted = db.execute(
         delete(SignalFeedback).where(SignalFeedback.tenant_id == tenant_id)
     ).rowcount

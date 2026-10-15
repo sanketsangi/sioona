@@ -93,3 +93,18 @@ def actor_headers(sub: str, tenant: str, *, header_tenant: str | None = None, **
         "X-Tenant-Id": header_tenant if header_tenant is not None else tenant,
         "X-Sioona-Actor": sign_like_web(sub, tenant, **token_kwargs),
     }
+
+
+def delete_via_lifecycle(client, tenant, headers):
+    path = f'/v1/tenants/{tenant}/lifecycle/deletions'
+    response = client.post(path, headers=headers)
+    assert response.status_code == 201, response.text
+    request_id = response.json()['id']
+    response = client.post(f'{path}/{request_id}/confirm', headers=headers, json={'confirmation': f'DELETE {tenant}'})
+    assert response.status_code == 200, response.text
+    for _ in range(100):
+        response = client.post(f'{path}/{request_id}/advance', headers=headers)
+        assert response.status_code == 200, response.text
+        if response.json()['state'] == 'completed':
+            return response.json()
+    raise AssertionError('deletion did not finish')

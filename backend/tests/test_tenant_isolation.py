@@ -10,6 +10,9 @@ pytest_plugins = ["tests.actor_support"]
 EXEMPT = {("GET", "/health")}
 PATH_PARAMS = {
     "{tenant_id}": "tenant_a",
+    "{hold_id}": "00000000-0000-4000-8000-000000000099",
+    "{request_id}": "00000000-0000-4000-8000-000000000099",
+    "{export_id}": "00000000-0000-4000-8000-000000000099",
     "{signal_id}": "00000000-0000-4000-8000-000000000099",
     "{upload_id}": "missing",
     "{run_id}": "missing",
@@ -256,3 +259,25 @@ def test_tenant_b_cannot_read_or_mutate_tenant_a(api) -> None:
     assert after["conversation_count"] == 1
     assert after["external_ids"] == ["ext-shared"]
     assert after["marker_messages"] == 1
+
+
+def test_lifecycle_always_requires_current_admin_in_every_mode(api, monkeypatch):
+    from app.config import get_settings
+    client, factory = api
+    admin = add_member(factory, 'admin@example.test', 'tenant_a', 'admin')
+    reviewer = add_member(factory, 'reviewer@example.test', 'tenant_a', 'reviewer')
+    for mode in ('off', 'shadow', 'enforce'):
+        monkeypatch.setenv('SIOONA_ACTOR_AUTH', mode)
+        get_settings.cache_clear()
+        for method, path in all_routes():
+            if '/lifecycle' not in path and not path.endswith('/data'):
+                continue
+            concrete = _concrete(path)
+            kwargs = {} if method in ('GET','DELETE') else {'json': {}}
+            response = client.request(method, concrete, headers={'X-Tenant-Id':'tenant_a','X-Sioona-Role':'admin'}, **kwargs)
+            assert response.status_code == 401, (mode, method, path, response.text)
+            response = client.request(method, concrete, headers=actor_headers(reviewer,'tenant_a'), **kwargs)
+            assert response.status_code == 403, (mode, method, path, response.text)
+        assert client.get('/v1/tenants/tenant_a/lifecycle', headers=actor_headers(admin,'tenant_a')).status_code == 200
+    add_member(factory, 'admin@example.test', 'tenant_a', 'admin', revoked=True)
+    assert client.get('/v1/tenants/tenant_a/lifecycle', headers=actor_headers(admin,'tenant_a')).status_code == 404

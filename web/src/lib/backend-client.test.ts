@@ -968,3 +968,18 @@ describe("budget actor scope", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+it("CB-18 signs lifecycle writes in off mode and never retries a failed mutation", async () => {
+  const { lifecycleRequest } = await import("./backend-client");
+  vi.stubEnv("SIOONA_ACTOR_AUTH", "off");
+  vi.stubEnv("SIOONA_ACTOR_KEY", "synthetic-actor-key-at-least-32-bytes");
+  vi.stubEnv("SIOONA_PUBLIC_DEMO", "1");
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({detail:"lifecycle_unavailable"},{status:503}));
+  vi.stubGlobal("fetch", fetchMock);
+  await expect(lifecycleRequest("tenant_demo", "/deletions", "POST")).rejects.toThrow("lifecycle_unavailable");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  const headers = new Headers(fetchMock.mock.calls[0][1].headers);
+  expect(readActorClaims(headers.get("X-Sioona-Actor")!).tid).toBe("tenant_demo");
+  await expect(lifecycleRequest("tenant_demo", "/../tenant_b")).rejects.toThrow("Invalid lifecycle path");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

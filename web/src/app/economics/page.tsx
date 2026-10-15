@@ -40,6 +40,7 @@ export default async function EconomicsPage({ searchParams }: { searchParams: Pr
   const account = accountSurface({ session, authOn: authEnforced(), publicDemo: publicDemoEnabled() });
   return (
     <AppShell activeView="economics" title="Tenant Economics" account={account} showDemoActions={false}>
+      <a href="/lifecycle" className="mb-4 inline-flex min-h-11 items-center underline focus-visible:outline-2">Workspace data lifecycle</a>
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div><h1 className="text-balance text-2xl font-semibold">Tenant economics and reliability</h1><p className="mt-1 text-sm text-muted-foreground">Measured canonical Postgres data for your workspace.</p></div>
         <form method="get" className="flex flex-wrap items-end gap-3" aria-label="Dashboard date window">

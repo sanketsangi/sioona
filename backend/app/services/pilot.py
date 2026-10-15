@@ -25,6 +25,8 @@ def upsert_pilot_settings(
     update_scope: str = "all",
 ) -> PilotSettings:
     """Insert or update the single pilot_settings row for tenant_id."""
+    from app.services.tenant_lock import lock_tenant_corpus
+    lock_tenant_corpus(db, tenant_id)
     baseline = max(0, int(baseline_opportunities))
     note = baseline_note.strip() if baseline_note and baseline_note.strip() else None
     count = (

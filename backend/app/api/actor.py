@@ -173,7 +173,21 @@ ROUTE_GUARDS: dict[tuple[str, str], tuple[str, str | None, str]] = {
     ("POST", "/v1/pilot-requests"): ("read", None, "open"),
 }
 
-ALWAYS_ENFORCED_ROUTES = frozenset({
+LIFECYCLE_ROUTES = {
+    ('GET', '/v1/tenants/{tenant_id}/lifecycle'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/holds'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/holds/{hold_id}/release'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/exports'),
+    ('GET', '/v1/tenants/{tenant_id}/lifecycle/exports/{export_id}'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/deletions'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/deletions/{request_id}/confirm'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/deletions/{request_id}/advance'),
+    ('POST', '/v1/tenants/{tenant_id}/lifecycle/retention/sweep'),
+    ('DELETE', '/v1/tenants/{tenant_id}/data'),
+}
+ROUTE_GUARDS.update({key: ('admin', None, 'path') for key in LIFECYCLE_ROUTES})
+
+ALWAYS_ENFORCED_ROUTES = frozenset(LIFECYCLE_ROUTES | {
     ("GET", "/v1/tenants/{tenant_id}/economics-dashboard"),
 })
 

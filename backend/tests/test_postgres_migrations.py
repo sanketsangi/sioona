@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["028_batch_cache"]
+        assert heads == ["029_audit_lifecycle"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -775,7 +775,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
         with engine.begin() as conn:
             assert conn.execute(text(
                 "SELECT COUNT(*) FROM pg_policies WHERE policyname = 'tenant_isolation'"
-            )).scalar() == len(RLS_TABLES)
+            )).scalar() == len(RLS_TABLES) + 5  # CB-18 forced-RLS tables
     finally:
         clear_tenant()
         get_settings.cache_clear()
@@ -1830,3 +1830,218 @@ def test_cb14_migration_constraints_and_safe_downgrade(job_pg, monkeypatch):
     with pytest.raises(DBAPIError, match="historical jobs must be retained"):
         command.downgrade(Config("alembic.ini"), "027_jobs")
     assert inspect(job_pg).has_table("job_conversations")
+
+
+def test_cb18_runtime_audit_rls_and_append_only(job_pg):
+    import uuid
+    from app.services import lifecycle
+    from app.models.lifecycle import AuditEvent
+    actor = str(uuid.uuid4())
+    for tenant in ('a','b'):
+        with _runtime_session(job_pg, tenant) as db:
+            lifecycle.audit(db, tenant, actor, 'retention_sweep')
+            db.commit()
+    with job_pg.connect() as conn:
+        conn.execute(text('SET ROLE sioona_runtime'))
+        conn.commit()
+        assert conn.scalar(text('SELECT count(*) FROM audit_events')) == 0
+        conn.rollback()
+    with _runtime_session(job_pg, 'a') as db:
+        assert list(db.scalars(select(AuditEvent.tenant_id))) == ['a']
+        for statement in ('UPDATE audit_events SET result=\'failed\'', 'DELETE FROM audit_events', 'TRUNCATE audit_events'):
+            with pytest.raises(DBAPIError, match='permission denied'):
+                db.execute(text(statement))
+            db.rollback()
+        lifecycle.audit(db, 'b', actor, 'retention_sweep')
+        with pytest.raises(DBAPIError, match='row-level security'):
+            db.commit()
+        db.rollback()
+        for table in ('audit_events','legal_holds','tenant_deletions','tenant_exports','lifecycle_ledger_summaries'):
+            assert db.execute(text('SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid=to_regclass(:name)'), {'name':table}).one() == (True,True)
+
+
+def test_cb18_runtime_hold_crash_resume_worker_fence_and_shared_user(job_pg):
+    from tests.test_audit_lifecycle import seed
+    from app.services import lifecycle, jobs
+    from app.models import User, Workspace, SignalEvidence
+    from app.models.lifecycle import TenantDeletion, LifecycleLedgerSummary
+    from app.models.job import Job
+    from app.db import bind_tenant
+    import uuid
+    with Session(job_pg) as db:
+        actor, solo = seed(db)
+    jid = _job_seed(job_pg)
+    with _runtime_session(job_pg, 'a') as db:
+        lease = jobs.claim(db, 'a', 'cb18-worker')
+        db.commit()
+        held = lifecycle.place_hold(db, 'a', actor, 'litigation', 'conversation', 'c')
+        held_id = held.id
+        request = lifecycle.request_deletion(db, 'a', actor)
+        request_id = request.id
+        with pytest.raises(lifecycle.LifecycleError, match='legal_hold'):
+            lifecycle.confirm_deletion(db, 'a', request_id, actor, 'DELETE a')
+        db.rollback()
+        with pytest.raises(lifecycle.LifecycleError, match='legal_hold'):
+            lifecycle.sweep(db, 'a', actor)
+        db.rollback()
+        exported = lifecycle.create_export(db, 'a', actor)
+        export_id = exported.id
+        lifecycle.release_hold(db, 'a', actor, held_id)
+        lifecycle.confirm_deletion(db, 'a', request_id, actor, 'DELETE a')
+        assert db.get(Job, ('a', jid)).status == 'cancelled'
+        with pytest.raises(jobs.JobError):
+            jobs.fenced(db, lease, corpus=True)
+        db.rollback()
+        with pytest.raises(lifecycle.LifecycleError):
+            lifecycle.download_export(db, 'a', export_id)
+        db.rollback()
+        # A late direct writer is rejected by DB enforcement as well as leases.
+        db.add(Conversation(tenant_id='a', conversation_id='late', channel='chat', started_at=datetime.now(timezone.utc)))
+        with pytest.raises(DBAPIError, match='tenant_deleting'):
+            db.commit()
+        db.rollback()
+        first = lifecycle.advance_deletion(db, 'a', request_id, actor, batch_size=1)
+        checkpoint = first.checkpoint
+    # Close and reopen runtime sessions at every checkpoint (process crash model).
+    for _ in range(100):
+        with _runtime_session(job_pg, 'a') as db:
+            row = lifecycle.advance_deletion(db, 'a', request_id, actor, batch_size=1)
+            if row.state == 'completed':
+                break
+    else:
+        pytest.fail('deletion did not complete')
+    with Session(job_pg) as db:
+        assert db.get(TenantDeletion, 'a').state == 'completed'
+        assert db.get(User, uuid.UUID(actor)) is not None
+        assert db.get(User, solo) is None
+        assert db.get(Workspace, 'a') is None and db.get(Workspace, 'b') is not None
+        assert db.scalar(select(func.count()).select_from(SignalEvidence).where(SignalEvidence.tenant_id=='a')) == 0
+        assert db.scalar(select(func.count()).select_from(LifecycleLedgerSummary).where(LifecycleLedgerSummary.tenant_id=='a')) == 1
+
+
+def test_cb18_mid_step_failure_and_restore_reconciliation(job_pg, monkeypatch):
+    from tests.test_audit_lifecycle import seed
+    from app.services import lifecycle
+    from app.models.lifecycle import TenantDeletion
+    from app.models import SignalEvidence, Workspace, Membership
+    from app.db import bind_tenant
+    import uuid
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    with _runtime_session(job_pg, 'a') as db:
+        row = lifecycle.request_deletion(db, 'a', actor)
+        rid = row.id
+        lifecycle.confirm_deletion(db, 'a', rid, actor, 'DELETE a')
+        lifecycle.advance_deletion(db, 'a', rid, actor)  # exports
+        checkpoint = row.checkpoint
+        original = lifecycle.delete_batch
+        def crash(*args):
+            original(*args)
+            raise RuntimeError('synthetic_mid_step_crash')
+        monkeypatch.setattr(lifecycle, 'delete_batch', crash)
+        with pytest.raises(RuntimeError):
+            lifecycle.advance_deletion(db, 'a', rid, actor)
+        db.refresh(row)
+        assert row.state == 'failed' and row.checkpoint == checkpoint
+        assert db.scalar(select(func.count()).select_from(SignalEvidence)) == 1
+        monkeypatch.setattr(lifecycle, 'delete_batch', original)
+        # A hold placed after fencing blocks the next batch without un-fencing.
+        hold = lifecycle.place_hold(db, 'a', actor, 'investigation', 'tenant', None)
+        hid = hold.id
+        assert lifecycle.advance_deletion(db, 'a', rid, actor).state == 'blocked'
+        lifecycle.release_hold(db, 'a', actor, hid)
+        while lifecycle.advance_deletion(db, 'a', rid, actor).state != 'completed':
+            pass
+        receipt = lifecycle.receipt(row)
+        assert receipt['counts']['signal_evidence'] == 1
+        assert receipt['counts']['memberships'] == 2
+        with pytest.raises(DBAPIError, match='deletion_fence_is_permanent'):
+            db.execute(text("UPDATE tenant_deletions SET fenced=false WHERE tenant_id='a'"))
+        db.rollback()
+    # Disposable backup model: restore old source rows without the current fence.
+    with Session(job_pg) as db:
+        db.execute(text("DELETE FROM tenant_deletions WHERE tenant_id='a'"))
+        db.add(Workspace(tenant_id='a', name='restored'))
+        db.flush()
+        db.add(Membership(tenant_id='a', user_id=uuid.UUID(actor), role='admin'))
+        db.add(Conversation(tenant_id='a', conversation_id='restored', channel='chat', started_at=datetime.now(timezone.utc)))
+        db.commit()
+        bind_tenant(db, 'a')
+        restored = lifecycle.reconcile_tombstone(db, 'a', receipt, actor)
+        assert restored.fenced
+    with _runtime_session(job_pg, 'a') as db:
+        while lifecycle.advance_deletion(db, 'a', rid, actor).state != 'completed':
+            pass
+        assert db.scalar(select(func.count()).select_from(Conversation)) == 0
+    with _runtime_session(job_pg, 'b') as db:
+        assert db.scalar(select(func.count()).select_from(Conversation)) == 1
+
+
+def test_cb18_export_has_one_snapshot_during_concurrent_update(job_pg, monkeypatch):
+    from tests.test_audit_lifecycle import seed
+    from app.services import lifecycle
+    from app.models import Message
+    from sqlalchemy import update
+    from concurrent.futures import ThreadPoolExecutor
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+        db.execute(update(Conversation).where(Conversation.tenant_id=='a').values(customer_name='before'))
+        db.execute(update(Message).where(Message.tenant_id=='a').values(content='before',content_sha256=hashlib.sha256(b'before').hexdigest()))
+        db.commit()
+    with _runtime_session(job_pg, 'a') as db:
+        execute = db.execute
+        changed = False
+        def intercept(statement, *args, **kwargs):
+            nonlocal changed
+            result = execute(statement, *args, **kwargs)
+            if not changed and 'FROM conversations' in str(statement):
+                changed = True
+                def writer():
+                    with _runtime_session(job_pg, 'a') as other:
+                        other.execute(text("SET LOCAL lock_timeout = '5s'"))
+                        other.execute(update(Conversation).where(Conversation.tenant_id=='a').values(customer_name='after'))
+                        other.execute(update(Message).where(Message.tenant_id=='a').values(content='after',content_sha256=hashlib.sha256(b'after').hexdigest()))
+                        other.commit()
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    pool.submit(writer).result(timeout=10)
+            return result
+        monkeypatch.setattr(db, 'execute', intercept)
+        export = lifecycle.create_export(db, 'a', actor)
+        payload = lifecycle.download_export(db, 'a', export.id)
+        assert changed
+        assert payload['data']['conversations'][0]['customer_name'] == 'before'
+        assert payload['data']['messages'][0]['content'] == 'before'
+        lifecycle.verify_bundle(payload)
+
+
+def test_cb18_privileged_expiry_is_age_tenant_and_hold_restricted(job_pg):
+    from tests.test_audit_lifecycle import seed
+    from app.services import lifecycle
+    from app.models.lifecycle import AuditEvent, LifecycleLedgerSummary
+    from datetime import timedelta
+    import uuid
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+        for tenant in ('a','b'):
+            lifecycle.audit(db, tenant, actor, 'retention_sweep')
+        db.commit()
+        db.execute(text("UPDATE audit_events SET created_at=now()-interval '366 days'"))
+        lifecycle.audit(db, 'a', actor, 'retention_sweep')
+        db.add(LifecycleLedgerSummary(tenant_id='a', id=str(uuid.uuid4()), attempts=1, unknown_attempts=1,
+            reserved_usd=0, spent_usd=0, created_at=datetime.now(timezone.utc)-timedelta(days=366)))
+        db.commit()
+    with _runtime_session(job_pg, 'a') as db:
+        hold = lifecycle.place_hold(db, 'a', actor, 'litigation', 'tenant', None)
+        hid = hold.id
+        with pytest.raises(DBAPIError, match='legal_hold'):
+            db.execute(text("SELECT cb18_expire_summaries('a')"))
+        db.rollback()
+        lifecycle.release_hold(db, 'a', actor, hid)
+        assert db.scalar(text("SELECT cb18_expire_summaries('a')")) == 2
+        db.commit()
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 3  # recent + hold + release
+        with pytest.raises(DBAPIError, match='tenant_mismatch'):
+            db.execute(text("SELECT cb18_expire_summaries('b')"))
+        db.rollback()
+    with _runtime_session(job_pg, 'b') as db:
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 1

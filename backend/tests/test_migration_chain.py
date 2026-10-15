@@ -9,7 +9,8 @@ def test_jobs_follows_complete_rls_on_one_linear_head():
     cfg = Config(str(root / "alembic.ini"))
     cfg.set_main_option("script_location", str(root / "alembic"))
     scripts = ScriptDirectory.from_config(cfg)
-    assert scripts.get_heads() == ["028_batch_cache"]
+    assert scripts.get_heads() == ["029_audit_lifecycle"]
+    assert scripts.get_revision("029_audit_lifecycle").down_revision == "028_batch_cache"
     assert scripts.get_revision("028_batch_cache").down_revision == "027_jobs"
     assert scripts.get_revision("027_jobs").down_revision == "027_complete_tenant_rls"
     assert scripts.get_revision("027_complete_tenant_rls").down_revision == "026_weekly_upload_receipts"

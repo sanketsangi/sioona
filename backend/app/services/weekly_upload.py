@@ -63,6 +63,8 @@ def apply_weekly_upload_receipt(
     one that arrives after the first commit, returns the current row and adds zero.
     ``update_filename`` writes the upload filename only on the applying call.
     """
+    from app.services.tenant_lock import lock_tenant_corpus
+    lock_tenant_corpus(db, tenant_id)
     count = max(0, int(weekly_file_count))
     filename = (
         last_uploaded_file_name.strip()
