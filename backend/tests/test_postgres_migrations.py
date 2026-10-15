@@ -2045,3 +2045,102 @@ def test_cb18_privileged_expiry_is_age_tenant_and_hold_restricted(job_pg):
         db.rollback()
     with _runtime_session(job_pg, 'b') as db:
         assert db.scalar(select(func.count()).select_from(AuditEvent)) == 1
+
+
+def test_cb18_export_waiting_for_deletion_fails_closed(job_pg):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event, current_thread
+    from sqlalchemy import event
+    from app.services import lifecycle
+    from app.models.lifecycle import TenantExport
+    from tests.test_audit_lifecycle import seed
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    with _runtime_session(job_pg, 'a') as db:
+        request_id = lifecycle.request_deletion(db, 'a', actor).id
+    waiting, resume = Event(), Event()
+    def pause_export(conn, cursor, statement, parameters, context, executemany):
+        if current_thread().name.startswith('cb18-export') and 'pg_advisory' in statement and not waiting.is_set():
+            waiting.set()
+            assert resume.wait(15), 'deletion did not release export'
+    event.listen(job_pg, 'before_cursor_execute', pause_export)
+    def export():
+        with _runtime_session(job_pg, 'a') as db:
+            try:
+                lifecycle.create_export(db, 'a', actor)
+            except lifecycle.LifecycleError as exc:
+                return str(exc)
+            return 'incorrectly_published'
+    try:
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix='cb18-export') as pool:
+            future = pool.submit(export)
+            try:
+                assert waiting.wait(10), 'export did not reach serialization'
+                with _runtime_session(job_pg, 'a') as db:
+                    lifecycle.confirm_deletion(db, 'a', request_id, actor, 'DELETE a')
+                    while lifecycle.advance_deletion(db, 'a', request_id, actor).state != 'completed':
+                        pass
+            finally:
+                resume.set()
+            assert future.result(timeout=15) == 'tenant_deleting'
+    finally:
+        event.remove(job_pg, 'before_cursor_execute', pause_export)
+    with _runtime_session(job_pg, 'a') as db:
+        assert db.scalar(select(func.count()).select_from(TenantExport)) == 0
+        # Failed export must release the session lock, even on a pooled connection.
+        key = int.from_bytes(hashlib.sha256(b'a').digest()[:8], 'big', signed=True)
+        assert db.scalar(text('SELECT pg_try_advisory_xact_lock(:key)'), {'key': key})
+
+
+def test_cb18_runtime_export_artifact_writes_are_fenced(job_pg):
+    from app.services import lifecycle
+    from app.models.lifecycle import TenantExport
+    from tests.test_audit_lifecycle import seed
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    with _runtime_session(job_pg, 'a') as db:
+        request_id = lifecycle.request_deletion(db, 'a', actor).id
+        lifecycle.confirm_deletion(db, 'a', request_id, actor, 'DELETE a')
+        db.add(TenantExport(tenant_id='a', bundle={}, expires_at=datetime.now(timezone.utc)))
+        with pytest.raises(DBAPIError, match='tenant_deleting'):
+            db.commit()
+        db.rollback()
+
+
+def test_cb18_deleted_summary_expiry_uses_restricted_runtime_function(job_pg):
+    from datetime import timedelta
+    from app.services import lifecycle
+    from app.models.lifecycle import AuditEvent, LifecycleLedgerSummary, TenantDeletion, LegalHold
+    from tests.test_audit_lifecycle import seed
+    old = datetime.now(timezone.utc) - timedelta(days=366)
+    with Session(job_pg) as db:
+        actor, _ = seed(db)
+    with _runtime_session(job_pg, 'a') as db:
+        rid = lifecycle.request_deletion(db, 'a', actor).id
+        lifecycle.confirm_deletion(db, 'a', rid, actor, 'DELETE a')
+        while lifecycle.advance_deletion(db, 'a', rid, actor).state != 'completed':
+            pass
+        assert lifecycle.expire_deleted_tenant_summaries(db, 'a') == 0
+    with Session(job_pg) as db:
+        db.get(TenantDeletion, 'a').completed_at = old
+        for tenant in ('a', 'b'):
+            lifecycle.audit(db, tenant, actor, 'retention_sweep')
+        db.flush()
+        db.execute(text("UPDATE audit_events SET created_at=:old"), {'old':old})
+        db.execute(text("UPDATE lifecycle_ledger_summaries SET created_at=:old"), {'old':old})
+        hold = LegalHold(tenant_id='a', reason_code='litigation', resource_type='tenant')
+        db.add(hold)
+        db.commit()
+        hid = hold.id
+    with _runtime_session(job_pg, 'a') as db:
+        with pytest.raises(lifecycle.LifecycleError, match='legal_hold'):
+            lifecycle.expire_deleted_tenant_summaries(db, 'a')
+        db.rollback()
+        lifecycle.release_hold(db, 'a', actor, hid)
+        assert lifecycle.expire_deleted_tenant_summaries(db, 'a') > 0
+        assert lifecycle.expire_deleted_tenant_summaries(db, 'a') == 0
+        assert db.scalar(select(func.count()).select_from(LifecycleLedgerSummary)) == 0
+        assert db.get(TenantDeletion, 'a').state == 'completed'
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 1  # recent release retained
+    with _runtime_session(job_pg, 'b') as db:
+        assert db.scalar(select(func.count()).select_from(AuditEvent)) == 1

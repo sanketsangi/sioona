@@ -230,3 +230,89 @@ def test_restore_receipt_is_bound_to_its_original_tenant(db):
     with pytest.raises(lifecycle.LifecycleError, match='invalid_tombstone'):
         lifecycle.reconcile_tombstone(db, 'b', saved, actor)
     assert db.get(Workspace, 'b') is not None
+
+
+@pytest.mark.parametrize('recent, references', [(True, 0), (False, 251)])
+def test_retention_preserves_upload_referenced_by_remaining_job(db, recent, references):
+    from app.models import Upload, Job
+    from app.models.job_conversation import JobConversation
+    actor, _ = seed(db)
+    old = datetime.now(timezone.utc) - timedelta(days=181)
+    db.add(Upload(tenant_id='a', upload_id='old', source='private-name', payload={'text': 'source'},
+                  content_sha256='a'*64, status='completed', imported_at=old))
+    db.flush()
+    db.add(Job(tenant_id='a', id='retained', job_type='historical', upload_id='old',
+               conversation_ids_sha256='b'*64, conversation_count=max(1, references), config_sha256='c'*64,
+               status='succeeded', updated_at=datetime.now(timezone.utc) if recent else old))
+    db.flush()
+    for i in range(references):
+        db.add(JobConversation(tenant_id='a', job_id='retained', conversation_id=f'c{i}', ordinal=i,
+                               content_sha256='d'*64, context_sha256='e'*64))
+    from app.models import Message
+    db.query(Message).filter(Message.tenant_id == 'a').update({'created_at': old})
+    db.commit()
+    counts = lifecycle.sweep(db, 'a', actor)
+    assert counts['messages'] == 1
+    db.expire_all()
+    upload = db.get(Upload, ('a', 'old'))
+    assert upload is not None and upload.payload is None and upload.source == 'expired'
+    assert db.get(Job, ('a', 'retained')) is not None
+    if references:
+        lifecycle.sweep(db, 'a', actor)
+        db.expire_all()
+        assert db.get(Job, ('a', 'retained')) is None
+        assert db.get(Upload, ('a', 'old')) is None
+
+
+def test_export_insert_and_update_are_fenced(db):
+    from app.models.lifecycle import TenantExport
+    from sqlalchemy.exc import IntegrityError
+    actor, _ = seed(db)
+    row = lifecycle.create_export(db, 'a', actor)
+    export_id = row.id
+    request = lifecycle.request_deletion(db, 'a', actor)
+    lifecycle.confirm_deletion(db, 'a', request.id, actor, 'DELETE a')
+    db.add(TenantExport(tenant_id='a', bundle={}, expires_at=datetime.now(timezone.utc)))
+    with pytest.raises(IntegrityError, match='tenant_deleting'):
+        db.commit()
+    db.rollback()
+    # Updating an artifact from another tenant cannot move it behind the fence.
+    row = lifecycle.create_export(db, 'b', actor)
+    row.tenant_id = 'a'
+    with pytest.raises(IntegrityError, match='tenant_deleting'):
+        db.commit()
+    db.rollback()
+    assert db.get(TenantExport, export_id) is None
+
+
+def test_deleted_tenant_summary_expiry_is_completed_aged_scoped_and_held(db):
+    from app.models.lifecycle import AuditEvent, LifecycleLedgerSummary, LegalHold
+    actor, _ = seed(db)
+    with pytest.raises(lifecycle.LifecycleError, match='deletion_not_completed'):
+        lifecycle.expire_deleted_tenant_summaries(db, 'a')
+    request = lifecycle.request_deletion(db, 'a', actor)
+    lifecycle.confirm_deletion(db, 'a', request.id, actor, 'DELETE a')
+    with pytest.raises(lifecycle.LifecycleError, match='deletion_not_completed'):
+        lifecycle.expire_deleted_tenant_summaries(db, 'a')
+    while lifecycle.advance_deletion(db, 'a', request.id, actor).state != 'completed':
+        pass
+    old = datetime.now(timezone.utc) - timedelta(days=366)
+    for tenant in ('a', 'b'):
+        db.add(AuditEvent(tenant_id=tenant, actor_id=actor, resource_type='retention', resource_id=str(uuid.uuid4()),
+                          operation='retention_sweep', created_at=old))
+        db.add(LifecycleLedgerSummary(tenant_id=tenant, id=str(uuid.uuid4()), attempts=1,
+                                      unknown_attempts=0, reserved_usd=0, spent_usd=0, created_at=old))
+    assert lifecycle.expire_deleted_tenant_summaries(db, 'a') == 0
+    request.completed_at = old
+    hold = LegalHold(tenant_id='a', reason_code='litigation', resource_type='tenant')
+    db.add(hold)
+    db.commit()
+    with pytest.raises(lifecycle.LifecycleError, match='legal_hold'):
+        lifecycle.expire_deleted_tenant_summaries(db, 'a')
+    hold.active = False
+    db.commit()
+    assert lifecycle.expire_deleted_tenant_summaries(db, 'a') == 2
+    assert lifecycle.expire_deleted_tenant_summaries(db, 'a') == 0
+    assert db.scalar(select(func.count()).select_from(AuditEvent).where(AuditEvent.tenant_id == 'b')) == 1
+    assert db.scalar(select(func.count()).select_from(LifecycleLedgerSummary).where(LifecycleLedgerSummary.tenant_id == 'a')) == 1
+    assert lifecycle.receipt(request)['state'] == 'completed'

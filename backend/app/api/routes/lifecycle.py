@@ -22,6 +22,14 @@ def admin(tenant_id: str, db: DB, assertion: Annotated[str | None, Header(alias=
 Admin = Annotated[Actor, Depends(admin)]
 
 
+def receipt_actor(tenant_id: str, db: DB, assertion: Annotated[str | None, Header(alias='X-Sioona-Actor')] = None):
+    bind_tenant(db, tenant_id)
+    return _enforce(tenant_id, assertion, db, 'receipt', None)
+
+
+ReceiptActor = Annotated[Actor, Depends(receipt_actor)]
+
+
 class HoldInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     reason_code: Literal['litigation','regulatory','investigation']
@@ -46,9 +54,12 @@ def perform(db, action):
 
 
 @router.get('/v1/tenants/{tenant_id}/lifecycle')
-def status(tenant_id: str, db: DB, actor: Admin, response: Response):
+def status(tenant_id: str, db: DB, actor: ReceiptActor, response: Response):
     response.headers['Cache-Control'] = 'no-store'
     row = db.get(TenantDeletion, tenant_id)
+    if actor.role == 'receipt':
+        return {'policy_version': lifecycle.POLICY_VERSION, 'scheduler_enabled': False,
+                'holds': [], 'audit': [], 'deletion': lifecycle.receipt(row)}
     holds = db.scalars(select(LegalHold).where(LegalHold.tenant_id == tenant_id, LegalHold.active.is_(True)).order_by(LegalHold.created_at).limit(100)).all()
     events = db.scalars(select(AuditEvent).where(AuditEvent.tenant_id == tenant_id).order_by(AuditEvent.created_at.desc()).limit(100)).all()
     return {'policy_version': lifecycle.POLICY_VERSION, 'scheduler_enabled': False,
@@ -95,7 +106,7 @@ def confirm(tenant_id: str, request_id: str, body: ConfirmInput, db: DB, actor: 
 
 
 @router.post('/v1/tenants/{tenant_id}/lifecycle/deletions/{request_id}/advance')
-def advance(tenant_id: str, request_id: str, db: DB, actor: Admin):
+def advance(tenant_id: str, request_id: str, db: DB, actor: ReceiptActor):
     return lifecycle.receipt(perform(db, lambda: lifecycle.advance_deletion(db, tenant_id, request_id, actor.user_id)))
 
 

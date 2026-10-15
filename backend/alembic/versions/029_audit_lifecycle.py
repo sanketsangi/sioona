@@ -11,7 +11,7 @@ branch_labels = None
 depends_on = None
 
 TABLES = ('audit_events', 'legal_holds', 'tenant_deletions', 'tenant_exports', 'lifecycle_ledger_summaries')
-FENCED_TABLES = ('signal_evidence', 'signal_feedback', 'supervised_action_decisions', 'signal_predictions', 'inference_reservations', 'inference_attempts', 'messages', 'detection_runs', 'job_conversations', 'classification_cache', 'jobs', 'upload_conversations', 'uploads', 'conversations', 'detection_resume', 'weekly_upload_receipts', 'pilot_settings', 'taxonomy_overrides', 'inference_run_budgets', 'inference_budgets', 'inference_controls', 'memberships', 'workspaces')
+FENCED_TABLES = ('tenant_exports', 'signal_evidence', 'signal_feedback', 'supervised_action_decisions', 'signal_predictions', 'inference_reservations', 'inference_attempts', 'messages', 'detection_runs', 'job_conversations', 'classification_cache', 'jobs', 'upload_conversations', 'uploads', 'conversations', 'detection_resume', 'weekly_upload_receipts', 'pilot_settings', 'taxonomy_overrides', 'inference_run_budgets', 'inference_budgets', 'inference_controls', 'memberships', 'workspaces')
 
 
 def upgrade():

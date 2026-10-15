@@ -95,7 +95,7 @@ from sqlalchemy import event
 def sqlite_lifecycle_fences(metadata, connection, **kwargs):
     if connection.dialect.name != 'sqlite':
         return
-    exempt = {'audit_events','legal_holds','tenant_deletions','tenant_exports','lifecycle_ledger_summaries'}
+    exempt = {'audit_events','legal_holds','tenant_deletions','lifecycle_ledger_summaries'}
     for table in metadata.tables.values():
         if 'tenant_id' not in table.c or table.name in exempt:
             continue
