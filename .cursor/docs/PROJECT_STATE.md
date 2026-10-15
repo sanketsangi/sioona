@@ -1,9 +1,9 @@
 # Sioona — Project State (agent SoT)
 
-**Last updated:** 2026-10-10
+**Last updated:** 2026-10-15
 
 **Stage:** MVP — Insights + Shadow Mode + Detect v2 + durable chats (**hosted verified**)  
-**Branch:** `main` tip `5e93be5` (foundation remediation merge + admission pipeline fixes `12458d1`)
+**Branch:** `main` tip `7506fb4e` (CB-18 and CB-19 merged; Vercel deployment path retired in favor of Render)
 
 Read this first in new agent windows. Update on heading / stack / blocker changes.
 
@@ -11,15 +11,24 @@ Read this first in new agent windows. Update on heading / stack / blocker change
 
 ## 0. What we are doing now
 
-**Local CB-18 continuation (2026-10-15):** Sanket approved D11 and an explicit
-local-only exception to CB-03/CB-10 hosted acceptance. Branch
-`cb/CB-18-audit-lifecycle` contains migration `029_audit_lifecycle`, forced-RLS
-audit, manual retention/holds, private checksummed exports, checkpointed deletion
-with persistent worker fences and `/lifecycle` admin controls. See
-`docs/development/tasks/CB-18.md` for exact local receipts and remaining review/UI
-acceptance. Hosted migrations, live customer deletion, background schedulers and
-D10 integrations remain prohibited. Earlier hosted/pilot records below are dated
-history, not CB-18 hosted acceptance.
+**Current main (2026-10-15):** CB-18 merged in #178 (`33c9eb81`), including
+migration `029_audit_lifecycle` (after `028_batch_cache`), forced-RLS audit,
+manual retention/holds, private checksummed exports, checkpointed deletion with
+persistent worker fences and `/lifecycle` admin controls. D11 and the local-only
+exception to CB-03/CB-10 hosted acceptance remain the authorization boundary.
+CB-19 merged in #179 (`5042d379`): reproducible infrastructure, exact-head startup
+checks and disposable recovery/launch drills. See `docs/development/tasks/CB-18.md`
+and `docs/development/tasks/CB-19.md` for receipts and outstanding operator gates.
+The local CB-07/CB-18 reconciliation extends the migration head to
+`030_inference_control_audit` after 029, adding atomic inference-control audit
+events. Apply 030 before deploying the audited handlers; no hosted migration
+is asserted. Unified Render hosting is declared in `render.yaml`: site, web
+(`https://sioona-web.onrender.com`), API, paused detection worker and ingestion
+recovery cron. `7506fb4e` retires the Vercel deployment path. This records merged
+code, not verified live deployment or hosted launch acceptance. Applying the
+blueprint, hosted migrations, live customer deletion, worker/scheduler activation
+and D10 integrations still require separate approval. Earlier hosted/pilot
+records below are dated history.
 
 **GTM now:** Offer = single-tenant Insights + Shadow Mode + human-gated suggestions (no autonomy, no Auth0 sell). Approve Draft / Correct / Mark Acted = human gate only — Approve is decision-only (never sends); Acted is display-only (no outbound). Win = human keep-set SignalScore ≥80% on Eval (week window). Primary job = next unused weekly dump after Week-6 (Batch-02 still held-out). Residual gap = Week-7+ real partner export (Batch-02 held-out).
 
@@ -283,11 +292,11 @@ history, not CB-18 hosted acceptance.
 | Detect | `detect.ts` heuristics + optional `detect-llm.ts` Groq pass 2 | vLLM / LangGraph / QLoRA |
 | Data | JSON `store.ts` for chats/taxonomy (**UI SoT** when file exists); **Neon** for predictions + feedback + Acted (`004`) + conversations/messages + `ground_truth` (`005`) + pilot settings (`006`/`007`) + cold-start hydrate | Full Neon chat SoT + taxonomy + pgvector |
 | Auth | Signed session cookie (web) + `SIOONA_SERVICE_TOKEN` Bearer (web → FastAPI) + `X-Tenant-Id` | Auth0 |
-| Hosting | Vercel `sioona-demo.vercel.app` + Render `sioona-api.onrender.com` (free, sleeps) + Neon `sioona` | Render Starter / Neon Launch if sleep hurts |
+| Hosting | Unified Render (`render.yaml`): `sioona-site`, `sioona-web.onrender.com`, `sioona-api.onrender.com`, gated worker/recovery cron + Neon `sioona` | Render Starter / Neon Launch if sleep hurts |
 | Score SoT | FastAPI + Neon | — |
 | Queue SoT | Pending: `GET …/signals/needs-review`. Follow-up / Done: `GET …/signals` (`correct` ¬acted / `acted`) | — |
 
-**Unused:** Render `sioona` / `sioona.onrender.com` — **deleted** (404). Keep **`sioona-api`** `/health` ok.
+**Hosting status:** Render blueprint adoption and live health require operator verification; no provider state was checked in this reconciliation. The retired `sioona.onrender.com` service is historical.
 
 **Autonomy:** Shadow Mode default. Unlocked Action Mode = Insights Follow-up Act queue (Suggested Next Action + Mark Acted; display-only). `status: acted` never executes outbound. Prod locks Action Mode.
 
@@ -295,7 +304,7 @@ history, not CB-18 hosted acceptance.
 
 ## 3. Detect v2 — **closed / hosted verified** 2026-08-14
 
-Off unless `DETECT_LLM=1` and `GROQ_API_KEY` (otherwise heuristics only, $0). When on, primary is the default (`DETECT_LLM_PRIMARY` not `0`): Groq classifies every chat and a grounded label replaces the heuristic hit; failure keeps the heuristic signal. `DETECT_LLM_PRIMARY=0` restores zero-signal miss-only and does not override a heuristic hit. Concurrency **2**. Per-run candidate-chat cap (selected conversations, not provider requests): `DETECT_LLM_MAX_CALLS` when set; otherwise 8 on Vercel and 120 locally in primary mode; miss-only default cap is 8. Retries and daily-quota fallback add provider attempts; `DETECT_LLM_MAX_ATTEMPTS` bounds the retry loop rather than total requests (default 3, capped at 4); daily-quota fallback does not consume the retry counter. Skipped ids resume on the next re-detect before newer misses. Fail-soft. File: `web/src/lib/detect-llm.ts`. Hosted flag values were not re-read on 2026-10-07. See `web/.env.example`, `web/DEPLOY.md`.
+Off unless `DETECT_LLM=1` and `GROQ_API_KEY` (otherwise heuristics only, $0). When on, primary is the default (`DETECT_LLM_PRIMARY` not `0`): Groq classifies every chat and a grounded label replaces the heuristic hit; failure keeps the heuristic signal. `DETECT_LLM_PRIMARY=0` restores zero-signal miss-only and does not override a heuristic hit. Concurrency **2**. Per-run candidate-chat cap (selected conversations, not provider requests): `DETECT_LLM_MAX_CALLS` when set; otherwise 120 in primary mode (including Render); miss-only default cap is 8. Retries and daily-quota fallback add provider attempts; `DETECT_LLM_MAX_ATTEMPTS` bounds the retry loop rather than total requests (default 3, capped at 4); daily-quota fallback does not consume the retry counter. Skipped ids resume on the next re-detect before newer misses. Fail-soft. File: `web/src/lib/detect-llm.ts`. Hosted flag values were not re-read on 2026-10-07. See `web/.env.example`, `web/DEPLOY.md`.
 
 Template hybrid (historical): heuristic P 0.92 / R 0.41 → hybrid P 0.93 / R 0.48. Moving classification onto a worker is CB-11. Further Groq retry and budget work is CB-07. Do not start either outside those cards. Do not create Groq project limits from an agent session.
 
@@ -422,11 +431,11 @@ cd backend && .venv/bin/python -m pytest
 
 Both must pass before pushing/deploying.
 
-**After each deploy** — 7-step curl smoke (`BACKEND_URL` / `VERCEL_URL` / `TENANT`):
+**After each deploy** — 7-step curl smoke (`BACKEND_URL` / `WEB_URL` / `TENANT`):
 
 ```bash
 export BACKEND_URL="https://sioona-api.onrender.com"   # Render FastAPI
-export VERCEL_URL="https://sioona-demo.vercel.app"     # Vercel web
+export WEB_URL="https://sioona-web.onrender.com"       # Render web
 export TENANT="tenant_demo"
 
 # 1. Backend boot
@@ -434,12 +443,12 @@ curl -sS "$BACKEND_URL/health"
 # expect: {"status":"ok"}
 
 # 2. Critical UI routes (SSR must not 500)
-curl -sS -o /dev/null -w "insights=%{http_code}\n" "$VERCEL_URL/?view=insights"
-curl -sS -o /dev/null -w "upload=%{http_code}\n" "$VERCEL_URL/?view=upload"
-curl -sS -o /dev/null -w "eval=%{http_code}\n" "$VERCEL_URL/?view=eval"
+curl -sS -o /dev/null -w "insights=%{http_code}\n" "$WEB_URL/?view=insights"
+curl -sS -o /dev/null -w "upload=%{http_code}\n" "$WEB_URL/?view=upload"
+curl -sS -o /dev/null -w "eval=%{http_code}\n" "$WEB_URL/?view=eval"
 
 # 3. Legacy signal deep-link redirect
-curl -sS -D- -o /dev/null "$VERCEL_URL/insights/sig_test" | rg -i "^location:"
+curl -sS -D- -o /dev/null "$WEB_URL/insights/sig_test" | rg -i "^location:"
 # expect: Location: /?view=insights&preview=sig_test
 
 # 4. Shadow Mode queue API

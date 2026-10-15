@@ -11,6 +11,7 @@ from app.models.inference_budget import InferenceControl
 from app.models.inference_attempt import InferenceAttempt
 from datetime import datetime, timezone
 from app.services.inference_budget import configure, reserve, settle, BudgetDenied
+from app.services.lifecycle import audit
 
 router = guarded_router(tags=["inference-controls"])
 
@@ -56,6 +57,9 @@ def put_controls(tenant_id: str, body: ControlIn, db: DB, assertion: Assertion =
     actor = verified(tenant_id, assertion, db, "admin")
     try:
         configure(db, tenant_id, body.daily_attempt_limit, body.run_attempt_limit, body.enabled, body.reason, actor.user_id)
+        audit(db, tenant_id, actor.user_id,
+              "inference_enabled" if body.enabled else "inference_paused",
+              "inference_control")
         db.commit()
     except SQLAlchemyError:
         db.rollback()
@@ -69,6 +73,9 @@ def put_global(tenant_id: str, body: ControlIn, db: DB, assertion: Assertion = N
         raise HTTPException(403, "global_control_forbidden")
     try:
         configure(db, "global", body.daily_attempt_limit, body.run_attempt_limit, body.enabled, body.reason, actor.user_id)
+        audit(db, tenant_id, actor.user_id,
+              "inference_enabled" if body.enabled else "inference_paused",
+              "global_inference_control")
         db.commit()
     except SQLAlchemyError:
         db.rollback()
