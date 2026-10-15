@@ -2261,6 +2261,20 @@ def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
         db.add(LifecycleLedgerSummary(tenant_id='tenant_b', id='summary-b', attempts=1,
             unknown_attempts=0, reserved_usd=Decimal('1'), spent_usd=Decimal('1')))
         db.commit()
+        # Include CB-16 records in both tenants' actual backup/restore proof.
+        from app.models.live_ingest import LiveInstallation, LiveEvent, LiveSource
+        for tenant in ('tenant_a', 'tenant_b'):
+            db.add(LiveInstallation(tenant_id=tenant, id='restore-install',
+                workspace_id=f'{tenant}-restore', credential_ref='INTERCOM_CLIENT_SECRET',
+                active=True, consent_reference='synthetic-consent', monitoring_reference='synthetic-monitor'))
+        db.flush()
+        for tenant in ('tenant_a', 'tenant_b'):
+            db.add(LiveEvent(tenant_id=tenant, installation_id='restore-install', event_id='restore-event',
+                source_id='restore-source', source_version=1, occurred_at=expires,
+                payload_sha256='a'*64, content_sha256='b'*64, kind='unresolved', state='dead_lettered'))
+            db.add(LiveSource(tenant_id=tenant, installation_id='restore-install', source_id='restore-source',
+                source_version=1, content_sha256='b'*64, deleted=False))
+        db.commit()
         tenant_b_before = tenant_snapshot(db, 'tenant_b')
         assert all(item['count'] > 0 for item in tenant_b_before.values())
     backup = tmp_path / 'before.dump'
