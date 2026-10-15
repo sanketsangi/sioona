@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.api.deps import require_service_token
 from app.api.routes import (
     lifecycle,
+    live_ingest,
     economics_dashboard,
     jobs,
     conversations,
@@ -25,9 +26,11 @@ from app.api.routes import (
     inference,
     inference_budget,
 )
+from app.access_logging import configure_access_logging
 from app.config import get_settings
 from app.ingestion_body_limit import IngestionBodyLimit
 
+configure_access_logging()
 settings = get_settings()
 _production = settings.sioona_env.strip().lower() == "production"
 
@@ -47,6 +50,7 @@ app = FastAPI(
 api = APIRouter(dependencies=[Depends(require_service_token)])
 api.include_router(economics_dashboard.router)
 api.include_router(jobs.router)
+api.include_router(live_ingest.router)
 api.include_router(predictions.router)
 api.include_router(conversations.router)
 api.include_router(feedback.router)

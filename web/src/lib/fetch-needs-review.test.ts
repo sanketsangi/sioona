@@ -150,3 +150,18 @@ it("rejects malformed or oversized pages without presenting partial success", as
     if (!result.ok) expect(result.error).toContain("invalid page");
   }
 });
+
+it("retains search text on every keyset page", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json({ predictions: [], next_cursor: "next" }))
+    .mockResolvedValueOnce(Response.json({ predictions: [], next_cursor: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await fetchNeedsReview("tenant_demo", { q: "renewal", conversationIds: ["conv_keep"] }))
+    .toEqual({ ok: true, predictions: [] });
+  for (const [url] of fetchMock.mock.calls) {
+    const params = new URL(String(url)).searchParams;
+    expect(params.get("q")).toBe("renewal");
+    expect(params.get("conversation_id")).toBe("conv_keep");
+  }
+  expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("after")).toBe("next");
+});

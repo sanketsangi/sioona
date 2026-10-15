@@ -1,66 +1,36 @@
-import { describe, expect, it, vi } from "vitest";
-import { POST as intercomPoll } from "./intercom/poll/route";
-import * as intercomClient from "@/lib/live-ingest/intercom";
-import * as liveAccept from "@/lib/live-ingest/accept";
+import { createHmac } from "node:crypto";
+import { afterEach, expect, it, vi } from "vitest";
 import { POST as intercomPost } from "./intercom/route";
 import { POST as whatsappPost } from "./whatsapp/route";
-
-describe("live ingest routes", () => {
-  it("stays 404 while LIVE_INGEST is off", async () => {
-    vi.stubEnv("LIVE_INGEST", "");
-    const intercom = await intercomPost(
-      new Request("http://localhost/api/ingest/live/intercom", { method: "POST" }),
-    );
-    const whatsapp = await whatsappPost(
-      new Request("http://localhost/api/ingest/live/whatsapp", { method: "POST" }),
-    );
-    expect(intercom.status).toBe(404);
-    expect(whatsapp.status).toBe(404);
-    vi.unstubAllEnvs();
-  });
-
-  it("requires the tenant header and the webhook secret", async () => {
-    vi.stubEnv("LIVE_INGEST", "1");
-    vi.stubEnv("SIOONA_TENANT_ID", "tenant_partner");
-    vi.stubEnv("INTERCOM_WEBHOOK_SECRET", "intercom-secret");
-    vi.stubEnv("WHATSAPP_WEBHOOK_SECRET", "wa-secret");
-    const missingTenant = await intercomPost(
-      new Request("http://localhost/api/ingest/live/intercom", {
-        method: "POST",
-        headers: { "x-sioona-webhook-secret": "intercom-secret" },
-      }),
-    );
-    const showcase = await whatsappPost(
-      new Request("http://localhost/api/ingest/live/whatsapp", {
-        method: "POST",
-        headers: {
-          "x-sioona-webhook-secret": "wa-secret",
-          "x-sioona-tenant-id": "tenant_demo",
-        },
-      }),
-    );
-    expect(missingTenant.status).toBe(401);
-    expect(showcase.status).toBe(401);
-    vi.unstubAllEnvs();
-  });
+import { POST as poll } from "./intercom/poll/route";
+import * as backend from "@/lib/backend-client";
+afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
+it("keeps all sources disabled by default", async () => {
+  vi.stubEnv("LIVE_INGEST", "");
+  expect((await intercomPost(new Request("http://localhost", { method: "POST" }))).status).toBe(404);
+  expect((await whatsappPost()).status).toBe(404);
+  expect((await poll()).status).toBe(404);
 });
-
-it("returns a retryable content-free response when publication fails", async () => {
+it("rejects the old shared secret and tenant selector", async () => {
   vi.stubEnv("LIVE_INGEST", "1");
-  vi.stubEnv("SIOONA_TENANT_ID", "tenant_partner");
-  vi.stubEnv("INTERCOM_WEBHOOK_SECRET", "secret");
-  vi.stubEnv("WHATSAPP_WEBHOOK_SECRET", "secret");
-  vi.stubEnv("INTERCOM_ACCESS_TOKEN", "local-test-token");
-  const poll = vi.spyOn(intercomClient, "pollIntercomConversations").mockResolvedValue([]);
-  const accept = vi.spyOn(liveAccept, "acceptLiveChats").mockRejectedValue(new Error("private customer text"));
-  try {
-    for (const post of [intercomPost, whatsappPost, intercomPoll]) {
-      const response = await post(new Request("http://localhost/api/ingest/live/webhook", {
-        method: "POST", headers: { "x-sioona-webhook-secret": "secret", "x-sioona-tenant-id": "tenant_partner" },
-        body: JSON.stringify({}) }));
-      expect(response.status).toBe(503);
-      expect(response.headers.get("Retry-After")).toBe("30");
-      expect(await response.json()).toEqual({ error: "live_ingest_not_published", sent: false });
-    }
-  } finally { accept.mockRestore(); poll.mockRestore(); vi.unstubAllEnvs(); }
+  expect((await intercomPost(new Request("http://localhost", { method: "POST", headers: {
+    "x-sioona-webhook-secret":"old-secret", "x-sioona-tenant-id":"tenant_partner",
+  }, body:"{}" }))).status).toBe(401);
+});
+function signedRequest() {
+  const body = JSON.stringify({ id:"event1", app_id:"workspace1", created_at:Math.floor(Date.now()/1000), topic:"ping", data:{} });
+  return new Request("http://localhost", { method:"POST", body, headers: { "x-hub-signature":`sha1=${createHmac("sha1","secret").update(body).digest("hex")}` } });
+}
+it("acknowledges only after durable acceptance under the resolved principal", async () => {
+  vi.stubEnv("LIVE_INGEST","1"); vi.stubEnv("INTERCOM_CLIENT_SECRET","secret");
+  vi.stubEnv("INTERCOM_INSTALLATIONS_JSON", JSON.stringify({ workspace1:{ tenantId:"tenant_partner", installationId:"install1" } }));
+  const accept = vi.spyOn(backend,"acceptIntercomEvent").mockResolvedValue({ event_id:"event1",state:"dead_lettered",job_id:null });
+  const response = await intercomPost(signedRequest());
+  expect(response.status).toBe(202);
+  expect(accept.mock.calls[0][0]).toBe("tenant_partner");
+  accept.mockRejectedValue(new Error("private customer text"));
+  const failed = await intercomPost(signedRequest());
+  expect(failed.status).toBe(503);
+  expect(failed.headers.get("Retry-After")).toBe("30");
+  expect(await failed.text()).not.toContain("private customer text");
 });

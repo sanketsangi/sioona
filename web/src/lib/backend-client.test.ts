@@ -983,3 +983,14 @@ it("CB-18 signs lifecycle writes in off mode and never retries a failed mutation
   await expect(lifecycleRequest("tenant_demo", "/../tenant_b")).rejects.toThrow("Invalid lifecycle path");
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+it("encodes queue search alongside its cursor and tenant keep-set", async () => {
+  const { getNeedsReviewPage } = await import("./backend-client");
+  const fetch = vi.fn().mockResolvedValue(Response.json({ predictions: [], next_cursor: null }));
+  vi.stubGlobal("fetch", fetch);
+  await getNeedsReviewPage("tenant_demo", { limit: 2, after: "cursor", conversationIds: ["c1"], q: "  50% & renewal  " });
+  const url = new URL(fetch.mock.calls[0][0]);
+  expect(url.searchParams.get("q")).toBe("50% & renewal");
+  expect(url.searchParams.get("after")).toBe("cursor");
+  expect(url.searchParams.getAll("conversation_id")).toEqual(["c1"]);
+});

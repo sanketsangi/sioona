@@ -140,6 +140,7 @@ export default async function PlatformPage({
     type?: string;
     action?: string;
     page?: string;
+    q?: string;
     taxPage?: string;
     msgPage?: string;
     labeled?: string;
@@ -315,8 +316,8 @@ export default async function PlatformPage({
       : undefined;
   const [needsReview, tenantSignals] = fetches.insightsQueue
     ? await Promise.all([
-        fetchNeedsReview(storeRaw.tenant.id, queueKeepSet),
-        fetchTenantSignals(storeRaw.tenant.id, queueKeepSet),
+        fetchNeedsReview(storeRaw.tenant.id, { ...queueKeepSet, q: sp.q?.trim().slice(0, 200) }),
+        fetchTenantSignals(storeRaw.tenant.id, { ...queueKeepSet, q: sp.q?.trim().slice(0, 200) }),
       ])
     : [skippedNeedsReview, skippedTenantSignals];
   const pendingRaw =
@@ -510,6 +511,7 @@ export default async function PlatformPage({
     const { InsightsView } = await import("@/components/views/InsightsView");
     viewNode = (
       <InsightsView
+        searchQuery={sp.q?.trim().slice(0, 200)}
         store={store}
         demo={sp.demo === "1"}
         importedCount={importedCount}

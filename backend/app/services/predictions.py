@@ -346,7 +346,7 @@ def list_tenant_predictions(
     db: Session,
     tenant_id: str,
     conversation_ids: Sequence[str] | None = None,
-    *, limit: int | None = None, after: UUID | None = None,
+    *, limit: int | None = None, after: UUID | None = None, q: str | None = None,
 ) -> list[SignalPrediction]:
     """Return this tenant's predictions with feedback loaded. Newest first.
 
@@ -359,6 +359,9 @@ def list_tenant_predictions(
         .where(SignalPrediction.tenant_id == tenant_id).where(SignalPrediction.active.is_(True))
 
     )
+    if q and q.strip():
+        from app.services.review_queue import queue_search
+        stmt = stmt.where(queue_search(db, tenant_id, q))
     if conversation_ids is not None:
         keep = [cid for cid in conversation_ids if cid]
         if not keep:

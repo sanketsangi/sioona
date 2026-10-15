@@ -19,6 +19,9 @@ EXPORT_MAX_BYTES = 16 * 1024 * 1024
 # Explicit dispositions: adding a table requires a deliberate policy decision.
 DISPOSITIONS = {
     'lifecycle_ledger_summaries': 'export financial totals; retain 365d after deletion; privileged expiry',
+    'live_installations': 'export credential reference only; delete with tenant; no expiry',
+    'live_events': 'export redacted canonical input; unresolved retained for recovery; terminal payload expires 180d; replay receipts retained',
+    'live_sources': 'export watermarks/tombstones; delete with tenant; no expiry',
     'users': 'shared identity; no export; delete only after last membership',
     'workspaces': 'export; delete last; no expiry',
     'memberships': 'export scoped IDs/role only; delete; no expiry',
@@ -51,6 +54,7 @@ DISPOSITIONS = {
 }
 # FK order is explicit. Audit, tombstones and holds survive for reconciliation.
 DELETE_ORDER = (
+    'live_events', 'live_sources', 'live_installations',
     'tenant_exports', 'signal_evidence', 'signal_feedback', 'supervised_action_decisions',
     'signal_predictions', 'inference_reservations', 'inference_attempts',
     'messages', 'detection_runs', 'job_conversations', 'classification_cache',
@@ -61,6 +65,9 @@ DELETE_ORDER = (
 )
 # Explicit allowlists for records containing operational payloads or identity.
 EXPORT_COLUMNS = {
+    'live_installations': ('tenant_id','id','workspace_id','credential_ref','active','consent_reference','monitoring_reference','reconciliation_cursor','created_at'),
+    'live_events': ('tenant_id','installation_id','event_id','source_id','provider_object_id','source_version','occurred_at','payload_sha256','content_sha256','kind','state','payload','job_id','reason','received_at'),
+    'live_sources': ('tenant_id','installation_id','source_id','source_version','content_sha256','conversation_id','deleted'),
     'audit_events': ('id', 'tenant_id', 'actor_id', 'actor_role', 'resource_type', 'resource_id', 'resource_version', 'operation', 'result', 'reason_code', 'correlation_id', 'created_at'),
     'conversations': ('id', 'tenant_id', 'conversation_id', 'channel', 'customer_name', 'started_at', 'external_id', 'ground_truth', 'created_at', 'updated_at'),
     'detection_resume': ('tenant_id', 'failed_conversation_ids', 'skipped_conversation_ids', 'updated_at'),
@@ -397,6 +404,13 @@ def sweep(db, tenant, actor):
         changed = or_(*(table.c[key].is_distinct_from(value) for key, value in values.items()))
         ids = select(*keys).where(table.c.tenant_id == tenant, table.c[column] <= now-timedelta(days=days), changed).order_by(*keys).limit(BATCH_SIZE)
         counts[name] = counts.get(name, 0) + int(db.execute(update(table).where(tuple_(*keys).in_(ids)).values(**values)).rowcount or 0)
+    # Live receipts/tombstones retain replay defense. Never expire unresolved work.
+    live_events = Base.metadata.tables['live_events']
+    counts['live_event_payloads'] = int(db.execute(update(live_events).where(
+        live_events.c.tenant_id == tenant,
+        live_events.c.state.in_(['succeeded','ignored','cancelled']),
+        live_events.c.received_at <= now-timedelta(days=180),
+        live_events.c.payload.is_not(None)).values(payload=null())).rowcount or 0)
     # Delete only terminal jobs and their bounded references; pending work stays.
     table = Base.metadata.tables['jobs']
     ids = list(db.scalars(select(table.c.id).where(table.c.tenant_id == tenant,

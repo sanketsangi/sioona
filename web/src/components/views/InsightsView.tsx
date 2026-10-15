@@ -93,6 +93,7 @@ function resolveCustomerName(
 
 export function InsightsView({
   store,
+  searchQuery = "",
   demo,
   importedCount,
   newSignalCount,
@@ -125,6 +126,7 @@ export function InsightsView({
   showDemoActions = true,
 }: {
   store: StoreData;
+  searchQuery?: string;
   demo?: boolean;
   importedCount?: number | null;
   newSignalCount?: number | null;
@@ -242,6 +244,13 @@ export function InsightsView({
     ? new Set(queueChats.conversations.map((conversation) => conversation.id))
     : null;
   function signalsForFile(signals: Signal[]) {
+    if (searchQuery) {
+      const matches = new Set([
+        ...(needsReview.ok ? needsReview.predictions : []),
+        ...(tenantSignals.ok ? tenantSignals.rows : []),
+      ].map((row) => row.id));
+      signals = signals.filter((signal) => Boolean(signal.backendSignalId && matches.has(signal.backendSignalId)));
+    }
     if (!conversationIds) return signals;
     return signals.filter((signal) =>
       conversationIds.has(signal.conversationId),
@@ -308,6 +317,7 @@ export function InsightsView({
   const staleSyncFailedParam = syncFailed > 0 && !hasSyncFailure;
 
   const queryExtras: Record<string, string | undefined | null> = {
+    q: searchQuery || null,
     demo: demo ? "1" : null,
     imported:
       importedCount != null && !Number.isNaN(importedCount)
@@ -472,6 +482,10 @@ export function InsightsView({
         file: vaultFile,
       })
     : null;
+  function searchedWalkHref(opts: Parameters<typeof pendingReviewWalkHref>[0]) {
+    const href = pendingReviewWalkHref(opts);
+    return searchQuery ? `${href}&q=${encodeURIComponent(searchQuery)}` : href;
+  }
   const walkHrefOpts = {
     statusFilter,
     typeFilter,
@@ -490,18 +504,18 @@ export function InsightsView({
     previewSignal && walkPendingSignals.length > 0
       ? {
           prevHref: previewTriage?.prevPendingPreviewId
-            ? pendingReviewWalkHref({
+            ? searchedWalkHref({
                 ...walkHrefOpts,
                 previewId: previewTriage.prevPendingPreviewId,
               })
             : null,
           nextHref: previewTriage?.nextPendingPreviewId
-            ? pendingReviewWalkHref({
+            ? searchedWalkHref({
                 ...walkHrefOpts,
                 previewId: previewTriage.nextPendingPreviewId,
               })
             : null,
-          skipHref: pendingReviewWalkHref({
+          skipHref: searchedWalkHref({
             ...walkHrefOpts,
             previewId: skipPendingPreviewId(
               walkPendingSignals,
@@ -616,6 +630,24 @@ export function InsightsView({
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
         <div className="flex w-full min-w-0 shrink-0 flex-col gap-2">
+          <form action="/" method="get" className="flex min-w-0 gap-2">
+            <input type="hidden" name="view" value="insights" />
+            {Object.entries({ ...queryExtras, status: statusFilter, type: typeFilter, action: actionFilter }).map(([key, value]) =>
+              key !== "q" && value ? <input key={key} type="hidden" name={key} value={value} /> : null)}
+            <label htmlFor="queue-search" className="sr-only">Search customer turns and signal summaries</label>
+            <input id="queue-search" name="q" type="search" maxLength={200} defaultValue={searchQuery}
+              placeholder="Search customer turns and summaries…" className="min-h-11 min-w-0 flex-1 rounded-md border bg-background px-3 text-base focus-visible:ring-2" />
+            <button type="submit" className="min-h-11 rounded-md border px-4 focus-visible:ring-2">Search</button>
+          </form>
+          {searchQuery ? (
+            <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+              {!queueError && !tenantSignalsError && pendingSignals.length + reviewedSignals.length === 0
+                ? "No matches. Try another word or clear the search. "
+                : "Searching persisted customer turns and signal summaries. "}
+              <Link href={viewHref("insights", { ...queryExtras, q: null, status: statusFilter, type: typeFilter, action: actionFilter })}
+                className="inline-flex min-h-11 items-center underline focus-visible:ring-2">Clear search</Link>
+            </p>
+          ) : null}
           <SignalQueueFilters
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}

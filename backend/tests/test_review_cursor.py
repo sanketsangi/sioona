@@ -69,3 +69,55 @@ def test_tenant_signal_page_is_bounded_with_feedback_and_empty_scope(client):
     assert client.get(url + "&conversation_id=", headers=headers).json()["predictions"] == []
     assert client.get(url + "&after=bad", headers=headers).status_code == 400
     assert client.get(url, headers={"X-Tenant-Id": "b"}).status_code == 403
+
+
+def test_search_customer_text_summary_scope_and_cursor(db):
+    from app.models.message import Message
+    now = datetime.now(timezone.utc)
+    for tenant in ('a', 'b'):
+        for i in range(4):
+            db.add(Conversation(tenant_id=tenant, conversation_id=f'c{i}', channel='upload', started_at=now))
+            db.add(SignalPrediction(id=UUID(int=(1 if tenant == 'a' else 100) + i), tenant_id=tenant,
+                conversation_id=f'c{i}', signal_type='lead', confidence=.9,
+                summary='renewal opportunity' if i == 0 else 'ordinary'))
+            db.add(Message(tenant_id=tenant, conversation_id=f'c{i}', message_id=f'm{i}',
+                role='agent' if i == 2 else 'customer', timestamp=now,
+                content='renewal 50%_discount' if i in (1, 2) else 'ordinary'))
+    db.commit()
+    first, cursor = page_signals_needing_review(db, 'a', q=' renewal ', limit=1)
+    second, end = page_signals_needing_review(db, 'a', q='renewal', limit=1, after=cursor)
+    assert [r.conversation_id for r in first + second] == ['c0', 'c1']
+    assert end is None
+    assert page_signals_needing_review(db, 'a', q='%_')[0][0].conversation_id == 'c1'
+    assert page_signals_needing_review(db, 'a', q='missing')[0] == []
+    assert page_signals_needing_review(db, 'a', q='renewal', conversation_ids=['c2'])[0] == []
+    assert len(page_signals_needing_review(db, 'a', q='  ')[0]) == 4
+
+
+def test_search_route_validation(client):
+    headers = {'X-Tenant-Id': 'a'}
+    path = '/v1/tenants/a/signals/needs-review/page'
+    assert client.get(path, params={'q': 'x' * 201}, headers=headers).status_code == 422
+    assert client.get(path, params={'q': "' OR true --"}, headers=headers).json()['predictions'] == []
+
+
+def test_access_log_excludes_search_text():
+    import logging
+    from app.access_logging import RedactQueryString
+    record = logging.LogRecord('uvicorn.access', logging.INFO, '', 0, '%s - "%s %s HTTP/%s" %d',
+        ('local', 'GET', '/signals/needs-review/page?q=private-search', '1.1', 200), None)
+    assert RedactQueryString().filter(record)
+    assert 'private-search' not in record.getMessage()
+    assert '/signals/needs-review/page' in record.getMessage()
+
+
+def test_search_is_applied_to_both_page_routes(client):
+    headers = {'X-Tenant-Id': 'a'}
+    for i, summary in enumerate(('renewal opportunity', 'ordinary')):
+        assert client.post('/v1/predictions', headers=headers, json={
+            'conversation_id': f'c{i}', 'signal_type': 'lead',
+            'confidence': .9, 'summary': summary}).status_code == 201
+    for path in ('signals/needs-review/page', 'signals/page'):
+        response = client.get(f'/v1/tenants/a/{path}', headers=headers, params={'q': 'renewal'})
+        assert response.status_code == 200
+        assert [row['conversation_id'] for row in response.json()['predictions']] == ['c0']

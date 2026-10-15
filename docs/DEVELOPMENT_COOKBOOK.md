@@ -1260,6 +1260,8 @@ These cards are conditional on customer demand and explicit authorization (D10).
 
 ### CB-16 — Productionize one live source
 
+Local Intercom implementation and operator recovery contract: [CB-16 record](development/tasks/CB-16.md). Hosted enablement and acceptance remain gated.
+
 **Priority** P3, customer-triggered · **Depends on** CB-03, CB-07, CB-11 · **Size** ~1 week (Intercom); 1–2+ weeks (WhatsApp provider)
 
 **Steps.** Audit `web/src/lib/live-ingest/` and `web/src/app/api/ingest/live/*`. Replace shared-secret matching with provider signature verification per current official docs. Bind credentials to a tenant server-side; the request header no longer selects the tenant. Enqueue canonical events with replay protection, a cursor or checkpoint, dead-letter state, and source deletion semantics.

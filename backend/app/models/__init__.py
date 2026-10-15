@@ -125,3 +125,4 @@ from app.models.classification_cache import ClassificationCache
 from app.models.job_conversation import JobConversation
 
 from app.models.lifecycle import AuditEvent, LegalHold, TenantDeletion, TenantExport, LifecycleLedgerSummary
+from app.models.live_ingest import LiveInstallation, LiveEvent, LiveSource

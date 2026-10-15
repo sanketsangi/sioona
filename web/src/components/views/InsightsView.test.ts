@@ -2846,3 +2846,31 @@ describe("InsightsView evidence-grounded review", () => {
     expect(report).toContain("No retention signals in this pilot file.");
   });
 });
+
+it("search excludes local fallback rows and preserves the query in queue links", () => {
+  const pending = makePendingSignals(3);
+  const match = pending[0];
+  const html = renderToStaticMarkup(createElement(InsightsView, {
+    store: storeFromSignals(pending), statusFilter: "new", typeFilter: "all", page: 1,
+    searchQuery: "renewal", cadenceAction: cadenceReviews,
+    needsReview: { ok: true, predictions: [{ id: match.backendSignalId!, tenant_id: "tenant_demo",
+      conversation_id: match.conversationId, signal_type: match.type, confidence: match.score,
+      summary: match.summary, created_at: match.createdAt }] },
+    tenantSignals: { ok: true, rows: [] },
+  }));
+  expect(html).toContain('name="q"');
+  expect(html).toContain('value="renewal"');
+  expect(html).toContain('q=renewal');
+  expect(html).not.toContain(`preview=${pending[1].id}`);
+});
+
+it("offers recovery when persisted search has no matches", () => {
+  const html = renderToStaticMarkup(createElement(InsightsView, {
+    store: storeFromSignals(makePendingSignals(3)), statusFilter: "new", typeFilter: "all", page: 1,
+    searchQuery: "unmatched", cadenceAction: cadenceReviews,
+    needsReview: { ok: true, predictions: [] }, tenantSignals: { ok: true, rows: [] },
+  }));
+  expect(html).toContain("No matches. Try another word or clear the search.");
+  expect(html).toContain("Clear search");
+  expect(html).not.toContain("preview=sig_");
+});

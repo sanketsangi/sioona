@@ -11,6 +11,8 @@ pytest_plugins = ["tests.actor_support"]
 
 EXEMPT = {("GET", "/health")}
 PATH_PARAMS = {
+    "{proposal_id}": "00000000-0000-4000-8000-000000000099",
+    "{execution_id}": "00000000-0000-4000-8000-000000000099",
     "{tenant_id}": "tenant_a",
     "{hold_id}": "00000000-0000-4000-8000-000000000099",
     "{request_id}": "00000000-0000-4000-8000-000000000099",
@@ -19,6 +21,8 @@ PATH_PARAMS = {
     "{upload_id}": "missing",
     "{run_id}": "missing",
     "{job_id}": "missing",
+    "{installation_id}": "missing",
+    "{event_id}": "missing",
     "{attempt_id}": "missing",
     "{conversation_id}": "shared",
 }

@@ -75,6 +75,8 @@ class Worker:
         }
         if tenant not in allowed:
             raise jobs.JobError("worker_tenant_not_authorized")
+        from app.services.live_ingest import dispatch_pending
+        self.transaction(tenant, lambda db: dispatch_pending(db, tenant))
         self.transaction(tenant, lambda db: jobs.reap_exhausted(db, tenant))
         lease = self.transaction(
             tenant, lambda db: jobs.claim(db, tenant, self.owner, paused=self.paused())

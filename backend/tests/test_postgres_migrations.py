@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["030_inference_control_audit"]
+        assert heads == ["032_live_ingest"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -775,7 +775,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
         with engine.begin() as conn:
             assert conn.execute(text(
                 "SELECT COUNT(*) FROM pg_policies WHERE policyname = 'tenant_isolation'"
-            )).scalar() == len(RLS_TABLES) + 5  # CB-18 forced-RLS tables
+            )).scalar() == len(RLS_TABLES) + 8  # CB-18 forced-RLS tables
     finally:
         clear_tenant()
         get_settings.cache_clear()
@@ -2261,6 +2261,20 @@ def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
         db.add(LifecycleLedgerSummary(tenant_id='tenant_b', id='summary-b', attempts=1,
             unknown_attempts=0, reserved_usd=Decimal('1'), spent_usd=Decimal('1')))
         db.commit()
+        # Include CB-16 records in both tenants' actual backup/restore proof.
+        from app.models.live_ingest import LiveInstallation, LiveEvent, LiveSource
+        for tenant in ('tenant_a', 'tenant_b'):
+            db.add(LiveInstallation(tenant_id=tenant, id='restore-install',
+                workspace_id=f'{tenant}-restore', credential_ref='INTERCOM_CLIENT_SECRET',
+                active=True, consent_reference='synthetic-consent', monitoring_reference='synthetic-monitor'))
+        db.flush()
+        for tenant in ('tenant_a', 'tenant_b'):
+            db.add(LiveEvent(tenant_id=tenant, installation_id='restore-install', event_id='restore-event',
+                source_id='restore-source', source_version=1, occurred_at=expires,
+                payload_sha256='a'*64, content_sha256='b'*64, kind='unresolved', state='dead_lettered'))
+            db.add(LiveSource(tenant_id=tenant, installation_id='restore-install', source_id='restore-source',
+                source_version=1, content_sha256='b'*64, deleted=False))
+        db.commit()
         tenant_b_before = tenant_snapshot(db, 'tenant_b')
         assert all(item['count'] > 0 for item in tenant_b_before.values())
     backup = tmp_path / 'before.dump'
@@ -2347,7 +2361,7 @@ def test_cb19_schema_gate(job_pg, monkeypatch):
             check_schema.main()
     finally:
         with job_pg.begin() as connection:
-            connection.execute(text("UPDATE alembic_version SET version_num='030_inference_control_audit'"))
+            connection.execute(text("UPDATE alembic_version SET version_num='032_live_ingest'"))
 
 
 def test_cb19_provider_outage_fallback(job_pg, monkeypatch):
@@ -2429,4 +2443,146 @@ def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg, opera
             ('retention_sweep', 'tenant'), (operation, resource),
         }
     with job_pg.connect() as conn:
-        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '030_inference_control_audit'
+        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '032_live_ingest'
+
+
+def test_queue_search_pg17_indexes_and_runtime_rls(job_pg):
+    from uuid import UUID
+    from app.models.message import Message
+    from app.models.signal_prediction import SignalPrediction
+    from app.services.review_queue import page_signals_needing_review
+    from scripts import check_schema
+    with job_pg.connect() as conn:
+        assert conn.scalar(text('SHOW server_version_num')).startswith('17')
+        indexes = dict(conn.execute(text("SELECT indexname, indexdef FROM pg_indexes WHERE indexname LIKE 'ix_messages_customer_search_%' OR indexname LIKE 'ix_predictions_search_%'")).all())
+        assert len(indexes) == 4
+        assert all('USING gin' in definition for definition in indexes.values())
+        assert "WHERE" in indexes['ix_messages_customer_search_fts'] and "'customer'" in indexes['ix_messages_customer_search_fts']
+    now = datetime.now(timezone.utc)
+    for tenant, base in [('a', 1), ('b', 100)]:
+        with _runtime_session(job_pg, tenant) as db:
+            for i in range(3):
+                db.add(Conversation(tenant_id=tenant, conversation_id=f'c{i}', channel='upload', started_at=now))
+                db.add(SignalPrediction(id=UUID(int=base+i), tenant_id=tenant, conversation_id=f'c{i}',
+                    signal_type='lead', confidence=.9, summary='renewal annual' if i == 0 else 'ordinary'))
+                db.add(Message(tenant_id=tenant, conversation_id=f'c{i}', message_id=f'm{i}',
+                    role='customer' if i == 1 else 'agent', content='annual renewal 50%_discount', timestamp=now))
+            db.commit()
+    with _runtime_session(job_pg, 'a') as db:
+        first, cursor = page_signals_needing_review(db, 'a', q='renewal annual', limit=1)
+        second, end = page_signals_needing_review(db, 'a', q='renewal annual', limit=1, after=cursor)
+        assert [r.conversation_id for r in first+second] == ['c0', 'c1']
+        assert end is None
+        assert len(page_signals_needing_review(db, 'a', q='newal')[0]) == 2
+        assert len(page_signals_needing_review(db, 'a', q='%_')[0]) == 1
+        assert page_signals_needing_review(db, 'b', q='renewal')[0] == []
+        # Raw reads prove RLS, independent of service tenant predicates.
+        assert set(db.scalars(text('SELECT tenant_id FROM messages'))) == {'a'}
+        assert set(db.scalars(text('SELECT tenant_id FROM signal_predictions'))) == {'a'}
+    with job_pg.begin() as conn:
+        conn.execute(text('SET LOCAL ROLE sioona_runtime'))
+        conn.execute(text("SELECT set_config('app.tenant_id', '', true)"))
+        assert conn.scalar(text('SELECT count(*) FROM messages')) == 0
+        assert conn.scalar(text('SELECT count(*) FROM signal_predictions')) == 0
+    # Force scan alternatives off to prove both operator classes are usable.
+    with job_pg.begin() as conn:
+        conn.execute(text('SET LOCAL enable_seqscan = off'))
+        for table, column, prefix, predicate in [('messages', 'content', 'ix_messages_customer_search', "role = 'customer' AND "), ('signal_predictions', 'summary', 'ix_predictions_search', '')]:
+            for suffix, condition in [('fts', f"to_tsvector('simple'::regconfig, {column}) @@ plainto_tsquery('simple'::regconfig, 'renewal')"), ('trgm', f"{column} ILIKE '%newal%'")]:
+                plan = str(conn.execute(text(f'EXPLAIN SELECT id FROM {table} WHERE {predicate}{condition}')).all())
+                assert f'{prefix}_{suffix}' in plan
+    check_schema.main()
+
+
+def test_cb16_runtime_atomic_receipts_concurrency_and_rls(job_pg):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.services import live_ingest as live, jobs
+    from app.models.live_ingest import LiveEvent, LiveInstallation
+    from app.models.job import Job
+    from tests.test_live_ingest import install, event
+    with _runtime_session(job_pg, 'a') as db:
+        install(db)
+        jid = live.accept_event(db, 'a', event()).job_id
+        db.rollback()
+        assert db.get(Job, ('a', jid)) is None
+        assert db.get(LiveEvent, ('a','install1','e1')) is None
+    barrier = Barrier(2)
+    def deliver(_):
+        with _runtime_session(job_pg, 'a') as db:
+            barrier.wait(timeout=10)
+            jid = live.accept_event(db, 'a', event()).job_id
+            db.commit()
+            return jid
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        receipts = list(pool.map(deliver, range(2)))
+    assert receipts[0] == receipts[1]
+    with _runtime_session(job_pg, 'a') as db:
+        assert len(list(db.scalars(select(LiveEvent)))) == 1
+        assert len(list(db.scalars(select(Job)))) == 1
+        lease = jobs.claim(db,'a','worker')
+        db.commit()
+        live.revoke_installation(db,'a','install1','00000000-0000-0000-0000-000000000001')
+        db.commit()
+        with pytest.raises(jobs.LeaseLost): jobs.fenced(db,lease,corpus=True)
+        db.rollback()
+    with _runtime_session(job_pg, 'b') as db:
+        assert not list(db.scalars(select(LiveEvent)))
+        assert not list(db.scalars(select(LiveInstallation)))
+        with pytest.raises(Exception):
+            db.add(LiveInstallation(tenant_id='a',id='forged',workspace_id='forged',credential_ref='INTERCOM_CLIENT_SECRET',active=True,consent_reference='c',monitoring_reference='m'))
+            db.commit()
+        db.rollback()
+
+
+def test_cb16_postgres_ordering_recovery_and_deletion(job_pg):
+    from tests.test_live_ingest import install, event
+    from app.services import live_ingest as live
+    from app.models.job import Job
+    from app.models.live_ingest import LiveEvent, LiveSource
+    from app.models.message import Message
+    with _runtime_session(job_pg,'a') as db:
+        install(db)
+        first = live.accept_event(db,'a',event())
+        second = live.accept_event(db,'a',event('e2',102,'later'))
+        db.commit()
+        assert second.state == 'pending'
+        db.get(Job,('a',first.job_id)).status = 'succeeded'
+        db.commit()
+        live.dispatch_pending(db,'a')
+        db.commit()
+        assert second.state == 'dispatched'
+        job = db.get(Job,('a',second.job_id))
+        job.status,job.attempt_count = 'dead_lettered',3
+        db.commit()
+        live.requeue(db,'a','install1','e2','00000000-0000-0000-0000-000000000001')
+        db.commit()
+        assert job.status == 'queued' and job.attempt_count == 0
+        deleted = live.accept_event(db,'a',event('deleted',103,kind='delete'))
+        db.commit()
+        assert deleted.state == 'succeeded'
+        assert not list(db.scalars(select(Message)))
+        assert not db.get(LiveEvent,('a','install1','e2')).payload
+        assert db.get(LiveSource,('a','install1','source1')).deleted
+
+
+def test_cb16_upgrade_preserves_inflight_deletion_checkpoint_and_downgrade_guards(job_pg):
+    from app.models.lifecycle import TenantDeletion
+    from app.models.live_ingest import LiveInstallation
+    from tests.test_live_ingest import install
+    cfg = Config('alembic.ini')
+    with Session(job_pg) as db:
+        db.add(TenantDeletion(tenant_id='deleting', requested_by='00000000-0000-0000-0000-000000000001', state='running', fenced=True, checkpoint=7))
+        db.commit()
+    command.downgrade(cfg,'031_queue_search')
+    with Session(job_pg) as db:
+        assert db.get(TenantDeletion,'deleting').checkpoint == 4
+    command.upgrade(cfg,'head')
+    with Session(job_pg) as db:
+        assert db.get(TenantDeletion,'deleting').checkpoint == 7
+    with _runtime_session(job_pg,'a') as db:
+        install(db)
+    with pytest.raises(Exception, match='live_ingest_not_empty'):
+        command.downgrade(cfg,'031_queue_search')
+    with _runtime_session(job_pg,'a') as db:
+        assert db.get(LiveInstallation,('a','install1')).active

@@ -121,3 +121,14 @@ it("splits large conversation scopes into bounded requests", async () => {
   expect((await fetchTenantSignals("a", { conversationIds: ids })).ok).toBe(true);
   expect(fetchMock.mock.calls.map((call) => new URL(String(call[0])).searchParams.getAll("conversation_id").length)).toEqual([50, 50, 21]);
 });
+
+it("retains search text on every reviewed keyset page", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json({ predictions: [], next_cursor: "next" }))
+    .mockResolvedValueOnce(Response.json({ predictions: [], next_cursor: null }));
+  vi.stubGlobal("fetch", fetchMock);
+  expect(await fetchTenantSignals("tenant_demo", { q: "renewal" })).toEqual({ ok: true, rows: [] });
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  for (const [url] of fetchMock.mock.calls) expect(new URL(String(url)).searchParams.get("q")).toBe("renewal");
+  expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get("after")).toBe("next");
+});

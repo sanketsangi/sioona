@@ -78,12 +78,13 @@ def get_review_page(tenant_id: str,
                     db: Annotated[Session, Depends(get_db)],
                     limit: Annotated[int, Query(ge=1, le=100)] = 20,
                     after: Annotated[str | None, Query(max_length=36)] = None,
+                    q: Annotated[str | None, Query(max_length=200)] = None,
                     conversation_id: Annotated[list[str] | None, Query()] = None):
     from app.services.review_queue import page_signals_needing_review
     keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows, cursor = page_signals_needing_review(db, tenant_id, limit=limit,
-            after=after, conversation_ids=conversation_id)
+            after=after, q=q, conversation_ids=conversation_id)
     except ValueError as exc:
         raise HTTPException(400, "invalid_review_cursor") from exc
     except SQLAlchemyError as exc:
@@ -97,12 +98,13 @@ def get_tenant_signal_page(tenant_id: str,
                           db: Annotated[Session, Depends(get_db)],
                           limit: Annotated[int, Query(ge=1, le=100)] = 100,
                           after: Annotated[str | None, Query(max_length=36)] = None,
+                          q: Annotated[str | None, Query(max_length=200)] = None,
                           conversation_id: Annotated[list[str] | None, Query()] = None):
     from uuid import UUID
     keep_header_gate(tenant_id, header_tenant_id)
     try:
         rows = list_tenant_predictions(db, tenant_id, conversation_ids=conversation_id,
-            limit=limit + 1, after=UUID(after) if after else None)
+            limit=limit + 1, after=UUID(after) if after else None, q=q)
     except ValueError as exc:
         raise HTTPException(400, "invalid_signal_cursor") from exc
     except SQLAlchemyError as exc:

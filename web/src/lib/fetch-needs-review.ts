@@ -23,6 +23,7 @@ export type FetchNeedsReviewOptions = {
   limit?: number;
   /** Active JSON keep-set. Empty array → no pending rows. */
   conversationIds?: string[];
+    q?: string;
 };
 
 /** Backend max per request. */
@@ -61,7 +62,7 @@ export async function fetchNeedsReview(
       const seen = new Set<string>();
       while (true) {
         if (pages++ >= 100) throw new Error("Review queue exceed the page budget; narrow the conversation scope.");
-        const batch = await getNeedsReviewPage(tenantId, { limit: limit, after, conversationIds: scope });
+        const batch = await getNeedsReviewPage(tenantId, { limit: limit, after, conversationIds: scope, q: opts.q });
         predictions.push(...batch.predictions);
         if (!batch.next_cursor) break;
         if (seen.has(batch.next_cursor)) throw new Error("Review queue returned a repeated cursor.");
