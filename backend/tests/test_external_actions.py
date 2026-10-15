@@ -263,3 +263,61 @@ def test_http_operator_flow_is_exact_audited_and_never_resubmitted(api, monkeypa
     with factory() as db:
         operations = list(db.scalars(select(AuditEvent.operation).where(AuditEvent.resource_type == 'action').order_by(AuditEvent.created_at)))
         assert operations == ['action_proposed', 'action_approved', 'action_attempted', 'action_unknown' if timeout else 'action_succeeded'] + (['action_reconciled'] if timeout else [])
+
+
+def test_source_deletion_invalidates_unattempted_approval(db, monkeypatch):
+    from app.config import get_settings
+    monkeypatch.setattr(get_settings(), 'sioona_detection_execution', 'worker')
+    from tests.test_live_ingest import install, event
+    from app.services import live_ingest as live
+    install(db)
+    source = event()
+    source.conversation.conversation_id = 'c'
+    live.accept_event(db, 'a', source)
+    db.commit()
+    p = proposal(db)
+    e = approve(db, p)
+    calls = []
+    monkeypatch.setattr(actions, 'enabled', lambda: True)
+    monkeypatch.setattr(actions, 'submit_note', lambda *args: calls.append(args))
+    deleted = live.accept_event(db, 'a', event('delete', 101, kind='delete'))
+    db.commit()
+    assert deleted.state == 'succeeded'
+    assert p.state == 'superseded' and e.state == 'failed'
+    assert actions.execute(db, 'a', ACTOR, e.id).state == 'failed'
+    assert calls == []
+    events = list(db.scalars(select(AuditEvent).where(AuditEvent.operation.in_(['action_invalidated', 'action_failed']))))
+    assert len(events) == 2
+    assert all(row.actor_role == 'service' and row.reason_code == 'source_deleted' for row in events)
+
+
+@pytest.mark.parametrize('response_body', [
+    {'id': None}, {'id': True}, {'id': False}, {}, {'id': {}},
+    {'id': 123}, {'id': 'bad receipt'}, {'id': 'None'}, ['unexpected'],
+])
+def test_malformed_success_receipt_stays_unknown_without_retry(db, monkeypatch, response_body):
+    calls = []
+    class Client:
+        def __init__(self, **kwargs): pass
+        def __enter__(self): return self
+        def __exit__(self, *args): pass
+        def post(self, *args, **kwargs):
+            calls.append(kwargs)
+            class Response:
+                status_code = 200
+                def json(self): return response_body
+            return Response()
+    monkeypatch.setattr(actions.httpx, 'Client', Client)
+    assert actions.submit_note('synthetic', '42', '123', {'body': 'Synthetic note'}, 'execution') == ('unknown', None)
+    calls.clear()
+    p = proposal(db)
+    e = approve(db, p)
+    monkeypatch.setattr(actions, 'enabled', lambda: True)
+    for _ in range(2):
+        assert actions.execute(db, 'a', ACTOR, e.id).state == 'unknown'
+    assert len(calls) == 1
+    assert e.provider_receipt is None
+    rows = list(db.scalars(select(AuditEvent).where(AuditEvent.operation == 'action_unknown')))
+    assert len(rows) == 1 and rows[0].result == 'blocked'
+    with pytest.raises(actions.ActionError, match='reconciliation_required'):
+        actions.propose(db, 'a', ACTOR, p.decision_id, '123', 'Replacement')

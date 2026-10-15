@@ -1,12 +1,14 @@
 """Explicit local/sandbox outbox. Never retries a submitted execution."""
 from datetime import datetime, timedelta, timezone
+from contextlib import contextmanager
+from threading import Lock
 import hashlib
 import json
 import os
 import re
 import uuid
 import httpx
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from app.models.supervised_action import ActionProposal, ActionExecution, SupervisedActionDecision
 from app.models.membership import Membership
 from app.services import lifecycle
@@ -14,6 +16,33 @@ from app.services.tenant_lock import lock_tenant_corpus
 
 class ActionError(ValueError):
     pass
+
+_local_dispatch_lock = Lock()
+# Stable service identity, not a human approver, for provider deletion events.
+SOURCE_DELETION_ACTOR = 'f6b064b4-67ad-5a62-8feb-6d9211817876'
+
+@contextmanager
+def dispatch_owner(db, tenant, identity):
+    """Keep an independent transaction alive across the durable attempt commit.
+
+    The nonblocking lock distinguishes an active dispatcher from an abandoned
+    attempted row. Process/connection loss releases it without a timed lease
+    allowing a merely slow dispatcher to be reconciled prematurely.
+    """
+    if db.get_bind().dialect.name == 'postgresql':
+        key = int.from_bytes(hashlib.sha256(f'cb17-dispatch:{tenant}:{identity}'.encode()).digest()[:8], 'big', signed=True)
+        with db.get_bind().engine.connect() as connection, connection.begin():
+            if not connection.scalar(text('SELECT pg_try_advisory_xact_lock(:key)'), {'key': key}):
+                raise ActionError('dispatch_in_progress')
+            yield
+    else:
+        # SQLite is the single-process local/test fallback.
+        if not _local_dispatch_lock.acquire(blocking=False):
+            raise ActionError('dispatch_in_progress')
+        try:
+            yield
+        finally:
+            _local_dispatch_lock.release()
 
 def enabled():
     return os.getenv('SIOONA_EXTERNAL_ACTIONS_ENABLED', '0') == '1' and os.getenv('SIOONA_EXTERNAL_ACTIONS_ENV') == 'sandbox'
@@ -39,7 +68,7 @@ def sandbox_config(tenant, target):
 def digest(payload):
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()).hexdigest()
 
-def audit(db, tenant, actor, state, rid):
+def audit(db, tenant, actor, state, rid, *, source_deleted=False):
     from app.models.lifecycle import AuditEvent
     p = db.get(ActionProposal, (tenant, rid))
     e = db.get(ActionExecution, (tenant, rid)) if p is None else None
@@ -47,8 +76,9 @@ def audit(db, tenant, actor, state, rid):
     if e is not None and e.state == 'unknown':
         result = 'blocked'
     db.add(AuditEvent(tenant_id=tenant, actor_id=str(uuid.UUID(actor)), resource_type='action',
+        actor_role='service' if source_deleted else 'admin',
         resource_id=rid, resource_version=str(p.action_version if p else e.action_version),
-        operation='action_'+state, correlation_id=rid, reason_code='approved', result=result,
+        operation='action_'+state, correlation_id=rid, reason_code='source_deleted' if source_deleted else 'approved', result=result,
         # now() is transaction-start time, which can precede lock acquisition
         # and invert a concurrent unknown/result transition in the audit view.
         created_at=func.clock_timestamp() if db.get_bind().dialect.name == 'postgresql' else datetime.now(timezone.utc)))
@@ -63,13 +93,13 @@ def get(db, model, tenant, identity):
         raise ActionError('action_not_found')
     return row
 
-def invalidate(db, tenant, decision, actor):
+def invalidate(db, tenant, decision, actor, *, source_deleted=False):
     for p in db.scalars(select(ActionProposal).where(ActionProposal.tenant_id == tenant, ActionProposal.decision_id == decision, ActionProposal.state == 'proposed')):
         p.state = 'superseded'
         for e in db.scalars(select(ActionExecution).where(ActionExecution.tenant_id == tenant, ActionExecution.proposal_id == p.id, ActionExecution.state == 'approved')):
             e.state = 'failed'
-            audit(db, tenant, actor, 'failed', e.id)
-        audit(db, tenant, actor, 'invalidated', p.id)
+            audit(db, tenant, actor, 'failed', e.id, source_deleted=source_deleted)
+        audit(db, tenant, actor, 'invalidated', p.id, source_deleted=source_deleted)
 
 def propose(db, tenant, actor, decision, target, body):
     locked(db, tenant)
@@ -114,14 +144,21 @@ def submit_note(token, admin, target, payload, execution_id):
     if not 200 <= response.status_code < 300:
         return 'failed', None
     # Keep only a bounded provider identity, never provider text.
-    receipt = str(response.json().get('id', ''))
-    return ('succeeded', receipt) if re.fullmatch(r'[A-Za-z0-9_-]{1,128}', receipt) else ('unknown', None)
+    body = response.json()
+    receipt = body.get('id') if isinstance(body, dict) else None
+    # Intercom conversation IDs are numeric strings. Coercion would accept
+    # null/bool as the plausible-looking identifiers "None"/"True".
+    return ('succeeded', receipt) if isinstance(receipt, str) and re.fullmatch(r'[0-9]{1,128}', receipt) else ('unknown', None)
 
 def execute(db, tenant, actor, identity):
+    with dispatch_owner(db, tenant, identity):
+        return _execute(db, tenant, actor, identity)
+
+def _execute(db, tenant, actor, identity):
     locked(db, tenant)
     e = get(db, ActionExecution, tenant, identity)
     if e.state != 'approved':
-        # A crash after the committed attempt is ambiguous and never resubmitted.
+        # The ownership lock is free, so this attempt has no active dispatcher.
         if e.state == 'attempted':
             e.state = 'unknown'; audit(db, tenant, actor, 'unknown', e.id); db.commit()
         return e
@@ -143,16 +180,23 @@ def execute(db, tenant, actor, identity):
         state, receipt = 'unknown', None
     locked(db, tenant)
     e = get(db, ActionExecution, tenant, identity)
-    if e.state in ('attempted', 'unknown'):
+    if e.state == 'attempted':
         e.state, e.provider_receipt = state, receipt
         audit(db, tenant, actor, state, e.id); db.commit()
     return e
 
 def reconcile(db, tenant, actor, identity, state, receipt):
+    with dispatch_owner(db, tenant, identity):
+        return _reconcile(db, tenant, actor, identity, state, receipt)
+
+def _reconcile(db, tenant, actor, identity, state, receipt):
     locked(db, tenant)
     e = get(db, ActionExecution, tenant, identity)
     if e.state not in ('unknown','attempted') or state not in ('succeeded','failed') or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', receipt):
         raise ActionError('invalid_reconciliation')
+    if e.state == 'attempted':
+        e.state = 'unknown'
+        audit(db, tenant, actor, 'unknown', e.id)
     e.state, e.provider_receipt = state, receipt
     audit(db, tenant, actor, 'reconciled', e.id); db.commit()
     return e

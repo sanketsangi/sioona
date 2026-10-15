@@ -225,6 +225,12 @@ def scrub_source(db, tenant, cid):
     from app.models.detection_run import DetectionRun
     from app.models.classification_cache import ClassificationCache
     from app.models.supervised_action import SupervisedActionDecision
+    from app.services.external_actions import locked, invalidate, SOURCE_DELETION_ACTOR
+    locked(db, tenant)
+    for decision_id in db.scalars(select(SupervisedActionDecision.id).where(
+            SupervisedActionDecision.tenant_id == tenant,
+            SupervisedActionDecision.conversation_id == cid)):
+        invalidate(db, tenant, decision_id, SOURCE_DELETION_ACTOR, source_deleted=True)
     pids = select(SignalPrediction.id).where(SignalPrediction.tenant_id == tenant, SignalPrediction.conversation_id == cid)
     db.execute(delete(SignalEvidence).where(SignalEvidence.tenant_id == tenant, SignalEvidence.prediction_id.in_(pids)))
     db.execute(update(SignalPrediction).where(SignalPrediction.tenant_id == tenant, SignalPrediction.conversation_id == cid).values(

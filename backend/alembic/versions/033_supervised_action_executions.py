@@ -16,6 +16,16 @@ def constraints(extra):
         op.drop_constraint(name, 'audit_events', type_='check')
         op.create_check_constraint(name, 'audit_events', f'{col} IN ({old}{","+new if extra else ""})')
 
+def source_audit_constraints(extra):
+    # Only the verified live-ingest deletion path may use this service identity;
+    # it cannot approve, attempt, reconcile, or impersonate a human approver.
+    role = "actor_role = 'admin'"
+    reason = "reason_code IN ('approved','litigation','regulatory','investigation','legal_hold','internal_error','expired')"
+    service = "actor_role = 'service' AND actor_id = 'f6b064b4-67ad-5a62-8feb-6d9211817876' AND resource_type = 'action' AND operation IN ('action_invalidated','action_failed') AND reason_code = 'source_deleted'"
+    for name, rule in [('ck_audit_role', role), ('ck_audit_reason', reason)]:
+        op.drop_constraint(name, 'audit_events', type_='check')
+        op.create_check_constraint(name, 'audit_events', rule + (' OR (' + service + ')' if extra else ''))
+
 def upgrade():
     # Frozen table copies below avoid future ORM drift in migration replay.
     op.create_unique_constraint('uq_supervised_action_tenant_id', 'supervised_action_decisions', ['tenant_id','id'])
@@ -71,6 +81,7 @@ def upgrade():
     for table in ('action_proposals','action_executions'):
         op.execute(f'CREATE TRIGGER immutable_action_binding BEFORE UPDATE ON {table} FOR EACH ROW EXECUTE FUNCTION cb17_immutable_binding()')
     constraints(True)
+    source_audit_constraints(True)
     op.drop_constraint('ck_audit_version', 'audit_events', type_='check')
     op.create_check_constraint('ck_audit_version', 'audit_events',
         "resource_version = 'cb18.v1' OR (resource_type = 'action' AND resource_version ~ '^[1-9][0-9]{0,15}$')")
@@ -82,5 +93,6 @@ def downgrade():
     op.execute('DROP FUNCTION cb17_immutable_binding()')
     op.drop_constraint('uq_supervised_action_tenant_id', 'supervised_action_decisions', type_='unique')
     constraints(False)
+    source_audit_constraints(False)
     op.drop_constraint('ck_audit_version', 'audit_events', type_='check')
     op.create_check_constraint('ck_audit_version', 'audit_events', "resource_version = 'cb18.v1'")
