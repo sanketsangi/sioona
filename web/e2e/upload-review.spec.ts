@@ -19,16 +19,7 @@ const REHEARSAL_CSV = path.resolve(
 
 const NOT_SENT = "Approved — not sent. Run it in your tools; Sioona never CRM-tags.";
 
-/**
- * layout.tsx loads Vercel Analytics and Speed Insights. In `next dev` those
- * are GET requests to va.vercel-scripts.com. Abort them so nothing is posted,
- * and fail the test on every other non-localhost request.
- */
-const ALLOWED_SCRIPT_GETS = new Set([
-  "https://va.vercel-scripts.com/v1/script.debug.js",
-  "https://va.vercel-scripts.com/v1/speed-insights/script.debug.js",
-]);
-
+/** Fail the test on every non-localhost request. */
 async function failClosedOutbound(page: Page): Promise<string[]> {
   const blocked: string[] = [];
   await page.route("**/*", async (route) => {
@@ -46,10 +37,6 @@ async function failClosedOutbound(page: Page): Promise<string[]> {
       return;
     }
     const method = route.request().method();
-    if (method === "GET" && ALLOWED_SCRIPT_GETS.has(requestUrl)) {
-      await route.abort();
-      return;
-    }
     blocked.push(`${method} ${requestUrl}`);
     await route.abort();
   });

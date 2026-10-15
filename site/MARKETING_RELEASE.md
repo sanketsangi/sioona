@@ -115,9 +115,9 @@ Local Chromium home measurement with 4× CPU slowdown, 150 ms network latency, 2
 
    Rebuild after changing the canonical/app origin or any public policy value. Contact-record policies do not replace separately agreed customer-export processing terms.
 
-2. The approved interim canonical origin is `https://sioona-site.vercel.app`. If a custom marketing domain is adopted later, add it to this Vercel project, update `NEXT_PUBLIC_SITE_URL`, rebuild, and verify DNS resolution, redirects, and TLS before treating it as canonical. [Vercel domain setup](https://vercel.com/docs/domains/working-with-domains/add-a-domain).
+2. Use the approved canonical origin configured on Render's `sioona-site` service. `https://sioona-site.vercel.app` remains an approved marketing origin until that hostname is retired. For a custom domain, add it to the Render service, update `NEXT_PUBLIC_SITE_URL`, rebuild, and verify DNS, redirects and TLS before treating it as canonical.
 
-3. Verify and publish a firewall rate rule: production environment AND method `POST` AND exact path `/api/contact`; fixed window **600 seconds**, limit **10**, counting key **client IP**, action **429**. Verify actual rule behavior without sending customer data. Vercel counters are regional, so this is not proof of a global limit; keep and verify FastAPI rate enforcement, including for standalone hosting. No firewall rule or paid configuration was changed here. [Vercel rate-limiting guidance](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting).
+3. Verify FastAPI contact rate enforcement on the deployed intake path. Any separately approved edge rule should match method `POST`, exact path `/api/contact`, a **600-second** window and **10** requests per client IP with action **429**. Verify behavior without customer data; do not assume a Vercel firewall protects the Render service. No hosted rule or paid configuration is changed by this checklist.
 
 4. Deploy the rebuilt artifact and immediately run:
 

@@ -1,23 +1,21 @@
-# Deploying Sioona (`web/`) to Vercel
+# Deploying Sioona (`web/`) to Render
 
 The Sioona app is a **Next.js 16 App Router** project that lives in the `web/`
-subdirectory of the repo. Deploy with the Vercel **Root Directory** set to `web`.
-
-Production alias: [https://sioona-demo.vercel.app](https://sioona-demo.vercel.app)
-(Vercel project name: `web`).
+subdirectory of the repo. The product service is `sioona-web` on Render at
+[https://sioona-web.onrender.com](https://sioona-web.onrender.com).
 
 ## Deploy gate (every deploy)
 
-Run this **before** pushing/deploying and **after** Vercel/Render settle. Copy-paste as-is. Render free-tier may cold-start (~15m idle); if `/health` fails, retry once after ~30s.
+Run this **before** pushing/deploying and **after** Render settle. Copy-paste as-is. Render free-tier may cold-start (~15m idle); if `/health` fails, retry once after ~30s.
 
 Set env vars first:
 
 ```bash
 export BACKEND_URL="https://sioona-api.onrender.com"   # Render FastAPI
-export VERCEL_URL="https://sioona-demo.vercel.app"     # Vercel web
+export WEB_URL="https://sioona-web.onrender.com"     # Render web
 export TENANT="tenant_partner"                         # not tenant_demo for a real partner
 # Optional. When SIOONA_SERVICE_TOKEN is set on Render, send it on /v1 calls.
-# export SIOONA_SERVICE_TOKEN="(same value as Vercel and Render; do not commit)"
+# export SIOONA_SERVICE_TOKEN="(same value as web and API; do not commit)"
 ```
 
 ### Before each deploy (local)
@@ -40,12 +38,12 @@ curl -sS "$BACKEND_URL/health"
 # expect: {"status":"ok"}
 
 # 2. Critical UI routes (SSR must not 500)
-curl -sS -o /dev/null -w "insights=%{http_code}\n" "$VERCEL_URL/?view=insights"
-curl -sS -o /dev/null -w "upload=%{http_code}\n" "$VERCEL_URL/?view=upload"
-curl -sS -o /dev/null -w "eval=%{http_code}\n" "$VERCEL_URL/?view=eval"
+curl -sS -o /dev/null -w "insights=%{http_code}\n" "$WEB_URL/?view=insights"
+curl -sS -o /dev/null -w "upload=%{http_code}\n" "$WEB_URL/?view=upload"
+curl -sS -o /dev/null -w "eval=%{http_code}\n" "$WEB_URL/?view=eval"
 
 # 3. Legacy signal deep-link redirect
-curl -sS -D- -o /dev/null "$VERCEL_URL/insights/sig_test" | rg -i "^location:"
+curl -sS -D- -o /dev/null "$WEB_URL/insights/sig_test" | rg -i "^location:"
 # expect: Location: /?view=insights&preview=sig_test
 
 # 4. Shadow Mode queue API
@@ -63,9 +61,9 @@ curl -sS "$BACKEND_URL/v1/tenants/$TENANT/signal-score" \
 
 ## Pilot auth (manual — do not commit secrets)
 
-Set these in the Vercel and Render dashboards, then redeploy. This repo does not change production env for you.
+Set these in the Render dashboard, then redeploy. This repo does not change production env for you.
 
-Vercel (`web`):
+Render (`sioona-web`):
 
 - `AUTH_SECRET` — long random string. Signs the `sioona_session` cookie.
 - `SIOONA_SERVICE_TOKEN` — same value as Render. The browser never sees it.
@@ -78,7 +76,7 @@ Vercel (`web`):
 
 Render (`backend`):
 
-- `SIOONA_SERVICE_TOKEN` — same value as Vercel.
+- `SIOONA_SERVICE_TOKEN` — same value as sioona-web.
 - `SIOONA_ENV=production` — disables `/docs`, `/redoc`, and `/openapi.json`. If this is production and the token is empty, `/v1` returns 503.
 
 Neon:
@@ -89,129 +87,26 @@ cd backend && alembic upgrade head
 
 That applies revision `010_outcomes_taxonomy_fk` (outcome columns, `taxonomy_overrides`, Postgres foreign key). Run it yourself against the pilot database. Do not point it at a throwaway URL from this repo.
 
-Until `AUTH_SECRET` is set on Vercel production, the app requires sign-in (`VERCEL_ENV=production` turns enforcement on) and the public demo stays closed. Local `next dev` without `AUTH_SECRET` stays open for development.
+Until `AUTH_SECRET` is set on Render production, the app requires sign-in (`NODE_ENV=production` or `SIOONA_ENV=production` turns enforcement on) and the public demo stays closed. Local `next dev` without `AUTH_SECRET` stays open for development.
 
 Real export checklist: [`../docs/REAL_EXPORT.md`](../docs/REAL_EXPORT.md).
 
-## One-time: log in
+## Deploy and configure Render
 
-The automated deploy could not run because the local Vercel CLI has no valid
-credentials (`vercel whoami` → "The specified token is not valid"). Run:
+Use the existing `sioona-web` service and the Render deployment instructions below.
+Deploy the approved commit from the Render dashboard, then require a live deploy
+with the matching full Git SHA before running the hosted checks.
 
-```bash
-cd web
-npx vercel login          # opens browser / email OTP to authenticate
-```
+Set server-only `BACKEND_URL` to the public FastAPI origin. Optional Groq detection
+requires both `DETECT_LLM=1` and `GROQ_API_KEY`; otherwise detection uses heuristics.
+Keep the approved model configuration and provider spend limits. Explicit
+`DETECT_LLM_MAX_CALLS` still overrides the default; primary detection otherwise
+covers up to 120 chats, and miss-only detection defaults to 8. Re-detect resumes
+skipped conversations. Retries honor Retry-After up to 20 seconds with shared
+pacing; there is no Vercel function-timeout cap.
 
-## First deploy (creates the project)
-
-```bash
-cd web
-npx vercel --yes          # preview deploy; links/creates the project
-```
-
-When prompted for settings, accept the Next.js defaults:
-
-- Framework Preset: **Next.js**
-- Root Directory: **`web`** (if deploying from the repo root instead of `cd web`)
-- Build Command: `next build` (default)
-- Output Directory: `.next` (default)
-- Install Command: `npm install` (default)
-
-## Production deploy
-
-```bash
-cd web
-npx vercel --prod --yes
-```
-
-The command prints the production URL on success (e.g.
-`https://<project>.vercel.app`).
-
-## Environment variables (required for Shadow Mode / Signal Score)
-
-Config lives in [`web/vercel.json`](./vercel.json) (framework + build/install
-commands).
-
-The JSON file store alone is enough to browse fixtures after reseeding, but
-**hosted Shadow Mode demos require a live FastAPI + Neon** dual-write path.
-
-| Variable | Scope | Value |
-|----------|--------|--------|
-| `BACKEND_URL` | Production (server-only; **not** `NEXT_PUBLIC_`) | Public FastAPI base URL, no trailing slash (e.g. `https://sioona-api.onrender.com`) |
-| `DETECT_LLM` | Production (server-only) | `1` to enable Groq pass 2. Omit or `0` = heuristics only ($0). |
-| `GROQ_API_KEY` | Production (server-only, Sensitive) | Groq key. Never commit. **Production only.** Cap spend at **$20/mo** in the Groq console. |
-| `DETECT_LLM_CONCURRENCY` | Production | Set to **`2`** (also the code default). Do not use `8` — Groq Free returns 429s. No 429 retry (would blow Hobby 10s). |
-| `DETECT_LLM_MAX_CALLS` | Production | Set to **`4`**. Local default is `8`; Production `4` so detect + Neon sync fit in Hobby ~10s. |
-
-1. Host FastAPI + Neon per [`backend/README.md`](../backend/README.md#hosted-deploy-demo).
-2. In the Vercel project **Settings → Environment Variables**, set `BACKEND_URL` for **Production**.
-3. **Detect v2 (when you have a Groq key):** same page, Production only:
-   - [Vercel project → Settings → Environment Variables](https://vercel.com/sanketsangi/web/settings/environment-variables)
-   - Add `DETECT_LLM` = `1` (Production)
-   - Add `GROQ_API_KEY` (Sensitive) = your `gsk_…` key (Production only)
-   - Add `DETECT_LLM_CONCURRENCY` = `2` (Production)
-   - Add `DETECT_LLM_MAX_CALLS` = `4` (Production) — detect + Neon sync must fit Hobby ~10s
-   - Leave `DETECT_LLM_MODEL` unset. The code default is `qwen/qwen3.8-27b`. Groq shut down `qwen/qwen3.6-27b` on 2026-09-14; that id fails every call.
-   - Cap Groq spend at **$20/mo** in the Groq console (when Developer billing exists)
-   - Leave Preview/Development unset so previews stay $0
-   - Redeploy Production so serverless functions pick up the vars
-4. Redeploy after any env change.
-
-Without both `DETECT_LLM=1` and `GROQ_API_KEY`, pass 2 never runs (heuristic-only, $0).
-
-Unset or `localhost` `BACKEND_URL` on Vercel makes dual-write fail (`syncFailed`) and the Insights pending queue unavailable.
-
-### Verify (Shadow Mode demo)
-
-After every production deploy, also run the **After each deploy** 7-step curl smoke above.
-
-1. `curl -sS "$BACKEND_URL/health"` → `{"status":"ok"}`
-2. Confirm Vercel Production has `BACKEND_URL` set; redeploy if you just added it.
-3. Open https://sioona-demo.vercel.app → **Start Partner Demo**
-4. **Insights:** no `syncFailed` banner; Neon pending queue loads; Signal Score panel works.
-5. If sync still fails after the backend is healthy: **Re-run Detection**.
-
-## Notes
-
-- `web/data/store.json` is **runtime data** and must not be committed or shipped
-  as source; on Vercel the store re-seeds from Groww `testing.json`
-  (`web/data/samples/testing.json` → `loadTestingJsonIntoStore`).
-- **Start Partner Demo** wipes Neon then loads `zerodha_batch_02.json` only
-  (requires reachable FastAPI for Neon dual-write). Reset Demo returns Groww.
-
-## CI / token-based deploy (optional)
-
-If you prefer non-interactive deploys, create a token at
-`https://vercel.com/account/tokens` and run:
-
-```bash
-cd web
-npx vercel --prod --yes --token "$VERCEL_TOKEN"
-```
-
-## Vercel build & preview deployment configuration (Hobby vs Pro tier)
-
-### Hobby (Free) tier behavior & preview build-ignore script
-
-- **Daily quota constraint**: Vercel Hobby tier enforces a strict limit of **100 deployments per day** across all projects on the account (`sioona-site`, `sioona-web`, and `web`). Frequent commits on PRs quickly exhaust this limit and cause `Deployment rate limit reached` build errors on GitHub PR checks.
-- **Ignored Build Step**: To conserve the daily deployment quota for production releases on `main`, both `web/vercel.json` and `site/vercel.json` configure:
-  ```json
-  "ignoreCommand": "bash scripts/ignore-build.sh"
-  ```
-- **Exit code semantics**:
-  - `exit 0`: Cancels/ignores the build. Vercel skips building without consuming daily deployment quota or build minutes. Used for non-production branches (`VERCEL_GIT_COMMIT_REF != main`).
-  - `exit 1`: Tells Vercel to proceed with the build. Used for production deployments on `main` (`VERCEL_GIT_COMMIT_REF == main` or `VERCEL_ENV == production`).
-
-### Vercel Pro upgrade path & requirements
-
-Once a Vercel Pro team subscription is active:
-
-1. **Re-enabling PR previews**: If live preview URLs for pull requests are desired, update `scripts/ignore-build.sh` (or remove `"ignoreCommand"` from `vercel.json`) to allow preview builds for designated branches or all PRs.
-2. **Build concurrency**: Increase concurrent build capacity (Pro provides up to 12 concurrent builds, eliminating the 1-concurrency queue stalls seen on Hobby).
-3. **Deployment quota**: Pro provides 3,000 deployments/day per team, resolving rate limit exhaustion across monorepo packages.
-4. **Deployment Protection (Preview passwords)**: Enable Vercel Deployment Protection (Password Protection or Vercel Authentication / SSO) in project settings for preview environments to prevent public access to pre-release features or unreleased internal demo tenant data.
-5. **Serverless execution timeout**: Serverless timeouts can be increased from 10s up to 300s, enabling more resilient multi-call LLM detection passes and report PDF exports.
+Never commit or ship `web/data/store*.json`; production operational state belongs
+in Postgres. Run Partner Demo only with an approved demo tenant and action.
 
 ## Revenue leak report
 
@@ -226,11 +121,11 @@ When `DETECT_LLM=1`, Groq classifies every chat unless `DETECT_LLM_PRIMARY=0` (t
 | Variable | Scope | Value |
 |----------|--------|--------|
 | `DETECT_LLM_PRIMARY` | Server | Omit or `1` for LLM-first. `0` restores miss-only pass 2. |
-| `DETECT_LLM_MAX_CALLS` | Server | Still **`4`** on Vercel Hobby so one request stays under ~10s. Unset locally covers about 120 chats. Re-detect continues the remainder. |
+| `DETECT_LLM_MAX_CALLS` | Server | Explicit override; unset primary detection covers up to 120 chats. Re-detect continues the remainder. |
 | `DETECT_LLM_MAX_ATTEMPTS` | Server | `3` (default). Retries 429, 5xx, and timeouts only. |
 | `DETECT_LLM_MIN_INTERVAL_MS` | Server | `200` (default) between Groq calls. |
 
-Do not raise the Hobby cap in the Vercel dashboard unless the runtime can finish the batch. Nothing is sent to a customer.
+Choose explicit batch limits for the approved workload. Nothing is sent to a customer.
 
 ## Urgency and value
 
@@ -246,7 +141,7 @@ No new environment variables. The Insights review pane records Saved, Lost, or C
 
 ## Live read-only ingestion
 
-Off unless `LIVE_INGEST=1`. Leave it unset on Vercel until a pilot asks for it. Secrets stay in the host environment. Do not commit them.
+Off unless `LIVE_INGEST=1`. Leave it unset on Render until a pilot asks for it. Secrets stay in the host environment. Do not commit them.
 
 | Variable | Scope | Value |
 |----------|--------|--------|
@@ -326,7 +221,7 @@ SELECT count(*) FROM conversations WHERE channel = 'unknown';  -- equals orphan_
 
 Render must apply `022` **before** the FastAPI revision that SELECTs `messages.content_sha256` and `signal_predictions.evidence_status`. A database still on `021_inference_attempts` 500s prediction list, review, acted, and snapshot reads. Confirm `alembic current` is `022_evidence_anchors`, then deploy the API. Then run `backend/scripts/backfill_signal_evidence.py --tenant …` (dry-run, then `--apply`). Never point a laptop `alembic upgrade` at production Neon. Existing rows stay `unresolved` until that backfill.
 
-## Render deployment (proposed unified hosting)
+## Render deployment configuration
 
 The repository-root `render.yaml` proposes five services: `sioona-site`,
 `sioona-web`, `sioona-api`, `sioona-detection-worker`, and
@@ -349,8 +244,7 @@ Set `BACKEND_URL` to the deployed API base URL (normally HTTPS), `AUTH_SECRET`,
 `SIOONA_SERVICE_TOKEN` matching the API, `SIOONA_TENANT_ID`, approved
 `SIOONA_PILOT_USERS` credentials, and the stable `SIOONA_IDENTITY_KEY`.
 `SIOONA_ENV=production` enforces sign-in and defaults operational state to
-Postgres. `RENDER=true` (provided by Render), `SIOONA_ENV=production`, or
-`VERCEL=1` each requires a configured non-localhost `BACKEND_URL`.
+Postgres. `RENDER=true` (provided by Render) or `SIOONA_ENV=production` requires a configured non-localhost `BACKEND_URL`.
 Configure actor-auth keys/mode and optional model or ingestion credentials to
 match the approved API configuration before enabling those features.
 
@@ -365,7 +259,7 @@ automatic build step. Worker and recovery database credentials must use their
 approved roles and targets.
 
 After an approved deployment, repeat the hosted read-only checks above with
-`VERCEL_URL` set to the new Render web origin. Verify sign-in, tenant isolation,
+`WEB_URL` set to the new Render web origin. Verify sign-in, tenant isolation,
 and API health before changing DNS or retiring the previous host. Render's local
 filesystem is ephemeral; production operational state must stay in Postgres.
 For each future custom hostname, add and verify it on the matching Render service

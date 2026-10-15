@@ -85,7 +85,7 @@ Every `/v1/*` route requires `Authorization: Bearer $SIOONA_SERVICE_TOKEN`; only
 
 ## Hosted deploy (demo)
 
-For Shadow Mode demos against [sioona-demo.vercel.app](https://sioona-demo.vercel.app), FastAPI must be reachable on a **public HTTPS URL**. The Next.js app calls this service **server-side** (`web/src/lib/backend-client.ts`) with the service token and `X-Tenant-Id` — no Auth0.
+For Shadow Mode demos against [sioona-web.onrender.com](https://sioona-web.onrender.com), FastAPI must be reachable on a **public HTTPS URL**. The Next.js app calls this service **server-side** (`web/src/lib/backend-client.ts`) with the service token and `X-Tenant-Id` — no Auth0.
 
 Recommended host: **Render** Web Service (Phase 1 hosting). Equivalent platforms work if they expose a public base URL.
 
@@ -104,7 +104,7 @@ Recommended host: **Render** Web Service (Phase 1 hosting). Equivalent platforms
    ```
    Optional: open `$BACKEND_URL/docs`.
 
-Then set that public base URL as Vercel Production `BACKEND_URL` (see [`web/DEPLOY.md`](../web/DEPLOY.md)).
+Then set that public base URL as Render `sioona-web` `BACKEND_URL` (see [`web/DEPLOY.md`](../web/DEPLOY.md)).
 
 ## Endpoints
 

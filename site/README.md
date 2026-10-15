@@ -71,12 +71,13 @@ To change pacing, edit `motion.ts` (and `heroScript` for the mock) rather than i
 
 `POST /api/contact` validates the payload and returns `{ ok: true }` or `422 { errors }`. **It does not store or send anything.** The success state says so (`contactStub` in `src/lib/site.ts`). Wire it to the real intake before launch, then set `contactStub = false`.
 
-## Deploy To Vercel
+## Deploy to Render
 
-1. Import the repository in Vercel.
-2. Set **Root Directory** to `site`. Framework preset: Next.js.
-3. Add `NEXT_PUBLIC_SITE_URL` using the custom production origin or the approved stable origin `https://sioona-site.vercel.app`, plus `NEXT_PUBLIC_APP_URL` when the product sign-in URL is confirmed.
-4. Deploy. No other configuration is needed.
+Use the existing `sioona-site` Node service, Root Directory `site`, with the
+build/start commands in `render.yaml`. Configure the canonical origin, contact
+policy and intake credentials per [MARKETING_RELEASE.md](./MARKETING_RELEASE.md),
+then deploy the approved commit and run the production verification script.
+`https://sioona-site.vercel.app` remains an approved marketing origin until retired.
 
 Unfinished contact requests stay in memory only. Internal links and app Back/Forward
 navigation ask before discarding inputs; browser unload retains its native warning.

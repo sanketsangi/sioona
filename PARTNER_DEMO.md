@@ -63,7 +63,7 @@ Partners should redact **before** share when possible. Ingest also runs `redactT
 | --- | --- | --- |
 | 0 | Connection note | Short: India broking/fintech CS + retention in chats — not a chatbot pitch |
 | 1 | Value note | One anonymized export → Shadow Mode → keep-set SignalScore + lift before any integration |
-| 3 | Soft bump | Offer cold demo link (`sioona-demo.vercel.app`) or 15-min screen share |
+| 3 | Soft bump | Offer cold demo link (`sioona-web.onrender.com`) or 15-min screen share |
 | 5 | Objection handle | Nothing sends; Approve / Acted are human-only; no webhooks in the pilot |
 | 7 | Clear ask | “Can you send one redacted weekly Intercom/WhatsApp export this week?” |
 
@@ -109,7 +109,7 @@ Same as the one-liner offer above — anonymized export, keep-set SignalScore + 
 
 ## Cold demo (no partner data)
 
-1. Open http://localhost:3000 (or https://sioona-demo.vercel.app) → **Upload → Run Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` / hosted FastAPI per `web/DEPLOY.md`, then Re-run Detection). Seed is also in the header notifications menu.
+1. Open http://localhost:3000 (or https://sioona-web.onrender.com) → **Upload → Run Partner Demo** (FastAPI must be up so Neon dual-write fills needs-review; if Insights shows a sync warning, check `BACKEND_URL` / hosted FastAPI per `web/DEPLOY.md`, then Re-run Detection). Seed is also in the header notifications menu.
 2. **Insights** — Neon pending queue (not JSON-only pending). Empty pending after go: cadence helper in the queue empty state (**Mark Acted** on Correct, then next week’s export) — not a dead heading and not the header bell.
 3. Open a **retention** or **lead** card: summary, evidence, suggested action (display-only)
 4. **SignalScore** — mark ≥5 reviews (`correct` / `incorrect` / `partially_correct`)

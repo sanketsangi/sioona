@@ -44,4 +44,4 @@ cd backend && pytest        # in-memory SQLite; no Neon needed
 
 **Detect v2 (optional):** keyword heuristics always run. Set `DETECT_LLM=1` and `GROQ_API_KEY` in `web/` to add a Groq Qwen second pass on conversations heuristics miss (cap 8 calls / ingest). Off by default.
 
-**Hosted demo** (https://sioona-demo.vercel.app): deploy FastAPI + Neon, then set Vercel Production `BACKEND_URL` — see [web/DEPLOY.md](./web/DEPLOY.md) and [backend/README.md](./backend/README.md#hosted-deploy-demo).
+**Hosted demo** (https://sioona-web.onrender.com): deploy FastAPI + Neon, then set Render `sioona-web` `BACKEND_URL` — see [web/DEPLOY.md](./web/DEPLOY.md) and [backend/README.md](./backend/README.md#hosted-deploy-demo).

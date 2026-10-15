@@ -46,9 +46,9 @@ export const DEFAULT_DETECT_LLM_MODEL = "qwen/qwen3.8-27b";
  * switches to `low` for every non-Qwen id.
  */
 export const FALLBACK_DETECT_LLM_MODEL = "openai/gpt-oss-20b";
-import { DETECT_LLM_MAX_CALLS, detectLlmMaxCalls } from "./detect-llm-config";
+import { detectLlmMaxCalls } from "./detect-llm-config";
 export { DETECT_LLM_MAX_CALLS, detectLlmMaxCalls } from "./detect-llm-config";
-/** Default 2 — Groq Free 429s at 8-wide; keep Hobby detect + Neon sync under 10s. */
+/** Default 2 — Groq Free 429s at 8-wide; limit concurrent provider requests. */
 export const DETECT_LLM_CONCURRENCY = 2;
 export const DETECT_LLM_TIMEOUT_MS = 6_000;
 /** Local pilot exports (about 100 chats) finish in one run when the cap is unset. */
@@ -348,12 +348,10 @@ export function detectRouteVersion(): string {
 }
 
 /**
- * Honor DETECT_LLM_MAX_CALLS when set (Vercel Hobby stays small).
- * Otherwise cover a pilot export locally and keep the short cap on Vercel.
+ * Honor DETECT_LLM_MAX_CALLS when set; otherwise cover a pilot export.
  */
 export function detectLlmPrimaryMaxCalls(): number {
   if (process.env.DETECT_LLM_MAX_CALLS?.trim()) return detectLlmMaxCalls();
-  if (process.env.VERCEL) return DETECT_LLM_MAX_CALLS;
   return DETECT_LLM_PRIMARY_LOCAL_MAX_CALLS;
 }
 
@@ -395,16 +393,14 @@ export function resetGroqPaceForTests(): void {
 export function detectProviderExecutionConfig() {
   return { maxAttempts: Math.min(4, Math.max(1, Math.floor(positiveEnvNumber(process.env.DETECT_LLM_MAX_ATTEMPTS, DETECT_LLM_MAX_ATTEMPTS)))),
     timeoutMs: DETECT_LLM_TIMEOUT_MS, minIntervalMs: groqBaseGapMs(),
-    retryWaitCapMs: process.env.VERCEL ? 1_500 : 20_000, hostedRetryPacing: Boolean(process.env.VERCEL) };
+    retryWaitCapMs: 20_000, hostedRetryPacing: false };
 }
 
 /**
  * After a tokens-per-minute 429, wait out Retry-After and keep later calls
  * in this run about 8s apart. 8000 TPM and a ~1100-token prompt cannot burst.
- * Vercel Hobby stays on the short gap so detect still fits the function limit.
  */
 function noteGroqThrottle(session: GroqModelSession, retryAfterMs: number): void {
-  if (process.env.VERCEL) return;
   if (groqBaseGapMs() <= 0) return;
   const sustained = Math.min(20_000, Math.max(retryAfterMs, 8_000));
   session.minGapMs = Math.max(session.minGapMs, sustained);
@@ -849,7 +845,7 @@ export async function classifyConversationWithGroq(
       const cap = detectProviderExecutionConfig().retryWaitCapMs;
       if (hinted != null && hinted > 0) {
         if (hinted > cap) throw err;
-        if (process.env.VERCEL || groqBaseGapMs() <= 0) {
+        if (groqBaseGapMs() <= 0) {
           await sleep(Math.min(hinted, cap));
         }
         continue;

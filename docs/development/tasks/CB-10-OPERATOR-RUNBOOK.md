@@ -274,26 +274,14 @@ both concurrent additions. Keep production edits frozen during these drills.
 Use the approved hosting project, with `SIOONA_STATE_MODE=postgres`, taxonomy
 Neon writes enabled, backend origin/service token, and the previously accepted
 auth mode. Preserve `LIVE_INGEST=0` and ingress pause. Do not change auth policy
-as a side effect of deploying CB-10. For the repository's Vercel web hosting:
+as a side effect of deploying CB-10.
 
-```bash
-: "${WEB_DEPLOY_CHECKOUT:?new clean deployment directory}"
-: "${VERCEL_TOKEN:?operator credential}"
-: "${VERCEL_ORG_ID:?approved scope}"
-: "${VERCEL_PROJECT_ID:?approved web project}"
-git worktree add --detach "$WEB_DEPLOY_CHECKOUT" "$WEB_GIT_SHA"
-(cd "$WEB_DEPLOY_CHECKOUT/web" && \
-  vercel pull --yes --environment=production --token "$VERCEL_TOKEN" && \
-  vercel deploy --prod --yes --token "$VERCEL_TOKEN" \
-    --meta "githubCommitSha=$WEB_GIT_SHA") \
-  > "$OPERATOR_EVIDENCE_DIR/web-deploy.txt"
-```
-
-Use `production`/`--prod` only for the explicitly approved project/environment;
-an isolated staging project may have its own production target. Read back the
-deployment with `vercel inspect <deployment-url> --token "$VERCEL_TOKEN"`, require
-READY, inspect metadata/build revision and environment, and confirm the approved
-alias points to it. Record deployment ID and full SHA. Authenticate to the web
+In the Render dashboard, select the approved `sioona-web` service/environment and
+manually deploy the exact approved `WEB_GIT_SHA`. Follow `web/DEPLOY.md` for build
+and environment configuration. Require the deployment to be live, read back the
+full Git SHA and service/environment, and confirm the approved hostname points
+to it. Record the deployment ID and full SHA in the operator evidence directory.
+Authenticate to the web
 with the approved synthetic operator session; verify dashboard, Insights, Eval
 and pilot, including an unset tenant with no fabricated demo settings. A login
 redirect or plain curl 200 does not prove dashboard reconstruction.
