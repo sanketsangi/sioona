@@ -2,26 +2,27 @@ import type { Metadata } from "next";
 import { STEPS } from "./steps";
 
 type SiteEnvironment = Record<string, string | undefined>;
-const APPROVED_VERCEL_SITE_HOST = "sioona-site.vercel.app";
+const APPROVED_SITE_HOSTS = new Set(["sioona-site.vercel.app", "sioona-site.onrender.com"]);
 
-function resolveOrigin(value: string, name: string, env: SiteEnvironment, approvedVercelHost?: string): string {
+function resolveOrigin(value: string, name: string, env: SiteEnvironment, approvedHosts: ReadonlySet<string> = new Set()): string {
   const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
   let url: URL;
   try { url = new URL(value.trim()); } catch { throw new Error(`${name} must be an absolute origin`); }
   const host = url.hostname.replace(/\.$/, "");
   const local = host === "localhost" || host.endsWith(".localhost") || host === "[::1]" || /^127\./.test(host) || host === "0.0.0.0";
   if (url.username || url.password || url.pathname !== "/" || url.search || url.hash || value.includes("?") || value.includes("#")) throw new Error(`${name} must contain only an origin`);
-  const approvedVercelSiteHost = url.hostname === approvedVercelHost;
-  const unapprovedVercelHost = (host === "vercel.app" || host.endsWith(".vercel.app")) && !approvedVercelSiteHost;
-  if (production && (local || unapprovedVercelHost)) throw new Error(`${name} must use a custom production domain or the approved canonical host`);
+  const hostedPlatform = host === "vercel.app" || host.endsWith(".vercel.app") || host === "onrender.com" || host.endsWith(".onrender.com");
+  if (production && (local || (hostedPlatform && !approvedHosts.has(url.hostname)))) throw new Error(`${name} must use a custom production domain or the approved canonical host`);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local && !production)) throw new Error(`${name} must use HTTPS`);
   return url.origin;
 }
 
 export function resolveSiteUrl(env: SiteEnvironment = process.env): string {
-  const value = env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!value && (env.NODE_ENV === "production" || env.VERCEL_ENV === "production")) throw new Error("NEXT_PUBLIC_SITE_URL is required in production");
-  return resolveOrigin(value || "http://localhost:3000", "NEXT_PUBLIC_SITE_URL", env, APPROVED_VERCEL_SITE_HOST);
+  const configured = env.NEXT_PUBLIC_SITE_URL?.trim();
+  const renderFallback = env.RENDER_EXTERNAL_URL?.trim();
+  const value = configured || renderFallback;
+  if (!value && (env.NODE_ENV === "production" || env.VERCEL_ENV === "production")) throw new Error("NEXT_PUBLIC_SITE_URL or RENDER_EXTERNAL_URL is required in production");
+  return resolveOrigin(value || "http://localhost:3000", configured ? "NEXT_PUBLIC_SITE_URL" : "RENDER_EXTERNAL_URL", env, APPROVED_SITE_HOSTS);
 }
 
 export function resolveAppUrl(env: SiteEnvironment = process.env): string | null {
@@ -35,7 +36,7 @@ export const siteConfig = {
   tagline: "Signals Into Revenue",
   description: "Sioona Conversation Intelligence works with your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
   // Direct references are required for Next's public environment substitution.
-  url: resolveSiteUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL }),
+  url: resolveSiteUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL, RENDER_EXTERNAL_URL: process.env.RENDER_EXTERNAL_URL }),
   appUrl: resolveAppUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL }),
 } as const;
 

@@ -5,7 +5,9 @@ const production = process.argv.includes("--production");
 const local = ["127.0.0.1", "localhost", "[::1]"].includes(base.hostname);
 const host = base.hostname.replace(/\.$/, "");
 const approvedVercelHost = base.hostname === "sioona-site.vercel.app";
-assert((local && !production) || (production && !local && base.protocol === "https:" && (approvedVercelHost || !host.endsWith(".vercel.app"))), "Use a local URL, an explicit HTTPS custom domain, or https://sioona-site.vercel.app with --production");
+const approvedRenderHost = base.hostname === "sioona-site.onrender.com";
+const unapprovedPlatformHost = host.endsWith(".vercel.app") || host.endsWith(".onrender.com");
+assert((local && !production) || (production && !local && base.protocol === "https:" && (approvedVercelHost || approvedRenderHost || !unapprovedPlatformHost)), "Use a local URL, an explicit HTTPS custom domain, https://sioona-site.onrender.com, or https://sioona-site.vercel.app with --production");
 assert(!base.username && !base.password && base.pathname === "/" && !base.search && !base.hash, "Target must be an origin");
 const canonicalOrigin = production ? base.origin : new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").origin;
 const requiredHeaders = {

@@ -4,14 +4,15 @@ import { publicHeaders } from "./src/lib/http-headers";
 import { resolveSiteUrl, resolveAppUrl } from "./src/lib/site";
 import { contactPolicy } from "./src/lib/contact-policy";
 
-resolveSiteUrl();
+const publishedSiteUrl = resolveSiteUrl();
 resolveAppUrl();
 const publishedPolicy = contactPolicy();
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // These three facts are explicitly public. Credentials never enter this snapshot.
-  env: { NEXT_PUBLIC_CONTACT_POLICY: JSON.stringify(publishedPolicy) },
+  // These facts are explicitly public. Snapshot Render's fallback too so client
+  // components receive the same canonical origin as server-rendered metadata.
+  env: { NEXT_PUBLIC_SITE_URL: publishedSiteUrl, NEXT_PUBLIC_CONTACT_POLICY: JSON.stringify(publishedPolicy) },
   poweredByHeader: false,
   async headers() {
     // Prerendered HTML is served without the Node Vary patch, so Accept has to be configured.
