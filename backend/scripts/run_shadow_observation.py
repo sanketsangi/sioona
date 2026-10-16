@@ -1,7 +1,8 @@
 """Automated, secret-free runner for the 30-minute CB-03 actor-auth shadow observation window.
 
 Executes start control, 3 complete synthetic journeys across staging tenants,
-session expiry verification, demo read/reset, and end control.
+a fresh assertion check, demo read/reset guard, and end control.
+Browser session expiry and lifecycle reset require separate operator verification.
 Outputs a redacted, counts-only verification receipt.
 
 Invariants:
@@ -14,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 import time
@@ -21,6 +23,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import jwt
 import httpx
@@ -31,7 +34,7 @@ if str(BACKEND_DIR) not in sys.path:
 
 from app.models.user import actor_user_id
 
-DEFAULT_RECEIPT_PATH = "docs/development/evidence/staging-shadow-observation-receipt.json"
+DEFAULT_RECEIPT_PATH = BACKEND_DIR.parent / "docs/development/evidence/staging-shadow-observation-receipt.json"
 
 
 def sign_actor_token(email: str, tenant_id: str, key: str, ttl_seconds: int = 60) -> str:
@@ -60,6 +63,11 @@ class ShadowObservationHarness:
         duration_minutes: float = 30.0,
         dry_run: bool = False,
     ):
+        parsed = urlsplit(base_url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("base URL must be an HTTP(S) URL without credentials, query, or fragment")
+        if not math.isfinite(duration_minutes) or duration_minutes <= 0:
+            raise ValueError("duration must be positive and finite")
         self.base_url = base_url.rstrip("/")
         self.service_token = service_token
         self.actor_key = actor_key
@@ -110,6 +118,8 @@ class ShadowObservationHarness:
         """Deliberate missing-actor read against pilot settings."""
         print(f"\n--- [{label} Control] Sending deliberate missing-actor request ---")
         res = self._request("GET", "/v1/tenants/tenant_staging_a/pilot", tenant_id="tenant_staging_a")
+        if res.status_code not in (200, 404):
+            raise RuntimeError(f"{label} control failed: HTTP {res.status_code}")
         self.stats["intentional_controls"] += 1
         print(f"[{label} Control] Result: HTTP {res.status_code} (Expect 200 or 404).")
         print(f"[{label} Control] CHECK RENDER LOGS: Confirm `reason=missing_actor` was logged by sioona.actor.")
@@ -135,7 +145,7 @@ class ShadowObservationHarness:
         }
         res_conv = self._request("POST", "/v1/conversations", tenant_id, actor, conv_payload)
         if res_conv.status_code not in (200, 201):
-            raise RuntimeError(f"Journey {index} conversation create failed: {res_conv.status_code} {res_conv.text}")
+            raise RuntimeError(f"Journey {index} conversation create failed: {res_conv.status_code}")
 
         # 2. Upload prediction
         pred_payload = {
@@ -147,24 +157,24 @@ class ShadowObservationHarness:
         }
         res_pred = self._request("POST", "/v1/predictions", tenant_id, actor, pred_payload)
         if res_pred.status_code not in (200, 201):
-            raise RuntimeError(f"Journey {index} prediction create failed: {res_pred.status_code} {res_pred.text}")
+            raise RuntimeError(f"Journey {index} prediction create failed: {res_pred.status_code}")
         signal_id = res_pred.json().get("id")
 
         # 3. Submit feedback
         fb_payload = {"feedback": "correct", "reviewed_by": actor}
-        res_fb = self._request("POST", f"/v1/predictions/{signal_id}/feedback", tenant_id, actor, fb_payload)
+        res_fb = self._request("POST", f"/v1/signals/{signal_id}/feedback", tenant_id, actor, fb_payload)
         if res_fb.status_code not in (200, 201):
-            raise RuntimeError(f"Journey {index} feedback failed: {res_fb.status_code} {res_fb.text}")
+            raise RuntimeError(f"Journey {index} feedback failed: {res_fb.status_code}")
 
         # 4. Reload conversations check
-        res_list = self._request("GET", f"/v1/conversations", tenant_id, actor)
+        res_list = self._request("GET", f"/v1/tenants/{tenant_id}/conversations", tenant_id, actor)
         if res_list.status_code != 200:
             raise RuntimeError(f"Journey {index} conversation reload failed: {res_list.status_code}")
 
         # 5. Approve draft (supervised action decision)
         action_payload = {
             "conversation_id": f"conv_{uid}",
-            "action_type": "upsell",
+            "action_type": "upsell_note_draft",
             "status": "approved",
             "subject": f"Upgrade Follow-up {index}",
             "body": f"Thank you for contacting us regarding upgrade options for journey {index}.",
@@ -173,7 +183,7 @@ class ShadowObservationHarness:
         }
         res_act = self._request("POST", "/v1/supervised-actions", tenant_id, actor, action_payload)
         if res_act.status_code not in (200, 201):
-            raise RuntimeError(f"Journey {index} draft approval failed: {res_act.status_code} {res_act.text}")
+            raise RuntimeError(f"Journey {index} draft approval failed: {res_act.status_code}")
 
         self.stats["journeys_completed"] += 1
         print(f"[Journey {index}] Successfully completed all 5 steps on {tenant_id}.")
@@ -184,7 +194,9 @@ class ShadowObservationHarness:
         actor_demo = "demo@staging.test"
 
         # Demo read
-        res_read = self._request("GET", "/v1/conversations", "tenant_demo", actor_demo)
+        res_read = self._request("GET", "/v1/tenants/tenant_demo/conversations", "tenant_demo", actor_demo)
+        if res_read.status_code != 200:
+            raise RuntimeError(f"Demo read failed: HTTP {res_read.status_code}")
         print(f"[Demo Read] Result: HTTP {res_read.status_code}")
 
         # Demo Reset
@@ -195,6 +207,8 @@ class ShadowObservationHarness:
             actor_admin,
             extra_headers={"X-Sioona-Role": "admin"},
         )
+        if res_reset.status_code != 409 or res_reset.json().get("detail") != "use_lifecycle_deletion_confirmation":
+            raise RuntimeError(f"Demo reset guard failed: HTTP {res_reset.status_code}")
         print(f"[Demo Reset] Result: HTTP {res_reset.status_code} (Expect 200 or 409 lifecycle confirmation).")
 
     def execute(self) -> dict[str, Any]:
@@ -207,7 +221,8 @@ class ShadowObservationHarness:
         self.check_health()
         start_time = datetime.now(timezone.utc)
         start_timestamp_iso = start_time.isoformat()
-        start_epoch = time.time()
+        start_epoch = time.monotonic()
+        expiry_drill_executed = False
 
         # Step 1: Start control
         self.run_control("Start")
@@ -221,9 +236,13 @@ class ShadowObservationHarness:
         # Step 4: Token expiry drill (if duration allows)
         if not self.dry_run and self.target_seconds >= 65:
             print("\n--- [Expiry Drill] Waiting 65s for initial actor tokens to expire ---")
-            time.sleep(65)
-            print("[Expiry Drill] Minting fresh token to verify automatic refresh...")
-            res_refresh = self._request("GET", "/v1/conversations", "tenant_staging_a", "reviewer@staging.test")
+            time.sleep(60)
+            time.sleep(5)
+            print("[Expiry Drill] Minting fresh assertion for an API read...")
+            res_refresh = self._request("GET", "/v1/tenants/tenant_staging_a/conversations", "tenant_staging_a", "reviewer@staging.test")
+            if res_refresh.status_code != 200:
+                raise RuntimeError(f"Fresh assertion check failed: HTTP {res_refresh.status_code}")
+            expiry_drill_executed = True
             print(f"[Expiry Drill] Result: HTTP {res_refresh.status_code} (200 OK expected).")
 
         # Step 5: Journey 3 on tenant_staging_a
@@ -233,16 +252,18 @@ class ShadowObservationHarness:
         self.run_demo_step()
 
         # Step 7: Pacing to complete full observation window
-        elapsed = time.time() - start_epoch
+        elapsed = time.monotonic() - start_epoch
         remaining = self.target_seconds - elapsed
         if remaining > 0:
             print(f"\n--- [Observation Pacing] Waiting {remaining / 60:.1f} more minutes to complete {self.target_seconds / 60:.1f}-min window ---")
             step_sleep = min(remaining, 60)
-            while time.time() - start_epoch < self.target_seconds:
-                time.sleep(step_sleep)
+            while time.monotonic() - start_epoch < self.target_seconds:
+                time.sleep(min(step_sleep, max(0, self.target_seconds - (time.monotonic() - start_epoch))))
                 # Keepalive / heartbeat query
-                self._request("GET", "/v1/conversations", "tenant_staging_a", "reviewer@staging.test")
-                rem_now = max(0, self.target_seconds - (time.time() - start_epoch))
+                heartbeat = self._request("GET", "/v1/tenants/tenant_staging_a/conversations", "tenant_staging_a", "reviewer@staging.test")
+                if heartbeat.status_code != 200:
+                    raise RuntimeError(f"Observation heartbeat failed: HTTP {heartbeat.status_code}")
+                rem_now = max(0, self.target_seconds - (time.monotonic() - start_epoch))
                 print(f"Observation in progress: {rem_now / 60:.1f} minutes remaining...")
 
         # Step 8: End control
@@ -250,7 +271,7 @@ class ShadowObservationHarness:
 
         end_time = datetime.now(timezone.utc)
         end_timestamp_iso = end_time.isoformat()
-        total_duration_sec = (end_time - start_time).total_seconds()
+        total_duration_sec = time.monotonic() - start_epoch
 
         receipt = {
             "receipt_version": 1,
@@ -267,7 +288,9 @@ class ShadowObservationHarness:
             "journeys": {
                 "journeys_completed": self.stats["journeys_completed"],
                 "tenants_exercised": ["tenant_staging_a", "tenant_staging_b", "tenant_demo"],
-                "expiry_drill_executed": not self.dry_run,
+                "fresh_assertion_check_executed": expiry_drill_executed,
+                "browser_session_expiry_verified": False,
+                "demo_reset_completed": False,
             },
             "traffic": {
                 "total_requests_recorded": self.stats["total_requests"],
@@ -277,7 +300,9 @@ class ShadowObservationHarness:
                 "models_called": 0,
                 "external_messages_sent": 0,
             },
-            "status": "completed",
+            "status": "pending_operator_verification",
+            "short_run": self.dry_run,
+            "acceptance_pending": ["browser journeys and session expiry", "demo lifecycle reset", "start/end actor logs and normal mismatch counts", "persisted decision reload and no-send verification"],
         }
 
         self.receipt_path.parent.mkdir(parents=True, exist_ok=True)
@@ -290,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default=os.getenv("FASTAPI_BASE_URL", "https://sioona-api-staging.onrender.com"))
     parser.add_argument("--duration", type=float, default=float(os.getenv("OBSERVATION_MINUTES", "30")))
-    parser.add_argument("--dry-run", action="store_true", default=os.getenv("DRY_RUN", "0") == "1")
+    parser.add_argument("--dry-run", help="Short LIVE run; sends synthetic writes. Does not establish acceptance.", action="store_true", default=os.getenv("DRY_RUN", "0") == "1")
     parser.add_argument("--receipt", type=Path, default=Path(os.getenv("RECEIPT_PATH", DEFAULT_RECEIPT_PATH)))
     args = parser.parse_args(argv)
 
