@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
-  useEffect,
   useState,
   type ComponentProps,
   type MouseEvent,
@@ -53,11 +52,8 @@ import {
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
 import {
-  insightsHomeHref,
-  isLivePartnerKeepSet,
   livePartnerVaultChrome,
   resolveVaultActiveFile,
-  vaultInsightsHref,
 } from "@/lib/vault-file";
 import { seedVaultShowcaseForNavigation } from "@/lib/vault-showcase-open";
 import {
@@ -65,7 +61,8 @@ import {
   vaultShowcaseNavigateOnly,
   type VaultShowcaseKind,
 } from "@/lib/vault-showcase";
-import { viewHref, type PlatformView } from "@/lib/views";
+import { workspaceViewHref, corpusSwitchHref } from "@/lib/workspace-navigation";
+import { type PlatformView } from "@/lib/views";
 
 const HelpDialog = dynamic(
   () => import("@/components/HelpDialog").then((mod) => mod.HelpDialog),
@@ -82,82 +79,43 @@ const FeedbackDialog = dynamic(
   { ssr: false },
 );
 
-const nav: { view: PlatformView; label: string; icon: Icon | null }[] = [
-  { view: "insights", label: "Insights", icon: null },
-  { view: "upload", label: "Upload", icon: null },
-  { view: "eval", label: "Eval", icon: null },
-  { view: "report", label: "Report", icon: null },
-  { view: "taxonomy", label: "Taxonomy", icon: Tag },
-  { view: "economics", label: "Economics", icon: null },
+const nav: { view: PlatformView; label: string; icon: Icon | null; group?: string; adminOnly?: boolean }[] = [
+  { view: "insights", label: "Insights", icon: null, group: "Work" },
+  { view: "upload", label: "Uploads", icon: null },
+  { view: "report", label: "Revenue report", icon: null },
+  { view: "eval", label: "Evaluation", icon: null, group: "Quality" },
+  { view: "taxonomy", label: "Signal taxonomy", icon: Tag },
+  { view: "economics", label: "Economics", icon: null, group: "Administration", adminOnly: true },
+  { view: "lifecycle", label: "Data lifecycle", icon: null, adminOnly: true },
 ];
 
 function WorkspaceNav({
   activeView,
   detailOpen,
-  lastUploadedFileName,
+  account,
 }: {
   activeView: PlatformView;
   detailOpen: boolean;
-  lastUploadedFileName?: string;
+  account?: AccountSurface | null;
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
-  const router = useRouter();
-  const [seedingInsights, setSeedingInsights] = useState(false);
-
-  async function onInsightsClick(event: MouseEvent<HTMLAnchorElement>) {
-    // A weekly upload is the home file. Do not seed Sample over it.
-    if (isLivePartnerKeepSet(lastUploadedFileName)) {
-      if (isMobile) setOpenMobile(false);
-      return;
-    }
-    // Bare Insights → Sample. Seed first when Sample is not the keep-set.
-    if (vaultShowcaseNavigateOnly("sample", lastUploadedFileName)) {
-      if (isMobile) setOpenMobile(false);
-      return;
-    }
-    event.preventDefault();
-    if (seedingInsights) return;
-    setSeedingInsights(true);
-    if (isMobile) setOpenMobile(false);
-    const result = await seedVaultShowcaseForNavigation(
-      "sample",
-      lastUploadedFileName,
-    );
-    setSeedingInsights(false);
-    if (!result.ok) return;
-    router.replace(result.href);
-    router.refresh();
-  }
-
+  const searchParams = useSearchParams();
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+      <SidebarGroupLabel className="sr-only">Workspace</SidebarGroupLabel>
       <SidebarMenu>
-        {nav.map((item) => {
+        {nav.filter((item) => !item.adminOnly || account?.role === "admin").map((item) => {
           const active = activeView === item.view && !detailOpen;
           const Icon = item.icon;
           return (
             <SidebarMenuItem key={item.view}>
+              {item.group ? <p className="px-2 pb-1 pt-3 text-label-12 text-sio-fg-muted group-data-[collapsible=icon]:sr-only">{item.group}</p> : null}
               <SidebarMenuButton asChild isActive={active} tooltip={item.label}>
                 <Link
-                  href={
-                    item.view === "insights"
-                      ? insightsHomeHref(lastUploadedFileName)
-                      : viewHref(item.view)
-                  }
+                  href={workspaceViewHref(item.view, searchParams)}
+                  aria-label={item.label}
                   aria-current={active ? "page" : undefined}
-                  aria-busy={
-                    item.view === "insights" && seedingInsights
-                      ? true
-                      : undefined
-                  }
-                  onClick={(event) => {
-                    if (item.view === "insights") {
-                      void onInsightsClick(event);
-                      return;
-                    }
-                    if (isMobile) setOpenMobile(false);
-                  }}
+                  onClick={() => { if (isMobile) setOpenMobile(false); }}
                 >
                   {item.view === "insights" || item.view === "economics" ? (
                     <ChartLineUpIcon className="size-4 shrink-0 text-sio-fg-base" />
@@ -165,6 +123,8 @@ function WorkspaceNav({
                     <ListChecksIcon className="size-4 shrink-0 text-sio-fg-base" />
                   ) : item.view === "report" ? (
                     <FileIcon className="size-4 shrink-0 text-sio-fg-base" />
+                  ) : item.view === "lifecycle" ? (
+                    <FolderIcon className="size-4 shrink-0" />
                   ) : Icon ? (
                     <Icon
                       className="size-4 shrink-0"
@@ -180,6 +140,7 @@ function WorkspaceNav({
             </SidebarMenuItem>
           );
         })}
+
       </SidebarMenu>
     </SidebarGroup>
   );
@@ -204,6 +165,8 @@ function VaultNav({
 }) {
   const { isMobile, setOpenMobile } = useSidebar();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const [seedingKind, setSeedingKind] = useState<VaultShowcaseKind | null>(
     null,
   );
@@ -329,31 +292,22 @@ function VaultNav({
     // Seed first, then land Insights — avoids VaultShowcaseLoader mismatch chrome.
     event.preventDefault();
     if (seedingKind) return;
+    if (!window.confirm("Load demo corpus? This replaces the current workspace chats, signals, and reviews. Cancel keeps your data.")) return;
+    setNavigationError(null);
     setSeedingKind(kind);
     closeMobile();
     const result = await seedVaultShowcaseForNavigation(kind, filename);
     setSeedingKind(null);
-    if (!result.ok) return;
+    if (!result.ok) { setNavigationError(result.error); return; }
     router.replace(result.href);
     router.refresh();
   }
 
-  // Warm Insights RSC + pre-detect Sample / Partner Demo packs on the server
-  // so vault clicks writeStore instantly and the signal queue feels immediate.
-  useEffect(() => {
-    if (!showDemoActions) return;
-    router.prefetch(vaultInsightsHref(GROWW_SHOWCASE_SAMPLE_NAME));
-    router.prefetch(vaultInsightsHref(ZERODHA_BATCH02_SAMPLE_NAME));
-    void fetch("/api/store", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "warmup_showcase" }),
-    }).catch(() => undefined);
-  }, [router, showDemoActions]);
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Vault</SidebarGroupLabel>
+      {navigationError ? <p className="px-2 text-copy-14 text-sio-status-danger-fg" role="alert">{navigationError}</p> : null}
+      <SidebarGroupLabel>Corpora</SidebarGroupLabel>
       <SidebarMenu>
         {groups.map((group) => {
           // Partner Demo stays expanded, including on Insights.
@@ -369,7 +323,7 @@ function VaultNav({
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip={group.title}>
+                  <SidebarMenuButton tooltip={group.title} aria-label={group.title}>
                     <VaultGroupIcon kind={group.icon} />
                     <span>{group.title}</span>
                     <CaretRight
@@ -388,7 +342,7 @@ function VaultNav({
                             href={
                               file.showcase
                                 ? vaultShowcaseInsightsHref(file.showcase)
-                                : vaultInsightsHref(file.name)
+                                : corpusSwitchHref(file.name, searchParams)
                             }
                             title={file.name}
                             translate="no"
@@ -423,50 +377,20 @@ function VaultNav({
   );
 }
 
-function SidebarBrand({
-  lastUploadedFileName,
-}: {
-  lastUploadedFileName?: string;
-}) {
+function SidebarBrand() {
   const { isMobile, setOpenMobile } = useSidebar();
-  const router = useRouter();
-  const [seeding, setSeeding] = useState(false);
-
-  async function onBrandClick(event: MouseEvent<HTMLAnchorElement>) {
-    if (isLivePartnerKeepSet(lastUploadedFileName)) {
-      if (isMobile) setOpenMobile(false);
-      return;
-    }
-    if (vaultShowcaseNavigateOnly("sample", lastUploadedFileName)) {
-      if (isMobile) setOpenMobile(false);
-      return;
-    }
-    event.preventDefault();
-    if (seeding) return;
-    setSeeding(true);
-    if (isMobile) setOpenMobile(false);
-    const result = await seedVaultShowcaseForNavigation(
-      "sample",
-      lastUploadedFileName,
-    );
-    setSeeding(false);
-    if (!result.ok) return;
-    router.replace(result.href);
-    router.refresh();
-  }
-
+  const searchParams = useSearchParams();
   return (
     <div className="flex items-center gap-1">
       <SidebarMenu className="min-w-0 flex-1">
         <SidebarMenuItem>
           <SidebarMenuButton size="lg" asChild tooltip="Sioona">
             <Link
-              href={insightsHomeHref(lastUploadedFileName)}
+              href={workspaceViewHref("insights", searchParams)}
               aria-label="Sioona"
               translate="no"
-              aria-busy={seeding || undefined}
-              onClick={(event) => {
-                void onBrandClick(event);
+              onClick={() => {
+                if (isMobile) setOpenMobile(false);
               }}
             >
               <span
@@ -528,13 +452,13 @@ export function AppSidebar({
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarBrand lastUploadedFileName={lastUploadedFileName} />
+        <SidebarBrand />
       </SidebarHeader>
       <SidebarContent>
         <WorkspaceNav
           activeView={activeView}
           detailOpen={detailOpen}
-          lastUploadedFileName={lastUploadedFileName}
+          account={account}
         />
         <SidebarSeparator />
         <VaultNav

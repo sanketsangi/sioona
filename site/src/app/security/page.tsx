@@ -1,5 +1,6 @@
+import { PageContext } from "@/components/seo/PageContext";
 import { marketingCopy } from "@/lib/marketing-copy";
-import { pageMetadata } from "@/lib/site";
+import { routeMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { FileDashed, FileMagnifyingGlass, Info } from "@phosphor-icons/react/ssr";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -11,7 +12,7 @@ import { nb } from "@/lib/site";
 
 import { DataFacts } from "@/components/sections/DataFacts";
 
-export const metadata: Metadata = pageMetadata("Security", "Sioona keeps humans in the loop, runs pilots as single tenants, and never sends outbound messages in Shadow Mode. See how chat data is masked and what we don’t need from you.", "/security");
+export const metadata: Metadata = routeMetadata("/security");
 
 const dataHandling = [
   {
@@ -113,6 +114,7 @@ export default function SecurityPage() {
 
       <DataFacts />
       <FinalCta />
+      <PageContext path="/security" />
     </>
   );
 }

@@ -1,6 +1,7 @@
+import { PageContext } from "@/components/seo/PageContext";
 import { ContactPolicyFacts } from "@/components/sections/ContactPolicyFacts";
 import { marketingCopy } from "@/lib/marketing-copy";
-import { pageMetadata } from "@/lib/site";
+import { routeMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { ContactForm } from "@/components/forms/ContactForm";
 import { RevealGroup, RevealItem, Reveal } from "@/components/motion/Reveal";
@@ -8,7 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { nb } from "@/lib/site";
 import { contactPolicy } from "@/lib/contact-policy";
 
-export const metadata: Metadata = pageMetadata("Request a pilot", "Request a two-week Shadow Mode pilot. Share one redacted chat export and see lead, retention and upsell signals with your own Signal Score.", "/contact");
+export const metadata: Metadata = routeMetadata("/contact");
 
 const next = [
   {
@@ -57,6 +58,7 @@ export default function ContactPage() {
           </Reveal>
         </div>
       </section>
+      <PageContext path="/contact" />
     </>
   );
 }

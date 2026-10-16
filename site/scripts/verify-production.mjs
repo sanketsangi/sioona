@@ -29,11 +29,18 @@ function checkSchema(data) {
 }
 const pages = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/developers", "/privacy", "/terms"];
 const htmlByPath = new Map();
+const titles = new Set(), descriptions = new Set();
 for (const path of pages) {
   const response = await fetch(new URL(path, base));
   assert.equal(response.status, 200, path);
   checkHeaders(response, path);
   const html = await response.text(); htmlByPath.set(path, html);
+  const pageTitle = html.match(/<title>([^<]+)<\/title>/)?.[1]?.replaceAll("&amp;", "&");
+  const pageDescription = html.match(/name="description" content="([^"]+)"/)?.[1]?.replaceAll("&amp;", "&");
+  assert(pageTitle?.length >= 35 && pageTitle.length <= 60, `${path}: title length 35–60`);
+  assert(pageDescription?.length >= 120 && pageDescription.length <= 158, `${path}: description length 120–158`);
+  assert(!titles.has(pageTitle) && !descriptions.has(pageDescription), `${path}: unique search metadata`);
+  titles.add(pageTitle); descriptions.add(pageDescription);
   assert.equal((html.match(/<h1\b/g) ?? []).length, 1, `${path}: one h1`);
   assert.equal((html.match(/<main\b/g) ?? []).length, 1, `${path}: one main`);
   for (const pattern of [/<title>[^<]+<\/title>/, /name="description" content="[^"]+"/, /rel="canonical" href="https:\/\/[^"\s]+"/]) {
@@ -58,6 +65,18 @@ for (const path of pages) {
   assert.deepEqual([...html.matchAll(/property="og:locale:alternate" content="([^"]+)"/g)].map(match => match[1]), ["en_IN"], `${path}: alternate locale`);
   for (const key of ["og:url", "og:image"]) checkOrigin(meta(key), `${path}: ${key}`);
   const pageSchemas = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map(match => JSON.parse(match[1]));
+  const definitions = new Set(pageSchemas.map(data => data["@id"]).filter(Boolean));
+  function checkReferences(value) {
+    if (!value || typeof value !== "object") return;
+    if (value["@id"]) assert(definitions.has(value["@id"]), `${path}: defined graph reference ${value["@id"]}`);
+    Object.values(value).forEach(checkReferences);
+  }
+  pageSchemas.forEach(checkReferences);
+  const breadcrumbs = pageSchemas.filter(data => data["@type"] === "BreadcrumbList");
+  assert.equal(breadcrumbs.length, 1, `${path}: one breadcrumb graph`);
+  assert.deepEqual(breadcrumbs[0].itemListElement.map(item => item.item), path === "/" ? [new URL("/", canonicalOrigin).href] : [new URL("/", canonicalOrigin).href, new URL(path, canonicalOrigin).href], `${path}: exact breadcrumb trail`);
+  const related = html.match(/<nav aria-label="Related resources"[^>]*>(.*?)<\/nav>/s)?.[1];
+  assert(related && [...related.matchAll(/<a\b[^>]*href="([^"]+)"/g)].length >= 2, `${path}: contextual internal links`);
   for (const data of pageSchemas) checkSchema(data);
   for (const type of ["Organization", "Service", "WebSite"]) assert(pageSchemas.some(data => data["@type"] === type), `${path}: ${type}`);
   if (["/", "/developers"].includes(path)) assert(pageSchemas.some(data => data["@type"] === "BreadcrumbList"), `${path}: BreadcrumbList`);
@@ -124,6 +143,9 @@ assert(home.includes('name="is-agentic-site-type" content="business"'));
 const instructions = await fetch(new URL("/llms.txt", base));
 const instructionBody = await instructions.text();
 assert(instructionBody.includes("## When to use Sioona"));
+assert.equal((instructionBody.match(/^# /gm) ?? []).length, 1, "llms.txt has one document heading");
+for (const format of ["CSV", "JSON", "WhatsApp TXT", "XLSX", "EML", "MBOX", "verified Intercom"]) assert(instructionBody.includes(format), `llms.txt: ${format}`);
+assert(instructionBody.includes("row-level security (RLS)") && instructionBody.includes("hosted acceptance"), "llms.txt qualifies implemented isolation controls");
 for (const path of [...pages, "/mcp", "/.well-known/mcp", "/sitemap.xml"]) assert(instructionBody.includes(new URL(path, canonicalOrigin).href), `llms.txt: ${path}`);
 const discovery = await fetch(new URL("/.well-known/mcp", base), { headers: { Accept: "text/markdown" } });
 assert.equal(discovery.status, 200);

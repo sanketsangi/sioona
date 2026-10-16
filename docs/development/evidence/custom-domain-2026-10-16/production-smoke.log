@@ -1,0 +1,18 @@
+node:internal/deps/undici/undici:13510
+      Error.captureStackTrace(err);
+            ^
+
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async file:///Users/sanket/Documents/Sioona/site/scripts/verify-production.mjs:33:20 {
+  [cause]: Error: getaddrinfo ENOTFOUND sioona.si
+      at GetAddrInfoReqWrap.onlookupall [as oncomplete] (node:dns:122:26) {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'sioona.si'
+  }
+}
+
+Node.js v23.11.0

@@ -1,0 +1,217 @@
+{
+  "started_at": "2026-10-16T05:20:38.101876+00:00",
+  "finished_at": "2026-10-16T05:21:08.822968+00:00",
+  "synthetic_receipt_key": "smoke_4a111cb9d28a4f53862157f9bcc33afb",
+  "contact": [
+    {
+      "url": "https://sioona.si/api/contact",
+      "ip_override": "216.24.57.1",
+      "method": "POST",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 403 \ndate: Fri, 16 Oct 2026 05:20:38 GMT\ncontent-type: application/json\ncache-control: no-store\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 98ad446b-d93f-4a16\nserver: cloudflare\nvary: Accept, Origin, rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch\nvary: Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-render-origin-server: Render\ncf-ray: a4b49d8f0daaefd5-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "origin": "https://untrusted.example",
+      "response": "{\"ok\":false,\"error\":\"Submit the form from the Sioona website.\"}"
+    },
+    {
+      "url": "https://sioona.si/api/contact",
+      "ip_override": "216.24.57.1",
+      "method": "POST",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:20:40 GMT\ncontent-type: application/json\ncache-control: no-store\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 63916eda-c48f-4d42\nserver: cloudflare\nvary: Accept, Origin, rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch\nvary: Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-render-origin-server: Render\ncf-ray: a4b49d912f8b46b4-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "origin": "https://sioona.si",
+      "response": "{\"ok\":true,\"receipt\":\"smoke_4a111cb9d28a4f53862157f9bcc33afb\"}"
+    },
+    {
+      "url": "https://sioona.si/api/contact",
+      "ip_override": "216.24.57.1",
+      "method": "POST",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:20:41 GMT\ncontent-type: application/json\ncache-control: no-store\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 661fa8d1-9d4f-4175\nserver: cloudflare\nvary: Accept, Origin, rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch\nvary: Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-render-origin-server: Render\ncf-cache-status: DYNAMIC\ncf-ray: a4b49d9dff3a2da3-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "origin": "https://sioona.si",
+      "response": "{\"ok\":true,\"receipt\":\"smoke_4a111cb9d28a4f53862157f9bcc33afb\"}"
+    }
+  ],
+  "web_hosting_retry": {
+    "url": "https://sioona-web.onrender.com/login",
+    "ip_override": null,
+    "method": "GET",
+    "exit": 28,
+    "error": "curl: (28) Operation timed out after 25005 milliseconds with 0 bytes received",
+    "headers": "",
+    "body": null,
+    "has_login_form": false
+  },
+  "api_health_retry": {
+    "url": "https://sioona-api.onrender.com/health",
+    "ip_override": null,
+    "method": "GET",
+    "exit": 0,
+    "error": "",
+    "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:07 GMT\ncontent-type: application/json\nrndr-id: c0a56ed6-6a37-412b\nserver: cloudflare\nvary: Accept-Encoding\nx-render-origin-server: uvicorn\ncf-cache-status: DYNAMIC\ncf-ray: a4b49e400abe6677-BOM\nalt-svc: h3=\":443\"; ma=86400",
+    "body": "{\"status\":\"ok\"}"
+  },
+  "pages": [
+    {
+      "url": "https://sioona.si/",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:07 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"q8b5dkg81v4rcd\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 120c78c2-1625-4e5f\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e4509a26eda-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/about",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:08 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"11wtk571o52113j\"\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 4a6b23c2-2801-435e\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-cache-status: DYNAMIC\ncf-ray: a4b49e450dca26a7-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/about\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/about\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/how-it-works",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:07 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"13cx3fomf5d1rob\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 6af467ca-8b5d-4626\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e450d7f38b2-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/how-it-works\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/how-it-works\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/pricing",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:07 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"awmeotkyp315bs\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 14dd419c-f775-4083\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e450ed13ed9-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/pricing\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/pricing\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/contact",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:07 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"t0jj8ftj6914o9\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: a4a8e9c9-9929-484d\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e451fdf7e3a-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/contact\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/contact\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/security",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:07 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"3x6kvvaf9n1ftj\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: c6654ba3-5c64-47b9\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e454be4400f-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/security\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/security\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/developers",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:08 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"ko26ccc7yc11ts\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: adaffb56-3629-450e\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e480e29ffa2-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/developers\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/developers\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/privacy",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:08 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"17rapl1zn21zfs\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 15b1dd43-1e7a-4ffd\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49e486a811651-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/privacy\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/privacy\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    },
+    {
+      "url": "https://sioona.si/terms",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:21:08 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"fy7eyc8n8y37\"\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 009799eb-e347-4f33\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-cache-status: DYNAMIC\ncf-ray: a4b49e486e5b2666-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si/terms\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si/terms\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:image:alt\" content=\"Sioona \u2014 conversation intelligence with human judgment\"/>"
+      ]
+    }
+  ],
+  "completed_app_journeys": 0,
+  "external_send_actions_invoked": 0,
+  "sent_external_count": null,
+  "sent_external_count_reason": "No authenticated tenant journey or database counter available; do not equate zero test send actions to a persisted zero count."
+}

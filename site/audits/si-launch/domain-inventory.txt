@@ -1,0 +1,85 @@
+../docs/development/STAGING_ACCEPTANCE.md:26:Existing Vercel inventory contains `web`, `sioona-site`, and `pepernet-media`; none is designated staging. Existing Neon inventory contains production project `sioona`; it is not a staging target. Render workspace inventory was read, but service inventory requires workspace confirmation.
+../site/src/lib/site.test.ts:6:describe("sioona.si international production metadata", () => {
+../site/src/lib/site.test.ts:9:    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://sioona.si");
+../site/src/lib/site.test.ts:10:    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.sioona.si");
+../site/src/lib/site.test.ts:16:    const env = { NODE_ENV: "production", NEXT_PUBLIC_SITE_URL: "https://sioona.si", NEXT_PUBLIC_APP_URL: "https://app.sioona.si" };
+../site/src/lib/site.test.ts:17:    expect(resolveSiteUrl(env)).toBe("https://sioona.si");
+../site/src/lib/site.test.ts:18:    expect(resolveAppUrl(env)).toBe("https://app.sioona.si");
+../site/src/lib/site.test.ts:19:    for (const url of ["http://sioona.si", "https://sioona.si/path", "https://app.sioona.si?tenant=other"]) {
+../site/src/lib/site.test.ts:29:      const url = `https://sioona.si${path}`;
+../site/src/lib/site.test.ts:39:    expect(site.serviceJsonLd()).toMatchObject({ areaServed: countries, provider: { "@id": "https://sioona.si/#organization" } });
+../site/src/lib/site.test.ts:50:        if (["url", "@id", "item", "termsOfService"].includes(key) && typeof item === "string") expect(new URL(item).origin).toBe("https://sioona.si");
+../site/src/lib/site.test.ts:55:    expect(site.siteConfig.appUrl).toBe("https://app.sioona.si");
+../site/src/lib/site.test.ts:109:    expect(resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: "https://sioona-site.vercel.app" })).toBe("https://sioona-site.vercel.app");
+../site/src/lib/site.test.ts:110:    expect(resolveSiteUrl({ ...env, RENDER_EXTERNAL_URL: "https://sioona-site.onrender.com" })).toBe("https://sioona-site.onrender.com");
+../site/src/lib/site.test.ts:111:    expect(resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: "https://www.sioona.com", RENDER_EXTERNAL_URL: "https://sioona-site.onrender.com" })).toBe("https://www.sioona.com");
+../site/src/lib/site.test.ts:112:    expect(() => resolveAppUrl({ ...env, NEXT_PUBLIC_APP_URL: "https://sioona-site.vercel.app" })).toThrow();
+../site/src/lib/site.test.ts:113:    for (const url of ["http://example.com", "https://localhost", "https://localhost.", "https://vercel.app", "https://preview.vercel.app.", "https://127.0.0.1", "https://[::1]", "https://preview.vercel.app", "https://sioona-site.vercel.app.", "https://sioona-site-git-main-sanketsangi-7195s-projects.vercel.app", "https://sioona-site-bw207kycz-sanketsangi-7195s-projects.vercel.app", "https://u:p@example.com", "https://example.com/path", "https://example.com?x=1", "https://example.com#x", "https://example.com?"]) {
+../site/src/lib/site.test.ts:117:    for (const url of ["https://preview.onrender.com", "https://sioona-site.onrender.com/path", "http://sioona-site.onrender.com"]) {
+../PARTNER_DEMO.md:3:Internal guide for pitching Sioona.ai Shadow Mode. Not customer-facing. Sell-today summary also lives in [`PRODUCT.md`](./PRODUCT.md).
+../site/src/lib/site.ts:5:const APPROVED_SITE_HOSTS = new Set(["sioona-site.vercel.app", "sioona-site.onrender.com"]);
+../site/src/proxy.test.ts:7:  return proxy(new NextRequest(new URL(pathname, "https://sioona-site.vercel.app"), { headers: { accept } }));
+../web/src/lib/auth-users.test.ts:33:        email: "Demo@sioona.ai",
+../web/src/lib/auth-users.test.ts:69:      authenticatePilotUser("demo@sioona.ai", "demo-secret"),
+../web/DEPLOY.md:226:The repository-root `render.yaml` proposes five services: `sioona-site`,
+../web/README.md:1:# Sioona.ai Insights (Phase 0–1)
+../docs/development/tasks/CB-03.md:137:Vercel lists `web`, `sioona-site`, and `pepernet-media`, with no separate staging
+../site/src/app/mcp/route.test.ts:6:  return POST(new Request("https://sioona-site.vercel.app/mcp", { method: "POST", headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": "2025-11-25" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }));
+../site/src/app/mcp/route.test.ts:44:    const preflight = OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { method: "OPTIONS", headers }));
+../site/src/app/mcp/route.test.ts:47:    const response = await POST(new Request("https://sioona-site.vercel.app/mcp", { method: "POST", headers, body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }) }));
+../site/src/app/mcp/route.test.ts:52:    expect(OPTIONS(new Request("https://sioona-site.vercel.app/mcp", { headers: { origin: "https://untrusted.example" } })).status).toBe(403);
+../site/src/app/mcp/route.test.ts:55:    expect(GET(new Request("https://sioona-site.vercel.app/mcp")).status).toBe(405);
+../site/src/app/mcp/route.test.ts:56:    const request = (body: string, origin?: string) => new Request("https://sioona-site.vercel.app/mcp", { method: "POST", headers: { "content-type": "application/json", ...(origin ? { origin } : {}) }, body });
+../web/src/lib/auth-guard.ts:28:    email: "demo@sioona.ai",
+../tools/seo/package.json:9:    "audit:live": "node audit.mjs --url https://sioona.si --canonical https://sioona.si --lighthouse",
+../tools/seo/package.json:10:    "audit:hosting": "node audit.mjs --url https://sioona-site.onrender.com --lighthouse",
+../docs/development/tasks/CB-19.md:148:values `NEXT_PUBLIC_SITE_URL=https://sioona-site.onrender.com` and
+../backend/scripts/validate_infrastructure.py:15:    assert set(services) == {'sioona-site', 'sioona-web', 'sioona-api', 'sioona-detection-worker', 'sioona-ingestion-recovery'}
+../tools/seo/README.md:3:Intended primary domain: **https://sioona.si**. Sanket selected this domain; `.si` means **super intelligence** in the brand. That meaning is not a search-ranking or product-capability claim.
+../tools/seo/README.md:21:- `npm run audit:live`: audit `https://sioona.si`, including mobile and desktop Lighthouse.
+../tools/seo/README.md:22:- `npm run audit:hosting`: audit `https://sioona-site.onrender.com` separately; this hosting baseline is not acceptance of the intended domain.
+../tools/seo/README.md:23:- `npm run audit -- --url http://127.0.0.1:3101 --canonical https://sioona.si --lighthouse`: check a locally served production build configured for the intended domain. Build/start separately; development-server performance is unsuitable for comparisons.
+../tools/seo/README.md:24:- `npm run audit -- --url https://sioona.si --limit 20 --out reports/manual-run`: crawl without Lighthouse.
+../tools/seo/README.md:46:4. A domain property normally uses `sc-domain:sioona.si`. DNS verification, property creation and sitemap submission are external writes requiring explicit authorization.
+../tools/seo/README.md:53:From this machine, both `sioona.si` and `www.sioona.si` failed DNS resolution on October 16, 2026. This does not establish registration or global DNS state.
+../tools/seo/README.md:55:Authorize DNS/Render custom-domain configuration and verify TLS before launch. Set hosted `NEXT_PUBLIC_SITE_URL=https://sioona.si` through the approved deployment workflow, rebuild/redeploy, then check the homepage, canonical tags, sitemap and structured-data origins. Decide `www` redirection and hosting-host duplicate-content policy. Do not change the live canonical setting until the custom domain works. This setup changed no DNS, hosted environment variables or deployments.
+../docs/development/tasks/SEO-SETUP.md:8:- User selected `sioona.si` and explained `.si` as “super intelligence.”
+../docs/development/tasks/SEO-SETUP.md:34:- `https://sioona-site.onrender.com`: nine HTML pages returned 200; no findings in custom crawl checks; homepage had no horizontal overflow at 390/1440/2560px. Sitemap's non-HTML `llms.txt` was recorded separately.
+../docs/development/tasks/SEO-SETUP.md:39:- `sioona.si`: no HTML pages reached; DNS `ENOTFOUND` / `ERR_NAME_NOT_RESOLVED`. Separate curl checks also failed to resolve apex and `www`. This is a machine-local observation, not a registration or global DNS verdict.
+../docs/development/tasks/SEO-SETUP.md:44:1. Authorize/configure the intended custom domain, DNS and TLS. Then use approved deploy workflow to set `NEXT_PUBLIC_SITE_URL=https://sioona.si`, rebuild/deploy and validate canonical/sitemap/structured-data origins and redirects. No live cutover was authorized or performed here.
+../render.yaml:6:    name: sioona-site
+../backend/tests/test_validate_infrastructure.py:13:        "sioona-site",
+../site/MARKETING_RELEASE.md:21:- Strict centralized site/app origin parsing: `NEXT_PUBLIC_SITE_URL` has precedence for an explicit HTTPS custom domain. Until cutover, Render's built-in `RENDER_EXTERNAL_URL` is accepted only when it is exactly `https://sioona-site.onrender.com`; the legacy approved `https://sioona-site.vercel.app` origin remains valid. Localhost, loopback, unapproved platform domains, credentials, path/query/hash and missing canonical input fail closed. Sign in stays omitted when the optional app origin is unset.
+../site/MARKETING_RELEASE.md:108:   - `NEXT_PUBLIC_SITE_URL`: exact canonical HTTPS origin, with no path/query/hash. Set it for the custom domain; it strictly overrides Render's built-in URL. If it is unset on Render, the site accepts only `RENDER_EXTERNAL_URL=https://sioona-site.onrender.com`. The legacy `https://sioona-site.vercel.app` origin remains accepted; temporary platform deployment and branch hostnames remain invalid.
+../site/MARKETING_RELEASE.md:118:2. Use the approved canonical origin configured on Render's `sioona-site` service. `https://sioona-site.vercel.app` remains an approved marketing origin until that hostname is retired. For a custom domain, add it to the Render service, update `NEXT_PUBLIC_SITE_URL`, rebuild, and verify DNS, redirects and TLS before treating it as canonical.
+../site/MARKETING_RELEASE.md:129:Replace the placeholder with the actual canonical origin. The script accepts explicit HTTPS custom domains, `https://sioona-site.onrender.com`, and `https://sioona-site.vercel.app`; it rejects temporary Render/Vercel and localhost production targets. It checks canonical/OG/JSON-LD/robots/sitemap origins, all security/Vary headers, assets, Markdown 200/404 negotiation, discovery and stateless read-only MCP protocol calls. It sends **zero POST `/api/contact` requests**.
+../site/MARKETING_RELEASE.md:137:The repository-root `render.yaml` proposes `sioona-site` alongside the product
+../site/MARKETING_RELEASE.md:159:`A @ 216.24.57.1`; set `CNAME www sioona-site.onrender.com` for `www` (and use
+../site/MARKETING_RELEASE.md:198:Reviewed the live home page at https://sioona-site.vercel.app/ against the local route structure, shared styles, navigation, product demonstrations, contact form and intake handler.
+../PRODUCT.md:1:# Sioona.ai — Product Brief
+../site/README.md:26:| `NEXT_PUBLIC_SITE_URL` | Required production canonical origin for metadata, sitemap and OG. Accepts a custom HTTPS origin or `https://sioona-site.vercel.app`; development falls back to `http://localhost:3000`. |
+../site/README.md:76:Use the existing `sioona-site` Node service, Root Directory `site`, with the
+../site/README.md:80:`https://sioona-site.vercel.app` remains an approved marketing origin until retired.
+../site/scripts/verify-production.mjs:7:const approvedVercelHost = base.hostname === "sioona-site.vercel.app";
+../site/scripts/verify-production.mjs:8:const approvedRenderHost = base.hostname === "sioona-site.onrender.com";
+../site/scripts/verify-production.mjs:10:assert((local && !production) || (production && !local && base.protocol === "https:" && (approvedVercelHost || approvedRenderHost || !unapprovedPlatformHost)), "Use a local URL, an explicit HTTPS custom domain, https://sioona-site.onrender.com, or https://sioona-site.vercel.app with --production");
+../site/scripts/verify-production.mjs:115:  assert(!/https?:\/\/(?:sioona\.ai|sioona-site\.(?:vercel\.app|onrender\.com))\b/.test(body) || canonicalOrigin.includes("sioona-site."), `${path}: no stale public origins`);
+../site/audits/is-agentic/public-baseline.json:2:  "target": "https://sioona-site.vercel.app",
+../site/audits/is-agentic/public-baseline.json:3:  "display_target": "sioona-site.vercel.app",
+../site/audits/is-agentic/public-baseline.json:4:  "report_url": "https://is-agentic.com/scan/sioona-site.vercel.app",
+../site/audits/is-agentic/public-baseline.json:37:      "details": "sioona-site.vercel.app was not in the top 10 for \"Sioona Conversation Intelligence\"",
+../.cursor/rules/sioona-product.mdc:7:**Sioona.ai** — “Signals into Revenue”. Overlay conversation intelligence for finance / high-volume chat. Internal engine name **SignalC1** (do not surface in UI).
+../.cursor/plans/sioona_product_context.md:12:**Sioona.ai** finds revenue signals (`lead`, `retention`, `upsell`) already in customer chats, surfaces them in **Shadow Mode** for human review, and proves lift vs the partner’s current process — **without replacing** Intercom / Zendesk / WhatsApp.
+../.cursor/plans/sioona_product_context.md:16:| Public brand | **Sioona.ai** |
+../.cursor/plans/sioona_product_context.md:86:- Brand locked as Sioona.ai; SignalC1 internal
+../.cursor/docs/PROJECT_STATE.md:282:**Sioona.ai** — overlay conversation intelligence (`lead` / `retention` / `upsell`) on existing chats. Shadow Mode review. **Not** a chatbot. Engine name **SignalC1** — never in UI. Primary Detect signal: **retention**.
+../.cursor/docs/PROJECT_STATE.md:295:| Hosting | Unified Render (`render.yaml`): `sioona-site`, `sioona-web.onrender.com`, `sioona-api.onrender.com`, gated worker/recovery cron + Neon `sioona` | Render Starter / Neon Launch if sleep hurts |
+../.cursor/docs/architecture.md:63:Hosting target: unified Render via `render.yaml` — `sioona-site`, `sioona-web.onrender.com` (`web/`), `sioona-api`, paused detection worker and gated ingestion recovery cron — plus Neon `sioona`. Vercel deployment is retired; live deployment is not asserted here. Hydrate + Adapt union + pilot restore survive wipe. Platform SSR also overlays `store.pilot` from Neon (heal stale `/tmp` after Partner Demo / cross-instance `set_baseline`). Partner Demo restores a prior partner baseline after wipe (cold-demo 4 only when none exists).
+../backend/tests/test_actor_auth.py:172:    sub = add_member(factory, "demo@sioona.ai", "tenant_demo", "demo")
+../web/src/components/NavUser.test.ts:53:    expect(html).not.toContain("sanket@sioona.ai");
+../backend/tests/test_seed_memberships.py:27:    first = seed_memberships(db, [ROW, {**ROW, "role": "demo", "tenantId": "tenant_demo", "email": "demo@sioona.ai"}])
+../web/src/components/AppSidebar.test.ts:353:    expect(html).not.toContain("sanket@sioona.ai");
+../web/src/lib/actor-assertion.ts:7:export const DEMO_ACTOR_EMAIL = "demo@sioona.ai";
+../web/src/app/layout.tsx:8:    default: "Sioona.ai — Signals into Revenue",
+../web/src/app/layout.tsx:9:    template: "%s · Sioona.ai",
+../backend/app/models/user.py:19:DEMO_ACTOR_EMAIL = "demo@sioona.ai"

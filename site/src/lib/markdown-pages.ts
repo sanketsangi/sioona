@@ -37,6 +37,7 @@ function bodyFor(path: string): string {
 }
 
 const passThroughPaths = new Set([
+  "/indexnow-key.txt",
   "/llms.txt",
   "/mcp",
   "/.well-known/mcp",

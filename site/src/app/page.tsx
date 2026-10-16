@@ -1,3 +1,4 @@
+import { PageContext } from "@/components/seo/PageContext";
 import { PilotFacts } from "@/components/sections/PilotFacts";
 import type { Metadata } from "next";
 import { Bento } from "@/components/sections/Bento";
@@ -9,18 +10,11 @@ import { SecurityBand } from "@/components/sections/SecurityBand";
 import { ShadowStory } from "@/components/sections/ShadowStory";
 import { Signals } from "@/components/sections/Signals";
 import { TrustStrip } from "@/components/sections/TrustStrip";
-import { breadcrumbJsonLd, howToJsonLd, internationalAlternates, jsonLdScript, productJsonLd, productName, siteConfig } from "@/lib/site";
+import { breadcrumbJsonLd, howToJsonLd, jsonLdScript, productJsonLd, productName, routeMetadata, routeSeo, siteConfig } from "@/lib/site";
 
-const title = productName;
-const description = "Sioona Conversation Intelligence helps teams find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.";
+const description = routeSeo["/"].description;
 
-export const metadata: Metadata = {
-  title: { absolute: title },
-  description,
-  alternates: internationalAlternates("/"),
-  openGraph: { title, description, url: "/", locale: "en_US", alternateLocale: ["en_IN"], type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630 }] },
-  twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
-};
+export const metadata: Metadata = routeMetadata("/");
 
 export default function HomePage() {
   return (
@@ -44,6 +38,7 @@ export default function HomePage() {
       <PilotFacts />
       <Faq />
       <FinalCta />
+      <PageContext path="/" />
     </div>
   );
 }

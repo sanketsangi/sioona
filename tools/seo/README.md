@@ -4,6 +4,8 @@ Intended primary domain: **https://sioona.si**. Sanket selected this domain; `.s
 
 This setup uses local Lighthouse + Playwright and optional first-party Google Search Console data. No paid API, trial balance, model API, subscription or hosted crawler is used. Existing Codex usage, electricity, hosting and domain registration are separate from the tools' $0 incremental license/API cost.
 
+Optional Google/Bing/Ahrefs verification hooks, GET-only readiness checks and a preview-first IndexNow CLI are documented in [INTEGRATION.md](INTEGRATION.md). These do not create accounts or submit anything automatically. Historical cutover and authentication observations below retain their original dates.
+
 ## Install and run
 
 From the repository root:

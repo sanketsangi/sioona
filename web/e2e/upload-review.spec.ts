@@ -78,6 +78,8 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
 
   const firstIngest = page.waitForResponse(ingestResponse, { timeout: 120_000 });
   await page.getByRole("button", { name: "Upload & Detect" }).click();
+  const replace = page.getByRole("button", { name: "Confirm Replace", exact: true });
+  if (await replace.isVisible()) await replace.click();
   let response = await firstIngest;
   if (response.status() === 409) {
     const body = (await response.json()) as { code?: string };
@@ -103,7 +105,7 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
   expect(uploaded.newSignals ?? 0).toBeGreaterThan(0);
   await page.waitForURL(/[?&]view=insights/);
 
-  await dismissNotifications(page);
+  await expect(page.getByRole("menu")).toHaveCount(0);
 
   const approval = page.getByRole("link", { name: /Open approval for / }).first();
   await expect(approval).toBeVisible();
@@ -115,7 +117,7 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
       const box = el.getBoundingClientRect();
       return box.height > 0 ? (el.textContent ?? "") : "";
     }),
-  ).toContain("Why This Fired");
+  ).toContain("Supporting evidence");
   await expect.poll(async () => why.evaluate((el) => el.textContent ?? "")).toMatch(
     /close my account/,
   );
@@ -134,6 +136,7 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
   );
   await feedback.getByRole("button", { name: "Correct", exact: true }).click();
   await saved;
+  await page.waitForURL(url => url.searchParams.get("preview") !== previewId);
 
   const fileQuery = file ? `&file=${encodeURIComponent(file)}` : "";
   const reviewed = `/?view=insights&status=followup&preview=${previewId}${fileQuery}`;
@@ -153,7 +156,7 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
       res.url().includes("/action") &&
       res.ok(),
   );
-  await draft.getByRole("button", { name: "Approve" }).click();
+  await draft.getByRole("button", { name: "Approve draft" }).click();
   const decidedResponse = await decided;
   const decidedBody = (await decidedResponse.json()) as {
     action?: { conversationId?: string };
@@ -164,7 +167,7 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
   expect(conversationId).not.toBe("");
   const required = { action_type: "retention_email_draft", status: "approved" } as const;
   const stored = await page.request.get(
-    `http://127.0.0.1:8000/v1/tenants/${E2E_TENANT}/supervised-actions?conversation_id=${encodeURIComponent(conversationId)}`,
+    `http://127.0.0.1:${process.env.SIOONA_E2E_BACKEND_PORT || 8000}/v1/tenants/${E2E_TENANT}/supervised-actions?conversation_id=${encodeURIComponent(conversationId)}`,
     {
       headers: {
         Authorization: `Bearer ${E2E_SERVICE_TOKEN}`,
@@ -187,9 +190,9 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
         row.status === required.status,
     ),
   ).toBe(true);
-  await expect(page.getByText(NOT_SENT)).toBeVisible();
+  await expect(page.locator("p.text-pretty").filter({hasText:NOT_SENT})).toBeVisible();
   await page.reload();
-  await expect(page.getByText(NOT_SENT)).toBeVisible();
+  await expect(page.locator("p.text-pretty").filter({hasText:NOT_SENT})).toBeVisible();
   await expect(
     page.getByRole("group", { name: "Feedback actions" }).getByRole("button", { name: "Correct", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -201,16 +204,16 @@ test("reconstruct persisted approval and feedback in canonical mode", async ({ p
   test.skip(process.env.SIOONA_STATE_MODE !== "postgres", "Canonical Postgres rehearsal only");
   const blocked = await failClosedOutbound(page);
   await signIn(page);
-  const response = await page.request.get(`http://127.0.0.1:8000/v1/tenants/${E2E_TENANT}/signals`, {
+  const response = await page.request.get(`http://127.0.0.1:${process.env.SIOONA_E2E_BACKEND_PORT || 8000}/v1/tenants/${E2E_TENANT}/signals`, {
     headers: { Authorization: `Bearer ${E2E_SERVICE_TOKEN}`, "X-Tenant-Id": E2E_TENANT },
   });
   expect(response.ok()).toBeTruthy();
   const signals = await response.json();
-  const signal = signals.find((row: { signal_type: string; feedback?: { feedback: string } }) =>
-    row.signal_type === "retention" && row.feedback?.feedback === "correct");
+  const signal = signals.find((row: { signal_type: string; acted?: boolean; feedback?: { feedback: string } }) =>
+    row.signal_type === "retention" && row.feedback?.feedback === "correct" && !row.acted);
   expect(signal).toBeTruthy();
   await page.goto(`/?view=insights&status=followup&preview=${encodeURIComponent(`sig_neon_${signal.id}`)}`);
-  await expect(page.getByText(NOT_SENT)).toBeVisible();
+  await expect(page.locator("p.text-pretty").filter({hasText:NOT_SENT})).toBeVisible();
   await expect(page.getByRole("group", { name: "Feedback actions" })
     .getByRole("button", { name: "Correct", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(blocked).toEqual([]);

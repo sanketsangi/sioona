@@ -16,6 +16,7 @@ export function LifecycleControls({ tenant }: { tenant: string }) {
   const [notice, setNotice] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [exportId, setExportId] = useState<string | null>(null);
+  const [exportExpiresAt, setExportExpiresAt] = useState<string | null>(null);
   const [reason, setReason] = useState("litigation");
   const [holdType, setHoldType] = useState("tenant");
   const [holdResource, setHoldResource] = useState("");
@@ -58,8 +59,8 @@ export function LifecycleControls({ tenant }: { tenant: string }) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Operation unavailable. Retry.");
       if (["request", "confirm", "advance"].includes(action)) setReceipt(result);
-      if (action === "export") { setExportId(result.id); setNotice("Export ready. Download within 24 hours."); }
-      else if (action === "confirm") { setConfirmation(""); setExportId(null); setNotice("Deletion confirmed. Writes are fenced. Continue to delete the next batch."); }
+      if (action === "export") { setExportId(result.id); setExportExpiresAt(typeof result.expires_at === "string" && Number.isFinite(Date.parse(result.expires_at)) ? result.expires_at : null); setNotice("Export ready. Download the private bundle below."); }
+      else if (action === "confirm") { setConfirmation(""); setExportId(null); setExportExpiresAt(null); setNotice("Deletion confirmed. Writes are fenced. Continue to delete the next batch."); }
       else if (action === "advance") setNotice(result.state === "completed" ? "Deletion completed. Save your receipt below." : "Batch committed. Continue when ready; progress survives interruption.");
       else { setNotice("Operation recorded."); if (action === "hold") setHoldResource(""); }
       if (!["advance", "confirm", "request"].includes(action)) await refresh();
@@ -68,18 +69,18 @@ export function LifecycleControls({ tenant }: { tenant: string }) {
   }
   function label(action: string, text: string) { return <>{busy === action && <span aria-hidden="true" className="mr-2 inline-block size-3 rounded-full border-2 border-current border-t-transparent motion-safe:animate-spin" />}{text}</>; }
   return <div id="lifecycle-controls" className="space-y-6">
-    <p role="status" aria-live="polite" className="text-sm">{busy ? "Processing…" : notice || (data ? "Policy cb18.v1 · Manual operations only" : "Loading…")}</p>
+    <p role="status" aria-live="polite" className="text-sm">{busy ? "Processing…" : notice || (data ? `Policy ${data.policy_version} · ${data.scheduler_enabled ? "Automatic scheduling enabled" : "Manual operations only"}` : error ? "Lifecycle state unavailable" : "Loading…")}</p>
     {error && <p id="lifecycle-error" ref={errorRef} tabIndex={-1} role="alert" className="rounded-md border border-destructive p-3 text-sm">{error}</p>}
     {!data && <button className={button} disabled={!!busy} onClick={() => { setError(""); refresh().catch((e: Error) => setError(e.message)); }}>Retry loading</button>}
     <section className="space-y-3 rounded-lg border p-4" aria-labelledby="policy-title">
       <h2 id="policy-title" className="scroll-mt-6 text-lg font-semibold">Retention policy</h2>
-      <p className="text-sm text-foreground">Conversation content and evidence: 180 days. Reviews, outcomes, settings, audit and financial summaries: 365 days. Terminal jobs: 30 days; classification cache: 7 days. Export bundles: 24 hours. No automatic sweep runs.</p>
+      <p className="text-sm text-foreground">{data ? `Loaded policy: ${data.policy_version}. Retention durations are not provided by this status response; confirm the workspace policy before running a batch.` : "Policy details unavailable until lifecycle state loads."}</p>
       <p className="text-sm">Legal holds block expiry and deletion. Resource holds conservatively protect the whole workspace and its related copies. Admin export remains available.</p>
       <button className={button} disabled={!!busy || !data || !!receipt && receipt.state !== "requested"} onClick={() => { if (window.confirm("Run one retention batch? Expired content is permanently removed or anonymized.")) void act("sweep"); }}>{label("sweep", "Run retention batch")}</button>
     </section>
     <section className="space-y-3 rounded-lg border p-4" aria-labelledby="hold-title">
       <h2 id="hold-title" className="scroll-mt-6 text-lg font-semibold">Legal holds</h2>
-      {data?.holds.length ? <ul className="space-y-2">{data.holds.map(hold => <li key={hold.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words text-sm">{hold.reason_code} · {hold.resource_type}</span><button className={button} disabled={!!busy} onClick={() => { if (window.confirm("Release this legal hold? Retention and deletion may proceed afterward.")) void act("release", { id: hold.id }); }}>Release hold…</button></li>)}</ul> : <p className="text-sm text-foreground">No active holds.</p>}
+      {data?.holds.length ? <ul className="space-y-2">{data.holds.map(hold => <li key={hold.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2"><span className="min-w-0 break-words text-sm">{hold.reason_code} · {hold.resource_type}</span><button className={button} disabled={!!busy} onClick={() => { if (window.confirm("Release this legal hold? Retention and deletion may proceed afterward.")) void act("release", { id: hold.id }); }}>Release hold…</button></li>)}</ul> : <p className="text-sm text-foreground">{data ? "No active holds." : "Hold status unavailable until lifecycle state loads."}</p>}
       <form className="flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); if (holdType !== "tenant" && !holdResource.trim()) { setError("Enter a resource ID for this hold."); return; } void act("hold", { reason_code: reason, resource_type: holdType, resource_id: holdType === "tenant" ? null : holdResource.trim() }); }}>
         <label className="grid gap-1 text-sm">Reason code<select className="min-h-11 rounded-md border bg-background px-3 text-base text-foreground" name="reason_code" value={reason} onChange={e => setReason(e.target.value)}><option value="litigation">Litigation</option><option value="regulatory">Regulatory</option><option value="investigation">Investigation</option></select></label>
         <label className="grid gap-1 text-sm">Scope<select className="min-h-11 rounded-md border bg-background px-3 text-base text-foreground" name="resource_type" value={holdType} onChange={e => setHoldType(e.target.value)}><option value="tenant">Workspace</option><option value="conversation">Conversation</option><option value="upload">Upload</option></select></label>
@@ -92,11 +93,13 @@ export function LifecycleControls({ tenant }: { tenant: string }) {
       <p className="text-sm text-foreground">Private JSON snapshot with a versioned manifest and SHA-256 checksums. Excludes keys and shared user records. Deletion confirmation immediately revokes downloads.</p>
       <button className={button} disabled={!!busy || !data || !!receipt && receipt.state !== "requested"} onClick={() => void act("export")}>{label("export", "Create export")}</button>
       {exportId && <a className={`${button} inline-flex items-center`} href={`/api/lifecycle?export=${encodeURIComponent(exportId)}`}>Download JSON bundle</a>}
+      {exportId && <p className="text-sm">{exportExpiresAt ? <>Download expires <time dateTime={exportExpiresAt}>{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(exportExpiresAt))}</time>.</> : "Download expiry is unavailable in this response."}</p>}
     </section>
     <section className="space-y-3 rounded-lg border border-destructive/50 p-4" aria-labelledby="delete-title">
       <h2 id="delete-title" className="scroll-mt-6 text-lg font-semibold">Delete workspace permanently</h2>
       <p className="text-sm">Confirmation fences work and revokes exports immediately. Each continuation permanently deletes one bounded batch. Shared users with other memberships remain. Public pilot requests stay under operator ownership. Audit, financial totals and counts-only tombstones remain under policy.</p>
       <p className="text-sm text-foreground">Backups expire on the hosting provider’s natural retention window. Immediate backup deletion is not promised. Save the final receipt before leaving; workspace membership is removed at completion.</p>
+      {receipt && <p className="break-words text-sm">Receipt policy: {receipt.policy_version}. Backup expiry: {receipt.backup_expiry}</p>}
       {!receipt && <button className={button} disabled={!!busy || !data} onClick={() => void act("request")}>{label("request", "Request deletion…")}</button>}
       {receipt?.state === "requested" && <form className="grid gap-3" onSubmit={event => { event.preventDefault(); if (confirmation !== `DELETE ${tenant}`) { setError("Enter the exact confirmation text shown below."); confirmationRef.current?.focus(); return; } void act("confirm", { id: receipt.id, confirmation }); }}>
         <label className="grid gap-1 text-sm">Type <strong className="break-words" translate="no">DELETE {tenant}</strong><input ref={confirmationRef} className="min-h-11 min-w-0 rounded-md border bg-background px-3 text-base" name="confirmation" autoComplete="off" spellCheck={false} value={confirmation} onChange={e => setConfirmation(e.target.value)} aria-invalid={!!error && error.startsWith("Enter the exact")} aria-describedby={error ? "confirm-help lifecycle-error" : "confirm-help"} /></label>

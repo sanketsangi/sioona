@@ -3,12 +3,13 @@ export const PILOT_GO_THRESHOLD = 80;
 export const PILOT_MIN_REVIEWS = 5;
 export const pilotFacts = {
   offer: "A pilot starts from one redacted chat export and runs for two weeks. Scope and price are agreed before it starts. No public list price is published.",
-  exports: "Supported exports: Intercom JSON, WhatsApp Business text exports, and CSV or JSON files. No mailbox access, chat-tool API keys or CRM credentials are required.",
+  exports: "Supported exports: CSV, JSON, WhatsApp TXT, XLSX with conversation_id, role and content columns, and EML or MBOX email files. Intercom JSON imports and a verified Intercom webhook path are implemented; live setup needs operator configuration and hosted acceptance. No mailbox access or live integration is required for file imports.",
   evidence: "Every signal shows the exact source words behind it. Evidence anchors identify the source message and text span so reviewers can reconstruct the evidence from persisted source text.",
   score: `Signal Score is precision measured against human review: correct signals divided by reviewed signals. Pilot default: go at ${PILOT_GO_THRESHOLD}% or higher, with at least ${PILOT_MIN_REVIEWS} reviews. Thresholds are agreed with each team.`,
   shadow: "Shadow Mode never sends messages to customers. Suggested Next Actions are display-only; humans decide and follow up in their own tools.",
 } as const;
 export const dataFacts = [
+  ["Tenant isolation", "Tenant authorization and PostgreSQL row-level security (RLS) controls are implemented in code. Confirm hosted acceptance, the restricted runtime role and tenant isolation for your pilot before transferring customer data; implementation alone is not a security certification."],
   ["Retention and deletion", "Customer exports require an agreed pilot retention window, deletion process and backup handling before transfer. The contact-data policy below applies only to pilot enquiries."],
   ["Storage and region", "Pilot data includes redacted message text, detected signals and review decisions. Confirm export storage providers and region for your pilot before transfer."],
   ["Encryption and access", "Request the pilot’s encryption-at-rest, transport and operator-access details during security review. Published certifications and an audit report are not available yet."],

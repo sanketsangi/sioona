@@ -7,6 +7,7 @@ import { SiteNav } from "@/components/layout/SiteNav";
 import { MotionProviders } from "@/components/motion/Providers";
 import { internationalAlternates, jsonLdScript, organizationJsonLd, productName, serviceJsonLd, siteConfig, websiteJsonLd } from "@/lib/site";
 import { THEME_COLOR } from "@/lib/tokens";
+import { searchVerification } from "@/lib/search-verification";
 import "@/styles/tokens.css";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   robots: { index: true, follow: true },
+  verification: searchVerification(),
   icons: { icon: "/icon.svg", apple: "/apple-icon" },
   applicationName: "Sioona",
   other: { "is-agentic-site-type": "business" },

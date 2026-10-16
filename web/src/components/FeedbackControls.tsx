@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useUnsavedNavigation } from "@/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -194,15 +195,7 @@ export function FeedbackControls({
     options.find((o) => o.label === feedbackLabel)?.title ??
     feedbackLabel?.replaceAll("_", " ");
 
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  useUnsavedNavigation(dirty);
 
   const submit = useCallback(
     async (label: FeedbackLabel) => {
@@ -242,6 +235,8 @@ export function FeedbackControls({
                   typeFilter: triage.typeFilter,
                   actionFilter: triage.actionFilter,
                   file: triage.file,
+                  page: triage.page,
+                  q: triage.q,
                 })
               : afterFeedbackHref({
                   wasPending: true,
@@ -254,6 +249,8 @@ export function FeedbackControls({
                   typeFilter: triage.typeFilter,
                   actionFilter: triage.actionFilter,
                   file: triage.file,
+                  page: triage.page,
+                  q: triage.q,
                 })
             : null;
 

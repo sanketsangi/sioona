@@ -2,9 +2,7 @@
 
 import {
   Suspense,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -43,6 +41,7 @@ import {
   type PlatformView,
   type WorkspaceMode,
 } from "@/lib/views";
+import { GROWW_SHOWCASE_SAMPLE_NAME, ZERODHA_BATCH02_SAMPLE_NAME, matchesVaultSampleName } from "@/lib/partner-demo-replace-guard";
 import { cn } from "@/lib/utils";
 
 const TITLE_ICONS: Partial<Record<PlatformView, Icon>> = {
@@ -102,8 +101,9 @@ export function AppHeader({
             title="Toggle navigation"
           />
 
+          <div className="flex min-w-0 flex-1 flex-col items-start gap-1 md:flex-row md:items-center md:gap-2">
           {title ? (
-            <h1 className="flex min-w-0 items-center gap-2 text-balance text-heading-20 text-sio-fg-base">
+            <h1 className="flex min-w-0 shrink-0 items-center gap-2 text-balance text-heading-16 text-sio-fg-base md:text-heading-20">
               {showInsightsTitleIcon ? (
                 <ChartLineUpIcon className="size-5 shrink-0 text-sio-fg-base" />
               ) : showEvalTitleIcon ? (
@@ -121,10 +121,10 @@ export function AppHeader({
             </h1>
           ) : null}
           {title && lastUploadedFileName ? (
-            <>
+            <div className="flex min-w-0 items-center gap-2">
               <Separator
                 orientation="vertical"
-                className="h-4 w-px self-center bg-sio-border-strong data-[orientation=vertical]:h-4"
+                className="hidden h-4 w-px self-center bg-sio-border-strong data-[orientation=vertical]:h-4 md:block"
               />
               <Breadcrumb className="min-w-0">
                 <BreadcrumbList className="min-w-0">
@@ -134,7 +134,7 @@ export function AppHeader({
                       title={lastUploadedFileName}
                       translate="no"
                     >
-                      {lastUploadedFileName}
+                      <span className="text-sio-fg-muted">{matchesVaultSampleName(lastUploadedFileName, GROWW_SHOWCASE_SAMPLE_NAME) ? "Sample" : matchesVaultSampleName(lastUploadedFileName, ZERODHA_BATCH02_SAMPLE_NAME) ? "Partner demo" : "Uploaded"} · </span>{lastUploadedFileName}
                     </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
@@ -143,8 +143,9 @@ export function AppHeader({
                 files={uploadedFileNames}
                 current={lastUploadedFileName}
               />
-            </>
+            </div>
           ) : null}
+          </div>
         </div>
 
         <div className="app-header-actions flex shrink-0 items-center gap-2">
@@ -167,7 +168,7 @@ const modeTrackClass = cn(
 );
 
 const modeItemClass = cn(
-  "relative z-[1] !size-9 shrink-0 touch-manipulation rounded-none border-0 bg-transparent !px-0",
+  "relative z-[1] !size-11 md:!size-9 shrink-0 touch-manipulation rounded-none border-0 bg-transparent !px-0",
   "inline-flex items-center justify-center text-sio-fg-subtle shadow-none outline-none transition-colors duration-150",
   "hover:bg-transparent hover:text-sio-fg-base",
   "focus-visible:z-10 focus-visible:border-transparent focus-visible:shadow-[var(--focus-ring)] focus-visible:ring-0",
@@ -182,16 +183,9 @@ const modeLinkClass = cn(
   "first:rounded-l-[var(--radius-control)] last:rounded-r-[var(--radius-control)]",
 );
 
-const LOCKED_ACTION_ANNOUNCE = "Action Mode is locked";
+const LOCKED_ACTION_ANNOUNCE = "Action Mode is unavailable in this workspace. Continue reviewing in Shadow Mode; nothing is sent.";
 const LOCKED_ACTION_TOOLTIP = "Action Mode is locked for now";
 const MODE_TOOLTIP_DELAY_MS = 400;
-const BOUNCE_HOLD_MS = 180;
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 function modeTrackStyle(mode: WorkspaceMode): CSSProperties {
   return {
     "--gap": 0,
@@ -232,67 +226,15 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
     () =>
       actionModeHref({
         scoreFrom: searchParams.get("scoreFrom"),
+        file: searchParams.get("file"),
+        type: searchParams.get("type"),
+        q: searchParams.get("q"),
         demo: searchParams.get("demo"),
       }),
     [searchParams],
   );
 
-  /** UI selection; when locked, Action is only shown briefly then reverts. */
-  const [mode, setMode] = useState<WorkspaceMode>(workspaceMode);
-  const [prevWorkspaceMode, setPrevWorkspaceMode] = useState(workspaceMode);
-  const [bounceAction, setBounceAction] = useState(false);
   const [liveMessage, setLiveMessage] = useState("");
-  const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const liveClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (bounceTimerRef.current) clearTimeout(bounceTimerRef.current);
-      if (liveClearRef.current) clearTimeout(liveClearRef.current);
-    };
-  }, []);
-
-  if (workspaceMode !== prevWorkspaceMode) {
-    setPrevWorkspaceMode(workspaceMode);
-    setMode(workspaceMode);
-  }
-
-  function clearBounceTimers() {
-    if (bounceTimerRef.current) {
-      clearTimeout(bounceTimerRef.current);
-      bounceTimerRef.current = null;
-    }
-    if (liveClearRef.current) {
-      clearTimeout(liveClearRef.current);
-      liveClearRef.current = null;
-    }
-  }
-
-  function bounceBackToShadow() {
-    clearBounceTimers();
-    setMode("action");
-    setLiveMessage(LOCKED_ACTION_ANNOUNCE);
-    const reduced = prefersReducedMotion();
-    setBounceAction(false);
-    if (!reduced) {
-      requestAnimationFrame(() => setBounceAction(true));
-    }
-
-    const holdMs = reduced ? 0 : BOUNCE_HOLD_MS;
-    bounceTimerRef.current = setTimeout(() => {
-      setMode("shadow");
-      setBounceAction(false);
-      bounceTimerRef.current = null;
-    }, holdMs);
-
-    liveClearRef.current = setTimeout(
-      () => {
-        setLiveMessage("");
-        liveClearRef.current = null;
-      },
-      Math.max(holdMs + 400, 800),
-    );
-  }
 
   if (unlocked) {
     return (
@@ -334,22 +276,14 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
           type="single"
           variant="default"
           size="lg"
-          value={mode}
+          value="shadow"
           onValueChange={(next) => {
-            if (!next) return;
-            if (next === "action") {
-              bounceBackToShadow();
-              return;
-            }
-            clearBounceTimers();
-            setBounceAction(false);
-            setLiveMessage("");
-            setMode("shadow");
+            if (next === "action") setLiveMessage(LOCKED_ACTION_ANNOUNCE);
           }}
           aria-label="Workspace mode"
           spacing={0}
           className={modeTrackClass}
-          style={modeTrackStyle(mode)}
+          style={modeTrackStyle("shadow")}
         >
           <span className="segmented-tabs-thumb" aria-hidden />
           <ModeToggleItem
@@ -373,7 +307,6 @@ function ModeToggle({ workspaceMode }: { workspaceMode: WorkspaceMode }) {
             }
             aria-label={LOCKED_ACTION_TOOLTIP}
             aria-disabled
-            bounce={bounceAction}
           >
             <span className="relative inline-flex size-4 shrink-0 items-center justify-center">
               <PlayCircleIcon className="size-4 shrink-0 text-sio-fg-muted" />
@@ -432,14 +365,12 @@ function ModeToggleLink({
 function ModeToggleItem({
   value,
   tooltip,
-  bounce,
   "aria-label": ariaLabel,
   "aria-disabled": ariaDisabled,
   children,
 }: {
   value: WorkspaceMode;
   tooltip: ReactNode;
-  bounce?: boolean;
   "aria-label": string;
   "aria-disabled"?: boolean | "true" | "false";
   children: ReactNode;
@@ -453,7 +384,6 @@ function ModeToggleItem({
           aria-disabled={ariaDisabled}
           className={cn(
             modeItemClass,
-            bounce && "mode-toggle-bounce",
             ariaDisabled && "cursor-not-allowed",
           )}
         >

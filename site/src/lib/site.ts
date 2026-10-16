@@ -50,6 +50,62 @@ export const navLinks = [
 
 export const routes = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/developers", "/privacy", "/terms"] as const;
 
+export type PublicRoute = (typeof routes)[number];
+
+/** Final page titles bypass the layout template to preserve their search length. */
+export const routeSeo = {
+  "/": {
+    title: "Sioona Conversation Intelligence for B2B Teams",
+    description: "Find churn, retention and buying signals in B2B customer chats. Review source evidence with humans in Shadow Mode before your team follows up.",
+    label: "Conversation intelligence",
+  },
+  "/about": {
+    title: "About Sioona | Human-Led Conversation Intelligence",
+    description: "Learn how Sioona helps B2B teams review churn, retention and upsell signals from customer chats, with source evidence and human-led Shadow Mode.",
+    label: "About Sioona",
+  },
+  "/how-it-works": {
+    title: "How Sioona Detects Churn Signals | Shadow Mode",
+    description: "Upload chat exports, detect churn and retention signals, then review source evidence in Shadow Mode. Humans decide every follow-up in their own tools.",
+    label: "How Shadow Mode works",
+  },
+  "/security": {
+    title: "Conversation Intelligence Security | Sioona",
+    description: "Review Sioona data handling, tenant isolation controls and security questions for B2B chat analysis. Shadow Mode keeps customer follow-up with humans.",
+    label: "Security and data handling",
+  },
+  "/pricing": {
+    title: "Conversation Intelligence Pilot & Pricing | Sioona",
+    description: "Explore a two-week B2B conversation intelligence pilot for churn and retention review. Scope and pricing are agreed before start; no list price is published.",
+    label: "Pilot scope and pricing",
+  },
+  "/contact": {
+    title: "Request a B2B Conversation Intelligence Pilot",
+    description: "Discuss a Sioona Shadow Mode pilot for churn and retention signals in B2B chats. Share business contact details first, without customer transcripts.",
+    label: "Request a pilot",
+  },
+  "/developers": {
+    title: "Sioona Developer Resources | MCP & AI Search",
+    description: "Read first-party conversation intelligence facts through Sioona MCP, Markdown pages and agent instructions. Public endpoints do not accept customer chats.",
+    label: "Developer resources",
+  },
+  "/privacy": {
+    title: "Pilot Privacy & Chat Data Boundaries | Sioona",
+    description: "Learn how Sioona uses pilot enquiry details for B2B conversation intelligence. Agree separate chat-data retention and processing terms before sharing exports.",
+    label: "Pilot request privacy",
+  },
+  "/terms": {
+    title: "Shadow Mode Pilot Request Terms | Sioona",
+    description: "Read terms for a B2B conversation intelligence pilot enquiry. Scope, price and chat-data terms are agreed separately; humans review signals in Shadow Mode.",
+    label: "Pilot request terms",
+  },
+} as const satisfies Record<PublicRoute, { title: string; description: string; label: string }>;
+
+export function routeMetadata(path: PublicRoute): Metadata {
+  const { title, description } = routeSeo[path];
+  return pageMetadata(title, description, path);
+}
+
 /** One shared English page serves these audiences; no locale-specific copies exist. */
 export function internationalAlternates(path: string) {
   const url = new URL(path, siteConfig.url).toString();
@@ -99,6 +155,7 @@ export function websiteJsonLd() {
     alternateName: siteConfig.name,
     url: origin,
     description: siteConfig.description,
+    about: { "@id": `${origin}/#service` },
     publisher: {
       "@type": "Organization",
       "@id": `${origin}/#organization`,
@@ -147,6 +204,8 @@ export function productJsonLd() {
     description: siteConfig.description,
     category: "Conversation intelligence",
     url: `${origin}/`,
+    manufacturer: { "@id": `${origin}/#organization` },
+    subjectOf: { "@id": `${origin}/#review-workflow` },
     brand: {
       "@type": "Brand",
       name: siteConfig.name,
@@ -160,6 +219,10 @@ export function howToJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "HowTo",
+    "@id": `${origin}/#review-workflow`,
+    about: { "@id": `${origin}/#product` },
+    publisher: { "@id": `${origin}/#organization` },
+    isPartOf: { "@id": `${origin}/#website` },
     name: "Review customer chats with Sioona Conversation Intelligence",
     description: "Connect an export, detect lead, retention and upsell signals, review them with your team, then follow up in your own tools.",
     step: STEPS.map((step, index) => ({
@@ -178,6 +241,7 @@ export function breadcrumbJsonLd(items: readonly { name: string; path: string }[
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": `${new URL(items.at(-1)?.path ?? "/", `${origin}/`)}#breadcrumbs`,
     itemListElement: items.map((item, index) => ({
       "@type": "ListItem",
       position: index + 1,
@@ -214,10 +278,10 @@ export function nb(text: string): string {
 }
 
 export function pageMetadata(title: string, description: string, path: string): Metadata {
-  const socialTitle = `${title} | ${productName}`;
+  const socialTitle = title;
   const images = [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Sioona — conversation intelligence with human judgment" }];
   return {
-    title, description,
+    title: { absolute: title }, description,
     alternates: internationalAlternates(path),
     openGraph: { type: "website", siteName: siteConfig.name, locale: "en_US", alternateLocale: ["en_IN"], url: path, title: socialTitle, description, images },
     twitter: { card: "summary_large_image", title: socialTitle, description, images },

@@ -1,0 +1,385 @@
+{
+  "started_at": "2026-10-16T05:19:41.843468+00:00",
+  "http": [
+    {
+      "url": "http://sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "https://sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "http://www.sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: www.sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "https://www.sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: www.sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "http://app.sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: app.sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "https://app.sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: app.sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "http://api.sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: api.sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "https://api.sioona.si/",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 6,
+      "error": "curl: (6) Could not resolve host: api.sioona.si",
+      "headers": "",
+      "body": null
+    },
+    {
+      "url": "http://sioona.si/",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/1.1 301 Moved Permanently\nDate: Fri, 16 Oct 2026 05:19:42 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 53\nConnection: keep-alive\nLocation: https://sioona.si/\ncf-cache-status: DYNAMIC\nServer: cloudflare\nCF-RAY: a4b49c2f9eff4148-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null
+    },
+    {
+      "url": "https://sioona.si/",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:19:42 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"q8b5dkg81v4rcd\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: dbfc4f28-bba9-444f\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49c2fbf214007-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "metadata": [
+        "<link rel=\"canonical\" href=\"https://sioona.si\"/>",
+        "<meta property=\"og:title\" content=\"Sioona Conversation Intelligence\"/>",
+        "<meta property=\"og:description\" content=\"Sioona Conversation Intelligence helps teams find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.\"/>",
+        "<meta property=\"og:url\" content=\"https://sioona.si\"/>",
+        "<meta property=\"og:locale\" content=\"en_US\"/>",
+        "<meta property=\"og:image\" content=\"https://sioona.si/opengraph-image\"/>",
+        "<meta property=\"og:image:width\" content=\"1200\"/>",
+        "<meta property=\"og:image:height\" content=\"630\"/>",
+        "<meta property=\"og:locale:alternate\" content=\"en_IN\"/>",
+        "<meta property=\"og:type\" content=\"website\"/>",
+        "<meta name=\"twitter:card\" content=\"summary_large_image\"/>",
+        "<meta name=\"twitter:title\" content=\"Sioona Conversation Intelligence\"/>",
+        "<meta name=\"twitter:description\" content=\"Sioona Conversation Intelligence helps teams find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.\"/>",
+        "<meta name=\"twitter:image\" content=\"https://sioona.si/opengraph-image\"/>"
+      ]
+    },
+    {
+      "url": "http://www.sioona.si/",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/1.1 301 Moved Permanently\nDate: Fri, 16 Oct 2026 05:19:42 GMT\nContent-Type: text/html; charset=utf-8\nContent-Length: 57\nConnection: keep-alive\nLocation: https://www.sioona.si/\ncf-cache-status: DYNAMIC\nServer: cloudflare\nCF-RAY: a4b49c2fcee6cb6e-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null
+    },
+    {
+      "url": "https://www.sioona.si/",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 301 \ndate: Fri, 16 Oct 2026 05:19:42 GMT\ncontent-type: text/html; charset=utf-8\ncontent-length: 53\nlocation: https://sioona.si/\ncf-cache-status: DYNAMIC\nserver: cloudflare\ncf-ray: a4b49c300fae483e-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null
+    },
+    {
+      "url": "https://sioona.si/robots.txt",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:19:42 GMT\ncontent-type: text/plain\ncache-control: public, max-age=0, must-revalidate\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: b98b7b25-8924-4d7d\nserver: cloudflare\nvary: Accept, Origin, rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch\nvary: Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-render-origin-server: Render\ncf-cache-status: DYNAMIC\ncf-ray: a4b49c3008512666-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "public_body": "User-Agent: *\nAllow: /\nDisallow: /api/\n\nUser-Agent: GPTBot\nAllow: /\nDisallow: /api/\n\nUser-Agent: OAI-SearchBot\nAllow: /\nDisallow: /api/\n\nUser-Agent: ChatGPT-User\nAllow: /\nDisallow: /api/\n\nUser-Agent: ClaudeBot\nAllow: /\nDisallow: /api/\n\nUser-Agent: Claude-Web\nAllow: /\nDisallow: /api/\n\nUser-Agent: PerplexityBot\nAllow: /\nDisallow: /api/\n\nUser-Agent: Googlebot\nAllow: /\nDisallow: /api/\n\nUser-Agent: Google-Extended\nAllow: /\nDisallow: /api/\n\nUser-Agent: Applebot-Extended\nAllow: /\nDisallow: /api/\n\nSitemap: https://sioona.si/sitemap.xml\n"
+    },
+    {
+      "url": "https://sioona.si/sitemap.xml",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:19:42 GMT\ncontent-type: application/xml\ncache-control: public, max-age=0, must-revalidate\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: ee5332d3-4d20-43c0\nserver: cloudflare\nvary: Accept, Origin, rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-render-origin-server: Render\ncf-cache-status: DYNAMIC\ncf-ray: a4b49c321d94b1c5-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "public_body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n<url>\n<loc>https://sioona.si/</loc>\n<lastmod>2026-10-14T13:01:00+05:30</lastmod>\n<changefreq>weekly</changefreq>\n<priority>1</priority>\n</url>\n<url>\n<loc>https://sioona.si/about</loc>\n<lastmod>2026-10-14T04:00:24+05:30</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.8</priority>\n</url>\n<url>\n<loc>https://sioona.si/how-it-works</loc>\n<lastmod>2026-10-13T20:37:48Z</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.9</priority>\n</url>\n<url>\n<loc>https://sioona.si/pricing</loc>\n<lastmod>2026-10-13T20:37:48Z</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.9</priority>\n</url>\n<url>\n<loc>https://sioona.si/contact</loc>\n<lastmod>2026-10-14T10:03:09+05:30</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.9</priority>\n</url>\n<url>\n<loc>https://sioona.si/security</loc>\n<lastmod>2026-10-13T20:37:48Z</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.8</priority>\n</url>\n<url>\n<loc>https://sioona.si/developers</loc>\n<lastmod>2026-10-14T13:01:00+05:30</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.8</priority>\n</url>\n<url>\n<loc>https://sioona.si/privacy</loc>\n<lastmod>2026-10-14T10:03:09+05:30</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.5</priority>\n</url>\n<url>\n<loc>https://sioona.si/terms</loc>\n<lastmod>2026-10-13T20:37:48Z</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.5</priority>\n</url>\n<url>\n<loc>https://sioona.si/llms.txt</loc>\n<lastmod>2026-10-14T13:30:35+05:30</lastmod>\n<changefreq>monthly</changefreq>\n<priority>0.8</priority>\n</url>\n</urlset>\n"
+    },
+    {
+      "url": "https://sioona.si/contact",
+      "ip_override": "216.24.57.1",
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:19:42 GMT\ncontent-type: text/html; charset=utf-8\ncache-control: s-maxage=31536000\netag: W/\"t0jj8ftj6914o9\"\ncf-cache-status: DYNAMIC\npermissions-policy: camera=(), microphone=(), geolocation=()\nreferrer-policy: strict-origin-when-cross-origin\nrndr-id: 5f0b7aa2-ad77-42ab\nserver: cloudflare\nvary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept, Origin, Accept-Encoding\nx-content-type-options: nosniff\nx-frame-options: DENY\nx-nextjs-cache: HIT\nx-nextjs-prerender: 1\nx-nextjs-prerender: 1\nx-nextjs-stale-time: 300\nx-render-origin-server: Render\ncf-ray: a4b49c32adb8efc3-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null
+    },
+    {
+      "url": "https://sioona-api.onrender.com/health",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 200 \ndate: Fri, 16 Oct 2026 05:19:42 GMT\ncontent-type: application/json\ncf-cache-status: DYNAMIC\nrndr-id: df755127-48ba-4371\nserver: cloudflare\nvary: Accept-Encoding\nx-render-origin-server: uvicorn\ncf-ray: a4b49c315fea7a80-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": "{\"status\":\"ok\"}"
+    },
+    {
+      "url": "https://sioona-web.onrender.com/login",
+      "ip_override": null,
+      "method": "GET",
+      "exit": 28,
+      "error": "curl: (28) Operation timed out after 25004 milliseconds with 0 bytes received",
+      "headers": "",
+      "body": null
+    }
+  ],
+  "tls": [
+    {
+      "host": "sioona.si",
+      "hostname_and_trust_verified": true,
+      "protocol": "TLSv1.3",
+      "subject": [
+        [
+          [
+            "commonName",
+            "sioona.si"
+          ]
+        ]
+      ],
+      "issuer": [
+        [
+          [
+            "countryName",
+            "US"
+          ]
+        ],
+        [
+          [
+            "organizationName",
+            "Google Trust Services"
+          ]
+        ],
+        [
+          [
+            "commonName",
+            "WE1"
+          ]
+        ]
+      ],
+      "san": [
+        [
+          "DNS",
+          "sioona.si"
+        ]
+      ],
+      "notBefore": "Oct 16 04:09:08 2026 GMT",
+      "notAfter": "Jan 14 05:09:04 2027 GMT"
+    },
+    {
+      "host": "www.sioona.si",
+      "hostname_and_trust_verified": true,
+      "protocol": "TLSv1.3",
+      "subject": [
+        [
+          [
+            "commonName",
+            "www.sioona.si"
+          ]
+        ]
+      ],
+      "issuer": [
+        [
+          [
+            "countryName",
+            "US"
+          ]
+        ],
+        [
+          [
+            "organizationName",
+            "Google Trust Services"
+          ]
+        ],
+        [
+          [
+            "commonName",
+            "WE1"
+          ]
+        ]
+      ],
+      "san": [
+        [
+          "DNS",
+          "www.sioona.si"
+        ]
+      ],
+      "notBefore": "Oct 16 04:08:15 2026 GMT",
+      "notAfter": "Jan 14 05:08:12 2027 GMT"
+    }
+  ],
+  "provider": {
+    "site": {
+      "id": "srv-db7u2jcs728c739m1pug",
+      "domains": [
+        {
+          "cursor": "5cYkBP5l7_J0dDNsNTUwczczZXNwdmkw",
+          "customDomain": {
+            "createdAt": "2026-10-16T04:58:28.416201Z",
+            "domainType": "subdomain",
+            "id": "cdm-db8qtt3l550s73espvi0",
+            "name": "www.sioona.si",
+            "publicSuffix": "si",
+            "redirectForName": "sioona.si",
+            "verificationStatus": "verified"
+          }
+        },
+        {
+          "cursor": "5cYkBP5l7_J0dDNsNTUwczczZXNwdmhn",
+          "customDomain": {
+            "createdAt": "2026-10-16T04:58:28.413693Z",
+            "domainType": "apex",
+            "id": "cdm-db8qtt3l550s73espvhg",
+            "name": "sioona.si",
+            "publicSuffix": "si",
+            "redirectForName": "",
+            "verificationStatus": "verified"
+          }
+        }
+      ],
+      "environment": {
+        "SIOONA_STATE_MODE": "[unset]",
+        "SIOONA_ENV": "[unset]",
+        "SIOONA_ACTOR_MODE": "[unset]",
+        "DETECT_LLM": "[unset]",
+        "LIVE_INGEST": "[unset]",
+        "SIOONA_PUBLIC_DEMO": "[unset]",
+        "NEXT_PUBLIC_SITE_URL": "https://sioona.si",
+        "NEXT_PUBLIC_APP_URL": "[unset]",
+        "BACKEND_URL": "[unset]",
+        "PILOT_INTAKE_BACKEND_URL": "https://sioona-api.onrender.com",
+        "DATABASE_URL": "[unset]",
+        "MIGRATION_DATABASE_URL": "[unset]",
+        "pilot_users_configured": false
+      }
+    },
+    "web": {
+      "id": "srv-db7u5sks728c739mcof0",
+      "domains": [],
+      "environment": {
+        "SIOONA_STATE_MODE": "postgres",
+        "SIOONA_ENV": "production",
+        "SIOONA_ACTOR_MODE": "[unset]",
+        "DETECT_LLM": "[unset]",
+        "LIVE_INGEST": "0",
+        "SIOONA_PUBLIC_DEMO": "[unset]",
+        "NEXT_PUBLIC_SITE_URL": "[unset]",
+        "NEXT_PUBLIC_APP_URL": "[unset]",
+        "BACKEND_URL": "https://sioona-api.onrender.com",
+        "PILOT_INTAKE_BACKEND_URL": "[unset]",
+        "DATABASE_URL": "[unset]",
+        "MIGRATION_DATABASE_URL": "[unset]",
+        "pilot_users_configured": false
+      }
+    },
+    "api": {
+      "id": "srv-d9t38fn40ujc73cr7ho0",
+      "domains": [],
+      "environment": {
+        "SIOONA_STATE_MODE": "[unset]",
+        "SIOONA_ENV": "production",
+        "SIOONA_ACTOR_MODE": "[unset]",
+        "DETECT_LLM": "[unset]",
+        "LIVE_INGEST": "[unset]",
+        "SIOONA_PUBLIC_DEMO": "[unset]",
+        "NEXT_PUBLIC_SITE_URL": "[unset]",
+        "NEXT_PUBLIC_APP_URL": "[unset]",
+        "BACKEND_URL": "[unset]",
+        "PILOT_INTAKE_BACKEND_URL": "[unset]",
+        "DATABASE_URL": {
+          "role": "sioona_runtime",
+          "host": "ep-rapid-feather-avz8jmy7-pooler.c-11.us-east-1.aws.neon.tech",
+          "database": "neondb"
+        },
+        "MIGRATION_DATABASE_URL": {
+          "role": "neondb_owner",
+          "host": "ep-rapid-feather-avz8jmy7.c-11.us-east-1.aws.neon.tech",
+          "database": "neondb"
+        },
+        "pilot_users_configured": false
+      }
+    }
+  },
+  "cors": [
+    {
+      "url": "https://sioona-api.onrender.com/v1/predictions",
+      "ip_override": null,
+      "method": "OPTIONS",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 405 \ndate: Fri, 16 Oct 2026 05:20:10 GMT\ncontent-type: application/json\nallow: POST\nrndr-id: 56a20f6f-6eed-49bb\nserver: cloudflare\nvary: Accept-Encoding\nx-render-origin-server: uvicorn\ncf-cache-status: DYNAMIC\ncf-ray: a4b49cdf1dbcf7ce-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "origin": "https://sioona.si"
+    },
+    {
+      "url": "https://sioona-api.onrender.com/v1/predictions",
+      "ip_override": null,
+      "method": "OPTIONS",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 405 \ndate: Fri, 16 Oct 2026 05:20:11 GMT\ncontent-type: application/json\nallow: POST\ncf-cache-status: DYNAMIC\nrndr-id: d76a8ef2-6128-429a\nserver: cloudflare\nvary: Accept-Encoding\nx-render-origin-server: uvicorn\ncf-ray: a4b49ce41f2f60b0-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "origin": "https://app.sioona.si"
+    },
+    {
+      "url": "https://sioona-api.onrender.com/v1/predictions",
+      "ip_override": null,
+      "method": "OPTIONS",
+      "exit": 0,
+      "error": "",
+      "headers": "HTTP/2 405 \ndate: Fri, 16 Oct 2026 05:20:11 GMT\ncontent-type: application/json\nallow: POST\ncf-cache-status: DYNAMIC\nrndr-id: 3004c087-30df-41a9\nserver: cloudflare\nvary: Accept-Encoding\nx-render-origin-server: uvicorn\ncf-ray: a4b49ce639d147d5-BOM\nalt-svc: h3=\":443\"; ma=86400",
+      "body": null,
+      "origin": "https://untrusted.example"
+    }
+  ],
+  "finished_at": "2026-10-16T05:20:11.491579+00:00"
+}

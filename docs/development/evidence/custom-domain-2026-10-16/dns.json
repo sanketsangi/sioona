@@ -1,0 +1,293 @@
+{
+  "at": "2026-10-16T05:20:08.627265+00:00",
+  "queries": [
+    {
+      "resolver": "1.1.1.1",
+      "host": "sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 27537\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; ANSWER SECTION:\nsioona.si.\t\t1282\tIN\tA\t216.24.57.1\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 51635\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 40831\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "www.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 www.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 25725\n;; flags: qr rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1800\tIN\tCNAME\tsioona-site.onrender.com.\nsioona-site.onrender.com. 300\tIN\tCNAME\tgcp-us-west1-1.origin.onrender.com.\ngcp-us-west1-1.origin.onrender.com. 300\tIN CNAME gcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net.\ngcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net. 300 IN A\t216.24.57.16\ngcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net. 300 IN A\t216.24.57.18\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "www.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 www.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 36623\n;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1721\tIN\tCNAME\tsioona-site.onrender.com.\nsioona-site.onrender.com. 221\tIN\tCNAME\tgcp-us-west1-1.origin.onrender.com.\ngcp-us-west1-1.origin.onrender.com. 221\tIN CNAME gcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net.\n\n;; AUTHORITY SECTION:\ncloudflare.net.\t\t1721\tIN\tSOA\tns1.cloudflare.net. dns.cloudflare.com. 2417450801 10000 2400 604800 1800\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "www.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 www.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 3453\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1800\tIN\tCNAME\tsioona-site.onrender.com.\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "app.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 app.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 13645\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "app.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 app.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 51948\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "app.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 app.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 1762\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "api.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 api.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 27001\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "api.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 api.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 31872\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "1.1.1.1",
+      "host": "api.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @1.1.1.1 +time=2 +tries=1 api.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 17100\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 6122\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; ANSWER SECTION:\nsioona.si.\t\t1800\tIN\tA\t216.24.57.1\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 26587\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1719\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 10199\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "www.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 www.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 7646\n;; flags: qr rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1721\tIN\tCNAME\tsioona-site.onrender.com.\nsioona-site.onrender.com. 300\tIN\tCNAME\tgcp-us-west1-1.origin.onrender.com.\ngcp-us-west1-1.origin.onrender.com. 300\tIN CNAME gcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net.\ngcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net. 300 IN A\t216.24.57.16\ngcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net. 300 IN A\t216.24.57.18\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "www.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 www.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 39435\n;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1800\tIN\tCNAME\tsioona-site.onrender.com.\nsioona-site.onrender.com. 300\tIN\tCNAME\tgcp-us-west1-1.origin.onrender.com.\ngcp-us-west1-1.origin.onrender.com. 300\tIN CNAME gcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net.\n\n;; AUTHORITY SECTION:\ncloudflare.net.\t\t1270\tIN\tSOA\tns1.cloudflare.net. dns.cloudflare.com. 2417450801 10000 2400 604800 1800\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "www.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 www.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 49094\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1800\tIN\tCNAME\tsioona-site.onrender.com.\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "app.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 app.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 10761\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "app.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 app.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 11470\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "app.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 app.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 12283\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "api.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 api.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 49546\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "api.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 api.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 27087\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "8.8.8.8",
+      "host": "api.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @8.8.8.8 +time=2 +tries=1 api.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 65194\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 59142\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; ANSWER SECTION:\nsioona.si.\t\t1800\tIN\tA\t216.24.57.1\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 57124\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1719\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 18801\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "www.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 www.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 16774\n;; flags: qr rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1800\tIN\tCNAME\tsioona-site.onrender.com.\nsioona-site.onrender.com. 300\tIN\tCNAME\tgcp-us-west1-1.origin.onrender.com.\ngcp-us-west1-1.origin.onrender.com. 180\tIN CNAME gcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net.\ngcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net. 57 IN A 216.24.57.18\ngcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net. 57 IN A 216.24.57.16\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "www.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 www.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 33925\n;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; ANSWER SECTION:\nwww.sioona.si.\t\t1721\tIN\tCNAME\tsioona-site.onrender.com.\nsioona-site.onrender.com. 221\tIN\tCNAME\tgcp-us-west1-1.origin.onrender.com.\ngcp-us-west1-1.origin.onrender.com. 98 IN CNAME\tgcp-us-west1-1.origin.onrender.com.cdn.cloudflare.net.\n\n;; AUTHORITY SECTION:\ncloudflare.net.\t\t5\tIN\tSOA\tns1.cloudflare.net. dns.cloudflare.com. 2417450801 10000 2400 604800 5\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "www.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 www.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 5023\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; ANSWER SECTION:\nwww.sioona.si.\t\t808\tIN\tCNAME\tsioona-site.onrender.com.\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "app.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 app.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 55730\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "app.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 app.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 64319\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "app.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 app.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 41442\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 1232\n;; AUTHORITY SECTION:\nsioona.si.\t\t1724\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "api.sioona.si",
+      "type": "A",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 api.sioona.si A +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 62146\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1727\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "api.sioona.si",
+      "type": "AAAA",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 api.sioona.si AAAA +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 19967\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    },
+    {
+      "resolver": "9.9.9.9",
+      "host": "api.sioona.si",
+      "type": "CNAME",
+      "exit": 0,
+      "output": "\n; <<>> DiG 9.10.6 <<>> @9.9.9.9 +time=2 +tries=1 api.sioona.si CNAME +noall +comments +answer +authority\n; (1 server found)\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 32334\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags:; udp: 512\n;; AUTHORITY SECTION:\nsioona.si.\t\t1800\tIN\tSOA\tlaunch1.spaceship.net. support.spaceship.com. 1792126654 43200 3600 604800 3600\n\n",
+      "error": ""
+    }
+  ]
+}

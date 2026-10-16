@@ -1,14 +1,11 @@
+import { PageContext } from "@/components/seo/PageContext";
 import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { aboutParagraphs } from "@/lib/about";
-import { nb, pageMetadata } from "@/lib/site";
+import { nb, routeMetadata } from "@/lib/site";
 
-export const metadata: Metadata = pageMetadata(
-  "About",
-  "Sioona finds lead, retention and upsell signals in the customer chats a team already has. Humans review every signal in Shadow Mode, and nothing is sent to customers.",
-  "/about",
-);
+export const metadata: Metadata = routeMetadata("/about");
 
 export default function AboutPage() {
   return (
@@ -36,6 +33,7 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+      <PageContext path="/about" />
     </>
   );
 }

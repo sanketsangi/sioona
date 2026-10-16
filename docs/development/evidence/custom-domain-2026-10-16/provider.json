@@ -1,0 +1,38 @@
+{
+  "schema_log": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"hasMore\":false,\"logs\":[{\"id\":\"7215fcdb-7b6c-4c5b-8110-97461cf33d5e\",\"labels\":[{\"name\":\"resource\",\"value\":\"srv-d9t38fn40ujc73cr7ho0\"},{\"name\":\"level\",\"value\":\"info\"},{\"name\":\"type\",\"value\":\"app\"}],\"message\":\"INFO  [alembic.runtime.migration] Running upgrade 033_supervised_action_executions -\\u003e 034_operational_telemetry, Text-free tenant operational receipts for CB-15.\",\"timestamp\":\"2026-10-16T00:47:19.35759493Z\"}],\"nextEndTime\":\"2026-10-16T00:47:19.35759493Z\",\"nextStartTime\":\"2026-10-09T05:21:24.177964327Z\"}"
+      }
+    ],
+    "isError": false
+  },
+  "neon_roles": [
+    {
+      "branch_id": "br-winter-cell-avh5pcw3",
+      "name": "neondb_owner",
+      "protected": false,
+      "authentication_method": "password",
+      "created_at": "2026-08-09T22:29:00Z",
+      "updated_at": "2026-08-09T22:29:00Z"
+    },
+    {
+      "branch_id": "br-winter-cell-avh5pcw3",
+      "name": "sioona_runtime",
+      "protected": false,
+      "authentication_method": "password",
+      "created_at": "2026-10-12T00:18:12Z",
+      "updated_at": "2026-10-12T00:31:45Z"
+    }
+  ],
+  "neon_endpoints": {
+    "content": [
+      {
+        "type": "text",
+        "text": "[\n  {\n    \"host\": \"ep-floral-queen-ave2x49b.c-11.us-east-1.aws.neon.tech\",\n    \"hosts\": {\n      \"read_write_host\": \"ep-floral-queen-ave2x49b.c-11.us-east-1.aws.neon.tech\",\n      \"read_write_pooled_host\": \"ep-floral-queen-ave2x49b-pooler.c-11.us-east-1.aws.neon.tech\"\n    },\n    \"id\": \"ep-floral-queen-ave2x49b\",\n    \"slug\": \"ep-floral-queen-ave2x49b\",\n    \"branch_slug\": \"br-ancient-rice-avasd3hk\",\n    \"project_slug\": \"summer-haze-99931300\",\n    \"project_id\": \"summer-haze-99931300\",\n    \"branch_id\": \"br-ancient-rice-avasd3hk\",\n    \"autoscaling_limit_min_cu\": 0.25,\n    \"autoscaling_limit_max_cu\": 0.25,\n    \"region_id\": \"aws-us-east-1\",\n    \"type\": \"read_write\",\n    \"current_state\": \"idle\",\n    \"group\": {\n      \"size\": {\n        \"min\": 1,\n        \"max\": 1\n      },\n      \"allow_readable_secondaries\": false,\n      \"computes\": [\n        {\n          \"binding_id\": \"c6t\",\n          \"current_state\": \"idle\",\n          \"role\": \"read_write\",\n          \"compute_host\": \"ep-floral-queen-ave2x49b-c6t.c-11.us-east-1.aws.neon.tech\",\n          \"compute_pooled_host\": \"ep-floral-queen-ave2x49b-c6t-pooler.c-11.us-east-1.aws.neon.tech\",\n          \"created_at\": \"2026-10-05T00:56:16Z\",\n          \"updated_at\": \"2026-10-07T23:35:02Z\",\n          \"suspended_at\": \"2026-10-05T01:03:32Z\"\n        }\n      ]\n    },\n    \"settings\": {\n      \"pg_settings\": {}\n    },\n    \"pooler_enabled\": false,\n    \"pooler_mode\": \"transaction\",\n    \"disabled\": false,\n    \"passwordless_access\": true,\n    \"last_active\": \"2026-10-05T00:56:18Z\",\n    \"creation_source\": \"console\",\n    \"created_at\": \"2026-10-05T00:56:16Z\",\n    \"updated_at\": \"2026-10-07T23:35:02Z\",\n    \"suspended_at\": \"2026-10-05T01:03:32Z\",\n    \"proxy_host\": \"c-11.us-east-1.aws.neon.tech\",\n    \"suspend_timeout_seconds\": 0,\n    \"provisioner\": \"k8s-neonvm\"\n  },\n  {\n    \"host\": \"ep-rapid-feather-avz8jmy7.c-11.us-east-1.aws.neon.tech\",\n    \"hosts\": {\n      \"read_write_host\": \"ep-rapid-feather-avz8jmy7.c-11.us-east-1.aws.neon.tech\",\n      \"read_write_pooled_host\": \"ep-rapid-feather-avz8jmy7-pooler.c-11.us-east-1.aws.neon.tech\"\n    },\n    \"id\": \"ep-rapid-feather-avz8jmy7\",\n    \"slug\": \"ep-rapid-feather-avz8jmy7\",\n    \"branch_slug\": \"br-winter-cell-avh5pcw3\",\n    \"project_slug\": \"summer-haze-99931300\",\n    \"project_id\": \"summer-haze-99931300\",\n    \"branch_id\": \"br-winter-cell-avh5pcw3\",\n    \"autoscaling_limit_min_cu\": 0.25,\n    \"autoscaling_limit_max_cu\": 0.25,\n    \"region_id\": \"aws-us-east-1\",\n    \"type\": \"read_write\",\n    \"current_state\": \"active\",\n    \"group\": {\n      \"size\": {\n        \"min\": 1,\n        \"max\": 1\n      },\n      \"allow_readable_secondaries\": false,\n      \"computes\": [\n        {\n          \"binding_id\": \"jgr\",\n          \"current_state\": \"active\",\n          \"role\": \"read_write\",\n          \"compute_host\": \"ep-rapid-feather-avz8jmy7-jgr.c-11.us-east-1.aws.neon.tech\",\n          \"compute_pooled_host\": \"ep-rapid-feather-avz8jmy7-jgr-pooler.c-11.us-east-1.aws.neon.tech\",\n          \"created_at\": \"2026-08-09T22:29:00Z\",\n          \"updated_at\": \"2026-10-16T05:20:39Z\",\n          \"started_at\": \"2026-10-16T05:20:39Z\"\n        }\n      ]\n    },\n    \"settings\": {\n      \"pg_settings\": {}\n    },\n    \"pooler_enabled\": false,\n    \"pooler_mode\": \"transaction\",\n    \"disabled\": false,\n    \"passwordless_access\": true,\n    \"last_active\": \"2026-10-16T05:20:41Z\",\n    \"creation_source\": \"console\",\n    \"created_at\": \"2026-08-09T22:29:00Z\",\n    \"updated_at\": \"2026-10-16T05:20:46Z\",\n    \"started_at\": \"2026-10-16T05:20:39Z\",\n    \"proxy_host\": \"c-11.us-east-1.aws.neon.tech\",\n    \"suspend_timeout_seconds\": 0,\n    \"provisioner\": \"k8s-neonvm\",\n    \"compute_release_version\": \"15395\"\n  }\n]"
+      }
+    ],
+    "isError": false
+  }
+}

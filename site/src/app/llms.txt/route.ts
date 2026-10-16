@@ -1,7 +1,10 @@
-import { markdownFor } from "@/lib/markdown-pages";
+import { dataFacts, pilotFacts } from "@/lib/public-facts";
+import { contactPolicyText } from "@/lib/contact-policy";
 import { publicHeaders } from "@/lib/http-headers";
 import { agentGuidance } from "@/lib/agent-guidance";
-import { siteConfig } from "@/lib/site";
+import { routes, routeSeo, siteConfig } from "@/lib/site";
+
+export const dynamic = "force-static";
 
 export function GET() {
   const origin = siteConfig.url.replace(/\/$/, "");
@@ -9,22 +12,22 @@ export function GET() {
 
 ${siteConfig.description}
 
-${markdownFor("/pricing")}
+## Product and supported inputs
 
-${markdownFor("/security")}
+${Object.values(pilotFacts).join("\n\n")}
+
+XLSX imports require conversation_id, role and content columns. EML and MBOX imports parse exported email files, not live mailboxes. Supported Intercom JSON imports are distinct from the verified Intercom webhook integration; confirm operator setup and hosted acceptance before using live ingestion.
+
+## Security and data boundaries
+
+${dataFacts.map(([title, text]) => `- ${title}: ${text}`).join("\n")}
+
+${contactPolicyText().join("\n\n")}
 
 ## Sioona pages
 
-- [Home](${origin}/): product overview
-- [About](${origin}/about): who Sioona is, how Shadow Mode works, and what a pilot includes
-- [How it works](${origin}/how-it-works): connect, detect, review, act
-- [Security](${origin}/security): human review, tenant isolation, no outbound messaging
-- [Pricing](${origin}/pricing): two-week pilot, scope agreed before start
-- [Request a pilot](${origin}/contact): business contact form with a stored receipt
-- [Sioona developer resources](${origin}/developers): MCP server, Markdown pages, and agent instructions
-- [Privacy](${origin}/privacy): how pilot-request contact details are used
-- [Terms](${origin}/terms): what submitting a pilot request does and does not create
-- [Sitemap](${origin}/sitemap.xml): every public URL
+${routes.map(path => `- [${routeSeo[path].label}](${new URL(path, origin).href})`).join("\n")}
+- [Sitemap](${origin}/sitemap.xml): every public page and these instructions
 
 ${agentGuidance()}
 `;

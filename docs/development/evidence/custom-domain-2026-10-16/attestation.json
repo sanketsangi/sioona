@@ -1,0 +1,30 @@
+{
+  "audit_id": "custom-domain-2026-10-16",
+  "recorded_at": "2026-10-16T05:21:43.498488+00:00",
+  "signed_by": "Codex (automated verifier)",
+  "signature_type": "Named automated attestation with SHA-256 integrity manifest; not a cryptographic identity signature or human acceptance",
+  "human_signoff": "PENDING \u2014 not signed on behalf of Sanket",
+  "overall_result": "BLOCKED",
+  "checkout_head": "b964be4051750ec012b57d6fa6a55a67b8423eeb",
+  "deployments": {
+    "site": {
+      "id": "dep-db8qqg9vik4c73b9p1e0",
+      "commit": "78cfe59eea23860e7139cc4608f1053c350e1c0b"
+    },
+    "web": {
+      "id": "dep-db8ag46q1p3s73a6bp6g",
+      "commit": "576c4b0fc24112e2410d475ef68ed7c08c3a9a96"
+    },
+    "api": {
+      "id": "dep-db8r1duk1f9s73epihig",
+      "commit": "79ccd5d6f04017c209809cf9a110577e624cd0d0"
+    }
+  },
+  "files_sha256": {
+    "dns.json": "38c18373dffc50ba66b905e1b5a47d0acef45e8899071271d680ab37ec00d440",
+    "http-tls-config.json": "d2a437ff97537d4cc7d971d617738782848a792dea30a22bbeb85fad75aed186",
+    "production-smoke.log": "e302ebc3e4726ce3fdcb1504f5570bf4b9a7e77d36de0e0056188f5f8f10301c",
+    "provider.json": "5f7770d5c049379796a0a6519fe5b75007e8e7135d59ea082954b3c6603fd27f",
+    "smoke.json": "1fcbbe148d2e8c12683d480d231bbc30b92972e6ac17209acf07ff510bcd196c"
+  }
+}

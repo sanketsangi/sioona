@@ -1,5 +1,7 @@
 # Foundation acceptance — authoritative current closeout
 
+**2026-10-16 custom-domain verification: BLOCKED.** [Signed automated audit and receipts](STAGING_ACCEPTANCE.md#post-deployment-custom-domain-audit--2026-10-16) record marketing TLS/redirect/metadata and synthetic intake success via published-address resolution. Web/API custom domains are absent; authenticated tenant workflow, runtime NOBYPASSRLS, current startup schema alignment and persisted zero-send acceptance remain open. This does not close foundation/operator acceptance.
+
 **2026-10-15 verification:** [Current main reconciliation](MAIN_VERIFICATION_2026-10-15.md) records fresh offline results and later CB-11–15 merges. Hosted acceptance, branch protection and external promotion remain open; default Turbopack builds are environment-blocked. Historical entries below retain their original dates.
 
 **2026-10-13:** Phase 2 go is recorded in [PHASE_2_GO.md](PHASE_2_GO.md) against `main` `7ab84e5`. D6 implementation is approved; hosted acceptance remains open. Operator items OP-1 through OP-5 stay open.
@@ -110,3 +112,16 @@ No paid service, hosted migration, ruleset or external model comparison was touc
 - External manifest remains n=100, below D5 four buckets of at least 30 each. No partner bytes were opened or sent to a provider. A sufficient labeled corpus, chosen baseline/candidate identities and an explicit attempt ceiling are still needed; thresholds are unchanged.
 
 CB-10 D6 implementation is approved. Staging acceptance, hosted RLS and external promotion remain unfulfilled; production Postgres mode stays off. See `tasks/FOUNDATION_NEXT_ACTIONS.md` for the concrete execution sequence.
+
+## Post-deployment custom-domain evidence — 2026-10-16
+
+**Disposition: BLOCKED. Attested by Codex (automated verifier); human acceptance pending.** Window 05:18–05:21 UTC / 10:48–10:51 IST. Full findings, deployment SHAs, scope and recovery actions are in [STAGING_ACCEPTANCE.md](STAGING_ACCEPTANCE.md#post-deployment-custom-domain-audit--2026-10-16). The [named attestation and SHA-256 integrity manifest](evidence/custom-domain-2026-10-16/attestation.json) cover the durable public DNS, verified TLS, HTTP/configuration, smoke and provider/log receipts. This is an automated attestation, not a cryptographic identity signature or Sanket's sign-off. Manifest SHA-256: `89e54d5a28ad59825674792f6cb35edc7cf2835107e0ec11f3716722a718b33c`.
+
+- Marketing: three public resolvers resolve apex/www; verified TLS 1.3 certificates expire January 14, 2027. Root HTTP→HTTPS and www→apex redirects pass. Nine HTML pages, robots and sitemap return 200 with custom-domain canonical/OG/sitemap URLs. Local normal resolution still fails; those HTTP receipts use the published address with real SNI and certificate validation. Existing four application security headers pass on marketing content; CSP/HSTS are absent.
+- Synthetic contact: hostile Origin 403; correct Origin 200 with receipt `smoke_4a111cb9d28a4f53862157f9bcc33afb`; identical-key retry 200 with the same receipt. Reserved synthetic address only; independent durable row readback remains open.
+- API: hosting-host `/health` returns 200; no API custom-domain association. Candidate `api.sioona.si` and intended `app.sioona.si` are NXDOMAIN at all three resolvers. API OPTIONS returns 405 without ACAO for trusted and hostile origins alike; trusted-origin CORS acceptance is not proved.
+- Schema/role: logs record migration to `034_operational_telemetry`, but deployed uvicorn startup lacks the schema preflight. Configuration uses `sioona_runtime` on the identified Neon branch; provider role metadata confirms existence, not NOBYPASSRLS or active connection identity. Current schema/role catalog proof remains operator work; no non-test SQL/Alembic was run by the agent.
+- Web: no associated custom domain; hosting-host `/login` timed out twice. PostgreSQL state mode is configured, but Secure/HttpOnly cookie issuance, tenant A/B isolation and Upload → Supporting evidence jump → Correct → Approve draft → reload were not executable. Completed authenticated journeys: **0**.
+- No-send: audit invoked **0** external-send actions and made no model calls. Persisted `sent_external_count` is **unverified**, not asserted as zero. The only application mutation was the requested synthetic inbound intake; no account, schema, environment, DNS, deployment or customer data changed.
+
+Foundation/CB-03/CB-04/CB-10 and operator OP-1–OP-5 acceptance stay open. Complete the documented domain, web availability, synthetic identity, schema/role and before/after no-send evidence before human sign-off.

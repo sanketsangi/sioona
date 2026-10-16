@@ -480,6 +480,8 @@ export function InsightsView({
         typeFilter,
         actionFilter,
         file: vaultFile,
+        page,
+        q: searchQuery,
       })
     : null;
   function searchedWalkHref(opts: Parameters<typeof pendingReviewWalkHref>[0]) {
@@ -495,6 +497,8 @@ export function InsightsView({
     replaced: jsonKeepSet,
     file: vaultFile,
     callToday,
+    page,
+    q: searchQuery,
   };
   // Any open ?preview= while filtered needs-review remains — including after
   // Correct / Mark as Acted (follow-up / Done origin). Hide only when the
@@ -541,6 +545,8 @@ export function InsightsView({
         mode: workspaceMode,
         replaced: jsonKeepSet,
         file: vaultFile,
+        page,
+        q: searchQuery,
       }
     : null;
   const openConversationAction =
@@ -648,6 +654,10 @@ export function InsightsView({
                 className="inline-flex min-h-11 items-center underline focus-visible:ring-2">Clear search</Link>
             </p>
           ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-copy-14 text-sio-fg-subtle">
+            <p role="status">{Intl.NumberFormat().format(queueSignalsForFilter({ pending: listPendingSignals, reviewed: reviewedSignals, status: statusFilter, type: typeFilter, action: actionFilter, supervisedActions }).filtered.length)} signals in this filter scope · corpus totals above</p>
+            {statusFilter !== "all" || typeFilter !== "all" || actionFilter !== "all" || searchQuery || callToday ? <Link href={viewHref("insights", { ...queryExtras, status: workspaceMode === "action" ? "all" : null, type: null, action: null, q: null, page: null, preview: null, call: null })} scroll={false} className="link-accent inline-flex min-h-11 items-center">Clear filters</Link> : null}
+          </div>
           <SignalQueueFilters
             pendingSignals={pendingSignals}
             reviewedSignals={reviewedSignals}
