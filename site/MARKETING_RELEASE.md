@@ -2,7 +2,7 @@
 
 **Local production-mode verification passed; hosted cutover remains NO-GO.** The intended marketing origin is `https://sioona.si` and the optional product origin is `https://app.sioona.si`. “Signal Intelligence” is the `.si` brand meaning for this rehearsal. No DNS, hosting configuration, mail records or deployments were changed.
 
-See [the readiness audit](audits/si-launch/READINESS.md) for the domain/brand inventory, exact robots/sitemap/llms/Markdown/MCP outputs, international-targeting limits and cutover checklist. Verification passed: lint/token guard, typecheck, 92 tests in 25 files, the requested webpack build, 24 production smoke groups and 34 Chromium browser groups. The temporary loopback server was stopped after verification.
+See [the SEO task record](../docs/development/tasks/SEO-SETUP.md) for the authorized release status and live acceptance receipts. The separate local readiness audit was excluded from this scoped release. Verification passed: lint/token guard, typecheck, 92 tests in 25 files, the requested webpack build, 24 production smoke groups and 34 Chromium browser groups. The temporary loopback server was stopped after verification.
 
 Every public route now has route-specific canonical and `en-IN`, `en-US`, `en`, `x-default` alternate links; Open Graph uses `en_US` with `en_IN` alternate. Organization and Service declare India/US service areas and stable canonical entity IDs; Organization declares Signal Intelligence/Conversation Intelligence topics. These signals do not change Google's classification of the `.si` ccTLD or guarantee country rankings. All locales currently share the same English page.
 
