@@ -1,47 +1,31 @@
 import { marketingCopy } from "@/lib/marketing-copy";
-import {
-  Keyboard,
-  ListChecks,
-  Sparkle,
-  Tag,
-  UploadSimple,
-  ChartLineUp,
-} from "@phosphor-icons/react/ssr";
 import type { ReactNode } from "react";
-import { ScoreMeter, UploadVisual } from "@/components/sections/BentoVisuals";
+import { ShadowFeatureStage, AnalyticsFeatureStage, EvidenceFeatureStage, SignalPillStage, ScoreMeter, UploadVisual } from "@/components/sections/BentoVisuals";
 import { SignalStatus, SignalTypeChip, SignalUser, type SignalState, type SignalType } from "@/components/signal/SignalChips";
-import { RevealGroup, RevealItem } from "@/components/motion/Reveal";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 import { nb } from "@/lib/site";
 
-function Card({
-  icon,
-  label,
-  title,
-  body,
-  className = "",
-  children,
-}: {
-  icon: ReactNode;
-  label: string;
-  title: string;
-  body: string;
-  className?: string;
-  children: ReactNode;
-}) {
+function Card({ title, body, children, hideCopy = false }: { title: string; body: string; children: ReactNode; hideCopy?: boolean }) {
   return (
-    <RevealItem className={`bento-card group flex flex-col gap-5 bg-sio-bg-base p-5 lg:p-6 ${className}`}>
-      <div>
-        <p className="flex items-center gap-1.5 text-sio-fg-muted">
-          {icon}
-          <span className="eyebrow">{label}</span>
-        </p>
-        <h3 id={`feature-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} className="text-heading-20 mt-3 text-sio-fg-base">{nb(title)}</h3>
-        <p className="text-copy-14 mt-1.5 max-w-md text-sio-fg-subtle">{nb(body)}</p>
-      </div>
-      <div className="mt-auto">{children}</div>
-    </RevealItem>
+    <article className="bento-card group flex flex-col overflow-hidden rounded-3xl p-6 sm:p-8">
+      {!hideCopy && <><h3 className="text-[17px] font-semibold tracking-[-0.015em] leading-snug text-pretty text-sio-fg-base">{nb(title)}</h3>
+      <p className="mt-2 text-[14px] leading-relaxed text-pretty text-sio-fg-subtle">{nb(body)}</p></>}
+      <figure className="mt-auto pt-8">
+        <div className="feature-card-stage"><div className="feature-card-snippet">{children}</div></div>
+      </figure>
+    </article>
   );
+}
+
+/** The page and header preview share the complete approved card design. */
+export function ProductFeatureCard({ index, hideCopy = false }: { index: number; hideCopy?: boolean }) {
+  const features = [
+    { title: marketingCopy.shadow[2].text, body: marketingCopy.shadow[3].text, Stage: ShadowFeatureStage },
+    { title: marketingCopy.features[7].text, body: marketingCopy.features[8].text, Stage: AnalyticsFeatureStage },
+    { title: marketingCopy.features[9].text, body: marketingCopy.features[10].text, Stage: EvidenceFeatureStage },
+    { title: marketingCopy.features[3].text, body: marketingCopy.features[4].text, Stage: SignalPillStage },
+  ];
+  const { title, body, Stage } = features[index % features.length];
+  return <Card title={title} body={body} hideCopy={hideCopy}><Stage /></Card>;
 }
 
 const queue: { name: string; snippet: string; type: SignalType; state: SignalState }[] = [
@@ -85,74 +69,18 @@ function KeyCapPair() {
 
 export function Bento() {
   return (
-    <section id="features" aria-labelledby="features-title" className="section">
+    <section id="features" aria-labelledby="features-title" className="section features-section">
       <div className="container-page">
-        <SectionHeader
-          id="features-title"
-          eyebrow={marketingCopy.features[0].text}
-          title={marketingCopy.features[1].text}
-          description={marketingCopy.features[2].text}
-        />
-        <RevealGroup
-          gap={0.08}
-          className="bento mt-12 grid gap-px overflow-hidden rounded-panel border border-sio-border-base bg-sio-border-base md:grid-cols-2 lg:grid-cols-3"
-        >
-          <Card
-            className="md:col-span-2"
-            icon={<ListChecks size={16} weight="regular" aria-hidden />}
-            label="Insights"
-            title={marketingCopy.features[3].text}
-            body={marketingCopy.features[4].text}
-          >
-            <BentoFeatureVisual index={0} />
-          </Card>
-
-          <Card
-            icon={<UploadSimple size={16} weight="regular" aria-hidden />}
-            label="Upload"
-            title={marketingCopy.features[5].text}
-            body={marketingCopy.features[6].text}
-          >
-            <BentoFeatureVisual index={1} />
-          </Card>
-
-          <Card
-            icon={<ChartLineUp size={16} weight="regular" aria-hidden />}
-            label="Eval"
-            title={marketingCopy.features[7].text}
-            body={marketingCopy.features[8].text}
-          >
-            <BentoFeatureVisual index={2} />
-          </Card>
-
-          <Card
-            icon={<Tag size={16} weight="regular" aria-hidden />}
-            label="Taxonomy"
-            title={marketingCopy.features[9].text}
-            body={marketingCopy.features[10].text}
-          >
-            <BentoFeatureVisual index={3} />
-          </Card>
-
-          <Card
-            icon={<Sparkle size={16} weight="regular" aria-hidden />}
-            label="Suggested Next Action"
-            title={marketingCopy.features[11].text}
-            body={marketingCopy.features[12].text}
-          >
-            <BentoFeatureVisual index={4} />
-          </Card>
-
-          <Card
-            className="md:col-span-2 lg:col-span-3"
-            icon={<Keyboard size={16} weight="regular" aria-hidden />}
-            label="Keyboard-first review"
-            title={marketingCopy.features[13].text}
-            body={marketingCopy.features[14].text}
-          >
-            <BentoFeatureVisual index={5} />
-          </Card>
-        </RevealGroup>
+        <header className="features-header">
+          <div>
+            <p className="eyebrow">{marketingCopy.features[0].text}</p>
+            <h2 id="features-title">{nb(marketingCopy.features[1].text)}</h2>
+          </div>
+          <p className="features-intro">{nb(marketingCopy.features[2].text)}</p>
+        </header>
+        <div className="features-grid mt-12 grid gap-5 sm:grid-cols-2">
+          {[0, 1, 2, 3].map(index => <ProductFeatureCard key={index} index={index} />)}
+        </div>
       </div>
     </section>
   );
