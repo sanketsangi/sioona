@@ -11,7 +11,7 @@ from app.models.user import actor_user_id
 
 
 def test_sign_actor_token():
-    key = "test-secret-key-12345"
+    key = "test-secret-key-12345-with-32-bytes-len"
     token = runner.sign_actor_token("reviewer@staging.test", "tenant_staging_a", key, ttl_seconds=60)
     claims = jwt.decode(token, key, algorithms=["HS256"], audience="sioona-api", issuer="sioona-web")
 
@@ -28,7 +28,7 @@ def test_harness_dry_run_execution(tmp_path):
     harness = runner.ShadowObservationHarness(
         base_url="https://fake.staging.local",
         service_token="fake-service-token",
-        actor_key="fake-actor-key",
+        actor_key="fake-actor-key-at-least-32-bytes-long",
         receipt_path=receipt_file,
         duration_minutes=0.01,
         dry_run=True,
@@ -39,7 +39,7 @@ def test_harness_dry_run_execution(tmp_path):
     mock_resp.json.return_value = {"id": "sig_test_123"}
     mock_resp.text = "ok"
 
-    with patch("requests.request", return_value=mock_resp), patch("requests.get", return_value=mock_resp):
+    with patch("httpx.request", return_value=mock_resp), patch("httpx.get", return_value=mock_resp):
         receipt = harness.execute()
 
     assert receipt["status"] == "completed"
@@ -59,6 +59,6 @@ def test_harness_dry_run_execution(tmp_path):
 def test_main_missing_env_vars(monkeypatch, capsys):
     monkeypatch.setenv("SIOONA_SERVICE_TOKEN", "")
     monkeypatch.setenv("SIOONA_ACTOR_KEY", "")
-    assert runner.main() == 1
+    assert runner.main([]) == 1
     captured = capsys.readouterr()
     assert "SIOONA_SERVICE_TOKEN" in captured.err

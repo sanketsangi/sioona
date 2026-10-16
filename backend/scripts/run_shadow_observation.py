@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import jwt
-import requests
+import httpx
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
@@ -81,7 +81,7 @@ class ShadowObservationHarness:
         actor_email: str | None = None,
         json_body: dict | None = None,
         extra_headers: dict | None = None,
-    ) -> requests.Response:
+    ) -> httpx.Response:
         url = f"{self.base_url}{path}"
         headers = {
             "Authorization": f"Bearer {self.service_token}",
@@ -93,7 +93,7 @@ class ShadowObservationHarness:
         if extra_headers:
             headers.update(extra_headers)
 
-        res = requests.request(method, url, headers=headers, json=json_body, timeout=15)
+        res = httpx.request(method, url, headers=headers, json=json_body, timeout=15.0)
         self.stats["total_requests"] += 1
         code_str = str(res.status_code)
         self.stats["status_codes"][code_str] = self.stats["status_codes"].get(code_str, 0) + 1
@@ -101,7 +101,7 @@ class ShadowObservationHarness:
 
     def check_health(self) -> None:
         url = f"{self.base_url}/health"
-        res = requests.get(url, timeout=10)
+        res = httpx.get(url, timeout=10.0)
         if res.status_code != 200:
             raise RuntimeError(f"Target health check failed: HTTP {res.status_code}")
         print(f"[OK] Health check passed: {url} -> 200 OK")
@@ -286,13 +286,13 @@ class ShadowObservationHarness:
         return receipt
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default=os.getenv("FASTAPI_BASE_URL", "https://sioona-api-staging.onrender.com"))
     parser.add_argument("--duration", type=float, default=float(os.getenv("OBSERVATION_MINUTES", "30")))
     parser.add_argument("--dry-run", action="store_true", default=os.getenv("DRY_RUN", "0") == "1")
     parser.add_argument("--receipt", type=Path, default=Path(os.getenv("RECEIPT_PATH", DEFAULT_RECEIPT_PATH)))
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     token = os.getenv("SIOONA_SERVICE_TOKEN", "").strip()
     key = os.getenv("SIOONA_ACTOR_KEY", "").strip()
