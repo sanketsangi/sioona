@@ -16,3 +16,6 @@ a862de1d83acde1b576f5db5c45c8381726f1b10:web/src/lib/backend-client.test.ts:gene
 
 # Historical synthetic smoke-test receipt ID, not a credential; file already removed.
 a0a0a8f325e13fbc7cbc141c28f92bf1fb55043b:docs/development/evidence/custom-domain-2026-10-16/smoke.json:generic-api-key:4
+
+# Historical synthetic JWT signing fixture, replaced with a generated test-only value.
+6fed2f8f2c70e66a667b03c86a9836427b1d58df:backend/tests/test_run_shadow_observation.py:generic-api-key:14
