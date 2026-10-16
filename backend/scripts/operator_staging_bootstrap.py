@@ -48,6 +48,7 @@ SYNTHETIC_SEED_PAYLOAD = [
     {"email": "reviewer@staging.test", "tenantId": "tenant_staging_a", "role": "reviewer"},
     {"email": "admin@staging.test", "tenantId": "tenant_staging_b", "role": "admin"},
     {"email": "reviewer@staging.test", "tenantId": "tenant_staging_b", "role": "reviewer"},
+    {"email": "admin@staging.test", "tenantId": "tenant_demo", "role": "admin"},
     {"email": "demo@staging.test", "tenantId": "tenant_demo", "role": "demo"},
 ]
 

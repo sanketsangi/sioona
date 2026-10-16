@@ -204,7 +204,7 @@ def test_bootstrap_preserves_migration_grants_and_records_audit_proof(
     monkeypatch.setattr(bootstrap.command, 'upgrade', upgrade)
     monkeypatch.setattr(bootstrap.check_schema, 'main', MagicMock())
     monkeypatch.setattr(bootstrap, 'Session', MagicMock())
-    monkeypatch.setattr(bootstrap, 'seed_memberships', MagicMock(return_value={'upserted': 5}))
+    monkeypatch.setattr(bootstrap, 'seed_memberships', MagicMock(return_value={'upserted': len(bootstrap.SYNTHETIC_SEED_PAYLOAD)}))
     monkeypatch.setattr(bootstrap, '_provision_runtime_role', MagicMock())
     if role_mode == 'blocked':
         with pytest.raises(RuntimeError, match='shared role'):
