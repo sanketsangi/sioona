@@ -1,5 +1,60 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { breadcrumbJsonLd, howToJsonLd, organizationJsonLd, productJsonLd, productName, resolveSiteUrl, resolveAppUrl, serviceJsonLd, siteConfig, websiteJsonLd } from "./site";
+
+afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+
+describe("sioona.si international production metadata", () => {
+  async function productionSite() {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://sioona.si");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.sioona.si");
+    vi.resetModules();
+    return import("./site");
+  }
+
+  it("accepts the marketing and app origins without weakening production boundaries", () => {
+    const env = { NODE_ENV: "production", NEXT_PUBLIC_SITE_URL: "https://sioona.si", NEXT_PUBLIC_APP_URL: "https://app.sioona.si" };
+    expect(resolveSiteUrl(env)).toBe("https://sioona.si");
+    expect(resolveAppUrl(env)).toBe("https://app.sioona.si");
+    for (const url of ["http://sioona.si", "https://sioona.si/path", "https://app.sioona.si?tenant=other"]) {
+      expect(() => resolveSiteUrl({ ...env, NEXT_PUBLIC_SITE_URL: url })).toThrow();
+      expect(() => resolveAppUrl({ ...env, NEXT_PUBLIC_APP_URL: url })).toThrow();
+    }
+  });
+
+  it("emits route-specific canonicals and four English language alternates", async () => {
+    const site = await productionSite();
+    for (const path of site.routes) {
+      const metadata = site.pageMetadata("Test page", "Test description", path);
+      const url = `https://sioona.si${path}`;
+      expect(metadata.alternates).toEqual({ canonical: url, languages: { "en-IN": url, "en-US": url, en: url, "x-default": url } });
+      expect(metadata.openGraph).toMatchObject({ locale: "en_US", alternateLocale: ["en_IN"], url: path });
+    }
+  });
+
+  it("declares India and US service areas and organization knowledge topics", async () => {
+    const site = await productionSite();
+    const countries = [{ "@type": "Country", name: "IN" }, { "@type": "Country", name: "US" }];
+    expect(site.organizationJsonLd()).toMatchObject({ areaServed: countries, knowsAbout: ["Signal Intelligence", "Conversation Intelligence"] });
+    expect(site.serviceJsonLd()).toMatchObject({ areaServed: countries, provider: { "@id": "https://sioona.si/#organization" } });
+    expect(site.organizationJsonLd().address.addressLocality).toBe("Mumbai");
+  });
+
+  it("keeps entity IDs and all owned schema URLs on the marketing origin", async () => {
+    const site = await productionSite();
+    const entities = [site.organizationJsonLd(), site.websiteJsonLd(), site.serviceJsonLd(), site.productJsonLd()];
+    for (const entity of entities) expect(entity).toHaveProperty("@id", expect.stringMatching(/^https:\/\/sioona\.si\/#/));
+    function check(value: unknown): void {
+      if (!value || typeof value !== "object") return;
+      for (const [key, item] of Object.entries(value)) {
+        if (["url", "@id", "item", "termsOfService"].includes(key) && typeof item === "string") expect(new URL(item).origin).toBe("https://sioona.si");
+        else check(item);
+      }
+    }
+    for (const value of [...entities, site.howToJsonLd(), site.breadcrumbJsonLd([{ name: "About", path: "/about" }])]) check(value);
+    expect(site.siteConfig.appUrl).toBe("https://app.sioona.si");
+  });
+});
 
 describe("organization JSON-LD", () => {
   it("includes a contact point and an address", () => {

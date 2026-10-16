@@ -1,0 +1,20 @@
+{
+  "name": "sioona-free-seo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "audit": "node audit.mjs",
+    "gsc": "python3 gsc.py",
+    "browser:install": "playwright install chromium",
+    "audit:live": "node audit.mjs --url https://sioona.si --canonical https://sioona.si --lighthouse",
+    "audit:hosting": "node audit.mjs --url https://sioona-site.onrender.com --lighthouse",
+    "verify": "node verify.mjs"
+  },
+  "engines": {
+    "node": ">=22.19"
+  },
+  "devDependencies": {
+    "lighthouse": "13.5.0",
+    "playwright": "1.63.0"
+  }
+}

@@ -33,5 +33,5 @@ For MCP, POST each JSON-RPC message separately to \`${origin}/mcp\` with \`Conte
 
 ## Sioona boundaries and next steps
 
-The MCP tools only read public marketing information. Product APIs are not a public developer API. Do not upload transcripts, credentials, or secrets to these endpoints or the contact form. Direct users to [Sioona pricing](${origin}/pricing) and [Sioona contact](${origin}/contact) for a pilot discussion; submitting a contact request requires explicit human approval. This is Sioona's product site, hosted on Vercel, not Vercel platform documentation.`;
+The MCP tools only read public marketing information. Product APIs are not a public developer API. Do not upload transcripts, credentials, or secrets to these endpoints or the contact form. Direct users to [Sioona pricing](${origin}/pricing) and [Sioona contact](${origin}/contact) for a pilot discussion; submitting a contact request requires explicit human approval. This is Sioona's product site.`;
 }

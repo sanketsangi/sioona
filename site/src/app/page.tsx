@@ -9,7 +9,7 @@ import { SecurityBand } from "@/components/sections/SecurityBand";
 import { ShadowStory } from "@/components/sections/ShadowStory";
 import { Signals } from "@/components/sections/Signals";
 import { TrustStrip } from "@/components/sections/TrustStrip";
-import { breadcrumbJsonLd, howToJsonLd, jsonLdScript, productJsonLd, productName, siteConfig } from "@/lib/site";
+import { breadcrumbJsonLd, howToJsonLd, internationalAlternates, jsonLdScript, productJsonLd, productName, siteConfig } from "@/lib/site";
 
 const title = productName;
 const description = "Sioona Conversation Intelligence helps teams find buying intent, churn risk and expansion opportunities in customer chats. Review source evidence, measure precision and keep every action in human hands.";
@@ -17,8 +17,8 @@ const description = "Sioona Conversation Intelligence helps teams find buying in
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
-  alternates: { canonical: "/" },
-  openGraph: { title, description, url: "/", type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630 }] },
+  alternates: internationalAlternates("/"),
+  openGraph: { title, description, url: "/", locale: "en_US", alternateLocale: ["en_IN"], type: "website", images: [{ url: "/opengraph-image", width: 1200, height: 630 }] },
   twitter: { card: "summary_large_image", title, description, images: ["/opengraph-image"] },
 };
 
