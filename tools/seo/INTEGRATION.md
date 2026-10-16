@@ -19,7 +19,7 @@ The runtime serves the IndexNow key as UTF-8 plain text at `/indexnow-key.txt`. 
 
 ```sh
 npm --prefix tools/seo test
-npm --prefix tools/seo run verify
+npm --prefix tools/seo run audit
 npm --prefix tools/seo run readiness -- --origin https://sioona.si
 npm --prefix tools/seo run indexnow -- --origin https://sioona.si
 ```
