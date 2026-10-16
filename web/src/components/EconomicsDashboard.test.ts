@@ -39,3 +39,18 @@ describe("EconomicsDashboard", () => {
     }
   });
 });
+
+
+it("renders measured telemetry and keeps unsampled latency explicit", () => {
+  const data = { ...fixture, reliability: { ...fixture.reliability,
+    ledger_flush_failures: { status: "available" as const, value: 2, unit: "failures", samples: 2, reason: "Exhausted flush receipts" },
+    reservation_drift: { status: "available" as const, value: .25, unit: "USD", samples: 1, reason: "Current per-day reserved drift" },
+    connector_errors: { status: "available" as const, value: 3, unit: "records", samples: 3, reason: "Failed connector records" },
+  } };
+  const html = renderToStaticMarkup(React.createElement(EconomicsDashboard, { data }));
+  expect(html).toContain("Exhausted flush receipts");
+  expect(html).toContain("$0.25");
+  expect(html).toContain("Failed connector records");
+  expect(html).toContain("Not in canonical sources.");
+  expect(html).not.toContain("4 unavailable");
+});

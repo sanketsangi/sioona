@@ -14,6 +14,14 @@ class UnavailableMetric(BaseModel):
     reason: str
 
 
+class MeasuredMetric(BaseModel):
+    status: Literal["available"] = "available"
+    value: float
+    unit: str
+    samples: int = Field(ge=0)
+    reason: str
+
+
 class QualityByType(BaseModel):
     signal_type: str
     reviewed: int = Field(ge=0)
@@ -68,10 +76,10 @@ class ReliabilityPanel(BaseModel):
     p95_latency_ms: float | None = Field(default=None, ge=0)
     p50_processing_latency_ms: float | None = Field(default=None, ge=0)
     p95_processing_latency_ms: float | None = Field(default=None, ge=0)
-    ledger_flush_failures: UnavailableMetric
-    reservation_drift: UnavailableMetric
-    database_latency: UnavailableMetric
-    connector_errors: UnavailableMetric
+    ledger_flush_failures: MeasuredMetric | UnavailableMetric
+    reservation_drift: MeasuredMetric | UnavailableMetric
+    database_latency: MeasuredMetric | UnavailableMetric
+    connector_errors: MeasuredMetric | UnavailableMetric
 
 
 class CostProjection(BaseModel):

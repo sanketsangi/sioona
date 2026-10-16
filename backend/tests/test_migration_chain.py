@@ -9,7 +9,8 @@ def test_jobs_follows_complete_rls_on_one_linear_head():
     cfg = Config(str(root / "alembic.ini"))
     cfg.set_main_option("script_location", str(root / "alembic"))
     scripts = ScriptDirectory.from_config(cfg)
-    assert scripts.get_heads() == ["033_supervised_action_executions"]
+    assert scripts.get_heads() == ["034_operational_telemetry"]
+    assert scripts.get_revision("034_operational_telemetry").down_revision == "033_supervised_action_executions"
     assert scripts.get_revision("033_supervised_action_executions").down_revision == "032_live_ingest"
     assert scripts.get_revision("032_live_ingest").down_revision == "031_queue_search"
     assert "031_queue_search" in {revision.revision for revision in scripts.walk_revisions()}

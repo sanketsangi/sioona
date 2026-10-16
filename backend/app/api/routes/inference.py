@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 
 from fastapi import Depends, HTTPException, Path, Query
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,24 @@ from app.services.inference_ledger import (
 router = guarded_router(tags=["inference"])
 
 
+class FlushFailureIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sample_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+
+
+@router.post("/v1/tenants/{tenant_id}/inference-attempts/flush-failure")
+def post_flush_failure(tenant_id: str, body: FlushFailureIn, db: Annotated[Session, Depends(get_db)]):
+    from app.services.operational_telemetry import record_sample
+    try:
+        record_sample(db, tenant_id, "ledger_flush_failure", sample_id=body.sample_id)
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(503, "telemetry_unavailable") from exc
+    return {"ok": True}
+
+
+
 @router.get("/v1/tenants/{tenant_id}/inference-attempts/preflight")
 def preflight_inference_ledger(
     tenant_id: str,
@@ -38,7 +57,7 @@ def preflight_inference_ledger(
 ) -> dict[str, bool]:
     keep_header_gate(tenant_id, header_tenant_id)
     try:
-        ledger_is_reachable(db)
+        ledger_is_reachable(db, tenant_id)
     except SQLAlchemyError as exc:
         raise HTTPException(503, "ledger_unavailable") from exc
     return {"ok": True}

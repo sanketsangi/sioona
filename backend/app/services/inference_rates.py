@@ -24,7 +24,19 @@ class Rate:
     source_url: str
 
 
-RATES: tuple[Rate, ...] = ()  # entered by a human from official pricing; never from the CTO report
+# Official model pages checked 2026-10-16. No backdating, guessed cached
+# discounts, deprecated-model prices, or price aliases for different model IDs.
+# https://console.groq.com/docs/model/qwen/qwen3.8-27b
+# https://console.groq.com/docs/model/openai/gpt-oss-20b
+# https://console.groq.com/docs/prompt-caching
+RATES: tuple[Rate, ...] = (
+    Rate("groq-qwen3.8-27b-2026-10-16", "groq", "qwen/qwen3.8-27b",
+         Decimal("0.80"), None, Decimal("4.00"), date(2026, 10, 16),
+         "https://console.groq.com/docs/model/qwen/qwen3.8-27b"),
+    Rate("groq-gpt-oss-20b-2026-10-16", "groq", "openai/gpt-oss-20b",
+         Decimal("0.075"), Decimal("0.037"), Decimal("0.30"), date(2026, 10, 16),
+         "https://console.groq.com/docs/model/openai/gpt-oss-20b"),
+)
 
 
 def lookup_rate(provider: str, model: str, at: date | None = None) -> Rate | None:
@@ -51,6 +63,8 @@ def estimate_cost(
     Verify per provider before filling ``RATES``. Unknowns stay explicit.
     """
     if rate is None or input_tokens is None or output_tokens is None:
+        return None, "unknown"
+    if input_tokens < 0 or output_tokens < 0 or (cached is not None and (cached < 0 or cached > input_tokens)):
         return None, "unknown"
     cached_tokens = cached or 0
     cached_rate = (

@@ -224,6 +224,11 @@ ROUTE_GUARDS.update({key: ('admin', None, 'path') for key in EXTERNAL_ACTION_ROU
 ALWAYS_ENFORCED_ROUTES = ALWAYS_ENFORCED_ROUTES | EXTERNAL_ACTION_ROUTES
 
 
+FLUSH_TELEMETRY = ("POST", "/v1/tenants/{tenant_id}/inference-attempts/flush-failure")
+ROUTE_GUARDS[FLUSH_TELEMETRY] = ("review", "inference:write", "path")
+ALWAYS_ENFORCED_ROUTES = ALWAYS_ENFORCED_ROUTES | {FLUSH_TELEMETRY, ("GET", "/v1/tenants/{tenant_id}/inference-attempts/preflight")}
+
+
 def guarded_router(*args, **kwargs):
     dependencies = list(kwargs.pop("dependencies", []))
     dependencies.append(Depends(guard_request))

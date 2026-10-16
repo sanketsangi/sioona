@@ -162,3 +162,16 @@ def test_audit_failure_rolls_back_control_change(api, monkeypatch, global_scope)
     assert client.put(path, headers=headers, json={**body, 'enabled': True}).status_code == 503
     with factory() as session:
         assert session.get(InferenceControl, 'global' if global_scope else 'tenant_a').enabled is False
+
+
+def test_settlement_decrements_reserved_usd_once_without_refunding_attempts(db):
+    from decimal import Decimal
+    from app.models.inference_budget import InferenceBudget, InferenceReservation
+    configure(db, 't', 500, 120, True, 'approved', 'operator')
+    day = budget_day()
+    db.add(InferenceBudget(tenant_id='t', budget_day=day, attempts=1, reserved_usd=Decimal('2'), spent_usd=0))
+    db.add(InferenceReservation(tenant_id='t', attempt_id='a', run_id='r', budget_day=day, status='authorized', reserved_usd=Decimal('2')))
+    db.flush()
+    settle(db,'t','a'); settle(db,'t','a')
+    row = db.get(InferenceBudget, ('t',day))
+    assert row.reserved_usd == 0 and row.attempts == 1

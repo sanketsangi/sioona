@@ -128,3 +128,4 @@ from app.models.lifecycle import AuditEvent, LegalHold, TenantDeletion, TenantEx
 from app.models.live_ingest import LiveInstallation, LiveEvent, LiveSource
 
 from app.models.supervised_action import ActionProposal, ActionExecution
+from app.models.operational_telemetry import OperationalSample

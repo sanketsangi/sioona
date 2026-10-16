@@ -1,4 +1,4 @@
-import type { BackendEconomicsDashboard } from "@/lib/backend-client";
+import type { BackendEconomicsDashboard, OperationalMetric } from "@/lib/backend-client";
 
 const integer = new Intl.NumberFormat("en-IN");
 const percent = new Intl.NumberFormat("en-IN", { style: "percent", maximumFractionDigits: 1 });
@@ -11,6 +11,12 @@ function ratio(value: number | null) {
 
 function money(value: string | null) {
   return value == null ? "Unavailable" : usd.format(Number(value));
+}
+
+function operationalValue(metric: OperationalMetric) {
+  if (metric.status === "unavailable") return "Unavailable";
+  if (metric.unit === "USD") return usd.format(metric.value);
+  return `${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(metric.value)} ${metric.unit}`;
 }
 
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
@@ -90,7 +96,12 @@ export function EconomicsDashboard({ data }: { data: BackendEconomicsDashboard }
           <Metric label="p50 processing latency" value={reliability.p50_processing_latency_ms == null ? "Unavailable" : `${integer.format(reliability.p50_processing_latency_ms)} ms`} />
           <Metric label="p95 processing latency" value={reliability.p95_processing_latency_ms == null ? "Unavailable" : `${integer.format(reliability.p95_processing_latency_ms)} ms`} />
           <Metric label="Unfinished attempts" value={integer.format(reliability.unfinished_attempts)} />
-          <Metric label="Durable telemetry gaps" value="4 unavailable" note="Flush failures, reservation drift, DB latency, connector errors" />
+          {([
+            ["Ledger flush failures", reliability.ledger_flush_failures],
+            ["Reservation drift", reliability.reservation_drift],
+            ["Mean preflight DB latency", reliability.database_latency],
+            ["Connector errors", reliability.connector_errors],
+          ] as const).map(([label, metric]) => <Metric key={label} label={label} value={operationalValue(metric)} note={metric.reason} />)}
         </dl>
       </Panel>
 

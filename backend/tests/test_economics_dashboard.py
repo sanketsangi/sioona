@@ -258,3 +258,102 @@ def test_spend_anomaly_counts_distinct_daily_conversations(db):
     db.commit()
     r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=5), to_ts=NOW-timedelta(hours=12))
     assert next(a for a in r.alerts if a.key == "spend_anomaly").status == "alert"
+
+
+def test_canonical_telemetry_drift_and_window(db):
+    from app.models.inference_budget import InferenceBudget, InferenceReservation
+    from app.services.operational_telemetry import record_sample
+    _seed(db, "tenant_a")
+    day = NOW.date()
+    for tenant, reserved in [("tenant_a", "3"), ("tenant_b", "900")]:
+        db.add(InferenceBudget(tenant_id=tenant, budget_day=day, attempts=2, reserved_usd=Decimal(reserved), spent_usd=0))
+        db.add(InferenceReservation(tenant_id=tenant, attempt_id="active", run_id="run", budget_day=day, status="authorized", reserved_usd=Decimal("1")))
+        db.add(InferenceReservation(tenant_id=tenant, attempt_id="done", run_id="run", budget_day=day, status="settled", reserved_usd=Decimal("50")))
+        record_sample(db, tenant, "ledger_flush_failure", sample_id="fail", observed_at=NOW-timedelta(minutes=1))
+        record_sample(db, tenant, "database_query", sample_id="fast", duration_ms=10, observed_at=NOW-timedelta(minutes=1))
+        record_sample(db, tenant, "database_query", sample_id="slow", duration_ms=110, observed_at=NOW-timedelta(minutes=1))
+    # Replay cannot double count; upper boundary excluded.
+    record_sample(db, "tenant_a", "ledger_flush_failure", sample_id="fail", observed_at=NOW-timedelta(minutes=1))
+    record_sample(db, "tenant_a", "ledger_flush_failure", sample_id="end", observed_at=NOW)
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW, now=NOW)
+    assert r.reliability.ledger_flush_failures.value == 1
+    assert r.reliability.reservation_drift.value == Decimal("2")
+    assert r.reliability.database_latency.value == 60
+    assert r.reliability.database_latency.samples == 2
+    assert all(a.owner == "Sanket" for a in r.alerts)
+    assert next(a for a in r.alerts if a.key == "reservation_drift").status == "alert"
+    empty = build_economics_dashboard(db, tenant_id="empty", from_ts=NOW-timedelta(days=1), to_ts=NOW)
+    assert empty.reliability.database_latency.status == "unavailable"
+    assert empty.reliability.ledger_flush_failures.value == 0
+
+
+@pytest.mark.parametrize("mode", ["off", "shadow", "enforce"])
+def test_flush_failure_telemetry_is_verified_and_idempotent(api, monkeypatch, mode):
+    from app.config import get_settings
+    client, factory = api
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", mode)
+    get_settings.cache_clear()
+    path = "/v1/tenants/tenant_a/inference-attempts/flush-failure"
+    payload = {"sample_id": "failure-1"}
+    assert client.post(path, headers={"X-Tenant-Id":"tenant_a", "X-Sioona-Role":"admin"}, json=payload).status_code in {401,403}
+    user = add_member(factory, "metrics@example.test", "tenant_a", "reviewer")
+    headers = actor_headers(user, "tenant_a")
+    assert client.post(path, headers=headers, json=payload).status_code == 200
+    assert client.post(path, headers=headers, json=payload).status_code == 200
+    assert client.post(path.replace("tenant_a", "tenant_b"), headers=headers, json=payload).status_code in {403,404}
+    with factory() as db:
+        from app.models.operational_telemetry import OperationalSample
+        assert db.query(OperationalSample).filter_by(kind="ledger_flush_failure").count() == 1
+
+
+def test_connector_state_counts_without_payload_text(db):
+    from app.models.live_ingest import LiveInstallation, LiveEvent
+    from app.models.supervised_action import SupervisedActionDecision, ActionProposal, ActionExecution
+    for tenant in ("tenant_a", "tenant_b"):
+        db.add(LiveInstallation(tenant_id=tenant, id="i", workspace_id=tenant, consent_reference="fixture", monitoring_reference="fixture"))
+        decision = SupervisedActionDecision(tenant_id=tenant, conversation_id="c", action_type="retention_email_draft", status="approved", subject="private", body="private")
+        db.add(decision); db.flush()
+        for n, state in enumerate(("failed", "unknown", "succeeded")):
+            proposal = ActionProposal(tenant_id=tenant, decision_id=decision.id, action_version=n+1, target="123", payload_json={"body":"private"}, payload_sha256="a"*64, state="proposed", created_at=NOW-timedelta(minutes=1))
+            db.add(proposal); db.flush()
+            db.add(ActionExecution(tenant_id=tenant, proposal_id=proposal.id, payload_sha256="a"*64, target="123", actor_id=str(uuid.uuid4()), action_version=n+1, expires_at=NOW, state=state, created_at=NOW-timedelta(minutes=1)))
+        for n, (state, stamp) in enumerate((("dead_lettered",NOW-timedelta(minutes=1)), ("succeeded",NOW-timedelta(minutes=1)), ("dead_lettered",NOW))):
+            db.add(LiveEvent(tenant_id=tenant, installation_id="i", event_id=str(n), source_id="s", source_version=n, occurred_at=stamp, payload_sha256="a"*64, kind="unresolved", state=state, payload={"private":"secret"}, received_at=stamp))
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id="tenant_a", from_ts=NOW-timedelta(days=1), to_ts=NOW)
+    assert r.reliability.connector_errors.value == 3
+    assert "private" not in r.model_dump_json()
+
+
+def test_preflight_persists_real_query_timing(db):
+    from app.services.inference_ledger import ledger_is_reachable
+    from app.models.operational_telemetry import OperationalSample
+    assert ledger_is_reachable(db, 'tenant_a')
+    sample = db.query(OperationalSample).one()
+    assert sample.tenant_id == 'tenant_a' and sample.kind == 'database_query'
+    assert sample.duration_ms >= 0
+
+
+def test_drift_does_not_cancel_between_days_or_hide_missing_budget(db):
+    from app.models.inference_budget import InferenceBudget, InferenceReservation
+    db.add(InferenceBudget(tenant_id='a', budget_day=NOW.date(), attempts=1, reserved_usd=2, spent_usd=0))
+    db.add(InferenceReservation(tenant_id='a', attempt_id='r', run_id='r', budget_day=(NOW-timedelta(days=1)).date(), status='authorized', reserved_usd=2))
+    db.commit()
+    r = build_economics_dashboard(db, tenant_id='a', from_ts=NOW-timedelta(days=1), to_ts=NOW)
+    assert r.reliability.reservation_drift.value == 4
+
+
+@pytest.mark.parametrize("mode", ["off", "shadow", "enforce"])
+def test_instrumented_preflight_requires_verified_actor(api, monkeypatch, mode):
+    from app.config import get_settings
+    client, factory = api
+    monkeypatch.setenv("SIOONA_ACTOR_AUTH", mode)
+    get_settings.cache_clear()
+    url = "/v1/tenants/tenant_a/inference-attempts/preflight"
+    assert client.get(url, headers={"X-Tenant-Id":"tenant_a"}).status_code in {401,403}
+    sub = add_member(factory, "probe@example.test", "tenant_a", "reviewer")
+    assert client.get(url, headers=actor_headers(sub, "tenant_a")).status_code == 200
+    with factory() as db:
+        from app.models.operational_telemetry import OperationalSample
+        assert db.query(OperationalSample).count() == 1

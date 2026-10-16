@@ -423,7 +423,7 @@ def test_evidence_upgrade_preserves_populated_021(monkeypatch):
         }
         assert_evidence_schema(schema)
         heads = ScriptDirectory.from_config(cfg).get_heads()
-        assert heads == ["033_supervised_action_executions"]
+        assert heads == ["034_operational_telemetry"]
         with engine.begin() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
             assert version == heads
@@ -775,7 +775,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
         with engine.begin() as conn:
             assert conn.execute(text(
                 "SELECT COUNT(*) FROM pg_policies WHERE policyname = 'tenant_isolation'"
-            )).scalar() == len(RLS_TABLES) + 10  # CB-18/CB-17 forced-RLS tables
+            )).scalar() == len(RLS_TABLES) + 11  # CB-18/CB-17 forced-RLS tables
     finally:
         clear_tenant()
         get_settings.cache_clear()
@@ -2285,6 +2285,10 @@ def test_cb19_backup_restore_tombstone(job_pg, tmp_path):
             db.add(ActionExecution(tenant_id=tenant, proposal_id=proposal.id, payload_sha256='a'*64,
                 target='123', actor_id=actor, action_version=1, expires_at=expires, state='approved'))
         db.commit()
+        from app.services.operational_telemetry import record_sample
+        for tenant in ('tenant_a', 'tenant_b'):
+            record_sample(db, tenant, 'ledger_flush_failure')
+        db.commit()
         tenant_b_before = tenant_snapshot(db, 'tenant_b')
         assert all(item['count'] > 0 for item in tenant_b_before.values())
     backup = tmp_path / 'before.dump'
@@ -2453,7 +2457,7 @@ def test_cb19_inference_audit_prior_head_upgrade_preserves_history(job_pg, opera
             ('retention_sweep', 'tenant'), (operation, resource),
         }
     with job_pg.connect() as conn:
-        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '033_supervised_action_executions'
+        assert conn.scalar(text('SELECT version_num FROM alembic_version')) == '034_operational_telemetry'
 
 
 def test_queue_search_pg17_indexes_and_runtime_rls(job_pg):
@@ -2740,3 +2744,43 @@ def test_cb17_source_deletion_invalidates_unattempted_approval(job_pg, monkeypat
         events = list(db.scalars(select(AuditEvent).where(AuditEvent.operation.in_(['action_invalidated', 'action_failed']))))
         assert len(events) == 2
         assert all(row.actor_role == 'service' and row.reason_code == 'source_deleted' for row in events)
+
+
+def test_operational_receipts_upgrade_rls_and_downgrade_guard(job_pg):
+    from app.models.operational_telemetry import OperationalSample
+    from app.services.operational_telemetry import record_sample
+    from app.services.economics_dashboard import _operational_metrics
+    from datetime import datetime, timezone, timedelta
+    cfg = Config('alembic.ini')
+    command.downgrade(cfg, '033_supervised_action_executions')
+    with job_pg.begin() as conn:
+        conn.execute(text("INSERT INTO tenant_deletions (tenant_id,id,requested_by,state,fenced,checkpoint,counts,policy_version) VALUES ('inflight','inflight','operator','running',true,27,'{}','cb18.v1')"))
+    command.upgrade(cfg, 'head')
+    with job_pg.connect() as conn:
+        assert conn.scalar(text("SELECT checkpoint FROM tenant_deletions WHERE tenant_id='inflight'")) == 28
+    stamp = datetime.now(timezone.utc)
+    for tenant in ('a','b'):
+        with _runtime_session(job_pg, tenant) as db:
+            record_sample(db, tenant, 'database_query', sample_id='query', duration_ms=25, observed_at=stamp)
+            record_sample(db, tenant, 'ledger_flush_failure', sample_id='failure', observed_at=stamp)
+            record_sample(db, tenant, 'ledger_flush_failure', sample_id='failure', observed_at=stamp)
+            db.commit()
+    with _runtime_session(job_pg, 'a') as db:
+        assert set(db.scalars(select(OperationalSample.tenant_id))) == {'a'}
+        m = _operational_metrics(db, 'a', stamp-timedelta(minutes=1), stamp+timedelta(minutes=1))
+        assert m['ledger_flush_failures'].value == 1
+        assert m['database_latency'].value == 25
+        assert _operational_metrics(db, 'b', stamp-timedelta(minutes=1), stamp+timedelta(minutes=1))['ledger_flush_failures'].value == 0
+        with pytest.raises(DBAPIError):
+            record_sample(db, 'b', 'ledger_flush_failure', sample_id='forged')
+            db.commit()
+        db.rollback()
+    with job_pg.connect() as conn:
+        conn.execute(text('SET ROLE sioona_runtime'))
+        conn.execute(text("SELECT set_config('app.tenant_id','',true)"))
+        assert conn.scalar(text('SELECT count(*) FROM operational_samples')) == 0
+        conn.rollback()
+    with pytest.raises(DBAPIError, match='operational_history_not_empty'):
+        command.downgrade(cfg, '033_supervised_action_executions')
+    with job_pg.connect() as conn:
+        assert conn.scalar(text('SELECT count(*) FROM operational_samples')) == 4
