@@ -5,8 +5,9 @@ import { NavigationGuardProvider } from "@/components/navigation/GuardedLink";
 import { Footer } from "@/components/layout/Footer";
 import { SiteNav } from "@/components/layout/SiteNav";
 import { MotionProviders } from "@/components/motion/Providers";
-import { internationalAlternates, jsonLdScript, organizationJsonLd, productName, serviceJsonLd, siteConfig, websiteJsonLd } from "@/lib/site";
+import { languageAlternates, jsonLdScript, productName, siteConfig, siteJsonLdGraph } from "@/lib/site";
 import { THEME_COLOR } from "@/lib/tokens";
+import { searchVerification } from "@/lib/search-verification";
 import "@/styles/tokens.css";
 import "./globals.css";
 
@@ -33,6 +34,7 @@ export const metadata: Metadata = {
   },
   description: siteConfig.description,
   robots: { index: true, follow: true },
+  verification: searchVerification(),
   icons: { icon: "/icon.svg", apple: "/apple-icon" },
   applicationName: "Sioona",
   other: { "is-agentic-site-type": "business" },
@@ -51,7 +53,7 @@ export const metadata: Metadata = {
     title: productName,
     description: siteConfig.description,
   },
-  alternates: internationalAlternates("/"),
+  alternates: { canonical: siteConfig.url, languages: languageAlternates("/") },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -60,10 +62,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdScript(organizationJsonLd()) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(siteJsonLdGraph()) }}
         />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(serviceJsonLd()) }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(websiteJsonLd()) }} />
         <noscript>
           <style>{`[data-reveal],[data-word],[data-nojs-show]{opacity:1!important;transform:none!important;filter:none!important}.faq-answer[hidden]{display:block!important}.shadow-story-track{height:auto!important}.shadow-story-sticky{position:static!important;height:auto!important;padding-block:2rem}.shadow-story-steps li{display:block!important}.score-needle{transform:rotate(var(--needle))!important}.score-bar{transform:none!important}`}</style>
         </noscript>

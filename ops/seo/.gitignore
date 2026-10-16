@@ -1,0 +1,7 @@
+node_modules/
+.env*
+!.env.example
+reports/*
+!reports/.gitkeep
+secrets/*
+!secrets/.gitkeep

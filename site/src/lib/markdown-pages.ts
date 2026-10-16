@@ -1,3 +1,4 @@
+import { exportGuide, signalUseCases } from "./seo-content";
 import { developerDescription, developerResources, developerSections } from "@/lib/developer-copy";
 import { agentGuidance } from "@/lib/agent-guidance";
 import { prefersMarkdown } from "@/lib/content-negotiation";
@@ -24,8 +25,8 @@ const data = () => `## Data facts before you share\n\n${dataFacts.map(([title, t
 function bodyFor(path: string): string {
   switch (path) {
     case "/": return [copy("hero", "trust", "signals", "shadow", "score", "features", "securityBand"), pilot(), `## Frequently asked questions\n\n${faqItems.map(item => `### ${item.question}\n\n${item.answer}`).join("\n\n")}`, copy("finalCta")].join("\n\n");
-    case "/about": return aboutParagraphs.join("\n\n");
-    case "/how-it-works": return [copy("workflow"), STEPS.map(step => `### ${step.title}\n\n${step.body}`).join("\n\n"), pilot(), copy("finalCta")].join("\n\n");
+    case "/about": return [aboutParagraphs.join("\n\n"), "## Revenue signals in B2B customer conversations", ...signalUseCases.map(item => `### ${item.title}\n\n${item.text}`), `[See how chat export analysis works](${absoluteUrl("/how-it-works")}#export-analysis)`].join("\n\n");
+    case "/how-it-works": return [copy("workflow"), "## Intercom and WhatsApp chat export analysis", ...exportGuide.map(item => `### ${item.title}\n\n${item.text}`), "## The four steps", STEPS.map(step => `### ${step.title}\n\n${step.body}`).join("\n\n"), pilot(), copy("finalCta")].join("\n\n");
     case "/security": return [copy("security", "securityBand"), data(), copy("finalCta")].join("\n\n");
     case "/pricing": return [copy("pricing"), pilot(), data()].join("\n\n");
     case "/contact": return [copy("contact"), policy()].join("\n\n");
@@ -37,6 +38,7 @@ function bodyFor(path: string): string {
 }
 
 const passThroughPaths = new Set([
+  "/indexnow-key.txt",
   "/llms.txt",
   "/mcp",
   "/.well-known/mcp",
