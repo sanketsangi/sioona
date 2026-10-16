@@ -216,7 +216,7 @@ jobs:
         run: npm run eval:gate
       - name: Retain promotion artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: cb-09-eval-gate
           path: web/eval/gate/artifact.json
