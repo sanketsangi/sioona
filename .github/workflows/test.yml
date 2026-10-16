@@ -67,6 +67,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Test SEO operator helpers
+        run: |
+          npm ci --prefix ../tools/seo
+          npm test --prefix ../tools/seo
+      - name: Audit rendered SEO contracts
+        run: |
+          node --test ../ops/seo/audit-site.test.mjs
+          node ../ops/seo/audit-site.mjs
 
   backend:
     name: Backend

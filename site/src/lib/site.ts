@@ -34,7 +34,7 @@ export const productName = "Sioona Conversation Intelligence";
 export const siteConfig = {
   name: "Sioona",
   tagline: "Signals Into Revenue",
-  description: "Sioona Conversation Intelligence works with your existing customer chats. It finds lead, retention and upsell signals, and humans review every one in Shadow\u00a0Mode before anything is acted on.",
+  description: "Find churn risk, buying intent and upsell signals in customer chats. Review source evidence with your team in Sioona Shadow Mode before taking action.",
   // Direct references are required for Next's public environment substitution.
   url: resolveSiteUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL, RENDER_EXTERNAL_URL: process.env.RENDER_EXTERNAL_URL }),
   appUrl: resolveAppUrl({ NODE_ENV: process.env.NODE_ENV, VERCEL_ENV: process.env.VERCEL_ENV, NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL }),
@@ -50,10 +50,57 @@ export const navLinks = [
 
 export const routes = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/developers", "/privacy", "/terms"] as const;
 
-/** One shared English page serves these audiences; no locale-specific copies exist. */
-export function internationalAlternates(path: string) {
-  const url = new URL(path, siteConfig.url).toString();
-  return { canonical: url, languages: { "en-IN": url, "en-US": url, en: url, "x-default": url } };
+export type PublicRoute = (typeof routes)[number];
+
+/** Search intent and metadata for the shared English pages serving India and the US. */
+export const seoPages = {
+  "/": {
+    "title": "Conversation Intelligence for B2B Teams | Sioona",
+    "description": "Find churn risk, buying intent and upsell signals in customer chats. Review source evidence with your team in Sioona Shadow Mode before taking action."
+  },
+  "/about": {
+    "title": "About Sioona | Human-Led Conversation Intelligence",
+    "description": "Meet Sioona: conversation intelligence for B2B teams. Discover how human review turns customer chats into evidence for retention, leads and upsell."
+  },
+  "/how-it-works": {
+    "title": "Analyze Intercom & WhatsApp Chat Exports | Sioona",
+    "description": "Analyze Intercom, WhatsApp and CSV chat exports for churn, lead and upsell signals. See how Sioona keeps human review at every step of the workflow."
+  },
+  "/security": {
+    "title": "Conversation Intelligence & AI Review Safety | Sioona",
+    "description": "Explore Sioona Shadow Mode, human review and chat data handling. Learn what to redact, what is stored and what to agree before sharing an export."
+  },
+  "/pricing": {
+    "title": "Conversation Intelligence Pilot Pricing | Sioona",
+    "description": "Evaluate Sioona in a two-week conversation intelligence pilot with one redacted chat export. Agree scope and pricing before your team starts reviewing."
+  },
+  "/contact": {
+    "title": "Request a Conversation Intelligence Pilot | Sioona",
+    "description": "Request a two-week Sioona Shadow Mode pilot. Discuss your chat export, review workflow and retention or upsell goals before agreeing scope and price."
+  },
+  "/developers": {
+    "title": "Sioona Developer Resources | MCP & AI Search",
+    "description": "Explore Sioona developer resources: a public read-only MCP server, Markdown pages and AI agent instructions for discovering conversation intelligence."
+  },
+  "/privacy": {
+    "title": "Pilot Request Privacy & Contact Data | Sioona",
+    "description": "Read how Sioona handles business contact details from pilot requests. Learn how to request access, correction or deletion and discuss export data terms."
+  },
+  "/terms": {
+    "title": "Conversation Intelligence Pilot Terms | Sioona",
+    "description": "Review Sioona pilot request terms, including business contact details, separately agreed scope and pricing, and human review of customer chat signals."
+  }
+} as const satisfies Record<PublicRoute, { title: string; description: string }>;
+
+export function routeMetadata(path: PublicRoute): Metadata {
+  const { title, description } = seoPages[path];
+  return pageMetadata(title, description, path);
+}
+
+export function languageAlternates(path: string) {
+  const canonical = new URL(path, siteConfig.url).toString();
+  // One shared English document, without invented localized routes.
+  return { "en-IN": canonical, "en-US": canonical, en: canonical, "x-default": canonical };
 }
 
 function areasServed() {
@@ -99,6 +146,7 @@ export function websiteJsonLd() {
     alternateName: siteConfig.name,
     url: origin,
     description: siteConfig.description,
+    about: { "@id": `${origin}/#service` },
     publisher: {
       "@type": "Organization",
       "@id": `${origin}/#organization`,
@@ -147,6 +195,8 @@ export function productJsonLd() {
     description: siteConfig.description,
     category: "Conversation intelligence",
     url: `${origin}/`,
+    manufacturer: { "@id": `${origin}/#organization` },
+    subjectOf: { "@id": `${origin}/#review-workflow` },
     brand: {
       "@type": "Brand",
       name: siteConfig.name,
@@ -155,11 +205,15 @@ export function productJsonLd() {
 }
 
 /** The four review steps shown in the homepage workflow. */
-export function howToJsonLd() {
+export function howToJsonLd(path = "/#how") {
   const origin = siteConfig.url.replace(/\/$/, "");
   return {
     "@context": "https://schema.org",
     "@type": "HowTo",
+    "@id": `${origin}/#review-workflow`,
+    about: { "@id": `${origin}/#service` },
+    publisher: { "@id": `${origin}/#organization` },
+    isPartOf: { "@id": `${origin}/#website` },
     name: "Review customer chats with Sioona Conversation Intelligence",
     description: "Connect an export, detect lead, retention and upsell signals, review them with your team, then follow up in your own tools.",
     step: STEPS.map((step, index) => ({
@@ -167,7 +221,7 @@ export function howToJsonLd() {
       position: index + 1,
       name: step.title,
       text: step.body,
-      url: `${origin}/#how`,
+      url: `${origin}${path}`,
     })),
   };
 }
@@ -178,6 +232,7 @@ export function breadcrumbJsonLd(items: readonly { name: string; path: string }[
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": `${new URL(items.at(-1)?.path ?? "/", `${origin}/`)}#breadcrumbs`,
     itemListElement: items.map((item, index) => ({
       "@type": "ListItem",
       position: index + 1,
@@ -214,12 +269,28 @@ export function nb(text: string): string {
 }
 
 export function pageMetadata(title: string, description: string, path: string): Metadata {
-  const socialTitle = `${title} | ${productName}`;
+  const socialTitle = title;
   const images = [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Sioona — conversation intelligence with human judgment" }];
   return {
-    title, description,
-    alternates: internationalAlternates(path),
+    title: { absolute: title }, description,
+    alternates: { canonical: new URL(path, siteConfig.url).toString(), languages: languageAlternates(path) },
     openGraph: { type: "website", siteName: siteConfig.name, locale: "en_US", alternateLocale: ["en_IN"], url: path, title: socialTitle, description, images },
     twitter: { card: "summary_large_image", title: socialTitle, description, images },
+  };
+}
+
+/** Connected entity graph; page-specific breadcrumbs and HowTo remain next to their visible content. */
+export function siteJsonLdGraph() {
+  const origin = siteConfig.url.replace(/\/$/, "");
+  const nodes = [organizationJsonLd(), websiteJsonLd(), serviceJsonLd()];
+  return {
+    "@context": "https://schema.org",
+    "@graph": nodes.map(node => {
+      const { "@context": context, ...entity } = node;
+      void context;
+      if (entity["@type"] === "WebSite") return { ...entity, publisher: { "@id": `${origin}/#organization` } };
+      if (entity["@type"] === "Service") return { ...entity, provider: { "@id": `${origin}/#organization` } };
+      return entity;
+    }),
   };
 }

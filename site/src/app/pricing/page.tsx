@@ -1,15 +1,16 @@
+import { PageContext } from "@/components/seo/PageContext";
 import { PilotFacts } from "@/components/sections/PilotFacts";
 import { marketingCopy } from "@/lib/marketing-copy";
-import { pageMetadata } from "@/lib/site";
+import { routeMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { DataFacts } from "@/components/sections/DataFacts";
 
-export const metadata: Metadata = pageMetadata("Pilot offer", "Evaluate Sioona with a two-week pilot using one redacted chat export. Scope and price are agreed before you start, with a clear go or no-go decision.", "/pricing");
+export const metadata: Metadata = routeMetadata("/pricing");
 export default function PricingPage() {
   return <>
-    <PageHeader eyebrow="Pilot offer" title={marketingCopy.pricing[0].text}
+    <PageHeader path="/pricing" eyebrow="Pilot offer" title={marketingCopy.pricing[0].text}
       description={marketingCopy.pricing[1].text} />
     <section className="section" aria-labelledby="pilot-offer-title">
       <div className="container-page">
@@ -30,5 +31,6 @@ export default function PricingPage() {
     </section>
     <PilotFacts />
     <DataFacts />
-  </>;
+  <PageContext path="/pricing" />
+    </>;
 }

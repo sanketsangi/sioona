@@ -1,0 +1,42 @@
+name: sioona-seo
+services:
+  open-seo:
+    image: ${OPEN_SEO_IMAGE:-ghcr.io/every-app/open-seo:latest}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OPENSEO_PORT:-3001}:3001"
+    environment:
+      PORT: "3001"
+      AUTH_MODE: local_noauth
+      CLOUDFLARE_INCLUDE_PROCESS_ENV: "true"
+      OPENSEO_TELEMETRY_DISABLED: "true"
+      DO_NOT_TRACK: "1"
+      DATAFORSEO_API_KEY: ${DATAFORSEO_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      VITE_SHOW_DEVTOOLS: "false"
+    volumes:
+      - open_seo_data:/app/.wrangler
+    networks: [seo]
+  audit:
+    build: .
+    profiles: [audit]
+    init: true
+    environment:
+      SEO_BASE_URL: ${SEO_BASE_URL:-}
+      SEO_CANONICAL_ORIGIN: ${SEO_CANONICAL_ORIGIN:-}
+      GCP_API_KEY: ${GCP_API_KEY:-}
+      GSC_PROPERTY: ${GSC_PROPERTY:-}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-service-account.json
+      SEO_LIGHTHOUSE: ${SEO_LIGHTHOUSE:-false}
+      CHROME_PATH: /usr/bin/chromium
+    volumes:
+      - ../../site:/workspace/site:ro
+      - ./reports:/app/reports
+      - ./secrets:/run/secrets:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks: [seo]
+networks:
+  seo:
+volumes:
+  open_seo_data:

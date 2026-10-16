@@ -13,3 +13,6 @@
 1f1d3ec632adc953f5ca622d3b4d9360d54b4a10:backend/tests/test_economics_dashboard.py:generic-api-key:254
 # Historical CB-18 synthetic actor test key, replaced by the allowlisted fixture.
 a862de1d83acde1b576f5db5c45c8381726f1b10:web/src/lib/backend-client.test.ts:generic-api-key:975
+
+# Historical synthetic smoke-test receipt ID, not a credential; file already removed.
+a0a0a8f325e13fbc7cbc141c28f92bf1fb55043b:docs/development/evidence/custom-domain-2026-10-16/smoke.json:generic-api-key:4

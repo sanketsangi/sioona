@@ -1,26 +1,16 @@
+import { PageContext } from "@/components/seo/PageContext";
 import { developerDescription, developerResources, developerSections } from "@/lib/developer-copy";
 import type { Metadata } from "next";
 import Link from "@/components/navigation/GuardedLink";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { breadcrumbJsonLd, jsonLdScript, pageMetadata, productName } from "@/lib/site";
+import { routeMetadata } from "@/lib/site";
 
-const description = "Sioona developer resources for the public MCP server, Markdown pages, and agent instructions. These read-only pages do not accept customer transcripts or product API calls.";
-
-export const metadata: Metadata = pageMetadata("Developer resources", description, "/developers");
+export const metadata: Metadata = routeMetadata("/developers");
 
 export default function DevelopersPage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: jsonLdScript(breadcrumbJsonLd([
-            { name: productName, path: "/" },
-            { name: "Sioona developer resources", path: "/developers" },
-          ])),
-        }}
-      />
-      <PageHeader
+      <PageHeader path="/developers"
         eyebrow="Developers"
         title="Sioona developer resources"
         description={developerDescription}
@@ -53,6 +43,7 @@ export default function DevelopersPage() {
           </div>
         </div>
       </section>
+      <PageContext path="/developers" />
     </>
   );
 }

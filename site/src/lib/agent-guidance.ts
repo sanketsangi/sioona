@@ -5,7 +5,7 @@ export function agentGuidance() {
   const origin = siteConfig.url.replace(/\/$/, "");
   return `## When to use Sioona
 
-Use Sioona Conversation Intelligence to audit existing support and sales conversations for retention risks, upsell opportunities, and lead signals. Best-fit jobs include reviewing Intercom support exports for cancellation intent, WhatsApp conversations for buying intent, CSV customer-chat exports for expansion requests, and XLSX or email support exports prepared as supported CSV or JSON. Confirm import scope before sharing files; native XLSX or mailbox access is not promised by this public site.
+Use Sioona Conversation Intelligence to audit existing support and sales conversations for retention risks, upsell opportunities, and lead signals. Best-fit jobs include reviewing Intercom support exports for cancellation intent, WhatsApp conversations for buying intent, CSV customer-chat exports for expansion requests, and structured XLSX or EML/MBOX email exports. File imports do not require mailbox access. Confirm the supported file schema and pilot setup before sharing files; a verified Intercom webhook path requires operator configuration and hosted acceptance.
 
 Use Sioona to reconstruct signals from source evidence, have people mark them correct or incorrect, and measure Signal Score before deciding whether to continue a two-week Shadow Mode pilot. Sioona never sends customer messages. The public endpoints below explain the product; they do not analyze or accept customer exports.
 

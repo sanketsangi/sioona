@@ -1,6 +1,9 @@
+import { PageContext } from "@/components/seo/PageContext";
+import Link from "@/components/navigation/GuardedLink";
+import { exportGuide } from "@/lib/seo-content";
 import { PilotFacts } from "@/components/sections/PilotFacts";
 import { marketingCopy } from "@/lib/marketing-copy";
-import { pageMetadata } from "@/lib/site";
+import { howToJsonLd, jsonLdScript, routeMetadata } from "@/lib/site";
 import type { Metadata } from "next";
 import { ChartLineUp, ListChecks, Tag, UploadSimple } from "@phosphor-icons/react/ssr";
 import { FinalCta } from "@/components/sections/FinalCta";
@@ -10,7 +13,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { FourStepScroll } from "./FourStepScroll";
 import { nb } from "@/lib/site";
 
-export const metadata: Metadata = pageMetadata("How It Works", "Connect chats, detect lead, retention and upsell signals, review them with your team, then act. Sioona runs in Shadow Mode, so nothing is acted on without a human.", "/how-it-works");
+export const metadata: Metadata = routeMetadata("/how-it-works");
 
 const surfaces = [
   {
@@ -61,13 +64,24 @@ const timeline = [
 export default function HowItWorksPage() {
   return (
     <>
-      <PageHeader
+      <PageHeader path="/how-it-works"
         eyebrow="How It Works"
         title={marketingCopy.workflow[12].text}
         description={marketingCopy.workflow[13].text}
       />
 
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdScript(howToJsonLd("/how-it-works#section")) }} />
       <FourStepScroll />
+      <section id="export-analysis" aria-labelledby="export-analysis-title" className="section">
+        <div className="container-page max-w-3xl">
+          <h2 id="export-analysis-title" className="text-heading-24">Intercom and WhatsApp chat export analysis</h2>
+          {exportGuide.map(item => <div key={item.title} className="mt-6">
+            <h3 className="text-heading-20">{item.title}</h3>
+            <p className="mt-3 text-copy-16 text-sio-fg-subtle">{item.text}</p>
+          </div>)}
+          <p className="mt-6 text-copy-16"><Link href="/security" className="underline">Review chat data handling</Link> before you <Link href="/contact" className="underline">request a conversation intelligence pilot</Link>.</p>
+        </div>
+      </section>
 
       <section id="shadow-mode" aria-labelledby="shadow-title" className="section">
         <div className="container-page grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-20">
@@ -138,6 +152,7 @@ export default function HowItWorksPage() {
 
       <PilotFacts />
       <FinalCta />
+      <PageContext path="/how-it-works" />
     </>
   );
 }

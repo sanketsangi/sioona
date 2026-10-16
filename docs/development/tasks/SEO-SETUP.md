@@ -1,5 +1,7 @@
 # Free SEO setup — October 16, 2026
 
+Current local tooling and validation: [SEO-CONSOLIDATION.md](SEO-CONSOLIDATION.md). Commands and provider observations below are historical; use `ops/seo/README.md` for the current audit workflow.
+
 Status: **SEO release pushed; Render release live; intended-domain DNS/TLS and live SEO acceptance blocked**.
 
 ## Scope and decisions
