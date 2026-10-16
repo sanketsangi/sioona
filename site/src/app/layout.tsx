@@ -5,7 +5,7 @@ import { NavigationGuardProvider } from "@/components/navigation/GuardedLink";
 import { Footer } from "@/components/layout/Footer";
 import { SiteNav } from "@/components/layout/SiteNav";
 import { MotionProviders } from "@/components/motion/Providers";
-import { jsonLdScript, organizationJsonLd, productName, serviceJsonLd, siteConfig, websiteJsonLd } from "@/lib/site";
+import { internationalAlternates, jsonLdScript, organizationJsonLd, productName, serviceJsonLd, siteConfig, websiteJsonLd } from "@/lib/site";
 import { THEME_COLOR } from "@/lib/tokens";
 import "@/styles/tokens.css";
 import "./globals.css";
@@ -41,6 +41,7 @@ export const metadata: Metadata = {
     type: "website",
     siteName: productName,
     locale: "en_US",
+    alternateLocale: ["en_IN"],
     title: productName,
     description: siteConfig.description,
   },
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
     title: productName,
     description: siteConfig.description,
   },
-  alternates: { canonical: "/" },
+  alternates: internationalAlternates("/"),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

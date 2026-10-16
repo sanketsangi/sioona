@@ -50,16 +50,29 @@ export const navLinks = [
 
 export const routes = ["/", "/about", "/how-it-works", "/security", "/pricing", "/contact", "/developers", "/privacy", "/terms"] as const;
 
+/** One shared English page serves these audiences; no locale-specific copies exist. */
+export function internationalAlternates(path: string) {
+  const url = new URL(path, siteConfig.url).toString();
+  return { canonical: url, languages: { "en-IN": url, "en-US": url, en: url, "x-default": url } };
+}
+
+function areasServed() {
+  return [{ "@type": "Country", name: "IN" }, { "@type": "Country", name: "US" }];
+}
+
 /** Organization facts for sitewide JSON-LD. Mumbai is the published operating location; no street address is published. */
 export function organizationJsonLd() {
   const origin = siteConfig.url.replace(/\/$/, "");
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${origin}/#organization`,
     name: productName,
     alternateName: siteConfig.name,
     url: origin,
     description: siteConfig.description,
+    areaServed: areasServed(),
+    knowsAbout: ["Signal Intelligence", "Conversation Intelligence"],
     contactPoint: {
       "@type": "ContactPoint",
       contactType: "sales",
@@ -81,12 +94,14 @@ export function websiteJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${origin}/#website`,
     name: productName,
     alternateName: siteConfig.name,
     url: origin,
     description: siteConfig.description,
     publisher: {
       "@type": "Organization",
+      "@id": `${origin}/#organization`,
       name: productName,
       url: origin,
     },
@@ -99,12 +114,15 @@ export function serviceJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Service",
+    "@id": `${origin}/#service`,
     name: productName,
     serviceType: "Conversation intelligence",
+    areaServed: areasServed(),
     description: siteConfig.description,
     url: `${origin}/`,
     provider: {
       "@type": "Organization",
+      "@id": `${origin}/#organization`,
       name: productName,
       url: origin,
     },
@@ -124,6 +142,7 @@ export function productJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Product",
+    "@id": `${origin}/#product`,
     name: productName,
     description: siteConfig.description,
     category: "Conversation intelligence",
@@ -199,8 +218,8 @@ export function pageMetadata(title: string, description: string, path: string): 
   const images = [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Sioona — conversation intelligence with human judgment" }];
   return {
     title, description,
-    alternates: { canonical: path },
-    openGraph: { type: "website", siteName: siteConfig.name, locale: "en_US", url: path, title: socialTitle, description, images },
+    alternates: internationalAlternates(path),
+    openGraph: { type: "website", siteName: siteConfig.name, locale: "en_US", alternateLocale: ["en_IN"], url: path, title: socialTitle, description, images },
     twitter: { card: "summary_large_image", title: socialTitle, description, images },
   };
 }

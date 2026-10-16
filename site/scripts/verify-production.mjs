@@ -49,14 +49,32 @@ for (const path of pages) {
   assert.match(html, /property="og:image" content="https:\/\//, `${path}: social image`);
   const canonical = html.match(/rel="canonical" href="([^"]+)"/)?.[1];
   checkOrigin(canonical, `${path}: canonical`);
+  assert.equal(new URL(canonical).href, new URL(path, canonicalOrigin).href, `${path}: exact canonical route`);
+  const languageLinks = [...html.matchAll(/<link\b[^>]*rel="alternate"[^>]*hreflang="([^"]+)"[^>]*href="([^"]+)"[^>]*>/gi)];
+  assert.equal(languageLinks.length, 4, `${path}: four language alternates`);
+  assert.deepEqual(languageLinks.map(match => match[1]).sort(), ["en-IN", "en-US", "en", "x-default"].sort(), `${path}: English audiences`);
+  for (const match of languageLinks) assert.equal(match[2], canonical, `${path}: ${match[1]} follows canonical route`);
+  assert.equal(meta("og:locale"), "en_US", `${path}: default locale`);
+  assert.deepEqual([...html.matchAll(/property="og:locale:alternate" content="([^"]+)"/g)].map(match => match[1]), ["en_IN"], `${path}: alternate locale`);
   for (const key of ["og:url", "og:image"]) checkOrigin(meta(key), `${path}: ${key}`);
-  for (const match of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)) checkSchema(JSON.parse(match[1]));
-  console.log(`PASS ${path}: HTTP, landmarks, title, description, canonical`);
+  const pageSchemas = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map(match => JSON.parse(match[1]));
+  for (const data of pageSchemas) checkSchema(data);
+  for (const type of ["Organization", "Service", "WebSite"]) assert(pageSchemas.some(data => data["@type"] === type), `${path}: ${type}`);
+  if (["/", "/developers"].includes(path)) assert(pageSchemas.some(data => data["@type"] === "BreadcrumbList"), `${path}: BreadcrumbList`);
+  for (const type of ["Organization", "Service"]) {
+    const entity = pageSchemas.find(data => data["@type"] === type);
+    assert.deepEqual(entity.areaServed, [{ "@type": "Country", name: "IN" }, { "@type": "Country", name: "US" }], `${path}: ${type} service areas`);
+    assert.equal(entity["@id"], `${canonicalOrigin}/#${type.toLowerCase()}`, `${path}: ${type} identity`);
+  }
+  const org = pageSchemas.find(data => data["@type"] === "Organization");
+  assert.deepEqual(org.knowsAbout, ["Signal Intelligence", "Conversation Intelligence"], `${path}: knowledge topics`);
+  assert.equal(pageSchemas.find(data => data["@type"] === "Service").provider["@id"], org["@id"], `${path}: service provider identity`);
+  console.log(`PASS ${path}: HTTP, landmarks, metadata, exact canonical, 4 hreflang, OG locales, schema origins and IN/US areas`);
 }
 for (const [path, html] of htmlByPath) {
   for (const match of html.matchAll(/<a\b[^>]*href="([^"]+)"/g)) {
     const url = new URL(match[1].replaceAll("&amp;", "&"), new URL(path, base));
-    if (url.origin !== base.origin || !htmlByPath.has(url.pathname)) continue;
+    if (![base.origin, canonicalOrigin].includes(url.origin) || !htmlByPath.has(url.pathname)) continue;
     if (url.hash && url.hash !== "#top") assert(htmlByPath.get(url.pathname).includes(`id="${decodeURIComponent(url.hash.slice(1))}"`), `Broken link ${path} → ${url.pathname}${url.hash}`);
   }
 }
@@ -64,6 +82,7 @@ const home = htmlByPath.get("/");
 assert.match(home, /property="og:title"/); assert.match(home, /property="og:image"/);
 assert.match(home, /name="twitter:card" content="summary_large_image"/);
 const schemas = [...home.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map(match => JSON.parse(match[1]));
+for (const type of ["Organization", "WebSite", "Service", "Product", "SoftwareApplication", "FAQPage", "HowTo", "BreadcrumbList"]) assert(schemas.some(data => data["@type"] === type), `Homepage ${type}`);
 assert(schemas.some(data => data["@type"] === "SoftwareApplication"));
 assert.equal(schemas.find(data => data["@type"] === "FAQPage")?.mainEntity.length, 7);
 assert(/(?:Play|Pause) Demo Animation/.test(home) && /data-demo-running="(?:true|false)"/.test(home), "Demo exposes its playback control and running state");
@@ -93,6 +112,8 @@ for (const path of [...pages, "/agentic-missing-page"]) {
   assert.match(markdown.headers.get("content-type") ?? "", /text\/markdown/, path);
   for (const response of [html, markdown]) assert(response.headers.get("vary")?.toLowerCase().split(/,\s*/).includes("accept"), `${path}: Vary includes Accept`);
   const body = await markdown.text();
+  if (!missing) assert(body.includes(`Canonical: ${new URL(path, canonicalOrigin).href}`), `${path}: Markdown canonical`);
+  assert(!/https?:\/\/(?:sioona\.ai|sioona-site\.(?:vercel\.app|onrender\.com))\b/.test(body) || canonicalOrigin.includes("sioona-site."), `${path}: no stale public origins`);
   if (missing) for (const link of ["/sitemap.xml", "/llms.txt"]) assert(body.includes(link));
   if (path === "/about") assert(body.length >= 500);
   console.log(`PASS ${path}: HTML/Markdown negotiation, status and Vary`);
@@ -101,11 +122,14 @@ const organization = schemas.find(data => data["@type"] === "Organization");
 assert(organization?.contactPoint?.url && organization?.address?.addressCountry, "Organization contact and location");
 assert(home.includes('name="is-agentic-site-type" content="business"'));
 const instructions = await fetch(new URL("/llms.txt", base));
-assert((await instructions.text()).includes("## When to use Sioona"));
+const instructionBody = await instructions.text();
+assert(instructionBody.includes("## When to use Sioona"));
+for (const path of [...pages, "/mcp", "/.well-known/mcp", "/sitemap.xml"]) assert(instructionBody.includes(new URL(path, canonicalOrigin).href), `llms.txt: ${path}`);
 const discovery = await fetch(new URL("/.well-known/mcp", base), { headers: { Accept: "text/markdown" } });
 assert.equal(discovery.status, 200);
 assert.match(discovery.headers.get("content-type"), /application\/json/);
 const card = await discovery.json();
+assert.equal(card.name, "si.sioona/public-content", "MCP canonical brand namespace");
 checkOrigin(card.websiteUrl, "MCP website");
 card.remotes.forEach(remote => checkOrigin(remote.url, "MCP remote"));
 assert(card.remotes.some(remote => remote.type === "streamable-http" && new URL(remote.url).pathname === "/mcp"));
@@ -118,7 +142,13 @@ const call = async (method, params) => {
 };
 assert.equal((await call("initialize", { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "production-smoke", version: "1" } })).serverInfo.name, "sioona-public-content");
 assert.equal((await call("tools/list")).tools.length, 2);
-assert((await call("tools/call", { name: "sioona_read_page", arguments: { path: "/about" } })).content[0].text.length >= 500);
+const listedPages = await call("tools/call", { name: "sioona_list_pages", arguments: { query: "" } });
+assert.deepEqual(listedPages.content[0].text.split("\n").sort(), pages.map(path => new URL(path, canonicalOrigin).href).sort(), "MCP public catalog uses exact canonical URLs");
+for (const path of pages) {
+  const read = await call("tools/call", { name: "sioona_read_page", arguments: { path } });
+  const markdown = await (await fetch(new URL(path, base), { headers: { Accept: "text/markdown" } })).text();
+  assert.equal(read.content[0].text, markdown, `${path}: MCP and Markdown agree`);
+}
 for (const path of ["/llms.txt", "/robots.txt", "/sitemap.xml", "/.well-known/mcp", "/mcp", "/api/contact"]) {
   const response = await fetch(new URL(path, base));
   checkHeaders(response, path);
@@ -137,5 +167,11 @@ assert.match(home, /<title>Sioona Conversation Intelligence/);
 assert.match(home, /<h1[^>]*>Sioona Conversation Intelligence/);
 assert((await (await fetch(base, { headers: { Accept: "text/markdown" } })).text()).includes("# Sioona Conversation Intelligence"));
 console.log("PASS Sioona branding, initialized notification, scanner CORS and preflight");
+
+const denied = await fetch(new URL("/mcp", base), { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://untrusted.example" }, body: "{}" });
+assert.equal(denied.status, 403);
+const unavailable = await call("tools/call", { name: "sioona_read_page", arguments: { path: "/api/contact" } });
+assert.equal(unavailable.isError, true, "MCP cannot read private/unpublished paths");
+console.log("PASS all 9 MCP pages match Markdown, exact catalog URLs, untrusted Origin and unpublished-path rejection");
 
 console.log("PASS exact canonical origin, all security headers and complete Vary tokens; no contact POST sent");
