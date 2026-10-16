@@ -1,0 +1,40 @@
+{
+  "receipt_version": 1,
+  "timestamp_utc": "2026-10-16T08:31:00.633251+00:00",
+  "preflight": {
+    "initial_table_count": 0,
+    "zero_row_baseline_verified": true
+  },
+  "migrations": {
+    "head_applied": "034_operational_telemetry",
+    "target_head_verified": true
+  },
+  "runtime_role": {
+    "role_name": "sioona_runtime",
+    "configured": true,
+    "rolsuper": false,
+    "rolcreaterole": false,
+    "rolcreatedb": false,
+    "rolbypassrls": false,
+    "rolcanlogin": true
+  },
+  "synthetic_seed": {
+    "tenants_seeded": [
+      "tenant_staging_a",
+      "tenant_staging_b",
+      "tenant_demo"
+    ],
+    "memberships_upserted": 5,
+    "memberships_skipped_revoked": 0
+  },
+  "verification": {
+    "schema_startup_check": "passed",
+    "forced_rls_tables_count": 34,
+    "forced_rls_verified": true,
+    "missing_context_denial_verified": true,
+    "tenant_ab_isolation_verified": true,
+    "connection_reuse_safety_verified": true,
+    "audit_append_only_verified": true
+  },
+  "status": "success"
+}
