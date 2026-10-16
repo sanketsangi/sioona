@@ -14,7 +14,7 @@ from app.models.user import actor_user_id
 
 
 def test_sign_actor_token():
-    key = "test-secret-key-12345-with-32-bytes-len"
+    key = "test-key-" * 5
     token = runner.sign_actor_token("reviewer@staging.test", "tenant_staging_a", key, ttl_seconds=60)
     claims = jwt.decode(token, key, algorithms=["HS256"], audience="sioona-api", issuer="sioona-web")
 
