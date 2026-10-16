@@ -1069,13 +1069,19 @@ export async function publishDetectionRun(tenantId: string, runId: string, conve
     });
 }
 
+export async function reportLedgerFlushFailure(tenantId: string, sampleId: string): Promise<{ ok: boolean }> {
+  return backendFetch<{ ok: boolean }>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/inference-attempts/flush-failure`,
+    { method: "POST", headers: await budgetHeaders(tenantId), body: JSON.stringify({ sample_id: sampleId }), timeoutMs: BACKEND_MUTATION_TIMEOUT_MS });
+}
+
 export async function preflightInferenceLedger(
   tenantId: string
 ): Promise<{ ok: boolean }> {
   return backendFetch<{ ok: boolean }>(
     tenantId,
     `/v1/tenants/${encodeURIComponent(tenantId)}/inference-attempts/preflight`,
-    { method: "GET", timeoutMs: BACKEND_FETCH_TIMEOUT_MS }
+    { method: "GET", headers: await budgetHeaders(tenantId), timeoutMs: BACKEND_FETCH_TIMEOUT_MS }
   );
 }
 
@@ -1314,6 +1320,7 @@ export interface BackendJobStatus {
 }
 
 export type UnavailableMetric = { status: "unavailable"; reason: string };
+export type OperationalMetric = UnavailableMetric | { status: "available"; value: number; unit: string; samples: number; reason: string };
 export interface BackendEconomicsDashboard {
   tenant_id: string;
   from_ts: string;
@@ -1340,8 +1347,8 @@ export interface BackendEconomicsDashboard {
     retry_or_fallback_attempts: number; retry_rate: number | null; http_429_attempts: number;
     error_rate: number | null; unfinished_attempts: number; p50_latency_ms: number | null;
     p95_latency_ms: number | null; p50_processing_latency_ms: number | null;
-    p95_processing_latency_ms: number | null; ledger_flush_failures: UnavailableMetric;
-    reservation_drift: UnavailableMetric; database_latency: UnavailableMetric; connector_errors: UnavailableMetric;
+    p95_processing_latency_ms: number | null; ledger_flush_failures: OperationalMetric;
+    reservation_drift: OperationalMetric; database_latency: OperationalMetric; connector_errors: OperationalMetric;
   };
   economics: {
     attempts: number; input_tokens: number; cached_input_tokens: number; output_tokens: number;

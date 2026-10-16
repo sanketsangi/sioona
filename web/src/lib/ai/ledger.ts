@@ -6,6 +6,7 @@
 
 import {
   flushInferenceAttempts,
+  reportLedgerFlushFailure,
   preflightInferenceLedger,
 } from "@/lib/backend-client";
 import type { AttemptSink, InferenceAttempt } from "./types";
@@ -101,6 +102,12 @@ export function createRunLedger(tenantId: string): RunLedger {
         }
       }
       flushFailureMetric += 1;
+      try {
+        await reportLedgerFlushFailure(tenantId, crypto.randomUUID());
+      } catch {
+        // A DB outage also prevents durable telemetry; retain the bounded log
+        // below and pending-before-dispatch ledger rows for reconciliation.
+      }
       // Counts only — never log attempt payloads or transcript text.
       console.error("inference_ledger_flush_failed", {
         tenantId,

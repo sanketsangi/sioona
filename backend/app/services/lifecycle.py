@@ -18,6 +18,7 @@ EXPORT_MAX_ROWS = 25000
 EXPORT_MAX_BYTES = 16 * 1024 * 1024
 # Explicit dispositions: adding a table requires a deliberate policy decision.
 DISPOSITIONS = {
+    'operational_samples': 'export text-free receipts; 30d; delete with tenant',
     'action_executions': 'export; tenant deletion; retain until explicit reconciliation',
     'action_proposals': 'export private payload; tenant deletion; no automatic expiry',
     'lifecycle_ledger_summaries': 'export financial totals; retain 365d after deletion; privileged expiry',
@@ -64,10 +65,11 @@ DELETE_ORDER = (
     'jobs', 'upload_conversations', 'uploads', 'conversations', 'detection_resume',
     'weekly_upload_receipts', 'pilot_settings', 'taxonomy_overrides',
     'inference_run_budgets', 'inference_budgets', 'inference_controls',
-    'memberships', 'workspaces',
+    'operational_samples', 'memberships', 'workspaces',
 )
 # Explicit allowlists for records containing operational payloads or identity.
 EXPORT_COLUMNS = {
+    'operational_samples': ('tenant_id','sample_id','kind','duration_ms','observed_at'),
     'action_proposals': ('tenant_id','id','decision_id','action_version','action_type','target','payload_json','payload_sha256','state','created_at'),
     'action_executions': ('tenant_id','id','proposal_id','payload_sha256','target','actor_id','action_version','expires_at','state','provider_receipt','created_at'),
     'live_installations': ('tenant_id','id','workspace_id','credential_ref','active','consent_reference','monitoring_reference','reconciliation_cursor','created_at'),
@@ -390,6 +392,7 @@ def sweep(db, tenant, actor):
         ('detection_resume',180,'updated_at'), ('pilot_settings',365,'updated_at'),
         ('taxonomy_overrides',365,'updated_at'), ('weekly_upload_receipts',365,'created_at'),
         ('classification_cache',7,'created_at'),
+        ('operational_samples',30,'observed_at'),
         ('signal_feedback',365,'reviewed_at'), ('supervised_action_decisions',365,'decided_at'),
     ):
         table = Base.metadata.tables[name]

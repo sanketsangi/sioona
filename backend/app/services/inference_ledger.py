@@ -291,7 +291,16 @@ def query_detection_run_inference(
     )
 
 
-def ledger_is_reachable(db: Session) -> bool:
+def ledger_is_reachable(db: Session, tenant_id: str | None = None) -> bool:
     """Cheap readiness probe used by the web preflight before LLM calls."""
-    db.execute(text("SELECT 1"))
+    if tenant_id is None:
+        db.execute(text("SELECT 1"))
+        return True
+    from time import perf_counter
+    from app.services.operational_telemetry import record_sample
+    started = perf_counter()
+    db.execute(select(InferenceAttempt.attempt_id).where(InferenceAttempt.tenant_id == tenant_id).limit(1)).first()
+    elapsed = min(3600000, max(0, (perf_counter() - started) * 1000))
+    record_sample(db, tenant_id, "database_query", duration_ms=elapsed)
+    db.commit()
     return True

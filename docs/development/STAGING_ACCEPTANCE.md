@@ -1,5 +1,28 @@
 # CB-03 isolated staging proposal and acceptance
 
+## Approved operating and launch decisions — 2026-10-16
+
+Approver: **Sanket**, explicit approval in this session. These choices close decision inputs; they do not assert hosted execution or authorize account upgrades, resource spend, live customer ingestion, or external writes.
+
+- Reject populated Neon `sioona-actor-staging` (`fragrant-voice-56460486`). Preserve it unchanged. Require a **new, empty target with zero application rows**, alongside Render workspace **Sioona** (`tea-d9t31uugekts73clssa0`). Record target IDs and zero-row proof before migrating through `033_supervised_action_executions`, then seed synthetic memberships. A schema-only clone is not an unmigrated empty database; record its exact state. The telemetry closeout additionally requires additive `034_operational_telemetry` **before** deploying these handlers. Exact hosting SKU, recurring cost and actual provisioning remain operator gates; no provider stack is selected implicitly.
+- Pilot recovery targets: **RTO 4 hours; RPO 24 hours**. Provider backup retention/expiry remains natural; no immediate backup scrubbing promise. Confirm the selected plan and backup cadence can meet RPO and rehearse restore; targets are not achieved measurements. Require a **direct, session-preserving Postgres connection** for CB-18 session advisory export locks (transaction pooling is insufficient). No customer uptime SLA until **60 days of telemetry**, followed by explicit approval.
+- Initial tenant attempt-mode operating policy: **500 attempts/day**, **120 attempts/run**, **Asia/Kolkata** budget day, pause propagation **≤60 seconds**, switch/alert owner **Sanket**. These are approved initial configuration values, not automatic enablement: unconfigured tenants and controls remain fail-closed. Operator configures scoped limits explicitly; USD enforcement remains disabled without an approved evaluated output ceiling.
+- Keep baseline `qwen/qwen3.8-27b`; no prompt/model/route change. Candidate promotion **CB-13 / OP-5 is deferred** until an approved external corpus has **n ≥120 and ≥30 per retention/upsell/lead/none**, baseline identity/checksum and bounded evaluation authorization. Existing n=100 is insufficient.
+- Accept **chunked standard-call historical worker execution as complete CB-14 scope**. No remote provider Batch API adapter is required. Hosted worker enablement still waits for signed CB-10 acceptance and a separate operator go; retain `SIOONA_DETECTION_EXECUTION=inline`, `SIOONA_WORKER_PAUSE=1` for that rollout policy.
+- Keep `LIVE_INGEST=0` and `SIOONA_EXTERNAL_ACTIONS_ENABLED=0`. CB-16 enablement needs customer consent, workspace credentials and hosted acceptance. CB-17 needs approved live sandbox credentials/allowlisted targets and explicit exact-payload approval for each sandbox write. Ordinary Approve Draft sends nothing.
+- Official Groq model/pricing and caching documentation was rechecked on **2026-10-16**. The uncommitted draft's four prices/cached discounts were not verified. Publish only Qwen **$0.80 input / $4.00 output per million tokens**, no supported cached discount, and GPT-OSS 20B **$0.075 input / $0.30 output**, with **$0.037 cached input** as published on the model-specific page (the generic caching page describes an approximately 50% discount). Rates begin on the verification date; older/unknown models remain unknown and existing ledger rows are not silently repriced. Sources: [Qwen](https://console.groq.com/docs/model/qwen/qwen3.8-27b), [GPT-OSS 20B](https://console.groq.com/docs/model/openai/gpt-oss-20b), [caching](https://console.groq.com/docs/prompt-caching). The legacy `meta/llama-3.3-70b-versatile` ID and DeepSeek candidate lack verified current prices and remain unknown.
+
+### Hosted acceptance still required
+
+- **OP-1:** current entitlement/protection readback, enforced review/check rules. No GitHub Pro purchase authorized by the attached checklist alone.
+- **OP-2:** approved exact empty staging target/cost/backup plan, deployment and synthetic membership seed, observed ≥30-minute actor shadow journey, enforce-mode revocation/permission checks and sign-off.
+- **OP-3:** human-run schema/current verification, owner/runtime URL separation, forced-RLS tenant A/B/missing-context/connection-reuse proof; CB-10 entity reconciliation, single writer, restart/outage proof without runtime JSON and Sanket's sign-off.
+- **OP-4:** hosted pause propagation/exhaustion/outage/resumption/concurrent admission, provider/ledger reconciliation, worker/drill and alert-delivery acceptance.
+- **OP-5:** deliberately deferred external corpus/baseline/candidate comparison and authorized canary; no synthetic substitute.
+- **Hosted staging/production sign-off:** lifecycle export/deletion/holds/backup restore, measured recovery against RTO/RPO, source evidence reconstruction, consent/sandbox enablement where applicable, exact-revision CI/review and post-release upload → review smoke. Local tests do not close these gates.
+
+---
+
 Status: **prepared, not provisioned; operational acceptance blocked**. 12 October 2026.
 No production mode, deployment, database, or account has changed. Render workspace listing was unauthorized in the 12 October session, so nothing was created. The historical USD 13 reference is still not an approved exact quote.
 

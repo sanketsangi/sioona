@@ -8,16 +8,21 @@ from decimal import Decimal, ROUND_HALF_UP
 from statistics import median
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import select, func, union_all
 from sqlalchemy.orm import Session
 
 from app.models.detection_run import DetectionRun
 from app.models.inference_attempt import InferenceAttempt
 from app.models.job import Job
+from app.models.inference_budget import InferenceBudget, InferenceReservation
+from app.models.live_ingest import LiveEvent
+from app.models.supervised_action import ActionExecution
+from app.models.operational_telemetry import OperationalSample
 from app.models.signal_feedback import SignalFeedback
 from app.models.signal_prediction import SignalPrediction
 from app.schemas.economics_dashboard import (
     CostProjection,
+    MeasuredMetric,
     DashboardAlert,
     EconomicsDashboardResponse,
     EconomicsPanel,
@@ -65,7 +70,7 @@ def _unavailable(reason: str) -> UnavailableMetric:
     return UnavailableMetric(reason=reason)
 
 
-def _alerts(*, attempts: list[InferenceAttempt], pending_attempts: list[InferenceAttempt], jobs: list[Job], live_jobs: list[Job], predictions: list[SignalPrediction], now: datetime, spend_anomaly: bool | None) -> list[DashboardAlert]:
+def _alerts(*, attempts: list[InferenceAttempt], pending_attempts: list[InferenceAttempt], jobs: list[Job], live_jobs: list[Job], predictions: list[SignalPrediction], now: datetime, spend_anomaly: bool | None, telemetry: dict) -> list[DashboardAlert]:
     unknown = sum(a.usage_status == "unknown" or a.cost_status == "unknown" for a in attempts)
     old_pending = sum(now - _utc(a.started_at) > timedelta(minutes=15) for a in pending_attempts)
     dead = sum(j.status == "dead_lettered" for j in jobs)
@@ -73,22 +78,51 @@ def _alerts(*, attempts: list[InferenceAttempt], pending_attempts: list[Inferenc
     bursts = sum(a.http_status == 429 for a in attempts)
     invalid = sum(p.evidence_status in {"unresolved", "stale"} for p in predictions)
     rows = [
-        DashboardAlert(key="unknown_usage", label="Unknown usage or cost", status="warning" if unknown else "ok", owner="AI Platform", runbook="Reconcile provider receipts and preserve NULL unknowns.", detail=f"{unknown} attempt(s) have unknown usage or cost."),
-        DashboardAlert(key="unfinished_attempts", label="Unfinished attempts", status="alert" if old_pending else "ok", owner="Backend", runbook="Inspect pending ledger rows older than 15 minutes before retrying work.", detail=f"{old_pending} pending attempt(s) are older than 15 minutes."),
-        DashboardAlert(key="queue_age", label="Queue age", status="alert" if old_queue else "ok", owner="Worker", runbook="Check worker health, leases, and tenant rotation; do not replay blindly.", detail="The oldest queued or leased job exceeds 15 minutes." if old_queue else "No queued or leased job exceeds 15 minutes."),
-        DashboardAlert(key="dead_letters", label="Dead-lettered jobs", status="alert" if dead else "ok", owner="Worker", runbook="Inspect bounded error categories and resume only after the cause is fixed.", detail=f"{dead} job(s) are dead-lettered."),
-        DashboardAlert(key="http_429", label="Provider 429 responses", status="alert" if bursts else "ok", owner="AI Platform", runbook="Pause or reduce concurrency and verify Retry-After handling.", detail=f"{bursts} provider attempt(s) returned 429."),
-        DashboardAlert(key="invalid_evidence", label="Invalid evidence", status="warning" if invalid else "ok", owner="Trust", runbook="Quarantine stale or unresolved evidence and reconstruct from persisted source.", detail=f"{invalid} active signal(s) have stale or unresolved evidence."),
-        DashboardAlert(key="spend_anomaly", label="Spend anomaly", status="alert" if spend_anomaly else ("ok" if spend_anomaly is False else "unavailable"), owner="AI Economics", runbook="Compare route, retries, cache usage, and measured daily cost per processed conversation.", detail="Latest populated IST day exceeds 2× the preceding median." if spend_anomaly else ("Latest populated IST day is within the threshold." if spend_anomaly is False else "At least three preceding populated days are required.")),
+        DashboardAlert(key="unknown_usage", label="Unknown usage or cost", status="warning" if unknown else "ok", owner="Sanket", runbook="Reconcile provider receipts and preserve NULL unknowns.", detail=f"{unknown} attempt(s) have unknown usage or cost."),
+        DashboardAlert(key="unfinished_attempts", label="Unfinished attempts", status="alert" if old_pending else "ok", owner="Sanket", runbook="Inspect pending ledger rows older than 15 minutes before retrying work.", detail=f"{old_pending} pending attempt(s) are older than 15 minutes."),
+        DashboardAlert(key="queue_age", label="Queue age", status="alert" if old_queue else "ok", owner="Sanket", runbook="Check worker health, leases, and tenant rotation; do not replay blindly.", detail="The oldest queued or leased job exceeds 15 minutes." if old_queue else "No queued or leased job exceeds 15 minutes."),
+        DashboardAlert(key="dead_letters", label="Dead-lettered jobs", status="alert" if dead else "ok", owner="Sanket", runbook="Inspect bounded error categories and resume only after the cause is fixed.", detail=f"{dead} job(s) are dead-lettered."),
+        DashboardAlert(key="http_429", label="Provider 429 responses", status="alert" if bursts else "ok", owner="Sanket", runbook="Pause or reduce concurrency and verify Retry-After handling.", detail=f"{bursts} provider attempt(s) returned 429."),
+        DashboardAlert(key="invalid_evidence", label="Invalid evidence", status="warning" if invalid else "ok", owner="Sanket", runbook="Quarantine stale or unresolved evidence and reconstruct from persisted source.", detail=f"{invalid} active signal(s) have stale or unresolved evidence."),
+        DashboardAlert(key="spend_anomaly", label="Spend anomaly", status="alert" if spend_anomaly else ("ok" if spend_anomaly is False else "unavailable"), owner="Sanket", runbook="Compare route, retries, cache usage, and measured daily cost per processed conversation.", detail="Latest populated IST day exceeds 2× the preceding median." if spend_anomaly else ("Latest populated IST day is within the threshold." if spend_anomaly is False else "At least three preceding populated days are required.")),
     ]
-    unavailable = {
-        "ledger_flush_failures": ("AI Platform", "Add durable flush telemetry before alerting."),
-        "reservation_drift": ("AI Economics", "Reconcile reservations outside this five-table dashboard boundary."),
-        "database_latency": ("Backend", "Add durable database latency telemetry before alerting."),
-        "connector_errors": ("Integrations", "Add canonical connector attempt telemetry before alerting."),
+    runbooks = {
+        "ledger_flush_failures": "Reconcile pending attempts and restore ledger delivery; missing receipts during a DB outage are not zero failures.",
+        "reservation_drift": "Compare daily reserved USD with authorized reservations; never refund ambiguous attempts automatically.",
+        "database_latency": "Inspect ledger preflight query timing and database health; this is not whole-database APM.",
+        "connector_errors": "Inspect live event dead letters and failed/unknown external actions; reconcile unknown writes without retry.",
     }
-    rows.extend(DashboardAlert(key=key, label=key.replace("_", " ").title(), status="unavailable", owner=owner, runbook=runbook, detail="The approved canonical source tables do not contain this telemetry.") for key, (owner, runbook) in unavailable.items())
+    for key, metric in telemetry.items():
+        threshold = 500 if key == "database_latency" else 0
+        status = "unavailable" if metric.status == "unavailable" else ("alert" if metric.value > threshold else "ok")
+        rows.append(DashboardAlert(key=key, label=key.replace("_", " ").title(), status=status, owner="Sanket", runbook=runbooks[key], detail=metric.reason))
     return rows
+
+
+def _operational_metrics(db, tenant_id, start, end):
+    counter = OperationalSample
+    totals = db.execute(select(
+        counter.kind, func.count().label("samples"), func.avg(counter.duration_ms).label("mean_ms"),
+    ).where(counter.tenant_id == tenant_id, counter.observed_at >= start, counter.observed_at < end).group_by(counter.kind)).all()
+    by_kind = {row.kind: row for row in totals}
+    failures = by_kind.get("ledger_flush_failure")
+    timing = by_kind.get("database_query")
+    # Snapshot across all retained budget days (not a historical window): an
+    # authorized reservation may predate this report. Settled rows do not count.
+    budgets = select(InferenceBudget.budget_day.label("day"), InferenceBudget.reserved_usd.label("amount")).where(InferenceBudget.tenant_id == tenant_id)
+    reservations = select(InferenceReservation.budget_day.label("day"), (-InferenceReservation.reserved_usd).label("amount")).where(InferenceReservation.tenant_id == tenant_id, InferenceReservation.status == "authorized")
+    entries = union_all(budgets, reservations).subquery()
+    drift_days = select(func.sum(entries.c.amount).label("delta")).group_by(entries.c.day).subquery()
+    drift, days = db.execute(select(func.coalesce(func.sum(func.abs(drift_days.c.delta)), 0), func.count()).select_from(drift_days)).one()
+    events = db.scalar(select(func.count()).select_from(LiveEvent).where(LiveEvent.tenant_id == tenant_id, LiveEvent.state == "dead_lettered", LiveEvent.received_at >= start, LiveEvent.received_at < end)) or 0
+    actions = db.scalar(select(func.count()).select_from(ActionExecution).where(ActionExecution.tenant_id == tenant_id, ActionExecution.state.in_(("failed", "unknown")), ActionExecution.created_at >= start, ActionExecution.created_at < end)) or 0
+    failed = failures.samples if failures else 0
+    return {
+        "ledger_flush_failures": MeasuredMetric(value=failed, samples=failed, unit="failures", reason=f"{failed} durable exhausted-flush receipts in window; receipts unavailable during DB outages may undercount."),
+        "reservation_drift": MeasuredMetric(value=float(drift), samples=days, unit="USD", reason=f"Current sum of absolute per-day reserved USD minus authorized reservation USD: {drift}. Attempt allowance is not refunded."),
+        "database_latency": MeasuredMetric(value=timing.mean_ms, samples=timing.samples, unit="ms", reason=f"Mean tenant-scoped ledger preflight SELECT latency from {timing.samples} durable samples in window.") if timing else _unavailable("No durable ledger preflight query timing samples in this window."),
+        "connector_errors": MeasuredMetric(value=events+actions, samples=events+actions, unit="records", reason=f"{events} currently dead-lettered live events by received_at; {actions} failed/unknown actions by created_at in window; not lifetime transition counts."),
+    }
 
 
 def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime, to_ts: datetime, now: datetime | None = None) -> EconomicsDashboardResponse:
@@ -245,6 +279,7 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
         history = [float(rate) for _, rate in daily_rates[:-1]]
         spend_anomaly = float(daily_rates[-1][1]) > 2 * median(history)
 
+    telemetry = _operational_metrics(db, tenant_id, start, end)
     unavailable_reason = "Not derivable from the five approved canonical tables."
     funnel = FunnelPanel(ingested=ingested, processed=processed, surfaced=surfaced, reviewed=reviewed, correct=correct, acted=acted, positive_outcomes=positive, influenced_value_inr=influenced, denominators={
         "ingested": None, "processed": ingested, "surfaced": processed,
@@ -254,7 +289,7 @@ def build_economics_dashboard(db: Session, *, tenant_id: str, from_ts: datetime,
         "ingested": "Sum of upload-job conversation_count by job created_at.", "processed": "Distinct conversations with a completed detection run by run created_at.", "surfaced": "Active predictions by prediction created_at.", "reviewed": "Feedback within the window joined to surfaced predictions.", "correct": "Canonical correct feedback in reviewed.", "acted": "Surfaced predictions marked acted.", "positive_outcomes": "Surfaced predictions with retained or converted outcome.", "influenced_value_inr": "Customer-recorded value for positive outcomes; not incremental revenue.",
     })
     quality = QualityPanel(signal_score=_ratio(correct, reviewed), reviewed=reviewed, correct=correct, incorrect=incorrect, partially_correct=partial, false_positive_rate=_ratio(incorrect, reviewed), evidence_valid=evidence_valid, evidence_unresolved=evidence_unresolved, evidence_stale=evidence_stale, evidence_failure_rate=_ratio(evidence_unresolved + evidence_stale, evidence_measured), abstained=abstained, abstention_rate=_ratio(abstained, len(completed_runs)), by_signal_type=by_type, gold_set_precision=_unavailable(unavailable_reason), gold_set_recall=_unavailable(unavailable_reason), calibration=_unavailable(unavailable_reason))
-    reliability = ReliabilityPanel(jobs_by_status=dict(job_status), recovered_jobs=sum(j.attempt_count > 1 for j in jobs), queue_depth=len(queued), oldest_queue_age_seconds=oldest_age, attempts_by_status=dict(attempt_status), retry_or_fallback_attempts=retry_count, retry_rate=_ratio(retry_count, len(attempts)), http_429_attempts=sum(a.http_status == 429 for a in attempts), error_rate=_ratio(error_count, len(attempts)), unfinished_attempts=len(live_pending_attempts), p50_latency_ms=_percentile(latencies, .5), p95_latency_ms=_percentile(latencies, .95), p50_processing_latency_ms=_percentile(processing_latencies, .5), p95_processing_latency_ms=_percentile(processing_latencies, .95), ledger_flush_failures=_unavailable(unavailable_reason), reservation_drift=_unavailable(unavailable_reason), database_latency=_unavailable(unavailable_reason), connector_errors=_unavailable(unavailable_reason))
+    reliability = ReliabilityPanel(jobs_by_status=dict(job_status), recovered_jobs=sum(j.attempt_count > 1 for j in jobs), queue_depth=len(queued), oldest_queue_age_seconds=oldest_age, attempts_by_status=dict(attempt_status), retry_or_fallback_attempts=retry_count, retry_rate=_ratio(retry_count, len(attempts)), http_429_attempts=sum(a.http_status == 429 for a in attempts), error_rate=_ratio(error_count, len(attempts)), unfinished_attempts=len(live_pending_attempts), p50_latency_ms=_percentile(latencies, .5), p95_latency_ms=_percentile(latencies, .95), p50_processing_latency_ms=_percentile(processing_latencies, .5), p95_processing_latency_ms=_percentile(processing_latencies, .95), **telemetry)
     unit_cost = lambda denominator: _cost_per(cohort_cost, denominator) if known_cohort_attempts else None
     economics = EconomicsPanel(attempts=len(attempts), input_tokens=sum(a.input_tokens or 0 for a in attempts if a.usage_status != "unknown"), cached_input_tokens=sum(a.cached_input_tokens or 0 for a in attempts if a.usage_status != "unknown"), output_tokens=sum(a.output_tokens or 0 for a in attempts if a.usage_status != "unknown"), unknown_usage_count=unknown_usage, unknown_usage_rate=_ratio(unknown_usage, len(attempts)), unknown_cost_count=unknown_cost, unknown_cost_rate=_ratio(unknown_cost, len(attempts)), known_cost_coverage=_ratio(len(known), len(attempts)), estimated_cost_usd=estimated, reconciled_cost_usd=reconciled, known_cost_usd=known_cost, cost_per_processed_conversation_usd=base_cost, cost_per_surfaced_signal_usd=unit_cost(surfaced), cost_per_correct_signal_usd=unit_cost(correct), cost_per_acted_signal_usd=unit_cost(acted), projections=projections)
-    return EconomicsDashboardResponse(tenant_id=tenant_id, from_ts=start, to_ts=end, funnel=funnel, quality=quality, reliability=reliability, economics=economics, alerts=_alerts(attempts=attempts, pending_attempts=live_pending_attempts, jobs=jobs, live_jobs=live_jobs, predictions=predictions, now=current, spend_anomaly=spend_anomaly))
+    return EconomicsDashboardResponse(tenant_id=tenant_id, from_ts=start, to_ts=end, funnel=funnel, quality=quality, reliability=reliability, economics=economics, alerts=_alerts(attempts=attempts, pending_attempts=live_pending_attempts, jobs=jobs, live_jobs=live_jobs, predictions=predictions, now=current, spend_anomaly=spend_anomaly, telemetry=telemetry))

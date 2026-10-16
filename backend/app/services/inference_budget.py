@@ -106,6 +106,11 @@ def settle(db: Session, tenant: str, attempt: str):
     row = db.get(InferenceReservation, (tenant, attempt))
     if row is None:
         raise BudgetDenied("reservation_missing")
+    if row.status == "authorized":
+        daily = db.get(InferenceBudget, (tenant, row.budget_day))
+        if daily is None or daily.reserved_usd < row.reserved_usd:
+            raise BudgetDenied("reservation_drift")
+        daily.reserved_usd -= row.reserved_usd
     row.status = "settled"
     db.flush()
     return row

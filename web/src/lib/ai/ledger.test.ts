@@ -10,10 +10,12 @@ import { UNKNOWN_USAGE } from "./usage";
 vi.mock("@/lib/backend-client", () => ({
   preflightInferenceLedger: vi.fn(),
   flushInferenceAttempts: vi.fn(),
+  reportLedgerFlushFailure: vi.fn(),
 }));
 
 import {
   flushInferenceAttempts,
+  reportLedgerFlushFailure,
   preflightInferenceLedger,
 } from "@/lib/backend-client";
 
@@ -77,5 +79,6 @@ describe("createRunLedger", () => {
     expect(result.failed).toBe(true);
     expect(flushInferenceAttempts).toHaveBeenCalledTimes(3);
     expect(ledgerFlushFailureCount()).toBe(1);
+    expect(reportLedgerFlushFailure).toHaveBeenCalledWith("tenant_partner", expect.any(String));
   });
 });
