@@ -61,11 +61,41 @@ Before and after normal traffic, issue a deliberately missing-actor read and con
 
 Pass only with observable start/end controls, all journeys complete, zero unexplained normal mismatches, and no behavior regressions. On failure stop test traffic and restore the recorded prior staging deployment/mode; do not drop or downgrade tables. Production enforce remains unauthorized.
 
-## Unmet acceptance
+## Step 1 approval & human operator execution runbook — 2026-10-16
 
-- Exact recurring quote and target approval.
-- Reviewed, committed implementation revision and exact-revision CI.
-- Resource provisioning, operator migration/seed, matching deployments/configuration.
-- Actual observed 30-minute window and retained counts-only evidence.
+- Approver: **Sanket** (2026-10-16).
+- Approved Staging Target:
+  - Render workspace **Sioona** (`tea-d9t31uugekts73clssa0`), web service `sioona-api-staging` (`srv-db62psijnfac73c74oj0`), plan `free` ($0/mo, zero new charges).
+  - Genuinely empty, zero-row Neon Postgres database named `sioona_staging_clean` on a direct (non-pooled) session connection.
+  - Historical database `sioona_migration_test` in `sioona-actor-staging` (`fragrant-voice-56460486`) is preserved untouched.
+  - Recovery targets: **RTO = 4 hours, RPO = 24 hours** (natural provider backup window; session advisory locks require direct session connection).
+  - Ingress/Controls: `DETECT_LLM=0`, `LIVE_INGEST=0`, `SIOONA_EXTERNAL_ACTIONS_ENABLED=0`.
+- Agent Safety Contract: Per `backend/AGENTS.md` and `docs/DEVELOPMENT_COOKBOOK.md` §5.3/§5.6, agent sessions are strictly prohibited from holding org admin tokens (`NEON_API_KEY`) or executing Alembic/SQL against non-test hosted databases. All hosted DDL, role provisioning, and seed commands are executed exclusively by the human operator.
 
-Do not mark CB-03 or the foundation milestone done until these are satisfied. CB-10 remains blocked by the agreed foundation gate.
+### Operator Step 2 execution sequence (human terminal)
+
+Execute from repository root (`backend` venv active):
+
+```bash
+set -euo pipefail
+
+# 1. Export direct owner URL and desired runtime password
+export HOSTED_MIGRATION_DATABASE_URL="postgresql+psycopg://cloud_admin:<PASSWORD>@<HOST>/sioona_staging_clean?sslmode=require"
+export SIOONA_RUNTIME_PASSWORD="<GENERATE_SECURE_RANDOM_PASSWORD>"
+
+# 2. Run the secret-free bootstrap script
+# Performs preflight 0-table check, Alembic 001->034, sioona_runtime role provisioning,
+# synthetic membership seeding, check_schema, forced-RLS verification, and writes redacted receipt.
+(cd backend && python -m scripts.operator_staging_bootstrap)
+```
+
+The script verifies:
+1. Exactly 0 public tables exist before migrating (fails closed otherwise).
+2. Alembic head reaches `034_operational_telemetry`.
+3. `sioona_runtime` is created with `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`.
+4. Synthetic staging memberships are seeded for `tenant_staging_a`, `tenant_staging_b`, and `tenant_demo`.
+5. Schema startup gate (`scripts.check_schema`) passes.
+6. Forced RLS on all tenant tables, missing-tenant-context denial, cross-tenant A/B isolation, and pooled connection-reuse safety pass.
+7. Emits a redacted, counts-only verification receipt at `docs/development/evidence/staging-bootstrap-receipt.json` with zero credentials or URLs.
+
+The retained `evidence/staging-bootstrap-receipt.json` predates the role-isolation preflight and does not identify its execution target. It is historical evidence only; it does not establish hosted acceptance or verify the current script revision. A fresh operator receipt and the observed shadow window are still required.
