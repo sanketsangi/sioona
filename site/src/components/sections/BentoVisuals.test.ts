@@ -97,3 +97,36 @@ it("settles all stages without timers when reduced motion is requested", () => {
     expect(html).not.toContain("feature-playback");
   }
 });
+
+it("keeps hover pinned when expansion moves a sibling under a stationary pointer", () => {
+  act(() => root.render(createElement(SignalPillStage)));
+  visible(true);
+  const buttons = host.querySelectorAll<HTMLButtonElement>(".feature-signal-pill");
+  act(() => buttons[2].dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX: 250, clientY: 100 })));
+  expect(open()).toBe("Upsell: Expansion");
+  act(() => {
+    buttons[2].dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: buttons[3], clientX: 250, clientY: 100 }));
+    buttons[3].dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: buttons[2], clientX: 250, clientY: 100 }));
+  });
+  advance(8800);
+  expect(open()).toBe("Upsell: Expansion");
+  act(() => {
+    buttons[3].dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+    buttons[1].dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX: 160, clientY: 100 }));
+  });
+  expect(open()).toBe("Lead: Buying intent");
+});
+
+it("changes the hovered signal only after real pointer movement inside the stage", () => {
+  act(() => root.render(createElement(SignalPillStage)));
+  visible(true);
+  const buttons = host.querySelectorAll<HTMLButtonElement>(".feature-signal-pill");
+  act(() => buttons[2].dispatchEvent(new MouseEvent("mouseover", { bubbles: true, clientX: 250, clientY: 100 })));
+  act(() => {
+    buttons[2].dispatchEvent(new MouseEvent("mouseout", { bubbles: true, relatedTarget: buttons[3], clientX: 251, clientY: 100 }));
+    buttons[3].dispatchEvent(new MouseEvent("mouseover", { bubbles: true, relatedTarget: buttons[2], clientX: 251, clientY: 100 }));
+  });
+  expect(open()).toBe("Upsell: Expansion");
+  act(() => buttons[3].dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 280, clientY: 100 })));
+  expect(open()).toBe("Review: Human verdict");
+});

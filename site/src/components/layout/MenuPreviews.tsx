@@ -6,7 +6,8 @@ import { Stage } from "@/app/how-it-works/FourStepScroll";
 import { STEP, useInsightsScript } from "@/components/mocks/useInsightsScript";
 import { SignalTypeChip, SignalUser, SignalScoreChip, SignalStatus } from "@/components/signal/SignalChips";
 import { ScorePanel } from "@/components/sections/ScorePanel";
-import { BentoFeatureVisual } from "@/components/sections/Bento";
+import { ProductFeatureCard } from "@/components/sections/Bento";
+import { FeaturePlaybackContext } from "@/components/sections/BentoVisuals";
 
 const CHAT_QUOTE = "I’ll close my account";
 const CHAT_PARTS = ["If I can’t find a better plan this week, ", CHAT_QUOTE, " and move my savings elsewhere."];
@@ -71,30 +72,28 @@ export function ScorePreview({ running = false }: { running?: boolean }) {
   return <div className="menu-score-preview" data-running={running && !reduced}><ScorePanel compact /></div>;
 }
 
-const featureNames = ["Insights", "Upload", "Eval", "Taxonomy", "Suggested next action", "Keyboard-first review"];
-const featureDescriptions = ["Evidence, review, and your next move.", "Bring your chats into the workspace.", "Measure precision against human judgment.", "Define the signals that matter to you.", "A clear follow-up. Your team decides.", "Keep reviews moving with keyboard shortcuts."];
+const featureNames = ["Shadow Mode", "SignalScore", "Evidence", "Signal review"];
 
 export function FeaturePreview({ running = false }: { running?: boolean }) {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
   useEffect(() => {
     if (reduced || !running) return;
-    const timer = window.setInterval(() => setActive((value) => (value + 1) % featureNames.length), 2200);
+    const timer = window.setInterval(() => setActive((value) => (value + 1) % featureNames.length), 8000);
     return () => window.clearInterval(timer);
   }, [reduced, running]);
-  return <div className="menu-feature-sequence">
+  return <FeaturePlaybackContext.Provider value={running}><div className="menu-feature-sequence">
     <div className="menu-feature-stage">
       <AnimatePresence initial={false}>
-      {featureNames.map((name, index) => active === index ? <m.div key={name} className="menu-feature-scene" data-active="true"
+      {featureNames.map((name, index) => active === index ? <m.div key={name} className="menu-feature-scene menu-feature-card-scene" data-active="true"
         initial={{ x: reduced ? 0 : "110%", opacity: reduced ? 1 : 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: reduced ? 0 : "-110%", opacity: 0 }}
         transition={{ duration: reduced ? 0 : 0.35, ease: [0.22, 1, 0.36, 1] }}>
-        <p className="text-heading-20">{name}</p><p>{featureDescriptions[index]}</p>
-        <div className="menu-feature-visual"><BentoFeatureVisual index={index} /></div>
+        <ProductFeatureCard index={index} hideCopy />
       </m.div> : null)}
       </AnimatePresence>
     </div>
-  </div>;
+  </div></FeaturePlaybackContext.Provider>;
 }
 

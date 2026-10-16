@@ -4,16 +4,28 @@ import { ShadowFeatureStage, AnalyticsFeatureStage, EvidenceFeatureStage, Signal
 import { SignalStatus, SignalTypeChip, SignalUser, type SignalState, type SignalType } from "@/components/signal/SignalChips";
 import { nb } from "@/lib/site";
 
-function Card({ title, body, children }: { title: string; body: string; children: ReactNode }) {
+function Card({ title, body, children, hideCopy = false }: { title: string; body: string; children: ReactNode; hideCopy?: boolean }) {
   return (
     <article className="bento-card group flex flex-col overflow-hidden rounded-3xl p-6 sm:p-8">
-      <h3 className="text-base leading-relaxed font-medium text-pretty text-sio-fg-base">{nb(title)}</h3>
-      <p className="text-base leading-relaxed text-pretty text-sio-fg-subtle">{nb(body)}</p>
+      {!hideCopy && <><h3 className="text-[17px] font-semibold tracking-[-0.015em] leading-snug text-pretty text-sio-fg-base">{nb(title)}</h3>
+      <p className="mt-2 text-[14px] leading-relaxed text-pretty text-sio-fg-subtle">{nb(body)}</p></>}
       <figure className="mt-auto pt-8">
         <div className="feature-card-stage"><div className="feature-card-snippet">{children}</div></div>
       </figure>
     </article>
   );
+}
+
+/** The page and header preview share the complete approved card design. */
+export function ProductFeatureCard({ index, hideCopy = false }: { index: number; hideCopy?: boolean }) {
+  const features = [
+    { title: marketingCopy.shadow[2].text, body: marketingCopy.shadow[3].text, Stage: ShadowFeatureStage },
+    { title: marketingCopy.features[7].text, body: marketingCopy.features[8].text, Stage: AnalyticsFeatureStage },
+    { title: marketingCopy.features[9].text, body: marketingCopy.features[10].text, Stage: EvidenceFeatureStage },
+    { title: marketingCopy.features[3].text, body: marketingCopy.features[4].text, Stage: SignalPillStage },
+  ];
+  const { title, body, Stage } = features[index % features.length];
+  return <Card title={title} body={body} hideCopy={hideCopy}><Stage /></Card>;
 }
 
 const queue: { name: string; snippet: string; type: SignalType; state: SignalState }[] = [
@@ -67,18 +79,7 @@ export function Bento() {
           <p className="features-intro">{nb(marketingCopy.features[2].text)}</p>
         </header>
         <div className="features-grid mt-12 grid gap-5 sm:grid-cols-2">
-          <Card title={marketingCopy.shadow[2].text} body={marketingCopy.shadow[3].text}>
-            <ShadowFeatureStage />
-          </Card>
-          <Card title={marketingCopy.features[7].text} body={marketingCopy.features[8].text}>
-            <AnalyticsFeatureStage />
-          </Card>
-          <Card title={marketingCopy.features[9].text} body={marketingCopy.features[10].text}>
-            <EvidenceFeatureStage />
-          </Card>
-          <Card title={marketingCopy.features[3].text} body={marketingCopy.features[4].text}>
-            <SignalPillStage />
-          </Card>
+          {[0, 1, 2, 3].map(index => <ProductFeatureCard key={index} index={index} />)}
         </div>
       </div>
     </section>

@@ -67,6 +67,7 @@
   --sio-fg-muted: var(--ds-gray-700);
   --sio-fg-faint: var(--ds-gray-600);
   --sio-fg-on-color: var(--ds-background-100);
+  --sio-feature-cursor-ink: var(--ds-background-200);
   --sio-fg-link: var(--ds-blue-900);
   --sio-fg-link-hover: var(--ds-blue-1000);
 
@@ -157,6 +158,8 @@
   --sio-feature-grain: repeating-conic-gradient(color-mix(in srgb, var(--ds-background-200) 35%, transparent) 0% 25%, transparent 0% 50%);
   --sio-feature-stage: var(--ds-background-100);
   --sio-feature-surface: var(--ds-background-200);
+  --sio-feature-card-shadow: 0 1px 3px color-mix(in srgb, var(--ds-gray-1100) 3%, transparent);
+  --sio-feature-card-shadow-hover: 0 8px 24px -6px color-mix(in srgb, var(--ds-gray-1100) 6%, transparent);
   --sio-feature-window-shadow: 0 2px 4px color-mix(in srgb, var(--ds-gray-1100) 6%, transparent), 0 18px 32px -10px color-mix(in srgb, var(--ds-gray-1100) 24%, transparent);
   --sio-feature-cursor-shadow: 0 2px 6px color-mix(in srgb, var(--ds-gray-1100) 16%, transparent);
 }

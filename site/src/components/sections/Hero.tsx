@@ -16,8 +16,7 @@ export function Hero() {
             <span className="hero-badge-arrow size-6"><ArrowUpRight size={12} className="size-3" weight="bold" aria-hidden /></span>
           </Link>
           <div className="hero-heading">
-            <h1 id="hero-title">{marketingCopy.hero[0].text}</h1>
-            <p className="hero-tagline">{marketingCopy.hero[1].text}</p>
+            <h1 id="hero-title" className="hero-tagline">Your next opportunity is already in <span className="hero-headline-accent">the conversation.</span></h1>
           </div>
           <p className="text-copy-18 hero-description">{marketingCopy.hero[2].text}</p>
           <div className="hero-actions">

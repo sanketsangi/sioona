@@ -3,18 +3,20 @@
 import { m } from "framer-motion";
 import { CheckCircle } from "@phosphor-icons/react/ssr";
 import { duration, ease, stagger, viewport } from "@/lib/motion";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { usePageVisible } from "@/lib/usePageVisible";
-import { Cursor, ListChecks, CaretDown, Check } from "@phosphor-icons/react/ssr";
-import { SioonaMark } from "@/components/layout/SioonaMark";
+import { ListChecks, CaretDown } from "@phosphor-icons/react/ssr";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
 import { SignalTypeChip } from "@/components/signal/SignalChips";
 
+export const FeaturePlaybackContext = createContext(true);
+
 /** SSR stays settled; observers, media preferences, and tab visibility gate all work. */
 function useFeatureLoop(period = 0, steps = 1, pinned = false, settled = 0) {
+  const playbackEnabled = useContext(FeaturePlaybackContext);
   const ref = useRef<HTMLDivElement>(null);
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)", true);
   const pageVisible = usePageVisible();
@@ -26,7 +28,7 @@ function useFeatureLoop(period = 0, steps = 1, pinned = false, settled = 0) {
     observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);
-  const running = !reduced && inView && pageVisible && !pinned;
+  const running = playbackEnabled && !reduced && inView && pageVisible && !pinned;
   useEffect(() => {
     if (!running || !period) return;
     const timer = window.setInterval(() => setStep(value => (value + 1) % steps), period);
@@ -40,15 +42,14 @@ function StaticFallback() {
   return <noscript><p className="feature-static-note">Static illustration · animations are off.</p></noscript>;
 }
 
-function WindowChrome() {
-  return <div className="feature-window-chrome">
-    <span className="feature-window-dots"><i /><i /><i /></span>
-    <span className="feature-url" translate="no">sioona / workspace</span>
-  </div>;
+function FeatureCursorArrow() {
+  return (<svg className="feature-handover-arrow" fill="none" height="18" viewBox="0 0 17 18" width="17">
+            <path d="M15.5036 3.11002L12.5357 15.4055C12.2666 16.5204 10.7637 16.7146 10.22 15.7049L7.4763 10.6094L2.00376 8.65488C0.915938 8.26638 0.891983 6.73663 1.96711 6.31426L13.8314 1.65328C14.7729 1.28341 15.741 2.12672 15.5036 3.11002ZM7.56678 10.6417L7.56645 10.6416C7.56656 10.6416 7.56667 10.6416 7.56678 10.6417L7.65087 10.4062L7.56678 10.6417Z" fill="currentColor" stroke="var(--sio-bg-base)" strokeWidth="1.5" />
+          </svg>);
 }
 
 function ReviewerCursor() {
-  return <span className="feature-cursor"><Cursor size={20} weight="fill" /><span>You</span></span>;
+  return <span className="feature-cursor" aria-hidden="true"><FeatureCursorArrow /><span className="feature-handover-name feature-reviewer-name inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-medium leading-none">You</span></span>;
 }
 
 /** Synthetic, display-only illustrations; these controls do not mutate a workspace. */
@@ -57,18 +58,32 @@ export function ShadowFeatureStage() {
   return <div {...loop.props} data-feature="0" className="feature-shadow">
     <div className="feature-stage-heading"><span>Shadow Mode</span><span className="feature-badge-swap" aria-label="Human-controlled Shadow Mode"><span className="feature-detect-badge"><i className="feature-spinner" />Detecting signal</span><span className="feature-dot-badge" data-tone="warning"><i />You’re in control</span></span></div>
     <p className="feature-stage-subtitle">Your team reviews. Nothing is sent from Sioona.</p>
-    <div className="feature-desktop feature-desktop-shadow aspect-[16/10]" role="img" aria-label="Illustrative Shadow Mode workspace with a human reviewer and Sioona. Suggested actions are display-only.">
+    <div className="feature-desktop feature-desktop-shadow aspect-[16/10]" role="img" aria-label="Illustrative conversation in a skeleton review workspace: the customer says they will close their account, and the reviewer asks what has changed. Nothing is sent from Sioona.">
       <div aria-hidden="true">
         <div className="feature-window feature-window-shadow">
-          <WindowChrome />
-          <div className="feature-workspace">
-            <div className="feature-mini-heading"><SioonaMark solid className="size-4" />Review workspace<span>Shadow Mode</span></div>
-            <div className="feature-workspace-field" data-desk="email"><span>Reviewer email · illustrative</span><p>reviewer@example.test</p></div>
-            <div className="feature-workspace-field"><span>Suggested next action</span><p>Offer a fee review call.</p></div>
-            <div className="feature-handover"><span data-desk="submit">Review suggestion</span><Check size={12} />Display only</div>
+          <div className="feature-skeleton-chrome"><span /><span /><span /></div>
+          <div className="feature-skeleton-address"><i /></div>
+          <div className="feature-skeleton-workspace">
+            <aside className="feature-skeleton-sidebar">{Array.from({ length: 5 }, (_, index) => <i key={index} />)}</aside>
+            <div className="feature-skeleton-content">
+              <div className="feature-skeleton-toolbar"><i /><i /></div>
+              <div className="feature-skeleton-columns">
+                <div className="feature-skeleton-queue">{Array.from({ length: 6 }, (_, index) => <div key={index} data-selected={index === 1}><i /><span /><b /></div>)}</div>
+                <div className="feature-skeleton-detail">
+                  <div className="feature-skeleton-summary"><i /><i /><i /></div>
+                  <div className="feature-review-conversation">
+                    <p className="feature-review-message">“<mark>I’ll close my account</mark> and move my savings elsewhere.”</p>
+                    <p className="feature-review-reply">“I’m sorry to hear that. Can you tell me what’s changed?”</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <span className="feature-handover-cursor"><Cursor size={20} weight="fill" /><span className="feature-cursor-badges"><span className="feature-cursor-agent"><SioonaMark solid className="size-4" />Sioona</span><span className="feature-cursor-human">You</span></span></span>
+        <span className="feature-handover-cursor" aria-hidden="true">
+          <FeatureCursorArrow />
+          <span className="feature-handover-name inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-medium leading-none">You</span>
+        </span>
       </div>
     </div>
     <StaticFallback />
@@ -81,18 +96,18 @@ const alternateBars = [52, 38, 59, 47, 74, 61, 84, 71, 91, 80];
 export function AnalyticsFeatureStage() {
   const loop = useFeatureLoop(1000, 4, false, 3);
   return <div {...loop.props} data-feature="2" className="feature-analytics">
-    <div className="feature-stage-heading"><span>SignalScore · 30-day window</span><span className="feature-live" aria-hidden="true"><i />Evaluation <time>0:0{loop.step + 1}</time></span></div>
-    <p className="feature-stage-subtitle">Precision against your team’s human review.</p>
-    <div className="feature-desktop feature-desktop-analytics aspect-[16/10]" role="img" aria-label="Illustrative evaluation analytics: Signal Score 84 percent, 120 reviewed signals, and an agreed 80 percent threshold. Ten bars show example review windows, not customer results.">
+    <div className="feature-stage-heading"><span className="feature-analytics-title">SignalScore <span>· 30-day window</span></span><span className="feature-live" aria-hidden="true"><i />Evaluation <time>0:0{loop.step + 1}</time></span></div>
+    <div className="feature-desktop feature-desktop-analytics aspect-[16/10]" role="img" aria-label="Illustrative evaluation dashboard: Signal Score 84 percent, 120 reviewed signals, an 80 percent threshold, a Last 30 days filter, and ten example bars. These are not customer results.">
       <div aria-hidden="true">
         <div className="feature-window feature-window-analytics">
-          <WindowChrome />
-          <div className="feature-analytics-layout">
-            <aside className="feature-mini-sidebar"><SioonaMark solid className="size-4" /><span>Overview</span><span data-selected="true">Evaluation</span><span>Taxonomy</span></aside>
-            <div className="feature-analytics-body">
-              <div className="feature-mini-heading">Evaluation<span className="feature-filter">Last 30 days<CaretDown size={9} /><span className="feature-filter-menu"><span>Last 7 days</span><strong>✓ Last 30 days</strong><span>All time</span></span></span></div>
+          <div className="feature-skeleton-chrome"><span /><span /><span /></div>
+          <div className="feature-skeleton-address"><i /></div>
+          <div className="feature-skeleton-workspace feature-skeleton-analytics">
+            <aside className="feature-skeleton-sidebar">{Array.from({ length: 6 }, (_, index) => <i key={index} />)}</aside>
+            <div className="feature-skeleton-analytics-body">
+              <div className="feature-skeleton-analytics-toolbar"><i /><div className="feature-filter feature-analytics-period">Last 30 days<CaretDown size={9} /><span className="feature-filter-menu"><span>Last 7 days</span><strong>✓ Last 30 days</strong><span>All time</span></span></div></div>
               <div className="feature-kpis">{[["Signal Score", "84%"], ["Reviewed", "120"], ["Threshold", "80%"]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
-              <div className="feature-chart">{chartBars.map((height, index) => <span key={index} className="transition-[height,transform] duration-500 ease-out" style={{ height: `${loop.step < 2 ? height : alternateBars[index]}%` }} />)}</div>
+              <div className="feature-chart">{chartBars.map((height, index) => <span key={index} style={{ transform: `scaleY(${(loop.step < 2 ? height : alternateBars[index]) / 100})` }} />)}</div>
               <div className="feature-chart-legend"><span><i />Confirmed correct</span><span><i />Human reviewed</span></div>
             </div>
           </div>
@@ -107,7 +122,7 @@ export function AnalyticsFeatureStage() {
 export function EvidenceFeatureStage() {
   const loop = useFeatureLoop();
   return <div {...loop.props} data-feature="3" className="feature-evidence" role="group" aria-label="Illustrative customer quote and reviewer context">
-  <div className="feature-transcript h-[212px]">
+  <div className="feature-transcript">
     <div className="feature-evidence-bubble baby-grok-bot-entry-enter rounded-2xl px-3 py-2 text-[14px] leading-5 tracking-[-0.15px]">
       <p>“Honestly, I’m <mark>thinking about moving my account</mark> somewhere else.”</p>
     </div>
@@ -119,21 +134,33 @@ export function EvidenceFeatureStage() {
 }
 
 const signalPills = [
-  { label: "Retention", status: "Needs review", tone: "retention", Icon: RetentionIcon },
-  { label: "Lead", status: "Buying intent", tone: "lead", Icon: LeadIcon },
-  { label: "Upsell", status: "Expansion", tone: "upsell", Icon: UpsellIcon },
-  { label: "Review", status: "Human verdict", tone: "review", Icon: ListChecks },
+  { label: "Retention", status: "Needs review", activity: "Reviewing retention…", tone: "retention", Icon: RetentionIcon },
+  { label: "Lead", status: "Buying intent", activity: "Reviewing buying intent…", tone: "lead", Icon: LeadIcon },
+  { label: "Upsell", status: "Expansion", activity: "Reviewing expansion…", tone: "upsell", Icon: UpsellIcon },
+  { label: "Review", status: "Human verdict", activity: "Awaiting human review…", tone: "review", Icon: ListChecks },
 ];
 
 export function SignalPillStage() {
   const [hovered, setHovered] = useState<number | null>(null);
+  const hoverPosition = useRef<{ x: number; y: number } | null>(null);
   const [focused, setFocused] = useState<number | null>(null);
   const loop = useFeatureLoop(2200, 4, hovered !== null || focused !== null);
   const active = focused ?? hovered ?? loop.step;
-  return <div {...loop.props} data-feature="4" className="feature-pill-stage">
+  return <div {...loop.props} data-feature="4" className="feature-pill-stage" onMouseLeave={() => { hoverPosition.current = null; setHovered(null); }}>
     <div className="avatar-row" role="group" aria-label="Explore example signal types">
-      {signalPills.map(({ label, status, tone, Icon }, index) => <button key={label} type="button" className="feature-signal-pill" data-tone={tone} data-open={active === index} aria-pressed={active === index} aria-label={`${label}: ${status}`} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)} onFocus={() => setFocused(index)} onBlur={() => setFocused(null)} onClick={() => setFocused(index)}>
-        <Icon className="feature-pill-icon" aria-hidden /><span className="avatar-row__spread" aria-hidden="true"><span className="avatar-row__label"><strong>{label}</strong><span>{status}</span></span></span>
+      {signalPills.map(({ label, status, activity, tone, Icon }, index) => <button key={label} type="button" className="feature-signal-pill" data-tone={tone} data-open={active === index} aria-pressed={active === index} aria-label={`${label}: ${status}`} onMouseEnter={event => {
+        // Resizing can dispatch enter events on siblings without user movement.
+        // Once inside, select another signal only from a mousemove event.
+        if (hoverPosition.current) return;
+        hoverPosition.current = { x: event.clientX, y: event.clientY };
+        setHovered(index);
+      }} onMouseMove={event => {
+        const previous = hoverPosition.current;
+        if (previous && previous.x === event.clientX && previous.y === event.clientY) return;
+        hoverPosition.current = { x: event.clientX, y: event.clientY };
+        setHovered(index);
+      }} onFocus={() => setFocused(index)} onBlur={() => setFocused(null)} onClick={() => setFocused(index)}>
+        <Icon className="feature-pill-icon" aria-hidden /><span className="avatar-row__spread" aria-hidden="true"><span className="avatar-row__label"><span className="feature-activity-dots"><i /><i /><i /></span><span>{activity}</span></span></span>
       </button>)}
     </div>
     <StaticFallback />
