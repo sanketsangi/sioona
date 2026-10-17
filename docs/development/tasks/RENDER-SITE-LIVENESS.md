@@ -1,6 +1,6 @@
 # Render site liveness — 2026-10-17
 
-Scope: local changes for the marketing site at sioona.si; no push or deployment.
+Scope: marketing site at sioona.si. User subsequently authorized push and deployment.
 
 - Force the standalone production child process to bind 0.0.0.0, preserve PORT,
   and default to 3000 locally. Existing npm start already runs production code
@@ -18,9 +18,14 @@ falls back to 3000. Production build is blocked by this environment's Turbopack
 worker port binding restriction (Operation not permitted), including an escalated
 retry; full build and deployed HTTP acceptance remain unverified.
 
-Activation: merge/push workflow to the default branch and deploy the site changes.
-Dashboard-managed Render services must separately set Health Check Path=/health;
-editing the proposed Blueprint alone does not update the running service.
+Hosted acceptance: pushed implementation as 06cf7115 on main and deployed that
+commit to sioona-site (dep-db9bov7avr4c73dfl680), confirmed live. Render's hosted
+production build passed. Set the dashboard-managed Health Check Path to /health.
+Public GET https://sioona.si/health returned HTTP 200, {"status":"ok"}, and
+Cache-Control: no-store. GitHub workflow is active; manual run
+https://github.com/sanketsangi/sioona/actions/runs/38985140548 completed successfully.
+Scheduled execution remains subject to GitHub scheduling; long-term absence of
+cold starts has not been established.
 
 Limitations: a liveness endpoint alone does not prevent sleep. GitHub schedules
 are best effort and may be delayed/dropped. The requested cron runs at minutes
