@@ -1587,3 +1587,5 @@ html[data-drawer-open="true"] {
 .feature-pill-stage .avatar-row__label { width: 100%; }
 .feature-pill-stage .feature-activity-dots { display: none; }
 .features-grid > .bento-card:has(.feature-pill-stage) { min-height: 460px; height: auto; }
+/* Keep the source evidence readable while operators explore adjacent cards. */
+.feature-evidence .baby-grok-bot-entry-enter { animation: none; opacity: 1; transform: none; }
