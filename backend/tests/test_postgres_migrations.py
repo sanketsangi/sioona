@@ -715,7 +715,7 @@ def test_runtime_role_rls_scopes_and_forgets_context(monkeypatch):
     monkeypatch.setenv("DATABASE_URL", URL)
     monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)
     from app.config import get_settings
-    from app.db import bind_tenant, clear_tenant
+    from app.db import clear_tenant
     get_settings.cache_clear()
     try:
         cfg = Config("alembic.ini")
@@ -786,7 +786,7 @@ def _seed_two_tenants(conn) -> None:
     from app.models import Workspace, User, Membership
     from app.models.pilot_settings import PilotSettings
     from app.models.taxonomy_override import TaxonomyOverride
-    from app.models.upload import Upload, UploadConversation
+    from app.models.upload import Upload
     from app.models.inference_budget import InferenceControl, InferenceBudget, InferenceRunBudget, InferenceReservation
     from uuid import UUID
     with Session(bind=conn) as db:
@@ -1148,7 +1148,6 @@ def test_cb11_crash_publication_boundary_retries_only_unpublished(job_pg, after_
     from app.models.job import Job
     from app.models.detection_run import DetectionRun
     from app.worker import Worker
-    from sqlalchemy.orm import sessionmaker
 
     jid = _job_seed(job_pg, ids=("c1", "c2"))
     with _runtime_session(job_pg, "a") as db:
@@ -1192,7 +1191,6 @@ def test_cb11_crash_publication_boundary_retries_only_unpublished(job_pg, after_
 
 
 def test_cb11_runtime_jobs_isolation_and_constraints(job_pg):
-    from app.services import jobs
     from app.models.job import Job
 
     a = _job_seed(job_pg, tenant="a")
@@ -1310,7 +1308,6 @@ def test_cb11_provider_and_commit_crash_boundaries_are_metered(
         return parsed, {"status": "succeeded", "usage": {}}
 
     sessions = lambda: _runtime_session(job_pg, "a")
-    original_publish = jobs.publish_conversation
     if crash == "before_publication":
 
         def crash_publish(*args, **kwargs):
@@ -1866,7 +1863,6 @@ def test_cb18_runtime_hold_crash_resume_worker_fence_and_shared_user(job_pg):
     from app.models import User, Workspace, SignalEvidence
     from app.models.lifecycle import TenantDeletion, LifecycleLedgerSummary
     from app.models.job import Job
-    from app.db import bind_tenant
     import uuid
     with Session(job_pg) as db:
         actor, solo = seed(db)
@@ -1922,7 +1918,6 @@ def test_cb18_runtime_hold_crash_resume_worker_fence_and_shared_user(job_pg):
 def test_cb18_mid_step_failure_and_restore_reconciliation(job_pg, monkeypatch):
     from tests.test_audit_lifecycle import seed
     from app.services import lifecycle
-    from app.models.lifecycle import TenantDeletion
     from app.models import SignalEvidence, Workspace, Membership
     from app.db import bind_tenant
     import uuid
@@ -2635,7 +2630,7 @@ def test_cb17_sandbox_outbox_runtime_rls_and_durable_attempt(job_pg, monkeypatch
 
 
 def test_cb17_concurrent_dispatch_exact_binding_and_audit(job_pg, monkeypatch):
-    from app.models.supervised_action import ActionProposal, ActionExecution, SupervisedActionDecision
+    from app.models.supervised_action import SupervisedActionDecision
     from app.models.lifecycle import AuditEvent
     from app.services import external_actions as actions
     from tests.test_audit_lifecycle import seed

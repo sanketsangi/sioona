@@ -1,7 +1,6 @@
 """Provider-free operator CLI safety and real HTTP-to-Postgres admission proof."""
 import json
 import os
-from pathlib import Path
 from unittest.mock import Mock
 
 import httpx
