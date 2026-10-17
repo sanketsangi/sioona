@@ -134,21 +134,21 @@ export function EvidenceFeatureStage() {
 }
 
 const signalPills = [
-  { label: "Retention", status: "Needs review", activity: "Reviewing retention…", quote: "I’m thinking about moving my account somewhere else.", tone: "retention", Icon: RetentionIcon },
-  { label: "Lead", status: "Buying intent", activity: "Reviewing buying intent…", quote: "Do you have accounts for a small team?", tone: "lead", Icon: LeadIcon },
-  { label: "Upsell", status: "Expansion", activity: "Reviewing expansion…", quote: "I hit the cap every week. Can I get higher limits?", tone: "upsell", Icon: UpsellIcon },
-  { label: "Review", status: "Human verdict", activity: "Awaiting human review…", quote: "Match the exact quote to the saved taxonomy, then record a verdict.", tone: "review", Icon: ListChecks },
+  { label: "Retention", status: "Needs review", activity: "Reviewing retention…", tone: "retention", Icon: RetentionIcon },
+  { label: "Lead", status: "Buying intent", activity: "Reviewing buying intent…", tone: "lead", Icon: LeadIcon },
+  { label: "Upsell", status: "Expansion", activity: "Reviewing expansion…", tone: "upsell", Icon: UpsellIcon },
+  { label: "Review", status: "Human verdict", activity: "Awaiting human review…", tone: "review", Icon: ListChecks },
 ];
 
 export function SignalPillStage() {
   const [hovered, setHovered] = useState<number | null>(null);
   const hoverPosition = useRef<{ x: number; y: number } | null>(null);
   const [focused, setFocused] = useState<number | null>(null);
-  const loop = useFeatureLoop();
+  const loop = useFeatureLoop(2200, 4, hovered !== null || focused !== null);
   const active = focused ?? hovered ?? loop.step;
   return <div {...loop.props} data-feature="4" className="feature-pill-stage" onMouseLeave={() => { hoverPosition.current = null; setHovered(null); }}>
     <div className="avatar-row" role="group" aria-label="Explore example signal types">
-      {signalPills.map(({ label, status, activity, tone, Icon }, index) => <div className="feature-pill-slot" key={label} data-open={active === index}><button type="button" className="feature-signal-pill" data-tone={tone} data-open={active === index} aria-pressed={active === index} aria-label={`${label}: ${status}`} onMouseEnter={event => {
+      {signalPills.map(({ label, status, activity, tone, Icon }, index) => <button key={label} type="button" className="feature-signal-pill" data-tone={tone} data-open={active === index} aria-pressed={active === index} aria-label={`${label}: ${status}`} onMouseEnter={event => {
         // Resizing can dispatch enter events on siblings without user movement.
         // Once inside, select another signal only from a mousemove event.
         if (hoverPosition.current) return;
@@ -161,12 +161,7 @@ export function SignalPillStage() {
         setHovered(index);
       }} onFocus={() => setFocused(index)} onBlur={() => setFocused(null)} onClick={() => setFocused(index)}>
         <Icon className="feature-pill-icon" aria-hidden /><span className="avatar-row__spread" aria-hidden="true"><span className="avatar-row__label"><span className="feature-activity-dots"><i /><i /><i /></span><span>{activity}</span></span></span>
-      </button></div>)}
-    </div>
-    <div className="feature-signal-example rounded-panel" data-tone={signalPills[active].tone} role="status" aria-live="polite" aria-atomic="true">
-      <p className="feature-signal-example-heading"><strong>{signalPills[active].label}</strong><span>{signalPills[active].status}</span></p>
-      <p>“{signalPills[active].quote}”</p>
-      <span className="feature-signal-example-caption">Example signal · Your team decides</span>
+      </button>)}
     </div>
     <StaticFallback />
   </div>;

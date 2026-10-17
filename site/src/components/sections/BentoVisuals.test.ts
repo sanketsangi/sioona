@@ -35,7 +35,7 @@ function visible(isIntersecting: boolean) {
 }
 function advance(ms: number) { act(() => vi.advanceTimersByTime(ms)); }
 function stage() { return host.querySelector("[data-feature]") as HTMLElement; }
-function open() { return host.querySelector('button[data-open="true"]')?.getAttribute("aria-label"); }
+function open() { return host.querySelector('[data-open="true"]')?.getAttribute("aria-label"); }
 
 it("ticks evaluation only in view, pauses in hidden tabs, and cleans up on unmount", () => {
   act(() => root.render(createElement(AnalyticsFeatureStage)));
@@ -51,21 +51,23 @@ it("ticks evaluation only in view, pauses in hidden tabs, and cleans up on unmou
   act(() => root.unmount()); expect(disconnect).toHaveBeenCalled();
 });
 
-it("expands signals on input and pairs the selection with its example card", () => {
+it("cycles all pills every 2.2 seconds and pins hover and keyboard focus independently", () => {
   act(() => root.render(createElement(SignalPillStage)));
   visible(true);
-  advance(8800); expect(open()).toBe("Retention: Needs review");
-  expect(vi.getTimerCount()).toBe(0);
+  advance(2200); expect(open()).toBe("Lead: Buying intent");
+  advance(2200); expect(open()).toBe("Upsell: Expansion");
+  advance(2200); expect(open()).toBe("Review: Human verdict");
+  advance(2200); expect(open()).toBe("Retention: Needs review");
   const buttons = host.querySelectorAll<HTMLButtonElement>(".feature-signal-pill");
-  act(() => buttons[2].focus());
-  expect(open()).toBe("Upsell: Expansion");
-  expect(host.querySelector('[role="status"]')?.textContent).toContain("Can I get higher limits?");
+  act(() => buttons[2].dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
   advance(8800); expect(open()).toBe("Upsell: Expansion");
-  act(() => buttons[2].blur());
-  expect(open()).toBe("Retention: Needs review");
-  act(() => buttons[1].click());
-  expect(open()).toBe("Lead: Buying intent");
-  expect(host.querySelector('[role="status"]')?.textContent).toContain("small team");
+  expect(vi.getTimerCount()).toBe(0);
+  act(() => buttons[1].focus());
+  act(() => buttons[2].dispatchEvent(new MouseEvent("mouseout", { bubbles: true })));
+  advance(8800); expect(open()).toBe("Lead: Buying intent");
+  act(() => buttons[1].blur());
+  advance(2200); expect(open()).toBe("Lead: Buying intent");
+  advance(2200); expect(open()).toBe("Upsell: Expansion");
 });
 
 it("omits desktop captions and playback buttons from every feature stage", () => {
