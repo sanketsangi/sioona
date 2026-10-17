@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { pilotProgress } from "@/lib/pilot-progress";
 import { ReportUploadForm } from "@/components/ReportUploadForm";
 import { reportUploadOptions, type ReportUploadOption } from "@/lib/report-upload-options";
 import { ReportRangeForm } from "@/components/ReportRangeForm";
@@ -31,7 +32,7 @@ export async function RevenueLeakReportView({
   uploadId?: string;
   file?: string;
 }) {
-  const { report, query, rangeError, rangeErrorField, scopeError } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
+  const { report, query, rangeError, rangeErrorField, scopeError, scopedStore } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
 
   let uploadOptions: ReportUploadOption[] = [];
   let uploadsUnavailable = false;
@@ -40,12 +41,13 @@ export async function RevenueLeakReportView({
 
   return (
     <ViewFrame className="overflow-y-auto">
-      <ReportDocument report={report} anonymised={anonymised} query={query.toString()} rangeError={rangeError} rangeErrorField={rangeErrorField} scopeError={scopeError} uploadOptions={uploadOptions} uploadsUnavailable={uploadsUnavailable} />
+      <ReportDocument conversationCount={scopedStore.conversations.length} report={report} anonymised={anonymised} query={query.toString()} rangeError={rangeError} rangeErrorField={rangeErrorField} scopeError={scopeError} uploadOptions={uploadOptions} uploadsUnavailable={uploadsUnavailable} />
     </ViewFrame>
   );
 }
 
 function ReportDocument({
+  conversationCount,
   report,
   anonymised,
   query,
@@ -55,6 +57,7 @@ function ReportDocument({
   uploadOptions,
   uploadsUnavailable,
 }: {
+  conversationCount: number;
   report: RevenueLeakReport;
   anonymised: boolean;
   query: string;
@@ -91,6 +94,22 @@ function ReportDocument({
       </header>
 
       {scopeError ? <p role="status" className="text-copy-14 text-sio-fg-base">{scopeError} <Link href="/?view=report" className="underline">Open current report</Link>{" · "}<Link href="/upload" className="underline">Open uploads</Link></p> : null}
+      <section aria-labelledby="pilot-progress" className="panel p-4">
+        <h3 id="pilot-progress" className="text-label-14 text-sio-fg-base">Pilot checklist</h3>
+        <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+          {pilotProgress(report, conversationCount).map(step => {
+            const params = new URLSearchParams(query);
+            params.set("view", step.destination);
+            return <li key={step.label} className="min-w-0 text-copy-13 text-sio-fg-subtle">
+              <Link href={`/?${params}`} className="inline-flex min-h-11 items-center gap-2 text-sio-fg-base underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-sio-border-base">
+                <span>{step.complete ? "Recorded" : "Next step"}</span> · {step.label}
+              </Link>
+              <p className="break-words">{step.detail}</p>
+            </li>;
+          })}
+        </ol>
+      </section>
+
       <ReportUploadForm query={query} options={uploadOptions} unavailable={uploadsUnavailable} />
       <ReportRangeForm query={query} error={rangeError} errorField={rangeErrorField} />
 
