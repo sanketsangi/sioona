@@ -1,8 +1,9 @@
 {
   "receipt_version": 1,
-  "timestamp_utc": "2026-10-16T08:31:00.633251+00:00",
+  "timestamp_utc": "2026-10-17T14:13:07.147611+00:00",
   "preflight": {
     "initial_table_count": 0,
+    "role_isolation_mode": "explicit_shared_opt_in",
     "zero_row_baseline_verified": true
   },
   "migrations": {
@@ -24,7 +25,7 @@
       "tenant_staging_b",
       "tenant_demo"
     ],
-    "memberships_upserted": 5,
+    "memberships_upserted": 6,
     "memberships_skipped_revoked": 0
   },
   "verification": {

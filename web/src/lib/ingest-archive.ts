@@ -1,19 +1,8 @@
 import { SaxesParser } from "saxes";
 import { inflateRawSync } from "node:zlib";
 
-export const EXPORT_LIMITS = {
-  fileBytes: 10 * 1024 * 1024,
-  expandedBytes: 40 * 1024 * 1024,
-  entries: 256,
-  sheets: 32,
-  rows: 10_000,
-  columns: 32,
-  messageChars: 100_000,
-  maxMergeCells: 128,
-  maxMergeArea: 1_024,
-  maxDataValidations: 32,
-  maxDataValidationArea: 1_024,
-} as const;
+import { EXPORT_LIMITS } from "./ingest-constraints";
+export { EXPORT_LIMITS } from "./ingest-constraints";
 
 function boundedCell(reference: unknown): [number, number] {
   const match = typeof reference === "string" && /^([A-Z]+)(\d+)$/.exec(reference);

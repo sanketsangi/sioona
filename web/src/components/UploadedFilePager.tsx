@@ -1,6 +1,10 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { corpusSwitchHref } from "@/lib/workspace-navigation";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react/ssr";
 import { PagerIconLink } from "@/components/PagerIconLink";
-import { uploadedFileIndex, vaultInsightsHref } from "@/lib/vault-file";
+import { uploadedFileIndex } from "@/lib/vault-file";
 
 /**
  * Previous / next between files from one real export.
@@ -13,6 +17,7 @@ export function UploadedFilePager({
   files: readonly string[];
   current?: string | null;
 }) {
+  const searchParams = useSearchParams();
   if (files.length < 2) return null;
   const index = uploadedFileIndex(files, current);
   if (index < 0) return null;
@@ -25,7 +30,7 @@ export function UploadedFilePager({
       className="flex shrink-0 items-center gap-1"
     >
       <PagerIconLink
-        href={prev ? vaultInsightsHref(prev) : null}
+        href={prev ? corpusSwitchHref(prev, searchParams) : null}
         label="Previous file"
       >
         <CaretLeft className="size-4" weight="regular" aria-hidden />
@@ -35,7 +40,7 @@ export function UploadedFilePager({
         {index + 1} of {files.length}
       </p>
       <PagerIconLink
-        href={next ? vaultInsightsHref(next) : null}
+        href={next ? corpusSwitchHref(next, searchParams) : null}
         label="Next file"
       >
         <CaretRight className="size-4" weight="regular" aria-hidden />

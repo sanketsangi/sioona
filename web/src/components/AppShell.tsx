@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useUnsavedNavigation } from "@/hooks/use-unsaved-navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { QueueWakeRetry } from "@/components/QueueWakeRetry";
@@ -10,6 +12,12 @@ import { stopCursorRefStrip } from "@/lib/cursor-ref-hydration";
 import type { AccountSurface } from "@/lib/account-surface";
 import type { HeaderNotification } from "@/lib/notifications";
 import type { PlatformView, WorkspaceMode } from "@/lib/views";
+
+function ScopeChangeNotice() {
+  const params = useSearchParams();
+  if (params.get("scopeChanged") !== "1") return null;
+  return <p role="status" className="shrink-0 px-4 pt-3 text-copy-14 text-sio-fg-subtle">Corpus changed. Signal selection and pagination were cleared; your filters were kept.</p>;
+}
 
 export function AppShell({
   children,
@@ -45,6 +53,7 @@ export function AppShell({
   /** Reset and Partner Demo. Off when production disables those actions. */
   showDemoActions?: boolean;
 }) {
+  useUnsavedNavigation(false);
   useEffect(() => {
     stopCursorRefStrip();
   }, []);
@@ -91,6 +100,7 @@ export function AppShell({
           detailOpen={detailOpen}
           notifications={notifications}
         />
+        <Suspense><ScopeChangeNotice /></Suspense>
         <QueueWakeRetry
           active={shouldWakeBackendFromNotifications(notifications)}
         />

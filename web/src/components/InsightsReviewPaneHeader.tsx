@@ -30,7 +30,7 @@ export function InsightsReviewPaneHeader({
     >
       <h3
         id={id}
-        className={REVIEW_PANE_TITLE_CLASS}
+        className={`${REVIEW_PANE_TITLE_CLASS}${children ? " basis-full sm:basis-auto" : ""}`}
       >
         {title}
       </h3>
