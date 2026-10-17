@@ -44,3 +44,15 @@ it("preserves abort semantics when polling stops on navigation", async () => {
     vi.fn().mockRejectedValue(new DOMException("Aborted", "AbortError"))))
     .rejects.toMatchObject({ name: "AbortError" });
 });
+
+it("preserves absent counts and accepts zero only when the completed job reports it", async () => {
+  for (const count of [undefined, null, 0, 7]) {
+    const response = { status: "succeeded", completed_conversations: 2, conversation_count: 2, signal_count: count };
+    const result = await resumeUploadJob({ id: "job1", file: "week.csv" }, new AbortController().signal,
+      vi.fn().mockResolvedValue(Response.json(response)));
+    expect(result.signal_count).toBe(count);
+  }
+  await expect(resumeUploadJob({ id: "job1", file: "week.csv" }, new AbortController().signal,
+    vi.fn().mockResolvedValue(Response.json({ status: "succeeded", completed_conversations: 2, conversation_count: 2, signal_count: -1 }))))
+    .rejects.toThrow("Upload progress response was invalid");
+});

@@ -76,15 +76,9 @@ function ReportDocument({
       <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-heading-20 text-sio-fg-base">Revenue report</h2>
-          <p className="mt-1 text-copy-14 text-sio-fg-subtle">
-            {report.windowLabel}
-            {report.fileLabel ? ` · ${report.fileLabel}` : ""}
-            {". "}
-            {report.anonymised
-              ? "Customer ids are pseudonyms."
-              : "Names are visible on this page."}{" "}
-            Nothing is sent to a customer.
-          </p>
+          <div className="mt-2 flex flex-wrap gap-2 text-sio-fg-subtle">
+            {[report.windowLabel, report.fileLabel, report.anonymised ? "Anonymised" : "Names visible", "Nothing sent"].filter(Boolean).map((label) => <span key={label} className="max-w-full break-words rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{label}</span>)}
+          </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Link href={nameToggle} className="btn-secondary">
@@ -100,7 +94,11 @@ function ReportDocument({
       <ReportUploadForm query={query} options={uploadOptions} unavailable={uploadsUnavailable} />
       <ReportRangeForm query={query} error={rangeError} errorField={rangeErrorField} />
 
-      <p className="text-copy-13 text-muted-foreground">Exposure categories are estimates from retention conversations in the selected corpus; outcomes use the UTC window.</p>
+      <nav aria-label="Report summary" className="flex flex-wrap items-center gap-2 text-sio-fg-subtle">
+        <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{Intl.NumberFormat().format(report.precision.reviewed)} reviewed · UTC window</span>
+        <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">Exposure · estimated</span>
+        <a href="#customers-at-risk" className="inline-flex min-h-11 items-center rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12 text-sio-fg-base hover:underline md:min-h-6">{Intl.NumberFormat().format(report.customersAtRisk.length)} customers at risk ↓</a>
+      </nav>
 
       <section className="panel space-y-3 p-4 sm:p-5" aria-labelledby="review-coverage">
         <div>
@@ -145,8 +143,8 @@ function ReportDocument({
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h3 className="text-label-14 text-sio-fg-base">Customers at risk</h3>
+      <section id="customers-at-risk" className="flex scroll-mt-6 flex-col gap-3" aria-labelledby="customers-at-risk-heading">
+        <h3 id="customers-at-risk-heading" className="text-label-14 text-sio-fg-base">Customers at risk</h3>
         {report.customersAtRisk.length === 0 ? (
           <div className="panel px-4 py-6">
             <p className="text-copy-14 text-sio-fg-base">

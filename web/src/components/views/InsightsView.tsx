@@ -1,3 +1,4 @@
+import { DemoWalkthrough } from "@/components/DemoWalkthrough";
 import Link from "next/link";
 import { CanonicalizeInsightsStatus } from "@/components/CanonicalizeInsightsStatus";
 import { ClearStaleSyncFailedParams } from "@/components/ClearStaleSyncFailedParams";
@@ -683,6 +684,7 @@ export function InsightsView({
 
   return (
     <ViewFrame className="gap-4">
+      {resolveVaultShowcaseKind(vaultFile ?? store.pilot?.lastUploadedFileName) ? <DemoWalkthrough key={vaultFile ?? store.pilot?.lastUploadedFileName} reportHref={viewHref("report", { file: vaultFile ?? store.pilot?.lastUploadedFileName, scoreFrom })} /> : null}
       {llmFailure === "budget" && (
         <p role="status" aria-live="polite" className="break-words text-body-14 text-sio-fg-base">
           AI paused — ask an admin to check the limits, then re-run detection. Existing signals remain available.

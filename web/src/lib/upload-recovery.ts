@@ -4,7 +4,7 @@ export function knownUploadJob(params: URLSearchParams): KnownUploadJob | null {
   const file = params.get("uploadFile")?.trim();
   return id && /^[A-Za-z0-9_-]{1,64}$/.test(id) && file && file.length <= 255 && !/[\\/\u0000-\u001f]/.test(file) ? { id, file } : null;
 }
-export async function resumeUploadJob(job: KnownUploadJob, signal: AbortSignal, request: typeof fetch = fetch): Promise<{ status: string; completed_conversations: number; conversation_count: number }> {
+export async function resumeUploadJob(job: KnownUploadJob, signal: AbortSignal, request: typeof fetch = fetch): Promise<{ status: string; completed_conversations: number; conversation_count: number; signal_count?: number | null }> {
   const lostConnection = "Progress connection lost. Resume checking this upload; do not upload it again.";
   let response: Response;
   try {
@@ -18,6 +18,7 @@ export async function resumeUploadJob(job: KnownUploadJob, signal: AbortSignal, 
   try { result = await response.json(); } catch { throw new Error("Upload progress response was invalid. Resume checking this upload; do not upload it again."); }
   const validCount = (value: unknown) => typeof value === "number" && Number.isInteger(value) && value >= 0;
   if (!result || !["queued", "leased", "running", "failed", "succeeded", "cancelled", "dead_lettered"].includes(result.status) ||
+    (result.signal_count != null && !validCount(result.signal_count)) ||
     !validCount(result.completed_conversations) || !validCount(result.conversation_count) || result.completed_conversations > result.conversation_count) {
     throw new Error("Upload progress response was invalid. Resume checking this upload; do not upload it again.");
   }

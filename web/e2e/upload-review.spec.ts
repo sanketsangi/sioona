@@ -103,6 +103,7 @@ test("upload rehearsal week, persist Correct and an approved draft, send nothing
     expect.objectContaining({ enabled: false, attempted: 0 }),
   );
   expect(uploaded.newSignals ?? 0).toBeGreaterThan(0);
+  await page.getByRole("link", { name: "Review signals →", exact: true }).click();
   await page.waitForURL(/[?&]view=insights/);
 
   await expect(page.getByRole("menu")).toHaveCount(0);

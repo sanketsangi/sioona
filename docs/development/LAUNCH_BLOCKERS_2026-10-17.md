@@ -6,8 +6,13 @@ do not override this reconciliation.
 
 ## Current source and GitHub evidence
 
-- Local and remote `main` resolve to `dab6f17174bdf8fe64c788b54b1e57e8866ff435`,
-  merge commit for [PR #199](https://github.com/sanketsangi/sioona/pull/199).
+- Implementation base: `main` at `6b06090338e130b64d622ae34bb0854c1fc59bd3`
+  (PR #211), following `92d709f4` (PR #213).
+- PR #212 (`cf7e1960`) operator UI/UX and PR #210 (`7e0f4406`)
+  staging bootstrap are merged on `main`. PR #211 preserved site design
+  (`26fc0d54`) with all six required CI checks and CodeQL passing.
+- The six required checks also passed on `cf7e1960`; these are code/CI
+  receipts, not acceptance of deployed services.
 - The operating closeout is merged: `cc88c986` and merge commit `a47927ff`
   are ancestors of current `main`.
 - Exact-`main` GitHub checks on 2026-10-17: Web, Backend, E2E, Eval gate,
@@ -24,14 +29,15 @@ do not override this reconciliation.
    25283776 is active with strict status checks and pull request policy.
 2. **[CLOSED] Land the prepared security dependency update.** Landed in `main`
    at `dab6f171` via PR #199. Superseded PRs #194, #195, and #196 closed.
-3. **Create and accept isolated staging (OP-2).** Provision the approved empty
-   database and staging services, record target/cost/backup configuration and
-   zero-row proof, migrate through 034, seed all six synthetic memberships, and
-   deploy matching immutable revisions with providers, live ingest and external
-   actions disabled. Complete the 30-minute actor shadow observation, browser
+3. **Accept isolated staging (OP-2).** The merged PR #210 bootstrap receipt
+   records the zero-row baseline, migration 034, six synthetic memberships and
+   runtime/RLS checks. Do not rerun the empty-database bootstrap on this populated
+   target. Complete target/cost/backup readback and matching immutable deployments
+   with providers, live ingest and external actions disabled. Complete the
+   30-minute actor shadow observation, browser
    session refresh, permission/revocation, tenant A/B and lifecycle reset checks,
-   then obtain operator sign-off. The merged Blueprint and local runners are
-   preparation, not hosted execution.
+   then obtain operator sign-off. Bootstrap is recorded; prepared runners do not
+   substitute for the remaining hosted acceptance.
 4. **Complete the hosted database/runtime cutover and CB-10 acceptance (OP-3).**
    Record hosted Alembic current/head and a restorable backup rehearsal; run the
    guarded populated upgrade where applicable; keep migration-owner and direct

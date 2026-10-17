@@ -30,13 +30,13 @@ Failing-first regressions cover URL scope/page/search, safe evidence offsets inc
 
 - Five representative-operator walkthroughs, terminology approval, comparative timing/error rates and larger-sample success measurements are outstanding. No analytics collection added.
 - Worker recovery uses the existing job ID/status/count contract. No job discovery list, resumable file transfer, reliable cancel API, per-stage duration or per-item failure contract was added. Inline detection has no durable job ID to reconnect. Terminal worker failure still requires the existing explicit retry workflow.
-- Browser Navigation API can cancel same-document Back/Forward in supporting browsers. Browsers without cancellable traversal retain document-exit and dialog-discard protection; complete cross-browser Back/Forward protection needs additional router/history integration and verification. No draft content is newly persisted to browser storage.
+- The pilot-conversion follow-up adds indexed history traversal protection before router popstate handling, including browsers without the Navigation API. Document-exit and dialog-discard protection remain. Browser acceptance is recorded in the follow-up task. No draft content is newly persisted to browser storage.
 - New source/version history, universal freshness timestamps, saved views, persistent split workspace, full dark theme and additional AI features remain Phase 4/dependency work. No provenance is manufactured. No persistent split workspace was introduced.
 - The lifecycle status contract currently provides `policy_version` and `scheduler_enabled`, not retention durations; durations need a server policy-details contract before displaying them as active policy. Export expiry is already provided as `expires_at` and is shown.
 - Existing evaluation is the workspace/keep-set score; carrying corpus URL context does not introduce a new per-file scoring API. PDF data semantics and privacy remain the existing report contract.
 - No published retention promise, support address, cancellation guarantee, new auth/recovery route, trend, financial conversion or quality threshold was invented.
 
-All changes remain local. No commits, pushes, deployment, hosted migrations/mutations, customer communications, provider configuration or model charges authorized/performed.
+Implementation merged on `main` via PR #212 (`cf7e1960`). PR #210 (`7e0f4406`) separately records the six-membership staging bootstrap receipt. The implementation-session limits below are historical; neither merge establishes hosted UI acceptance. No deployment, customer communication or model promotion is claimed.
 
 
 ## Reproduction and artifact locations
