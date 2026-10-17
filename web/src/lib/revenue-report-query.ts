@@ -43,6 +43,7 @@ export async function queryRevenueReport(store: StoreData, options: {
     correct: score?.correct_count ?? 0, incorrect: score?.incorrect_count ?? 0 });
   report.dataLabel = simulationLabel(conversations.map(chat => chat.sourceFile ?? file ?? ""));
   report.reviewsAvailable = score !== null;
+  report.demo = store.tenant.id === "tenant_demo";
   // Outcome totals come from the same scoped and time-bounded server query.
   report.inrSaved = score?.revenue_saved_inr ?? 0;
   report.revenueVerified = score !== null;

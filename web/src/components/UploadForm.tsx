@@ -1,5 +1,7 @@
 "use client";
 
+import { uploadPreviewDetail } from "@/lib/upload-preview";
+
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -253,7 +255,7 @@ export function UploadForm({
     if (!target) { fileRef.current?.focus(); return; }
     setLoading(true);
     setError(null);
-    setPreview(null);
+    // Retain the last valid mapping for this File when a retry fails.
     try {
       const body = new FormData();
       body.append("file", target);
@@ -262,7 +264,7 @@ export function UploadForm({
       const data = await response.json() as { error?: string; previews?: { conversations: number; messages: number; mapping: string; missingTimestampPolicy: string }[] };
       if (!response.ok) throw new Error(data.error || "Preview failed. Check the export and try again.");
       const result = data.previews?.[0];
-      if (result) setPreview({ file: target, detail: `${Intl.NumberFormat().format(result.conversations)} conversations, ${Intl.NumberFormat().format(result.messages)} messages. ${result.mapping} ${result.missingTimestampPolicy} Nothing imported; choose Upload & Detect to continue.` });
+      setPreview({ file: target, detail: uploadPreviewDetail(result) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Preview failed. Try again.");
     } finally { setLoading(false); }
@@ -538,6 +540,7 @@ export function UploadForm({
         {jobKnown ? <p className="text-copy-14 text-sio-fg-subtle">Upload accepted. Leaving stops this screen’s progress checks, not server processing. Resume checking the existing job here; no new detection is created.</p> : null}
         {pendingScopeReplace ? <p role="alert" className="status-banner status-banner-warning">Replace the current workspace corpus ({Intl.NumberFormat().format(chatCount ?? 0)} conversations) and its signals/reviews? Cancel keeps the file selected and imports nothing.</p> : null}
         {preview && preview.file === activeFile ? <p className="break-words text-copy-14" role="status" aria-live="polite">{preview.detail}</p> : null}
+        {activeFile && !jobKnown ? <p className="text-copy-13 text-sio-fg-subtle">Preview checks column mapping and missing timestamps without importing. If a request fails, your file and last valid preview stay selected in this session. Retry only when ready.</p> : null}
         {activeFile && !jobKnown ? (
           <button type="button" onClick={previewMapping} disabled={loading} aria-busy={loading} className="btn-secondary min-h-11 touch-manipulation">
             {loading ? <ButtonSpinner /> : null}Preview mapping

@@ -57,6 +57,8 @@ export interface AtRiskCustomer {
 export interface RevenueLeakReport {
   dataLabel?: string;
   reviewsAvailable?: boolean;
+  /** Server-resolved demo tenant, never inferred from a filename. */
+  demo?: boolean;
   revenueVerified?: boolean;
   windowLabel: string;
   fileLabel: string | null;
