@@ -105,3 +105,46 @@ Final logs: `/private/tmp/pilot-tests-verified.log`,
 `/private/tmp/pilot-e2e-final.log`. Screenshots and synthetic downloads are in
 ignored `web/test-results/` or private temporary browser output. No secret or
 customer export is retained in this record. Hosted acceptance remains pending.
+
+## Running-web follow-up — 18 October 2026
+
+Reproduced HTTP 500 on the user's development server at localhost:3000.
+`BACKEND_URL` pointed to localhost:8000 with no API listening; the backend's
+saved database configuration was hosted. Brought up a separate, disposable,
+loopback PostgreSQL 17/API instance instead of running against that hosted
+configuration. The development web process remains running. Its ignored
+`.env.local` now targets that local API and intake endpoint, with local-only
+service/actor credentials and a factual synthetic hosting-region label.
+Model dispatch, live ingest and external actions are disabled in this local
+session. The original environment file was preserved privately at
+`/private/tmp/sioona-web-env-before-local-runtime`; no values are committed.
+The local API launcher is `/private/tmp/sioona-live-backend.py` and its log is
+`/private/tmp/sioona-live-backend.log`; stopping it removes its owned database.
+
+The live page also exposed a silent demo-loader failure: an anonymous viewer
+could not replace the selected sample, but the denied request was hidden behind
+an apparently empty queue. The loader now exposes a compact recovery message,
+a sign-in link for 401/403, a read-only link to the already loaded corpus when
+available, and uploads. Non-auth failures allow an explicit retry only after the
+prior attempt settles; a stall cannot launch another destructive request.
+Navigated through that recovery to the existing Zerodha demo: **100 conversations,
+56 signals**, without replacing its data or changing auth enforcement.
+
+Sentry's native profiler was imported even without a DSN on Node 23, producing
+missing-native-binary errors. The integration now imports only with configured
+telemetry and an ABI supported by the installed package (Node 20/22/24/26).
+Existing error/trace initialization, PII restrictions and scrubbing remain.
+
+Verification: regressions failed before the fixes; **38 focused tests passed**,
+lint and TypeScript passed, and a fresh isolated production build plus
+**12 guarded Playwright tests passed**. The browser regression proves a denied
+load is visible and does not retry its destructive POST. The fresh build/runtime
+log contains no native-profiler warnings. The unrelated middleware deprecation
+and existing Edge build warnings remain non-blocking. The live web endpoint
+returns 200 and the isolated API health check returns `ok`.
+
+Runtime verification logs: `/private/tmp/web-runtime-targeted.log`,
+`/private/tmp/web-runtime-lint-final.log`, `/private/tmp/web-runtime-ts-final.log`,
+and `/private/tmp/web-runtime-e2e.log`. Live screenshot:
+`/private/tmp/sioona-web-runtime-fixed.png`. No hosted migrations, provider calls,
+customer sends or production configuration changes were performed.

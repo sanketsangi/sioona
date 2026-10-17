@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Breadcrumb, ErrorEvent } from "@sentry/core";
-import { scrubSentryBreadcrumb, scrubSentryEvent } from "./sentry-options";
+import { scrubSentryBreadcrumb, scrubSentryEvent, sentryNodeProfilingEnabled } from "./sentry-options";
 
 function errorEvent(overrides: Partial<ErrorEvent> = {}): ErrorEvent {
   return { type: undefined, ...overrides };
@@ -75,3 +75,5 @@ describe("scrubSentryBreadcrumb", () => {
     });
   });
 });
+
+it("enables native profiling only with a DSN and a supported Node ABI",()=>{expect(sentryNodeProfilingEnabled("23.11.0","configured")).toBe(false);expect(sentryNodeProfilingEnabled("24.1.0",undefined)).toBe(false);expect(sentryNodeProfilingEnabled("22.1.0","configured")).toBe(true);});

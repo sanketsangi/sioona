@@ -66,6 +66,7 @@ function childEnv(overrides: Record<string, string>): Record<string, string> {
     NEXT_TELEMETRY_DISABLED: "1",
     SIOONA_IDENTITY_KEY: "cb02-synthetic-identity-key-not-for-production",
     DETECT_LLM: "0",
+    SIOONA_ALLOW_DEMO_ACTIONS: "1",
     GROQ_API_KEY: "",
     SENTRY_DSN: "",
     NEXT_PUBLIC_SENTRY_DSN: "",

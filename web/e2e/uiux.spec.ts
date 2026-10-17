@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -294,4 +295,20 @@ test("guided pilot, scoped report evidence and PDF completion survive reload",as
  const pilotLink=page.getByRole("link",{name:"Guided pilot",exact:true});await pilotLink.click();await expect(page.getByRole("heading",{name:"Guided pilot checklist"})).toBeVisible();expect(new URL(page.url()).searchParams.get("uploadId")).toBe(reportParams.get("uploadId"));
  await capture(page,"guided-pilot");
  await page.goto("/readiness");await expect(page.getByRole("heading",{name:"Operator readiness",exact:true})).toBeVisible();await expect(page.getByText("Live backend revision and schema: unavailable",{exact:false})).toBeVisible();await capture(page,"operator-readiness");
+});
+
+
+test("denied demo loading stays visible and never starts a second destructive request",async({page,context})=>{
+ const payload=Buffer.from(JSON.stringify({email:"e2e@example.com",tenantId:"tenant_demo",role:"admin",exp:Math.floor(Date.now()/1000)+3600})).toString("base64url");
+ const signature=createHmac("sha256","e2e-only-auth-secret").update(payload).digest("base64url");
+ await context.addCookies([{name:"sioona_session",value:`${payload}.${signature}`,url:test.info().project.use.baseURL as string}]);
+ let posts=0;
+ await page.route("**/api/store",route=>{if(route.request().method()==="POST"){posts++;return route.fulfill({status:401,json:{error:"Sign in required."}});}return route.continue();});
+ await page.goto("/?view=insights&file=Groww_batch_02");
+ await expect(page.getByRole("alert").filter({hasText:"Sign in as an admin"})).toBeVisible();
+ await expect(page.getByRole("link",{name:"Sign in to load this demo"})).toHaveAttribute("href","/login");
+ await expect(page.getByRole("button",{name:"Retry loading demo"})).toHaveCount(0);
+ expect(posts).toBe(1);
+ await page.getByRole("link",{name:"Open uploads",exact:true}).click();
+ await expect(page).toHaveURL(/[?&]view=upload/);expect(posts).toBe(1);
 });

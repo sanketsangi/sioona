@@ -211,3 +211,14 @@ describe("showcase load attempt gating (no second wipe while in flight)", () => 
     ).toBe(false);
   });
 });
+
+it("makes a denied demo load actionable instead of silently showing zero results",async()=>{
+ const {VaultShowcaseRecovery}=await import("./VaultShowcaseLoader");
+ const html=renderToStaticMarkup(createElement(VaultShowcaseRecovery,{ui:{status:null,error:"Sign in as an admin to load this demo. Existing data was kept.",wipeInFlight:false,hardFailed:true},onRetry:()=>undefined}));
+ expect(html).toContain('role="alert"');expect(html).toContain('href="/login"');expect(html).toContain('href="/?view=upload"');expect(html).not.toContain("Retry loading demo");
+});
+it("never offers another destructive attempt while the first request is in flight",async()=>{
+ const {VaultShowcaseRecovery}=await import("./VaultShowcaseLoader");
+ const html=renderToStaticMarkup(createElement(VaultShowcaseRecovery,{ui:{status:null,error:"Still waiting on the current load",wipeInFlight:true,hardFailed:false},onRetry:()=>undefined}));
+ expect(html).toContain("Still waiting");expect(html).not.toContain("Retry loading demo");
+});
