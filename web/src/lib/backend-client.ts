@@ -1312,6 +1312,7 @@ export async function settleInferenceReservation(tenantId: string, attemptId: st
 }
 
 export interface BackendJobStatus {
+  signal_count?: number | null;
   job_id: string; upload_id: string;
   status: "queued" | "leased" | "succeeded" | "failed" | "cancelled" | "dead_lettered";
   attempt_count: number; max_attempts: number;

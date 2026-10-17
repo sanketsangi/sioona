@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
-import pytest
 from sqlalchemy import inspect
 
 from app.models.inference_attempt import InferenceAttempt

@@ -6,7 +6,6 @@ import json
 import uuid
 
 from sqlalchemy import delete, select, update, tuple_, func, text, or_, JSON, null
-from sqlalchemy.orm import Session
 from app.models import Base, Membership, User
 from app.models.lifecycle import AuditEvent, LegalHold, TenantDeletion, TenantExport, LifecycleLedgerSummary
 from app.models.job import Job

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from app.config import get_settings
 from app.models.job import Job
-from app.models.live_ingest import LiveInstallation, LiveEvent, LiveSource
+from app.models.live_ingest import LiveEvent, LiveSource
 from app.schemas.live_ingest import LiveEventIn, InstallationIn
 from app.services import live_ingest as live, jobs
 from tests.test_jobs import body

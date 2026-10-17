@@ -17,6 +17,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -32,7 +33,7 @@ import {
   GROWW_SHOWCASE_SAMPLE_NAME,
   ZERODHA_BATCH02_SAMPLE_NAME,
 } from "@/lib/partner-demo-replace-guard";
-import { defaultInsightsHref, vaultInsightsHref } from "@/lib/vault-file";
+import { vaultInsightsHref } from "@/lib/vault-file";
 import { vaultShowcaseInsightsHref } from "@/lib/vault-showcase";
 
 function renderSidebar(
@@ -76,7 +77,7 @@ function vaultFileHrefCount(html: string, fileName: string) {
 }
 
 function vaultSection(html: string) {
-  const start = html.indexOf("Vault");
+  const start = html.indexOf("Corpora");
   expect(start).toBeGreaterThan(-1);
   return html.slice(start);
 }
@@ -118,7 +119,7 @@ describe("AppSidebar Vault", () => {
     const html = renderSidebar("Groww_batch_02.csv");
     const workspace = html.indexOf("Workspace");
     const separator = html.indexOf('data-sidebar="separator"');
-    const vault = html.indexOf("Vault");
+    const vault = html.indexOf("Corpora");
     expect(workspace).toBeGreaterThan(-1);
     expect(separator).toBeGreaterThan(workspace);
     expect(vault).toBeGreaterThan(separator);
@@ -143,7 +144,7 @@ describe("AppSidebar Vault", () => {
     expect(maskPathCount(vault, PLAY_CIRCLE_MASK)).toBe(1);
     expect(maskPathCount(vault, ARROW_CIRCLE_UP_MASK)).toBe(0);
     // Brand + Workspace Insights still open Sample. The vault row does not.
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(0);
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
     expect(vault).not.toContain('href="/?view=upload"');
   });
@@ -161,24 +162,24 @@ describe("AppSidebar Vault", () => {
   it("treats a whitespace-only filename as empty catalog state", () => {
     const html = renderSidebar("   ");
     const vault = vaultSection(html);
-    expect(vault).toContain("Vault");
+    expect(vault).toContain("Corpora");
     expect(vault).not.toContain(GROWW_SHOWCASE_SAMPLE_NAME);
     expect(vault).toContain(ZERODHA_BATCH02_SAMPLE_NAME);
     expect(partnerDemoFolderOpen(vault)).toBe(true);
     expect(vault).not.toContain("Uploaded Chats");
     expect(vault).not.toContain("No files uploaded");
     // Brand + Workspace Insights still open Sample. The vault row does not.
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(0);
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
     expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
     expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
   });
 
-  it("links Workspace Insights and brand to Sample by default", () => {
+  it("keeps Workspace Insights and brand as navigation without seeding", () => {
     const html = renderSidebar();
-    const sampleHref = defaultInsightsHref().replace(/&/g, "&amp;");
+    const sampleHref = "/?view=insights".replace(/&/g, "&amp;");
     expect(html).toContain(`href="${sampleHref}"`);
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(0);
   });
 
   it("marks Groww active when that pack is the last upload, including .csv", () => {
@@ -190,7 +191,7 @@ describe("AppSidebar Vault", () => {
     expect(partnerDemoFolderOpen(vault)).toBe(true);
     expect(vaultSubButtonActive(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(false);
     expect(vaultSubButtonActive(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(false);
-    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(2);
+    expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(0);
   });
 
   it("marks Zerodha active when Partner Demo is the last upload", () => {
@@ -289,7 +290,8 @@ describe("AppSidebar Vault", () => {
     );
     expect(vault).not.toContain("No files uploaded");
     expect(vault).not.toContain("No uploads yet");
-    expect(vaultFileHrefCount(html, "user-upload.csv")).toBe(3);
+    expect(html).toContain("user-upload.csv");
+    expect(vaultFileHrefCount(html, "user-upload.csv")).toBe(0);
     expect(vaultFileHrefCount(html, ZERODHA_BATCH02_SAMPLE_NAME)).toBe(1);
     expect(vaultFileHrefCount(html, GROWW_SHOWCASE_SAMPLE_NAME)).toBe(0);
   });

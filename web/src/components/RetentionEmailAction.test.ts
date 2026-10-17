@@ -43,7 +43,7 @@ function decisionButtonMarkup(html: string, label: string): string {
 }
 
 function expectDraftDecisionIcons(html: string) {
-  const approve = decisionButtonMarkup(html, "Approve");
+  const approve = decisionButtonMarkup(html, "Approve draft");
   const edit = decisionButtonMarkup(html, "Edit Draft");
   const dismiss = decisionButtonMarkup(html, "Dismiss");
 
@@ -393,7 +393,7 @@ describe("RetentionEmailAction", () => {
     expect(html).toContain("Pending");
     expect(html).not.toContain("Approve Draft");
     expect(html).not.toContain("Approve &amp; Send");
-    expect(html).toContain(">Approve<");
+    expect(html).toContain(">Approve draft<");
     expect(html).toContain("Edit Draft");
     expect(html).toContain(">Dismiss<");
     expectDraftDecisionIcons(html);
@@ -447,7 +447,7 @@ describe("RetentionEmailAction", () => {
 
     expect(html).toContain('data-review-slot="retention-email"');
     expect(html).toContain("surface-quiet");
-    expect(html).toContain('data-retention-border="gradient"');
+    expect(html).toContain('data-retention-border="quiet"');
     expect(html).toContain("mx-3");
     expect(html).toContain("mb-3");
     expect(html).toContain("mt-3");
@@ -529,7 +529,7 @@ describe("RetentionEmailAction", () => {
     );
   });
 
-  it("keeps AppleBorderGradient after Approve with Edit Draft", () => {
+  it("keeps a quiet draft surface after approval with Edit Draft", () => {
     const action = createRetentionEmailAction({
       signal: signal(),
       customerName: "Priya",
@@ -546,7 +546,7 @@ describe("RetentionEmailAction", () => {
       }),
     );
 
-    expect(html).toContain('data-retention-border="gradient"');
+    expect(html).toContain('data-retention-border="quiet"');
     expect(html).toContain("Edit Draft");
   });
 
@@ -584,7 +584,7 @@ describe("RetentionEmailAction", () => {
       }),
     );
     expect(html).toContain("Lead Outreach");
-    expect(html).toContain(">Approve<");
+    expect(html).toContain(">Approve draft<");
     expect(html).toContain("Edit Draft");
     expect(html).toContain(">Dismiss<");
     expect(html).not.toContain("Retention Email");
@@ -704,7 +704,7 @@ describe("RetentionEmailAction", () => {
       );
       expect(html).toContain(item.title);
       expect(html).toContain(item.pending);
-      expect(html).toContain(">Approve<");
+      expect(html).toContain(">Approve draft<");
       expect(html).toContain("Edit Draft");
       expect(html).toContain(">Dismiss<");
       expectDraftDecisionIcons(html);

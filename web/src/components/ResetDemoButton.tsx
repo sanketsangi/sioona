@@ -62,6 +62,8 @@ export function ResetDemoButton({
       return;
     }
 
+    if (!window.confirm("Reset workspace demo data? This replaces the current chats, signals, and reviews with sample data. Cancel keeps your current workspace.")) return;
+
     setLoading(true);
     setError(null);
     setPipelineStatus("Resetting…");

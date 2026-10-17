@@ -2314,8 +2314,8 @@ describe("InsightsView review conversation + action", () => {
       }),
     );
 
-    expect(html).toContain("Recommended Actions");
-    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Recommended draft");
+    expect(html).toContain("Supporting evidence");
     expect(html).toContain("Correct");
     expect(html).toContain("Copy Reply");
     expect(html).not.toContain('data-review-slot="decision"');
@@ -2348,7 +2348,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain("A / Enter → Mark as Acted");
   });
 
-  it("shows rail Run Actions on Follow-up Correct preview", () => {
+  it("shows rail Mark as acted on Follow-up Correct preview", () => {
     const follow: Signal = {
       id: "sig_follow",
       tenantId: "tenant_demo",
@@ -2415,10 +2415,10 @@ describe("InsightsView review conversation + action", () => {
       }),
     );
 
-    expect(html).toContain("Recommended Actions");
-    expect(html).toContain("Why This Fired");
+    expect(html).toContain("Recommended draft");
+    expect(html).toContain("Supporting evidence");
     expect(html).toContain("Retention email");
-    expect(html).toContain("Run Actions");
+    expect(html).toContain("Mark as acted");
     // Open review row is the short label. The list command stays Mark as Acted.
     expect(html).toMatch(/>\s*Acted\s*<\/button>/);
     expect(html).not.toContain("Mark as Acted");
@@ -2433,7 +2433,7 @@ describe("InsightsView review conversation + action", () => {
     expect(feedbackSlot).toBeGreaterThan(-1);
     expect(actionsSlot).toBeGreaterThan(feedbackSlot);
     expect(retentionSlot).toBeGreaterThan(actionsSlot);
-    expect(whySlot).toBeGreaterThan(actionsSlot);
+    expect(whySlot).toBeLessThan(actionsSlot);
     expect(html).not.toContain('data-review-actions-footer="true"');
     expect(html).toContain(
       "min-h-9 shrink-0 touch-manipulation bg-sio-bg-inverse text-sio-fg-on-color hover:bg-sio-bg-inverse/90",
@@ -2464,7 +2464,7 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain("Skip pending review");
   });
 
-  it("keeps Run Actions on Suggested Next Action, not under Feedback", () => {
+  it("keeps Mark as acted on Suggested Next Action, not under Feedback", () => {
     const pending = makePendingSignals(1);
     const correctSignal = {
       ...pending[0],
@@ -2515,8 +2515,8 @@ describe("InsightsView review conversation + action", () => {
     expect(html).not.toContain(
       "Mark as Acted on Suggested Next Action (does not send).",
     );
-    expect(html).toContain("Recommended Actions");
-    expect(html).toContain("Run Actions");
+    expect(html).toContain("Recommended draft");
+    expect(html).toContain("Mark as acted");
     expect(html).not.toContain(
       "You run this in your tools — Sioona never sends.",
     );
@@ -2531,7 +2531,7 @@ describe("InsightsView review conversation + action", () => {
 });
 
 describe("InsightsView evidence-grounded review", () => {
-  it("shows the transcript and a Why This Fired jump on preview", () => {
+  it("shows the transcript and a Supporting evidence jump on preview", () => {
     const pending = makePendingSignals(1);
     pending[0].conversationId = "conv_1";
     pending[0].evidence = ['quote: "I want to close my account"'];
@@ -2577,8 +2577,8 @@ describe("InsightsView evidence-grounded review", () => {
     );
 
     expect(html).toContain("I want to close my account");
-    expect(html).toContain("Why This Fired");
-    expect(html).toContain("Recommended Actions");
+    expect(html).toContain("Supporting evidence");
+    expect(html).toContain("Recommended draft");
     expect(html).toContain("Correct");
     expect(html).toContain("Incorrect");
     expect(html).toContain("Ground Truth");
@@ -2593,14 +2593,14 @@ describe("InsightsView evidence-grounded review", () => {
     const feedbackSlot = html.indexOf('data-review-slot="feedback"');
     const whySlot = html.indexOf('data-review-slot="why"');
     expect(feedbackSlot).toBeGreaterThan(-1);
-    expect(whySlot).toBeGreaterThan(feedbackSlot);
+    expect(whySlot).toBeLessThan(feedbackSlot);
     expect(html.indexOf("Show in conversation:", whySlot)).toBeGreaterThan(
       whySlot,
     );
     expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeGreaterThan(
       -1,
     );
-    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeLessThan(
+    expect(html.indexOf('aria-label="Ground Truth, Unset"')).toBeGreaterThan(
       whySlot,
     );
     // Open Conversation lives in Pending review nav after Skip — not the rail.
@@ -2652,7 +2652,7 @@ describe("InsightsView evidence-grounded review", () => {
     expect(html).toContain("No invented");
     expect(html).toContain("Feedback");
     expect(html).toContain("Correct");
-    expect(html).toContain("Recommended Actions");
+    expect(html).toContain("Recommended draft");
     expect(html).not.toContain('data-review-slot="decision"');
     expect(html).toContain("insights-review-split");
   });
