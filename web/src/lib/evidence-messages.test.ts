@@ -136,3 +136,7 @@ describe("focusEvidenceMessageId", () => {
     ).toBeNull();
   });
 });
+
+it("does not navigate to a persisted anchor absent from the stored transcript", () => {
+  expect(focusEvidenceMessageId({evidence:[],evidenceStatus:"valid",evidenceSpans:[{messageId:"missing",start:0,end:3,quote:"old"}]}, [])).toBeNull();
+});

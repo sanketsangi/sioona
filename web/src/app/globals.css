@@ -27,7 +27,8 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  /* Keep secondary copy legible on both card and muted workspace surfaces. */
+  --muted-foreground: oklch(0.53 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -506,14 +507,12 @@
 
   /* Descendant (not >) so display:contents rail children still participate. */
   .insights-review-split [data-review-slot="feedback"] {
-    order: 1;
     min-width: 0;
     min-height: min-content;
     flex: 0 0 auto;
   }
 
   .insights-review-split [data-review-slot="actions"] {
-    order: 2;
     min-width: 0;
     min-height: min-content;
     height: max-content;
@@ -521,7 +520,6 @@
   }
 
   .insights-review-split [data-review-slot="why"] {
-    order: 3;
     min-width: 0;
     min-height: min-content;
     height: max-content;
@@ -1090,29 +1088,6 @@
 
   .btn-secondary:focus-visible {
     box-shadow: var(--focus-ring);
-  }
-
-  /* Locked Action Mode — brief select then snap back (transform only). */
-  @keyframes mode-toggle-bounce {
-    0% {
-      transform: scale(1);
-    }
-    40% {
-      transform: scale(0.94);
-    }
-    100% {
-      transform: scale(1);
-    }
-  }
-
-  .mode-toggle-bounce {
-    animation: mode-toggle-bounce 180ms cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .mode-toggle-bounce {
-      animation: none;
-    }
   }
 
   .btn-tertiary {
@@ -1857,8 +1832,8 @@
   /*
    * Approve, Edit Draft, and Dismiss with icons + labels need the row to be
    * at least 424px of the retention-email content box. Below that, those three
-   * are icon-only. Run Actions always keeps the words “Run Actions”.
-   * nowrap keeps the labeled Run Actions on the same line as the icons
+   * are icon-only. Mark as acted always keeps the words “Mark as acted”.
+   * nowrap keeps the labeled Mark as acted on the same line as the icons
    * (three 36px icons + the label fit the ~334px toolbar).
    * Icon buttons stay 36px at every width.
    */
@@ -1901,4 +1876,14 @@ pre {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+/* Operator workspace: comparison figures, long content, and phone targets. */
+@layer utilities {
+  h1, h2, h3, h4 { scroll-margin-top: 5rem; }
+  @media (max-width: 767px) {
+    input:not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: 16px; }
+    button[data-slot], .btn-primary, .btn-secondary, .btn-tertiary,
+    [data-sidebar="menu-button"], [data-sidebar="menu-sub-button"],
+    .conversation-drawer-panel--chat button[aria-label="Close"] { min-height: 44px; min-width: 44px; }
+  }
 }

@@ -28,8 +28,13 @@ export function LoginForm() {
     if (pending) return;
     const form = event.currentTarget;
     const data = new FormData(form);
-    const email = String(data.get("email") ?? "");
+    const email = String(data.get("email") ?? "").trim();
     const password = String(data.get("password") ?? "");
+    if (!email || !password) {
+      setError(MISSING_CREDENTIALS);
+      form.querySelector<HTMLInputElement>(!email ? "#email" : "#password")?.focus();
+      return;
+    }
     setPending(true);
     setError(null);
     try {
@@ -40,6 +45,7 @@ export function LoginForm() {
       });
       if (!response.ok) {
         setError(signInFailureMessage(response.status));
+        form.querySelector<HTMLInputElement>("#email")?.focus();
         setPending(false);
         return;
       }
@@ -62,6 +68,8 @@ export function LoginForm() {
           name="email"
           type="email"
           autoComplete="username"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? "login-error" : undefined}
           inputMode="email"
           spellCheck={false}
           required
@@ -80,6 +88,8 @@ export function LoginForm() {
             name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? "login-error" : undefined}
             required
             className="input-field min-h-11 pr-12 text-base sm:min-h-9"
           />
@@ -100,7 +110,7 @@ export function LoginForm() {
       </div>
       <div aria-live="polite" aria-atomic="true">
         {error ? (
-          <p className="text-label-13 text-destructive" role="alert">
+          <p id="login-error" className="text-label-13 text-destructive" role="alert">
             {error}
           </p>
         ) : null}
