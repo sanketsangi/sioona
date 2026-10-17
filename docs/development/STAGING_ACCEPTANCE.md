@@ -96,9 +96,103 @@ The script verifies:
 1. Exactly 0 public tables exist before migrating (fails closed otherwise).
 2. Alembic head reaches `034_operational_telemetry`.
 3. `sioona_runtime` is created with `NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS`.
-4. Synthetic staging memberships are seeded for `tenant_staging_a`, `tenant_staging_b`, and `tenant_demo`.
+4. Exactly **6 synthetic memberships** are seeded: admin@staging.test (admin) and reviewer@staging.test (reviewer) on each of `tenant_staging_a` and `tenant_staging_b`; admin@staging.test (admin) and demo@staging.test (demo) on `tenant_demo`. The demo admin membership was added in `eddd0651` and is required for the runner’s demo reset-guard check.
 5. Schema startup gate (`scripts.check_schema`) passes.
 6. Forced RLS on all tenant tables, missing-tenant-context denial, cross-tenant A/B isolation, and pooled connection-reuse safety pass.
 7. Emits a redacted, counts-only verification receipt at `docs/development/evidence/staging-bootstrap-receipt.json` with zero credentials or URLs.
 
-The retained `evidence/staging-bootstrap-receipt.json` predates the role-isolation preflight and does not identify its execution target. It is historical evidence only; it does not establish hosted acceptance or verify the current script revision. A fresh operator receipt and the observed shadow window are still required.
+The retained `evidence/staging-bootstrap-receipt.json` records **5 memberships** from the pre-`eddd0651` seed and predates the role-isolation preflight. It does not identify its execution target. It is historical evidence only; it does not establish hosted acceptance or verify the current script revision. A fresh operator receipt and the observed shadow window are still required.
+
+
+## Operator Step 3 — staging shadow observation
+
+Run only after Step 2 has succeeded for the approved target, the six active memberships above have been verified, and the matching API revision/configuration has been deployed. Confirm `SIOONA_ACTOR_AUTH=shadow`, `DETECT_LLM=0`, `LIVE_INGEST=0`, and `SIOONA_EXTERNAL_ACTIONS_ENABLED=0`; no provider or outbound credentials should be configured. Verify the runtime database target and matching actor/service keys without recording their values. A five-membership historical receipt does not satisfy this preflight. Do not rerun the empty-database bootstrap against an already populated target; any seed repair requires a separately approved human operator action.
+
+Execute the following in **Bash**, from repository root, using the backend venv. The target below must match the approved API. Enter the deployed staging secrets at the silent prompts; never paste them into command history or acceptance evidence. This command sends synthetic writes and deliberately tests the legacy demo deletion guard.
+
+```bash
+set -euo pipefail
+set +x
+export FASTAPI_BASE_URL="https://sioona-api-staging.onrender.com"
+read -r -s -p 'Staging service token: ' SIOONA_SERVICE_TOKEN; printf '\n'
+read -r -s -p 'Staging actor key: ' SIOONA_ACTOR_KEY; printf '\n'
+export SIOONA_SERVICE_TOKEN SIOONA_ACTOR_KEY
+# Prevent an inherited short-run flag from shortening the observation window.
+unset DRY_RUN
+(
+  cd backend
+  .venv/bin/python -m scripts.run_shadow_observation \
+    --base-url "$FASTAPI_BASE_URL" \
+    --duration 30 \
+    --receipt ../docs/development/evidence/staging-shadow-observation-receipt.json
+)
+unset SIOONA_SERVICE_TOKEN SIOONA_ACTOR_KEY
+```
+
+Do **not** add `--dry-run` for acceptance: it is a short **LIVE** run, not an offline simulation. The explicit receipt path above is relative to `backend`; the script’s default path is anchored to the repository. Retain prior receipts separately before rerunning, because the selected receipt file is overwritten on successful completion. A failure may leave an earlier receipt in place; verify fresh start/end timestamps and the exact tested revision.
+
+The runner performs a health check, missing-actor start control, two API journeys across staging A/B, a fresh assertion read after 65 seconds, a third journey, demo read and the expected HTTP 409 `use_lifecycle_deletion_confirmation` guard, paced heartbeat reads, and the missing-actor end control. It uploads synthetic conversations/predictions, submits feedback, reloads conversations, and persists approved draft decisions. It does not perform a model inference or an external-send operation.
+
+A successful script exit produces a receipt with `status=pending_operator_verification`; it does not establish hosted acceptance. Require three completed API journeys, both intentional controls, a fresh assertion check, `short_run=false`, and an actual window of at least 1,800 seconds. Then complete and retain separate operator evidence for:
+
+- Start/end `reason=missing_actor` actor logs, with intentional controls separated from normal traffic and zero unexplained normal mismatches by reason/route. Missing logs or zero traffic is inconclusive.
+- Three full browser upload → review → reload → approve → reload journeys, including a fresh browser session after assertion expiry. The runner mints API assertions directly and cannot prove browser session refresh.
+- An explicitly authorized lifecycle reset of staging-only `tenant_demo`. The legacy HTTP 409 guard proves no completed reset; the receipt correctly leaves `demo_reset_completed=false`.
+- Persisted decision reload and no-send verification. Receipt safety counts are runner declarations, not an independent audit of backend/model/provider activity.
+
+Retain counts-only evidence and operator sign-off; never retain tokens, raw response bodies, transcripts, or customer identities. Stop on unexpected statuses or mismatches and use the recorded staging rollback procedure. Hosted acceptance remains open until these checks and the existing approval gates are satisfied.
+
+### Local readiness verification — 2026-10-17
+
+All bootstrap and shadow-observation tests plus the selected fresh/existing-schema, membership-upgrade, actor read/mutate/revoke, and runtime-role RLS tests passed on a newly created disposable loopback PostgreSQL 17 cluster: **61 passed, 63 deselected, zero skips**. The bootstrap test asserts six memberships and restores the cluster-wide runtime role to NOLOGIN afterward so migration tests do not inherit its LOGIN state. Step 3 Bash syntax and `git diff --check` passed. The retained five-membership receipt was left unchanged. This is local scoped verification; it does not establish a hosted observation window or full backend-suite acceptance.
+
+## Operator OP-4 — provider-free admission drill
+
+`backend/scripts/operator_staging_op4_drill.py` supplies the CB-07/CB-19 hosted admission drill. It uses authenticated HTTP control/reservation endpoints only; it never opens a database connection, runs migrations, or invokes provider dispatch. **Creating this tool or passing local tests does not close OP-4.** A human executes it on the isolated staging API and reviews the receipt and operational evidence before sign-off.
+
+Preflight in a dedicated maintenance window:
+
+- Confirm the approved staging API/database IDs, exact deployed revision and restricted runtime role. Configure `SIOONA_GLOBAL_CONTROL_TENANT=tenant_staging_a` and verify active admin@staging.test admin membership there. Global pause affects the entire staging stack; stop all other staging admission traffic for the window.
+- Read back deployed `DETECT_LLM=0`, `LIVE_INGEST=0`, `SIOONA_EXTERNAL_ACTIONS_ENABLED=0`, disabled provider dispatch/worker execution and absent provider/outbound credentials. The local environment flag cannot prove remote configuration; retain operator readback evidence separately. Never enable detection to run this drill.
+- Require zero prior attempt reservations for tenant_staging_a in the current **Asia/Kolkata** budget day, and allow enough time before midnight. The drill creates fresh run IDs, verifies exactly **500/day** and **120/run**, and refuses admissions across the local IST day boundary. Keep operator/server clocks synchronized. A prior or ambiguous reservation can make the run fail; do not erase counters or refund attempts to obtain a pass. Use a separately approved fresh synthetic tenant/day workflow if the allowance has already been consumed; this version intentionally fixes the tenant to tenant_staging_a.
+- Expect 500 synthetic pending/unknown-usage ledger rows, corresponding reservations and audit events. They are admission-only artifacts, not paid inferences or actual zero-token provider responses. Preserve them for reconciliation; the script neither fabricates usage nor rewrites ledger history. Settlement does not refund attempt allowances.
+
+In Bash at repository root, enter the deployed staging secrets via silent prompts (no command history values). Choose a fresh receipt destination if the default already exists; the tool refuses to overwrite evidence.
+
+```bash
+set -euo pipefail
+set +x
+export DETECT_LLM=0
+read -r -s -p 'Staging service token: ' SIOONA_SERVICE_TOKEN; printf '\n'
+read -r -s -p 'Staging actor key: ' SIOONA_ACTOR_KEY; printf '\n'
+export SIOONA_SERVICE_TOKEN SIOONA_ACTOR_KEY
+(
+  cd backend
+  .venv/bin/python -m scripts.operator_staging_op4_drill \
+    --base-url https://sioona-api-staging.onrender.com \
+    --approved-staging-drill --confirmed-provider-disabled \
+    --receipt ../docs/development/evidence/staging-op4-drill-receipt.json
+)
+unset SIOONA_SERVICE_TOKEN SIOONA_ACTOR_KEY
+```
+
+Both flags attest to the preflight and explicit approval of these staging control writes and synthetic admissions. There is no dry-run mode. Origin validation permits only the named staging HTTPS origin or loopback HTTP for local tests; redirects are not followed. No org-admin/provider/owner credentials are accepted.
+
+The drill establishes admission before each pause, commits tenant and global pauses separately, then measures until a fresh reservation is denied with `paused`. Each measurement includes the control request and must be **≤60 seconds**. It resumes inference only within this exclusive drill, races eight independent requests for the final run slot (one authorized, seven `run_limit`), fills the daily allowance, then races eight for the final daily slot (one authorized, seven `daily_limit`). A subsequent request must also be denied. Any unexpected HTTP response, denial reason, timeout, rollover or count fails the drill.
+
+The tool attempts to **leave global and tenant inference paused at 500/day and 120/run**, on success and on handled failure. It does not restore the previous enabled state. Verify `cleanup_paused=true` and read back both controls independently. SIGTERM and ordinary exceptions attempt cleanup; a hard-killed process, network loss or failed cleanup requires immediate manual pause verification; do not infer cleanup from an old receipt. Resume staging only through a separately approved operator action. A run failure retains a failed counts-only receipt where possible and prints no exception or response details.
+
+A successful receipt remains `pending_operator_verification`. Attach exact-revision and target/configuration readbacks separately, reconcile all 500 synthetic pending reservations/ledger entries and no provider activity, confirm both final pauses, and obtain Sanket's sign-off. This measures fresh admission API propagation; separately retain application-cache/worker propagation, outage/recovery/resumption and alert-delivery evidence required by the broader OP-4 operational acceptance. Do not mark that broader gate closed solely from this receipt.
+
+
+### OP-4 local regression proof — 2026-10-17
+
+New OP-4 unit and disposable PostgreSQL tests, existing inference-budget tests, and bootstrap/shadow tests passed together: **90 passed, zero skips**, in 4.80 seconds on a fresh loopback PostgreSQL 17 cluster. The real API regression used the restricted runtime role and forced RLS, blocked external HTTP, verified 500 reservations and pending/unknown-usage ledger rows, exact daily/run counters, both eight-contender races, audited control writes, and final global/tenant pauses. The cluster was stopped and removed. The admission response now serializes its validated request ID after commit, avoiding an expired-ORM refresh that returned 503 under runtime-role RLS even after a reservation committed.
+
+From `backend`, rerun with `PG_TEST_DATABASE_URL` pointing only to a dedicated disposable loopback `sioona_migration_test` database and an empty `MIGRATION_DATABASE_URL`:
+
+```bash
+.venv/bin/python -m pytest tests/test_operator_staging_op4_drill.py tests/test_inference_budget.py tests/test_operator_staging_bootstrap.py tests/test_run_shadow_observation.py -q
+```
+
+The PostgreSQL CI step includes the new OP-4 regression; hosted CI has not been run for this uncommitted patch. Operator-command Bash syntax and `git diff --check` passed. No hosted drill receipt was generated, no staging controls were changed, and OP-4 remains pending human execution and sign-off.
