@@ -86,7 +86,7 @@ def put_global(tenant_id: str, body: ControlIn, db: DB, assertion: Assertion = N
 def post_reserve(tenant_id: str, body: ReserveIn, db: DB, assertion: Assertion = None):
     verified(tenant_id, assertion, db, "review", "inference:reserve")
     try:
-        row = reserve(db, tenant_id, body.attempt_id, body.run_id, body.provider, body.model, input_bytes=body.input_bytes)
+        reserve(db, tenant_id, body.attempt_id, body.run_id, body.provider, body.model, input_bytes=body.input_bytes)
         db.add(InferenceAttempt(tenant_id=tenant_id, attempt_id=body.attempt_id, logical_operation_id=body.logical_operation_id,
             attempt_ordinal=body.attempt_ordinal, conversation_id=body.conversation_id, job_id=body.run_id,
             stage="detect", route_version=body.route_version, provider=body.provider, model=body.model,

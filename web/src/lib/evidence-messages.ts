@@ -73,7 +73,7 @@ export function focusEvidenceMessageId(
   messages: Message[],
 ): string | null {
   if (signal.evidenceStatus === "valid") {
-    return signal.evidenceSpans?.find((item) => item.messageId)?.messageId ?? null;
+    return signal.evidenceSpans?.find((item) => messages.some((message) => message.id === item.messageId))?.messageId ?? null;
   }
   if (signal.evidenceStatus === "stale" || signal.evidenceStatus === "unresolved") {
     return null;

@@ -40,6 +40,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from app.config import normalize_pg_url
 from app.models.user import actor_user_id
 
 DEFAULT_RECEIPT_PATH = (
@@ -71,6 +72,9 @@ def validate_target_url(url: str, label: str = "target URL") -> str:
         if parsed.scheme != "https":
             raise ValueError(f"{label} for hosted staging must use HTTPS")
     return cleaned
+
+
+_normalize_pg_url = normalize_pg_url
 
 
 def sign_test_actor_token(
@@ -391,7 +395,8 @@ class StagingAuthChecksRunner:
         print("\n--- [Live DB Revocation Drill] Connecting to database ---")
         from sqlalchemy import create_engine, make_url, text
 
-        parsed = make_url(self.db_migration_url)
+        normalized_url = _normalize_pg_url(self.db_migration_url)
+        parsed = make_url(normalized_url)
         if parsed.database in ("sioona_migration_test",) and parsed.host not in (
             "127.0.0.1",
             "localhost",
@@ -401,7 +406,7 @@ class StagingAuthChecksRunner:
         if "prod" in (parsed.database or "").lower():
             raise ValueError("Refusing to run live drill against production database")
 
-        engine = create_engine(self.db_migration_url)
+        engine = create_engine(normalized_url)
         temp_email = f"temp_probe_{int(time.time())}@staging.test"
         temp_uid = actor_user_id(temp_email)
         token_temp = sign_test_actor_token(temp_uid, "tenant_staging_a", self.actor_key)

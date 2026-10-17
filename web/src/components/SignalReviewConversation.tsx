@@ -20,6 +20,8 @@ type SignalReviewConversationProps = {
   messages: ChatMessage[];
   customerName: string;
   highlightedMessageId?: string | null;
+  evidenceJumpKey?: number;
+  evidenceSpans?: import("@/lib/types").Signal["evidenceSpans"];
   /** Optional trailing header control (e.g. drawer Close). */
   headerAction?: ReactNode;
   className?: string;
@@ -36,6 +38,8 @@ export function SignalReviewConversation({
   messages,
   customerName,
   highlightedMessageId = null,
+  evidenceSpans = [],
+  evidenceJumpKey = 0,
   headerAction = null,
   className,
 }: SignalReviewConversationProps) {
@@ -85,6 +89,8 @@ export function SignalReviewConversation({
                   messages={messages}
                   customerName={who}
                   highlightedMessageId={highlightedMessageId}
+                  evidenceSpans={evidenceSpans}
+                  evidenceJumpKey={evidenceJumpKey}
                 />
               </MessageScrollerContent>
             </MessageScrollerViewport>

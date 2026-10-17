@@ -160,7 +160,7 @@ describe("FeedbackControls", () => {
     expect(html).toContain("border-b border-sio-border-base");
     expect(html).toContain("flex min-w-0 flex-wrap items-center justify-between");
     expect(html).toContain(
-      "truncate text-heading-14 font-medium text-sio-fg-base",
+      "min-w-0 flex-1 truncate text-heading-14 font-medium text-sio-fg-base",
     );
     expect(html).not.toContain('data-slot="card-header"');
     expect(html).not.toContain('data-slot="card-title"');

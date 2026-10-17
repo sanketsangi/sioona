@@ -21,7 +21,7 @@ function operationalValue(metric: OperationalMetric) {
 
 function Metric({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="min-w-0 panel p-4">
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="mt-1 break-words text-2xl font-semibold tabular-nums text-foreground">{value}</dd>
       {note ? <p className="mt-1 text-xs text-muted-foreground">{note}</p> : null}
@@ -31,7 +31,7 @@ function Metric({ label, value, note }: { label: string; value: string; note?: s
 
 function Panel({ id, title, description, children }: { id: string; title: string; description: string; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={id} className="rounded-xl border border-border bg-background p-5 shadow-sm">
+    <section aria-labelledby={id} className="panel p-4 sm:p-5">
       <div className="mb-4">
         <h2 id={id} className="scroll-mt-20 text-balance text-lg font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -116,7 +116,7 @@ export function EconomicsDashboard({ data }: { data: BackendEconomicsDashboard }
           <Metric label="Output tokens" value={integer.format(economics.output_tokens)} />
           <Metric label="Cost / correct signal" value={money(economics.cost_per_correct_signal_usd)} />
         </dl>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <h3 className="mt-5 text-heading-16">Projections · unknown costs excluded</h3><div className="mt-3 grid gap-3 sm:grid-cols-3">
           {economics.projections.map((projection) => <div key={projection.conversations} className="rounded-lg border border-border p-4"><h3 className="text-sm font-medium">{projection.conversations / 1000}K conversations</h3><p className="mt-1 text-xl font-semibold tabular-nums">{money(projection.estimated_cost_usd)}</p><p className="mt-1 text-xs text-muted-foreground">{projection.status === "unavailable" ? "Unavailable: no processed conversations or known costs." : projection.incomplete ? "Incomplete estimate · unknown costs excluded." : "Measured known-cost projection."}</p></div>)}
         </div>
       </Panel>
