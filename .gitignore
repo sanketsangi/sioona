@@ -17,6 +17,7 @@
 
 # Python / tooling at root if ever added
 .venv/
+.venv*/
 __pycache__/
 *.py[cod]
 .pytest_cache/
