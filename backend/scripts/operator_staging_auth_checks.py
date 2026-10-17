@@ -40,6 +40,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from app.config import normalize_pg_url
 from app.models.user import actor_user_id
 
 DEFAULT_RECEIPT_PATH = (
@@ -73,14 +74,7 @@ def validate_target_url(url: str, label: str = "target URL") -> str:
     return cleaned
 
 
-def _normalize_pg_url(url: str) -> str:
-    """Ensure sqlalchemy postgresql+psycopg driver scheme."""
-    cleaned = url.strip()
-    if cleaned.startswith("postgresql://"):
-        return f"postgresql+psycopg://{cleaned[len('postgresql://'):]}"
-    if cleaned.startswith("postgres://"):
-        return f"postgresql+psycopg://{cleaned[len('postgres://'):]}"
-    return cleaned
+_normalize_pg_url = normalize_pg_url
 
 
 def sign_test_actor_token(
