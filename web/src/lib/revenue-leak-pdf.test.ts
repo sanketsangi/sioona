@@ -40,7 +40,7 @@ describe("revenue leak pdf", () => {
     expect(lines).toContain("Asset exposure estimate INR 50,000");
     expect(lines).toContain("Revenue opportunity estimate INR 0");
     expect(lines).toContain("Unconfirmed value INR 0");
-    expect(lines).toContain("Confirmed saved INR 0");
+    expect(lines).toContain("Confirmed saved (reviewer-recorded) INR 0");
     const bytes = buildRevenueLeakPdf(report);
     const header = new TextDecoder().decode(bytes.slice(0, 8));
     expect(header).toBe("%PDF-1.4");
