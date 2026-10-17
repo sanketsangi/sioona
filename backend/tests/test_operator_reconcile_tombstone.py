@@ -80,7 +80,7 @@ def test_validate_trusted_receipt(tmp_path: Path):
 def test_reconciliation_e2e(db, tmp_path: Path):
     from tests.test_audit_lifecycle import seed
     from app.services import lifecycle
-    from app.models import Conversation, SignalEvidence
+    from app.models import Conversation
 
     actor, _ = seed(db)
     tenant = "a"

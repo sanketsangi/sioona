@@ -338,7 +338,7 @@ def test_detect_preserves_canonical_metadata(db):
     b = body()
     b.conversations[0].external_id = "external-synthetic"
     b.conversations[0].ground_truth = "lead"
-    row = jobs.enqueue_upload(db, "a", "u1", b)
+    jobs.enqueue_upload(db, "a", "u1", b)
     db.commit()
     Worker(sessionmaker(bind=db.get_bind())).run_once("a")
     jobs.enqueue_detect(db, "a", "recheck", ["c1"])
@@ -354,7 +354,7 @@ def test_detect_preserves_canonical_metadata(db):
 def test_changed_publication_stays_in_resume(db):
     from app.models.message import Message
 
-    jid = enqueue(db)
+    enqueue(db)
     lease = jobs.claim(db, "a", "worker")
     db.commit()
     content_hash = jobs.conversation_content_hash(db, "a", "c1")
