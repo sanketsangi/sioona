@@ -128,7 +128,7 @@ jobs:
         env:
           CB19_PG_BIN: /usr/lib/postgresql/17/bin
           PG_TEST_DATABASE_URL: postgresql+psycopg://sioona:ci_only@localhost:5432/sioona_migration_test
-        run: python -m pytest tests/test_postgres_migrations.py tests/test_operator_staging_op4_drill.py -q
+        run: python -m pytest tests/test_postgres_migrations.py tests/test_operator_staging_op4_drill.py tests/test_operator_production_upgrade.py -q
 
   e2e:
     name: E2E
