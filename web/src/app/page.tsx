@@ -106,11 +106,12 @@ export const dynamic = "force-dynamic";
 
 const TITLES: Record<PlatformView, string> = {
   insights: "Insights",
-  upload: "Uploaded Chats",
-  eval: "Eval & SignalScore",
-  taxonomy: "Signal Taxonomy",
-  report: "Revenue Leak",
-  economics: "Tenant Economics",
+  upload: "Uploads",
+  eval: "Evaluation",
+  taxonomy: "Signal taxonomy",
+  report: "Revenue report",
+  economics: "Economics",
+  lifecycle: "Data lifecycle",
 };
 
 export async function generateMetadata({

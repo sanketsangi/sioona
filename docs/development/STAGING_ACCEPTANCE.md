@@ -89,7 +89,7 @@ Execute from repository root (`backend` venv active):
 set -euo pipefail
 
 # 1. Export direct owner URL and desired runtime password
-export HOSTED_MIGRATION_DATABASE_URL="postgresql+psycopg://cloud_admin:<PASSWORD>@<HOST>/sioona_staging_clean?sslmode=require"
+export HOSTED_MIGRATION_DATABASE_URL="postgresql+psycopg://staging_owner:<PASSWORD>@ep-lively-mud-b8su96jo.c-14.us-east-1.aws.neon.tech/sioona_staging_clean?sslmode=require"
 export SIOONA_RUNTIME_PASSWORD="<GENERATE_SECURE_RANDOM_PASSWORD>"
 
 # 2. Run the secret-free bootstrap script
@@ -107,12 +107,12 @@ The script verifies:
 6. Forced RLS on all tenant tables, missing-tenant-context denial, cross-tenant A/B isolation, and pooled connection-reuse safety pass.
 7. Emits a redacted, counts-only verification receipt at `docs/development/evidence/staging-bootstrap-receipt.json` with zero credentials or URLs.
 
-The retained `evidence/staging-bootstrap-receipt.json` records **5 memberships** from the pre-`eddd0651` seed and predates the role-isolation preflight. It does not identify its execution target. It is historical evidence only; it does not establish hosted acceptance or verify the current script revision. A fresh operator receipt and the observed shadow window are still required.
+The fresh `evidence/staging-bootstrap-receipt.json` records **6 memberships**, `explicit_shared_opt_in` role isolation, and 34 forced-RLS tables on target `sioona_staging_clean`. With Step 2 complete, the observed shadow window and operator auth checks are the remaining required gates.
 
 
 ## Operator Step 3 — staging shadow observation
 
-Run only after Step 2 has succeeded for the approved target, the six active memberships above have been verified, and the matching API revision/configuration has been deployed. Confirm `SIOONA_ACTOR_AUTH=shadow`, `DETECT_LLM=0`, `LIVE_INGEST=0`, and `SIOONA_EXTERNAL_ACTIONS_ENABLED=0`; no provider or outbound credentials should be configured. Verify the runtime database target and matching actor/service keys without recording their values. A five-membership historical receipt does not satisfy this preflight. Do not rerun the empty-database bootstrap against an already populated target; any seed repair requires a separately approved human operator action.
+Run only after Step 2 has succeeded for the approved target, the six active memberships above have been verified, and the matching API revision/configuration has been deployed. Confirm `SIOONA_ACTOR_AUTH=shadow`, `DETECT_LLM=0`, `LIVE_INGEST=0`, and `SIOONA_EXTERNAL_ACTIONS_ENABLED=0`; no provider or outbound credentials should be configured. Verify the runtime database target and matching actor/service keys without recording their values. The fresh six-membership receipt satisfies this preflight. Do not rerun the empty-database bootstrap against an already populated target; any seed repair requires a separately approved human operator action.
 
 Execute the following in **Bash**, from repository root, using the backend venv. The target below must match the approved API. Enter the deployed staging secrets at the silent prompts; never paste them into command history or acceptance evidence. This command sends synthetic writes and deliberately tests the legacy demo deletion guard.
 

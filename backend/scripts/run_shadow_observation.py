@@ -212,11 +212,11 @@ class ShadowObservationHarness:
         print(f"[Demo Reset] Result: HTTP {res_reset.status_code} (Expect 200 or 409 lifecycle confirmation).")
 
     def execute(self) -> dict[str, Any]:
-        print(f"\n=======================================================")
-        print(f" Starting CB-03 Shadow Observation Window")
+        print("\n=======================================================")
+        print(" Starting CB-03 Shadow Observation Window")
         print(f" Target: {self.base_url}")
         print(f" Target Duration: {self.target_seconds / 60:.1f} minutes")
-        print(f"=======================================================\n")
+        print("=======================================================\n")
 
         self.check_health()
         start_time = datetime.now(timezone.utc)

@@ -16,14 +16,15 @@ describe("Hero demo playback", () => {
   function render() {
     act(() => root.render(createElement(LazyMotion, { features: domAnimation }, createElement(HeroPreviewEntered.Provider, { value: motionState.visible }, createElement(InsightsMock, { previewHeader: true })))));
   }
-  it("plays automatically on entry, then pauses and resumes", () => {
+  it("waits for user input on entry, then plays and pauses", () => {
     render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     expect(motionState.options).toMatchObject({ once: false, amount: "some", margin: "0px" });
     motionState.visible = true; render();
     const button = host.querySelector('button') as HTMLButtonElement;
-    expect(button.getAttribute("aria-label")).toBe("Pause Demo Animation");
-    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
+    expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
+    expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
+    act(() => button.click());
     act(() => button.click()); expect(button.getAttribute("aria-label")).toBe("Play Demo Animation");
     expect(button.getAttribute("aria-pressed")).toBe("false");
     render(); expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
@@ -33,6 +34,7 @@ describe("Hero demo playback", () => {
   it("pauses offscreen and resumes on re-entry without overriding manual pause", () => {
     motionState.visible = true; render();
     const button = host.querySelector('button') as HTMLButtonElement;
+    act(() => button.click());
     motionState.visible = false; render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
     motionState.visible = true; render();
@@ -46,6 +48,7 @@ describe("Hero demo playback", () => {
     vi.useFakeTimers();
     motionState.visible = true;
     render();
+    act(() => (host.querySelector("button") as HTMLButtonElement).click());
     expect(host.querySelector("figure")?.dataset.demoRunning).toBe("true");
     const step = host.querySelector("figure")?.dataset.demoStep;
     vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
@@ -60,8 +63,22 @@ describe("Hero demo playback", () => {
   });
   it("stops playback when reduced motion is requested", () => {
     motionState.visible = true; render();
+    act(() => (host.querySelector("button") as HTMLButtonElement).click());
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('true');
     motionState.reduced = true; render();
     expect(host.querySelector('figure')?.getAttribute('data-demo-running')).toBe('false');
   });
+});
+
+it("lets visitors inspect settled workflow steps without starting playback", () => {
+  act(() => root.render(createElement(LazyMotion, { features: domAnimation }, createElement(InsightsMock, { previewHeader: true }))));
+  const review = [...host.querySelectorAll("button")].find(button => button.textContent === "2. Human review")!;
+  act(() => review.click());
+  expect(host.querySelector("figure")?.dataset.demoStep).toBe("4");
+  expect(host.querySelector("figure")?.dataset.demoRunning).toBe("false");
+  expect(review.getAttribute("aria-pressed")).toBe("true");
+  const approved = [...host.querySelectorAll("button")].find(button => button.textContent === "3. Approved draft")!;
+  act(() => approved.click());
+  expect(host.textContent).toContain("Approved · not sent");
+  expect(host.querySelector('a[href="/contact"]')?.textContent).toContain("4. Request a pilot");
 });

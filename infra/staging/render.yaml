@@ -5,7 +5,7 @@ services:
   - type: web
     name: sioona-web-staging
     runtime: node
-    plan: 0.5c-512mb
+    plan: free
     region: virginia
     rootDir: web
     buildCommand: |
@@ -15,7 +15,6 @@ services:
       npm run build
     startCommand: npm start
     healthCheckPath: /
-    maxShutdownDelaySeconds: 120
     autoDeployTrigger: "off"
     envVars:
       - key: NODE_VERSION
@@ -57,7 +56,6 @@ services:
     plan: free
     region: virginia
     rootDir: backend
-    maxShutdownDelaySeconds: 120
     autoDeployTrigger: "off"
     buildCommand: pip install -r requirements.txt
     startCommand: python -m scripts.check_schema && exec uvicorn app.main:app --host 0.0.0.0 --port $PORT --timeout-graceful-shutdown 110

@@ -36,6 +36,8 @@ export function ConversationDrawer({
   open,
   onOpenChange,
   highlightedMessageId = null,
+  evidenceSpans = [],
+  evidenceJumpKey = 0,
   showTrigger = true,
 }: {
   messages: ChatMessage[];
@@ -55,6 +57,8 @@ export function ConversationDrawer({
   onOpenChange?: (open: boolean) => void;
   /** Evidence landing inside the drawer transcript. */
   highlightedMessageId?: string | null;
+  evidenceJumpKey?: number;
+  evidenceSpans?: import("@/lib/types").Signal["evidenceSpans"];
   /** False when a parent owns the open control (Why This Fired). */
   showTrigger?: boolean;
 }) {
@@ -77,6 +81,8 @@ export function ConversationDrawer({
           messages={messages}
           customerName={who}
           highlightedMessageId={highlightedMessageId}
+                  evidenceSpans={evidenceSpans}
+                  evidenceJumpKey={evidenceJumpKey}
           className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-[inherit] border-0"
           headerAction={
             <DrawerClose
