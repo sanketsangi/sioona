@@ -12,17 +12,19 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const reveal = url.searchParams.get("reveal") === "1";
     const store = await readStore();
-    const { report, scopeError } = await queryRevenueReport(store, {
+    const { report, workflow, scopeError, rangeError } = await queryRevenueReport(store, {
       uploadId: url.searchParams.get("uploadId"),
       scoreFrom: url.searchParams.get("scoreFrom"), scoreTo: url.searchParams.get("scoreTo"), file: url.searchParams.get("file"), reveal,
     });
     if (scopeError) return NextResponse.json({ error: scopeError }, { status: 503 });
+    if (rangeError) return NextResponse.json({ error: rangeError }, { status: 400 });
     const pdf = buildRevenueLeakPdf(report);
     return new NextResponse(Buffer.from(pdf), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="sioona-revenue-leak.pdf"',
         "Cache-Control": "no-store",
+        "X-Sioona-Report-Key": workflow.pdfKey,
       },
     });
   });

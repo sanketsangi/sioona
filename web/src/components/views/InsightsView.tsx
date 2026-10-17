@@ -109,6 +109,7 @@ export function InsightsView({
   tenantSignals,
   overlayChats = null,
   scoreFrom = null,
+  scoreTo = null,
   syncFailed = 0,
   syncCreated = 0,
   llmAdded = 0,
@@ -148,6 +149,7 @@ export function InsightsView({
   overlayChats?: HydratedChats | null;
   /** Preserve Eval `?scoreFrom=` across queue filters. */
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   syncFailed?: number;
   syncCreated?: number;
   llmAdded?: number;
@@ -335,6 +337,7 @@ export function InsightsView({
     llmFailed: llmFailed > 0 ? String(llmFailed) : null,
     llmFailure: llmFailed > 0 ? llmFailure : null,
     scoreFrom,
+    scoreTo,
     mode: workspaceMode === "action" ? "action" : null,
     file: vaultFile,
     call: callToday ? "today" : null,
@@ -388,6 +391,7 @@ export function InsightsView({
   });
   const cadenceHref = cadenceActionHref(cadenceAction, {
     scoreFrom,
+    scoreTo,
     preview: cadencePreviewId,
     replaced: jsonKeepSet,
   });
@@ -476,6 +480,7 @@ export function InsightsView({
         walkPendingSignals,
         previewSignal,
         scoreFrom,
+        scoreTo,
         mode: workspaceMode,
         replaced: jsonKeepSet,
         typeFilter,
@@ -494,6 +499,7 @@ export function InsightsView({
     typeFilter,
     actionFilter,
     scoreFrom,
+    scoreTo,
     mode: workspaceMode,
     replaced: jsonKeepSet,
     file: vaultFile,
@@ -543,6 +549,7 @@ export function InsightsView({
         typeFilter,
         actionFilter,
         scoreFrom,
+        scoreTo,
         mode: workspaceMode,
         replaced: jsonKeepSet,
         file: vaultFile,
@@ -635,7 +642,7 @@ export function InsightsView({
         scoreWaiting={scoreAsleep}
         retryHref={scoreAsleep ? scoreRetryHref : null}
       />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="flex min-h-[24rem] min-w-0 flex-1 flex-col gap-4 overflow-hidden md:min-h-0">
         <div className="flex w-full min-w-0 shrink-0 flex-col gap-2">
           <form action="/" method="get" className="flex min-w-0 gap-2">
             <input type="hidden" name="view" value="insights" />
@@ -684,7 +691,7 @@ export function InsightsView({
 
   return (
     <ViewFrame className="gap-4">
-      {resolveVaultShowcaseKind(vaultFile ?? store.pilot?.lastUploadedFileName) ? <DemoWalkthrough key={vaultFile ?? store.pilot?.lastUploadedFileName} reportHref={viewHref("report", { file: vaultFile ?? store.pilot?.lastUploadedFileName, scoreFrom })} /> : null}
+      {resolveVaultShowcaseKind(vaultFile ?? store.pilot?.lastUploadedFileName) ? <DemoWalkthrough key={vaultFile ?? store.pilot?.lastUploadedFileName} reportHref={viewHref("report", { file: vaultFile ?? store.pilot?.lastUploadedFileName, scoreFrom, scoreTo })} /> : null}
       {llmFailure === "budget" && (
         <p role="status" aria-live="polite" className="break-words text-body-14 text-sio-fg-base">
           AI paused — ask an admin to check the limits, then re-run detection. Existing signals remain available.
@@ -706,18 +713,21 @@ export function InsightsView({
         mode={reviewOpen ? "review" : "list"}
         reviewKey={reviewOpen ? previewId : null}
         list={
-          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+          <div className="flex min-h-full min-w-0 flex-col gap-4 md:h-full md:min-h-0 md:flex-1">
             <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <h2 className="min-w-0 flex-1 basis-[min(100%,16rem)] scroll-mt-4 text-balance text-heading-20 text-sio-fg-base">
                 Conversation that needs your attention
               </h2>
+              <div className="flex flex-wrap items-center gap-2">
+              <Link href={viewHref("report", { file:vaultFile, scoreFrom, scoreTo })} className="inline-flex min-h-11 items-center text-sm underline">Open scoped revenue report</Link>
               <Link
                 href={viewHref("upload")}
-                className="btn-secondary shrink-0 rounded-[var(--radius-panel)] !h-9 !px-3.5"
+                className="btn-secondary shrink-0 rounded-[var(--radius-panel)] min-h-11 md:!h-9 md:min-h-0 !px-3.5"
               >
                 <ArrowCircleUpIcon className="size-3.5 shrink-0" />
                 Upload & Detect
               </Link>
+              </div>
             </div>
             {vaultShowcaseKind && vaultFile ? (
               <VaultShowcaseLoader
@@ -735,7 +745,7 @@ export function InsightsView({
           <ConversationDrawerControlProvider
             key={previewSignal?.id ?? "no-preview"}
           >
-            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+            <div className="flex min-h-full min-w-0 flex-col gap-4 md:h-full md:min-h-0 md:flex-1">
               <div className="sticky top-0 z-10 flex min-w-0 shrink-0 flex-col gap-3 bg-sio-bg-muted min-[540px]:flex-row min-[540px]:items-center min-[540px]:justify-between min-[540px]:gap-4">
                 <div className="min-w-0 min-[540px]:flex-1">
                   {breadcrumbPageLabel ? (

@@ -56,3 +56,14 @@ it("preserves absent counts and accepts zero only when the completed job reports
     vi.fn().mockResolvedValue(Response.json({ status: "succeeded", completed_conversations: 2, conversation_count: 2, signal_count: -1 }))))
     .rejects.toThrow("Upload progress response was invalid");
 });
+
+it("reports partial progress without presenting remaining work as confirmed failed items", async () => {
+  const { uploadRecoverySummary } = await import("./upload-recovery");
+  expect(uploadRecoverySummary({ status:"failed", completed_conversations:2, conversation_count:5, attempt_count:1, max_attempts:3, signal_count:null })).toMatchObject({ remaining:3, retryable:true, signals:null, terminal:false });
+  expect(uploadRecoverySummary({ status:"dead_lettered", completed_conversations:2, conversation_count:5, attempt_count:3, max_attempts:3 })).toMatchObject({ remaining:3, retryable:false, terminal:true });
+});
+it("rejects inconsistent retry metadata", async () => {
+ await expect(resumeUploadJob({id:"job1",file:"week.csv"},new AbortController().signal,vi.fn().mockResolvedValue(Response.json({status:"failed",completed_conversations:1,conversation_count:2,attempt_count:5,max_attempts:3})))).rejects.toThrow("invalid");
+});
+
+it("does not report completion when succeeded counts are inconsistent",async()=>{await expect(resumeUploadJob({id:"job1",file:"week.csv"},new AbortController().signal,vi.fn().mockResolvedValue(Response.json({status:"succeeded",completed_conversations:2,conversation_count:5})))).rejects.toThrow("invalid");});

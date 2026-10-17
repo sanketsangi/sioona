@@ -143,6 +143,8 @@ export default defineConfig({
       reuseExistingServer: false,
       env: childEnv({
         BACKEND_URL: `http://127.0.0.1:${backendPort}`,
+        PILOT_INTAKE_BACKEND_URL: `http://127.0.0.1:${backendPort}`,
+        PILOT_CONTACT_HOSTING_REGION: "Local disposable synthetic E2E database",
         SIOONA_SERVICE_TOKEN: E2E_TOKEN,
         AUTH_SECRET: E2E_AUTH_SECRET,
         SIOONA_ADMIN_EMAIL: E2E_EMAIL,

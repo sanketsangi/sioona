@@ -88,6 +88,7 @@ const navGroups: NavGroup[] = [
     items: [
       { view: "insights", label: "Insights", icon: null },
       { view: "upload", label: "Uploads", icon: null },
+      { view: "pilot", label: "Guided pilot", icon: null },
       { view: "report", label: "Revenue report", icon: null },
     ],
   },
@@ -103,6 +104,7 @@ const navGroups: NavGroup[] = [
     items: [
       { view: "economics", label: "Economics", icon: null, adminOnly: true },
       { view: "lifecycle", label: "Data lifecycle", icon: null, adminOnly: true },
+      { view: "readiness", label: "Operator readiness", icon: null, adminOnly: true },
     ],
   },
 ];
@@ -121,6 +123,7 @@ function WorkspaceNav({
   return (
     <div className="flex flex-col gap-1">
       <span className="sr-only">Workspace</span>
+      <Link href="/pilot-request" className="mx-2 inline-flex min-h-11 items-center rounded-md px-2 text-label-14 underline focus-visible:outline-2">Request a pilot</Link>
       {navGroups.map((group) => {
         const visibleItems = group.items.filter(
           (item) => !item.adminOnly || account?.role === "admin"

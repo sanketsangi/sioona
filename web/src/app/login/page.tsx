@@ -47,6 +47,7 @@ export default function LoginPage() {
               </div>
             </div>
             <LoginForm />
+            <Link href="/pilot-request" className="btn-secondary min-h-11 w-full touch-manipulation">Request a pilot</Link>
             {showPublicDemo ? (
               <Link href="/" className="btn-secondary w-full">
                 View the public demo

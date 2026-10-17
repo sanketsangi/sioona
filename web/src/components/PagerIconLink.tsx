@@ -19,7 +19,7 @@ export function PagerIconLink({
   shortcut?: string;
 }) {
   const size = labeled ? "default" : "icon";
-  const classes = cn(labeled ? "h-8 gap-2" : "size-8", className);
+  const classes = cn(labeled ? "h-11 min-w-11 gap-2 md:h-8 md:min-w-0" : "size-11 md:size-8", className);
   const shortcutProps = shortcut
     ? ({ "aria-keyshortcuts": shortcut } as const)
     : {};

@@ -1,0 +1,14 @@
+import {beforeEach,expect,it,vi} from "vitest";
+import {NextResponse} from "next/server";
+vi.mock("@/lib/auth-guard",()=>({requireApiSession:vi.fn()}));
+vi.mock("@/lib/store",()=>({readStore:vi.fn()}));
+vi.mock("@/lib/revenue-report-query",()=>({queryRevenueReport:vi.fn()}));
+vi.mock("@/lib/revenue-leak-pdf",()=>({buildRevenueLeakPdf:vi.fn(()=>new TextEncoder().encode("%PDF-test"))}));
+import {requireApiSession} from "@/lib/auth-guard";
+import {queryRevenueReport} from "@/lib/revenue-report-query";
+import {buildRevenueLeakPdf} from "@/lib/revenue-leak-pdf";
+import {GET} from "./route";
+beforeEach(()=>{vi.clearAllMocks();vi.mocked(requireApiSession).mockResolvedValue({tenantId:"a",role:"reviewer",email:"a@example.com"});});
+it("refuses invalid ranges instead of generating a wider PDF",async()=>{vi.mocked(queryRevenueReport).mockResolvedValue({rangeError:"Invalid range"} as never);expect((await GET(new Request("http://localhost/api/revenue-report/pdf?scoreFrom=bad"))).status).toBe(400);expect(buildRevenueLeakPdf).not.toHaveBeenCalled();});
+it("returns the exact server report identity for browser completion verification",async()=>{vi.mocked(queryRevenueReport).mockResolvedValue({report:{},workflow:{pdfKey:"a".repeat(64)}} as never);const result=await GET(new Request("http://localhost/api/revenue-report/pdf?uploadId=u1&scoreTo=2026-10-04"));expect(result.headers.get("X-Sioona-Report-Key")).toBe("a".repeat(64));expect(queryRevenueReport).toHaveBeenCalledWith(undefined,expect.objectContaining({uploadId:"u1",scoreTo:"2026-10-04"}));});
+it("requires an authorized session before rendering private reports",async()=>{vi.mocked(requireApiSession).mockResolvedValue(NextResponse.json({}, {status:401}));expect((await GET(new Request("http://localhost/api/revenue-report/pdf"))).status).toBe(401);expect(queryRevenueReport).not.toHaveBeenCalled();});

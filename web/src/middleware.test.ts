@@ -94,3 +94,5 @@ describe("middleware live-ingest exemption", () => {
     expect(store.status).toBe(401);
   });
 });
+
+describe("public pilot intake boundary",()=>{afterEach(()=>vi.unstubAllEnvs());it("opens only the contact form and its bounded POST, preserving all neighboring gates",async()=>{vi.stubEnv("SIOONA_AUTH_ENFORCE","1");vi.stubEnv("SIOONA_PUBLIC_DEMO","0");expect((await call("/pilot-request","GET")).headers.get("x-middleware-next")).toBe("1");expect((await call("/api/pilot-requests","POST")).headers.get("x-middleware-next")).toBe("1");for(const path of ["/api/pilot-requests/other","/api/pilot-requests","/api/store"]) {const response=await call(path,path === "/api/pilot-requests"?"GET":"POST");expect(response.status).toBe(401);}});});

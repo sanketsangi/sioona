@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
 vi.mock("@/lib/auth-guard", () => ({ requireApiSession: vi.fn() }));
-vi.mock("@/lib/backend-client", () => ({ getJobStatus: vi.fn() }));
+vi.mock("@/lib/backend-client", async (original) => ({ ...await original<typeof import("@/lib/backend-client")>(), getJobStatus: vi.fn() }));
 import { requireApiSession } from "@/lib/auth-guard";
 import { getJobStatus } from "@/lib/backend-client";
 import { GET } from "./route";

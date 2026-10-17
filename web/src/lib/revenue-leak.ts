@@ -55,6 +55,8 @@ export interface AtRiskCustomer {
 }
 
 export interface RevenueLeakReport {
+  dataLabel?: string;
+  reviewsAvailable?: boolean;
   revenueVerified?: boolean;
   windowLabel: string;
   fileLabel: string | null;

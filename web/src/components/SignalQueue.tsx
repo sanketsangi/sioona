@@ -158,6 +158,8 @@ export function InsightsModeSwap({
   const reviewActive = mode === "review";
   const listActive = mode === "list";
   const heldReviewRef = useRef<ReactNode>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const returnPreviewRef = useRef<string | null>(null);
   const prevModeRef = useRef(mode);
   const [motion, setMotion] = useState(false);
   // Review deep-links must not SSR the list table. List must not SSR the
@@ -175,6 +177,20 @@ export function InsightsModeSwap({
     }
   }, [mode]);
 
+  useLayoutEffect(() => {
+    if (reviewActive && reviewKey) {
+      returnPreviewRef.current = reviewKey;
+    } else if (listActive && returnPreviewRef.current && listMounted) {
+      const previous = returnPreviewRef.current;
+      returnPreviewRef.current = null;
+      const links = listRef.current?.querySelectorAll<HTMLAnchorElement>('a[href]');
+      const origin = window.location.origin;
+      const target = [...(links ?? [])].find(link =>
+        link.getClientRects().length > 0 && new URL(link.href, origin).searchParams.get("preview") === previous);
+      (target ?? listRef.current)?.focus({ preventScroll: true });
+    }
+  }, [reviewActive, reviewKey, listActive, listMounted]);
+
   /* eslint-disable react-hooks/refs -- snapshot last review pane for exit fade */
   if (reviewActive && reviewKey) {
     heldReviewRef.current = review;
@@ -189,7 +205,10 @@ export function InsightsModeSwap({
       data-insights-motion={motion ? "1" : "0"}
     >
       <div
-        className="insights-mode-pane insights-mode-pane-list"
+        ref={listRef}
+        tabIndex={-1}
+        aria-label="Signal queue"
+        className="insights-mode-pane insights-mode-pane-list overflow-y-auto md:overflow-hidden focus-visible:outline-2 focus-visible:outline-sio-border-strong"
         aria-hidden={!listActive}
         inert={!listActive ? true : undefined}
       >
@@ -537,13 +556,13 @@ function QueueTablePager({
   const signalLabel = rowCount === 1 ? "1 signal" : `${rowCount} signals`;
 
   return (
-    <div className="flex shrink-0 items-center justify-between border-t border-sio-border-base px-4 py-3">
+    <nav aria-label="Signal queue pagination" className="flex shrink-0 items-center justify-between border-t border-sio-border-base px-4 py-3">
       <div className="hidden flex-1 text-sm text-muted-foreground lg:flex">
         {signalLabel}
       </div>
       <div className="flex w-full items-center gap-8 lg:w-fit">
-        <div className="flex w-fit items-center justify-center text-sm font-medium tabular">
-          Page {page} of {pageCount}
+        <div role="status" aria-live="polite" aria-atomic="true" className="flex w-fit items-center justify-center text-sm font-medium tabular">
+          Page {Intl.NumberFormat().format(page)} of {Intl.NumberFormat().format(pageCount)}
         </div>
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <PagerIconLink
@@ -574,7 +593,7 @@ function QueueTablePager({
           </PagerIconLink>
         </div>
       </div>
-    </div>
+    </nav>
   );
 }
 
@@ -619,7 +638,7 @@ function QueueSignalsDataTable({
   return (
     <QueueCard>
       <div className="hide-scrollbar relative hidden min-h-0 flex-1 overflow-auto md:block">
-        <Table className="min-w-[640px]">
+        <Table aria-label="Signal review queue" className="min-w-[640px]">
           <TableHeader className={QUEUE_TABLE_HEADER_CLASS}>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">

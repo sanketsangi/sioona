@@ -22,6 +22,7 @@ export function buildSignalReviewTriage(opts: {
   walkPendingSignals?: { id: string }[];
   previewSignal: { id: string };
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode;
   replaced?: boolean;
   typeFilter?: TypeFilter;
@@ -39,6 +40,7 @@ export function buildSignalReviewTriage(opts: {
     prevPendingPreviewId: prevPendingPreviewId(walk, opts.previewSignal.id),
     nextPendingPreviewId: nextPendingPreviewId(walk, opts.previewSignal.id),
     scoreFrom: opts.scoreFrom,
+    scoreTo: opts.scoreTo,
     mode: opts.mode,
     replaced: opts.replaced,
     typeFilter: opts.typeFilter,
@@ -58,6 +60,7 @@ export function buildSignalReviewTriage(opts: {
 export function correctAdvanceHref(opts: {
   nextPendingPreviewId?: string | null;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
@@ -71,6 +74,7 @@ export function correctAdvanceHref(opts: {
     label: "correct",
     nextPendingPreviewId: opts.nextPendingPreviewId,
     scoreFrom: opts.scoreFrom,
+    scoreTo: opts.scoreTo,
     mode: opts.mode,
     replaced: opts.replaced,
     typeFilter: opts.typeFilter,
