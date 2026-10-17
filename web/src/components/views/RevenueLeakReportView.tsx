@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { pilotContactHref } from "@/lib/pilot-contact";
 import { pilotProgress } from "@/lib/pilot-progress";
 import { reportExplanation } from "@/lib/report-explanation";
 import { ReportUploadForm } from "@/components/ReportUploadForm";
@@ -85,6 +86,7 @@ function ReportDocument({
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <a href={pilotContactHref()} className="btn-secondary">Request a pilot →</a>
           <Link href={nameToggle} className="btn-secondary">
             {anonymised ? "Show names" : "Anonymise"}
           </Link>
