@@ -4,7 +4,7 @@ import {
 } from "@/lib/pilot-cadence";
 import type { FeedbackLabel } from "@/lib/types";
 
-export type PlatformView = "insights" | "upload" | "eval" | "taxonomy" | "report" | "economics";
+export type PlatformView = "insights" | "upload" | "eval" | "taxonomy" | "report" | "economics" | "lifecycle";
 
 export type EvalPanel = "metrics" | "adapt" | "labeled" | "export";
 
@@ -29,6 +29,8 @@ export type SignalReviewTriage = {
   actionFilter?: ActionFilter;
   /** Preserve Vault `?file=` scope on feedback / walk advances. */
   file?: string | null;
+  page?: number;
+  q?: string | null;
 };
 
 export type TypeFilter = "all" | "lead" | "retention" | "upsell";
@@ -144,6 +146,7 @@ export function viewHref(
   extras?: Record<string, string | undefined | null>
 ): string {
   if (view === "economics") return "/economics";
+  if (view === "lifecycle") return "/lifecycle";
   const params = new URLSearchParams();
   params.set("view", view);
   if (extras) {
@@ -269,6 +272,8 @@ export function pendingReviewWalkHref(opts: {
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   file?: string | null;
+  page?: number;
+  q?: string | null;
   /** Keep `?call=today` so Prev / Next / Skip stay on the Top 10 list. */
   callToday?: boolean;
 }): string {
@@ -285,6 +290,8 @@ export function pendingReviewWalkHref(opts: {
     preview: opts.previewId,
     replaced: replacedQueryValue(opts.replaced),
     file: opts.file,
+    page: opts.page && opts.page > 1 ? String(opts.page) : null,
+    q: opts.q,
     call: opts.callToday ? "today" : null,
   });
 }
@@ -298,6 +305,8 @@ function pendingReviewQueueHref(opts: {
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
   file?: string | null;
+  page?: number;
+  q?: string | null;
 }): string {
   const modeExtra =
     opts.mode === "action" ? ({ mode: "action" } as const) : {};
@@ -313,6 +322,8 @@ function pendingReviewQueueHref(opts: {
     preview: opts.nextPreviewId || null,
     replaced,
     file: opts.file,
+    page: opts.page && opts.page > 1 ? String(opts.page) : null,
+    q: opts.q,
   });
 }
 
@@ -337,6 +348,8 @@ export function afterFeedbackHref(opts: {
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
   file?: string | null;
+  page?: number;
+  q?: string | null;
 }): string | null {
   if (!opts.wasPending) return null;
   const modeExtra =
@@ -353,6 +366,8 @@ export function afterFeedbackHref(opts: {
         typeFilter: opts.typeFilter,
         actionFilter: opts.actionFilter,
         file: opts.file,
+        page: opts.page,
+        q: opts.q,
       });
     }
     return viewHref("insights", {
@@ -363,6 +378,8 @@ export function afterFeedbackHref(opts: {
       action: action === "all" ? null : action,
       replaced: replacedQueryValue(opts.replaced),
       file: opts.file,
+      page: opts.page && opts.page > 1 ? String(opts.page) : null,
+      q: opts.q,
     });
   }
   return pendingReviewQueueHref({
@@ -373,6 +390,8 @@ export function afterFeedbackHref(opts: {
     typeFilter: opts.typeFilter,
     actionFilter: opts.actionFilter,
     file: opts.file,
+    page: opts.page,
+    q: opts.q,
   });
 }
 
@@ -395,6 +414,8 @@ export function afterMarkActedHref(opts: {
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
   file?: string | null;
+  page?: number;
+  q?: string | null;
 }): string | null {
   if (!opts.acted || opts.feedbackLabel !== "correct") return null;
   const modeExtra =
@@ -411,6 +432,8 @@ export function afterMarkActedHref(opts: {
       preview: opts.nextPreviewId,
       replaced: replacedQueryValue(opts.replaced),
       file: opts.file,
+      page: opts.page && opts.page > 1 ? String(opts.page) : null,
+      q: opts.q,
     });
   }
   if (opts.nextPendingPreviewId) {
@@ -422,6 +445,8 @@ export function afterMarkActedHref(opts: {
       typeFilter: opts.typeFilter,
       actionFilter: opts.actionFilter,
       file: opts.file,
+      page: opts.page,
+      q: opts.q,
     });
   }
   return null;

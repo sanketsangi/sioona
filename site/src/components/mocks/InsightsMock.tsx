@@ -3,6 +3,7 @@
 import { m, useInView, useReducedMotion } from "framer-motion";
 import { Eye, PauseCircle, PlayCircle } from "@phosphor-icons/react/ssr";
 import { Fragment, useContext, useRef, useState } from "react";
+import Link from "@/components/navigation/GuardedLink";
 import { HeroPreviewEntered } from "@/components/sections/HeroPreview";
 import { usePageVisible } from "@/lib/usePageVisible";
 import {
@@ -113,14 +114,17 @@ export function InsightsMock({ previewHeader = false }: { previewHeader?: boolea
 }
 
 function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHeader: boolean }) {
-  const [userPaused, setUserPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(true);
+  const [selectedStep, setSelectedStep] = useState<number | null>(STEP.why);
   const ref = useRef<HTMLElement>(null);
   const inView = useInView(ref, { amount: "some", once: false, margin: "0px" });
   const previewEntered = useContext(HeroPreviewEntered);
   const pageVisible = usePageVisible();
   const systemReduced = useReducedMotion();
   const running = !userPaused && inView && previewEntered && pageVisible && !reduced && systemReduced !== true;
-  const { step, chars } = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced: reduced || systemReduced === true });
+  const script = useInsightsScript({ totalChars: TOTAL_CHARS, running, reduced: reduced || systemReduced === true });
+  const step = selectedStep ?? script.step;
+  const chars = selectedStep === null ? script.chars : TOTAL_CHARS;
 
   const reviewing = step >= STEP.rowIn && step < STEP.reset;
   const showWhy = step >= STEP.why && step < STEP.reset;
@@ -139,7 +143,7 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
   const playbackControl = (
           <button
             type="button"
-            onClick={() => setUserPaused((value) => !value)}
+            onClick={() => { setSelectedStep(null); setUserPaused((value) => !value); }}
             aria-pressed={!userPaused}
             aria-label={userPaused ? "Play Demo Animation" : "Pause Demo Animation"}
             className={previewHeader
@@ -163,6 +167,15 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
         </div>
       ) : null}
       <figcaption className="sr-only">Illustrative review workspace: a customer says “I’ll close my account”. Sioona highlights the source text as a retention signal. A human reviewer confirms it and marks it acted on. Suggested follow-ups are display-only; no message is sent.</figcaption>
+      <nav aria-label="Illustrative pilot workflow" className="mb-3 flex flex-wrap items-center gap-2">
+        {[[STEP.why, "1. Source quote"], [STEP.chips, "2. Human review"], [STEP.correct, "3. Approved draft"]].map(([frame, label]) => (
+          <button key={frame} type="button" aria-pressed={selectedStep === frame}
+            className="min-h-11 rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12 text-sio-fg-subtle hover:text-sio-fg-base aria-pressed:border-sio-border-strong aria-pressed:font-medium aria-pressed:text-sio-fg-base focus-visible:ring-2 focus-visible:ring-sio-border-strong md:min-h-6"
+            onClick={() => { setUserPaused(true); setSelectedStep(Number(frame)); }}>{label}</button>
+        ))}
+        <Link href="/contact" className="inline-flex min-h-11 items-center rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12 text-sio-fg-base hover:underline md:min-h-6">4. Request a pilot →</Link>
+      </nav>
+      <p role="status" className="sr-only">{selectedStep === STEP.correct ? "Illustrative draft approved. Nothing sent." : selectedStep === STEP.chips ? "Illustrative human review. Review the source before deciding." : "Illustrative source quote: I’ll close my account."}</p>
       <div
         className="panel shadow-mock overflow-hidden"
       >
@@ -308,13 +321,13 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
               </m.div>
 
               <m.div
-                className="hidden items-center justify-between gap-3 rounded-panel border border-sio-border-base p-3 sm:flex"
+                className="flex items-center justify-between gap-3 rounded-panel border border-sio-border-base p-3"
                 initial={false}
                 animate={{ opacity: showAction ? 1 : 0, y: showAction ? 0 : 8 }}
                 transition={t}
               >
                 <div className="min-w-0">
-                  <p className="eyebrow">Suggested Next Action</p>
+                  <p className="eyebrow">{selectedStep === STEP.correct ? "Approved draft · illustrative" : "Suggested Next Action"}</p>
                   <p className="mt-1 truncate text-copy-14 text-sio-fg-base">Offer a fee review call. Nothing sends.</p>
                 </div>
                 <m.span
@@ -323,7 +336,7 @@ function InsightsDemo({ reduced, previewHeader }: { reduced: boolean; previewHea
                   animate={{ scale: pressed ? 0.95 : 1 }}
                   transition={{ duration: duration.fast, ease }}
                 >
-                  Mark Acted
+                  {selectedStep === STEP.correct ? "Approved · not sent" : "Mark Acted"}
                   <span className="inline-flex size-5 items-center justify-center rounded-[4px] border border-sio-border-strong font-mono text-[11px] text-sio-fg-subtle">
                     A
                   </span>

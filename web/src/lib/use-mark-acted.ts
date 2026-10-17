@@ -36,6 +36,8 @@ export type MarkActedWalk = {
   replaced?: boolean;
   /** Preserve Vault `?file=` scope on Mark Acted advances. */
   file?: string | null;
+  page?: number;
+  q?: string | null;
 };
 
 /** Correct-before-Acted — Incorrect / Partial never unlock Mark as Acted. */
@@ -119,6 +121,8 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
           mode: walk.mode,
           replaced: walk.replaced,
           file: walk.file,
+          page: walk.page,
+          q: walk.q,
         });
         if (href) {
           router.push(href, { scroll: false });
@@ -140,6 +144,8 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
       signal,
       walk.actionFilter,
       walk.file,
+      walk.page,
+      walk.q,
       walk.mode,
       walk.nextPendingPreviewId,
       walk.nextPreviewId,

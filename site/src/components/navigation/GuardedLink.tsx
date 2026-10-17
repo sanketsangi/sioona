@@ -1,7 +1,9 @@
 "use client";
 
 import NextLink from "next/link";
-import { createContext, useContext, useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+
+import { registerHistoryGuard } from "@/lib/history-guard";
 
 const NavigationGuard = createContext({ blocked: false, setBlocked: (() => {}) as (blocked: boolean) => void });
 
@@ -12,24 +14,14 @@ function leavesCurrentPage(href: string) {
   return destination.origin !== window.location.origin || destination.pathname !== window.location.pathname || destination.search !== window.location.search;
 }
 
-// Browser history traversals do not pass through Next Link's onNavigate.
-// The Navigation API lets supported browsers cancel them before unmounting.
-type HistoryNavigateEvent = Event & { navigationType: string; destination: { url: string } };
-
 export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   const [blocked, setBlocked] = useState(false);
-  useEffect(() => {
-    if (!blocked) return;
-    const navigation = (window as Window & { navigation?: EventTarget }).navigation;
-    const onNavigate = (event: Event) => {
-      const historyEvent = event as HistoryNavigateEvent;
-      if (historyEvent.navigationType === "traverse" && event.cancelable && leavesCurrentPage(historyEvent.destination.url) && !window.confirm(discardMessage)) {
-        event.preventDefault();
-      }
-    };
-    navigation?.addEventListener("navigate", onNavigate);
-    return () => navigation?.removeEventListener("navigate", onNavigate);
-  }, [blocked]);
+  const blockedRef = useRef(blocked);
+  useLayoutEffect(() => { blockedRef.current = blocked; }, [blocked]);
+  useEffect(() => registerHistoryGuard({
+    dirty: () => blockedRef.current,
+    confirm: () => window.confirm(discardMessage),
+  }), []);
   return <NavigationGuard.Provider value={{ blocked, setBlocked }}>{children}</NavigationGuard.Provider>;
 }
 

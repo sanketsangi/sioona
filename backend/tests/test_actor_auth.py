@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 import pytest
@@ -16,7 +17,7 @@ from app.api.actor import ROUTE_GUARDS
 from app.config import get_settings
 from app.main import app
 from app.models.membership import Membership
-from tests.actor_support import KEY, MARKER, actor_headers, add_member, api
+from tests.actor_support import MARKER, actor_headers, add_member, api
 
 pytest_plugins = ["tests.actor_support"]
 from tests.test_actor_token import sign_like_web
@@ -82,6 +83,7 @@ _observe(request, 'tenant_shadow_test', None, None, 'read', None)
         env={**os.environ, "DATABASE_URL": "sqlite+pysqlite:///:memory:",
              "SIOONA_ACTOR_AUTH": "shadow", "SIOONA_ACTOR_KEY": "synthetic-test-key"},
         capture_output=True, text=True, check=True, timeout=15,
+        cwd=Path(__file__).resolve().parent.parent,
     )
     assert result.stdout == ""
     assert result.stderr.strip() == (

@@ -1,4 +1,4 @@
-# Sioona UI Design Guide (Vercel Style)
+# Sioona operator workspace design guide
 
 ## Goal
 
@@ -7,7 +7,8 @@ clear, minimal, trustworthy.
 
 ## References
 
-- Vercel dashboard aesthetic
+- Calm infrastructure dashboard surfaces
+- Context beside work, inspectable source evidence, and direct draft editing
 - shadcn/ui defaults
 - Geist typography
 - Neutral enterprise SaaS, not flashy AI consumer apps
@@ -26,18 +27,24 @@ Shell uses shadcn Sidebar primitives (`SidebarProvider`, `Sidebar`, `SidebarInse
 - **Tokens:** `--sidebar-*` (and related shadcn HSL channels) alias to sio neutrals in `globals.css` — light theme / `color-scheme: light`; do not invent a second palette.
 - **Width:** `--sidebar-width: 240px`; icon rail `--sidebar-width-icon: 3rem` (Tailwind uses `w-[var(--sidebar-width)]`).
 - **Brand:** `SioonaLogotype` + compact “S” mark in the sidebar header (no Acme `TeamSwitcher`).
-- **Nav:** Workspace — Insights, Upload, Eval, Taxonomy via `viewHref` / Phosphor + local icons; Help / Guidance open local dialogs (Shadow Mode FAQ / pilot cadence); Feedback dialog unchanged; `NavUser` identity in the footer (initials avatar + name / email — not a menu; no Account / Billing / Notifications / Log Out).
-- **Header:** existing `AppHeader` title + mode toggle + actions; `SidebarTrigger` for desktop collapse and mobile sheet. Shadow/Action ModeToggle is one bordered track matching Notifications chrome (`border-sio-border-subtle`, `--radius-control`, `size-11` / `md:size-9`, `size-4` icons); items `border-0` with spacing 0. Selected highlight is the shared `.segmented-tabs-thumb` (`translateX` via `--seg-index` / `--seg-count`; transform/opacity only; interactive fill) plus `sio-fg-base` (unselected `sio-fg-subtle`, not a per-item border). Honor `prefers-reduced-motion` (no slide). Action locked in prod (tooltip “Action Mode is locked for now” + polite live “Action Mode is locked”); click briefly selects Action then bounces back to Shadow (compositor-only; snap under reduced-motion). Unlock via `NEXT_PUBLIC_ACTION_MODE_UNLOCKED` or local `next dev`. When unlocked, Action is a real `Link` to `/?view=insights&mode=action&status=followup` (Insights Follow-up Act queue — Suggested Next Action + Mark Acted, Neon Acted SoT). No outbound send.
+- **Navigation:** Work (Insights, Uploads, Revenue report), Quality (Evaluation, Signal taxonomy), Administration (Economics, Data lifecycle, visible to verified admins). Groups stay open. Stored view/panel/status identifiers and aliases remain stable. Sidebar account identity comes from server session context; each admin route independently enforces authorization.
+- **Context:** Screen links carry known corpus, search, filter, pagination, selection, evaluation-panel and pending-upload context. Corpus switching clears selection/page and explains the scope change. Corpus names include Sample / Partner demo / Uploaded text. Main Insights and brand links only navigate; they do not seed or wipe data.
+- **Header:** One screen title, selected corpus, user-operated notifications and Shadow/Action control. Collapsed navigation has accessible names and delayed tooltips. Locked Action remains unselected and announces why it is unavailable. Unlocked Action still uses the existing Follow-up route and never sends externally.
+- **Notifications:** New notices update unread counts. The tray opens only on user input; automatic modal opening interferes with keyboard review and is removed.
+- **Administration shell:** Economics and lifecycle share `AppShell`, `#main`, and its skip link. Lifecycle keeps verified-admin checks, legal holds, destructive confirmations, fencing, exports and receipts. Policy version and scheduling status come from the lifecycle response. Retention durations are unavailable in that contract and are not hardcoded into the UI. Export expiry and deletion-receipt policy/backup information use returned values; unavailable hold state never means no holds.
 - **Out of product:** do not ship the sidebar-07 demo dashboard as the home route.
 
 ## Upload (one panel)
 
 Upload Chats body stays inside existing `page-frame` / `ViewFrame` — not a `/login` route and not login-04 page chrome (`min-h-svh`, shadcn `Card`).
 
-- **Panel:** centered Geist `.panel` (`max-w-5xl` ≈1024px; `lg:min-h-[435px]`; full-width below) with `UploadForm`. Heading **Get started with Sioona** (`text-center` at all breakpoints; `translate="no"` on the brand). No helper subtitle under the heading. Roomy dashed drop zone (`FolderIcon` + native `input type=file` overlay labeled via drop-zone prompt; `min-h-56` + `flex-1` from `lg`; nested `--radius-control`; quiet dashed border) — not a flex-fill strip.
-- **Actions:** three hug-width actions in one row on desktop — **Upload & Detect**, **Run Partner Demo**, **Reset Demo Data…** (`flex-wrap` + `justify-center`; secondary uses `--radius-panel`; Reset uses Phosphor `ArrowClockwise`, one-click wipe with spinner — no confirm). Upload primary hugs content (not `w-full`). Wrap / stack on small screens without stretching. **Upload & Detect** ingests on first submit except when Partner Demo Zerodha is the active last upload (`Zerodha_batch_02`): then a warn banner + **Confirm Replace** / **Cancel** (Cancel keeps the file; Confirm sends `confirm_partner_demo_replace`). Day-1 Groww / Reset (`!hasPartnerExport`) still sends `replace=true` with no extra confirm; mid-week partner export upserts without that flag. Upload error is an overlay pill (`absolute`, `rounded-full`, bold `sio-status-danger-fg` on `sio-status-danger-bg`, `aria-live`) so it does not shift the row. **Run Partner Demo** keeps Get started visible and swaps its button icon/label for `ButtonSpinner` + NDJSON step copy (`Uploading…` → `Finding signals…` → `Extracting…` — no overlay pill, no theater timers); complete opens Insights; failure shows an in-panel error with the same button as retry.
-- **Tips (always on):** `UploadTips` sits **under** the `.panel` as a quiet helper (not inside the card; not a cadence strip). Always visible idle and during Upload / Partner Demo / Reset. Quiet `rounded-full` badge (`border-sio-border-subtle` + `bg-sio-bg-base`, not a real button) with `BoltIcon` + **Tips** label, then rotating product + ETA copy (`upload-tips.ts`, ~4.5s). Each tip uses word-appear (`sio-word-appear`: opacity + `translateY` only). `prefers-reduced-motion: reduce` swaps tip text with no word animation. No `aria-live` (avoids SR spam on continuous rotation).
-- **Layout:** horizontally centered; optically above vertical center (`items-start` + modest `pt-*`). No Partner Sample Pack aside / samples list; no ~60% height strip. Canvas is panel + Tips helper under the card — **no** cadence helper.
+- **Panel:** centered Geist `.panel` (`max-w-5xl` ≈1024px; `lg:min-h-[435px]`; full-width below) with `UploadForm`. Heading **Get started with Sioona** (`text-center` at all breakpoints; `translate="no"` on the brand). A short subtitle explains the upload and review journey. Roomy dashed drop zone (`FolderIcon` + native `input type=file` overlay labeled via drop-zone prompt; `min-h-56` + `flex-1` from `lg`; nested `--radius-control`; quiet dashed border) — not a flex-fill strip.
+- **Journey:** Choose a file → inspect selected name/size and optional mapping preview → confirm destructive replacement → process → review scoped results. The primary Upload & Detect action stays dominant. One carousel file is submitted at a time. Formats and file/row/message limits use the parser’s shared constants; the server remains authoritative. Preview uses the existing parse-only endpoint for every accepted format.
+- **Demo controls:** Secondary demo/reset actions retain production guards. Reset or changing demo packs requires an explicit scope warning and Cancel. An already-active pack navigates without rewriting it. No automatic demo warmup mutation runs from the sidebar.
+- **Processing/recovery:** Worker responses show real status and conversation counts. Inline detection is indeterminate. An accepted worker job ID and basename travel in `uploadJob` / `uploadFile` URL context. Resume checking issues GET to the session-scoped jobs endpoint, without reuploading or redetecting. Leaving stops polling, not server work. No cancellation is offered without a cancellation contract. Terminal failure, connection loss and synchronization warnings remain distinct.
+- **Errors:** Persistent, in-flow messages near controls; no timed dismissal or absolute error pill. Selected files survive recoverable errors. Failed preview describes parsing/mapping failure without claiming import success. Completion uses a compact panel with conversation/signal count pills and an explicit scoped Review signals link. Worker counts come from persisted predictions for the completed job; older job responses without counts show unavailable. Partial synchronization preserves the existing result/banner semantics and scoped review destination.
+- **Help:** Static, keyboard-operated preparation disclosure under the panel. No rotating tips, simulated ETA, or word animation.
+- **Layout:** horizontally centered; optically above vertical center (`items-start` + modest `pt-*`). No Partner Sample Pack aside / samples list; no ~60% height strip. Layout is panel + contextual help under the card — **no** cadence helper.
 
 ## Concrete rules
 
@@ -67,7 +74,7 @@ Shared `SegmentedTabs` (Eval panels + Labeled tables): hairline `sio-border-subt
 
 ### Conversation transcript (alignment lock)
 
-Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/shadcn-aligned API; no fake `/avatars/*.png`). Used as the full list in `SignalReviewConversation` (inline chat well) and `ConversationDrawer`. Why This Fired jumps add `.chat-bubble--evidence` on the matched bubble.
+Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/shadcn-aligned API; no fake `/avatars/*.png`). Used as the full list in `SignalReviewConversation` (inline chat well) and `ConversationDrawer`. Supporting evidence jumps add `.chat-bubble--evidence` on the matched bubble.
 
 | Role | Side | Bubble | Avatar |
 |---|---|---|---|
@@ -82,13 +89,14 @@ Shared chrome: `ConversationMessages` → local `Message` + `Bubble` (geistcn/sh
 
 ### Insights in-queue review (accordion)
 
-Operator review happens **in the queue**, not on a full-page Signal Detail screen. Clicking a row (or **Review**) opens that signal via `?preview=<signalId>` (one open at a time). On a normal laptop the transcript sits beside the review cards (`@container review` `48rem`: rail | fixed **385px** chat, evidence quote highlighted). Narrower panes hide the inline transcript and use the drawer. Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body:
+Operator review happens **in the queue**, not on a full-page Signal Detail screen. Clicking a row (or **Review**) opens that signal via `?preview=<signalId>` (one open at a time). On a normal laptop the transcript sits beside the review cards (`@container review` `48rem`: rail | fixed **385px** chat, evidence quote highlighted). Narrower panes hide the inline transcript and use the drawer. Phone reviews reuse the queue card for their selected-signal summary; the desktop table is hidden. Long source quotes wrap, and pane headings wrap above secondary controls on phones. Collapsed row cells stay unchanged (User · Signal · Status · Score · Type · Evidence @ lg · Review). Expanded body:
 
-1. **Signal cell (in-row):** row chrome stays identical open or closed — truncated Signal summary (no unwrap, no selected fill / `aria-current` bar). Full text and evidence live in the expand body; no duplicate full-signal block there beyond Why This Fired.
-2. **Feedback** — Correct / Incorrect / Partially correct, optional note, Ground Truth in the header.
-3. **Recommended Actions** — draft, Copy Reply, Run Actions, and retention-email Approve / Edit / Dismiss. **Why This Fired** holds the evidence quote. Nothing is sent. Header still has **Open Conversation** for narrow overflow. Neon stubs without local evidence stay honest. Upload Chats when no local messages.
+1. **Signal cell (in-row):** row chrome stays identical open or closed — truncated Signal summary (no unwrap, no selected fill / `aria-current` bar). Full text and evidence live in the expand body; no duplicate full-signal block there beyond Supporting evidence.
+2. **Supporting evidence** precedes detection feedback and recommended draft actions in both visual and reading order. Exact spans are marked only when persisted quote and offsets reconstruct the stored message; message-only matches say so. Source position and role come from stored messages. Missing/stale sources never become invented quotes. Surrounding transcript remains available.
+3. **Feedback** — Correct / Incorrect / Partially correct, optional note, Ground Truth in the header. Feedback, draft approval, clipboard copy, recorded handling and business outcomes remain distinct dimensions.
+4. **Recommended draft** — Copy Reply copies to the clipboard; Approve draft records approval; Mark as acted records handling outside Sioona. A Correct detection review is still required to mark handling; the reason appears beside controls. No approval/copy automatically creates Correct feedback. Success follows persistence. Failures keep the selected signal and draft edits. Editing uses Save draft / Cancel; dirty cancellation/document exit is protected, internal links are guarded, and indexed history guards restore same-document Back/Forward before prompting, including browsers without the Navigation API. The existing editor remains the surface for inspecting and editing supervised draft text. No regeneration or send capability is added.
 
-Smooth expand/collapse uses compositor-friendly `grid-template-rows` and honors `prefers-reduced-motion`. Expanded row keeps `aria-expanded` / `aria-controls` / `data-expanded` (no `aria-current` highlight). Legacy `?signal=` and `/insights/[id]` redirect to `?view=insights&preview=<id>`.
+Retain the existing review interaction. Animate only user-triggered opacity/transform changes and honor `prefers-reduced-motion`. `grid-template-rows` is a layout property and must not be animated; the former prescription calling it compositor-friendly is withdrawn. Expanded row keeps `aria-expanded` / `aria-controls` / `data-expanded` (no `aria-current` highlight). Legacy `?signal=` and `/insights/[id]` redirect to `?view=insights&preview=<id>`.
 
 ### Conversation drawer (Insights)
 
@@ -159,3 +167,18 @@ When the customer name is already shown (queue User column), display summary via
 ## Showcase corpus names
 
 `testing.json` encodes people in `externalId` (`rahul_mehta_29`). The loader derives `customerName` for store + detect summaries; FastAPI dual-write carries the name inside `summary` (no separate Neon customer column). UI strips the name prefix for display only (`queueSignalSummary`).
+
+
+## Evaluation, reporting, and specialist screens (16 October 2026)
+
+Evaluation labels are Metrics / Improvements / Reviewed examples / Export evaluation; IDs remain `metrics` / `adapt` / `labeled` / `export`. SignalScore uses Correct divided by all reviewed detections; Partial counts in the denominator. The selected window and existing minimum-review/go-no-go criteria remain authoritative. Pending synchronization does not count as persisted quality. All-time is context. Missing monetary totals are Unavailable, not zero. Improvement suggestions do not claim a passed evaluation.
+
+Revenue report separates Review coverage, Estimated opportunity and Recorded outcomes. Keep currency, UTC boundaries, scope, default anonymization, PDF query, and qualifications unchanged. Current at-risk rows link to signal/evidence; historical rows stay historical and do not offer active outcome editing. Unknown, reviewer-recorded, estimated and verified values remain separate.
+
+Taxonomy identifies shipped definitions and stored phrase overrides separately and shows meaningful empty override states. Economics uses shared panel/token chrome, measured-cost coverage and explicitly labeled projections. Neither surface claims new history or freshness contracts. Sign-in keeps password-manager inputs, original loading-button label, linked inline errors and focus on missing credentials. No unsupported recovery or identity-provider controls are added.
+
+## Validation boundary
+
+Implementation evidence and remaining research/dependencies live in `docs/development/tasks/UI-UX-IMPLEMENTATION.md`. This guide describes implemented behavior, not measured usability success. Representative-operator research, assistive-technology coverage, browser-specific traversal fallbacks and performance acceptance require separate recorded evidence. Persistent split layouts, saved views, dark mode, new AI features and new analytics remain deferred.
+
+The phone target override belongs to the utility layer so per-control size utilities cannot reduce affected primary controls below 44px. Light secondary text uses the existing neutral token at OKLCH 0.53 to retain contrast on the muted workspace surface as well as white cards.

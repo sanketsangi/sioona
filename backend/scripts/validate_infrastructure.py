@@ -41,7 +41,8 @@ def validate_staging_blueprint(blueprint):
             assert env[key].get('value') == '0', key
         assert 'alembic upgrade' not in service.get('startCommand', '')
         assert service.get('autoDeployTrigger') == 'off'
-        assert service.get('maxShutdownDelaySeconds', 0) >= 120
+        if service.get('plan') != 'free':
+            assert service.get('maxShutdownDelaySeconds', 0) >= 120
         assert service.get('healthCheckPath', '').startswith('/')
         if service.get('runtime') == 'python':
             assert service.get('startCommand', '').startswith('python -m scripts.check_schema && exec ')

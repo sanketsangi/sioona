@@ -74,7 +74,7 @@ export function Drawer({
     if (!open) return;
 
     const scrollY = restoreScrollRef.current;
-    const trigger = triggerRef.current;
+    const trigger = triggerRef.current ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null);
     const panel = contentRef.current;
 
     const onKeyDown = (e: KeyboardEvent) => {

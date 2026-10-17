@@ -11,6 +11,15 @@ const repoRoot = path.resolve(webRoot, "..");
 const venvPython = path.join(repoRoot, "backend/.venv/bin/python");
 const python = existsSync(venvPython) ? venvPython : "python3";
 
+// Dedicated ports let guarded runs coexist with another local workspace.
+function localPort(name: string, fallback: number): number {
+  const port = Number(process.env[name] || fallback);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error(`Invalid ${name}`);
+  return port;
+}
+const webPort = localPort("SIOONA_E2E_WEB_PORT", 3000);
+const backendPort = localPort("SIOONA_E2E_BACKEND_PORT", 8000);
+
 const TEST_DATABASE_URL =
   "postgresql+psycopg://sioona:ci_only@127.0.0.1:5432/sioona_migration_test";
 
@@ -88,7 +97,7 @@ const isolateAndStart = [
   'ln -s "$ROOT/node_modules" "$WORK/node_modules"',
   'cd "$WORK"',
   "./node_modules/.bin/next build --webpack",
-  "./node_modules/.bin/next start --hostname 127.0.0.1 --port 3000 &",
+  `./node_modules/.bin/next start --hostname 127.0.0.1 --port ${webPort} &`,
   "server_pid=$!",
   "if [ -n \"${CB10_E2E_DATA_PATH_FILE:-}\" ]; then printf '{\"dataDir\":\"%s\",\"pid\":%s}\\n' \"$WORK/data\" \"$server_pid\" > \"$CB10_E2E_DATA_PATH_FILE\"; fi",
   'wait "$server_pid"',
@@ -98,7 +107,7 @@ const databaseUrl = e2eDatabaseUrl();
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: "upload-review.spec.ts",
+  testMatch: ["upload-review.spec.ts", "uiux.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -107,16 +116,16 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: `http://127.0.0.1:${webPort}`,
     viewport: { width: 1440, height: 900 },
     trace: "retain-on-failure",
     serviceWorkers: "block",
   },
   webServer: [
     {
-      command: `"${python}" -c "import sitecustomize; sitecustomize.require_guard(); import runpy; runpy.run_module('uvicorn', run_name='__main__')" app.main:app --host 127.0.0.1 --port 8000`,
+      command: `"${python}" -c "import sitecustomize; sitecustomize.require_guard(); import runpy; runpy.run_module('uvicorn', run_name='__main__')" app.main:app --host 127.0.0.1 --port ${backendPort}`,
       cwd: path.join(repoRoot, "backend"),
-      url: "http://127.0.0.1:8000/health",
+      url: `http://127.0.0.1:${backendPort}/health`,
       timeout: 60_000,
       reuseExistingServer: false,
       env: childEnv({
@@ -128,12 +137,12 @@ export default defineConfig({
     {
       command: `bash -s <<'E2E'\n${isolateAndStart}\nE2E`,
       cwd: webRoot,
-      url: "http://127.0.0.1:3000/login",
+      url: `http://127.0.0.1:${webPort}/login`,
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
       timeout: 300_000,
       reuseExistingServer: false,
       env: childEnv({
-        BACKEND_URL: "http://127.0.0.1:8000",
+        BACKEND_URL: `http://127.0.0.1:${backendPort}`,
         SIOONA_SERVICE_TOKEN: E2E_TOKEN,
         AUTH_SECRET: E2E_AUTH_SECRET,
         SIOONA_ADMIN_EMAIL: E2E_EMAIL,
