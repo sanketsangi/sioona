@@ -31,3 +31,5 @@ yarn-error.log*
 ChatGPT Image *.png
 .agents/teamwork/
 .neon
+.agents/
+skills-lock.json
