@@ -3,6 +3,8 @@
  * Helvetica only, so rupee amounts are written as "INR …".
  */
 
+import { reportExplanation } from "./report-explanation";
+
 import {
   formatInrAscii,
   precisionLabel,
@@ -46,6 +48,7 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
   if (report.fileLabel) lines.push(`Pilot file: ${report.fileLabel}`);
   lines.push(
     "",
+    ...reportExplanation(report),
     "Signal counts: selected corpus. Reviews and outcomes: UTC date range.",
     `Retention ${report.counts.retention}   Lead ${report.counts.lead}   Upsell ${report.counts.upsell}`,
     `Outcomes  Saved ${report.outcomes.saved}   Lost ${report.outcomes.lost}   Converted ${report.outcomes.converted}`,
@@ -54,7 +57,7 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
     `Revenue opportunity estimate ${formatInrAscii(report.exposure.revenueOpportunityInr)}`,
     `Unconfirmed value ${formatInrAscii(report.exposure.unconfirmedInr)}`,
     `Reviewer-recorded value ${formatInrAscii(report.exposure.reviewerRecordedInr)}`,
-    `Confirmed saved ${report.revenueVerified === false ? "unavailable" : formatInrAscii(report.inrSaved)}`,
+    `Confirmed saved (reviewer-recorded) ${report.revenueVerified === false ? "unavailable" : formatInrAscii(report.inrSaved)}`,
     `SignalScore precision ${precisionLabel(report.precision.score, report.precision.reviewed)}`,
     "",
     "Customers at risk",

@@ -35,3 +35,15 @@ it("rejects a blank upload name before polling", async () => {
   expect(h.push).not.toHaveBeenCalled();
   expect(h.setters[5]).toHaveBeenCalledWith(expect.stringMatching(/file name/i));
 });
+
+it("keeps the selected file and mapping after a failed ingest without auto retry", async () => {
+  const fetch = vi.fn().mockRejectedValue(new Error("Connection unavailable"));
+  vi.stubGlobal("fetch", fetch);
+  const form = UploadForm({ hasPartnerExport: true });
+  await form.props.onSubmit({ preventDefault() {} });
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(h.setters[0]).not.toHaveBeenCalled();
+  expect(h.setters[8]).not.toHaveBeenCalled();
+  expect(h.push).not.toHaveBeenCalled();
+  expect(h.setters[5]).toHaveBeenCalledWith("Connection unavailable");
+});

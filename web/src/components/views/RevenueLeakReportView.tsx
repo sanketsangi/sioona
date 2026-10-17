@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { pilotContactHref } from "@/lib/pilot-contact";
+import { pilotProgress } from "@/lib/pilot-progress";
+import { reportExplanation } from "@/lib/report-explanation";
 import { ReportUploadForm } from "@/components/ReportUploadForm";
 import { reportUploadOptions, type ReportUploadOption } from "@/lib/report-upload-options";
 import { ReportRangeForm } from "@/components/ReportRangeForm";
@@ -31,7 +34,7 @@ export async function RevenueLeakReportView({
   uploadId?: string;
   file?: string;
 }) {
-  const { report, query, rangeError, rangeErrorField, scopeError } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
+  const { report, query, rangeError, rangeErrorField, scopeError, scopedStore } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
 
   let uploadOptions: ReportUploadOption[] = [];
   let uploadsUnavailable = false;
@@ -40,12 +43,13 @@ export async function RevenueLeakReportView({
 
   return (
     <ViewFrame className="overflow-y-auto">
-      <ReportDocument report={report} anonymised={anonymised} query={query.toString()} rangeError={rangeError} rangeErrorField={rangeErrorField} scopeError={scopeError} uploadOptions={uploadOptions} uploadsUnavailable={uploadsUnavailable} />
+      <ReportDocument conversationCount={scopedStore.conversations.length} report={report} anonymised={anonymised} query={query.toString()} rangeError={rangeError} rangeErrorField={rangeErrorField} scopeError={scopeError} uploadOptions={uploadOptions} uploadsUnavailable={uploadsUnavailable} />
     </ViewFrame>
   );
 }
 
 function ReportDocument({
+  conversationCount,
   report,
   anonymised,
   query,
@@ -55,6 +59,7 @@ function ReportDocument({
   uploadOptions,
   uploadsUnavailable,
 }: {
+  conversationCount: number;
   report: RevenueLeakReport;
   anonymised: boolean;
   query: string;
@@ -81,6 +86,7 @@ function ReportDocument({
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <a href={pilotContactHref()} className="btn-secondary">Request a pilot →</a>
           <Link href={nameToggle} className="btn-secondary">
             {anonymised ? "Show names" : "Anonymise"}
           </Link>
@@ -91,6 +97,25 @@ function ReportDocument({
       </header>
 
       {scopeError ? <p role="status" className="text-copy-14 text-sio-fg-base">{scopeError} <Link href="/?view=report" className="underline">Open current report</Link>{" · "}<Link href="/upload" className="underline">Open uploads</Link></p> : null}
+      <section aria-labelledby="pilot-progress" className="panel p-4">
+        <h3 id="pilot-progress" className="text-label-14 text-sio-fg-base">Pilot checklist</h3>
+        <ol className="mt-3 grid gap-3 sm:grid-cols-2">
+          {pilotProgress(report, conversationCount).map(step => {
+            const params = new URLSearchParams(query);
+            params.set("view", step.destination);
+            return <li key={step.label} className="min-w-0 text-copy-13 text-sio-fg-subtle">
+              <Link href={`/?${params}`} className="inline-flex min-h-11 items-center gap-2 text-sio-fg-base underline underline-offset-4 focus-visible:ring-2 focus-visible:ring-sio-border-base">
+                <span>{step.complete ? "Recorded" : "Next step"}</span> · {step.label}
+              </Link>
+              <p className="break-words">{step.detail}</p>
+            </li>;
+          })}
+        </ol>
+      </section>
+
+      <aside aria-label="Report definitions" className="space-y-1 text-copy-13 text-sio-fg-subtle">
+        {reportExplanation(report).map(line => <p key={line}>{line}</p>)}
+      </aside>
       <ReportUploadForm query={query} options={uploadOptions} unavailable={uploadsUnavailable} />
       <ReportRangeForm query={query} error={rangeError} errorField={rangeErrorField} />
 
@@ -131,11 +156,11 @@ function ReportDocument({
       <section className="panel space-y-3 p-4 sm:p-5" aria-labelledby="recorded-outcomes">
         <div>
           <h3 id="recorded-outcomes" className="text-heading-18 text-sio-fg-base">Recorded outcomes</h3>
-          <p className="mt-1 text-copy-13 text-muted-foreground">Operator-recorded outcomes in Sioona; verification reflects confirmed saved revenue.</p>
+          <p className="mt-1 text-copy-13 text-muted-foreground">Persisted reviewer outcomes in Sioona; these are not independently verified commercial results.</p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Metric label="Reviewer-recorded value" value={formatInr(report.exposure.reviewerRecordedInr)} />
-          <Metric label="Verified saved value" value={report.revenueVerified === false ? "Unavailable" : formatInr(report.inrSaved)} />
+          <Metric label="Confirmed saved (reviewer-recorded)" value={report.revenueVerified === false ? "Unavailable" : formatInr(report.inrSaved)} />
           <Metric
             label="Outcomes"
             value={`${report.outcomes.saved} saved · ${report.outcomes.lost} lost · ${report.outcomes.converted} converted`}
