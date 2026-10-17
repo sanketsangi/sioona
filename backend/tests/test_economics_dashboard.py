@@ -288,6 +288,39 @@ def test_canonical_telemetry_drift_and_window(db):
     assert empty.reliability.ledger_flush_failures.value == 0
 
 
+def test_admin_alert_delivery_tracks_queue_recovery(api):
+    """The operator surface delivers an active alert and its cleared state."""
+    client, factory = api
+    admin = add_member(factory, "op4-alerts@example.test", "tenant_a", "admin")
+    headers = actor_headers(admin, "tenant_a")
+    with factory() as db:
+        _seed(db, "tenant_a")
+        job = db.get(Job, ("tenant_a", "job-tenant_a"))
+        job.status = "queued"
+        job.created_at = NOW - timedelta(minutes=16)
+        job.updated_at = NOW - timedelta(minutes=16)
+        db.commit()
+
+    response = client.get("/v1/tenants/tenant_a/economics-dashboard", headers=headers)
+    assert response.status_code == 200
+    delivered = {item["key"]: item for item in response.json()["alerts"]}
+    assert delivered["queue_age"]["status"] == "alert"
+    assert delivered["queue_age"]["owner"] == "Sanket"
+    assert delivered["queue_age"]["runbook"]
+
+    with factory() as db:
+        job = db.get(Job, ("tenant_a", "job-tenant_a"))
+        job.status = "succeeded"
+        job.updated_at = NOW
+        db.commit()
+
+    response = client.get("/v1/tenants/tenant_a/economics-dashboard", headers=headers)
+    assert response.status_code == 200
+    cleared = {item["key"]: item for item in response.json()["alerts"]}
+    assert cleared["queue_age"]["status"] == "ok"
+    assert cleared["queue_age"]["owner"] == "Sanket"
+
+
 @pytest.mark.parametrize("mode", ["off", "shadow", "enforce"])
 def test_flush_failure_telemetry_is_verified_and_idempotent(api, monkeypatch, mode):
     from app.config import get_settings

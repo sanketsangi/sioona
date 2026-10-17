@@ -1,5 +1,11 @@
 # CB-03 isolated staging proposal and acceptance
 
+> **Current reconciliation — 2026-10-17:** staging tooling and PR #197 are
+> merged on `main` at `faf341ee`; the exact-main Web, Backend, E2E, Eval gate,
+> Gitleaks and Marketing site jobs passed. No hosted staging bootstrap,
+> observation or OP-4 drill receipt is claimed. See the single current
+> [launch-blocker list](LAUNCH_BLOCKERS_2026-10-17.md).
+
 ## Approved operating and launch decisions — 2026-10-16
 
 Approver: **Sanket**, explicit approval in this session. These choices close decision inputs; they do not assert hosted execution or authorize account upgrades, resource spend, live customer ingestion, or external writes.
@@ -146,6 +152,92 @@ Retain counts-only evidence and operator sign-off; never retain tokens, raw resp
 
 All bootstrap and shadow-observation tests plus the selected fresh/existing-schema, membership-upgrade, actor read/mutate/revoke, and runtime-role RLS tests passed on a newly created disposable loopback PostgreSQL 17 cluster: **61 passed, 63 deselected, zero skips**. The bootstrap test asserts six memberships and restores the cluster-wide runtime role to NOLOGIN afterward so migration tests do not inherit its LOGIN state. Step 3 Bash syntax and `git diff --check` passed. The retained five-membership receipt was left unchanged. This is local scoped verification; it does not establish a hosted observation window or full backend-suite acceptance.
 
+## Operator Step 4 — hosted browser session, permission, revocation, tenant-isolation, and persisted-review checks
+
+Step 3 shadow observation proves API assertion minting and telemetry under normal traffic, but explicitly leaves browser session refresh, role permissions, instantaneous revocation, tenant-isolation enforcement, and persisted review zero-send audits open for operator verification. `backend/scripts/operator_staging_auth_checks.py` automates the programmatic verification across API endpoints, while the human-run walkthrough verifies hosted UI contracts.
+
+### Operator Step 4 execution sequence (human terminal)
+
+Execute from repository root (`backend` venv active). Enter the deployed staging secrets at the silent prompts (no command history values). Ensure `sioona-api-staging` and `sioona-web-staging` are deployed with matching actor keys and `SIOONA_ENV=production`.
+
+```bash
+set -euo pipefail
+set +x
+export FASTAPI_BASE_URL="https://sioona-api-staging.onrender.com"
+export WEB_BASE_URL="https://sioona-web-staging.onrender.com"
+read -r -s -p 'Staging service token: ' SIOONA_SERVICE_TOKEN; printf '\n'
+read -r -s -p 'Staging actor key: ' SIOONA_ACTOR_KEY; printf '\n'
+export SIOONA_SERVICE_TOKEN SIOONA_ACTOR_KEY
+(
+  cd backend
+  .venv/bin/python -m scripts.operator_staging_auth_checks \
+    --base-url "$FASTAPI_BASE_URL" \
+    --web-url "$WEB_BASE_URL" \
+    --receipt ../docs/development/evidence/staging-auth-checks-receipt.json
+)
+unset SIOONA_SERVICE_TOKEN SIOONA_ACTOR_KEY
+```
+
+The script verifies:
+1. **Role permissions**:
+   - `admin@staging.test` on `tenant_staging_a`: access to always-enforced `economics-dashboard` and `lifecycle` is allowed (HTTP 200).
+   - `reviewer@staging.test` on `tenant_staging_a`: conversations read is allowed (HTTP 200), but `economics-dashboard` and `lifecycle` are denied with HTTP 403 Forbidden.
+   - `demo@staging.test` on `tenant_demo`: conversations read is allowed (HTTP 200), but `economics-dashboard` and `lifecycle` are denied with HTTP 403 Forbidden.
+2. **Tenant isolation**:
+   - Tenant A admin assertion passed to `tenant_staging_b` economics-dashboard is denied with HTTP 404 Not Found (tenant mismatch).
+   - Tenant B admin assertion passed to `tenant_staging_a` economics-dashboard is denied with HTTP 404 Not Found.
+   - Forged `X-Tenant-Id: tenant_staging_b` header on a `tenant_staging_a` path is safely rejected (HTTP 403 in off/shadow).
+3. **Actor revocation & token validation**:
+   - Unseeded / revoked user UUID is denied with HTTP 404 Not Found on always-enforced endpoints.
+   - Expired actor assertion (`exp` in the past) is rejected with HTTP 401 Unauthorized.
+   - Optional live DB revocation drill (if `HOSTED_MIGRATION_DATABASE_URL` is supplied) creates a temporary test user in Postgres, confirms active access (200), sets `revoked_at = now()`, proves immediate cutoff on the very next request (404), and cleans up test rows.
+4. **Persisted review & zero-send audit**:
+   - Uploads synthetic conversation and prediction.
+   - Submits human review feedback (`correct`) and verifies persistence.
+   - Approves drafted supervised action (`action_type=upsell_note_draft`, `status=approved`, `sent=false`).
+   - Reloads supervised actions from the database to confirm `status="approved"`.
+   - Confirms zero external sending calls and zero provider models invoked.
+5. **Web tier & browser session contracts**:
+   - Unauthenticated API read `/api/conversations` returns HTTP 401 Unauthorized.
+   - Invalid or expired session cookie returns HTTP 401 with `{ error: "Sign in required.", loginPath: "/login" }`.
+   - Unauthenticated document navigation to `/` returns HTTP 307/302 Redirect to `/login`.
+6. Emits a redacted, counts-only verification receipt at `docs/development/evidence/staging-auth-checks-receipt.json`.
+
+### Human-run browser session and UI walkthrough (hosted staging)
+
+Execute in Google Chrome or Safari against `https://sioona-web-staging.onrender.com`:
+
+1. **Browser session refresh drill (past 60-second actor TTL)**:
+   - Navigate to `/login`. Sign in using synthetic credentials: `reviewer@staging.test` / `<STAGING_REVIEWER_PASSWORD>`.
+   - Open Developer Tools > Application > Cookies: confirm `sioona_session` cookie is present, marked `HttpOnly`, `Secure`, `SameSite=Lax`, with Max-Age 43200 (12 hours).
+   - Wait at least 65 seconds (longer than the 60-second actor assertion TTL minted to FastAPI).
+   - Navigate between tabs or click an item in the Insights queue.
+   - **Verification**: The session remains active; no 401 or login redirect occurs. Next.js transparently mints fresh 60-second actor assertions for FastAPI from the valid 12-hour browser session cookie.
+2. **Browser session expiry drill**:
+   - In Developer Tools, delete the `sioona_session` cookie.
+   - Refresh the page: confirm immediate redirect to `/login`.
+   - Issue an in-browser `fetch('/api/conversations')`: confirm HTTP 401 with `loginPath: "/login"`.
+3. **Role permissions UI drill**:
+   - Log in as `reviewer@staging.test`: verify review queue actions (Feedback, Approve Draft) are functional; confirm admin-only economics and lifecycle settings are not accessible.
+   - Log in as `admin@staging.test`: verify full administrative navigation and controls.
+   - Access anonymous demo (if enabled): verify review mutations are blocked with sign-in prompts.
+4. **Cross-tenant isolation UI drill**:
+   - Log in as `reviewer@staging.test` on `tenant_staging_a`.
+   - Confirm only `tenant_staging_a` conversations and signals are rendered in the queue.
+   - Manually edit the URL or query parameters to request `tenant_staging_b`: confirm no data from tenant B is rendered or leaked.
+5. **Persisted review & zero-send UI drill**:
+   - In `sioona-web-staging`, open a signal in the Insights queue.
+   - Inspect the "Why This Fired" card and evidence quote: confirm text reconstructs from the persisted conversation.
+   - Click "Correct" feedback: verify button enters pressed state (`aria-pressed="true"`).
+   - Reload browser: confirm feedback state persists.
+   - Open draft drawer: click "Approve". Verify the confirmation banner: *"Approved — not sent. Run it in your tools; Sioona never CRM-tags."* (`sent=false`).
+   - Reload browser: confirm the draft remains approved with the banner visible.
+   - Audit Render logs and database: verify zero external webhook/email sends and zero provider calls.
+
+### Step 4 local readiness verification — 2026-10-17
+
+Targeted auth, permission, revocation, isolation, and web contract tests passed with the runner unit suite: **108 passed, 2 skipped, zero failures**. Step 4 Bash syntax and `git diff --check` passed. Hosted execution remains pending deployment and operator execution.
+
 ## Operator OP-4 — provider-free admission drill
 
 `backend/scripts/operator_staging_op4_drill.py` supplies the CB-07/CB-19 hosted admission drill. It uses authenticated HTTP control/reservation endpoints only; it never opens a database connection, runs migrations, or invokes provider dispatch. **Creating this tool or passing local tests does not close OP-4.** A human executes it on the isolated staging API and reviews the receipt and operational evidence before sign-off.
@@ -195,4 +287,24 @@ From `backend`, rerun with `PG_TEST_DATABASE_URL` pointing only to a dedicated d
 .venv/bin/python -m pytest tests/test_operator_staging_op4_drill.py tests/test_inference_budget.py tests/test_operator_staging_bootstrap.py tests/test_run_shadow_observation.py -q
 ```
 
-The PostgreSQL CI step includes the new OP-4 regression; hosted CI has not been run for this uncommitted patch. Operator-command Bash syntax and `git diff --check` passed. No hosted drill receipt was generated, no staging controls were changed, and OP-4 remains pending human execution and sign-off.
+The PostgreSQL CI step includes the OP-4 regression, and exact-main Backend CI
+passed after PR #197 merged. Operator-command Bash syntax and `git diff --check`
+also passed. No hosted drill receipt was generated, no staging controls were
+changed, and OP-4 remains pending human execution and sign-off.
+
+### OP-4 coverage follow-up — 2026-10-17
+
+The current disposable PostgreSQL 17 rehearsal passed **14 tests, 56
+deselected**, covering worker pause/drain/resume, global and tenant kill
+switches, database outage/recovery, provider failure followed by paused
+heuristic recovery, schema readiness and the existing migration drills. The
+economics-dashboard suite passed **27 tests** and now proves an authenticated
+admin receives a queue-age alert with its owner/runbook and sees it clear after
+the job recovers.
+
+This closes the remaining local state-transition and dashboard-delivery gap. It
+does not prove an outbound notification destination, hosted process restarts or
+provider-side reconciliation. Use
+[`OP4_HOSTED_ACCEPTANCE_CHECKLIST.md`](OP4_HOSTED_ACCEPTANCE_CHECKLIST.md) for
+the concise human-run hosted acceptance and retain its evidence before signing
+OP-4.
