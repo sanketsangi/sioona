@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { pilotProgress } from "@/lib/pilot-progress";
+import { reportExplanation } from "@/lib/report-explanation";
 import { ReportUploadForm } from "@/components/ReportUploadForm";
 import { reportUploadOptions, type ReportUploadOption } from "@/lib/report-upload-options";
 import { ReportRangeForm } from "@/components/ReportRangeForm";
@@ -110,6 +111,9 @@ function ReportDocument({
         </ol>
       </section>
 
+      <aside aria-label="Report definitions" className="space-y-1 text-copy-13 text-sio-fg-subtle">
+        {reportExplanation(report).map(line => <p key={line}>{line}</p>)}
+      </aside>
       <ReportUploadForm query={query} options={uploadOptions} unavailable={uploadsUnavailable} />
       <ReportRangeForm query={query} error={rangeError} errorField={rangeErrorField} />
 
@@ -150,11 +154,11 @@ function ReportDocument({
       <section className="panel space-y-3 p-4 sm:p-5" aria-labelledby="recorded-outcomes">
         <div>
           <h3 id="recorded-outcomes" className="text-heading-18 text-sio-fg-base">Recorded outcomes</h3>
-          <p className="mt-1 text-copy-13 text-muted-foreground">Operator-recorded outcomes in Sioona; verification reflects confirmed saved revenue.</p>
+          <p className="mt-1 text-copy-13 text-muted-foreground">Persisted reviewer outcomes in Sioona; these are not independently verified commercial results.</p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Metric label="Reviewer-recorded value" value={formatInr(report.exposure.reviewerRecordedInr)} />
-          <Metric label="Verified saved value" value={report.revenueVerified === false ? "Unavailable" : formatInr(report.inrSaved)} />
+          <Metric label="Confirmed saved (reviewer-recorded)" value={report.revenueVerified === false ? "Unavailable" : formatInr(report.inrSaved)} />
           <Metric
             label="Outcomes"
             value={`${report.outcomes.saved} saved · ${report.outcomes.lost} lost · ${report.outcomes.converted} converted`}

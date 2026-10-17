@@ -39,6 +39,7 @@ export async function queryRevenueReport(store: StoreData, options: {
     windowLabel: rangeError ?? `${window.label}${end.dateTo ? ` to ${end.dateTo.slice(0, 10)}` : ""} · reviews and outcomes`, fileLabel: file,
     anonymised: !options.reveal, reviewed: score?.reviewed_count ?? 0,
     correct: score?.correct_count ?? 0, incorrect: score?.incorrect_count ?? 0 });
+  report.demo = store.tenant.id === "tenant_demo";
   // Outcome totals come from the same scoped and time-bounded server query.
   report.inrSaved = score?.revenue_saved_inr ?? 0;
   report.revenueVerified = score !== null;
