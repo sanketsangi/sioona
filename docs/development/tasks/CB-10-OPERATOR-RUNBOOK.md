@@ -22,8 +22,10 @@ transcripts, customer exports, or credential-bearing URLs in repository evidence
 | Runtime / auth | Runtime role URL switch (OP-3); auth mode and isolated shadow/enforce acceptance (OP-2) or explicit residual | Pending |
 | Final acceptance | Zero unexplained loss, hosted checklist receipts, observation outcome, signed CB-10 acceptance by Sanket | Pending |
 
-The only permitted order is **Preflight → `025_detection_resume` →
-`026_weekly_upload_receipts` → FastAPI revision → Web revision**. Keep ingestion
+The current permitted order is **Preflight and verified restore → guarded
+populated upgrade from a supported 024–034 revision to
+`034_operational_telemetry` → restricted-runtime schema check → FastAPI revision
+→ Web revision**. Keep ingestion
 paused through reconciliation and all mixed-version checks. Do not rely on an
 application deploy to run implicit migrations. Existing OP-1–OP-5 deadlines in
 [Phase 2 go](../PHASE_2_GO.md) remain. D9 approves a specification; CB-11
@@ -62,10 +64,12 @@ git diff --check
 (cd backend && MIGRATION_DATABASE_URL="$HOSTED_MIGRATION_DATABASE_URL" alembic heads)
 ```
 
-Require one code head, `026_weekly_upload_receipts`. Record the hosted current
-revision; normally `024_tenant_rls`, or 025/026 if already applied. Investigate
-any earlier or divergent revision before proceeding. Pin the migration checkout
-to the approved backend SHA; do not move backwards if 026 is already present.
+Require one code head, `034_operational_telemetry`. Record the hosted current
+revision. The guarded helper accepts only a single known revision on the direct
+ancestry from `024_tenant_rls` through 034, including both distinct 027
+revisions. Investigate an earlier, divergent or multiple-head state before
+proceeding. Pin the migration checkout to the approved backend SHA and never
+move the database backwards.
 
 Pause upload UI access and block ingestion mutations at the hosting ingress for
 all tenants sharing the deployment, including `/api/ingest`, detect/redetect,
@@ -99,7 +103,13 @@ on an approved disposable branch (`pg_restore --exit-on-error --no-owner
 --dbname="$RESTORE_REHEARSAL_DATABASE_URL" "$OPERATOR_EVIDENCE_DIR/pre-cutover.dump"`)
 with counts/hash verification. Do not use a production URL for the rehearsal.
 
-## Apply 025, verify, then apply 026
+## Historical 025/026 catalog detail
+
+The commands in this section document the original two-step CB-10 cutover and
+remain useful for catalog diagnosis. They are superseded as the execution path
+by **OP-3 guarded populated upgrade helper (024 through 034)** below. Do not run
+these partial targets during the current cutover; use the guarded helper after
+the preflight, writer stop and restore rehearsal.
 
 Use only the migration owner for DDL. Execute each upgrade only if the database
 is behind that revision. If it is already 026, verify both tables without running
@@ -144,7 +154,12 @@ are additive. On error stop, inspect the recorded revision/catalog and repair
 owner permissions before retrying the explicit target. Never downgrade a shared
 host or discard receipts to recover an application deployment.
 
-## Ten-table RLS and runtime verification
+## Historical ten-table RLS detail
+
+This ten-table query preserves the original CB-10 acceptance evidence. Current
+acceptance uses the guarded helper, which requires forced RLS on every public
+tenant table, validates append-only audit privileges and opens a real restricted
+runtime LOGIN connection through the schema startup check.
 
 ```bash
 psql "$HOSTED_MIGRATION_DATABASE_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
@@ -317,7 +332,7 @@ protected shadow location; runtime JSON must never serve as a fallback/writer.
 
 ### Hosted verification and observation checklist
 
-- [ ] Both migrations/catalog receipts, ten-table RLS/grants and runtime role verified.
+- [ ] Guarded 024–034 upgrade receipt, all-tenant-table forced RLS, append-only audit grants and real runtime-login schema check verified.
 - [ ] Backend-before-web revision receipts; ingestion pause/drain held throughout mixed versions.
 - [ ] All five D6 slices compared, zero unexplained missing/changed/extra rows, source checksum unchanged; count/hash and UI view parity signed.
 - [ ] Fresh web **process/container** restart with new PID/deployment and clean runtime data directory, no `store*.json`; conversations, predictions, evidence, feedback/decisions, pilot, taxonomy and resume reconstruct without inference. Repeat authenticated dashboard/Eval views and canonical counts/hashes.
