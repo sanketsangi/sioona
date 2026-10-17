@@ -17,6 +17,7 @@
 
 # Python / tooling at root if ever added
 .venv/
+.venv*/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -29,3 +30,6 @@ yarn-error.log*
 .pnpm-debug.log*
 ChatGPT Image *.png
 .agents/teamwork/
+.neon
+.agents/
+skills-lock.json

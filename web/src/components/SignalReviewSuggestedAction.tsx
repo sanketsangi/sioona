@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "@phosphor-icons/react/ssr";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { conversationMessageDomId } from "@/components/ConversationMessages";
 import { CheckCircleIcon } from "@/components/icons/CheckCircleIcon";
 import { CopyIcon } from "@/components/icons/CopyIcon";
@@ -75,15 +75,17 @@ type SignalReviewSuggestedActionProps = {
   customerName?: string;
   focusedMessageId?: string | null;
   onFocusMessage?: (messageId: string) => void;
-  /** Follow-up Act queue walk — when set, rail shows primary Run Actions. */
+  /** Follow-up Act queue walk — when set, rail shows primary Mark as acted. */
   actedWalk?: MarkActedWalk | null;
   /** Stored supervised retention email draft, when one exists. */
   supervisedAction?: SupervisedAction | null;
   /**
-   * When true, reply draft is not ready — skeleton + Copy / Run Actions
+   * When true, reply draft is not ready — skeleton + Copy / Mark as acted
    * disabled (no stale draft). Parents omit this once the join is settled.
    */
   draftLoading?: boolean;
+  /** Detection review follows its evidence and precedes draft decisions. */
+  reviewControls?: ReactNode;
   className?: string;
 };
 
@@ -196,13 +198,13 @@ function WhyQuote({
   const quoteBody = (
     <span className="flex min-w-0 items-center gap-2">
       <CheckCircleIcon className="size-4 shrink-0 text-sio-fg-subtle" />
-      <span className="min-w-0 truncate text-copy-14 leading-5 text-sio-fg-base">
+      <span className="min-w-0 whitespace-normal break-words text-copy-14 leading-5 text-sio-fg-base">
         “{text}”
       </span>
     </span>
   );
   const surface = cn(
-    "h-9 w-full rounded-[var(--radius-control)] border border-border bg-sio-bg-base px-3 text-left font-normal",
+    "min-h-11 h-auto w-full py-2 rounded-[var(--radius-control)] border border-border bg-sio-bg-base px-3 text-left font-normal",
     active && "evidence-highlight border-transparent bg-sio-bg-interactive",
   );
 
@@ -214,7 +216,7 @@ function WhyQuote({
         size="lg"
         className={cn(
           surface,
-          // Visual chrome stays h-9; expand hit ≥44px on mobile without taller chrome.
+          // Let long persisted quotes wrap while preserving a generous hit target.
           "relative justify-start touch-manipulation transition-[color,background-color,border-color,box-shadow] duration-150 before:absolute before:-inset-y-1 before:inset-x-0 before:content-[''] md:before:hidden",
           active
             ? "hover:border-transparent hover:bg-sio-bg-interactive"
@@ -247,7 +249,7 @@ function SupportHeading({ id, children }: { id: string; children: string }) {
 /**
  * Recommended Actions + Why This Fired + Matched + Retention Email.
  * Distinct Actions well under Feedback (`data-review-slot="actions"`).
- * Run Actions: inside Retention Email bottom toolbar (with Edit Draft) when
+ * Mark as acted: inside Retention Email bottom toolbar (with Edit Draft) when
  * that section is present; otherwise Actions footer. Copy Reply sits in the
  * Recommended Actions header beside the status chip. Soft nudge when Feedback
  * is missing or not Correct — gate morph still sends operators to Feedback;
@@ -266,6 +268,7 @@ export function SignalReviewSuggestedAction({
   supervisedAction = null,
   draftLoading = false,
   className,
+  reviewControls,
 }: SignalReviewSuggestedActionProps) {
   const headingId = useId();
   const whyId = useId();
@@ -303,7 +306,7 @@ export function SignalReviewSuggestedAction({
     setCopyState("idle");
     setFeedbackGateOpen(false);
   } else if (canMarkActed && feedbackGateOpen) {
-    // Correct unlocks Run Actions — close the gate so Popover does not unmount open.
+    // Correct unlocks Mark as acted — close the gate so Popover does not unmount open.
     setFeedbackGateOpen(false);
   }
 
@@ -427,7 +430,7 @@ export function SignalReviewSuggestedAction({
     return {
       item,
       messageId:
-        span?.messageId ??
+        (messages.some((message) => message.id === span?.messageId) ? span?.messageId : null) ??
         (serverAnchored ? null : messageIdForEvidence(item, messages)),
       kind,
       text: evidenceMatchText(item, signal.type),
@@ -579,7 +582,7 @@ export function SignalReviewSuggestedAction({
             aria-haspopup={canMarkActed ? undefined : "dialog"}
             aria-expanded={canMarkActed ? undefined : feedbackGateOpen}
             aria-keyshortcuts="A Enter"
-            aria-label="Run Actions"
+            aria-label="Mark as acted"
             onClick={requestMarkActed}
           >
             {actedPending ? (
@@ -587,7 +590,7 @@ export function SignalReviewSuggestedAction({
             ) : (
               <PlayCircleIcon className="size-3.5 shrink-0" />
             )}
-            Run Actions
+            Mark as acted
           </Button>
         </TooltipTrigger>
         <TooltipContent
@@ -625,8 +628,8 @@ export function SignalReviewSuggestedAction({
       }
       description={
         hasFeedback
-          ? "Run Actions is only for Correct reviews. Update Feedback to Correct, then try again. You run the step in your tools — Sioona never sends or CRM-tags."
-          : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Run Actions records that you handled a Correct review. You execute outside — Sioona never sends or CRM-tags."
+          ? "Mark as acted is only for Correct reviews. Update Feedback to Correct, then try again. You run the step in your tools — Sioona never sends or CRM-tags."
+          : "Choose Correct, Incorrect, or Partially Correct in Feedback first. Mark as acted records that you handled a Correct review. You execute outside — Sioona never sends or CRM-tags."
       }
       onConfirm={goToFeedback}
       trigger={runActionsButton}
@@ -647,6 +650,124 @@ export function SignalReviewSuggestedAction({
 
   return (
     <>
+      {showSupport ? (
+        <Card
+          size="sm"
+          data-review-slot="why"
+          className={wellClass}
+          aria-labelledby={showWhy ? whyId : matchedId}
+        >
+          <InsightsReviewPaneHeader
+            id={showWhy ? whyId : matchedId}
+            title={showWhy ? "Supporting evidence" : "Matched"}
+          />
+          <CardContent className="flex min-w-0 flex-col px-0">
+            <div
+              className={cn(
+                evalCardPadClassName,
+                "flex min-w-0 flex-col gap-3 py-3",
+              )}
+            >
+              {ruleKind ? (
+                <p
+                  data-fired-rule={ruleKind}
+                  className="text-copy-14 leading-5 text-sio-fg-base"
+                >
+                  {firedRuleSentence(ruleKind)}
+                </p>
+              ) : null}
+
+              {/* Phrase and keyword chips sit above the quote jump controls (at most two). */}
+              {showMatched ? (
+                <section
+                  aria-labelledby={matchedId}
+                  className="flex min-w-0 flex-col gap-1.5"
+                >
+                  {showWhy ? (
+                    <SupportHeading id={matchedId}>Matched</SupportHeading>
+                  ) : null}
+                  <ul className="flex flex-wrap gap-1.5">
+                    {matches.map(({ item, text, messageId }) => (
+                      <li key={item} className="min-w-0 max-w-full">
+                        <EvidenceChip
+                          text={text}
+                          active={Boolean(
+                            messageId && messageId === focusedMessageId,
+                          )}
+                          controlsId={
+                            messageId
+                              ? conversationMessageDomId(messageId)
+                              : null
+                          }
+                          onSelect={
+                            messageId && onFocusMessage
+                              ? () => onFocusMessage(messageId)
+                              : null
+                          }
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              {showWhy && showMatched ? (
+                <Separator className="bg-sio-border-base" />
+              ) : null}
+
+              {showWhy ? (
+                <section
+                  aria-labelledby={whyId}
+                  className="flex min-w-0 flex-col gap-2"
+                >
+                  {unavailableCopy ? (
+                    <p
+                      data-evidence-status={signal.evidenceStatus}
+                      className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted"
+                    >
+                      {unavailableCopy}
+                    </p>
+                  ) : quotes.length > 0 ? (
+                    <ul className="flex flex-col gap-3">
+                      {quotes.map(({ item, text, messageId }) => {
+                        const canJump = Boolean(messageId && onFocusMessage);
+                        return (
+                          <li key={item} className="min-w-0">
+                            <p className="mb-1 text-label-12 text-sio-fg-muted">{messageId ? `Source message ${messages.findIndex((message) => message.id === messageId) + 1} of ${messages.length} · ${messages.find((message) => message.id === messageId)?.role ?? ""} · ${signal.evidenceStatus === "valid" ? "Persisted anchor" : "Message match; exact span unavailable"}` : "Source message unavailable"}</p>
+                            <WhyQuote
+                              text={text}
+                              active={Boolean(
+                                messageId && messageId === focusedMessageId,
+                              )}
+                              controlsId={
+                                messageId
+                                  ? conversationMessageDomId(messageId)
+                                  : null
+                              }
+                              onSelect={
+                                canJump && messageId
+                                  ? () => onFocusMessage?.(messageId)
+                                  : null
+                              }
+                            />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted">
+                      {isNeonStub
+                        ? "No local evidence — detection join missing."
+                        : "No local evidence."}
+                    </p>
+                  )}
+                </section>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+      {reviewControls}
       <Card
         ref={sectionRef}
         size="sm"
@@ -654,7 +775,7 @@ export function SignalReviewSuggestedAction({
         className={wellClass}
         aria-labelledby={headingId}
       >
-        <InsightsReviewPaneHeader id={headingId} title="Recommended Actions">
+        <InsightsReviewPaneHeader id={headingId} title="Recommended draft">
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {retentionStatusChip}
             {copyReplyButton}
@@ -668,9 +789,9 @@ export function SignalReviewSuggestedAction({
               "flex min-w-0 flex-col justify-center gap-1.5 py-3",
             )}
           >
-            {draftLoading || isActed || !hasFeedback || canMarkActed ? null : (
+            {draftLoading || isActed || canMarkActed ? null : (
               <p className="text-label-12 leading-5 text-sio-fg-muted">
-                Update Feedback to Correct to unlock Run Actions — nothing is
+                Update Feedback to Correct to unlock Mark as acted — nothing is
                 sent.
               </p>
             )}
@@ -748,122 +869,7 @@ export function SignalReviewSuggestedAction({
           )}
         </CardContent>
       </Card>
-      {showSupport ? (
-        <Card
-          size="sm"
-          data-review-slot="why"
-          className={wellClass}
-          aria-labelledby={showWhy ? whyId : matchedId}
-        >
-          <InsightsReviewPaneHeader
-            id={showWhy ? whyId : matchedId}
-            title={showWhy ? "Why This Fired" : "Matched"}
-          />
-          <CardContent className="flex min-w-0 flex-col px-0">
-            <div
-              className={cn(
-                evalCardPadClassName,
-                "flex min-w-0 flex-col gap-3 py-3",
-              )}
-            >
-              {ruleKind ? (
-                <p
-                  data-fired-rule={ruleKind}
-                  className="text-copy-14 leading-5 text-sio-fg-base"
-                >
-                  {firedRuleSentence(ruleKind)}
-                </p>
-              ) : null}
 
-              {/* Phrase and keyword chips sit above the quote jump controls (at most two). */}
-              {showMatched ? (
-                <section
-                  aria-labelledby={matchedId}
-                  className="flex min-w-0 flex-col gap-1.5"
-                >
-                  {showWhy ? (
-                    <SupportHeading id={matchedId}>Matched</SupportHeading>
-                  ) : null}
-                  <ul className="flex flex-wrap gap-1.5">
-                    {matches.map(({ item, text, messageId }) => (
-                      <li key={item} className="min-w-0 max-w-full">
-                        <EvidenceChip
-                          text={text}
-                          active={Boolean(
-                            messageId && messageId === focusedMessageId,
-                          )}
-                          controlsId={
-                            messageId
-                              ? conversationMessageDomId(messageId)
-                              : null
-                          }
-                          onSelect={
-                            messageId && onFocusMessage
-                              ? () => onFocusMessage(messageId)
-                              : null
-                          }
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {showWhy && showMatched ? (
-                <Separator className="bg-sio-border-base" />
-              ) : null}
-
-              {showWhy ? (
-                <section
-                  aria-labelledby={whyId}
-                  className="flex min-w-0 flex-col gap-2"
-                >
-                  {unavailableCopy ? (
-                    <p
-                      data-evidence-status={signal.evidenceStatus}
-                      className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted"
-                    >
-                      {unavailableCopy}
-                    </p>
-                  ) : quotes.length > 0 ? (
-                    <ul className="flex flex-col gap-3">
-                      {quotes.map(({ item, text, messageId }) => {
-                        const canJump = Boolean(messageId && onFocusMessage);
-                        return (
-                          <li key={item} className="min-w-0">
-                            <WhyQuote
-                              text={text}
-                              active={Boolean(
-                                messageId && messageId === focusedMessageId,
-                              )}
-                              controlsId={
-                                messageId
-                                  ? conversationMessageDomId(messageId)
-                                  : null
-                              }
-                              onSelect={
-                                canJump && messageId
-                                  ? () => onFocusMessage?.(messageId)
-                                  : null
-                              }
-                            />
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="break-words text-pretty text-copy-14 leading-5 text-sio-fg-muted">
-                      {isNeonStub
-                        ? "No local evidence — detection join missing."
-                        : "No local evidence."}
-                    </p>
-                  )}
-                </section>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      ) : null}
     </>
   );
 }

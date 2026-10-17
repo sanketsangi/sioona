@@ -97,6 +97,7 @@ export function PartnerDemoButton({
       return;
     }
 
+    if (!window.confirm("Load Partner Demo? This replaces the workspace chats, signals, and reviews. Cancel keeps your current data.")) return;
     setLoading(true);
     setError(null);
     setSyncWarning(null);

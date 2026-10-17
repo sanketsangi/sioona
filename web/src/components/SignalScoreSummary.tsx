@@ -34,20 +34,20 @@ function typeScorePercent(row: {
 }
 
 function RevenueLeakStrip({ score }: { score: BackendSignalScore }) {
-  const atRisk = score.revenue_at_risk_found_inr ?? 0;
-  const saved = score.revenue_saved_inr ?? 0;
+  const atRisk = score.revenue_at_risk_found_inr;
+  const saved = score.revenue_saved_inr;
   return (
     <dl className="grid min-w-0 grid-cols-2 divide-x divide-sio-border-base border-t border-sio-border-base">
       <div className="min-w-0 px-3 py-2.5 sm:px-4">
-        <dt className="text-label-12 text-sio-fg-muted">Revenue at risk found</dt>
+        <dt className="text-label-12 text-sio-fg-muted">Estimated revenue at risk</dt>
         <dd className="tabular mt-0.5 text-copy-14 text-sio-fg-base">
-          {formatInr(atRisk)}
+          {atRisk == null ? "Unavailable" : formatInr(atRisk)}
         </dd>
       </div>
       <div className="min-w-0 px-3 py-2.5 sm:px-4">
-        <dt className="text-label-12 text-sio-fg-muted">Revenue saved</dt>
+        <dt className="text-label-12 text-sio-fg-muted">Recorded revenue saved</dt>
         <dd className="tabular mt-0.5 text-copy-14 text-sio-fg-base">
-          {formatInr(saved)}
+          {saved == null ? "Unavailable" : formatInr(saved)}
         </dd>
       </div>
     </dl>

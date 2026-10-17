@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -25,8 +24,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  NOTIFICATION_AUTO_OPEN_HOLD_MS,
-  freshPopupNotifications,
   isNotificationUnread,
   notificationAutoOpenKey,
   notificationCategory,
@@ -38,8 +35,6 @@ import {
 import { cn } from "@/lib/utils";
 
 const SEEN_STORAGE_KEY = "sioona.headerNotifications.seen";
-/** Session-scoped — each tab visit can surface a fresh popup once. */
-const AUTO_OPENED_STORAGE_KEY = "sioona.headerNotifications.autoOpened";
 /** Session-scoped arrival times so a new notice stays above older ones. */
 const ARRIVED_STORAGE_KEY = "sioona.headerNotifications.arrived";
 
@@ -158,19 +153,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
   const [open, setOpen] = useState(false);
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
   const [arrivedAt, setArrivedAt] = useState<Record<string, number>>({});
-  const [spotlightKey, setSpotlightKey] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const autoCloseTimerRef = useRef<number | null>(null);
-  const userPinnedRef = useRef(false);
-  const autoOpeningRef = useRef(false);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const clearAutoClose = useCallback(() => {
-    if (autoCloseTimerRef.current != null) {
-      window.clearTimeout(autoCloseTimerRef.current);
-      autoCloseTimerRef.current = null;
-    }
-  }, []);
 
   const markSeen = useCallback(() => {
     if (notifications.length === 0) return;
@@ -193,17 +176,6 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     });
   }, [notifications]);
 
-  const closeMenu = useCallback(
-    (opts?: { markSeen?: boolean; userPinned?: boolean }) => {
-      clearAutoClose();
-      if (opts?.markSeen) markSeen();
-      if (opts?.userPinned) userPinnedRef.current = true;
-      setSpotlightKey(null);
-      setOpen(false);
-    },
-    [clearAutoClose, markSeen],
-  );
-
   useEffect(() => {
     queueMicrotask(() => {
       setSeenIds(readIdSet(SEEN_STORAGE_KEY, localStore()));
@@ -224,105 +196,10 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     });
   }, [hydrated, notifications]);
 
-  // Drop autoOpened keys whose notification is no longer present.
-  useEffect(() => {
-    if (!hydrated) return;
-    const store = sessionStore();
-    const present = new Set(
-      notifications.map((n) => notificationAutoOpenKey(n)),
-    );
-    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY, store);
-    let changed = false;
-    const nextOpened = new Set<string>();
-    for (const key of alreadyOpened) {
-      if (present.has(key)) {
-        nextOpened.add(key);
-      } else {
-        changed = true;
-      }
-    }
-    if (changed) {
-      writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened, store);
-    }
-  }, [hydrated, notifications]);
-
-  // Auto-open briefly whenever any fresh notification appears.
-  useEffect(() => {
-    if (!hydrated || open) return;
-
-    const store = sessionStore();
-    const alreadyOpened = readIdSet(AUTO_OPENED_STORAGE_KEY, store);
-    const fresh = freshPopupNotifications(notifications, {
-      seenIds,
-      alreadyOpened,
-    });
-    if (fresh.length === 0) return;
-
-    userPinnedRef.current = false;
-
-    const reducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    let cancelled = false;
-    const openAndScheduleClose = () => {
-      if (cancelled) return;
-      const nextOpened = new Set(alreadyOpened);
-      for (const n of fresh) nextOpened.add(notificationAutoOpenKey(n));
-      writeIdSet(AUTO_OPENED_STORAGE_KEY, nextOpened, store);
-      const newest = orderNotificationsRecentFirst(fresh, arrivedAt)[0];
-      setSpotlightKey(newest ? notificationAutoOpenKey(newest) : null);
-      autoOpeningRef.current = true;
-      setOpen(true);
-      window.setTimeout(() => {
-        autoOpeningRef.current = false;
-      }, 0);
-      clearAutoClose();
-      autoCloseTimerRef.current = window.setTimeout(() => {
-        autoCloseTimerRef.current = null;
-        setSpotlightKey(null);
-        if (userPinnedRef.current) return;
-        // Auto-close does not acknowledge. The unread mark stays until
-        // the reviewer opens the tray or follows a notice.
-        closeMenu();
-      }, NOTIFICATION_AUTO_OPEN_HOLD_MS);
-    };
-
-    if (reducedMotion) {
-      queueMicrotask(openAndScheduleClose);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const openTimer = window.setTimeout(openAndScheduleClose, 180);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(openTimer);
-    };
-  }, [
-    hydrated,
-    notifications,
-    seenIds,
-    arrivedAt,
-    open,
-    clearAutoClose,
-    closeMenu,
-  ]);
-
-  useEffect(() => {
-    if (!open || !spotlightKey) return;
-    const row = listRef.current?.querySelector("[data-recent='true']");
-    if (row instanceof HTMLElement && listRef.current) {
-      listRef.current.scrollTop = 0;
-    }
-  }, [open, spotlightKey]);
-
-  useEffect(() => () => clearAutoClose(), [clearAutoClose]);
-
+  // New notices update unread counts without taking keyboard focus.
   const ordered = useMemo(
-    () => orderNotificationsRecentFirst(notifications, arrivedAt, spotlightKey),
-    [notifications, arrivedAt, spotlightKey],
+    () => orderNotificationsRecentFirst(notifications, arrivedAt),
+    [notifications, arrivedAt],
   );
 
   const unreadCount = useMemo(() => {
@@ -343,25 +220,14 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
     <DropdownMenu
       open={open}
       onOpenChange={(next) => {
-        if (next) {
-          if (autoOpeningRef.current) {
-            autoOpeningRef.current = false;
-            setOpen(true);
-            return;
-          }
-          clearAutoClose();
-          setSpotlightKey(null);
-          userPinnedRef.current = true;
-          setOpen(true);
-          return;
-        }
-        closeMenu({ markSeen: true, userPinned: true });
+        if (!next) markSeen();
+        setOpen(next);
       }}
     >
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="btn-secondary relative !size-9 shrink-0 !px-0 outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
+          className="btn-secondary relative !size-11 md:!size-9 shrink-0 !px-0 outline-none focus-visible:shadow-[var(--focus-ring)] data-[state=open]:border-sio-border-strong data-[state=open]:bg-sio-bg-interactive data-[state=open]:shadow-none"
           aria-label={
             hasUnread ? `Notifications, ${unreadCount} unread` : "Notifications"
           }
@@ -381,14 +247,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
         align="end"
         sideOffset={8}
         className="w-[min(100vw-2rem,22.5rem)] overflow-hidden rounded-lg border border-sio-border-base bg-sio-bg-base p-0 text-sio-fg-base shadow-md outline-none ring-0 focus:outline-none focus-visible:shadow-none"
-        onPointerEnter={() => {
-          userPinnedRef.current = true;
-          clearAutoClose();
-        }}
-        onFocusCapture={() => {
-          userPinnedRef.current = true;
-          clearAutoClose();
-        }}
+
       >
         <DropdownMenuLabel className="flex items-center justify-between gap-3 px-3.5 py-3 font-normal">
           <span className="text-label-14 font-semibold tracking-tight text-sio-fg-base">
@@ -422,7 +281,6 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
           </div>
         ) : (
           <div
-            ref={listRef}
             className="hide-scrollbar max-h-[min(22rem,70vh)] overflow-y-auto overscroll-contain"
             role="list"
           >
@@ -430,12 +288,9 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
               const unread = hydrated
                 ? isNotificationUnread(item, seenIds)
                 : item.sticky === true;
-              const recent = spotlightKey === notificationAutoOpenKey(item);
               const rowClass = cn(
                 "flex w-full items-start gap-3 px-3.5 py-3 text-left",
                 index > 0 && "border-t border-sio-border-base",
-                recent &&
-                  "bg-sio-bg-interactive shadow-[inset_2px_0_0_0_var(--sio-fg-base)]",
               );
 
               return (
@@ -447,7 +302,6 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                   <Link
                     href={item.href}
                     role="listitem"
-                    data-recent={recent ? "true" : undefined}
                     className={cn(
                       rowClass,
                       "group no-underline outline-none transition-colors duration-150 hover:bg-sio-bg-interactive focus-visible:bg-sio-bg-interactive focus-visible:shadow-[var(--focus-ring)] data-[highlighted]:bg-sio-bg-interactive",
@@ -467,9 +321,7 @@ export function NotificationsMenu({ notifications }: NotificationsMenuProps) {
                         <span className="min-w-0">
                           <span className="mb-0.5 block text-label-12 text-sio-fg-muted">
                             {notificationCategory(item.id)}
-                            {recent ? (
-                              <span className="sr-only">, just arrived</span>
-                            ) : null}
+
                             {unread ? (
                               <>
                                 <span className="sr-only">, unread</span>
