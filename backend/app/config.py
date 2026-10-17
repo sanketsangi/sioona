@@ -5,12 +5,22 @@ from pathlib import Path
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Always resolve .env relative to the backend/ package root (not process cwd).
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_ROOT / ".env"
+
+
+def normalize_pg_url(url: str) -> str:
+    """Ensure sqlalchemy postgresql+psycopg driver scheme."""
+    cleaned = url.strip()
+    if cleaned.startswith("postgresql://"):
+        return f"postgresql+psycopg://{cleaned[len('postgresql://'):]}"
+    if cleaned.startswith("postgres://"):
+        return f"postgresql+psycopg://{cleaned[len('postgres://'):]}"
+    return cleaned
 
 
 class Settings(BaseSettings):
@@ -42,6 +52,11 @@ class Settings(BaseSettings):
         default="off",
         validation_alias="SIOONA_ACTOR_AUTH",
     )
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _validate_database_url(cls, v: str) -> str:
+        return normalize_pg_url(v)
 
 
 @lru_cache

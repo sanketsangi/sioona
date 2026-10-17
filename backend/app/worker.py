@@ -11,7 +11,7 @@ import threading
 import time
 from uuid import uuid4
 from app.config import get_settings
-from app.db import SessionLocal, bind_tenant, clear_tenant
+from app.db import SessionLocal, bind_tenant, clear_tenant, tenant_scope
 from app.models.detection_run import DetectionRun
 from app.services import jobs, classification_cache as cache
 from app.services.inference_budget import BudgetDenied, ai_enabled
@@ -57,10 +57,10 @@ class Worker:
         clear_tenant()
         try:
             with self.sessions() as db:
-                bind_tenant(db, tenant)
-                result = operation(db)
-                db.commit()
-                return result
+                with tenant_scope(tenant, db):
+                    result = operation(db)
+                    db.commit()
+                    return result
         finally:
             clear_tenant()
 
@@ -86,12 +86,15 @@ class Worker:
         finished, lost = threading.Event(), threading.Event()
 
         def renew():
-            while not finished.wait(jobs.HEARTBEAT_SECONDS):
-                try:
-                    self.transaction(tenant, lambda db: jobs.heartbeat(db, lease))
-                except Exception:
-                    lost.set()
-                    return  # Fail closed; provider may finish, but publication is fenced.
+            try:
+                while not finished.wait(jobs.HEARTBEAT_SECONDS):
+                    try:
+                        self.transaction(tenant, lambda db: jobs.heartbeat(db, lease))
+                    except Exception:
+                        lost.set()
+                        return  # Fail closed; provider may finish, but publication is fenced.
+            finally:
+                clear_tenant()
 
         thread = threading.Thread(target=renew, daemon=True)
         thread.start()
@@ -147,6 +150,7 @@ class Worker:
         finally:
             finished.set()
             thread.join(timeout=5)
+            clear_tenant()
         return True
 
     def process(self, lease, lost):
