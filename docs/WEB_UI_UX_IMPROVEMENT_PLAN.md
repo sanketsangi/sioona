@@ -2,7 +2,7 @@
 
 **Date:** 16 October 2026  
 **Scope:** `web/` operator platform; excludes the marketing website.  
-**Status:** Phases 1–3 local implementation underway; technical verification and remaining dependencies tracked in [UI/UX implementation record](development/tasks/UI-UX-IMPLEMENTATION.md). Human research and the proposed success targets remain unverified.  
+**Status:** Phase 1–3 implementation merged on `main` through PR #212 (`cf7e1960`); technical verification and remaining dependencies tracked in [UI/UX implementation record](development/tasks/UI-UX-IMPLEMENTATION.md). Human research and the proposed success targets remain unverified.
 **Baseline:** `main`, commit `620faf36a96c418dab5bd997c3f83318bf60e330`, with unrelated uncommitted work preserved.
 
 ## 1. Recommended direction

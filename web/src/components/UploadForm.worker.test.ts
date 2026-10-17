@@ -11,7 +11,7 @@ it.each(["succeeded", "dead_lettered", "cancelled"])("waits for publication and 
   vi.useFakeTimers();
   const fetch = vi.fn().mockResolvedValueOnce(Response.json({ accepted: 1, job_id: "job-1" }, { status: 202 }))
     .mockResolvedValueOnce(Response.json({ job_id: "job-1", status: "leased", completed_conversations: 0, conversation_count: 1 }))
-    .mockResolvedValueOnce(Response.json({ job_id: "job-1", status: terminal, completed_conversations: 1, conversation_count: 1 }));
+    .mockResolvedValueOnce(Response.json({ job_id: "job-1", status: terminal, completed_conversations: 1, conversation_count: 1, signal_count: terminal === "succeeded" ? 2 : null }));
   vi.stubGlobal("fetch", fetch);
   const form = UploadForm({ hasPartnerExport: true });
   const done = form.props.onSubmit({ preventDefault() {} });
@@ -20,10 +20,8 @@ it.each(["succeeded", "dead_lettered", "cancelled"])("waits for publication and 
   await vi.advanceTimersByTimeAsync(2000); await done;
   expect(fetch).toHaveBeenCalledWith("/api/jobs/job-1", expect.objectContaining({ cache: "no-store" }));
   if (terminal === "succeeded") {
-    expect(h.push).toHaveBeenCalledOnce(); expect(h.refresh).toHaveBeenCalledOnce();
-    expect(h.push.mock.calls[0][0]).toContain("imported=1");
-    expect(h.push.mock.calls[0][0]).toContain("file=week.csv");
-    expect(h.push.mock.calls[0][0]).not.toContain("signals=0");
+    expect(h.push).not.toHaveBeenCalled(); expect(h.refresh).toHaveBeenCalledOnce();
+    expect(h.setters.at(-1)).toHaveBeenCalledWith(expect.objectContaining({ conversations: 1, signals: 2, href: expect.stringContaining("file=week.csv") }));
   }
   else { expect(h.push).not.toHaveBeenCalled(); expect(h.setters[5]).toHaveBeenCalledWith(expect.stringMatching(/failed|cancelled/i)); }
 });

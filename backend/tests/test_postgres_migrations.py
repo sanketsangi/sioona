@@ -1525,6 +1525,7 @@ def test_cb11_verified_api_to_runtime_worker_and_polling(job_pg, monkeypatch):
             assert status.status_code == 200
             assert status.json()["status"] == "succeeded"
             assert status.json()["completed_conversations"] == 1
+            assert status.json()["signal_count"] == 1
             assert "demat" not in status.text
             assert not worker.run_once("a")
             with _runtime_session(job_pg, "a") as db:

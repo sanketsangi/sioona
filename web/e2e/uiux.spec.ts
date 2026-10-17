@@ -42,6 +42,9 @@ test("evidence, draft failure recovery, approval separation, handling and URL co
   await page.locator("#chat-export").setInputFiles(path.resolve("data/samples/pilot/independent-rehearsal/rehearsal_week_1.csv"));
   await page.getByRole("button", {name:"Upload & Detect",exact:true}).click();
   if (await page.getByRole("button", {name:"Confirm Replace",exact:true}).isVisible()) await page.getByRole("button", {name:"Confirm Replace",exact:true}).click();
+  await expect(page.getByRole("status", { name: "Upload complete", exact: true })).toBeVisible();
+  await capture(page, "upload-complete");
+  await page.getByRole("link", { name: "Review signals →", exact: true }).click();
   await page.waitForURL(/[?&]view=insights/);
   await expect(page.getByRole("menu")).toHaveCount(0);
   const locked = page.getByRole("radio", {name:"Action Mode is locked for now"});
@@ -72,6 +75,15 @@ test("evidence, draft failure recovery, approval separation, handling and URL co
   await dialog.getByRole("button", {name:"Save draft",exact:true}).click();
   await expect(body).toBeFocused({timeout:2000});
   await body.fill(revised);
+  // No Navigation API: capture popstate before Next unmounts the editor.
+  await page.evaluate(() => {
+    Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+    history.pushState(history.state, "", `${location.href}&draft-check=1`);
+  });
+  page.once("dialog", prompt => prompt.dismiss());
+  await page.evaluate(() => history.back());
+  await expect.poll(() => new URL(page.url()).searchParams.get("draft-check")).toBe("1");
+  await expect(body).toHaveValue(revised);
   await page.route("**/api/signals/*/action", route => route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({error:"Temporarily unavailable. Try again."})}));
   await dialog.getByRole("button", {name:"Save draft",exact:true}).click();
   await expect(dialog.getByRole("alert")).toBeVisible();

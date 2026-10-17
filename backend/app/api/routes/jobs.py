@@ -2,11 +2,13 @@
 
 from typing import Annotated
 from fastapi import Header, Depends, HTTPException, Path
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from app.api.actor import guarded_router, _enforce
 from app.db import get_db, bind_tenant
 from app.models.job import Job
+from app.models.signal_prediction import SignalPrediction
 from app.schemas.job import JobUpload, DetectJobIn, HistoricalDetectJobIn
 from app.services import jobs
 
@@ -69,7 +71,14 @@ def status(tenant_id: str, job_id: Identity, db: DB, assertion: Assertion = None
     row = db.get(Job, (tenant_id, job_id))
     if row is None:
         raise HTTPException(404, "job_not_found")
-    return jobs.job_view(row)
+    result = jobs.job_view(row)
+    # Immutable publication count for this job, including subsequently superseded
+    # predictions. Never substitute a tenant-wide or current-queue total.
+    result["signal_count"] = db.scalar(select(func.count()).select_from(SignalPrediction).where(
+        SignalPrediction.tenant_id == tenant_id,
+        SignalPrediction.detection_run_id == row.id,
+    )) if row.status == "succeeded" else None
+    return result
 
 
 @router.post("/v1/tenants/{tenant_id}/jobs/{job_id}/cancel")

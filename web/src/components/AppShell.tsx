@@ -2,6 +2,7 @@
 
 import { useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import { useUnsavedNavigation } from "@/hooks/use-unsaved-navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { QueueWakeRetry } from "@/components/QueueWakeRetry";
@@ -52,6 +53,7 @@ export function AppShell({
   /** Reset and Partner Demo. Off when production disables those actions. */
   showDemoActions?: boolean;
 }) {
+  useUnsavedNavigation(false);
   useEffect(() => {
     stopCursorRefStrip();
   }, []);

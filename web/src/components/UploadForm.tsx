@@ -144,6 +144,8 @@ export function UploadForm({
   const polling = useRef<AbortController | null>(null);
   useEffect(() => () => polling.current?.abort(), []);
 
+  const [completion, setCompletion] = useState<{ conversations: number; signals: number | null; href: string } | null>(null);
+
   async function finishQueuedUpload(job: { id: string; file: string }) {
     const controller = new AbortController();
     polling.current?.abort();
@@ -155,9 +157,10 @@ export function UploadForm({
       if (result.status === "succeeded") {
         pendingJob.current = null;
         setJobKnown(false);
-        setStatus(`Imported ${result.conversation_count} conversations. Opening Insights…`);
+        setStatus(null);
+        setCompletion({ conversations: result.conversation_count, signals: result.signal_count ?? null,
+          href: `/?${new URLSearchParams({ view: "insights", imported: String(result.conversation_count), file: job.file })}` });
         router.refresh();
-        router.push(`/?${new URLSearchParams({ view: "insights", imported: String(result.conversation_count), file: job.file })}`);
         return;
       }
       if (["dead_lettered", "cancelled"].includes(result.status)) {
@@ -281,6 +284,7 @@ export function UploadForm({
     setStatus(null);
     setHint(null);
     setSyncWarning(null);
+    setCompletion(null);
     try {
       if (pendingJob.current) {
         await finishQueuedUpload(pendingJob.current);
@@ -353,12 +357,12 @@ export function UploadForm({
       }
       if (syncFailed && sync) {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — sync incomplete`,
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} signals · sync incomplete`,
         );
         setSyncWarning(uploadPredictionSyncWarning(sync.failed));
       } else {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights…`,
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals.`,
         );
       }
       if (data.hint) setHint(data.hint);
@@ -380,8 +384,8 @@ export function UploadForm({
       const catalogFiles = data.catalogFiles?.filter(Boolean) ?? [];
       const uploadedName = catalogFiles[0] ?? uploadBasename(target.name);
       if (uploadedName) query.set("file", uploadedName);
-      // JSON already has newSignals; do not wait for Neon dual-write.
-      router.push(`/?${query.toString()}`);
+      setStatus(null);
+      setCompletion({ conversations: imported, signals, href: `/?${query.toString()}` });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -521,6 +525,12 @@ export function UploadForm({
         />
       </div>
 
+      {completion ? <div className="panel flex flex-wrap items-center gap-2 p-3" role="status" aria-label="Upload complete">
+        <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{Intl.NumberFormat().format(completion.conversations)} conversations</span>
+        <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{completion.signals === null ? "Signal count unavailable" : `${Intl.NumberFormat().format(completion.signals)} signals`}</span>
+        {syncWarning ? <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">Sync incomplete</span> : null}
+        <Link href={completion.href} className="btn-primary ml-auto">Review signals →</Link>
+      </div> : null}
       <div className="flex shrink-0 flex-col gap-3">
         <p id="upload-constraints" className="text-copy-14 text-sio-fg-subtle">CSV, JSON, WhatsApp TXT, XLSX, EML or MBOX. Up to {EXPORT_LIMITS.fileBytes / (1024 * 1024)} MiB per file; {Intl.NumberFormat().format(EXPORT_LIMITS.rows)} message rows; {Intl.NumberFormat().format(EXPORT_LIMITS.messageChars)} characters per message. One selected file is imported at a time.</p>
         {activeFile ? <p className="text-copy-14 text-sio-fg-subtle">Selected: <span translate="no" className="break-all">{activeFile.name}</span> · {Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(activeFile.size / 1024)} KiB</p> : null}
