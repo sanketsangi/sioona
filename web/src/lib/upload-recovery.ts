@@ -1,10 +1,17 @@
+export type UploadRecoveryStatus = { status:string; completed_conversations:number; conversation_count:number; signal_count?:number|null; attempt_count?:number; max_attempts?:number; upload_id?:string };
+export function uploadRecoverySummary(result: UploadRecoveryStatus) {
+  const remaining = result.conversation_count-result.completed_conversations;
+  const terminal = ["cancelled","dead_lettered","succeeded"].includes(result.status) || (result.status === "failed" && result.attempt_count !== undefined && result.max_attempts !== undefined && result.attempt_count >= result.max_attempts);
+  const retryable = result.status === "failed" && result.attempt_count !== undefined && result.max_attempts !== undefined && result.attempt_count < result.max_attempts;
+  return {remaining,terminal,retryable,signals:result.signal_count ?? null};
+}
 export type KnownUploadJob = { id: string; file: string };
 export function knownUploadJob(params: URLSearchParams): KnownUploadJob | null {
   const id = params.get("uploadJob");
   const file = params.get("uploadFile")?.trim();
   return id && /^[A-Za-z0-9_-]{1,64}$/.test(id) && file && file.length <= 255 && !/[\\/\u0000-\u001f]/.test(file) ? { id, file } : null;
 }
-export async function resumeUploadJob(job: KnownUploadJob, signal: AbortSignal, request: typeof fetch = fetch): Promise<{ status: string; completed_conversations: number; conversation_count: number; signal_count?: number | null }> {
+export async function resumeUploadJob(job: KnownUploadJob, signal: AbortSignal, request: typeof fetch = fetch): Promise<UploadRecoveryStatus> {
   const lostConnection = "Progress connection lost. Resume checking this upload; do not upload it again.";
   let response: Response;
   try {
@@ -18,6 +25,11 @@ export async function resumeUploadJob(job: KnownUploadJob, signal: AbortSignal, 
   try { result = await response.json(); } catch { throw new Error("Upload progress response was invalid. Resume checking this upload; do not upload it again."); }
   const validCount = (value: unknown) => typeof value === "number" && Number.isInteger(value) && value >= 0;
   if (!result || !["queued", "leased", "running", "failed", "succeeded", "cancelled", "dead_lettered"].includes(result.status) ||
+    (result.status === "succeeded" && result.completed_conversations !== result.conversation_count) ||
+    (result.attempt_count !== undefined && !validCount(result.attempt_count)) ||
+    (result.max_attempts !== undefined && (!validCount(result.max_attempts) || result.max_attempts < 1)) ||
+    (result.attempt_count !== undefined && result.max_attempts !== undefined && result.attempt_count > result.max_attempts) ||
+    (result.upload_id !== undefined && (typeof result.upload_id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(result.upload_id))) ||
     (result.signal_count != null && !validCount(result.signal_count)) ||
     !validCount(result.completed_conversations) || !validCount(result.conversation_count) || result.completed_conversations > result.conversation_count) {
     throw new Error("Upload progress response was invalid. Resume checking this upload; do not upload it again.");

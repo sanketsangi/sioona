@@ -4,7 +4,7 @@ import {
 } from "@/lib/pilot-cadence";
 import type { FeedbackLabel } from "@/lib/types";
 
-export type PlatformView = "insights" | "upload" | "eval" | "taxonomy" | "report" | "economics" | "lifecycle";
+export type PlatformView = "insights" | "upload" | "eval" | "taxonomy" | "report" | "economics" | "lifecycle" | "pilot" | "readiness";
 
 export type EvalPanel = "metrics" | "adapt" | "labeled" | "export";
 
@@ -20,6 +20,7 @@ export type SignalReviewTriage = {
   prevPendingPreviewId: string | null;
   nextPendingPreviewId: string | null;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode;
   /** Replace-ingest landing — keep leftover Neon overlay off. */
   replaced?: boolean;
@@ -145,6 +146,8 @@ export function viewHref(
   view: PlatformView,
   extras?: Record<string, string | undefined | null>
 ): string {
+  if (view === "pilot") return "/pilot";
+  if (view === "readiness") return "/readiness";
   if (view === "economics") return "/economics";
   if (view === "lifecycle") return "/lifecycle";
   const params = new URLSearchParams();
@@ -204,6 +207,7 @@ export function cadenceActionHref(
   action: PilotCadenceAction,
   extras?: {
     scoreFrom?: string | null;
+    scoreTo?: string | null;
     preview?: string | null;
     replaced?: boolean;
   }
@@ -211,12 +215,13 @@ export function cadenceActionHref(
   if (action.id === "acted") {
     return viewHref("insights", {
       scoreFrom: extras?.scoreFrom,
+      scoreTo: extras?.scoreTo,
       status: "followup",
       preview: extras?.preview,
       replaced: replacedQueryValue(extras?.replaced),
     });
   }
-  return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom });
+  return viewHref(cadenceActionView(action), { scoreFrom: extras?.scoreFrom, scoreTo: extras?.scoreTo });
 }
 
 /**
@@ -269,6 +274,7 @@ export function pendingReviewWalkHref(opts: {
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   file?: string | null;
@@ -283,6 +289,7 @@ export function pendingReviewWalkHref(opts: {
   const action = opts.actionFilter ?? "all";
   return viewHref("insights", {
     scoreFrom: opts.scoreFrom,
+    scoreTo: opts.scoreTo,
     mode: mode === "action" ? "action" : null,
     status: statusQueryValue(status, mode),
     type: type === "all" ? null : type,
@@ -300,6 +307,7 @@ export function pendingReviewWalkHref(opts: {
 function pendingReviewQueueHref(opts: {
   nextPreviewId?: string | null;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
@@ -316,6 +324,7 @@ function pendingReviewQueueHref(opts: {
   return viewHref("insights", {
     ...modeExtra,
     scoreFrom: opts.scoreFrom,
+    scoreTo: opts.scoreTo,
     status: "new",
     type: type === "all" ? null : type,
     action: action === "all" ? null : action,
@@ -343,6 +352,7 @@ export function afterFeedbackHref(opts: {
   currentSignalId?: string | null;
   nextPendingPreviewId?: string | null;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
@@ -361,6 +371,7 @@ export function afterFeedbackHref(opts: {
       return pendingReviewQueueHref({
         nextPreviewId: opts.nextPendingPreviewId,
         scoreFrom: opts.scoreFrom,
+        scoreTo: opts.scoreTo,
         mode: opts.mode,
         replaced: opts.replaced,
         typeFilter: opts.typeFilter,
@@ -373,6 +384,7 @@ export function afterFeedbackHref(opts: {
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
+      scoreTo: opts.scoreTo,
       status: "followup",
       type: type === "all" ? null : type,
       action: action === "all" ? null : action,
@@ -385,6 +397,7 @@ export function afterFeedbackHref(opts: {
   return pendingReviewQueueHref({
     nextPreviewId: opts.nextPendingPreviewId,
     scoreFrom: opts.scoreFrom,
+    scoreTo: opts.scoreTo,
     mode: opts.mode,
     replaced: opts.replaced,
     typeFilter: opts.typeFilter,
@@ -409,6 +422,7 @@ export function afterMarkActedHref(opts: {
   /** Origin filter — unused for routing; empty lists are never a destination. */
   statusFilter?: StatusFilter | null;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   mode?: WorkspaceMode | null;
   replaced?: boolean;
   typeFilter?: TypeFilter | null;
@@ -426,6 +440,7 @@ export function afterMarkActedHref(opts: {
     return viewHref("insights", {
       ...modeExtra,
       scoreFrom: opts.scoreFrom,
+      scoreTo: opts.scoreTo,
       status: "followup",
       type: type === "all" ? null : type,
       action: action === "all" ? null : action,
@@ -440,6 +455,7 @@ export function afterMarkActedHref(opts: {
     return pendingReviewQueueHref({
       nextPreviewId: opts.nextPendingPreviewId,
       scoreFrom: opts.scoreFrom,
+      scoreTo: opts.scoreTo,
       mode: opts.mode,
       replaced: opts.replaced,
       typeFilter: opts.typeFilter,

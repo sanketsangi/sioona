@@ -21,7 +21,9 @@ export async function middleware(request: Request) {
     pathname.startsWith("/api/auth/login") ||
     pathname.startsWith("/api/auth/logout") ||
     pathname.startsWith("/api/backend-health") ||
-    pathname === "/login"
+    pathname === "/login" ||
+    (pathname === "/pilot-request" && ["GET", "HEAD"].includes(request.method.toUpperCase())) ||
+    (pathname === "/api/pilot-requests" && request.method.toUpperCase() === "POST")
   ) {
     return NextResponse.next();
   }

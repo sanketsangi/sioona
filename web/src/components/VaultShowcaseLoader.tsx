@@ -18,6 +18,8 @@ import { humanizeInternalError } from "@/lib/user-facing-error";
 import { cn } from "@/lib/utils";
 import {
   initialVaultShowcaseLoadUi,
+  vaultShowcaseCanStartNewAttempt,
+  type VaultShowcaseLoadUi,
   reduceVaultShowcaseLoadUi,
   resolveVaultShowcaseKind,
   shouldLandShowcaseLoad,
@@ -40,6 +42,7 @@ const QUEUE_CARD_CLASS =
  */
 export function VaultShowcaseLoader({
   fileName,
+  keepSetFileName,
   children,
 }: {
   fileName: string;
@@ -56,6 +59,7 @@ export function VaultShowcaseLoader({
     initialVaultShowcaseLoadUi,
   );
   const runIdRef = useRef(0);
+  const [attempt, retry] = useReducer((value: number) => value + 1, 0);
 
   useEffect(() => {
     if (!kind) return;
@@ -89,6 +93,9 @@ export function VaultShowcaseLoader({
           body: JSON.stringify({ action }),
           signal: abort.signal,
         });
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Sign in as an admin to load this demo. Existing data was kept.");
+        }
         let lastStep: PartnerDemoStep | null = null;
         const data = await consumePartnerDemoNdjson(res, {
           failedMessage,
@@ -149,12 +156,12 @@ export function VaultShowcaseLoader({
       abort.abort();
       window.clearTimeout(stallTimer);
     };
-  }, [kind, router]);
+  }, [kind, router, attempt]);
 
   if (!kind) return null;
 
-  // Stall / hard fail stay quiet. Retry remains on the reducer but does not
-  // replace the Insights queue, and a stall must not start a second wipe.
+  // Keep the queue mounted, but surface a settled failure and a safe recovery.
+  // A soft stall must never offer a second destructive attempt.
   return (
     <>
       {ui.error ? null : (
@@ -162,9 +169,28 @@ export function VaultShowcaseLoader({
           {ui.status ?? vaultShowcaseLoadingLabel(kind)}
         </span>
       )}
+      <VaultShowcaseRecovery ui={ui} currentHref={keepSetFileName && resolveVaultShowcaseKind(keepSetFileName) !== kind ? viewHref("insights", { file:keepSetFileName }) : null} onRetry={() => {
+        if (!vaultShowcaseCanStartNewAttempt(ui)) return;
+        dispatch({ type: "start", kind });
+        retry();
+      }} />
       {children}
     </>
   );
+}
+
+export function VaultShowcaseRecovery({ ui, onRetry, currentHref }: { ui: VaultShowcaseLoadUi; onRetry: () => void; currentHref?: string | null }) {
+  if (!ui.error) return null;
+  const needsSignIn = ui.error.startsWith("Sign in as an admin");
+  return <div role="alert" className="shrink-0 rounded-lg border border-sio-border-base bg-sio-bg-base p-3 text-sm">
+    <p>{ui.error}</p>
+    <div className="flex flex-wrap items-center gap-3">
+      {needsSignIn ? <Link href="/login" className="inline-flex min-h-11 items-center underline focus-visible:outline-2">Sign in to load this demo</Link>
+        : vaultShowcaseCanStartNewAttempt(ui) ? <button type="button" onClick={onRetry} className="btn-secondary min-h-11 touch-manipulation">Retry loading demo</button> : null}
+      {currentHref ? <Link href={currentHref} className="inline-flex min-h-11 items-center underline focus-visible:outline-2">Open current corpus</Link> : null}
+      <Link href={viewHref("upload")} className="inline-flex min-h-11 items-center underline focus-visible:outline-2">Open uploads</Link>
+    </div>
+  </div>;
 }
 
 /** Quiet fail / stall chrome — no spinner; honors prefers-reduced-motion. */

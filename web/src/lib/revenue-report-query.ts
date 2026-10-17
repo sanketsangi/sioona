@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { simulationLabel } from "./pilot-workflow";
 /** Shared server query for the report page and its PDF. */
 import { selectUploadCorpus } from "./report-upload-corpus";
 import { scopeReportEvents } from "./report-events";
@@ -39,6 +41,8 @@ export async function queryRevenueReport(store: StoreData, options: {
     windowLabel: rangeError ?? `${window.label}${end.dateTo ? ` to ${end.dateTo.slice(0, 10)}` : ""} · reviews and outcomes`, fileLabel: file,
     anonymised: !options.reveal, reviewed: score?.reviewed_count ?? 0,
     correct: score?.correct_count ?? 0, incorrect: score?.incorrect_count ?? 0 });
+  report.dataLabel = simulationLabel(conversations.map(chat => chat.sourceFile ?? file ?? ""));
+  report.reviewsAvailable = score !== null;
   report.demo = store.tenant.id === "tenant_demo";
   // Outcome totals come from the same scoped and time-bounded server query.
   report.inrSaved = score?.revenue_saved_inr ?? 0;
@@ -49,5 +53,12 @@ export async function queryRevenueReport(store: StoreData, options: {
   if (uploadId) params.set("uploadId", uploadId);
   if (file) params.set("file", file);
   if (options.reveal) params.set("reveal", "1");
-  return { report, query: params, score, scopedStore: { ...scoped, signals }, scoreAvailable: score !== null, rangeError, rangeErrorField, scopeError };
+  const reportIdentity = { ...report, windowLabel: undefined };
+  const workflow = { conversations: scopeError || rangeError ? 0 : conversations.length,
+    reviewed: score?.reviewed_count ?? null,
+    outcomes: scopeError || rangeError ? 0 : signals.filter(signal => signal.outcome).length,
+    label: report.dataLabel,
+    pdfKey: createHash("sha256").update(JSON.stringify([store.tenant.id, params.toString(), reportIdentity])).digest("hex"),
+  };
+  return { workflow, report, query: params, score, scopedStore: { ...scoped, signals }, scoreAvailable: score !== null, rangeError, rangeErrorField, scopeError };
 }

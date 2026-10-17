@@ -702,3 +702,5 @@ it("preserves queue page and persisted search during a successful review walk", 
   expect(url.searchParams.get("q")).toBe("account");
   expect(url.searchParams.get("page")).toBe("3");
 });
+
+it("keeps the inclusive report end date across feedback and review walks",()=>{const options={scoreFrom:"2026-10-01T12:00:00.000Z",scoreTo:"2026-10-04T23:59:59.999Z",file:"week.csv"};for(const href of [pendingReviewWalkHref({...options,previewId:"s2"}),afterFeedbackHref({...options,wasPending:true,label:"correct",nextPendingPreviewId:"s2"}),afterMarkActedHref({...options,acted:true,feedbackLabel:"correct",nextPreviewId:"s2"})]){const p=new URL(href!,"http://local").searchParams;expect(p.get("scoreTo")).toBe(options.scoreTo);expect(p.get("scoreFrom")).toBe(options.scoreFrom);}});

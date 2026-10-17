@@ -30,6 +30,7 @@ export type MarkActedWalk = {
   /** Preserve Approve / Review CTA filter on Mark Acted advances. */
   actionFilter?: ActionFilter;
   scoreFrom?: string | null;
+  scoreTo?: string | null;
   /** Preserve Action Mode on next Follow-up deep links. */
   mode?: WorkspaceMode;
   /** Replace-ingest landing — keep leftover Neon overlay off. */
@@ -118,6 +119,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
           typeFilter: walk.typeFilter,
           actionFilter: walk.actionFilter,
           scoreFrom: walk.scoreFrom,
+          scoreTo: walk.scoreTo,
           mode: walk.mode,
           replaced: walk.replaced,
           file: walk.file,
@@ -151,6 +153,7 @@ export function useMarkActed(signal: Signal, walk: MarkActedWalk = {}) {
       walk.nextPreviewId,
       walk.replaced,
       walk.scoreFrom,
+      walk.scoreTo,
       walk.statusFilter,
       walk.typeFilter,
     ],

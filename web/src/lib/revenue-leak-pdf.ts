@@ -44,6 +44,7 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
       ? "Anonymised. Customer ids are pseudonyms."
       : "Named copy. Do not forward outside the team.",
     `Window: ${report.windowLabel}`,
+    report.dataLabel ?? "Data provenance unverified; customer impact unverified.",
   ];
   if (report.fileLabel) lines.push(`Pilot file: ${report.fileLabel}`);
   lines.push(
@@ -58,7 +59,9 @@ export function revenueLeakPdfLines(report: RevenueLeakReport): string[] {
     `Unconfirmed value ${formatInrAscii(report.exposure.unconfirmedInr)}`,
     `Reviewer-recorded value ${formatInrAscii(report.exposure.reviewerRecordedInr)}`,
     `Confirmed saved (reviewer-recorded) ${report.revenueVerified === false ? "unavailable" : formatInrAscii(report.inrSaved)}`,
-    `SignalScore precision ${precisionLabel(report.precision.score, report.precision.reviewed)}`,
+    `Persisted reviews ${report.reviewsAvailable === false ? "unavailable" : report.precision.reviewed}`,
+    "Precision denominator: all reviews, including partially correct; not total chats.",
+    `SignalScore precision ${report.reviewsAvailable === false ? "unavailable" : precisionLabel(report.precision.score, report.precision.reviewed)}`,
     "",
     "Customers at risk",
   );

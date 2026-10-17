@@ -1422,3 +1422,11 @@ export async function externalActionRequest<T>(tenantId: string, path = "", meth
     method, headers: await budgetHeaders(tenantId), ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   }, 30_000);
 }
+
+/** Read-only effective tenant/global inference gate; requires a verified actor. */
+export async function getInferenceControls(tenantId: string): Promise<{ enabled:boolean; daily_attempt_limit:number|null; run_attempt_limit:number|null }> {
+  const result = await backendFetch<{enabled:boolean;daily_attempt_limit:number|null;run_attempt_limit:number|null}>(tenantId,
+    `/v1/tenants/${encodeURIComponent(tenantId)}/inference-controls`, {method:"GET",headers:await budgetHeaders(tenantId)});
+  if (typeof result?.enabled !== "boolean" || [result.daily_attempt_limit,result.run_attempt_limit].some(value=>value !== null && (!Number.isInteger(value) || value < 1))) throw new Error("invalid_controls");
+  return {enabled:result.enabled,daily_attempt_limit:result.daily_attempt_limit,run_attempt_limit:result.run_attempt_limit};
+}

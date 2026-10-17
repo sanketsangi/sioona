@@ -1,3 +1,5 @@
+import { PilotChecklist } from "@/components/PilotChecklist";
+import { reportScopeHref } from "@/lib/pilot-workflow";
 import Link from "next/link";
 import { pilotProgress } from "@/lib/pilot-progress";
 import { reportExplanation } from "@/lib/report-explanation";
@@ -33,7 +35,7 @@ export async function RevenueLeakReportView({
   uploadId?: string;
   file?: string;
 }) {
-  const { report, query, rangeError, rangeErrorField, scopeError, scopedStore } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
+  const { workflow, report, query, rangeError, rangeErrorField, scopeError, scopedStore } = await queryRevenueReport(store, { scoreFrom, scoreTo, uploadId, file, reveal: !anonymised });
 
   let uploadOptions: ReportUploadOption[] = [];
   let uploadsUnavailable = false;
@@ -42,6 +44,7 @@ export async function RevenueLeakReportView({
 
   return (
     <ViewFrame className="overflow-y-auto">
+      <PilotChecklist {...workflow} query={query.toString()} disabled={!!(scopeError || rangeError)} />
       <ReportDocument conversationCount={scopedStore.conversations.length} report={report} anonymised={anonymised} query={query.toString()} rangeError={rangeError} rangeErrorField={rangeErrorField} scopeError={scopeError} uploadOptions={uploadOptions} uploadsUnavailable={uploadsUnavailable} />
     </ViewFrame>
   );
@@ -96,7 +99,7 @@ function ReportDocument({
 
       {scopeError ? <p role="status" className="text-copy-14 text-sio-fg-base">{scopeError} <Link href="/?view=report" className="underline">Open current report</Link>{" · "}<Link href="/upload" className="underline">Open uploads</Link></p> : null}
       <section aria-labelledby="pilot-progress" className="panel p-4">
-        <h3 id="pilot-progress" className="text-label-14 text-sio-fg-base">Pilot checklist</h3>
+        <h3 id="pilot-progress" className="text-label-14 text-sio-fg-base">Persisted source and review progress</h3>
         <ol className="mt-3 grid gap-3 sm:grid-cols-2">
           {pilotProgress(report, conversationCount).map(step => {
             const params = new URLSearchParams(query);
@@ -117,6 +120,7 @@ function ReportDocument({
       <ReportUploadForm query={query} options={uploadOptions} unavailable={uploadsUnavailable} />
       <ReportRangeForm query={query} error={rangeError} errorField={rangeErrorField} />
 
+      <p className="text-sm text-muted-foreground">{report.dataLabel}</p>
       <nav aria-label="Report summary" className="flex flex-wrap items-center gap-2 text-sio-fg-subtle">
         <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{Intl.NumberFormat().format(report.precision.reviewed)} reviewed · UTC window</span>
         <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">Exposure · estimated</span>
@@ -126,15 +130,16 @@ function ReportDocument({
       <section className="panel space-y-3 p-4 sm:p-5" aria-labelledby="review-coverage">
         <div>
           <h3 id="review-coverage" className="text-heading-18 text-sio-fg-base">Review coverage</h3>
-          <p className="mt-1 text-copy-13 text-muted-foreground">Precision is Correct ÷ all reviews (including Partially correct) in the UTC window.</p>
+          <p className="mt-1 text-copy-13 text-muted-foreground">Precision is Correct ÷ all persisted reviews (including Partially correct) in the UTC window. Signal totals describe the selected corpus, not reviewed conversations.</p>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <Metric label="Persisted reviews" value={report.reviewsAvailable === false ? "Unavailable" : Intl.NumberFormat().format(report.precision.reviewed)} />
           <Metric label="Retention" value={String(report.counts.retention)} />
           <Metric label="Lead" value={String(report.counts.lead)} />
           <Metric label="Upsell" value={String(report.counts.upsell)} />
           <Metric
             label="Precision"
-            value={precisionLabel(report.precision.score, report.precision.reviewed)}
+            value={report.reviewsAvailable === false ? "Unavailable" : precisionLabel(report.precision.score, report.precision.reviewed)}
           />
         </div>
       </section>
@@ -151,9 +156,9 @@ function ReportDocument({
         </div>
       </section>
 
-      <section className="panel space-y-3 p-4 sm:p-5" aria-labelledby="recorded-outcomes">
+      <section id="recorded-outcomes" className="panel scroll-mt-6 space-y-3 p-4 sm:p-5" aria-labelledby="recorded-outcomes-heading">
         <div>
-          <h3 id="recorded-outcomes" className="text-heading-18 text-sio-fg-base">Recorded outcomes</h3>
+          <h3 id="recorded-outcomes-heading" className="text-heading-18 text-sio-fg-base">Recorded outcomes</h3>
           <p className="mt-1 text-copy-13 text-muted-foreground">Persisted reviewer outcomes in Sioona; these are not independently verified commercial results.</p>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -196,7 +201,7 @@ function ReportDocument({
                 {row.quote ? <blockquote className="mt-2 border-l border-sio-border-base pl-3 text-copy-14 text-pretty text-sio-fg-base">
                   “{row.quote}”
                 </blockquote> : <p className="mt-2 text-copy-14 text-sio-fg-subtle">Customer quote unavailable</p>}
-                {!row.historical ? <Link href={viewHref("insights", { preview: row.signalId, file: report.fileLabel, scoreFrom: new URLSearchParams(query).get("scoreFrom") })} className="link-accent mt-2 inline-flex min-h-11 items-center">Inspect signal and evidence</Link> : null}
+                {(!row.historical || new URLSearchParams(query).has("uploadId")) ? <Link href={reportScopeHref("insights", new URLSearchParams(query), { preview: row.signalId })} className="link-accent mt-2 inline-flex min-h-11 items-center">Inspect signal and evidence</Link> : null}
                 <div className="mt-3">
                   {row.historical ? <p className="text-copy-14 text-sio-fg-subtle">
                     Historical prediction · outcome editing unavailable. <Link href="/?view=report" className="underline focus-visible:outline-2 focus-visible:outline-offset-2">Open current report</Link>

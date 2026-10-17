@@ -111,3 +111,8 @@ export function scrubSentryBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb {
     data: dropConversationFields(data as Record<string, unknown>),
   };
 }
+
+/** Native ABIs bundled by the installed profiling-node package. */
+export function sentryNodeProfilingEnabled(nodeVersion: string, dsn: string | undefined): boolean {
+  return Boolean(dsn?.trim()) && [20, 22, 24, 26].includes(Number(nodeVersion.split(".")[0]));
+}

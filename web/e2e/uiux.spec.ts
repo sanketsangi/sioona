@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -204,4 +205,110 @@ test("keyboard entry, upload inspection and zoom layout stress", async ({page, c
   await page.screenshot({path:`${shots()}/upload-ultrawide-css-50-percent.png`});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await cdp.detach();
+});
+
+
+test("queue pagination preserves URL state and restores keyboard focus after review", async ({page}) => {
+  await signIn(page);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?view=insights&status=all&file=rehearsal_week_1.csv");
+  const next = page.getByRole("link", { name: "Go to next page", exact: true });
+  await expect(next).toBeVisible();
+  await next.focus();
+  await page.keyboard.press("Enter");
+  await page.waitForURL(url => url.searchParams.get("page") === "2");
+  expect(new URL(page.url()).searchParams.get("file")).toBe("rehearsal_week_1.csv");
+  const row = page.locator("a[data-queue-row-link]:visible").first();
+  expect(await page.locator("[data-queue-row]:visible").count()).toBeLessThanOrEqual(10);
+  const href = await row.getAttribute("href");
+  await row.focus(); await page.keyboard.press("Enter");
+  await page.waitForURL(url => Boolean(url.searchParams.get("preview")));
+  await page.goBack();
+  await page.waitForURL(url => !url.searchParams.has("preview"));
+  await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute("href"))).toBe(href);
+  for (const [width,height] of [[390,844],[1280,800],[2880,1600]]) {
+    await page.setViewportSize({width,height});
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    if (width === 390) {
+      const previous = page.getByRole("link", {name:"Go to previous page",exact:true});
+      expect((await previous.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+});
+
+
+test("pilot intake validates, protects edits and retries an uncertain durable receipt", async ({page}) => {
+  await signIn(page);
+  await page.getByRole("link", {name:"Request a pilot",exact:true}).first().click();
+  await page.getByRole("button", {name:"Request a pilot",exact:true}).click();
+  await expect(page.getByLabel("Name (required)", {exact:true})).toBeFocused();
+  await page.getByLabel("Name (required)", {exact:true}).fill("Synthetic Operator");
+  await page.getByLabel("Work email (required)").fill(`synthetic-${Date.now()}@example.com`);
+  await page.getByLabel("Company (required)").fill("Synthetic pilot fixture");
+  page.once("dialog",dialog=>dialog.dismiss());
+  await page.getByRole("link", {name:"Back to pilot checklist"}).click();
+  await expect(page).toHaveURL(/pilot-request/);
+  const keys:string[]=[];let uncertain=true;
+  await page.route("**/api/pilot-requests", async route=>{
+    keys.push(route.request().headers()["idempotency-key"]);
+    if(uncertain) {uncertain=false;const response=await route.fetch();expect(response.ok()).toBe(true);await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({ok:false})});}
+    else await route.continue();
+  });
+  await page.getByRole("button", {name:"Request a pilot",exact:true}).click();
+  await expect(page.getByRole("status")).toContainText("Retry safely");
+  await page.getByRole("button", {name:"Request a pilot",exact:true}).click();
+  await expect(page.getByRole("heading", {name:"Pilot request received"})).toBeVisible();
+  expect(keys).toHaveLength(2);expect(keys[0]).toBe(keys[1]);
+  await expect(page.getByRole("status")).toContainText(keys[0]);
+  await capture(page,"pilot-request-receipt");
+  await page.context().clearCookies();
+  await page.goto("/login");
+  await page.getByRole("link",{name:"Request a pilot",exact:true}).click();
+  await expect(page.getByRole("form",{name:"Request a pilot"})).toBeVisible();
+});
+
+test("known partial upload recovery polls the existing job without resubmitting",async({page})=>{
+ await signIn(page);let mutations=0;page.on("request",r=>{if(r.method()==="POST" && /\/api\/(ingest|detect)/.test(r.url())) mutations++;});
+ await page.route("**/api/jobs/synthetic-recovery",route=>route.fulfill({json:{status:"dead_lettered",job_id:"synthetic-recovery",completed_conversations:2,conversation_count:5,attempt_count:3,max_attempts:3,signal_count:null}}));
+ await page.goto("/?view=upload&uploadJob=synthetic-recovery&uploadFile=synthetic.csv");
+ await page.getByRole("button",{name:"Resume checking upload"}).click();
+ const recovery=page.getByRole("region",{name:"Upload recovery status"});await expect(recovery).toContainText("2 of 5");await expect(recovery).toContainText("3 not yet published");await expect(recovery).toContainText("Do not re-upload");
+ await page.getByRole("button",{name:"Resume checking upload"}).click();expect(mutations).toBe(0);await expect(page).toHaveURL(/uploadJob=synthetic-recovery/);
+ await capture(page,"upload-recovery");
+});
+
+test("guided pilot, scoped report evidence and PDF completion survive reload",async({page})=>{
+ await signIn(page);
+ await page.goto("/?view=upload");await page.locator("#chat-export").setInputFiles(path.resolve("data/samples/pilot/independent-rehearsal/rehearsal_week_1.csv"));
+ await page.getByRole("button",{name:"Upload & Detect",exact:true}).click();
+ if(await page.getByRole("button",{name:"Confirm Replace",exact:true}).isVisible()) await page.getByRole("button",{name:"Confirm Replace",exact:true}).click();
+ await expect(page.getByRole("status",{name:"Upload complete",exact:true})).toBeVisible();
+ await page.goto("/?view=report&file=rehearsal_week_1.csv&scoreFrom=2026-01-01&scoreTo=2026-12-31");
+ await expect(page.getByText("Simulated data and outcomes",{exact:false}).first()).toBeVisible();
+ const select=page.getByLabel("Upload corpus");const upload=await select.locator("option").evaluateAll(options=>options.map(o=>(o as HTMLOptionElement).value).find(Boolean));expect(upload).toBeTruthy();await select.selectOption(upload!);await page.getByRole("button",{name:"Apply upload"}).click();
+ const reportURL=page.url();const reportParams=new URL(reportURL).searchParams;
+ await page.getByRole("link",{name:"Inspect signal and evidence"}).first().click();
+ await expect(page.getByRole("heading",{name:"Upload evidence review"})).toBeVisible();expect(new URL(page.url()).searchParams.get("uploadId")).toBe(reportParams.get("uploadId"));expect(new URL(page.url()).searchParams.get("scoreTo")).toBe(reportParams.get("scoreTo"));
+ await page.getByRole("link",{name:"Back to scoped revenue report"}).click();
+ const downloadPromise=page.waitForEvent("download");await page.getByRole("button",{name:"Prepare executive PDF"}).click();const download=await downloadPromise;expect(await download.failure()).toBeNull();
+ await expect(page.getByText("4. Executive PDF · Complete")).toBeVisible();await page.reload();await expect(page.getByText("4. Executive PDF · Complete")).toBeVisible();
+ const pilotLink=page.getByRole("link",{name:"Guided pilot",exact:true});await pilotLink.click();await expect(page.getByRole("heading",{name:"Guided pilot checklist"})).toBeVisible();expect(new URL(page.url()).searchParams.get("uploadId")).toBe(reportParams.get("uploadId"));
+ await capture(page,"guided-pilot");
+ await page.goto("/readiness");await expect(page.getByRole("heading",{name:"Operator readiness",exact:true})).toBeVisible();await expect(page.getByText("Live backend revision and schema: unavailable",{exact:false})).toBeVisible();await capture(page,"operator-readiness");
+});
+
+
+test("denied demo loading stays visible and never starts a second destructive request",async({page,context})=>{
+ const payload=Buffer.from(JSON.stringify({email:"e2e@example.com",tenantId:"tenant_demo",role:"admin",exp:Math.floor(Date.now()/1000)+3600})).toString("base64url");
+ const signature=createHmac("sha256","e2e-only-auth-secret").update(payload).digest("base64url");
+ await context.addCookies([{name:"sioona_session",value:`${payload}.${signature}`,url:test.info().project.use.baseURL as string}]);
+ let posts=0;
+ await page.route("**/api/store",route=>{if(route.request().method()==="POST"){posts++;return route.fulfill({status:401,json:{error:"Sign in required."}});}return route.continue();});
+ await page.goto("/?view=insights&file=Groww_batch_02");
+ await expect(page.getByRole("alert").filter({hasText:"Sign in as an admin"})).toBeVisible();
+ await expect(page.getByRole("link",{name:"Sign in to load this demo"})).toHaveAttribute("href","/login");
+ await expect(page.getByRole("button",{name:"Retry loading demo"})).toHaveCount(0);
+ expect(posts).toBe(1);
+ await page.getByRole("link",{name:"Open uploads",exact:true}).click();
+ await expect(page).toHaveURL(/[?&]view=upload/);expect(posts).toBe(1);
 });

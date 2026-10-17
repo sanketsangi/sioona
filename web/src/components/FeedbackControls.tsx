@@ -230,6 +230,7 @@ export function FeedbackControls({
               ? correctAdvanceHref({
                   nextPendingPreviewId: triage.nextPendingPreviewId,
                   scoreFrom: triage.scoreFrom,
+                  scoreTo: triage.scoreTo,
                   mode: triage.mode,
                   replaced: triage.replaced,
                   typeFilter: triage.typeFilter,
@@ -244,6 +245,7 @@ export function FeedbackControls({
                   currentSignalId: signal.id,
                   nextPendingPreviewId: triage.nextPendingPreviewId,
                   scoreFrom: triage.scoreFrom,
+                  scoreTo: triage.scoreTo,
                   mode: triage.mode,
                   replaced: triage.replaced,
                   typeFilter: triage.typeFilter,

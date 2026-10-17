@@ -134,3 +134,5 @@ it("keeps upload membership in score scope and every report link", async () => {
   expect(unavailable.report.revenueVerified).toBe(false);
   expect(fetchSignalScoreSafe).not.toHaveBeenCalled();
 });
+
+it("persists the PDF checklist identity on reload for unchanged default scope and data",async()=>{const store={tenant:{id:"a"},conversations:[],messages:[],signals:[]} as unknown as StoreData;const a=await queryRevenueReport(store,{now:new Date("2026-10-18T01:00:00Z")});const b=await queryRevenueReport(store,{scoreFrom:a.query.get("scoreFrom"),now:new Date("2026-10-18T01:00:01Z")});expect(a.workflow.pdfKey).toBe(b.workflow.pdfKey);expect(a.report.reviewsAvailable).toBe(true);});

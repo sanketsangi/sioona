@@ -2035,7 +2035,7 @@ describe("InsightsView pending review walk", () => {
     expect(html).toContain(">Next<svg");
     expect(html).toContain(">Skip</a>");
     expect(html).toContain('data-variant="outline"');
-    expect(html).toContain("h-8 gap-2");
+    expect(html).toContain("h-11 min-w-11 gap-2 md:h-8");
     expect(html).toContain('disabled=""');
     expect(html).not.toContain(
       `href="/?view=insights&amp;scoreFrom=2026-08-17&amp;status=new&amp;preview=${lastId}"`,

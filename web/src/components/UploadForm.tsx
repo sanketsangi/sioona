@@ -38,7 +38,8 @@ import {
   uploadPredictionSyncWarning,
 } from "@/lib/prediction-sync";
 import { EXPORT_LIMITS, UPLOAD_FILE_ACCEPT } from "@/lib/ingest-constraints";
-import { knownUploadJob, resumeUploadJob, uploadJobProgress } from "@/lib/upload-recovery";
+import { UploadRecoveryStatus } from "@/components/UploadRecoveryStatus";
+import { knownUploadJob, resumeUploadJob, uploadJobProgress, uploadRecoverySummary, type UploadRecoveryStatus as RecoveryStatus } from "@/lib/upload-recovery";
 import { viewHref } from "@/lib/views";
 
 export { uploadPredictionSyncWarning };
@@ -146,6 +147,7 @@ export function UploadForm({
   const polling = useRef<AbortController | null>(null);
   useEffect(() => () => polling.current?.abort(), []);
 
+  const [jobStatus, setJobStatus] = useState<(RecoveryStatus & { file:string }) | null>(null);
   const [completion, setCompletion] = useState<{ conversations: number; signals: number | null; href: string } | null>(null);
 
   async function finishQueuedUpload(job: { id: string; file: string }) {
@@ -156,6 +158,7 @@ export function UploadForm({
     while (!controller.signal.aborted) {
       const result = await resumeUploadJob(job, controller.signal);
       if (controller.signal.aborted) return;
+      setJobStatus({ ...result, file:job.file });
       if (result.status === "succeeded") {
         pendingJob.current = null;
         setJobKnown(false);
@@ -165,12 +168,9 @@ export function UploadForm({
         router.refresh();
         return;
       }
-      if (["dead_lettered", "cancelled"].includes(result.status)) {
-        pendingJob.current = null;
-        setJobKnown(false);
-        router.replace(viewHref("upload"), { scroll: false });
+      if (uploadRecoverySummary(result).terminal) {
         setStatus(null);
-        throw new Error(result.status === "cancelled" ? "Upload detection was cancelled. Submit the file again to retry." : "Upload detection failed. Submit the file again to retry.");
+        throw new Error(result.status === "cancelled" ? "Upload detection was cancelled. Inspect persisted results; keep the existing job reference." : "Upload detection failed. Inspect persisted results; an operator must inspect this job before retrying.");
       }
       setStatus(uploadJobProgress(result));
       await new Promise<void>((resolve, reject) => {
@@ -536,6 +536,7 @@ export function UploadForm({
       <div className="flex shrink-0 flex-col gap-3">
         <p id="upload-constraints" className="text-copy-14 text-sio-fg-subtle">CSV, JSON, WhatsApp TXT, XLSX, EML or MBOX. Up to {EXPORT_LIMITS.fileBytes / (1024 * 1024)} MiB per file; {Intl.NumberFormat().format(EXPORT_LIMITS.rows)} message rows; {Intl.NumberFormat().format(EXPORT_LIMITS.messageChars)} characters per message. One selected file is imported at a time.</p>
         {activeFile ? <p className="text-copy-14 text-sio-fg-subtle">Selected: <span translate="no" className="break-all">{activeFile.name}</span> · {Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(activeFile.size / 1024)} KiB</p> : null}
+        {jobStatus ? <UploadRecoveryStatus result={jobStatus} file={jobStatus.file} /> : null}
         {jobKnown ? <p className="text-copy-14 text-sio-fg-subtle">Upload accepted. Leaving stops this screen’s progress checks, not server processing. Resume checking the existing job here; no new detection is created.</p> : null}
         {pendingScopeReplace ? <p role="alert" className="status-banner status-banner-warning">Replace the current workspace corpus ({Intl.NumberFormat().format(chatCount ?? 0)} conversations) and its signals/reviews? Cancel keeps the file selected and imports nothing.</p> : null}
         {preview && preview.file === activeFile ? <p className="break-words text-copy-14" role="status" aria-live="polite">{preview.detail}</p> : null}

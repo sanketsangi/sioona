@@ -112,6 +112,8 @@ const TITLES: Record<PlatformView, string> = {
   report: "Revenue report",
   economics: "Economics",
   lifecycle: "Data lifecycle",
+  pilot: "Guided pilot",
+  readiness: "Operator readiness",
 };
 
 export async function generateMetadata({
@@ -235,6 +237,15 @@ export default async function PlatformPage({
     freshOnly: jsonKeepSet,
     ...(shadowConversations ? { shadowConversations: true } : {}),
   });
+  // Snapshot links are inspected before any current-corpus adoption or deferred writes.
+  if (view === "insights" && sp.uploadId) {
+    const { queryRevenueReport } = await import("@/lib/revenue-report-query");
+    const { ScopedReportQueue } = await import("@/components/ScopedReportQueue");
+    const result = await queryRevenueReport(loaded.store, { uploadId:sp.uploadId, file:sp.file, scoreFrom:sp.scoreFrom, scoreTo:sp.scoreTo });
+    return <AppShell activeView="insights" title="Upload evidence review" account={accountSurface({session,authOn:authEnforced(),publicDemo:publicDemoEnabled()})} showDemoActions={false}>
+      <ScopedReportQueue store={result.scopedStore} query={result.query.toString()} preview={sp.preview} page={parsePage(sp.page)} error={result.scopeError ?? result.rangeError}/>
+    </AppShell>;
+  }
   if (shadowConversations) {
     const persisted = loaded.conversationShadow;
     const views = loaded.conversationViewShadow;
@@ -440,7 +451,7 @@ export default async function PlatformPage({
     ...(overlayChats?.conversations ?? []),
   ]).length;
   const scoreFromQuery =
-    scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
+    scoreWindow.status === "custom" ? scoreWindow.resolvedFrom : null;
   // Bare Insights (no ?file=) defaults to Sample for the showcase tenant.
   // A signed-in tenant with no chats stays empty instead of loading Sample.
   const vaultFile =
@@ -529,6 +540,7 @@ export default async function PlatformPage({
         tenantSignals={tenantSignals}
         overlayChats={overlayChats}
         scoreFrom={scoreFromQuery}
+        scoreTo={sp.scoreTo}
         syncFailed={syncFailed}
         syncCreated={syncCreated}
         llmAdded={parseLlmAddedParam(sp.llmAdded)}

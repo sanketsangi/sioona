@@ -100,7 +100,7 @@ export function SignalQueueRow({
             scroll={false}
             aria-label={previewAriaLabel}
             data-queue-row-link
-            className="z-0 block min-w-0 touch-manipulation outline-none after:absolute after:inset-0 after:content-['']"
+            className="z-0 block min-w-0 touch-manipulation rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sio-border-strong after:absolute after:inset-0 after:content-['']"
           >
             {userCell}
           </Link>

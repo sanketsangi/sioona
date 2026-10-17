@@ -26,3 +26,5 @@ it("carries return context through dedicated administration routes", () => {
   expect(new URL(workspaceViewHref("economics", params), "http://local").searchParams.get("file")).toBe("week.csv");
   expect(new URL(workspaceViewHref("lifecycle", params), "http://local").searchParams.get("preview")).toBe("sig1");
 });
+
+it("keeps upload snapshot and both date bounds through report and pilot navigation",()=>{const p=new URLSearchParams("uploadId=u1&scoreFrom=2026-10-01&scoreTo=2026-10-04&file=week.csv");for(const view of ["report","pilot","insights"] as const) {const q=new URL(workspaceViewHref(view,p),"http://local").searchParams;expect(q.get("uploadId")).toBe("u1");expect(q.get("scoreTo")).toBe("2026-10-04");}});
