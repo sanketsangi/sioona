@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CaretLeft, CaretRight, X } from "@phosphor-icons/react/ssr";
 import { ButtonSpinner } from "@/components/ButtonSpinner";
@@ -35,6 +35,8 @@ import {
   syncQueryExtras,
   uploadPredictionSyncWarning,
 } from "@/lib/prediction-sync";
+import { EXPORT_LIMITS, UPLOAD_FILE_ACCEPT } from "@/lib/ingest-constraints";
+import { knownUploadJob, resumeUploadJob, uploadJobProgress } from "@/lib/upload-recovery";
 import { viewHref } from "@/lib/views";
 
 export { uploadPredictionSyncWarning };
@@ -48,10 +50,6 @@ const FORMAT_LABELS: Record<string, string> = {
   email: "Email export",
 };
 
-const FILE_ACCEPT = ".csv,.json,.txt,.xlsx,.eml,.mbox,text/csv,application/json,text/plain";
-/** Quiet upload/validation pills dismiss so the drop zone stays clean. */
-const ERROR_DISMISS_MS = 4000;
-
 function fileKey(file: File) {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
@@ -59,7 +57,7 @@ function fileKey(file: File) {
 function uploadErrorMessage(error: string) {
   if (
     error.includes("file first") ||
-    /detection|upload progress|cancelled/i.test(error)
+    /detection|upload progress|cancelled|connection|session|workspace/i.test(error)
   ) {
     return error;
   }
@@ -123,6 +121,8 @@ export function UploadForm({
   showDemoActions?: boolean;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const recoveryJob = knownUploadJob(searchParams);
   const fileRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -138,9 +138,13 @@ export function UploadForm({
   const [pendingHeldOutWeeklyIngest, setPendingHeldOutWeeklyIngest] =
     useState(false);
 
-  const pendingJob = useRef<{ id: string; file: string } | null>(null);
+  const pendingJob = useRef<{ id: string; file: string } | null>(recoveryJob);
+  const [jobKnown, setJobKnown] = useState(Boolean(recoveryJob));
+  const [pendingScopeReplace, setPendingScopeReplace] = useState(false);
   const polling = useRef<AbortController | null>(null);
   useEffect(() => () => polling.current?.abort(), []);
+
+  const [completion, setCompletion] = useState<{ conversations: number; signals: number | null; href: string } | null>(null);
 
   async function finishQueuedUpload(job: { id: string; file: string }) {
     const controller = new AbortController();
@@ -148,27 +152,25 @@ export function UploadForm({
     polling.current = controller;
     setStatus("Upload accepted. Detection pending…");
     while (!controller.signal.aborted) {
-      const response = await fetch(`/api/jobs/${encodeURIComponent(job.id)}`, {
-        cache: "no-store", signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("Unable to check upload progress. Submit again to resume checking this upload.");
-      const result = await response.json() as {
-        status: string; completed_conversations: number; conversation_count: number;
-      };
+      const result = await resumeUploadJob(job, controller.signal);
       if (controller.signal.aborted) return;
       if (result.status === "succeeded") {
         pendingJob.current = null;
-        setStatus(`Imported ${result.conversation_count} conversations. Opening Insights…`);
+        setJobKnown(false);
+        setStatus(null);
+        setCompletion({ conversations: result.conversation_count, signals: result.signal_count ?? null,
+          href: `/?${new URLSearchParams({ view: "insights", imported: String(result.conversation_count), file: job.file })}` });
         router.refresh();
-        router.push(`/?${new URLSearchParams({ view: "insights", imported: String(result.conversation_count), file: job.file })}`);
         return;
       }
       if (["dead_lettered", "cancelled"].includes(result.status)) {
         pendingJob.current = null;
+        setJobKnown(false);
+        router.replace(viewHref("upload"), { scroll: false });
         setStatus(null);
         throw new Error(result.status === "cancelled" ? "Upload detection was cancelled. Submit the file again to retry." : "Upload detection failed. Submit the file again to retry.");
       }
-      setStatus(`Detection ${result.status === "failed" ? "retrying" : "pending"}… ${result.completed_conversations}/${result.conversation_count} conversations processed.`);
+      setStatus(uploadJobProgress(result));
       await new Promise<void>((resolve, reject) => {
         const cancel = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
         const timer = setTimeout(() => { controller.signal.removeEventListener("abort", cancel); resolve(); }, 1000);
@@ -200,13 +202,8 @@ export function UploadForm({
     setDemoError(message);
   }, []);
 
-  useEffect(() => {
-    if (!error) return;
-    const timer = window.setTimeout(() => setError(null), ERROR_DISMISS_MS);
-    return () => window.clearTimeout(timer);
-  }, [error]);
-
   function clearPendingConfirm() {
+    setPendingScopeReplace(false);
     setPendingPartnerDemoReplace(false);
     setPendingHeldOutWeeklyIngest(false);
   }
@@ -239,6 +236,7 @@ export function UploadForm({
   }
 
   function showFile(index: number) {
+    clearPendingConfirm();
     const next = activeIngestTarget(files, index);
     setActiveIndex(
       files.length === 0
@@ -254,6 +252,7 @@ export function UploadForm({
     const target = filesForIngest(files, activeIndex)[0];
     if (!target) { fileRef.current?.focus(); return; }
     setLoading(true);
+    setError(null);
     setPreview(null);
     try {
       const body = new FormData();
@@ -265,7 +264,7 @@ export function UploadForm({
       const result = data.previews?.[0];
       if (result) setPreview({ file: target, detail: `${Intl.NumberFormat().format(result.conversations)} conversations, ${Intl.NumberFormat().format(result.messages)} messages. ${result.mapping} ${result.missingTimestampPolicy} Nothing imported; choose Upload & Detect to continue.` });
     } catch (err) {
-      setPreview({ file: target, detail: err instanceof Error ? err.message : "Preview failed. Try again." });
+      setError(err instanceof Error ? err.message : "Preview failed. Try again.");
     } finally { setLoading(false); }
   }
 
@@ -274,7 +273,7 @@ export function UploadForm({
     confirmHeldOutWeeklyIngest?: boolean;
   }) {
     const target = filesForIngest(files, activeIndex)[0] ?? null;
-    if (!target) {
+    if (!target && !pendingJob.current) {
       setError("Choose a supported export file first.");
       fileRef.current?.focus();
       return;
@@ -285,11 +284,13 @@ export function UploadForm({
     setStatus(null);
     setHint(null);
     setSyncWarning(null);
+    setCompletion(null);
     try {
       if (pendingJob.current) {
         await finishQueuedUpload(pendingJob.current);
         return;
       }
+      if (!target) return;
       const body = new FormData();
       body.append("file", target);
       if (!hasPartnerExport) body.append("replace", "true");
@@ -339,6 +340,8 @@ export function UploadForm({
         if (!file) throw new Error("Upload file name was invalid.");
         const job = { id: data.job_id, file };
         pendingJob.current = job;
+        setJobKnown(true);
+        router.replace(viewHref("upload", { uploadJob: job.id, uploadFile: job.file }), { scroll: false });
         await finishQueuedUpload(job);
         return;
       }
@@ -354,12 +357,12 @@ export function UploadForm({
       }
       if (syncFailed && sync) {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} local signals — sync incomplete`,
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} signals · sync incomplete`,
         );
         setSyncWarning(uploadPredictionSyncWarning(sync.failed));
       } else {
         setStatus(
-          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals. Opening Insights…`,
+          `Imported ${imported} conversations via ${formatLabel} · ${signals} new signals.`,
         );
       }
       if (data.hint) setHint(data.hint);
@@ -381,8 +384,8 @@ export function UploadForm({
       const catalogFiles = data.catalogFiles?.filter(Boolean) ?? [];
       const uploadedName = catalogFiles[0] ?? uploadBasename(target.name);
       if (uploadedName) query.set("file", uploadedName);
-      // JSON already has newSignals; do not wait for Neon dual-write.
-      router.push(`/?${query.toString()}`);
+      setStatus(null);
+      setCompletion({ conversations: imported, signals, href: `/?${query.toString()}` });
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Upload failed");
@@ -393,6 +396,8 @@ export function UploadForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
+    if (pendingJob.current) { await runIngest(); return; }
     if (files.length === 0) {
       setError("Choose a supported export file first.");
       fileRef.current?.focus();
@@ -416,6 +421,7 @@ export function UploadForm({
       setPendingPartnerDemoReplace(true);
       return;
     }
+    if (wouldReplace && (chatCount ?? 0) > 0 && !pendingScopeReplace && !pendingPartnerDemoReplace) { setPendingScopeReplace(true); return; }
     await runIngest({
       confirmPartnerDemoReplace: pendingPartnerDemoReplace && partnerDemoActive,
       confirmHeldOutWeeklyIngest: pendingHeldOutWeeklyIngest && heldOutSelected,
@@ -465,9 +471,9 @@ export function UploadForm({
               <>
                 <button
                   type="button"
-                  className="inline-flex size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
+                  className="inline-flex size-11 md:size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
                   aria-label="Previous file"
-                  disabled={activeIndex <= 0}
+                  disabled={loading || jobKnown || activeIndex <= 0}
                   onClick={() => showFile(activeIndex - 1)}
                 >
                   <CaretLeft className="size-4" weight="regular" aria-hidden />
@@ -480,9 +486,9 @@ export function UploadForm({
                 </p>
                 <button
                   type="button"
-                  className="inline-flex size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
+                  className="inline-flex size-11 md:size-8 touch-manipulation items-center justify-center rounded-[var(--radius-control)] text-sio-fg-subtle hover:bg-sio-bg-interactive hover:text-sio-fg-base focus-visible:shadow-[var(--focus-ring)] disabled:opacity-50"
                   aria-label="Next file"
-                  disabled={activeIndex >= files.length - 1}
+                  disabled={loading || jobKnown || activeIndex >= files.length - 1}
                   onClick={() => showFile(activeIndex + 1)}
                 >
                   <CaretRight className="size-4" weight="regular" aria-hidden />
@@ -493,7 +499,8 @@ export function UploadForm({
               type="button"
               variant="outline"
               size="icon"
-              className="size-8 touch-manipulation"
+              className="size-11 md:size-8 touch-manipulation"
+              disabled={loading || jobKnown}
               aria-label={`Remove ${activeFile?.name ?? "file"}`}
               onClick={() => removeFile(activeIndex)}
             >
@@ -507,7 +514,9 @@ export function UploadForm({
           name="file"
           type="file"
           multiple
-          accept={FILE_ACCEPT}
+          accept={UPLOAD_FILE_ACCEPT}
+          disabled={loading || jobKnown}
+          aria-describedby="upload-constraints upload-error"
           aria-invalid={error ? true : undefined}
           onChange={(e) => {
             addFiles(e.target.files);
@@ -516,9 +525,19 @@ export function UploadForm({
         />
       </div>
 
+      {completion ? <div className="panel flex flex-wrap items-center gap-2 p-3" role="status" aria-label="Upload complete">
+        <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{Intl.NumberFormat().format(completion.conversations)} conversations</span>
+        <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">{completion.signals === null ? "Signal count unavailable" : `${Intl.NumberFormat().format(completion.signals)} signals`}</span>
+        {syncWarning ? <span className="rounded-full border border-sio-border-subtle bg-sio-bg-muted px-2.5 py-0.5 text-label-12">Sync incomplete</span> : null}
+        <Link href={completion.href} className="btn-primary ml-auto">Review signals →</Link>
+      </div> : null}
       <div className="flex shrink-0 flex-col gap-3">
+        <p id="upload-constraints" className="text-copy-14 text-sio-fg-subtle">CSV, JSON, WhatsApp TXT, XLSX, EML or MBOX. Up to {EXPORT_LIMITS.fileBytes / (1024 * 1024)} MiB per file; {Intl.NumberFormat().format(EXPORT_LIMITS.rows)} message rows; {Intl.NumberFormat().format(EXPORT_LIMITS.messageChars)} characters per message. One selected file is imported at a time.</p>
+        {activeFile ? <p className="text-copy-14 text-sio-fg-subtle">Selected: <span translate="no" className="break-all">{activeFile.name}</span> · {Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(activeFile.size / 1024)} KiB</p> : null}
+        {jobKnown ? <p className="text-copy-14 text-sio-fg-subtle">Upload accepted. Leaving stops this screen’s progress checks, not server processing. Resume checking the existing job here; no new detection is created.</p> : null}
+        {pendingScopeReplace ? <p role="alert" className="status-banner status-banner-warning">Replace the current workspace corpus ({Intl.NumberFormat().format(chatCount ?? 0)} conversations) and its signals/reviews? Cancel keeps the file selected and imports nothing.</p> : null}
         {preview && preview.file === activeFile ? <p className="break-words text-copy-14" role="status" aria-live="polite">{preview.detail}</p> : null}
-        {activeFile && /\.(xlsx|eml|mbox)$/i.test(activeFile.name) ? (
+        {activeFile && !jobKnown ? (
           <button type="button" onClick={previewMapping} disabled={loading} aria-busy={loading} className="btn-secondary min-h-11 touch-manipulation">
             {loading ? <ButtonSpinner /> : null}Preview mapping
           </button>
@@ -532,7 +551,7 @@ export function UploadForm({
           </p>
         ) : null}
         <div className="relative flex flex-wrap items-center justify-center gap-2">
-          {pendingPartnerDemoReplace || pendingHeldOutWeeklyIngest ? (
+          {pendingScopeReplace || pendingPartnerDemoReplace || pendingHeldOutWeeklyIngest ? (
             <>
               <button
                 type="submit"
@@ -541,7 +560,7 @@ export function UploadForm({
                 className="btn-primary rounded-[var(--radius-panel)]"
               >
                 {loading ? <ButtonSpinner /> : null}
-                {pendingPartnerDemoReplace ? "Confirm Replace" : "Confirm Ingest"}
+                {pendingScopeReplace || pendingPartnerDemoReplace ? "Confirm Replace" : "Confirm Ingest"}
               </button>
               <button
                 type="button"
@@ -565,7 +584,7 @@ export function UploadForm({
                 ) : (
                   <ArrowCircleUpIcon className="size-3.5 shrink-0" />
                 )}
-                Upload & Detect
+                {jobKnown ? "Resume checking upload" : "Upload & Detect"}
               </button>
               {showDemoActions &&
               !livePartnerVaultChrome({
@@ -588,14 +607,15 @@ export function UploadForm({
             </>
           )}
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-full z-20 mb-2 flex justify-center"
+            id="upload-error"
+            className="basis-full"
             aria-live="polite"
             aria-atomic="true"
           >
             {error ? (
               <p
                 role="alert"
-                className="max-w-[min(100%,20rem)] rounded-full bg-sio-status-danger-bg px-3 py-1 text-center font-sans font-medium text-copy-14 text-pretty text-sio-status-danger-fg"
+                className="rounded-[var(--radius-control)] bg-sio-status-danger-bg px-3 py-2 text-copy-14 text-pretty text-sio-status-danger-fg"
               >
                 {uploadErrorMessage(error)}
               </p>

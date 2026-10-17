@@ -9,6 +9,7 @@ import {
 import type { SupervisedActionDecision } from "@/lib/types";
 import {
   QUEUE_REVIEW_ACTION_CLASS,
+  SignalQueueCard,
   SignalQueueRow,
 } from "@/components/SignalQueueRow";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,16 @@ export function SignalReviewPanel({
 
   return (
     <div className="shrink-0 bg-sio-bg-base">
-      <div className="hide-scrollbar relative overflow-auto">
+      <ul className="md:hidden">
+        <SignalQueueCard
+          signal={signal}
+          customerName={who}
+          previewHref={`#${bodyId}`}
+          previewAriaLabel={`Review ${pageLabel}`}
+          action={decisionStatus ? <RetentionEmailDecisionChip status={decisionStatus} /> : null}
+        />
+      </ul>
+      <div className="hide-scrollbar relative hidden overflow-auto md:block">
         <Table className="min-w-[640px]">
           {header}
           <TableBody>

@@ -696,3 +696,9 @@ describe("afterMarkActedHref", () => {
     );
   });
 });
+
+it("preserves queue page and persisted search during a successful review walk", () => {
+  const url = new URL(afterFeedbackHref({ wasPending: true, label: "incorrect", nextPendingPreviewId: "next", file: "week.csv", page: 3, q: "account" })!, "http://local");
+  expect(url.searchParams.get("q")).toBe("account");
+  expect(url.searchParams.get("page")).toBe("3");
+});
