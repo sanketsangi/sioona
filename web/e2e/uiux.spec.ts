@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-const shots = "/private/tmp/sioona-uiux-screenshots";
+const shots = () => test.info().outputPath("uiux");
 async function signIn(page: Page) {
-  fs.mkdirSync(shots, {recursive:true});
+  fs.mkdirSync(shots(), {recursive:true});
   await page.route("**/*", route => {
     if (!["localhost", "127.0.0.1"].includes(new URL(route.request().url()).hostname)) throw new Error("Unexpected non-local browser request");
     return route.continue();
@@ -26,7 +26,7 @@ async function capture(page: Page, name: string, widths = [["desktop",1440,900],
         return quote != null && quote.scrollWidth <= quote.clientWidth + 1;
       })).toBe(true);
     }
-    await page.screenshot({path:`${shots}/${name}-${label}.png`});
+    await page.screenshot({path:`${shots()}/${name}-${label}.png`});
   }
 }
 test("evidence, draft failure recovery, approval separation, handling and URL context", async ({page}) => {
@@ -115,7 +115,7 @@ test("evidence, draft failure recovery, approval separation, handling and URL co
     await page.locator('[data-review-slot="actions"]').getByRole("button", {name:"Marked as Acted",exact:true}).isVisible()).toBe(true);
   await page.goto(reviewUrl);
   await expect(page.locator('[data-review-slot="actions"]').getByRole("button", {name:"Marked as Acted",exact:true})).toBeDisabled();
-  fs.writeFileSync(`${shots}/mutation-timings.json`, JSON.stringify(timings, null, 2));
+  fs.writeFileSync(`${shots()}/mutation-timings.json`, JSON.stringify(timings, null, 2));
 });
 test("known upload reconnects without reingest and retains an actionable error", async ({page}) => {
   await signIn(page);
@@ -178,18 +178,18 @@ test("keyboard entry, upload inspection and zoom layout stress", async ({page, c
     probe.remove();
     return result;
   });
-  fs.writeFileSync(`${shots}/text-contrast.json`, JSON.stringify(contrast, null, 2));
+  fs.writeFileSync(`${shots()}/text-contrast.json`, JSON.stringify(contrast, null, 2));
   for (const ratio of Object.values(contrast)) expect(ratio).toBeGreaterThanOrEqual(4.5);
   const cdp = await context.newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", {rate:4});
   await cdp.send("Network.enable");
   await cdp.send("Network.emulateNetworkConditions", {offline:false,latency:100,downloadThroughput:200000,uploadThroughput:100000});
   await page.setViewportSize({width:720,height:450});
-  await page.screenshot({path:`${shots}/upload-200-percent-effective-width.png`});
+  await page.screenshot({path:`${shots()}/upload-200-percent-effective-width.png`});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.setViewportSize({width:2880,height:1800});
   await page.evaluate(() => { document.documentElement.style.zoom = "0.5"; });
-  await page.screenshot({path:`${shots}/upload-ultrawide-css-50-percent.png`});
+  await page.screenshot({path:`${shots()}/upload-ultrawide-css-50-percent.png`});
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await cdp.detach();
 });
