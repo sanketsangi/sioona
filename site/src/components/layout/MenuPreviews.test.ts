@@ -64,7 +64,7 @@ it("runs all four shared feature scenes inside the dropdown and loops back", () 
   expect(currentFeature().classList.contains("feature-pill-stage")).toBe(true);
   expect(currentFeature().querySelectorAll("button")).toHaveLength(4);
   advance(2200);
-  expect(currentFeature().querySelector('[aria-pressed="true"]')?.getAttribute("aria-label")).toBe("Lead: Buying intent");
+  expect(currentFeature().querySelector('[aria-pressed="true"]')?.getAttribute("aria-label")).toBe("Retention: Needs review");
   advance(5800);
   expect(currentFeature().classList.contains("feature-shadow")).toBe(true);
   expect(host.querySelector(".bento-card > h3")).toBeNull();

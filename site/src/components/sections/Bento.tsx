@@ -10,7 +10,7 @@ function Card({ title, body, children, hideCopy = false }: { title: string; body
       {!hideCopy && <><h3 className="text-[17px] font-semibold tracking-[-0.015em] leading-snug text-pretty text-sio-fg-base">{nb(title)}</h3>
       <p className="mt-2 text-[14px] leading-relaxed text-pretty text-sio-fg-subtle">{nb(body)}</p></>}
       <figure className="mt-auto pt-8">
-        <div className="feature-card-stage"><div className="feature-card-snippet">{children}</div></div>
+        <div className="feature-card-stage rounded-panel"><div className="feature-card-snippet">{children}</div></div>
       </figure>
     </article>
   );
@@ -19,7 +19,7 @@ function Card({ title, body, children, hideCopy = false }: { title: string; body
 /** The page and header preview share the complete approved card design. */
 export function ProductFeatureCard({ index, hideCopy = false }: { index: number; hideCopy?: boolean }) {
   const features = [
-    { title: marketingCopy.shadow[2].text, body: marketingCopy.shadow[3].text, Stage: ShadowFeatureStage },
+    { title: "Spot the signal. Keep the human in control.", body: marketingCopy.shadow[3].text, Stage: ShadowFeatureStage },
     { title: marketingCopy.features[7].text, body: marketingCopy.features[8].text, Stage: AnalyticsFeatureStage },
     { title: marketingCopy.features[9].text, body: marketingCopy.features[10].text, Stage: EvidenceFeatureStage },
     { title: marketingCopy.features[3].text, body: marketingCopy.features[4].text, Stage: SignalPillStage },
