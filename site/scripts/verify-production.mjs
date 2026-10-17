@@ -192,7 +192,7 @@ for (const schema of schemas.filter(data => ["Organization", "SoftwareApplicatio
 const homeTitle = home.match(/<title>([^<]+)<\/title>/)?.[1] ?? "";
 assert.match(homeTitle, /Sioona/);
 assert.match(homeTitle, /Conversation Intelligence/);
-assert.match(home, /<h1[^>]*>Sioona Conversation Intelligence/);
+assert.match(home, /<h1\b[^>]*>Your next opportunity is already in\s+<span class="hero-headline-accent">the conversation\.<\/span><\/h1>/, "homepage: approved opportunity headline and accent");
 assert((await (await fetch(base, { headers: { Accept: "text/markdown" } })).text()).includes("# Sioona Conversation Intelligence"));
 console.log("PASS Sioona branding, initialized notification, scanner CORS and preflight");
 
