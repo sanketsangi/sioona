@@ -10,7 +10,7 @@ import { ListChecks, CaretDown } from "@phosphor-icons/react/ssr";
 import { RetentionIcon } from "@/components/icons/RetentionIcon";
 import { LeadIcon } from "@/components/icons/LeadIcon";
 import { UpsellIcon } from "@/components/icons/UpsellIcon";
-import { SignalTypeChip } from "@/components/signal/SignalChips";
+import { SignalScoreChip, SignalTypeChip, SignalUser, type SignalType } from "@/components/signal/SignalChips";
 
 export const FeaturePlaybackContext = createContext(true);
 
@@ -92,9 +92,11 @@ export function ShadowFeatureStage() {
 
 const chartBars = [34, 48, 42, 63, 56, 72, 66, 82, 76, 88];
 const alternateBars = [52, 38, 59, 47, 74, 61, 84, 71, 91, 80];
+const filterOptions = ["Last 7 days", "Last 30 days", "All time"];
 
 export function AnalyticsFeatureStage() {
   const loop = useFeatureLoop(1000, 4, false, 3);
+  const activeFilterIndex = loop.step === 0 ? 0 : loop.step === 3 ? 2 : 1;
   return <div {...loop.props} data-feature="2" className="feature-analytics">
     <div className="feature-stage-heading"><span className="feature-analytics-title">SignalScore <span>· 30-day window</span></span><span className="feature-live" aria-hidden="true"><i />Evaluation <time>0:0{loop.step + 1}</time></span></div>
     <div className="feature-desktop feature-desktop-analytics aspect-[16/10]" role="img" aria-label="Illustrative evaluation dashboard: Signal Score 84 percent, 120 reviewed signals, an 80 percent threshold, a Last 30 days filter, and ten example bars. These are not customer results.">
@@ -105,7 +107,22 @@ export function AnalyticsFeatureStage() {
           <div className="feature-skeleton-workspace feature-skeleton-analytics">
             <aside className="feature-skeleton-sidebar">{Array.from({ length: 6 }, (_, index) => <i key={index} />)}</aside>
             <div className="feature-skeleton-analytics-body">
-              <div className="feature-skeleton-analytics-toolbar"><i /><div className="feature-filter feature-analytics-period">Last 30 days<CaretDown size={9} /><span className="feature-filter-menu"><span>Last 7 days</span><strong>✓ Last 30 days</strong><span>All time</span></span></div></div>
+              <div className="feature-skeleton-analytics-toolbar">
+                <i />
+                <div className="feature-filter feature-analytics-period">
+                  Last 30 days<CaretDown size={9} />
+                  <span className="feature-filter-menu">
+                    {filterOptions.map((opt, i) => {
+                      const isActive = activeFilterIndex === i;
+                      return (
+                        <span key={opt} data-active={isActive}>
+                          {isActive ? `✓ ${opt}` : opt}
+                        </span>
+                      );
+                    })}
+                  </span>
+                </div>
+              </div>
               <div className="feature-kpis">{[["Signal Score", "84%"], ["Reviewed", "120"], ["Threshold", "80%"]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
               <div className="feature-chart">{chartBars.map((height, index) => <span key={index} style={{ transform: `scaleY(${(loop.step < 2 ? height : alternateBars[index]) / 100})` }} />)}</div>
               <div className="feature-chart-legend"><span><i />Confirmed correct</span><span><i />Human reviewed</span></div>
@@ -123,11 +140,38 @@ export function EvidenceFeatureStage() {
   const loop = useFeatureLoop();
   return <div {...loop.props} data-feature="3" className="feature-evidence" role="group" aria-label="Illustrative customer quote and reviewer context">
   <div className="feature-transcript">
-    <div className="feature-evidence-bubble baby-grok-bot-entry-enter rounded-2xl px-3 py-2 text-[14px] leading-5 tracking-[-0.15px]">
-      <p>“Honestly, I’m <mark>thinking about moving my account</mark> somewhere else.”</p>
+    <div className="feature-evidence-bubble baby-grok-bot-entry-enter rounded-panel border border-sio-border-base bg-sio-bg-base p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <SignalUser name="Maya Rossi" size={24} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <SignalTypeChip type="retention" />
+          <SignalScoreChip score={0.92} />
+        </div>
+      </div>
+      <p className="text-[14px] leading-5 text-sio-fg-base">
+        “Honestly, I’m{" "}
+        <mark className="rounded-[3px] bg-sio-signal-retention-bg px-1 text-sio-fg-base ring-1 ring-sio-signal-retention-accent">
+          thinking about moving my account
+        </mark>{" "}
+        somewhere else.”
+      </p>
     </div>
-    <div className="feature-context-bubble baby-grok-bot-entry-enter rounded-2xl px-3 py-2 text-[14px] leading-5 tracking-[-0.15px]">
-      <p>Match the exact quote to the saved taxonomy. Your team records the verdict.</p>
+    <div className="feature-context-bubble baby-grok-bot-entry-enter rounded-panel border border-sio-border-base bg-sio-bg-base p-3">
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-label-12">
+        <span className="font-medium text-sio-fg-base">Suggested Next Action</span>
+        <span className="rounded-full bg-sio-signal-retention-bg px-2 py-0.5 text-[11px] font-medium text-sio-status-warning-fg">Human Review</span>
+      </div>
+      <p className="mb-2 text-label-13 text-sio-fg-subtle">Schedule retention outreach before plan renewal.</p>
+      <div className="flex items-center justify-between border-t border-sio-border-muted pt-1.5 text-label-12">
+        <span className="flex items-center gap-1.5 text-sio-fg-muted">
+          <span className="keycap h-5 min-w-[20px] px-1 text-[11px]">C</span>
+          <span>Correct</span>
+        </span>
+        <span className="flex items-center gap-1.5 font-medium text-sio-fg-base">
+          <span className="keycap h-5 min-w-[20px] border-sio-bg-inverse bg-sio-bg-inverse px-1 text-[11px] text-sio-fg-on-color">A</span>
+          <span>Mark Acted</span>
+        </span>
+      </div>
     </div>
     <p className="feature-context-caption baby-grok-bot-entry-enter"><span>Reviewer context</span><SignalTypeChip type="retention" /></p>
   </div><StaticFallback /></div>;
@@ -140,12 +184,20 @@ const signalPills = [
   { label: "Review", status: "Human verdict", activity: "Awaiting human review…", tone: "review", Icon: ListChecks },
 ];
 
+const signalPreviews: { name: string; type: SignalType; score: number; snippet: string }[] = [
+  { name: "Maya Rossi", type: "retention", score: 0.92, snippet: "“Honestly, I’m thinking about moving my account…”" },
+  { name: "Priya Nair", type: "lead", score: 0.88, snippet: "“Do you have accounts for a small team?”" },
+  { name: "Sam Taylor", type: "upsell", score: 0.95, snippet: "“I hit the cap every week. Can I get higher limits?”" },
+  { name: "Alex Chen", type: "retention", score: 0.91, snippet: "“120 verified customer moments awaiting action…”" },
+];
+
 export function SignalPillStage() {
   const [hovered, setHovered] = useState<number | null>(null);
   const hoverPosition = useRef<{ x: number; y: number } | null>(null);
   const [focused, setFocused] = useState<number | null>(null);
   const loop = useFeatureLoop(2200, 4, hovered !== null || focused !== null);
   const active = focused ?? hovered ?? loop.step;
+  const preview = signalPreviews[active % signalPreviews.length];
   return <div {...loop.props} data-feature="4" className="feature-pill-stage" onMouseLeave={() => { hoverPosition.current = null; setHovered(null); }}>
     <div className="avatar-row" role="group" aria-label="Explore example signal types">
       {signalPills.map(({ label, status, activity, tone, Icon }, index) => <button key={label} type="button" className="feature-signal-pill" data-tone={tone} data-open={active === index} aria-pressed={active === index} aria-label={`${label}: ${status}`} onMouseEnter={event => {
@@ -162,6 +214,16 @@ export function SignalPillStage() {
       }} onFocus={() => setFocused(index)} onBlur={() => setFocused(null)} onClick={() => setFocused(index)}>
         <Icon className="feature-pill-icon" aria-hidden /><span className="avatar-row__spread" aria-hidden="true"><span className="avatar-row__label"><span className="feature-activity-dots"><i /><i /><i /></span><span>{activity}</span></span></span>
       </button>)}
+    </div>
+    <div className="feature-signal-preview w-full max-w-[340px] rounded-panel border border-sio-border-base bg-sio-bg-base p-3 shadow-sm transition-[opacity,transform] duration-200 ease-sio">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <SignalUser name={preview.name} size={22} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <SignalTypeChip type={preview.type} />
+          <SignalScoreChip score={preview.score} />
+        </div>
+      </div>
+      <p className="truncate text-label-13 text-sio-fg-subtle">{preview.snippet}</p>
     </div>
     <StaticFallback />
   </div>;

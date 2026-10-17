@@ -23,6 +23,7 @@ import {
   MessageScrollerItem,
   useMessageScroller,
 } from "@/components/ui/message-scroller";
+import { verifiedEvidenceSpan } from "@/lib/evidence-span";
 import { formatMessageTime } from "@/lib/format";
 import type { Message as ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,7 @@ export function conversationMessageDomId(messageId: string): string {
  * Why This Fired → transcript jump via MessageScroller (must render inside
  * MessageScrollerProvider). Honors prefers-reduced-motion.
  */
-function EvidenceJump({ messageId }: { messageId: string }) {
+function EvidenceJump({ messageId, revision }: { messageId: string; revision: number }) {
   const { scrollToMessage } = useMessageScroller();
 
   useEffect(() => {
@@ -44,10 +45,10 @@ function EvidenceJump({ messageId }: { messageId: string }) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     scrollToMessage(messageId, {
       align: "nearest",
-      behavior: reduced ? "auto" : "smooth",
+      behavior: reduced || revision === 0 ? "auto" : "smooth",
       scrollMargin: 12,
     });
-  }, [messageId, scrollToMessage]);
+  }, [messageId, revision, scrollToMessage]);
 
   return null;
 }
@@ -62,6 +63,8 @@ export function ConversationMessages({
   messages,
   customerName,
   highlightedMessageId = null,
+  evidenceSpans = [],
+  evidenceJumpKey = 0,
   className = "",
   showTimestamps = false,
 }: {
@@ -69,6 +72,8 @@ export function ConversationMessages({
   customerName?: string | null;
   /** Why This Fired landing — scrolls via MessageScroller and marks the bubble. */
   highlightedMessageId?: string | null;
+  evidenceJumpKey?: number;
+  evidenceSpans?: import("@/lib/types").Signal["evidenceSpans"];
   className?: string;
   /** Quiet UTC clock under each bubble (SSR-stable). */
   showTimestamps?: boolean;
@@ -78,7 +83,7 @@ export function ConversationMessages({
   return (
     <div className={cn("contents", className)}>
       {highlightedMessageId ? (
-        <EvidenceJump messageId={highlightedMessageId} />
+        <EvidenceJump messageId={highlightedMessageId} revision={evidenceJumpKey} />
       ) : null}
       {messages.map((message) => {
         if (message.role === "system") {
@@ -99,6 +104,7 @@ export function ConversationMessages({
         const variant = isAgent ? "default" : "muted";
         const time = showTimestamps ? formatMessageTime(message.timestamp) : null;
         const isHighlight = message.id === highlightedMessageId;
+        const span = isHighlight ? verifiedEvidenceSpan(message.content, evidenceSpans.find((span) => span.messageId === message.id)) : null;
 
         return (
           <MessageScrollerItem
@@ -130,7 +136,7 @@ export function ConversationMessages({
                     variant={variant}
                     className={cn(isHighlight && "chat-bubble--evidence")}
                   >
-                    {message.content}
+                    {span ? <>{message.content.slice(0, span.start)}<mark className="bg-sio-status-warning-bg text-sio-fg-base">{message.content.slice(span.start, span.end)}</mark>{message.content.slice(span.end)}</> : message.content}
                   </BubbleContent>
                 </Bubble>
                 {time ? (

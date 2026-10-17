@@ -408,7 +408,7 @@ export async function POST(request: Request) {
         } else dualWrite = await persistDeferredIngestDualWrite({
           tenantId: store.tenant.id,
           publishUpload: true,
-          versionDetection: store.tenant.id !== "tenant_demo",
+          versionDetection: true,
           classificationFailed: llm.failed > 0,
           skippedIds: llm.skippedIds,
           contexts: llm.contexts,

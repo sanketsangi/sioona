@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app.api.actor import Actor, _enforce, guarded_router
 from app.db import get_db, bind_tenant
-from app.models.live_ingest import LiveEvent, LiveInstallation
+from app.models.live_ingest import LiveEvent
 from app.schemas.live_ingest import LiveEventIn, InstallationIn
 from app.schemas.ingestion import IngestionConversation
 from app.services import live_ingest as live, lifecycle
