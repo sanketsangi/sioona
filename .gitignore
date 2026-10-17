@@ -29,5 +29,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 ChatGPT Image *.png
-.agents/teamwork/
+.agents/
 .neon
+skills-lock.json

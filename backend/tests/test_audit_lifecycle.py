@@ -156,7 +156,6 @@ def test_restore_tombstone_refences_and_replays_before_traffic(db):
 
 def test_retention_clocks_anonymization_holds_and_batch_progress(db):
     from app.models import Message, SignalPrediction
-    from app.models.lifecycle import TenantExport
     from sqlalchemy import update
     actor, _ = seed(db)
     old = datetime.now(timezone.utc) - timedelta(days=181)

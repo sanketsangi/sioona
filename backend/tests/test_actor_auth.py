@@ -17,7 +17,7 @@ from app.api.actor import ROUTE_GUARDS
 from app.config import get_settings
 from app.main import app
 from app.models.membership import Membership
-from tests.actor_support import KEY, MARKER, actor_headers, add_member, api
+from tests.actor_support import MARKER, actor_headers, add_member, api
 
 pytest_plugins = ["tests.actor_support"]
 from tests.test_actor_token import sign_like_web
