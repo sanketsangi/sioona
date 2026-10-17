@@ -1,5 +1,11 @@
 # Phase 2 go — 2026-10-13
 
+> **Current reconciliation — 2026-10-17:** the approval and tables below are a
+> dated decision record. GitHub now has an active history-only ruleset, while
+> required pull requests/reviews/checks remain unenforced; current `main` is
+> `faf341ee`. Use the single current
+> [launch-blocker list](LAUNCH_BLOCKERS_2026-10-17.md) for execution status.
+
 **Decision:** Phase 2 is authorized. Continue **CB-10** (already started on `main` as `90625f2`). Do not start CB-11 until D9 is recorded. Do not start CB-13 promotion until an approved external corpus meets D5.
 
 Reviewed against `docs/DEVELOPMENT_COOKBOOK.md` §9 on `main` `7ab84e5deb0c6e41008c7865528f8ec28564aac3`. GitHub Actions [run 38291090076](https://github.com/sanketsangi/sioona/actions/runs/38291090076) is success for Web, Backend, E2E, Eval gate, Gitleaks, and Marketing site.

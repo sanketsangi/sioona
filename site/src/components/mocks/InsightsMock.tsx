@@ -59,7 +59,7 @@ const EXISTING_ROWS: QueueRow[] = [
 ];
 
 function TypedText({ segs, start, count, highlight }: { segs: Seg[]; start: number; count: number; highlight: boolean }) {
-  const starts = segs.reduce<number[]>((acc, seg, index) => {
+  const starts = segs.reduce<number[]>((acc, _seg, index) => {
     acc.push(index === 0 ? start : acc[index - 1] + segs[index - 1].text.length);
     return acc;
   }, []);
