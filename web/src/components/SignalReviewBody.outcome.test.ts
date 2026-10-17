@@ -67,6 +67,18 @@ function conversation(): Conversation {
 }
 
 describe("Saved / Lost / Converted placement", () => {
+  it("presents persisted evidence before detection feedback and draft decisions in reading order", () => {
+    const html = renderToStaticMarkup(createElement(SignalReviewBody, {
+      signal: signal({ evidence: ['quote: "I am closing my account today"'] }),
+      messages: [message()], customerName: "Arjun", conversation: conversation(),
+    }));
+    const evidence = html.indexOf('data-review-slot="why"');
+    const feedback = html.indexOf('data-review-slot="feedback"');
+    const draft = html.indexOf('data-review-slot="actions"');
+    expect(evidence).toBeGreaterThan(-1);
+    expect(evidence).toBeLessThan(feedback);
+    expect(feedback).toBeLessThan(draft);
+  });
   it("omits the outcome control from the Insights review rail", () => {
     const html = renderToStaticMarkup(
       createElement(SignalReviewBody, {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useUnsavedNavigation } from "@/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
@@ -42,7 +43,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { AppleBorderGradient } from "@/components/v1/skiper86";
 import { postSupervisedAction } from "@/lib/supervised-action-client";
 import {
   queueActionKindForSignal,
@@ -129,8 +129,8 @@ export function editedRetentionDraftBody(
 
 /**
  * Content-box width of `[data-review-slot="retention-email"]` where Approve,
- * Edit Draft, and Dismiss fit with labels beside Run Actions.
- * Below this, those three are icon-only. Run Actions keeps its label.
+ * Edit Draft, and Dismiss fit with labels beside Mark as acted.
+ * Below this, those three are icon-only. Mark as acted keeps its label.
  */
 export const REVIEW_ACTIONS_LABELED_MIN_PX = 424;
 
@@ -247,7 +247,7 @@ export type QueueListActionLabel =
 
 /**
  * Open-review row label. Correct ¬acted is "Acted" (scrolls to the body;
- * Run Actions records it). Done stays "Marked as Acted".
+ * Mark as acted records it). Done stays "Marked as Acted".
  */
 export type QueueReviewActionLabel =
   | "Approve"
@@ -365,7 +365,7 @@ type RetentionEmailActionProps = {
    */
   omitEvidence?: boolean;
   /**
-   * Extra control(s) after Edit Draft in the bottom toolbar (e.g. Run Actions).
+   * Extra control(s) after Edit Draft in the bottom toolbar (e.g. Mark as acted).
    * Parent owns the control; this composes it with Edit Draft under helper copy.
    */
   embeddedActions?: ReactNode;
@@ -378,10 +378,10 @@ type RetentionEmailActionProps = {
 
 /**
  * Supervised retention email draft — optional evidence quote; Edit Draft
- * opens a dialog from the bottom actions toolbar (left of Run Actions when
+ * opens a dialog from the bottom actions toolbar (left of Mark as acted when
  * embedded). Decisions record intent only — nothing is sent.
  * When `embedded`, quiet bordered AI-draft well (surface-quiet; no pane header Card).
- * Embedded wells always show AppleBorderGradient (skiper86) — decorative only.
+ * Embedded wells reuse the shared quiet surface without decorative motion.
  */
 export function RetentionEmailAction(props: RetentionEmailActionProps) {
   const { signal, customerName = "", action: storedAction = null } = props;
@@ -414,8 +414,10 @@ function RetentionEmailActionView({
   const subjectId = useId();
   const bodyId = useId();
   const statusId = useId();
+  const draftErrorId = useId();
   const router = useRouter();
   const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const onStatusChangeRef = useRef(onStatusChange);
   const onDraftBodyChangeRef = useRef(onDraftBodyChange);
   const [container, setContainer] = useState<HTMLElement | null>(null);
@@ -472,15 +474,7 @@ function RetentionEmailActionView({
     (subject.trim() !== action.subject.trim() ||
       body.trim() !== action.body.trim());
 
-  useEffect(() => {
-    if (!dirty) return;
-    const onBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  useUnsavedNavigation(dirty);
 
   if (!action) return null;
 
@@ -502,7 +496,7 @@ function RetentionEmailActionView({
     if (decision === "edited" || decision === "approved") {
       if (!subject.trim() || !body.trim()) {
         setError("Subject and body are required.");
-        subjectRef.current?.focus();
+        (!subject.trim() ? subjectRef.current : bodyRef.current)?.focus();
         return;
       }
     }
@@ -525,7 +519,6 @@ function RetentionEmailActionView({
         err instanceof Error
           ? err.message
           : "Could not save this decision. Try again.";
-      console.error("[supervised-action]", message);
       setError(message);
     } finally {
       setPending(null);
@@ -540,6 +533,8 @@ function RetentionEmailActionView({
   }
 
   function cancelEdit() {
+    if (busy) return;
+    if (dirty && !window.confirm("Discard unsaved draft changes? Cancel keeps editing.")) return;
     setSubject(currentAction.subject);
     setBody(currentAction.body);
     setError(null);
@@ -591,14 +586,14 @@ function RetentionEmailActionView({
         locked={decisionsLocked}
         label={`${draftAria} decisions`}
       >
-        <DraftDecisionTooltip label="Approve" compact={actionsCompact}>
+        <DraftDecisionTooltip label="Approve draft" compact={actionsCompact}>
           <Button
             type="button"
             variant="outline"
             size="lg"
             className="btn-secondary h-9 min-h-9 shrink-0 touch-manipulation gap-1.5 px-2.5"
             disabled={decisionsDisabled}
-            aria-label="Approve"
+            aria-label="Approve draft"
             onClick={() => void submit("approved")}
           >
             {pending === "approved" ? (
@@ -609,7 +604,7 @@ function RetentionEmailActionView({
                 className="size-3.5 shrink-0"
               />
             )}
-            <span className="review-action-label" aria-hidden="true">Approve</span>
+            <span className="review-action-label" aria-hidden="true">Approve draft</span>
           </Button>
         </DraftDecisionTooltip>
         <DraftDecisionTooltip label="Edit Draft" compact={actionsCompact}>
@@ -673,7 +668,7 @@ function RetentionEmailActionView({
       ) : null}
 
       <p id={statusId} className="sr-only" aria-live="polite">
-        {pending ? "Saving…" : error ? error : null}
+        {pending ? "Saving…" : error ? error : decidedCopy}
       </p>
       {error && !editing ? (
         <p
@@ -809,6 +804,7 @@ function RetentionEmailActionView({
                 placeholder="e.g. Following up on your account…"
                 className="min-h-9 border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base"
                 aria-invalid={!subject.trim()}
+                aria-describedby={error ? draftErrorId : undefined}
                 disabled={busy}
               />
             </div>
@@ -817,6 +813,7 @@ function RetentionEmailActionView({
                 Body
               </Label>
               <Textarea
+                ref={bodyRef}
                 id={bodyId}
                 name="retentionEmailBody"
                 rows={14}
@@ -834,11 +831,13 @@ function RetentionEmailActionView({
                 placeholder="Short, polite follow-up…"
                 className="min-h-56 resize-y border-sio-border-subtle bg-sio-bg-base text-base text-sio-fg-base"
                 aria-invalid={!body.trim()}
+                aria-describedby={error ? draftErrorId : undefined}
                 disabled={busy}
               />
             </div>
             {error ? (
               <p
+                id={draftErrorId}
                 className="text-label-12 leading-5 text-sio-status-danger-fg"
                 role="alert"
               >
@@ -862,7 +861,7 @@ function RetentionEmailActionView({
                 aria-busy={pending === "edited"}
               >
                 {pending === "edited" ? <ButtonSpinner /> : null}
-                Save Edit
+                Save draft
               </Button>
             </DialogFooter>
           </form>
@@ -876,11 +875,10 @@ function RetentionEmailActionView({
       <section
         ref={setContainer}
         data-review-slot="retention-email"
-        data-retention-border="gradient"
+        data-retention-border="quiet"
         className={cn(
           "relative surface-quiet overflow-hidden",
-          // Hide static border so AppleBorderGradient reads alone.
-          "![border-color:transparent]",
+          "border-sio-border-base",
           // Inset from Recommended Actions chrome — avoid full-bleed nested border.
           "mx-3 mb-3 mt-3 sm:mx-4 sm:mb-4",
           evalCardPadClassName,
@@ -889,11 +887,7 @@ function RetentionEmailActionView({
         )}
         aria-labelledby={headingId}
       >
-        <AppleBorderGradient
-          preview
-          intensity="sm"
-          className="rounded-[var(--radius-panel)] after:rounded-[calc(var(--radius-panel)-2px)]"
-        />
+
         <div className="relative z-[1] flex min-w-0 items-center gap-2">
           <PlayCircleIcon className="size-4 shrink-0 text-sio-fg-base" />
           <h3 id={headingId} className={REVIEW_PANE_TITLE_CLASS}>

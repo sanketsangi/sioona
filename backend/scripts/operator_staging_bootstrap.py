@@ -39,7 +39,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 
-from app.config import get_settings
+from app.config import get_settings, normalize_pg_url
 from scripts import check_schema
 from scripts.seed_memberships import seed_memberships
 
@@ -63,14 +63,7 @@ def _set_step(step: str) -> None:
     _current_step = step
 
 
-def _normalize_pg_url(url: str) -> str:
-    """Ensure sqlalchemy postgresql+psycopg driver scheme."""
-    cleaned = url.strip()
-    if cleaned.startswith("postgresql://"):
-        return f"postgresql+psycopg://{cleaned[len('postgresql://'):]}"
-    if cleaned.startswith("postgres://"):
-        return f"postgresql+psycopg://{cleaned[len('postgres://'):]}"
-    return cleaned
+_normalize_pg_url = normalize_pg_url
 
 
 def _build_runtime_url(migration_url: str, runtime_password: str) -> str:

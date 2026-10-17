@@ -37,9 +37,9 @@ import {
 
 const PANELS: { id: EvalPanel; label: string }[] = [
   { id: "metrics", label: "Metrics" },
-  { id: "adapt", label: "Adapt" },
-  { id: "labeled", label: "Labeled pack" },
-  { id: "export", label: "Export eval" },
+  { id: "adapt", label: "Improvements" },
+  { id: "labeled", label: "Reviewed examples" },
+  { id: "export", label: "Export evaluation" },
 ];
 
 export function EvalView({
@@ -80,7 +80,8 @@ export function EvalView({
     scoreWindow.status === "custom" ? scoreWindow.dateInput : null;
 
   return (
-    <ViewFrame className="gap-4">
+    <ViewFrame className="gap-4 overflow-y-auto">
+      <p className="shrink-0 text-copy-13 text-muted-foreground">SignalScore is Correct ÷ reviewed detections in this window; partially correct reviews count in the denominator.</p>
       <Tabs
         value={panel}
         activationMode="manual"
@@ -133,7 +134,7 @@ export function EvalView({
             />
           ) : null}
           {panel === "adapt" ? (
-            <AdaptationPanel
+            <><p className="mb-3 text-copy-14 text-sio-fg-subtle">Suggestions below are proposals. They do not establish that a taxonomy or prompt change has passed an evaluation.</p><AdaptationPanel
               signals={store.signals.map(quarantineDisplayEvidence)}
               taxonomyOverrides={store.taxonomyOverrides ?? {}}
               compact
@@ -141,7 +142,7 @@ export function EvalView({
               hideSampleAdapt={isLivePartnerKeepSet(
                 store.pilot?.lastUploadedFileName,
               )}
-            />
+            /></>
           ) : null}
           {panel === "labeled" ? (
             <LabeledTables
