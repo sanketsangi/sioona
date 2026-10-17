@@ -93,7 +93,8 @@ def post_reserve(tenant_id: str, body: ReserveIn, db: DB, assertion: Assertion =
             prompt_version=body.prompt_version, status="pending", usage_status="unknown", cost_status="unknown",
             started_at=datetime.now(timezone.utc)))
         db.commit()
-        return {"authorized": True, "attempt_id": row.attempt_id, "mode": "attempts"}
+        # Commit expires ORM rows; avoid a new RLS-scoped read to serialize the ID.
+        return {"authorized": True, "attempt_id": body.attempt_id, "mode": "attempts"}
     except BudgetDenied as error:
         db.rollback()
         raise HTTPException(409, str(error))

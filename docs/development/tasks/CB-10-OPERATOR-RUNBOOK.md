@@ -348,3 +348,55 @@ backend/web deployment IDs and SHAs, reconciliation comparator SHA and counts,
 restart/outage/isolation/receipt drill results, zero-send counters, observation
 start/end and monitor outcome, rollback decision, writer-removal PR link and
 Sanket's signed acceptance. Unfilled approvals and unexecuted checks stay pending.
+
+## OP-3 guarded populated upgrade helper (024 through 034)
+
+`backend/scripts/operator_production_upgrade.py` supports a single known Alembic
+revision on the ancestry from `024_tenant_rls` through
+`034_operational_telemetry`, including both `027_complete_tenant_rls` and
+`027_jobs`. It never creates a database or seeds application data. This helper
+is an operator action; agents must not execute it against a hosted target.
+
+Complete the target approval, restorable backup/restore rehearsal and rollback
+record above first. Stop API traffic, ingestion, worker claims and recovery cron.
+Using the protected operator environment, supply `HOSTED_MIGRATION_DATABASE_URL`
+with the direct owner URL, `SIOONA_RUNTIME_PASSWORD`, and
+`OP3_APPROVED_DATABASE` with the exact database name. Set
+`OP3_BACKUP_RESTORE_VERIFIED=1`, `OP3_WRITERS_STOPPED=1` and
+`ALLOW_SHARED_RUNTIME_ROLE=1` only after approving those conditions. The last
+flag approves cluster-wide password rotation: check all consumers and sibling
+databases before setting it. A pooler target or libpq target override is rejected.
+Do not put credentials in shell command arguments, receipts or source files.
+
+Run from the repository root:
+
+```sh
+python backend/scripts/operator_production_upgrade.py
+```
+
+The helper takes bounded exclusive locks on all existing public tables, streams
+ordered primary keys into SHA-256 digests, and compares counts and digests before
+and after the pinned upgrade in the same transaction. Every existing application
+table must have a primary key; `alembic_version` is checked separately. The
+migration owner must bypass forced RLS to see every tenant's rows. This proves
+row identity preservation, not equality of non-key fields; reviewed migrations
+may intentionally update lifecycle checkpoints. The locks support the stopped
+writer window; they do not replace stopping writers or a restorable backup.
+
+Before commit it checks restricted runtime attributes, role memberships,
+relation ownership, effective audit SELECT/INSERT and denied UPDATE/DELETE/
+TRUNCATE (including column UPDATE), forced RLS on all public tenant tables and
+zero rows with missing tenant context. It then opens a real runtime LOGIN
+connection through `scripts.check_schema`. No broad grants are added. Migration
+grants remain authoritative; unsafe privileges require operator repair.
+
+Only after all checks pass is a counts-only receipt atomically written to
+`docs/development/evidence/production-upgrade-receipt.json`. It contains no
+connection identifiers, tenant identifiers, table names, primary-key digests or
+source text. `RECEIPT_PATH` can select a fresh path; existing receipts are never
+overwritten. A failed pre-commit check rolls back the upgrade and role change.
+A failed runtime connection/schema check or receipt publication can occur after
+commit: investigate current revision and runtime state before retrying; never
+perform an automatic downgrade. No receipt is committed as hosted proof by this
+implementation. The Render runtime URL switch, API/worker/web acceptance,
+tenant A/B application checks and final OP-3 sign-off remain operator steps.

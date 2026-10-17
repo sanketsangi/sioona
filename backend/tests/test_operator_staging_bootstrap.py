@@ -258,14 +258,25 @@ def test_postgres_live_bootstrap_verifies_all_fixes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIOONA_RUNTIME_PASSWORD", "test-live-runtime-pw-456")
     monkeypatch.setenv("RECEIPT_PATH", str(receipt_file))
 
-    receipt = bootstrap.run_bootstrap()
-    assert receipt["status"] == "success"
-    assert receipt["migrations"]["head_applied"] == bootstrap.EXPECTED_HEAD
-    assert receipt["verification"]["schema_startup_check"] == "passed"
-    assert receipt["verification"]["forced_rls_verified"] is True
-    assert receipt["verification"]["audit_append_only_verified"] is True
-    assert receipt["verification"]["tenant_ab_isolation_verified"] is True
-    assert receipt["verification"]["connection_reuse_safety_verified"] is True
+    # LOGIN is cluster-wide and survives DROP SCHEMA in later migration tests.
+    # Restore the migration-default role state even if a bootstrap assertion fails.
+    try:
+        receipt = bootstrap.run_bootstrap()
+        assert receipt["status"] == "success"
+        assert receipt["synthetic_seed"]["memberships_upserted"] == 6
+        assert receipt["migrations"]["head_applied"] == bootstrap.EXPECTED_HEAD
+        assert receipt["verification"]["schema_startup_check"] == "passed"
+        assert receipt["verification"]["forced_rls_verified"] is True
+        assert receipt["verification"]["audit_append_only_verified"] is True
+        assert receipt["verification"]["tenant_ab_isolation_verified"] is True
+        assert receipt["verification"]["connection_reuse_safety_verified"] is True
+    finally:
+        cleanup_engine = create_engine(pg_url)
+        try:
+            with cleanup_engine.begin() as conn:
+                conn.execute(text("ALTER ROLE sioona_runtime NOLOGIN"))
+        finally:
+            cleanup_engine.dispose()
 
 
 
@@ -330,3 +341,17 @@ def test_disposable_ipv6_loopback_target_is_supported(monkeypatch):
     engine.connect.return_value.__enter__.return_value.execute.return_value.scalar.return_value = True
     monkeypatch.setattr(bootstrap, 'create_engine', MagicMock(return_value=engine))
     bootstrap._ensure_empty_target_database('postgresql+psycopg://owner@[::1]/sioona_migration_test')
+
+
+def test_synthetic_seed_covers_shadow_observation_actors():
+    expected = {
+        ("admin@staging.test", "tenant_staging_a", "admin"),
+        ("reviewer@staging.test", "tenant_staging_a", "reviewer"),
+        ("admin@staging.test", "tenant_staging_b", "admin"),
+        ("reviewer@staging.test", "tenant_staging_b", "reviewer"),
+        ("admin@staging.test", "tenant_demo", "admin"),
+        ("demo@staging.test", "tenant_demo", "demo"),
+    }
+    payload = bootstrap.SYNTHETIC_SEED_PAYLOAD
+    assert len(payload) == 6
+    assert {(row["email"], row["tenantId"], row["role"]) for row in payload} == expected

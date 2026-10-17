@@ -19,10 +19,11 @@ target_metadata = Base.metadata
 settings = get_settings()
 # MIGRATION_DATABASE_URL is the table owner. DATABASE_URL may be sioona_runtime,
 # which cannot run DDL and is subject to RLS.
-config.set_main_option(
-    "sqlalchemy.url",
-    migration_database_url() or settings.database_url,
-)
+if config.attributes.get("connection") is None:
+    config.set_main_option(
+        "sqlalchemy.url",
+        migration_database_url() or settings.database_url,
+    )
 
 
 def run_migrations_offline() -> None:
@@ -41,6 +42,13 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        context.configure(connection=supplied_connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
