@@ -63,6 +63,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 # Transaction-local tenant for Postgres RLS. Unset context fails closed under
 # the runtime role. Workers and scripts must call bind_tenant before queries.
 _tenant_id: ContextVar[str | None] = ContextVar("sioona_rls_tenant_id", default=None)
+_current_sessions: ContextVar[list[Session] | None] = ContextVar("sioona_current_sessions", default=None)
 
 
 def migration_database_url() -> str:
@@ -81,6 +82,12 @@ def bind_tenant(db: Session, tenant_id: str) -> None:
         raise ValueError("tenant_id required")
     _tenant_id.set(cleaned)
     db.info["sioona_tenant_id"] = cleaned
+    sessions = _current_sessions.get()
+    if sessions is None:
+        sessions = []
+        _current_sessions.set(sessions)
+    if db not in sessions:
+        sessions.append(db)
     bind = db.get_bind()
     if bind is None or bind.dialect.name != "postgresql" or not db.in_transaction():
         return
@@ -95,6 +102,11 @@ def clear_tenant(db: Session | None = None) -> None:
     _tenant_id.set(None)
     if db is not None:
         db.info.pop("sioona_tenant_id", None)
+    sessions = _current_sessions.get()
+    if sessions:
+        for s in sessions:
+            s.info.pop("sioona_tenant_id", None)
+        _current_sessions.set(None)
 
 
 @event.listens_for(Session, "after_begin")
