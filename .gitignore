@@ -30,3 +30,4 @@ yarn-error.log*
 .pnpm-debug.log*
 ChatGPT Image *.png
 .agents/teamwork/
+.neon

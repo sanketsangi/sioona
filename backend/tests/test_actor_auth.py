@@ -6,6 +6,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import UUID
 
 import pytest
@@ -82,6 +83,7 @@ _observe(request, 'tenant_shadow_test', None, None, 'read', None)
         env={**os.environ, "DATABASE_URL": "sqlite+pysqlite:///:memory:",
              "SIOONA_ACTOR_AUTH": "shadow", "SIOONA_ACTOR_KEY": "synthetic-test-key"},
         capture_output=True, text=True, check=True, timeout=15,
+        cwd=Path(__file__).resolve().parent.parent,
     )
     assert result.stdout == ""
     assert result.stderr.strip() == (

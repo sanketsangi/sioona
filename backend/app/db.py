@@ -80,6 +80,7 @@ def bind_tenant(db: Session, tenant_id: str) -> None:
     if not cleaned:
         raise ValueError("tenant_id required")
     _tenant_id.set(cleaned)
+    db.info["sioona_tenant_id"] = cleaned
     bind = db.get_bind()
     if bind is None or bind.dialect.name != "postgresql" or not db.in_transaction():
         return
@@ -89,9 +90,11 @@ def bind_tenant(db: Session, tenant_id: str) -> None:
     )
 
 
-def clear_tenant() -> None:
+def clear_tenant(db: Session | None = None) -> None:
     """Drop request tenant context. Does not change an open Postgres transaction."""
     _tenant_id.set(None)
+    if db is not None:
+        db.info.pop("sioona_tenant_id", None)
 
 
 @event.listens_for(Session, "after_begin")
@@ -99,7 +102,7 @@ def _set_tenant_on_begin(_session, _transaction, connection) -> None:  # noqa: A
     if connection.dialect.name == "postgresql":
         connection.execute(text("SELECT set_config('app.global_control_tenant', :tenant, true)"),
                            {"tenant": get_settings().sioona_global_control_tenant.strip()})
-    tenant_id = _tenant_id.get()
+    tenant_id = _session.info.get("sioona_tenant_id") or _tenant_id.get()
     if not tenant_id or connection.dialect.name != "postgresql":
         return
     connection.execute(
@@ -115,5 +118,5 @@ def get_db() -> Generator[Session, None, None]:
     try:
         yield db
     finally:
+        clear_tenant(db)
         db.close()
-        clear_tenant()

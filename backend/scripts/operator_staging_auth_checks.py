@@ -73,6 +73,16 @@ def validate_target_url(url: str, label: str = "target URL") -> str:
     return cleaned
 
 
+def _normalize_pg_url(url: str) -> str:
+    """Ensure sqlalchemy postgresql+psycopg driver scheme."""
+    cleaned = url.strip()
+    if cleaned.startswith("postgresql://"):
+        return f"postgresql+psycopg://{cleaned[len('postgresql://'):]}"
+    if cleaned.startswith("postgres://"):
+        return f"postgresql+psycopg://{cleaned[len('postgres://'):]}"
+    return cleaned
+
+
 def sign_test_actor_token(
     user_id: str | uuid.UUID,
     tenant_id: str,
@@ -391,7 +401,8 @@ class StagingAuthChecksRunner:
         print("\n--- [Live DB Revocation Drill] Connecting to database ---")
         from sqlalchemy import create_engine, make_url, text
 
-        parsed = make_url(self.db_migration_url)
+        normalized_url = _normalize_pg_url(self.db_migration_url)
+        parsed = make_url(normalized_url)
         if parsed.database in ("sioona_migration_test",) and parsed.host not in (
             "127.0.0.1",
             "localhost",
@@ -401,7 +412,7 @@ class StagingAuthChecksRunner:
         if "prod" in (parsed.database or "").lower():
             raise ValueError("Refusing to run live drill against production database")
 
-        engine = create_engine(self.db_migration_url)
+        engine = create_engine(normalized_url)
         temp_email = f"temp_probe_{int(time.time())}@staging.test"
         temp_uid = actor_user_id(temp_email)
         token_temp = sign_test_actor_token(temp_uid, "tenant_staging_a", self.actor_key)
