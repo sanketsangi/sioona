@@ -371,7 +371,7 @@ describe("PlatformPage deploy reliability", () => {
     })) as ReactElement;
     expect(pageShellProps(upload)).toMatchObject({
       activeView: "upload",
-      title: "Uploaded Chats",
+      title: "Uploads",
     });
 
     const evalView = (await PlatformPage({
@@ -379,7 +379,7 @@ describe("PlatformPage deploy reliability", () => {
     })) as ReactElement;
     expect(pageShellProps(evalView)).toMatchObject({
       activeView: "eval",
-      title: "Eval & SignalScore",
+      title: "Evaluation",
     });
   });
 

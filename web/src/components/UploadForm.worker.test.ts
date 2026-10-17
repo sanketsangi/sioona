@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
-const h = vi.hoisted(() => ({ index: 0, setters: [] as ReturnType<typeof vi.fn>[], push: vi.fn(), refresh: vi.fn(), fileName: "week.csv" }));
-vi.mock("next/navigation", () => ({ useRouter: () => h }));
+const h = vi.hoisted(() => ({ index: 0, setters: [] as ReturnType<typeof vi.fn>[], push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), fileName: "week.csv" }));
+vi.mock("next/navigation", () => ({ useRouter: () => h, useSearchParams: () => new URLSearchParams() }));
 vi.mock("react", async (original) => ({ ...await original<typeof import("react")>(),
   useState: (initial: unknown) => { const i = h.index++; const setter = vi.fn(); h.setters[i] = setter; return [i === 0 ? [new File(["x"], h.fileName)] : initial, setter]; },
   useRef: () => ({ current: null }), useEffect: () => {}, useCallback: (fn: unknown) => fn,

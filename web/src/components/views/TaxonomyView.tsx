@@ -25,8 +25,8 @@ function StoredTermList({
   if (terms.length === 0) {
     return (
       <p className="mt-2 border-y border-transparent py-2.5 text-copy-14 text-sio-fg-muted">
-        <span className="sr-only">{emptyLabel}</span>
-        {"\u00A0"}
+
+        {emptyLabel}
       </p>
     );
   }
@@ -95,6 +95,7 @@ export function TaxonomyView({
           {entry.description}
         </p>
 
+        <p className="mt-3 text-copy-14 text-sio-fg-muted">Current shipped definition. Stored phrase overrides below are separate from these examples; version history is unavailable.</p>
         <div className="mt-5 grid gap-6 md:grid-cols-2 md:gap-8">
           <div className="min-w-0">
             <h3 className="eyebrow">Example Utterances</h3>
@@ -126,11 +127,11 @@ export function TaxonomyView({
 
         <div className="mt-6 grid gap-6 md:grid-cols-2 md:gap-8">
           <div className="min-w-0">
-            <h3 className="eyebrow">Phrases</h3>
+            <h3 className="eyebrow">Stored phrase overrides</h3>
             <StoredTermList terms={phrases} emptyLabel="No phrases stored" />
           </div>
           <div className="min-w-0">
-            <h3 className="eyebrow">Negative Phrases</h3>
+            <h3 className="eyebrow">Stored negative phrase overrides</h3>
             <StoredTermList
               terms={negativePhrases}
               emptyLabel="No negative phrases stored"

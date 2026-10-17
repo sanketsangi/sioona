@@ -59,6 +59,7 @@ export function SignalReviewBody({
     localDrawerOpen,
     setLocalDrawerOpen,
   );
+  const [evidenceJumpKey, setEvidenceJumpKey] = useState(0);
   const [focusedMessageId, setFocusedMessageId] = useState<string | null>(() =>
     focusEvidenceMessageId(signal, messages),
   );
@@ -82,6 +83,7 @@ export function SignalReviewBody({
   const focusMessage = useCallback(
     (messageId: string) => {
       setFocusedMessageId(messageId);
+      setEvidenceJumpKey((key) => key + 1);
       // Narrow: inline transcript is hidden — open the drawer and land there.
       if (!splitWide) setDrawerOpen(true);
     },
@@ -104,16 +106,11 @@ export function SignalReviewBody({
             open={drawerOpen}
             onOpenChange={setDrawerOpen}
             highlightedMessageId={focusedMessageId}
+            evidenceJumpKey={evidenceJumpKey}
+            evidenceSpans={signal.evidenceStatus === "valid" ? signal.evidenceSpans : []}
             showTrigger={false}
           />
         ) : null}
-        <FeedbackControls
-          signal={signal}
-          triage={triage}
-          conversationId={conversation?.id}
-          groundTruth={conversation?.groundTruth}
-        />
-        {signal.feedback ? <SignalOutcomeControl signal={signal} /> : null}
         <SignalReviewSuggestedAction
           signal={signal}
           messages={messages}
@@ -122,6 +119,17 @@ export function SignalReviewBody({
           onFocusMessage={focusMessage}
           actedWalk={actedWalk}
           supervisedAction={supervisedAction}
+          reviewControls={
+            <>
+              <FeedbackControls
+                signal={signal}
+                triage={triage}
+                conversationId={conversation?.id}
+                groundTruth={conversation?.groundTruth}
+              />
+              {signal.feedback ? <SignalOutcomeControl signal={signal} /> : null}
+            </>
+          }
         />
       </div>
       {/*
@@ -134,6 +142,8 @@ export function SignalReviewBody({
           messages={messages}
           customerName={customerName}
           highlightedMessageId={focusedMessageId}
+            evidenceJumpKey={evidenceJumpKey}
+            evidenceSpans={signal.evidenceStatus === "valid" ? signal.evidenceSpans : []}
           className="insights-review-well overflow-hidden"
         />
       ) : null}

@@ -40,14 +40,14 @@ describe("TaxonomyView stored overrides", () => {
     expect(html).toContain("“first time”");
     expect(html).not.toContain("hidden keyword");
     expect(html).toContain("Example Utterances");
-    expect(html).toContain("Phrases");
-    expect(html).toContain("Negative Phrases");
+    expect(html).toContain("Stored phrase overrides");
+    expect(html).toContain("Stored negative phrase overrides");
   });
 
-  it("shows an empty line instead of a list when a type has no overrides", () => {
+  it("shows an explicit empty state instead of a list when a type has no overrides", () => {
     const html = markup({ taxonomyOverrides: {} });
-    const phrasesHeading = html.indexOf("Phrases");
-    const negativesHeading = html.indexOf("Negative Phrases");
+    const phrasesHeading = html.indexOf(">Stored phrase overrides</h3>");
+    const negativesHeading = html.indexOf(">Stored negative phrase overrides</h3>");
     const afterPhrases = html.slice(phrasesHeading, negativesHeading);
     const afterNegatives = html.slice(negativesHeading);
 
