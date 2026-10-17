@@ -20,6 +20,7 @@ vi.mock("./store", () => ({
 
 vi.mock("./backend-client", () => ({
   getPilotSettings: vi.fn().mockResolvedValue(null),
+  publishDetectionRun: vi.fn(),
 }));
 
 vi.mock("./supervised-actions", () => ({
@@ -36,7 +37,7 @@ vi.mock("./sync-conversations", () => ({
 }));
 
 import { publishIngestUpload } from "./publish-ingest-upload";
-import { getPilotSettings } from "./backend-client";
+import { publishDetectionRun, getPilotSettings } from "./backend-client";
 import { readPersistedStore, writeStore } from "./store";
 import { syncPredictionsToBackend } from "./sync-predictions";
 import {
@@ -109,6 +110,18 @@ const input = {
 };
 
 describe("persistDeferredIngestDualWrite", () => {
+  it("reversions demo imports without legacy writes and publishes empty outputs", async () => {
+    vi.mocked(readPersistedStore).mockResolvedValue(store([signal()]));
+    vi.mocked(publishDetectionRun).mockResolvedValue({ run_id: "run", predictions: [{ id: "canonical-id", conversation_id: "conv_1", signal_type: "lead", active: true }] });
+    await persistDeferredIngestDualWrite({ ...input, versionDetection: true, publishUpload: true });
+    expect(syncPredictionsToBackend).not.toHaveBeenCalled();
+    expect(publishDetectionRun).toHaveBeenCalledWith("tenant_demo", expect.any(String), expect.arrayContaining([expect.objectContaining({ conversation_id: "conv_1", output: expect.any(Array) })]));
+    vi.mocked(publishDetectionRun).mockResolvedValue({ run_id: "none", predictions: [] });
+    await persistDeferredIngestDualWrite({ ...input, signals: [], versionDetection: true, publishUpload: true });
+    expect(publishDetectionRun).toHaveBeenLastCalledWith("tenant_demo", expect.any(String), [expect.objectContaining({ output: [] })]);
+    expect(writeStore).toHaveBeenLastCalledWith(expect.objectContaining({ signals: [] }));
+  });
+
   beforeEach(() => {
     vi.mocked(readPersistedStore).mockReset();
     vi.mocked(getPilotSettings).mockReset().mockResolvedValue(null);

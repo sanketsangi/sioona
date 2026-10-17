@@ -338,7 +338,7 @@ def test_detect_preserves_canonical_metadata(db):
     b = body()
     b.conversations[0].external_id = "external-synthetic"
     b.conversations[0].ground_truth = "lead"
-    row = jobs.enqueue_upload(db, "a", "u1", b)
+    jobs.enqueue_upload(db, "a", "u1", b)
     db.commit()
     Worker(sessionmaker(bind=db.get_bind())).run_once("a")
     jobs.enqueue_detect(db, "a", "recheck", ["c1"])
@@ -354,7 +354,7 @@ def test_detect_preserves_canonical_metadata(db):
 def test_changed_publication_stays_in_resume(db):
     from app.models.message import Message
 
-    jid = enqueue(db)
+    enqueue(db)
     lease = jobs.claim(db, "a", "worker")
     db.commit()
     content_hash = jobs.conversation_content_hash(db, "a", "c1")
@@ -532,3 +532,19 @@ def test_rejected_classification_falls_back_and_continues(db, monkeypatch):
     prediction = db.scalar(select(Prediction).where(Prediction.conversation_id == "fixture"))
     assert prediction.signal_type == row["heuristic"][0]["signal_type"]
     assert len(db.scalars(select(InferenceAttempt)).all()) == 2
+
+
+def test_completed_job_reports_only_its_persisted_signal_count(api):
+    client, factory = api
+    a = add_member(factory, "count-a@example.test", "a", "reviewer")
+    b = add_member(factory, "count-b@example.test", "b", "reviewer")
+    response = client.put("/v1/tenants/a/jobs/uploads/count-a", json=body().model_dump(mode="json"), headers=actor_headers(a, "a"))
+    assert response.status_code == 202
+    jid = response.json()["job_id"]
+    path = f"/v1/tenants/a/jobs/{jid}"
+    assert client.get(path, headers=actor_headers(a, "a")).json()["signal_count"] is None
+    assert Worker(factory).run_once("a")
+    done = client.get(path, headers=actor_headers(a, "a"))
+    assert done.status_code == 200
+    assert done.json()["signal_count"] == 1
+    assert client.get(path, headers=actor_headers(b, "b")).status_code == 404

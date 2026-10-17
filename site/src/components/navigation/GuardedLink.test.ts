@@ -59,17 +59,14 @@ it("warns on document unload while dirty and removes the handler after clearing"
   expect(cleanUnload.defaultPrevented).toBe(false);
 });
 
-it("guards browser history traversals before the form unmounts", () => {
-  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+it("retains contact edits when a browser without Navigation API goes Back and the user cancels", async () => {
+  Object.defineProperty(window, "navigation", { configurable: true, value: undefined });
+  history.pushState({ __NA: true }, "", "/contact");
+  history.pushState({ __NA: true }, "", "/contact?step=details");
   enterName("Alex");
-  const navigation = (window as Window & { navigation?: EventTarget }).navigation!;
-  const event = new Event("navigate", { cancelable: true });
-  Object.assign(event, { navigationType: "traverse", destination: { url: new URL("/pricing", window.location.href).href } });
-  navigation.dispatchEvent(event);
-  expect(event.defaultPrevented).toBe(true);
-  confirm.mockReturnValue(true);
-  const allowed = new Event("navigate", { cancelable: true });
-  Object.assign(allowed, { navigationType: "traverse", destination: { url: new URL("/pricing", window.location.href).href } });
-  navigation.dispatchEvent(allowed);
-  expect(allowed.defaultPrevented).toBe(false);
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  await act(async () => { history.back(); await new Promise(resolve => setTimeout(resolve, 80)); });
+  expect(confirm).toHaveBeenCalledOnce();
+  expect(location.search).toBe("?step=details");
+  expect((host.querySelector('input[name="name"]') as HTMLInputElement).value).toBe("Alex");
 });

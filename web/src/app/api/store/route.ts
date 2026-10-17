@@ -63,6 +63,7 @@ function deferShowcaseNeon(result: PartnerDemoResult): void {
           messages: result.store.messages,
           signals: result.store.signals,
           replaceShowcase: true,
+          versionDetection: true,
           storeUpdatedAt: result.store.pilot?.updatedAt,
           lastUploadedFileName: result.store.pilot?.lastUploadedFileName,
         });

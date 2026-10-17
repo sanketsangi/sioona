@@ -120,6 +120,16 @@ describe("POST /api/ingest", () => {
     vi.restoreAllMocks();
   });
 
+  it("publishes complete detection revisions when a demo export is re-imported", async () => {
+    for (const rows of [[LEAD_LINE], [LEAD_LINE_UPDATED]]) {
+      const response = await POST(ingestRequest(csvFile("demo-repeat.csv", rows)));
+      expect(response.status).toBe(200);
+    }
+    expect(persistDeferredIngestDualWrite).toHaveBeenLastCalledWith(expect.objectContaining({
+      tenantId: "tenant_demo", versionDetection: true,
+    }));
+  });
+
   it.each(["xlsx", "eml"])("publishes redacted %s through the existing detection pipeline", async (extension) => {
     const content = "Priya Sharma wants to open a demat account this week हिंदी ₹500";
     let file: File;

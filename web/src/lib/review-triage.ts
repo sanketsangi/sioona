@@ -27,6 +27,8 @@ export function buildSignalReviewTriage(opts: {
   typeFilter?: TypeFilter;
   actionFilter?: ActionFilter;
   file?: string | null;
+  page?: number;
+  q?: string | null;
 }): SignalReviewTriage {
   const walk = opts.walkPendingSignals ?? opts.pendingSignals;
   const isPendingReview = opts.pendingSignals.some(
@@ -42,6 +44,8 @@ export function buildSignalReviewTriage(opts: {
     typeFilter: opts.typeFilter,
     actionFilter: opts.actionFilter,
     file: opts.file,
+    page: opts.page,
+    q: opts.q,
   };
 }
 
@@ -59,6 +63,8 @@ export function correctAdvanceHref(opts: {
   typeFilter?: TypeFilter | null;
   actionFilter?: ActionFilter | null;
   file?: string | null;
+  page?: number;
+  q?: string | null;
 }): string {
   const href = afterFeedbackHref({
     wasPending: true,
@@ -70,6 +76,8 @@ export function correctAdvanceHref(opts: {
     typeFilter: opts.typeFilter,
     actionFilter: opts.actionFilter,
     file: opts.file,
+    page: opts.page,
+    q: opts.q,
   });
   return href ?? "/?view=insights&status=followup";
 }
